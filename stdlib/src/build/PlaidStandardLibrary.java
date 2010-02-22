@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010 The PlaidGroup (see AUTHORS file)
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
  * 
  * This file is part of Plaid Programming Language.
  *
@@ -31,8 +31,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameters;
 
-import plaid.compilerjava.CompilerConfiguration;
-import plaid.compilerjava.CompilerCore;
 import uk.ac.lkl.common.util.testing.LabelledParameterized;
 
 @RunWith(LabelledParameterized.class)

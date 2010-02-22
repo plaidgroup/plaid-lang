@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010 The PlaidGroup (see AUTHORS file)
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
  * 
  * This file is part of Plaid Programming Language.
  *
