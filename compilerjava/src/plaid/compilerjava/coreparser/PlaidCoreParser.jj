@@ -1,0 +1,649 @@
+/**
+ * Copyright (c) 2010 The PlaidGroup (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+/// TODO: NEED TO INSERT GPL COPYRIGHT HERE (for Barat parsing code)
+
+/* *** Specification of the parser class *** */
+
+PARSER_BEGIN(PlaidCoreParser)
+
+package plaid.compilerjava.coreparser;
+
+import java.util.*;
+import plaid.compilerjava.util.*;
+import plaid.compilerjava.AST.*;
+import plaid.runtime.PlaidConstants;
+
+public class PlaidCoreParser {
+	private CompilationUnit cu;
+	
+	public void init() {
+		cu = new CompilationUnit();
+	}
+
+  /* the string parsing code below is from Barat; it is GPL */
+  private static int chars_consumed;
+  /**
+   * Parse character literals. TODO: unicodes, etc.
+   */
+  private static final char parseChar(String data) {
+    char[] chars = data.toCharArray();
+    if(chars[0] != '\\') {
+      chars_consumed = 0;
+      return chars[0];
+    }
+
+    int i;
+    for(i=1; (i < chars.length) && Character.isDigit(chars[i]); i++);
+
+    if(i > 1) {
+      chars_consumed = i;
+      return (char)Integer.parseInt(new String(chars, 1, i-1), 8);
+    }
+
+    chars_consumed = 2;
+
+    switch(chars[1]) {
+    case 'n'  : return '\n';
+    case 'r'  : return '\r';
+    case 't'  : return '\t';
+    case 'f'  : return '\f';
+    case 'b'  : return '\b';
+    case '\\' : return '\\';
+    default: return (char)chars[1]; // TODO
+    }
+  }
+
+  /**
+   * Replace \n and the like in strings
+   */
+  private static final String parseString(String str) {
+    int          index, old_index;
+    StringBuffer buf = new StringBuffer();
+
+    try {
+      if((index = str.indexOf('\\')) != -1) { // `\' found in str
+	old_index = 0;                        // String start offset
+	  
+	// While we have something to replace
+	while((index = str.indexOf('\\', old_index)) != -1) {
+	  buf.append(str.substring(old_index, index)); // append prefix
+	  buf.append(parseChar(str.substring(index)));
+	  old_index = index + chars_consumed;
+	}
+
+	buf.append(str.substring(old_index)); // append rest of string
+	str = buf.toString();	
+      }
+    } catch(StringIndexOutOfBoundsException e) { // Should not occur
+      System.err.println(e);
+    }
+
+    return str;
+  }
+
+	//Utility functions for the parser
+  
+  private Expression getArg(ID pairID, int count) {
+  	return new Application(pairID.getToken(), new Dereference(getArg2(pairID, count),new ID("first")), new UnitLiteral());
+  }
+  
+  private Expression getArg2(ID pairID, int count) {
+  	if (count == 1) {
+  		return pairID;
+  	} else {
+  		return new Application(pairID.getToken(), new Dereference(getArg2(pairID, count-1),new ID("second")), new UnitLiteral());
+  	}
+  }
+  
+  private Expression getBodyWithPairExtractions(List<ID> argList, ID argID, int count, Expression body) {
+  	if (argList.size() > 0) {
+		return new LetBinding(argList.get(0).getToken(), argList.get(0), getArg(argID, count),
+			getBodyWithPairExtractions(argList.subList(1,argList.size()), argID, count+1, body));
+	} else {
+		return body;
+	}
+  }
+
+	private Expression foldExpListSemi(ArrayList<Expression> expList)
+  	// relies on the speccification of ArrayList 
+  	// add method must shift elements to the right
+  	{
+  		for(int i=expList.size()-2; i>=0; i--) { //ignore last
+  			Expression exp = expList.get(i);
+  	   		if (exp instanceof LetBinding) {
+  	   			((LetBinding)exp).setBody(expList.get(i+1));
+  	   		} else {
+  	   			Expression newExp = new LetBinding(exp.getToken(), IdGen.getId(), exp, expList.get(i+1));
+  	   			expList.remove(i);
+  	   			expList.add(i,newExp);
+  	   		}
+  		}
+  		return expList.get(0);
+  	}
+  	
+  	private Expression foldCurriedArgs(Expression fn, List<Expression> curriedArgs) {
+  		Expression application = fn;
+  	
+  		for (Expression arg : curriedArgs) {
+  			application = new Application(application.getToken(), application, arg);
+  		}
+  	
+  		return application;
+  	}
+  	
+  	private Expression foldToDeref(Expression target, List<Token> dotName) throws ParseException {
+  		
+  		Expression deref = target;
+  		
+  		for (Token id : dotName) deref = new Dereference(id, deref, new ID(id.image));
+  		
+  		return deref;
+  	}
+  	
+  	private List<String> tokenToStringList(List<Token> tokenList) {
+  		List<String> stringList = new ArrayList<String>();
+  		
+  		for (Token t : tokenList) stringList.add(t.image);
+  		
+  		return stringList;
+  			
+  	}
+
+}
+PARSER_END(PlaidCoreParser)
+
+/* *** Token specification *** */
+
+/* Skip whitespace */
+SKIP : { " " | "\t" | "\n" | "\r" }
+
+SKIP :
+{
+  "/*" : WithinComment
+}
+
+<WithinComment> SKIP :
+{
+  "*/" : DEFAULT
+}
+
+<WithinComment> MORE :
+{
+  <~[]>
+}
+
+// Single-line comments
+SPECIAL_TOKEN :
+{
+  <SINGLE_LINE_COMMENT: "//" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>
+}
+
+
+
+
+/* Reserved Words */
+TOKEN /*[IGNORE_CASE]*/: {
+		<STATE: "state">
+	|	<PERM: "perm">
+	|	<CONSERVED: "conserved">
+	|	<UNIQUE: "unique">
+	|	<SHARED: "shared">
+	|	<IMMUTABLE: "immutable">
+	|	<NONE: "none">
+	|	<CONST: "const">
+	|	<PRIVATE: "private">
+	|	<ABSTRACT: "abstract">
+	|	<FN: "fn">
+	|	<NEW: "new">
+	|	<UNIT: "unit">
+	|	<PUBLIC: "public">
+	|	<PROTECTED: "protected">
+	|	<FINAL: "final">
+	|	<PACKAGE: "package">
+	|	<COMPRISES: "comprises">
+	|	<EXTENDS: "extends">
+	|	<STATIC: "static">
+	|	<MATCH: "match">
+	|	<CASE: "case">
+	|	<DEFAULT_CASE: "default">
+	|	<IMPORT: "import">
+	|   <WITH: "with" >
+	| 	<VAR: "var" >
+	|   <VAL: "val" >
+	|   <METHOD: "method" >
+	|	< STRING_LITERAL:
+	    "\""
+	    (   (~["\"","\\","\n","\r"])
+	      | ("\\"
+	          ( ["n","t","b","r","f","\\","'","\""]
+	          | ["0"-"7"] ( ["0"-"7"] )?
+	          | ["0"-"3"] ["0"-"7"] ["0"-"7"]
+	          )
+	        )
+	    )*
+	    	"\""
+	    >
+	|	<INTEGER: ("-")?["0"-"9"] (["0"-"9"])*>
+	|	<DECIMAL: (["0"-"9"])+ "." (["0"-"9"])+>
+}
+
+/* Operators and Separators */
+TOKEN: {
+	<LPAREN: "(">
+  | <RPAREN: ")">
+  | <LBRACE: "{">
+  | <RBRACE: "}">
+  | <LBRACK: "[">
+  | <RBRACK: "]">
+  | <LT: "<">
+  | <GT: ">">
+  | <RARROW: "->">
+  |	<LARROW: "<-">
+  |	<DARROW: "=>">
+  | <MARROW: ">>">
+  | <EQUALS: "=">
+  | <SUBTYPE: "<:">
+  | <AT: "@">
+  | <BAR: "|">
+  | <DOT: ".">
+  |	<COMMA: ",">
+  | <COLON: ":">
+  | <SEMICOLON: ";">
+  | <STAR: "*">
+  | <PLUS: "+">
+}
+
+/* Identifiers */
+TOKEN: {
+  < ID: (["A"-"Z", "a"-"z"])(["A"-"Z", "a"-"z", "0"-"9", "_"])* >
+}
+
+
+CompilationUnit DeclsStart() :
+{
+	Decl d;
+	List<Token> p;
+	Imports i = new Imports();
+}
+{
+	p = Package() { cu.setPackageName(tokenToStringList(p)); }
+	(i = imports() )? { cu.setImports(i); }
+	( d = TopDecl() { cu.addDecl(d); } )+
+	<EOF>
+	{ return cu; }
+}
+
+List<Token> Package() :
+{
+	List<Token > dn;
+}
+{
+	<PACKAGE> dn = DotName() <SEMICOLON> { return dn; }
+}
+
+Imports imports() :
+{
+	List<Token> qi;
+	List<QualifiedID> imports = new ArrayList<QualifiedID>();
+}
+{
+	(<IMPORT> qi = DotName() { imports.add(new QualifiedID(tokenToStringList(qi))); } <SEMICOLON>)+
+	{ return new Imports(imports); }
+}
+
+Decl TopDecl() :
+{
+  Token t;
+  State stateDef;
+  Decl d;
+}
+{
+  LOOKAHEAD(2) //<ID> ( "="/";" means field | "(" means method)
+  	d = DeclField()   { return d;}
+  |	d = DeclMethod()   { return d;}
+  |	<STATE> t = <ID> (
+    	< EQUALS > stateDef = State() 
+  	 |	stateDef = DeclList()
+	 ) {return new StateDecl(new ID(t.image), stateDef); }
+}
+
+Decl Decl() :
+{
+  Token t;
+  State stateDef;
+  Decl d;
+}
+{ 
+    d = DeclField()   { return d;}
+  | d = DeclMethod()  { return d;}
+  | <STATE> t = <ID> <EQUALS> stateDef = State() {return new StateDecl(t, new ID(t.image), stateDef); }
+  
+}
+
+Decl DeclField() :
+{
+	Token t;
+	Expression e;
+	FieldDecl d;
+	ID name;
+}
+{
+	 [< VAR > | <VAL> ] t = <ID> { name = new ID(t, t.image); }
+	(  
+		<EQUALS> e = Exp() <SEMICOLON> { d = new FieldDecl(name,e);}
+	|	< SEMICOLON > {d = new FieldDecl(name, new UnitLiteral()); }
+	)
+	{return d;}
+}
+
+Decl DeclMethod() :
+{
+  Token t;
+  ID name, argID = null; //may not be any arguments
+  Expression e = new UnitLiteral(); //default method body is unit
+  List<ID> argList = new ArrayList<ID>();
+  MethodDecl d;
+}
+{
+	<METHOD>
+	t = <ID> { name = new ID(t.image); }
+	<LPAREN>
+	[argList = DeclArgs()]
+	<RPAREN> 
+    e = BlockExpression(false)  
+    {
+	  	if (argList.size() == 1) argID = argList.get(0);
+	  	else if(argList.size() > 1) {
+	  		argID = new ID("pA1R"+PlaidConstants.ID_SUFFIX);
+	  		e = getBodyWithPairExtractions(argList, argID, 1, e);
+	  	}
+    	d = new MethodDecl(name.getName(), e, argID);
+    }
+	{return d;}
+}
+
+List<ID > DeclArgs() :
+{
+  Token arg;
+  List<ID> args = new ArrayList<ID>();
+}
+{
+	arg = <ID> {args.add(new ID(arg.image));} ( <COMMA> arg = <ID> { args.add(new ID(arg.image));} )* 
+	{return args;}
+}
+
+State State() :
+{
+  State s, with, init;
+  List<Token> dotName;
+  
+}
+{
+	(
+	  s = DeclList()
+	| dotName = DotName() { s = new QI(tokenToStringList(dotName));} [ init = DeclList() { s = new With(s, init); } ]
+	)
+	[ <WITH> with = State() {s = new With(s,with); } ]
+	{
+ 	 return s;
+	}
+
+}
+
+DeclList DeclList() :
+{
+	List<Decl> declList = new ArrayList<Decl>();
+	Decl d;
+}
+{ 
+< LBRACE > (d = Decl() { declList.add(d);})* < RBRACE > { return new DeclList(declList);}
+}
+
+List<Token> DotName() :
+{
+	Token t;
+	List<Token> dn = new ArrayList<Token>();
+}
+{
+	t = <ID> { dn.add(t); } ( <DOT> (t = <ID> | t = <STAR> ) { dn.add(t); } )*
+	{ return dn; }
+}
+
+Expression BlockExpression(boolean isExp) :
+{
+	Expression e = new UnitLiteral();
+}
+{
+	<LBRACE> [ e = ExpListSemi() ] <RBRACE> 
+	{ if (isExp) return new Lambda(e.getToken(),IdGen.getId(),e);
+	  else return e;
+	}
+}
+
+Expression ExpListSemi() :
+{
+  ArrayList<Expression> expList = new ArrayList<Expression>();
+  Expression e;
+}
+{ 
+  (e = Exp() <SEMICOLON> {expList.add(e);})+
+  {return foldExpListSemi(expList);}
+}
+
+Expression Exp() :
+{
+  Expression e;
+  List<Case> cl;
+  Token t;
+}
+{
+		e = Function() { return e;}
+	|   e = LocalVarDecl() { return e; }  //var/val required for local variable declaration
+	|	e = InfixExp() [ e = ExpSuffix(e) ] { return e;}
+	| 	t = < MATCH > <LPAREN> e = Exp() <RPAREN> <LBRACE> cl = CaseList() <RBRACE> { return new Match(t, e, cl); }
+}
+  
+Expression LocalVarDecl() :
+{
+	Token t;
+	Expression e = new UnitLiteral(); // default to unit if no initial value
+	FieldDecl d;
+	ID name;
+}
+{
+	(< VAR > | <VAL> ) t = <ID> { name = new ID(t, t.image); } [ <EQUALS> e = Exp() ]
+	{
+		return new LetBinding(t, name, e, new UnitLiteral());
+	}
+}
+  
+List<Case> CaseList() :
+{
+	Token t;
+	ID x;
+	QI qi;
+	Expression body;
+	List<Case> cl = new ArrayList<Case>();
+	List<Token> dotName;
+}
+{
+	(LOOKAHEAD(2) <CASE> <LPAREN> t = <ID> { x = new ID(t, t.image); } <COLON> 
+		dotName = DotName() { qi = new QI(tokenToStringList(dotName)); } <RPAREN> 
+		body = BlockExpression(false) { cl.add(new Case(t, qi, x, body)); })*
+		[<CASE> t = <DEFAULT_CASE> body = BlockExpression(false) { cl.add(new Case(t, null, null, body)); }]
+	{ return cl; }
+	
+}
+
+Expression InfixExp() :
+{
+	Expression e, arg;
+	ID op;
+}
+{
+	e = SimpleExp() 
+	[op = IdOrOperator() arg = InfixExp() 
+		{ e = new Application(op.getToken(), new Dereference(op.getToken(), e, op), arg); }
+	]
+	{return e;}
+}
+
+ID IdOrOperator() :
+{
+	Token t;
+	ID operator;
+}
+{
+		t = <ID> { return new ID(t,t.image); }
+  	| 	operator = Operator() {return operator;}
+}
+
+Expression SimpleExp() :
+{
+	Token t;
+	Expression e, arg;
+	State s;
+	List<Token> dotName;
+	List<Expression> curriedArgs = new ArrayList<Expression>();
+}
+{	
+		e = BlockExpression(true) {return e;}
+	| 	t = <NEW> s = State() { return new NewInstance(t, s); } 
+	|	e = Literal() { return e; }
+	|	(
+			t = <ID> { e = new ID(t,t.image); }
+		|	t = <LPAREN> e = ExpList() <RPAREN> 
+		)
+		[ <DOT> dotName = DotName() { e = foldToDeref(e,dotName); } ] //optional (.<ID>)+ following the simpleExp
+		(arg = ArgExp() {curriedArgs.add(arg); })*
+		{return foldCurriedArgs(e,curriedArgs);} // will return e if no arguments in curriedArgs
+	
+}
+
+Expression ArgExp() :
+{
+	Expression e = new UnitLiteral();
+}
+{
+		e = BlockExpression(true) { return e; }
+	|	<LPAREN> [e = ExpList()] <RPAREN> { return e; }
+}
+
+Expression ExpList() :
+{
+  Expression e, nextExp;
+  List<Expression> expList = new ArrayList<Expression>();
+}
+{
+	e = Exp() { expList.add(e);} (< COMMA > nextExp = Exp() {expList.add(nextExp); })*
+	{
+	  if (expList.size() == 1) return e;
+	  else { //translate to pairs:  (a,b,...,n) => (a,(b,(...(n,unit)...)))
+	    int size = expList.size();
+		Expression second = new UnitLiteral();
+		QI pair = new QI("plaid.lang.Pair");
+		List<Decl> pairFields;
+		FieldDecl fst, snd;
+		With pairWith;
+		for (int i = size - 1; i >= 0; i--) {
+		  fst = new FieldDecl(new ID("fst"),expList.get(i));
+		  snd = new FieldDecl(new ID("snd"),second);
+
+		  pairFields = new ArrayList<Decl>();
+		  pairFields.add(fst);
+		  pairFields.add(snd);
+
+		  pairWith = new With(pair,new DeclList(pairFields));
+
+		  second = new NewInstance(expList.get(i).getToken(), pairWith);
+
+		}
+		return second;  //TODO: write utility function for this like for ExpListSemi
+	  }
+	    
+	}
+}
+
+Expression ExpSuffix(Expression prefix) :
+{
+  Token t;
+  Expression e, assignTo, target = null;
+  State s;
+  ID field = null;
+  Dereference location;
+}
+{
+		t = < LARROW > s = State() {return new ChangeState(t, prefix, s);}
+	| 	t = < EQUALS > assignTo = Exp()
+			{ if (prefix instanceof ID) {
+			    target = null;  //field/local variable in this scope
+			    field = (ID)prefix;
+			  }
+			  else if (prefix instanceof Dereference) {
+				location =  (Dereference) prefix;
+				target = location.getLeft();
+				field = location.getRight();
+			  } else throw new ParseException("Cannot assign to something other than ID or Dereference"); //TODO - better way to handle this?
+			  return new Assignment(t, target, field, assignTo);
+			}
+}
+
+ID Operator() :
+{
+  Token t;
+  ID operator;
+}
+{
+	t = "+" { return new ID(t,"plus");}
+  | t = "-" { return new ID(t,"minus");}
+  | t = "*" { return new ID(t,"multiply");}
+  | t = "/" { return new ID(t,"divide");}
+  | t = "%" { return new ID(t,"modulo");}
+  | t = "==" { return new ID(t,"equalTo");}
+  | t = "<" { return new ID(t,"lessThan");}
+  | t = ">" { return new ID(t,"greaterThan");}
+  | t = "<=" { return new ID(t,"lessThanOrEqualTo");}
+  | t = ">=" { return new ID(t,"greaterThanOrEqualTo");}
+
+}
+
+Expression Function() :
+{
+	Token t;
+	Expression body;
+	ID var;
+}
+{
+	//Lookahead problem because Exp() could be a blockExpression, but always want it to match BlockExpression() here because it shouldn't be treated as a lambda
+	<FN> t = <ID> {var = new ID(t, t.image);} <DARROW > ( body = BlockExpression(false) | body = Exp() ) 
+
+	{return new Lambda(t, var,body);}
+}
+
+Expression Literal() :
+{
+	Token t;
+}
+{
+
+		t = <STRING_LITERAL> { return new StringLiteral(t, parseString(t.image.substring(1,t.image.length()-1))); }
+	| 	t = <INTEGER> { return new IntLiteral(t, Integer.valueOf(t.image)); }
+	|	t = < UNIT > { return new UnitLiteral(t);}
+}
