@@ -31,6 +31,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameters;
 
+import plaid.compilerjava.CompilerConfiguration;
+import plaid.compilerjava.CompilerCore;
 import uk.ac.lkl.common.util.testing.LabelledParameterized;
 
 @RunWith(LabelledParameterized.class)
