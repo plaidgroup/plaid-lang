@@ -50,7 +50,26 @@ public class CodeGen {
 	public static final String newPlaidState = utilClass + ".newState()";
 	public static final String thisVar = "this" + PlaidConstants.ID_SUFFIX;
 	public static final String theScope = "the$c0pe";
-	
+	public static final String copyright = 
+		"/**" + System.getProperty("line.separator") + 
+		" * Copyright (c) 2010 The Plaid Group (see AUTHORS file)" + System.getProperty("line.separator") +
+		" *" + System.getProperty("line.separator") +
+		" * This file is part of Plaid Programming Language." + System.getProperty("line.separator") +
+		" *" + System.getProperty("line.separator") +
+		" * Plaid Programming Language is free software: you can redistribute it and/or modify" + System.getProperty("line.separator") +
+		" * it under the terms of the GNU General Public License as published by" + System.getProperty("line.separator") +
+		" * the Free Software Foundation, either version 3 of the License, or" + System.getProperty("line.separator") +
+		" * (at your option) any later version." + System.getProperty("line.separator") +
+		" *" + System.getProperty("line.separator") +
+		" *  Plaid Programming Language is distributed in the hope that it will be useful," + System.getProperty("line.separator") +
+		" *  but WITHOUT ANY WARRANTY; without even the implied warranty of" + System.getProperty("line.separator") +
+		" *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the" + System.getProperty("line.separator") +
+		" *  GNU General Public License for more details." + System.getProperty("line.separator") +
+		" *" + System.getProperty("line.separator") +
+		" *  You should have received a copy of the GNU General Public License " + System.getProperty("line.separator") +
+		" *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>." + System.getProperty("line.separator") +
+		" */"  + System.getProperty("line.separator") + System.getProperty("line.separator");
+
 	//types for the runtime
 	public static final String plaidScopeType = runtimePackage + ".PlaidScope";
 	public static final String plaidObjectType = runtimePackage + ".PlaidObject";
@@ -63,6 +82,9 @@ public class CodeGen {
 	
 	public CodeGen(CompilerConfiguration cc) {
 		this.cc = cc;
+		if ( cc.addCopyrightHeader() ) {
+			output.append(copyright);
+		}
 	}
 
 	

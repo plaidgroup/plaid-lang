@@ -19,16 +19,16 @@
  */
 
 package plaid.lang;
-@plaid.runtime.annotations.RepresentsState(name = "False", toplevel = true)
-public class False{
-	public static java.util.List<plaid.runtime.utils.Import> vAr1$plaid;
+@plaid.runtime.annotations.RepresentsState(name = "None", toplevel = true)
+public class None{
+	public static java.util.List<plaid.runtime.utils.Import> vAr76$plaid;
 	static {
-		vAr1$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr76$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr1$plaid);
-	@plaid.runtime.annotations.RepresentsState(name = "False", toplevel = false)
-	public static plaid.runtime.PlaidObject False;
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr76$plaid);
+	@plaid.runtime.annotations.RepresentsState(name = "None", toplevel = false)
+	public static plaid.runtime.PlaidObject None;
 	static {
-		False = plaid.runtime.Util.newState();
+		None = plaid.runtime.Util.newState();
 	}
 }

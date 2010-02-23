@@ -32,6 +32,7 @@ public class CompilerConfiguration {
 	private boolean invokeCompiler = true;
 	private boolean keepTemporaryFiles = false;
 	private boolean verbose = false;
+	private boolean copyright = false;
 	private CompilationUnit cu = null;
 	
 	public CompilerConfiguration() {}
@@ -43,6 +44,7 @@ public class CompilerConfiguration {
 		this.invokeCompiler = other.invokeCompiler;
 		this.keepTemporaryFiles = other.keepTemporaryFiles;
 		this.verbose = other.verbose;
+		this.copyright = other.copyright;
 		this.cu = cu;
 	}
 
@@ -98,6 +100,12 @@ public class CompilerConfiguration {
 		this.verbose = verbose;
 	}
 	
+	public void setCopyrightHeader(boolean value) {
+		copyright = value;
+	}
 	
+	public boolean addCopyrightHeader() {
+		return copyright;
+	}
 	
 }
