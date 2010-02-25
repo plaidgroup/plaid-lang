@@ -32,7 +32,7 @@ import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
 
 public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMethod{
-	public static final String NAME = "create";
+	public static final String NAME = "new";
 	protected Class<?> cl;
 	
 	public PlaidJavaConstructorMap(Class<?> cl) {
