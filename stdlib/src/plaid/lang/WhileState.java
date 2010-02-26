@@ -81,8 +81,6 @@ public class WhileState{
 					vAr67$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("True", vAr66$plaid);
 					vAr64$plaid = plaid.runtime.Util.toPlaidState(vAr67$plaid);
 					if (vAr63$plaid.getStates().contains(vAr64$plaid)) {
-						final plaid.runtime.PlaidObject t;
-						t = vAr63$plaid;
 						{
 							final plaid.runtime.PlaidObject newResult;
 							plaid.runtime.PlaidObject vAr68$plaid;
@@ -107,8 +105,6 @@ public class WhileState{
 						vAr75$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("False", vAr74$plaid);
 						vAr72$plaid = plaid.runtime.Util.toPlaidState(vAr75$plaid);
 						if (vAr63$plaid.getStates().contains(vAr72$plaid)) {
-							final plaid.runtime.PlaidObject f;
-							f = vAr63$plaid;
 							vAr60$plaid = result;
 						}
 						else {
