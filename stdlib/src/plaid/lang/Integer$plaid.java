@@ -40,7 +40,7 @@ public class Integer$plaid {
 	
 	static {
 		
-		foo.addMember("plus", Util.protoMethod(new Delegate() {
+		foo.addMember("plus$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -51,7 +51,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("minus", Util.protoMethod(new Delegate() {
+		foo.addMember("sub$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -62,7 +62,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("multiply", Util.protoMethod(new Delegate() {
+		foo.addMember("mult$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -73,7 +73,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("divide", Util.protoMethod(new Delegate() {
+		foo.addMember("div$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -84,7 +84,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("modulo", Util.protoMethod(new Delegate() {
+		foo.addMember("mod$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -95,7 +95,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("equalTo", Util.protoMethod(new Delegate() {
+		foo.addMember("eqeq$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -107,7 +107,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("lessThan", Util.protoMethod(new Delegate() {
+		foo.addMember("lt$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -119,7 +119,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("greaterThan", Util.protoMethod(new Delegate() {
+		foo.addMember("gt$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -130,7 +130,7 @@ public class Integer$plaid {
 				else return Util.falseObject();
 			}
 		}));
-		foo.addMember("lessThanOrEqualTo", Util.protoMethod(new Delegate() {
+		foo.addMember("lteq$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -142,7 +142,7 @@ public class Integer$plaid {
 			}
 		}));
 
-		foo.addMember("greaterThanOrEqualTo", Util.protoMethod(new Delegate() {
+		foo.addMember("gteq$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
