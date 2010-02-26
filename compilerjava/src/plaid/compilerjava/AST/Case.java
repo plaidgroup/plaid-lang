@@ -94,11 +94,13 @@ public class Case {
 		
 		out.ifCondition(CodeGen.matchesState(toMatch.getName(),potentialMatch.getName()));  //if (toMatch.hasState(potentialMatch))
 		out.addBlock(); // {
-		out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //PlaidObject x;
-		out.assignToID(x.getName(),toMatch.getName()); // x = toMatch
-		localVars.add(x);
+		if (x != null) { //if no bound variable
+			out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //PlaidObject x;
+			out.assignToID(x.getName(),toMatch.getName()); // x = toMatch
+			localVars.add(x);
+		}
 		e.codegen(out, y, localVars);
-		localVars.remove(x);
+		if (x != null) localVars.remove(x);
 		out.closeBlock(); // }
 	}
 }
