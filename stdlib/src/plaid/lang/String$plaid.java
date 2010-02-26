@@ -39,7 +39,7 @@ public class String$plaid {
 	public static PlaidObject foo = Util.newObject();
 	
 	static {		
-		foo.addMember("plus", Util.protoMethod(new Delegate() {
+		foo.addMember("plus$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
