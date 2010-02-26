@@ -43,8 +43,6 @@ public class ifElse{
 				vAr23$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("True", vAr22$plaid);
 				vAr20$plaid = plaid.runtime.Util.toPlaidState(vAr23$plaid);
 				if (vAr19$plaid.getStates().contains(vAr20$plaid)) {
-					final plaid.runtime.PlaidObject x;
-					x = vAr19$plaid;
 					vAr18$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 						public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject trueClause) throws plaid.runtime.PlaidException {
 							plaid.runtime.PlaidObject vAr24$plaid;
@@ -75,8 +73,6 @@ public class ifElse{
 					vAr31$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("False", vAr30$plaid);
 					vAr28$plaid = plaid.runtime.Util.toPlaidState(vAr31$plaid);
 					if (vAr19$plaid.getStates().contains(vAr28$plaid)) {
-						final plaid.runtime.PlaidObject x;
-						x = vAr19$plaid;
 						vAr18$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject trueClause) throws plaid.runtime.PlaidException {
 								plaid.runtime.PlaidObject vAr32$plaid;
