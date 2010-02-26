@@ -137,13 +137,14 @@ public class MethodDecl implements Decl {
 
 	@Override
 	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+		String newName = CodeGen.convertOpNames(name);
 		out.setLocation(token);
 		ID freshMethName = IdGen.getId();
 		ID freshID = IdGen.getId();
 		if (arg == null) arg = IdGen.getId();
 		localVars.add(arg);
 		
-		out.methodAnnotation(name, false); //@representsMethod...
+		out.methodAnnotation(newName, false); //@representsMethod...
 		out.declareVar(CodeGen.plaidObjectType,freshMethName.getName());
 		out.assignToProtoMethod(freshMethName.getName(),arg.getName());  //freshMethName = new protofield( ... { {
 		
@@ -155,7 +156,7 @@ public class MethodDecl implements Decl {
 		out.ret(freshID.getName() );  //return freshID;
 		out.closeAnonymousDeclaration();  //}});
 		
-		out.addMember(y.getName(), name, freshMethName.getName());  //y.addMember(name,freshMethName)
+		out.addMember(y.getName(), newName, freshMethName.getName());  //y.addMember(name,freshMethName)
 		
 	}
 }

@@ -46,15 +46,16 @@ public class ID implements Expression{
 	public void codegen(CodeGen out, ID y, List<ID> localVars) {
 		boolean isLocal = false; 
 		out.setLocation(token);
+		String newName = CodeGen.convertOpNames(name);
 		for (ID var : localVars) {
-			if (var.getName().equals(name)) { 
-				out.assignToID(y.getName(),name);  // y = name
+			if (var.getName().equals(newName)) { 
+				out.assignToID(y.getName(),newName);  // y = name
 				isLocal = true;
 				break;
 			}
 		}
 		if (!isLocal) {
-			out.assignToLookup(y.getName(), name, CodeGen.currentScope);  // y = lookup(name,currentScope);
+			out.assignToLookup(y.getName(), newName, CodeGen.currentScope);  // y = lookup(name,currentScope);
 		}
 			
 	}

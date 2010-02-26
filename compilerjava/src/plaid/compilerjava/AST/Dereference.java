@@ -83,7 +83,7 @@ public class Dereference implements Expression {
 		//code for the lookup
 		out.setLocation(right.getToken());
 		out.setLocation(y.getToken());
-		out.assignToLookup(y.getName(), right.getName(), x.getName());
+		out.assignToLookup(y.getName(), CodeGen.convertOpNames(right.getName()), x.getName());
 	}
 
 }

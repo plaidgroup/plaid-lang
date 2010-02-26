@@ -20,6 +20,7 @@
 package plaid.compilerjava.util;
 
 import java.io.IOException;
+import java.util.*;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -40,6 +41,38 @@ public class CodeGen {
 	 * various constant strings used below
 	 *----------------------------
 	 */
+	public static final Map<String,String> opNames = new HashMap<String,String>(15);
+	static {
+		opNames.put("=","eq");
+		opNames.put("<","lt");
+		opNames.put(">","gt");
+		opNames.put("!","bang");
+		opNames.put("~","tilde");
+		opNames.put("?","quest");
+		opNames.put(":","colon");
+		opNames.put("&","amp");
+		opNames.put("|","pipe");
+		opNames.put("+","plus");
+		opNames.put("-","sub");
+		opNames.put("*","mult");
+		opNames.put("/","div");
+		opNames.put("^","carat");
+		opNames.put("%","mod");
+	}
+	
+	public static final String convertOpNames(String oldName) {
+		String newName = "";
+		if (CodeGen.opNames.containsKey(oldName.substring(0, 1))) {
+			for(char op : oldName.toCharArray()) {
+				newName += CodeGen.opNames.get(Character.toString(op));
+			}
+			newName += "$plaid";
+			return newName;
+		} else {
+			return oldName;
+		}
+	}
+	
 	public static final String runtimePackage = "plaid.runtime";
 	public static final String cl = runtimePackage + ".PlaidRuntime.getRuntime().getClassLoader()";
 	public static final String rt = runtimePackage + ".PlaidRuntime.getRuntime()";
