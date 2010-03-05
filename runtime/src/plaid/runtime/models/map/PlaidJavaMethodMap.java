@@ -77,7 +77,7 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 							for (int i = 0; i < mpTypes.length; i++) {
 								Class<?> mpType = Util.convertPrimitiveTypes(mpTypes[i]);
 								Class<?> paramType = Util.convertPrimitiveTypes(paramTypes[i]);
-								if ( paramType.isAssignableFrom(mpType) == false ) {
+								if ( mpType.isAssignableFrom(paramType) == false ) {
 									match = false;
 								}
 							}						
