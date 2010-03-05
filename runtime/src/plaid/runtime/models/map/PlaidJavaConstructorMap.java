@@ -71,7 +71,7 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 						for (int i = 0; i < mpTypes.length; i++) {
 							Class<?> mpType = Util.convertPrimitiveTypes(mpTypes[i]);
 							Class<?> paramType = Util.convertPrimitiveTypes(paramTypes[i]);
-							if ( paramType.isAssignableFrom(mpType) == false ) {
+							if ( mpType.isAssignableFrom(paramType) == false ) {
 								match = false;
 							}
 						}						
@@ -87,6 +87,9 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 			}
 			
 			Object result;
+			if (handle == null) {
+				throw new PlaidIllegalAccessException("Cannot find matching constructor for " + args + " in class name "+ cl.getCanonicalName());
+			}
 			result = handle.newInstance(params);
 			if ( result == null ) {
 				return  PlaidRuntime.getRuntime().getClassLoader().unit();
