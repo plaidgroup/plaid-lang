@@ -39,15 +39,8 @@ public class Case {
 		this.qi = qi;
 		this.x = x;
 		this.e = e;
+		hasBoundVar = true;
 		isDefault = false;
-	}
-	
-	public Case(Token t, Expression e) {
-		super();
-		this.token = t;
-		this.e = e;
-		hasBoundVar = false;
-		isDefault = true;
 	}
 	
 	public Case(Token t, QI qi, Expression e) {
@@ -57,6 +50,14 @@ public class Case {
 		this.e = e;
 		hasBoundVar = false;
 		isDefault = false;
+	}
+	
+	public Case(Token t, Expression e) {
+		super();
+		this.token = t;
+		this.e = e;
+		hasBoundVar = false;
+		isDefault = true;
 	}
 	
 	public QI getQi() {
