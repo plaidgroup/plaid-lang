@@ -49,5 +49,14 @@ public class String$plaid {
 				return Util.string(x);
 			}
 		}));
+		foo.addMember("substring$plaid", Util.protoMethod(new Delegate() {
+			@Override
+			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
+				@SuppressWarnings("unused")
+				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				String x = ((String)((PlaidJavaObject)thisVar).getJavaObject()).substring(((Integer)((PlaidJavaObject)args).getJavaObject()));
+				return Util.string(x);
+			}
+		}));
 	}
 }
