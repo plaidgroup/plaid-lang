@@ -30,7 +30,7 @@ import plaid.compilerjava.util.QualifiedID;
 public class CompilationUnit {
 	private List<Decl> decls;
 	private List<String> packageName;
-	private Imports imports;
+	private ImportList imports;
 	private File sourceFile = new File(">>UNKNOWN<<");
 
 	public CompilationUnit() {
@@ -49,7 +49,7 @@ public class CompilationUnit {
 		this.packageName = name;
 	}
 	
-	public void setImports(Imports imports) {
+	public void setImports(ImportList imports) {
 		this.imports = imports;
 	}
 	
@@ -57,7 +57,7 @@ public class CompilationUnit {
 		return packageName; 
 	}
 	
-	public Imports getImports() {
+	public ImportList getImports() {
 		return imports;
 	}
 	

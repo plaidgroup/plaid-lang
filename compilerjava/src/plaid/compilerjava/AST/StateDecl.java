@@ -81,7 +81,7 @@ public class StateDecl implements Decl {
 	}
 	
 	@Override
-	public File codegen(QualifiedID qid, Imports imports, CompilerConfiguration cc) {
+	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
 		CodeGen out = new CodeGen(cc);	
 		ID freshImports = IdGen.getId();
 		
@@ -90,7 +90,7 @@ public class StateDecl implements Decl {
 		
 		//annotation and class definition
 		out.stateAnnotation(name.getName(), true);
-		out.declarePublicClass(name.getName()); out.addBlock();  // public class f {
+		out.declarePublicClass(name.getName()); out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports
 		out.declarePublicStaticVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
@@ -100,7 +100,7 @@ public class StateDecl implements Decl {
 		out.stateAnnotation(name.getName(), false);
 		out.declarePublicStaticVar(CodeGen.plaidObjectType, name.getName());
 		
-		out.addStaticBlock(); //static {
+		out.openStaticBlock(); //static {
 		stateDef.codegen(out, name, new ArrayList<ID>());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
 		out.closeBlock(); // } (for static block)
 		
@@ -116,7 +116,7 @@ public class StateDecl implements Decl {
 		
 		ID fresh = IdGen.getId();
 		out.stateAnnotation(name.getName(), false);
-		out.declareVar(CodeGen.plaidObjectType, fresh.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
 		stateDef.codegen(out, fresh, localVars);
 		out.addMember(y.getName(), name.getName(), fresh.getName()); //y.addMember(s,fresh)
 	}

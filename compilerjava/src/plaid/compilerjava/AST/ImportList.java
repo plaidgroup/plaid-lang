@@ -26,27 +26,27 @@ import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.QualifiedID;
 
-public class Imports {
+public class ImportList {
 
 	private List<QualifiedID> imports;
 	private Token token;
 	
-	public Imports(Token t, List<QualifiedID> imports) {
+	public ImportList(Token t, List<QualifiedID> imports) {
 		super();
 		token = t;
 		this.imports = imports;
 	}
 	
-	public Imports(List<QualifiedID> imports) {
+	public ImportList(List<QualifiedID> imports) {
 		super();
 		this.imports = imports;
 	}
 
-	public Imports() {
+	public ImportList() {
 		imports = new ArrayList<QualifiedID>();
 	}
 	
-	public Imports(Token t) {
+	public ImportList(Token t) {
 		imports = new ArrayList<QualifiedID>();
 		token = t;
 	}
@@ -57,7 +57,7 @@ public class Imports {
 	
 	public void codegen(CodeGen out, ID y) {
 		
-		out.addStaticBlock();  // static {
+		out.openStaticBlock();  // static {
 		out.assignToNewJavaObject(y.getName(),"java.util.ArrayList<plaid.runtime.utils.Import>"); //y = new java..();
 		
 		for (QualifiedID qi : imports) {

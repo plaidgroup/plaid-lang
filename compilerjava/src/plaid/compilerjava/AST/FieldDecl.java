@@ -85,7 +85,7 @@ public class FieldDecl implements Decl{
 
 	//Top Level Field Decl
 	@Override
-	public File codegen(QualifiedID qid, Imports imports, CompilerConfiguration cc) {
+	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
 		CodeGen out = new CodeGen(cc);	
 		List<ID> localVars = new ArrayList<ID>();
 		ID freshImports = IdGen.getId();
@@ -95,7 +95,7 @@ public class FieldDecl implements Decl{
 		
 		//annotation and class definition
 		out.fieldAnnotation(f.getName(), true);
-		out.declarePublicClass(f.getName()); out.addBlock();  // public class f {
+		out.declarePublicClass(f.getName()); out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports
 		out.declarePublicStaticVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
@@ -105,7 +105,7 @@ public class FieldDecl implements Decl{
 		//generate code to represent the field as a java field
 		out.fieldAnnotation(f.getName(), false);
 		out.declarePublicStaticVar(CodeGen.plaidObjectType, f.getName());
-		out.addStaticBlock(); //static {
+		out.openStaticBlock(); //static {
 		e.codegen(out, f, localVars);  //initialization code
 		out.closeBlock(); out.closeBlock(); //}}
 		

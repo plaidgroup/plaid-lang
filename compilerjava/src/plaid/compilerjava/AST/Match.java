@@ -71,7 +71,7 @@ public class Match implements Expression {
 		
 		for (Case c : caseList) {
 			c.codegen(out, y, toMatch, localVars);
-			out.elseCase(); out.addBlock();  // else {
+			out.elseCase(); out.openBlock();  // else {
 		}
 		
 		out.append("throw new RuntimeException(\"Pattern match exhausted.\");");

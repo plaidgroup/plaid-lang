@@ -92,7 +92,7 @@ public class MethodDecl implements Decl {
 		return token;
 	}
 	
-	public File codegen(QualifiedID qid, Imports imports, CompilerConfiguration cc) {
+	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
 		
 		ID freshReturn = IdGen.getId();
 		ID freshImports = IdGen.getId();
@@ -105,7 +105,7 @@ public class MethodDecl implements Decl {
 		
 		//annotation and class definition
 		out.methodAnnotation(name, true);
-		out.declarePublicClass(name); out.addBlock(); //public class name {
+		out.declarePublicClass(name); out.openBlock(); //public class name {
 
 		//generate code to create the package scope with imports
 		out.declarePublicStaticVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
@@ -121,7 +121,7 @@ public class MethodDecl implements Decl {
 		
 		out.methodAnnotation(name, false);
 		out.declarePublicStaticVar(CodeGen.plaidMethodType, thisMethod.getName());
-		out.addStaticBlock(); // static {
+		out.openStaticBlock(); // static {
 		out.assignToNewLambda(thisMethod.getName(),arg.getName());
 		
 		out.declareVar(CodeGen.plaidObjectType,freshReturn.getName());
