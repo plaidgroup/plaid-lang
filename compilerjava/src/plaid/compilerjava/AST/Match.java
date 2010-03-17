@@ -69,15 +69,14 @@ public class Match implements Expression {
 		out.declareVar(CodeGen.plaidObjectType, toMatch.getName());
 		e.codegen(out, toMatch, localVars);
 		
+		
 		for (Case c : caseList) {
 			c.codegen(out, y, toMatch, localVars);
-			out.elseCase(); out.openBlock();  // else {
+			out.elseCase(); out.openBlock();
 		}
-		
 		out.append("throw new RuntimeException(\"Pattern match exhausted.\");");
-		
-		for (int i=0; i<caseList.size(); i++) {
-			out.closeBlock(); // }
+		for (int i=0; i<caseList.size();i++) {
+			out.closeBlock();
 		}
 	}
 }

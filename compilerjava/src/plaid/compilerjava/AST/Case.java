@@ -30,8 +30,9 @@ public class Case {
 	private QI qi;
 	private ID x;
 	private Expression e;
-	private boolean isDefault;
-	private boolean hasBoundVar;
+	private boolean defaultCase;
+	private boolean boundVar;
+
 
 	public Case(Token t, QI qi, ID x, Expression e) {
 		super();
@@ -39,8 +40,8 @@ public class Case {
 		this.qi = qi;
 		this.x = x;
 		this.e = e;
-		hasBoundVar = true;
-		isDefault = false;
+		boundVar = true;
+		defaultCase = false;
 	}
 	
 	public Case(Token t, QI qi, Expression e) {
@@ -48,17 +49,33 @@ public class Case {
 		this.token = t;
 		this.qi = qi;
 		this.e = e;
-		hasBoundVar = false;
-		isDefault = false;
+		boundVar = false;
+		defaultCase = false;
 	}
 	
 	public Case(Token t, Expression e) {
 		super();
 		this.token = t;
 		this.e = e;
-		hasBoundVar = false;
-		isDefault = true;
+		boundVar = false;
+		defaultCase = true;
 	}
+	public boolean isDefaultCase() {
+		return defaultCase;
+	}
+
+	public void setDefaultCase(boolean defaultCase) {
+		this.defaultCase = defaultCase;
+	}
+
+	public boolean isBoundVar() {
+		return boundVar;
+	}
+
+	public void setBoundVar(boolean boundVar) {
+		this.boundVar = boundVar;
+	}
+
 	
 	public QI getQi() {
 		return qi;
@@ -93,25 +110,27 @@ public class Case {
 		out.setLocation(token);
 		
 		// if this is the default case
-		if (isDefault) {
+		if (defaultCase) {
+			out.ifCondition("true");
+			out.openBlock();
 			e.codegen(out, y, localVars);
-			return;
+			out.closeBlock();
+		} 
+		else {
+			// otherwise generate code execute associated code if this case matches
+			ID potentialMatch = IdGen.getId();
+			out.declareFinalVar(CodeGen.plaidObjectType,potentialMatch.getName());
+			qi.codegen(out, potentialMatch, localVars);
+			out.ifCondition(CodeGen.matchesState(toMatch.getName(),potentialMatch.getName()));  //if (toMatch.hasState(potentialMatch))
+			out.openBlock(); // {
+			if (boundVar) { //if there is a bound variable
+				out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //PlaidObject x;
+				out.assignToID(x.getName(),toMatch.getName()); // x = toMatch
+				localVars.add(x);
+			}
+			e.codegen(out, y, localVars);
+			if (x != null) localVars.remove(x);
+			out.closeBlock(); // }
 		}
-		
-		// otherwise generate code execute associated code if this case matches
-		ID potentialMatch = IdGen.getId();
-		out.declareFinalVar(CodeGen.plaidObjectType,potentialMatch.getName());
-		qi.codegen(out, potentialMatch, localVars);
-		
-		out.ifCondition(CodeGen.matchesState(toMatch.getName(),potentialMatch.getName()));  //if (toMatch.hasState(potentialMatch))
-		out.openBlock(); // {
-		if (hasBoundVar) { //if there is a bound variable
-			out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //PlaidObject x;
-			out.assignToID(x.getName(),toMatch.getName()); // x = toMatch
-			localVars.add(x);
-		}
-		e.codegen(out, y, localVars);
-		if (x != null) localVars.remove(x);
-		out.closeBlock(); // }
 	}
 }
