@@ -49,5 +49,24 @@ public class String$plaid {
 				return Util.string(x);
 			}
 		}));
+		foo.addMember("substring$plaid", Util.protoMethod(new Delegate() {
+			@Override
+			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
+				@SuppressWarnings("unused")
+				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				String x;
+				if (args instanceof PlaidJavaObject) {
+					x = ((String)((PlaidJavaObject)thisVar).getJavaObject()).substring(((Integer)((PlaidJavaObject)args).getJavaObject()));
+				} else { // must be a pair
+					PlaidObject firstMethod = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("first", args);
+					PlaidObject firstArg = plaid.runtime.Util.call(args, firstMethod);
+					PlaidObject secondMethod = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("second", args);
+					PlaidObject secondArg = plaid.runtime.Util.call(args, secondMethod);
+					x = ((String)((PlaidJavaObject)thisVar).getJavaObject()).substring(((Integer)((PlaidJavaObject)firstArg).getJavaObject()),
+																					   ((Integer)((PlaidJavaObject)secondArg).getJavaObject()));	
+				}
+				return Util.string(x);
+			}
+		}));
 	}
 }

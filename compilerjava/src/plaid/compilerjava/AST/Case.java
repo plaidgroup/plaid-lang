@@ -30,13 +30,8 @@ public class Case {
 	private QI qi;
 	private ID x;
 	private Expression e;
-	
-	public Case(QI qi, ID x, Expression e) {
-		super();
-		this.qi = qi;
-		this.x = x;
-		this.e = e;
-	}
+	private boolean isDefault;
+	private boolean hasBoundVar;
 
 	public Case(Token t, QI qi, ID x, Expression e) {
 		super();
@@ -44,6 +39,25 @@ public class Case {
 		this.qi = qi;
 		this.x = x;
 		this.e = e;
+		hasBoundVar = true;
+		isDefault = false;
+	}
+	
+	public Case(Token t, QI qi, Expression e) {
+		super();
+		this.token = t;
+		this.qi = qi;
+		this.e = e;
+		hasBoundVar = false;
+		isDefault = false;
+	}
+	
+	public Case(Token t, Expression e) {
+		super();
+		this.token = t;
+		this.e = e;
+		hasBoundVar = false;
+		isDefault = true;
 	}
 	
 	public QI getQi() {
@@ -79,7 +93,7 @@ public class Case {
 		out.setLocation(token);
 		
 		// if this is the default case
-		if (qi == null && x == null) {
+		if (isDefault) {
 			e.codegen(out, y, localVars);
 			return;
 		}
@@ -91,7 +105,7 @@ public class Case {
 		
 		out.ifCondition(CodeGen.matchesState(toMatch.getName(),potentialMatch.getName()));  //if (toMatch.hasState(potentialMatch))
 		out.openBlock(); // {
-		if (x != null) { //if no bound variable
+		if (hasBoundVar) { //if there is a bound variable
 			out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //PlaidObject x;
 			out.assignToID(x.getName(),toMatch.getName()); // x = toMatch
 			localVars.add(x);
