@@ -80,20 +80,17 @@ public class Case {
 		
 		// if this is the default case
 		if (qi == null && x == null) {
-			out.ifCondition("true"); //if (true)
-			out.addBlock(); //{
 			e.codegen(out, y, localVars);
-			out.closeBlock(); // }
 			return;
 		}
 		
 		// otherwise generate code execute associated code if this case matches
 		ID potentialMatch = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType,potentialMatch.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,potentialMatch.getName());
 		qi.codegen(out, potentialMatch, localVars);
 		
 		out.ifCondition(CodeGen.matchesState(toMatch.getName(),potentialMatch.getName()));  //if (toMatch.hasState(potentialMatch))
-		out.addBlock(); // {
+		out.openBlock(); // {
 		if (x != null) { //if no bound variable
 			out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //PlaidObject x;
 			out.assignToID(x.getName(),toMatch.getName()); // x = toMatch

@@ -29,7 +29,7 @@ import plaid.compilerjava.util.QualifiedID;
 
 public interface Decl extends ASTnode {
 
-	public File codegen(QualifiedID qid, Imports imports, CompilerConfiguration cc);
+	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc);
 
 	public void codegen(CodeGen out, ID y, List<ID> localVars);
 }

@@ -328,11 +328,11 @@ public class CodeGen {
 		output.append("else ");
 	}
 	
-	public final void addBlock() {
+	public final void openBlock() {
 		output.append("{");
 	}
 	
-	public final void addStaticBlock() {
+	public final void openStaticBlock() {
 		output.append("static {");
 	}
 	
