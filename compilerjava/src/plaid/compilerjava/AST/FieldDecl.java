@@ -23,6 +23,7 @@ import java.io.File;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
 import plaid.compilerjava.util.IDList;
@@ -96,13 +97,13 @@ public class FieldDecl implements Decl{
 		out.declarePublicClass(f.getName()); out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports
-		out.declarePublicStaticVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
+		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
 		imports.codegen(out, freshImports);
 		out.declareTopScope(qid.toString(),freshImports.getName());
 		
 		//generate code to represent the field as a java field
 		out.fieldAnnotation(f.getName(), false);
-		out.declarePublicStaticVar(CodeGen.plaidObjectType, f.getName());
+		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, f.getName());
 		out.openStaticBlock(); //static {
 		e.codegen(out, f, new IDList());  //initialization code
 		out.closeBlock(); out.closeBlock(); //}}
@@ -122,18 +123,25 @@ public class FieldDecl implements Decl{
 		ID x = IdGen.getId();
 		
 		out.fieldAnnotation(f.getName(), false);  //@representsField...
-		out.declareVar(CodeGen.plaidObjectType,freshFieldName.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,freshFieldName.getName());
 		
 		out.assignToProtoField(freshFieldName.getName(), x.getName()); // freshFieldName = new protoField... {
 		
 		//protofield body
 		out.declareLambdaScope();
-		out.declareVar(CodeGen.plaidObjectType, fresh1.getName()); //Public PlaidObect fresh1;
+		out.declareFinalVar(CodeGen.plaidObjectType, fresh1.getName()); //Public PlaidObect fresh1;
 		e.codegen(out, fresh1, localVars);  //field initializer code
 		out.ret(fresh1.getName()); // return fresh1;
 		out.closeAnonymousDeclaration(); // }});
 		out.addMember(y.getName(), f.getName(), freshFieldName.getName());  //y.addMember(f,freshFieldName)
 		
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		f.accept(visitor);
+//		e.accept(visitor);
+		visitor.visit(this);
 	}
 
 }

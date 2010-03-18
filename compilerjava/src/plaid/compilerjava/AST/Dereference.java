@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
@@ -75,7 +76,7 @@ public class Dereference implements Expression {
 		
 		//generate code for the object to lookup the right ID in
 		ID x = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType,x.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,x.getName());
 		this.left.codegen(out, x, localVars);
 		out.setLocation(left.getToken());
 		
@@ -83,6 +84,13 @@ public class Dereference implements Expression {
 		out.setLocation(right.getToken());
 		out.setLocation(y.getToken());
 		out.assignToLookup(y.getName(), CodeGen.convertOpNames(right.getName()), x.getName());
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		left.accept(visitor);
+//		right.accept(visitor);
+		visitor.visit(this);
 	}
 
 }

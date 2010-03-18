@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 
@@ -48,5 +49,10 @@ public class ID implements Expression{
 		String newName = CodeGen.convertOpNames(name);
 		if (localVars.contains(newName)) out.assignToID(y.getName(),newName);  // y = newName
 		else out.assignToLookup(y.getName(), newName, CodeGen.currentScope);  // y = lookup(name,currentScope);	
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 }

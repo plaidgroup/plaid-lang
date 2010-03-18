@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 
@@ -44,5 +45,10 @@ public class UnitLiteral implements Expression {
 		out.unit();
 		out.append(";");
 		out.updateVar(y.getName());
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}	
 }

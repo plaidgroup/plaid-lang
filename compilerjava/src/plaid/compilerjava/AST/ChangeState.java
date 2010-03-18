@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
@@ -47,6 +48,22 @@ public class ChangeState implements Expression {
 		return token;
 	}
 	
+	public Expression getE() {
+		return e;
+	}
+
+	public void setE(Expression e) {
+		this.e = e;
+	}
+
+	public State getSt() {
+		return st;
+	}
+
+	public void setSt(State st) {
+		this.st = st;
+	}
+	
 	@Override
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		
@@ -54,26 +71,31 @@ public class ChangeState implements Expression {
 		
 		//generate code for getting the object to change
 		ID x = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType,x.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,x.getName());
 		e.codegen(out, x, localVars);
 
 		//generate code for the new State
 		ID r = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType,r.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,r.getName());
 		st.codegen(out, r, localVars);
 
 		//cast to  State
 		ID s = IdGen.getId();
-		out.declareVar(CodeGen.plaidStateType,s.getName());
+		out.declareFinalVar(CodeGen.plaidStateType,s.getName());
 		out.assignCastedtoState(s.getName(), r.getName());
 		
 		// create instance
 		ID i = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType,i.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,i.getName());
 		out.assignToInstantiation(i.getName(), s.getName());
 		
 		//assign result of state change to target (y)
 		out.assignToChangedState(y.getName(),x.getName(), i.getName());  // y = x.changeState(r);
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 
 }

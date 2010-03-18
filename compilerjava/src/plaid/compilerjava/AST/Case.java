@@ -20,11 +20,12 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
-public class Case {
+public class Case implements ASTnode {
 	private Token token;
 	private QI qi;
 	private ID x;
@@ -131,5 +132,10 @@ public class Case {
 			e.codegen(out, y, newLocalVars);
 			out.closeBlock(); // }
 		}
+	}
+	
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 }

@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
@@ -64,8 +65,14 @@ public class NewInstance implements Expression{
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		ID r = IdGen.getId();
-		out.declareVar(CodeGen.plaidStateType, r.getName()); 
+		out.declareFinalVar(CodeGen.plaidStateType, r.getName()); 
 		st.codegen(out, r, localVars);
 		out.assignToInstantiation(y.getName(),r.getName()); //y = r.instantiate();
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		st.accept(visitor);
+		visitor.visit(this);
 	}
 }

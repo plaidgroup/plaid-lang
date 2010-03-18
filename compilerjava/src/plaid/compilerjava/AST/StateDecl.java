@@ -23,6 +23,7 @@ import java.io.File;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
 import plaid.compilerjava.util.IDList;
@@ -92,12 +93,12 @@ public class StateDecl implements Decl {
 		out.declarePublicClass(name.getName()); out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports
-		out.declarePublicStaticVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
+		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
 		imports.codegen(out, freshImports);
 		out.declareTopScope(qid.toString(),freshImports.getName());
 		
 		out.stateAnnotation(name.getName(), false);
-		out.declarePublicStaticVar(CodeGen.plaidObjectType, name.getName());
+		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, name.getName());
 		
 		out.openStaticBlock(); //static {
 		stateDef.codegen(out, name, new IDList());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
@@ -118,6 +119,13 @@ public class StateDecl implements Decl {
 		out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
 		stateDef.codegen(out, fresh, localVars);
 		out.addMember(y.getName(), name.getName(), fresh.getName()); //y.addMember(s,fresh)
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		visitor.visit(name);
+//		visitor.visit(stateDef);
+		visitor.visit(this);
 	}
 
 }

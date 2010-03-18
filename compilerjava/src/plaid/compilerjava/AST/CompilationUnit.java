@@ -25,9 +25,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import plaid.compilerjava.CompilerConfiguration;
+import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.QualifiedID;
 
-public class CompilationUnit {
+public class CompilationUnit implements ASTnode {
 	private List<Decl> decls;
 	private List<String> packageName;
 	private ImportList imports;
@@ -78,5 +80,19 @@ public class CompilationUnit {
 		
 		return fileList;
 
+	}
+
+	@Override
+	public Token getToken() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		for (Decl d : decls)
+//			visitor.visit(d);
+//		visitor.visit(imports);
+		visitor.visit(this);
 	}
 }
