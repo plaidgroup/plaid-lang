@@ -24,6 +24,7 @@ import java.io.File;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
 import plaid.compilerjava.util.IDList;
@@ -157,5 +158,12 @@ public class MethodDecl implements Decl {
 		
 		out.addMember(y.getName(), newName, freshMethName.getName());  //y.addMember(name,freshMethName)
 		
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		body.accept(visitor);
+//		arg.accept(visitor);
+		visitor.visit(this);
 	}
 }

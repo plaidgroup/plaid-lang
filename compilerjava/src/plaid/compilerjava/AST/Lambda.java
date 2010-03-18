@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
@@ -49,6 +50,22 @@ public class Lambda implements Expression {
 		return token;
 	}
 	
+	public ID getVar() {
+		return var;
+	}
+
+	public void setVar(ID var) {
+		this.var = var;
+	}
+
+	public Expression getBody() {
+		return body;
+	}
+
+	public void setBody(Expression body) {
+		this.body = body;
+	}
+
 	@Override
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		
@@ -64,6 +81,13 @@ public class Lambda implements Expression {
 		out.ret(freshID.getName());
 		
 		out.closeAnonymousDeclaration(); //}});");
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		var.accept(visitor);
+//		body.accept(visitor);
+		visitor.visit(this);
 	}
 
 }

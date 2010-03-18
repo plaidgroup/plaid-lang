@@ -23,11 +23,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.QualifiedID;
 
-public class ImportList {
-
+public class ImportList implements ASTnode {
 	private List<QualifiedID> imports;
 	private Token token;
 	
@@ -55,6 +55,14 @@ public class ImportList {
 		return token;
 	}
 	
+	public List<QualifiedID> getImports() {
+		return imports;
+	}
+
+	public void setImports(List<QualifiedID> imports) {
+		this.imports = imports;
+	}
+
 	public void codegen(CodeGen out, ID y) {
 		
 		out.openStaticBlock();  // static {
@@ -65,6 +73,11 @@ public class ImportList {
 		}
 
 		out.append("}");
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 
 }
