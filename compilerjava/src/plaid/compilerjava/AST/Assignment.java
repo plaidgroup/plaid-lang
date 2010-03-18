@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
@@ -50,12 +51,36 @@ public class Assignment implements Expression {
 		return token;
 	}
 	
+	public Expression getTarget() {
+		return target;
+	}
+
+	public void setTarget(Expression target) {
+		this.target = target;
+	}
+
+	public ID getField() {
+		return field;
+	}
+
+	public void setField(ID field) {
+		this.field = field;
+	}
+
+	public Expression getValue() {
+		return value;
+	}
+
+	public void setValue(Expression value) {
+		this.value = value;
+	}
+	
 	@Override
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		String exceptionText = "Object does not have member " + field.getName() + ".  Assignment failed.";
 		ID assignTo = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType, assignTo.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType, assignTo.getName());
 		value.codegen(out, assignTo, localVars);
 		
 		if (target == null ) { //ID is in this scope
@@ -72,7 +97,7 @@ public class Assignment implements Expression {
 			
 			//generate code for the target
 			ID targetObject = IdGen.getId();
-			out.declareVar(CodeGen.plaidObjectType, targetObject.getName()); //Plaid
+			out.declareFinalVar(CodeGen.plaidObjectType, targetObject.getName()); //Plaid
 			target.codegen(out, targetObject, localVars);
 			
 			//generate code to return the member or throw an exception
@@ -84,6 +109,11 @@ public class Assignment implements Expression {
 		}
 		out.assignToUnit(y.getName());
 		out.updateVar(assignTo.getName());
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 
 }

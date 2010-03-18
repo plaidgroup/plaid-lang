@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
@@ -75,12 +76,17 @@ public class Application implements Expression {
 		out.setLocation(token);
 		ID x = IdGen.getId();
 		ID z = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType, x.getName()); //public PlaidObject x
-		out.declareVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
+		out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //public PlaidObject x
+		out.declareFinalVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
 		function.codegen(out, x, localVars);
 		argument.codegen(out, z, localVars);
 		out.setLocation(token);
 		out.assignToCall(y.getName(),x.getName(), z.getName());  // y = Util.call(x,z);
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 
 

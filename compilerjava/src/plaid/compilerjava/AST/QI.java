@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
@@ -86,7 +87,7 @@ public class QI implements State {
 		
 		for (String name : qid) {	
 			fresh = IdGen.getId();
-			out.declareVar(CodeGen.plaidObjectType, fresh.getName());
+			out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
 			out.assignToLookup(fresh.getName(), name, scope);
 			scope = fresh.getName();
 		}
@@ -101,6 +102,11 @@ public class QI implements State {
 			strQid = strQid + id + ".";
 		}
 		return strQid.substring(0,strQid.length() - 1);
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 
 }
