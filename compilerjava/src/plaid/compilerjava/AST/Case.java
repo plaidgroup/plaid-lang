@@ -19,10 +19,9 @@
  
 package plaid.compilerjava.AST;
 
-import java.util.List;
-
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
 public class Case {
@@ -105,7 +104,8 @@ public class Case {
 		return token;
 	}
 	
-	public void codegen(CodeGen out, ID y, ID toMatch, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, ID toMatch, IDList localVars) {
+		IDList newLocalVars = localVars;  //might have a bound variable
 		
 		out.setLocation(token);
 		
@@ -126,10 +126,9 @@ public class Case {
 			if (boundVar) { //if there is a bound variable
 				out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //PlaidObject x;
 				out.assignToID(x.getName(),toMatch.getName()); // x = toMatch
-				localVars.add(x);
+				newLocalVars = localVars.add(x);
 			}
-			e.codegen(out, y, localVars);
-			if (x != null) localVars.remove(x);
+			e.codegen(out, y, newLocalVars);
 			out.closeBlock(); // }
 		}
 	}

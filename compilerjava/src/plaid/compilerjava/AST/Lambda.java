@@ -19,10 +19,12 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
 public class Lambda implements Expression {
@@ -48,8 +50,8 @@ public class Lambda implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
-
+	public void codegen(CodeGen out, ID y, IDList localVars) {
+		
 		out.setLocation(token);
 		
 		ID freshID = IdGen.getId();
@@ -57,9 +59,8 @@ public class Lambda implements Expression {
 		out.assignToNewLambda(y.getName(),var.getName());  //y = new lambda(...{ {
 		
 		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
-		localVars.add(var);  //TODO: do we need to worry about shadowing?
-		body.codegen(out, freshID, localVars);  //lambda body
-		localVars.remove(var);
+		IDList newLocalVars = localVars.add(var);
+		body.codegen(out, freshID, newLocalVars);  //lambda body
 		out.ret(freshID.getName());
 		
 		out.closeAnonymousDeclaration(); //}});");

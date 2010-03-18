@@ -19,10 +19,9 @@
  
 package plaid.compilerjava.AST;
 
-import java.util.List;
-
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
 public class Assignment implements Expression {
@@ -52,7 +51,7 @@ public class Assignment implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		String exceptionText = "Object does not have member " + field.getName() + ".  Assignment failed.";
 		ID assignTo = IdGen.getId();
@@ -60,14 +59,7 @@ public class Assignment implements Expression {
 		value.codegen(out, assignTo, localVars);
 		
 		if (target == null ) { //ID is in this scope
-			boolean isLocal = false;
-			for (ID var : localVars) {
-				if (field.getName().equals(var.getName())) {
-					isLocal = true;
-					break;
-				}
-			}
-			if (isLocal) {
+			if (localVars.contains(field)) {
 				out.assignToID(field.getName(),assignTo.getName()); // field = assignTo
 			} else { //find member in this object
 				out.ifCondition(CodeGen.containsMember(CodeGen.thisVar,field.getName())); //if (this.containsField(field))

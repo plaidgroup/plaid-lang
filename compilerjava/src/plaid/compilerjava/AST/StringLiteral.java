@@ -19,12 +19,9 @@
  
 package plaid.compilerjava.AST;
 
-import java.util.List;
-
-import javax.print.attribute.standard.OutputDeviceAssigned;
-
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.IDList;
 
 public class StringLiteral implements Expression{
 
@@ -45,7 +42,7 @@ public class StringLiteral implements Expression{
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		
 		//wrap String as a PlaidObject

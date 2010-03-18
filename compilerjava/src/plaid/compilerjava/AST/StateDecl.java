@@ -20,13 +20,12 @@
 package plaid.compilerjava.AST;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
+import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 import plaid.compilerjava.util.QualifiedID;
 import plaid.runtime.PlaidConstants;
@@ -101,7 +100,7 @@ public class StateDecl implements Decl {
 		out.declarePublicStaticVar(CodeGen.plaidObjectType, name.getName());
 		
 		out.openStaticBlock(); //static {
-		stateDef.codegen(out, name, new ArrayList<ID>());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+		stateDef.codegen(out, name, new IDList());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
 		out.closeBlock(); // } (for static block)
 		
 		out.closeBlock(); // } (for class Def)
@@ -111,7 +110,7 @@ public class StateDecl implements Decl {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		
 		ID fresh = IdGen.getId();

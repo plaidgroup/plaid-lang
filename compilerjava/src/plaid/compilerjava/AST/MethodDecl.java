@@ -21,13 +21,12 @@ package plaid.compilerjava.AST;
 
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
+import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 import plaid.compilerjava.util.QualifiedID;
 import plaid.runtime.PlaidConstants;
@@ -97,7 +96,7 @@ public class MethodDecl implements Decl {
 		ID freshReturn = IdGen.getId();
 		ID freshImports = IdGen.getId();
 		CodeGen out = new CodeGen(cc);
-		List<ID> localVars = new ArrayList<ID>();
+		IDList localVars = new IDList();
 		ID thisMethod = new ID(name + "_func");
 		
 		//package and needed imports
@@ -116,7 +115,7 @@ public class MethodDecl implements Decl {
 			out.topLevelMain(name + "_func");
 			arg = IdGen.getId();  //fresh ID for arg which will always be null/unit and never used
 		} else {
-			localVars.add(arg);
+			localVars = localVars.add(arg);
 		}
 		
 		out.methodAnnotation(name, false);
@@ -136,13 +135,13 @@ public class MethodDecl implements Decl {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars) {
 		String newName = CodeGen.convertOpNames(name);
 		out.setLocation(token);
 		ID freshMethName = IdGen.getId();
 		ID freshID = IdGen.getId();
 		if (arg == null) arg = IdGen.getId();
-		localVars.add(arg);
+		IDList newLocalVars = localVars.add(arg);
 		
 		out.methodAnnotation(newName, false); //@representsMethod...
 		out.declareVar(CodeGen.plaidObjectType,freshMethName.getName());
@@ -152,7 +151,7 @@ public class MethodDecl implements Decl {
 		out.declareLambdaScope();
 		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
 		out.updateVar(arg.getName());
-		body.codegen(out, freshID, localVars);
+		body.codegen(out, freshID, newLocalVars);
 		out.ret(freshID.getName() );  //return freshID;
 		out.closeAnonymousDeclaration();  //}});
 		

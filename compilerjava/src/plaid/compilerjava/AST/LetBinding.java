@@ -19,10 +19,9 @@
  
 package plaid.compilerjava.AST;
 
-import java.util.List;
-
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.IDList;
 
 public class LetBinding implements Expression {
 
@@ -72,15 +71,15 @@ public class LetBinding implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		out.openBlock(); //{
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
 		exp.codegen(out, x, localVars);
 		
-		localVars.add(x);
-		body.codegen(out, y, localVars);
-		localVars.remove(x);  //TODO: do we need to remove variable from scope, is there a better way to keep track of bound variables
+		IDList newLocalVars = localVars.add(x);
+		body.codegen(out, y, newLocalVars);
+		
 		out.closeBlock(); // }
 	}
 

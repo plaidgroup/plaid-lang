@@ -19,10 +19,9 @@
  
 package plaid.compilerjava.AST;
 
-import java.util.List;
-
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
 public class Application implements Expression {
@@ -72,7 +71,7 @@ public class Application implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		ID x = IdGen.getId();
 		ID z = IdGen.getId();

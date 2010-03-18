@@ -23,6 +23,7 @@ import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
 public class Match implements Expression {
@@ -63,7 +64,7 @@ public class Match implements Expression {
 		return token;
 	}
 	
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		ID toMatch = IdGen.getId();
 		out.declareVar(CodeGen.plaidObjectType, toMatch.getName());

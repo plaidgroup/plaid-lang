@@ -19,10 +19,9 @@
  
 package plaid.compilerjava.AST;
 
-import java.util.List;
-
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.IDList;
 
 public class ID implements Expression{
 	private Token token;
@@ -43,20 +42,11 @@ public class ID implements Expression{
 	
 	public String getName() { return name; }
 	
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
-		boolean isLocal = false; 
+	public void codegen(CodeGen out, ID y, IDList localVars) {
+
 		out.setLocation(token);
 		String newName = CodeGen.convertOpNames(name);
-		for (ID var : localVars) {
-			if (var.getName().equals(newName)) { 
-				out.assignToID(y.getName(),newName);  // y = name
-				isLocal = true;
-				break;
-			}
-		}
-		if (!isLocal) {
-			out.assignToLookup(y.getName(), newName, CodeGen.currentScope);  // y = lookup(name,currentScope);
-		}
-			
+		if (localVars.contains(newName)) out.assignToID(y.getName(),newName);  // y = newName
+		else out.assignToLookup(y.getName(), newName, CodeGen.currentScope);  // y = lookup(name,currentScope);	
 	}
 }

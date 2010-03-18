@@ -20,13 +20,12 @@
 package plaid.compilerjava.AST;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
+import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 import plaid.compilerjava.util.QualifiedID;
 import plaid.runtime.PlaidConstants;
@@ -87,7 +86,6 @@ public class FieldDecl implements Decl{
 	@Override
 	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
 		CodeGen out = new CodeGen(cc);	
-		List<ID> localVars = new ArrayList<ID>();
 		ID freshImports = IdGen.getId();
 		
 		//package and needed imports
@@ -106,7 +104,7 @@ public class FieldDecl implements Decl{
 		out.fieldAnnotation(f.getName(), false);
 		out.declarePublicStaticVar(CodeGen.plaidObjectType, f.getName());
 		out.openStaticBlock(); //static {
-		e.codegen(out, f, localVars);  //initialization code
+		e.codegen(out, f, new IDList());  //initialization code
 		out.closeBlock(); out.closeBlock(); //}}
 		
 		return FileGen.createOutputFile(f.getName(), cc.getOutputDir(), out.formatFile(), qid);
@@ -115,7 +113,7 @@ public class FieldDecl implements Decl{
 
 	//Normal Field Decl
 	@Override
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars) {
 
 		out.setLocation(token);
 		

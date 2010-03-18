@@ -19,10 +19,9 @@
  
 package plaid.compilerjava.AST;
 
-import java.util.List;
-
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.IDList;
 
 public class UnitLiteral implements Expression {
 	
@@ -38,7 +37,7 @@ public class UnitLiteral implements Expression {
 		return token;
 	}
 	
-	public void codegen(CodeGen out, ID y, List<ID> localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars) {
 		
 		out.setLocation(token);
 		out.assign(y.getName());
