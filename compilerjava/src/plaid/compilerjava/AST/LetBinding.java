@@ -22,6 +22,7 @@ package plaid.compilerjava.AST;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 
 public class LetBinding implements Expression {
@@ -106,6 +107,14 @@ public class LetBinding implements Expression {
 
 	public void setBody(Expression body) {
 		this.body = body;
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		x.accept(visitor);
+//		exp.accept(visitor);
+//		body.accept(visitor);
+		visitor.visit(this);
 	}
 
 }

@@ -22,6 +22,7 @@ package plaid.compilerjava.AST;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IdGen;
 
@@ -79,5 +80,13 @@ public class Match implements Expression {
 		for (int i=0; i<caseList.size(); i++) {
 			out.closeBlock(); // }
 		}
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		e.accept(visitor);
+//		for (Case c : caseList)
+//			c.accept(visitor);
+		visitor.visit(this);
 	}
 }
