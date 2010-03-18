@@ -36,6 +36,8 @@ public class ASTInspector {
 	}
 	
 	private static class ASTInspectorPanel extends JPanel {
+		private static final long serialVersionUID = 1L;
+		
 		private JTree inspectorHierarchy;
 		private JScrollPane inspectorPane;
 		
@@ -51,14 +53,6 @@ public class ASTInspector {
 			this.add(inspectorPane);
 			this.setMinimumSize(new Dimension(500, 500));
 			this.setVisible(true);
-		}
-		
-		public static ASTInspectorPanel createInspectorPanel(Expression root) {
-			return null;
-		}
-		
-		private static TreeNode createTreeView(Expression root) {
-			return null;
 		}
 	}
 }

@@ -19,9 +19,6 @@
  
 package plaid.compilerjava.AST;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;

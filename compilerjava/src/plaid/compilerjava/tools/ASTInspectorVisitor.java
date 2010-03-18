@@ -46,7 +46,7 @@ public class ASTInspectorVisitor implements ASTVisitor {
 	private static String getQID(List<String> ids) {
 		String ret = "";
 		for (String s : ids)
-			ret += "." + ret;
+			ret += "." + s;
 		return ret;
 	}
 	

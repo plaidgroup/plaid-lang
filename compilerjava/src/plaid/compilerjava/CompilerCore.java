@@ -36,7 +36,6 @@ import javax.tools.ToolProvider;
 import javax.tools.JavaCompiler.CompilationTask;
 
 import plaid.compilerjava.AST.CompilationUnit;
-import plaid.compilerjava.tools.ASTInspector;
 
 public class CompilerCore {
 	private CompilerConfiguration cc;
