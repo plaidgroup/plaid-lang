@@ -16,7 +16,7 @@ import plaid.compilerjava.AST.Dereference;
 import plaid.compilerjava.AST.Expression;
 import plaid.compilerjava.AST.FieldDecl;
 import plaid.compilerjava.AST.ID;
-import plaid.compilerjava.AST.Imports;
+import plaid.compilerjava.AST.ImportList;
 import plaid.compilerjava.AST.IntLiteral;
 import plaid.compilerjava.AST.Lambda;
 import plaid.compilerjava.AST.LetBinding;
@@ -179,8 +179,8 @@ public class ASTInspectorVisitor implements ASTVisitor {
 	}
 
 	@Override
-	public void visit(Imports e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Imports");
+	public void visit(ImportList e) {
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("ImportList");
 		addNode(newNode);
 		for (QualifiedID qi : e.getImports())
 			newNode.add(new DefaultMutableTreeNode(getQID(qi.getQidList())));
