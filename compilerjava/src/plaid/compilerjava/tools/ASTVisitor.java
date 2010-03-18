@@ -14,7 +14,7 @@ public interface ASTVisitor {
 	public void visit(Expression e);
 	public void visit(FieldDecl e);
 	public void visit(ID e);
-	public void visit(Imports e);
+	public void visit(ImportList e);
 	public void visit(IntLiteral e);
 	public void visit(Lambda e);
 	public void visit(LetBinding e);

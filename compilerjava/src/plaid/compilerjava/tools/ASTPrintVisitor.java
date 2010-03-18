@@ -12,7 +12,7 @@ import plaid.compilerjava.AST.Dereference;
 import plaid.compilerjava.AST.Expression;
 import plaid.compilerjava.AST.FieldDecl;
 import plaid.compilerjava.AST.ID;
-import plaid.compilerjava.AST.Imports;
+import plaid.compilerjava.AST.ImportList;
 import plaid.compilerjava.AST.IntLiteral;
 import plaid.compilerjava.AST.Lambda;
 import plaid.compilerjava.AST.LetBinding;
@@ -128,8 +128,8 @@ public class ASTPrintVisitor implements ASTVisitor {
 	}
 
 	@Override
-	public void visit(Imports e) {
-		printlnWithTabs("Imports", tablevel);
+	public void visit(ImportList e) {
+		printlnWithTabs("ImportList", tablevel);
 	}
 
 	@Override
