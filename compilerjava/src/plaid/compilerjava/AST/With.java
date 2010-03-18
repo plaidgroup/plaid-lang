@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
@@ -83,6 +84,13 @@ public class With implements State {
 		r2.codegen(out, fresh2, localVars);
 		
 		out.assignToWith(y.getName(),fresh1.getName(),fresh2.getName());  //y = //fresh1.with(fresh2); 
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		r1.accept(visitor);
+//		r2.accept(visitor);
+		visitor.visit(this);
 	}
 
 }

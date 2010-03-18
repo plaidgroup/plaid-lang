@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
@@ -48,6 +49,30 @@ public class Assignment implements Expression {
 	
 	public Token getToken() {
 		return token;
+	}
+	
+	public Expression getTarget() {
+		return target;
+	}
+
+	public void setTarget(Expression target) {
+		this.target = target;
+	}
+
+	public ID getField() {
+		return field;
+	}
+
+	public void setField(ID field) {
+		this.field = field;
+	}
+
+	public Expression getValue() {
+		return value;
+	}
+
+	public void setValue(Expression value) {
+		this.value = value;
 	}
 	
 	@Override
@@ -84,6 +109,11 @@ public class Assignment implements Expression {
 		}
 		out.assignToUnit(y.getName());
 		out.updateVar(assignTo.getName());
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 
 }
