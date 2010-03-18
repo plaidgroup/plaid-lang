@@ -55,7 +55,7 @@ public class Assignment implements Expression {
 		out.setLocation(token);
 		String exceptionText = "Object does not have member " + field.getName() + ".  Assignment failed.";
 		ID assignTo = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType, assignTo.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType, assignTo.getName());
 		value.codegen(out, assignTo, localVars);
 		
 		if (target == null ) { //ID is in this scope
@@ -72,7 +72,7 @@ public class Assignment implements Expression {
 			
 			//generate code for the target
 			ID targetObject = IdGen.getId();
-			out.declareVar(CodeGen.plaidObjectType, targetObject.getName()); //Plaid
+			out.declareFinalVar(CodeGen.plaidObjectType, targetObject.getName()); //Plaid
 			target.codegen(out, targetObject, localVars);
 			
 			//generate code to return the member or throw an exception

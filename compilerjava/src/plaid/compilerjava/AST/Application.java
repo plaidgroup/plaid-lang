@@ -75,8 +75,8 @@ public class Application implements Expression {
 		out.setLocation(token);
 		ID x = IdGen.getId();
 		ID z = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType, x.getName()); //public PlaidObject x
-		out.declareVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
+		out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //public PlaidObject x
+		out.declareFinalVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
 		function.codegen(out, x, localVars);
 		argument.codegen(out, z, localVars);
 		out.setLocation(token);
