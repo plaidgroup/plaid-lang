@@ -22,6 +22,7 @@ package plaid.compilerjava.AST;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 
 public class IntLiteral implements Expression {
@@ -56,5 +57,10 @@ public class IntLiteral implements Expression {
 	@Override
 	public String toString() {
 		return ""+integer;
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 }

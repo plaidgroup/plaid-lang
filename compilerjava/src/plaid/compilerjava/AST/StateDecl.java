@@ -25,6 +25,7 @@ import java.util.List;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
 import plaid.compilerjava.util.IdGen;
@@ -119,6 +120,13 @@ public class StateDecl implements Decl {
 		out.declareVar(CodeGen.plaidObjectType, fresh.getName());
 		stateDef.codegen(out, fresh, localVars);
 		out.addMember(y.getName(), name.getName(), fresh.getName()); //y.addMember(s,fresh)
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		visitor.visit(name);
+//		visitor.visit(stateDef);
+		visitor.visit(this);
 	}
 
 }

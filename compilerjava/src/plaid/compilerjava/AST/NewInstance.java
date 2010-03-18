@@ -22,6 +22,7 @@ package plaid.compilerjava.AST;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IdGen;
 
@@ -68,5 +69,11 @@ public class NewInstance implements Expression{
 		out.declareVar(CodeGen.plaidStateType, r.getName()); 
 		st.codegen(out, r, localVars);
 		out.assignToInstantiation(y.getName(),r.getName()); //y = r.instantiate();
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		st.accept(visitor);
+		visitor.visit(this);
 	}
 }

@@ -25,6 +25,7 @@ import java.util.List;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
 import plaid.compilerjava.util.IdGen;
@@ -136,6 +137,13 @@ public class FieldDecl implements Decl{
 		out.closeAnonymousDeclaration(); // }});
 		out.addMember(y.getName(), f.getName(), freshFieldName.getName());  //y.addMember(f,freshFieldName)
 		
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		f.accept(visitor);
+//		e.accept(visitor);
+		visitor.visit(this);
 	}
 
 }

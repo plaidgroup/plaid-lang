@@ -22,6 +22,7 @@ package plaid.compilerjava.AST;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IdGen;
 
@@ -46,6 +47,22 @@ public class ChangeState implements Expression {
 	
 	public Token getToken() {
 		return token;
+	}
+	
+	public Expression getE() {
+		return e;
+	}
+
+	public void setE(Expression e) {
+		this.e = e;
+	}
+
+	public State getSt() {
+		return st;
+	}
+
+	public void setSt(State st) {
+		this.st = st;
 	}
 	
 	@Override
@@ -75,6 +92,11 @@ public class ChangeState implements Expression {
 		
 		//assign result of state change to target (y)
 		out.assignToChangedState(y.getName(),x.getName(), i.getName());  // y = x.changeState(r);
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 
 }

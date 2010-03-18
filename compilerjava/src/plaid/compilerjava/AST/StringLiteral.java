@@ -21,9 +21,8 @@ package plaid.compilerjava.AST;
 
 import java.util.List;
 
-import javax.print.attribute.standard.OutputDeviceAssigned;
-
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 
 public class StringLiteral implements Expression{
@@ -58,5 +57,10 @@ public class StringLiteral implements Expression{
 	@Override
 	public String toString() {
 		return string;
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}
 }

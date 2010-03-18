@@ -22,6 +22,7 @@ package plaid.compilerjava.AST;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 
 public class UnitLiteral implements Expression {
@@ -45,5 +46,10 @@ public class UnitLiteral implements Expression {
 		out.unit();
 		out.append(";");
 		out.updateVar(y.getName());
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visit(this);
 	}	
 }

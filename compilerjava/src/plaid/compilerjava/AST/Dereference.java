@@ -22,6 +22,7 @@ package plaid.compilerjava.AST;
 import java.util.List;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IdGen;
 
@@ -84,6 +85,13 @@ public class Dereference implements Expression {
 		out.setLocation(right.getToken());
 		out.setLocation(y.getToken());
 		out.assignToLookup(y.getName(), CodeGen.convertOpNames(right.getName()), x.getName());
+	}
+
+	@Override
+	public void accept(ASTVisitor visitor) {
+//		left.accept(visitor);
+//		right.accept(visitor);
+		visitor.visit(this);
 	}
 
 }

@@ -20,8 +20,11 @@
 package plaid.compilerjava.AST;
 
 import plaid.compilerjava.coreparser.Token;
+import plaid.compilerjava.tools.ASTVisitor;
 
 public interface ASTnode {
 
 	public Token getToken();
+	
+	public void accept(ASTVisitor visitor);
 }
