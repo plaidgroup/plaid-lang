@@ -34,7 +34,7 @@ public class ifElse{
 				plaid.runtime.PlaidObject vAr18$plaid;
 				plaid.runtime.PlaidObject vAr19$plaid;
 				vAr19$plaid = bool;
-				plaid.runtime.PlaidObject vAr20$plaid;
+				final plaid.runtime.PlaidObject vAr20$plaid;
 				plaid.runtime.PlaidObject vAr21$plaid;
 				vAr21$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid", current$c0pe);
 				plaid.runtime.PlaidObject vAr22$plaid;
@@ -64,7 +64,7 @@ public class ifElse{
 					);
 				}
 				else {
-					plaid.runtime.PlaidObject vAr28$plaid;
+					final plaid.runtime.PlaidObject vAr28$plaid;
 					plaid.runtime.PlaidObject vAr29$plaid;
 					vAr29$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid", current$c0pe);
 					plaid.runtime.PlaidObject vAr30$plaid;
