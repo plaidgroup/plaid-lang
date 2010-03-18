@@ -198,6 +198,7 @@ SKIP :
 SKIP :
 {
 		"/*" : WithinComment
+|		"/**" : WithinComment
 }
 
 < WithinComment >
@@ -227,35 +228,35 @@ SPECIAL_TOKEN :
 /* Reserved Words */
 TOKEN /*[IGNORE_CASE]*/:
 {
-		< STATE : "state" >
-|		< PERM : "perm" >
-|		< CONSERVED : "conserved" >
-|		< UNIQUE : "unique" >
-|		< SHARED : "shared" >
-|		< IMMUTABLE : "immutable" >
-|		< NONE : "none" >
-|		< CONST : "const" >
-|		< PRIVATE : "private" >
-|		< ABSTRACT : "abstract" >
-|		< FN : "fn" >
-|		< NEW : "new" >
-|		< UNIT : "unit" >
-|		< PUBLIC : "public" >
-|		< PROTECTED : "protected" >
-|		< FINAL : "final" >
-|		< PACKAGE : "package" >
-|		< COMPRISES : "comprises" >
-|		< EXTENDS : "extends" >
-|		< STATIC : "static" >
-|		< MATCH : "match" >
-|		< CASE : "case" >
-|		< DEFAULT_CASE : "default" >
-|		< IMPORT : "import" >
-|		< WITH : "with" >
-|		< VAR : "var" >
-|		< VAL : "val" >
-|		< METHOD : "method" >
-|		< STRING_LITERAL :
+	< CASE : "case">
+|	< DEF : "default" >
+|	< IMPORT : "import" > 
+|	< FN : "fn" >
+|	< MATCH : "match" >
+|	< METHOD : "method" >
+|	< NEW : "new">
+|	< OF : "of" >
+|	< PACKAGE : "package" >
+|	< STATE : "state" >
+|	< THIS : "this" >
+|	< VAL : "val" >
+|	< VAR : "var" >
+|	< DYN : "dyn">
+|	< DYNAMIC : "dynamic" >
+|	< IMMUTABLE : "immutable" >
+|	< UNIQUE : "unique" >
+|	< NONE : "none" >	
+|	< WITH : "with" >
+| 	< AS : "as" >
+|	< REQUIRES : "requires" >
+|	< OVERRIDE : "override" >
+| 	< UNIT : "unit" >
+}
+
+/* Literals */
+TOKEN :
+{
+		< STRING_LITERAL :
 				"\""
 				(
 						(~[ "\"", "\\", "\n", "\r" ])
@@ -274,7 +275,7 @@ TOKEN /*[IGNORE_CASE]*/:
 |		< DECIMAL : ([ "0"-"9" ])+ "." ([ "0"-"9" ])+ >
 }
 
-/* Operators and Separators */
+/* Language Operators and Separators */
 TOKEN :
 {
 		< LPAREN : "(" >
@@ -283,22 +284,49 @@ TOKEN :
 |		< RBRACE : "}" >
 |		< LBRACK : "[" >
 |		< RBRACK : "]" >
-|		< LT : "<" >
-|		< GT : ">" >
+|		< EQUALS : "=" >
 |		< RARROW : "->" >
 |		< LARROW : "<-" >
 |		< DARROW : "=>" >
 |		< MARROW : ">>" >
-|		< EQUALS : "=" >
-|		< SUBTYPE : "<:" >
 |		< AT : "@" >
-|		< BAR : "|" >
-|		< DOT : "." >
-|		< COMMA : "," >
-|		< COLON : ":" >
-|		< SEMICOLON : ";" >
-|		< STAR : "*" >
+|       < DOT : "." > 
+|		< SEMICOLON : ";">
+| 		< COMMA : "," >
+}
+
+/* Operators with Java Presidence */
+TOKEN : 
+{
+		< QST : "?" >
+| 		< COLON : ":" >
+|		< OR : "||" >
+|		< AND : "&&">
+|		< IOR : "|" >
+|		< XOR : "^" >
+|		< BITAND : "&" >
+|		< EQ : "==" >
+|		< NEQ : "!=" >
+|       < GT : ">" >
+|		< LT : "<" >
+|		< GEQ : ">=" >
+|		< LEQ : "<=" >
+|		< LSHIFT : "<<" >
+// | 	< RSHIFT : ">>" > duplicate of MARROW
+|		< RUNSIGNEDSHIFT : ">>>"> 
 |		< PLUS : "+" >
+| 		< MINUS : "-">
+|		< STAR : "*" >
+| 		< SLASH : "/" >
+|		< PERCENT : "%" >
+|		< BANG : "!" >
+|		< TILDE : "~" >
+}
+
+/* User operators */
+TOKEN :
+{
+	< OP : ( [ "=", "<", ">", "!", "~", "?", ":", "&", "|", "+", "-", "*", "/", "^", "%" ] )+ >
 }
 
 /* Identifiers */
@@ -598,13 +626,92 @@ Expression Exp() :
 		{
 				return new Match(t, e, cl);
 		}
-|		e = OrExpression() [ e = ExpSuffix(e) ]
+|		e = ConditionalExpression() [ e = ExpSuffix(e) ]
 		{
 				return e;
 		}
 }
 
-Expression OrExpression() :
+Expression ConditionalExpression() : 
+{
+		Expression e;
+		Expression arg;
+		Expression arg2;
+		Token t;
+		Token t2;
+}
+{
+		e = ConditionalOrExpression()
+		(
+				t = "?" arg = Exp() t2 =  ":" arg2 = ConditionalExpression()
+				{
+						e = opMethodCall(t, e, arg);
+						e = opMethodCall(t2, e, arg2);
+				}
+		)?
+		{
+				return e;
+		}
+}
+
+Expression ConditionalOrExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = ConditionalAndExpression()
+		(
+				t = "||" arg = ConditionalAndExpression()
+				{
+						e = opMethodCall(t, e, arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression ConditionalAndExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = InclusiveOrExpression()
+		(
+				t = "&&" arg = InclusiveOrExpression()
+				{
+						e = opMethodCall(t, e, arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression InclusiveOrExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = ExclusiveOrExpression()
+		(
+				t = "|" arg = ExclusiveOrExpression()
+				{
+						e = opMethodCall(t, e, arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression ExclusiveOrExpression() :
 {
 		Expression e;
 		Expression arg;
@@ -613,7 +720,7 @@ Expression OrExpression() :
 {
 		e = AndExpression()
 		(
-				t = "||" arg = AndExpression()
+				t = "^" arg = AndExpression()
 				{
 						e = opMethodCall(t, e, arg);
 				}
@@ -632,7 +739,7 @@ Expression AndExpression() :
 {
 		e = EqualityExpression()
 		(
-				t = "&&" arg = EqualityExpression()
+				t = "&" arg = EqualityExpression()
 				{
 						e = opMethodCall(t, e, arg);
 				}
@@ -641,6 +748,7 @@ Expression AndExpression() :
 				return e;
 		}
 }
+
 
 Expression EqualityExpression() :
 {
@@ -672,13 +780,37 @@ Expression RelationalExpression() :
 		Token t;
 }
 {
-		e = AdditiveExpression()
+		e = ShiftExpression()
 		(
 				(
 						t = "<"
 				|		t = ">"
 				|		t = "<="
 				|		t = ">="
+				)
+				arg = ShiftExpression()
+				{
+						e = opMethodCall(t, e, arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression ShiftExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = AdditiveExpression()
+		(
+				(
+						t = "<<"
+				|		t = ">>"
+				|		t = ">>>"
 				)
 				arg = AdditiveExpression()
 				{
@@ -745,7 +877,9 @@ Expression UnaryExpression() :
 {
 		(
 				(
-						t = "-"
+						t = "~"
+				|		t = "+"		
+				|		t = "-"
 				|		t = "!"
 				)
 				e = InfixExp()
@@ -828,7 +962,7 @@ List < Case > CaseList() :
 				}
 		)*
 		[
-				caseToken = < DEFAULT_CASE > body = BlockExpression(false)
+				caseToken = < DEF > body = BlockExpression(false)
 				{
 						cl.add(new Case(caseToken, body));
 				}
@@ -873,7 +1007,7 @@ Expression SimpleExp() :
 		}
 |
 		(
-				t = < ID >
+				(t = < ID > | t = <THIS>)
 				{
 						e = new ID(t, t.image);
 				}
