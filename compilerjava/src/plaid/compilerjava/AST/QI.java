@@ -86,7 +86,7 @@ public class QI implements State {
 		
 		for (String name : qid) {	
 			fresh = IdGen.getId();
-			out.declareVar(CodeGen.plaidObjectType, fresh.getName());
+			out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
 			out.assignToLookup(fresh.getName(), name, scope);
 			scope = fresh.getName();
 		}

@@ -67,7 +67,7 @@ public class Match implements Expression {
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		ID toMatch = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType, toMatch.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType, toMatch.getName());
 		e.codegen(out, toMatch, localVars);
 		
 		

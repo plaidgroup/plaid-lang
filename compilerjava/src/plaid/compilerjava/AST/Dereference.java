@@ -75,7 +75,7 @@ public class Dereference implements Expression {
 		
 		//generate code for the object to lookup the right ID in
 		ID x = IdGen.getId();
-		out.declareVar(CodeGen.plaidObjectType,x.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,x.getName());
 		this.left.codegen(out, x, localVars);
 		out.setLocation(left.getToken());
 		

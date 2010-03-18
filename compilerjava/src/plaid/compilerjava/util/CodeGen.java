@@ -283,9 +283,14 @@ public class CodeGen {
 		declareStaticVar(type, varName);
 	}
 	
+	public final void declarePublicStaticFinalVar(String type, String varName) {
+		output.append("public static ");
+		declareFinalVar(type, varName);
+	}
+	
 	public final void declareFinalVar(String type, String varName) {
 		//output.append("final ");
-		declareVar("final "+type, varName);
+		declareVar("final " + type, varName);
 	}
 	
 	public final void declarePackage(String packageName) {

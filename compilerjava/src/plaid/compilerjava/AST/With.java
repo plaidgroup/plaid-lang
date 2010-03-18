@@ -76,8 +76,8 @@ public class With implements State {
 		ID fresh1 = IdGen.getId();
 		ID fresh2 = IdGen.getId();
 		
-		out.declareVar(CodeGen.plaidStateType, fresh1.getName());
-		out.declareVar(CodeGen.plaidStateType, fresh2.getName());
+		out.declareFinalVar(CodeGen.plaidStateType, fresh1.getName());
+		out.declareFinalVar(CodeGen.plaidStateType, fresh2.getName());
 		
 		r1.codegen(out, fresh1, localVars);
 		r2.codegen(out, fresh2, localVars);

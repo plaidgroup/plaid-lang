@@ -107,7 +107,7 @@ public class MethodDecl implements Decl {
 		out.declarePublicClass(name); out.openBlock(); //public class name {
 
 		//generate code to create the package scope with imports
-		out.declarePublicStaticVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
+		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
 		imports.codegen(out, freshImports);
 		out.declareTopScope(qid.toString(),freshImports.getName());
 		
@@ -119,11 +119,11 @@ public class MethodDecl implements Decl {
 		}
 		
 		out.methodAnnotation(name, false);
-		out.declarePublicStaticVar(CodeGen.plaidMethodType, thisMethod.getName());
+		out.declarePublicStaticFinalVar(CodeGen.plaidMethodType, thisMethod.getName());
 		out.openStaticBlock(); // static {
 		out.assignToNewLambda(thisMethod.getName(),arg.getName());
 		
-		out.declareVar(CodeGen.plaidObjectType,freshReturn.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,freshReturn.getName());
 		body.codegen(out, freshReturn,localVars); //top level functions loopup with unit
 		out.ret(freshReturn.getName());
 		out.closeAnonymousDeclaration(); // }});
@@ -144,12 +144,12 @@ public class MethodDecl implements Decl {
 		IDList newLocalVars = localVars.add(arg);
 		
 		out.methodAnnotation(newName, false); //@representsMethod...
-		out.declareVar(CodeGen.plaidObjectType,freshMethName.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,freshMethName.getName());
 		out.assignToProtoMethod(freshMethName.getName(),arg.getName());  //freshMethName = new protofield( ... { {
 		
 		//body of the protofield
 		out.declareLambdaScope();
-		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,freshID.getName());
 		out.updateVar(arg.getName());
 		body.codegen(out, freshID, newLocalVars);
 		out.ret(freshID.getName() );  //return freshID;

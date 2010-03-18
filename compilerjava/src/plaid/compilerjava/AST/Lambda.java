@@ -58,7 +58,7 @@ public class Lambda implements Expression {
 		
 		out.assignToNewLambda(y.getName(),var.getName());  //y = new lambda(...{ {
 		
-		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType,freshID.getName());
 		IDList newLocalVars = localVars.add(var);
 		body.codegen(out, freshID, newLocalVars);  //lambda body
 		out.ret(freshID.getName());

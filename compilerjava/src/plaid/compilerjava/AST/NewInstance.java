@@ -64,7 +64,7 @@ public class NewInstance implements Expression{
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		ID r = IdGen.getId();
-		out.declareVar(CodeGen.plaidStateType, r.getName()); 
+		out.declareFinalVar(CodeGen.plaidStateType, r.getName()); 
 		st.codegen(out, r, localVars);
 		out.assignToInstantiation(y.getName(),r.getName()); //y = r.instantiate();
 	}
