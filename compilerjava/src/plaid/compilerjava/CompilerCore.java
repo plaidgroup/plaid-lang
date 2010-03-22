@@ -163,7 +163,6 @@ public class CompilerCore {
 		return cc;
 	}
 
-	// TODO (2): allow calling compile from main
 	public static void main(String args[]) {
 		CompilerConfiguration cc = parseParameters(args);
 
