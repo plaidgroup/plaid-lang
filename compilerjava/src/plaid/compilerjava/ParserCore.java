@@ -28,7 +28,7 @@ import plaid.compilerjava.coreparser.PlaidCoreParser;
 import plaid.runtime.PlaidException;
 
 public class ParserCore {
-	public static CompilationUnit parse(InputStream toParse) throws PlaidException {
+	public static CompilationUnit parse(InputStream toParse) throws PlaidException, ParseException {
 		//System.out.println("parsing...");
 		try {
 			PlaidCoreParser pp = new PlaidCoreParser(toParse);
@@ -42,9 +42,6 @@ public class ParserCore {
 		} catch (RuntimeException e) {
 			e.printStackTrace();
 			throw e;
-		} catch (ParseException e) {
-			e.printStackTrace();
-			throw new RuntimeException();
 		}
 	}
 }
