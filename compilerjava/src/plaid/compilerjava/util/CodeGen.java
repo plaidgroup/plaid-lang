@@ -82,7 +82,7 @@ public class CodeGen {
 	public static final String newPlaidObject = utilClass + ".newObject()";
 	public static final String newPlaidState = utilClass + ".newState()";
 	public static final String thisVar = "this" + PlaidConstants.ID_SUFFIX;
-	public static final String theScope = "the$c0pe";
+	//public static final String theScope = "the$c0pe";
 	public static final String copyright = 
 		"/**" + System.getProperty("line.separator") + 
 		" * Copyright (c) 2010 The Plaid Group (see AUTHORS file)" + System.getProperty("line.separator") +
@@ -311,6 +311,11 @@ public class CodeGen {
 	}
 	
 	public final void declareLambdaScope() {
+		declareLambdaScope(thisVar);
+	}
+	
+	public final void declareLambdaScope(String var) {
+		String theScope = IdGen.getId().getName();
 		declareVarAssign(plaidScopeType, theScope, currentScope);
 		output.append("final " + plaidScopeType + " " + CodeGen.currentScope + 
 				" = " + cl + ".lambdaScope(" + theScope  + ", " + thisVar + ");");

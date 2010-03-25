@@ -29,42 +29,19 @@ public class LetBinding implements Expression {
 	private Token token;
 	private ID x;
 	private Expression exp, body;
-	
-	public LetBinding(ID x, Expression e1, Expression e2) {
-		super();
-		this.x = x;
-		this.exp = e1;
-		this.body = e2;
-	}
+	private boolean mutable;
 
-	public LetBinding(ID x, Expression e1) {
-		super();
-		this.x = x;
-		this.exp = e1;
-	}
-	
-	public LetBinding() {
-		super();
-	}
-
-	public LetBinding(Token t, ID x, Expression e1, Expression e2) {
+	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable) {
 		super();
 		this.token = t;
 		this.x = x;
 		this.exp = e1;
 		this.body = e2;
+		this.mutable = mutable;
 	}
 
-	public LetBinding(Token t, ID x, Expression e1) {
-		super();
-		this.token = t;
-		this.x = x;
-		this.exp = e1;
-	}
-	
-	public LetBinding(Token t) {
-		super();
-		this.token = t;
+	public boolean isMutable() {
+		return mutable;
 	}
 
 	public Token getToken() {
@@ -75,11 +52,15 @@ public class LetBinding implements Expression {
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		out.openBlock(); //{
-		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
+		if(mutable) {
+			out.declareVar(CodeGen.plaidObjectType, x.getName());
+		} else {
+			out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
+		}
 		exp.codegen(out, x, localVars);
 		
-		IDList newLocalVars = localVars.add(x);
-		body.codegen(out, y, newLocalVars);
+		localVars = localVars.add(x);
+		body.codegen(out, y, localVars);
 		
 		out.closeBlock(); // }
 	}
@@ -110,9 +91,6 @@ public class LetBinding implements Expression {
 
 	@Override
 	public void accept(ASTVisitor visitor) {
-//		x.accept(visitor);
-//		exp.accept(visitor);
-//		body.accept(visitor);
 		visitor.visit(this);
 	}
 
