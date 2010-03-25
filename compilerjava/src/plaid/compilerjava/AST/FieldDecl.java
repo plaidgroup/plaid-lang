@@ -36,31 +36,24 @@ public class FieldDecl implements Decl{
 	private Token token;
 	private ID f;
 	private Expression e;
+	private final boolean abstractField;
 	
-	public FieldDecl(ID f, Expression e) {
-		super();
-		this.setF(f);
-		this.setE(e);
-	}
-	
-	public FieldDecl(ID f) {
-		super();
-		this.setF(f);
-	}
-	
-	public FieldDecl(Token t, ID f, Expression e) {
-		super();
-		this.token = t;
-		this.setF(f);
-		this.setE(e);
-	}
-	
-	public FieldDecl(Token t, ID f) {
-		super();
-		this.token = t;
-		this.setF(f);
+	public boolean isAbstractField() {
+		return abstractField;
 	}
 
+	public FieldDecl(Token t, ID f, Expression e, boolean abstractField) {
+		super();
+		this.token = t;
+		this.setF(f);
+		this.setE(e);
+		this.abstractField = abstractField;
+	}
+
+	public FieldDecl(ID f, Expression e) {
+		this(null, f, e, false);
+	}
+	
 	public ID getF() {
 		return f;
 	}

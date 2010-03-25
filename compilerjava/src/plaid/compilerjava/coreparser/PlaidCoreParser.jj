@@ -444,11 +444,11 @@ Decl DeclField() :
 		(
 				< EQUALS > e = Exp() < SEMICOLON >
 				{
-						d = new FieldDecl(name, e);
+						d = new FieldDecl(t, name, e, false);
 				}
 		|		< SEMICOLON >
 				{
-						d = new FieldDecl(name, new UnitLiteral());
+						d = new FieldDecl(t, name, new UnitLiteral(), true);
 				}
 		)
 		{
@@ -458,25 +458,27 @@ Decl DeclField() :
 
 Decl DeclMethod() :
 {
+		Token t;
 		ID name, argID = null; //may not be any arguments
-		Expression e = new UnitLiteral(); //default method body is unit
+		Expression e = null;
 		List < ID > argList = new ArrayList < ID > ();
 		MethodDecl d;
 }
 {
-		< METHOD > name = IdOrOperator() < LPAREN > [ argList = DeclArgs() ] < RPAREN > e = BlockExpression(false)
+		t = < METHOD > name = IdOrOperator() < LPAREN > [ argList = DeclArgs() ] < RPAREN > (e = BlockExpression(false) | <SEMICOLON> )
 		{
+			if (e == null) d = new MethodDecl(t, name.getName(), new UnitLiteral(), argID, true); //default method body is unit
+			else {
 				if (argList.size() == 1) argID = argList.get(0);
-				else if (argList.size() > 1)
-		{
-				argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
-				e = getBodyWithPairExtractions(argList, argID, 1, e);
+				else if (argList.size() > 1) {
+					argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
+					e = getBodyWithPairExtractions(argList, argID, 1, e);
+				}
+				d = new MethodDecl(t, name.getName(), e, argID, false);
+			}
 		}
-		d = new MethodDecl(name.getName(), e, argID);
-}
-{
-		return d;
-}
+		
+		{return d;}
 
 }
 
@@ -1084,8 +1086,9 @@ Expression ExpList() :
 						With pairWith;
 						for (int i = size - 1; i >= 0; i--)
 						{
-								fst = new FieldDecl(new ID("fst"), expList.get(i));
-								snd = new FieldDecl(new ID("snd"), second);
+								fst = new FieldDecl(expList.get(i).getToken(),
+													 new ID("fst"), expList.get(i), false);
+								snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
 								pairFields = new ArrayList < Decl > ();
 								pairFields.add(fst);
 								pairFields.add(snd);
