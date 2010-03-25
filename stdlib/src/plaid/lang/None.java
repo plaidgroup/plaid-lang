@@ -21,13 +21,13 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "None", toplevel = true)
 public class None{
-	public static java.util.List<plaid.runtime.utils.Import> vAr77$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr83$plaid;
 	static {
-		vAr77$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr83$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr77$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr83$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "None", toplevel = false)
-	public static plaid.runtime.PlaidObject None;
+	public static final plaid.runtime.PlaidObject None;
 	static {
 		None = plaid.runtime.Util.newState();
 	}

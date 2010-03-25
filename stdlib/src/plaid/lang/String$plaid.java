@@ -45,7 +45,7 @@ public class String$plaid {
 				@SuppressWarnings("unused")
 				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
 				String x = ((String)((PlaidJavaObject)thisVar).getJavaObject()) +
-				((String)((PlaidJavaObject)args).getJavaObject());
+				(((PlaidJavaObject)args).getJavaObject().toString());
 				return Util.string(x);
 			}
 		}));

@@ -98,7 +98,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 			PlaidStateMap ps = (PlaidStateMap)p;
 			addToPlaidObject(result.templateState, ps.templateState);
 		}
-		result.setReadOnly(true);
+		//result.setReadOnly(true);
 		return result;
 	}
 

@@ -174,7 +174,11 @@ public class Util {
 		if ( obj instanceof PlaidMethod ) {
 			return (PlaidMethod)obj;
 		} else {
-			throw new PlaidCastException("Failed to cast '"+obj+"'to PlaidMethod.");
+			if ( obj instanceof PlaidScope )  {
+				throw new PlaidMethodNotFoundException("Method '" + obj +"' not found.");
+			} else {
+				throw new PlaidCastException("Failed to cast '"+obj+"'to PlaidMethod.");
+			}
 		}
 	}
 	
