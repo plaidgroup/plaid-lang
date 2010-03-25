@@ -267,7 +267,7 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 		// states are always singletons
 		singletons.put(qi.getPrefix().append(psa.name()).toString(), psm);
 		// states are always immutable 
-		psm.setReadOnly(true);
+		//psm.setReadOnly(true);
 		return psm;
 	}
 
