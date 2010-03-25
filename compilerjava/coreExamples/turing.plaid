@@ -1,0 +1,270 @@
+/* A Turing Machine in Plaid */
+
+// TODO: error messages without stack trace
+// TODO: "Failed to cast PlaidLookupMap to PlaidMethod" is a terrible error message
+// TODO: blow away semantics sucks.  Need to keep Zero or One when we change the rest--and vice versa!
+
+package plaid.examples.turing;
+
+state Cell {
+    // TODO: allow abstract methods
+    // TODO: allow optional types
+    //method getLeft();
+    //method getRight();
+
+    method getLeft() {
+    	left;
+    }
+    method getRight() {
+    	right;
+    }
+    val left;
+    val right;
+
+    method doPrint() {
+    	printVal();
+    	java.lang.System.out.print(" ");
+		val rt = this.getRight();
+		rt.doPrint();	// TODO: should be able to string along
+    }
+    method print() {
+	val lt = this.getLeft();
+	lt.print();
+    }
+}
+
+
+
+state Zero {
+    method writeZero() {}
+    method writeOne() {
+    	val lt = getLeft();
+	val rt = getRight();
+	// now we are a Cell
+	this <- Cell with One { left = lt; right = rt; };
+    }
+    method printVal() {
+    	java.lang.System.out.print("0");
+    }
+}
+
+state One {
+    method writeZero() {
+    	val lt = getLeft();
+	val rt = getRight();
+	// now we are a Cell
+	this <- Cell with Zero { left = lt; right = rt; };
+    }
+    method writeOne() {}
+    method printVal() {
+    	java.lang.System.out.print("1");
+    }
+}
+
+state LeftEnd /* = Zero*/ {
+    method getLeft() {
+    	val myLeft = makeLeftEnd(this);
+	val myRight = this.getRight();
+
+	this <- Cell with Zero { left = myLeft; right = myRight; };
+
+	left;
+    }
+    method getRight() {
+    	right;	      // TODO: no semicolon
+    }
+    val right;
+
+    method doPrint() {
+    	printVal();
+	java.lang.System.out.print(" ");
+	val rt = this.getRight();
+	rt.doPrint();	// TODO: should be able to string along
+    }
+    method print() {
+    	doPrint();
+    }
+}
+
+method makeLeftEnd(myRight) {
+    new LeftEnd with Zero { right = myRight; };
+}
+
+state RightEnd /* = Zero*/ {
+    // TODO: allow static "new" function here
+    method getRight() {
+    	val myLeft = getLeft();
+	val myRight = makeRightEnd(this);
+
+	this <- Cell with Zero { left = myLeft; right = myRight; };
+
+	right;
+    }
+
+    method getLeft() {
+    	left;
+    }
+    val left;
+
+    method doPrint() {
+    	printVal();
+    }
+    method print() {
+	val lt = this.getLeft();
+	lt.print();
+    }
+}
+
+method makeRightEnd(myLeft) {
+    new RightEnd with Zero { left = myLeft; };
+}
+
+// TODO: support inheritance here!
+state Start /* = Zero*/ {	// TODO: thinks /*= is an operator!
+    method getLeft() {
+    	val left = makeLeftEnd(this);
+
+	this <- RightEnd with Zero {
+	    method getLeft() {
+	    	left;
+	    }
+	};
+
+	/*val newObj = makeRightEnd(left);	// oops, creates garbage!
+	this <- newObj;		// TODO: this should work!
+	*/
+
+	left;
+    }
+
+    method getRight() {
+    	val right = makeRightEnd(this);
+
+	this <- LeftEnd with Zero {
+	    method getRight() {
+	    	right;
+	    }
+	};
+
+	right;
+    }
+
+    method doPrint() {
+    	printVal();
+    }
+    method print() {
+    	doPrint();
+    }
+}
+
+state Halt {
+    val cell;
+
+    method print() {
+    	cell.print();
+    }
+
+    method run() {
+    }
+}
+
+state Beaver1A {
+    val cell;
+
+    method update() {
+        match (cell) {
+	    case Zero {
+	    	cell.writeOne();
+		val newCell = cell.getRight();
+		this <- Halt { cell = newCell; };
+	    }
+	    case One {
+	    }
+	};
+    }
+
+    method run() {
+    	update();
+	run();
+    }
+}
+
+state Beaver2A {
+    val cell;
+
+    method update() {
+        match (cell) {
+	    case Zero {
+	    	cell.writeOne();
+		val newCell = cell.getRight();
+		this <- Beaver2B { cell = newCell; };
+	    }
+	    case One {
+	    	cell.writeOne();
+		val newCell = cell.getLeft();
+		this <- Beaver2B { cell = newCell; };
+	    }
+	};
+    }
+
+    method run() {
+    	update();
+	run();
+    }
+}
+
+state Beaver2B {
+    val cell;
+
+    method update() {
+        match (cell) {
+	    case Zero {
+	    	cell.writeOne();
+		val newCell = cell.getLeft();
+		this <- Beaver2A { cell = newCell; };
+	    }
+	    case One {
+	    	cell.writeOne();
+		val newCell = cell.getRight();
+		this <- Halt { cell = newCell; };
+	    }
+	};
+    }
+
+    method run() {
+    	update();
+	run();
+    }
+}
+
+method beaver(machine) {
+    machine.run();
+    machine.print();
+}
+
+method run() {
+    java.lang.System.out.println("running 1 state busy beaver:");
+    beaver(new Beaver1A { cell = new Start with Zero; });
+
+    java.lang.System.out.println("running 2 state busy beaver:");
+    beaver(new Beaver2A { cell = new Start with Zero; });
+}
+
+method test() {
+    var head = new Start with Zero;
+    head.print();
+    java.lang.System.out.println();
+    var head1 = head.getLeft();	// TODO: allow reassigning head
+    var head2 = head1.getLeft();
+    var head3 = head2.getRight(); // same as head1
+    var head4 = head3.getRight(); // same as head
+    var head5 = head4.getRight(); // move 1 right
+    var head6 = head5.getLeft(); // same as head
+    var head7 = head6.getLeft(); // same as head1
+    head2.print();
+    java.lang.System.out.println();
+    head7.writeOne();
+    head7.print();
+    java.lang.System.out.println();
+    java.lang.System.out.println("running a turning machine!");
+}
