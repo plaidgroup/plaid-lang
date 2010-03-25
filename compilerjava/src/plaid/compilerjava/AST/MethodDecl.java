@@ -38,30 +38,20 @@ public class MethodDecl implements Decl {
 	private String name;
 	private Expression body;
 	private ID arg;
+	private final boolean abstractMethod;
 	
-	
-	public MethodDecl(String name) {
-		this.setName(name);
-	}
-	
-	public MethodDecl(String name, Expression exp, ID arg) {
-		this.setName(name);
-		this.setBody(exp);
-		this.setArg(arg);
-	}
-	
-	public MethodDecl(Token t, String name) {
-		this.token = t;
-		this.setName(name);
-	}
-	
-	public MethodDecl(Token t, String name, Expression exp, ID arg) {
+	public MethodDecl(Token t, String name, Expression exp, ID arg, boolean abstractMethod) {
 		this.token = t;
 		this.setName(name);
 		this.setBody(exp);
 		this.setArg(arg);
+		this.abstractMethod = abstractMethod;
 	}
 	
+	public boolean isAbstractMethod() {
+		return abstractMethod;
+	}
+
 	public void setBody(Expression e) {
 		this.body = e;
 	}
