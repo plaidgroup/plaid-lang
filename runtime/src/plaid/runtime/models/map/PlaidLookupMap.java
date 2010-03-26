@@ -53,6 +53,6 @@ public final class PlaidLookupMap extends PlaidObjectMap implements PlaidPackage
 
 	@Override
 	public String toString() {
-		return "PlaidLookupMap("+thePackage + "," + toLookup +")";
+		return "PlaidLookupMap("+thePackage + "." + toLookup +")";
 	}
 }

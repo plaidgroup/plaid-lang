@@ -20,6 +20,8 @@
 package plaid.runtime.models.map;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
@@ -80,6 +82,14 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		this.pkg = pkg;
 	}
 	
+	@Override
+	public Collection<PlaidObject> getStates() {
+		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
+		result.addAll(states);
+		result.addAll(templateState.getStates());
+		return Collections.unmodifiableCollection(result);
+	}
+
 	public PlaidPackageMap getPackage() {
 		return pkg;
 	}
@@ -137,7 +147,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		for ( PlaidObject ps : this.templateState.getStates() ) {
 			pom.addState(ps);
 		}
-
+		
 		return pom;
 	}
 
