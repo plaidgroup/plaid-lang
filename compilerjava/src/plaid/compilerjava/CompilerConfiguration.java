@@ -33,6 +33,7 @@ public class CompilerConfiguration {
 	private boolean keepTemporaryFiles = false;
 	private boolean verbose = false;
 	private boolean copyright = false;
+	private boolean printCompilerStackTrace = true;
 	private CompilationUnit cu = null;
 	
 	public CompilerConfiguration() {}
@@ -106,6 +107,18 @@ public class CompilerConfiguration {
 	
 	public boolean addCopyrightHeader() {
 		return copyright;
+	}
+	
+	public void enableCompilerStackTrace() {
+		this.printCompilerStackTrace = true;
+	}
+	
+	public void disableCompilerStackTrace() {
+		this.printCompilerStackTrace = false;
+	}
+	
+	public boolean compilerStackTraceEnabled() {
+		return this.printCompilerStackTrace;
 	}
 	
 }

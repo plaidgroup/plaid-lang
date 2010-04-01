@@ -1,17 +1,24 @@
 package plaid.compilerjava.tools;
 
 import java.awt.Dimension;
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 
-import javax.swing.*;
-import javax.swing.tree.*;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTree;
+import javax.swing.tree.DefaultMutableTreeNode;
 
 import plaid.compilerjava.ParserCore;
-import plaid.compilerjava.AST.*;
+import plaid.compilerjava.AST.ASTnode;
+import plaid.compilerjava.AST.CompilationUnit;
+import plaid.compilerjava.coreparser.ParseException;
 import plaid.runtime.PlaidException;
 
 public class ASTInspector {
-	public static void main(String[] args) throws PlaidException, FileNotFoundException {
+	public static void main(String[] args) throws PlaidException, FileNotFoundException, ParseException {
 		File plaidFile = new File("coreExamples/addFive.plaid");
 		CompilationUnit root = ParserCore.parse(new FileInputStream(plaidFile));
 		drawAST(root);
