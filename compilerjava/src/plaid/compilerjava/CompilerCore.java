@@ -46,56 +46,68 @@ public class CompilerCore {
 	
 	
 	public void compile() throws FileNotFoundException {
-		if ( cc.getInputFiles().size() == 1) {
-			System.out.println("compiling " + cc.getInputFiles().get(0).getName());
-		} else {
-			System.out.println("compiling " + cc.getInputFiles().size() + " files");
-		}
-		
-		// open the file
-		List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
-		for (File f : cc.getInputFiles()) {
-			CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
-			cu.setSourceFile(f);
-			cus.add(cu);
-		}
-		
-		// create the output file
 		try {
-			if (cc.isVerbose()) System.out.println("GENERATING CODE");
-			List<File> allFiles = new ArrayList<File>();
-			for(CompilationUnit cu : cus) {
-				List<File> fileList = cu.codegen(cc);
-				if ( cc.isVerbose() ) {
-					for(File f : fileList) {
-						FileReader fr = new FileReader(f);
-						int charRead;
-						while((charRead = fr.read()) != -1) {
-							System.out.print((char)charRead);
+			if ( cc.getInputFiles().size() == 1) {
+				System.out.println("compiling " + cc.getInputFiles().get(0).getName());
+			} else {
+				System.out.println("compiling " + cc.getInputFiles().size() + " files");
+			}
+			
+			// open the file
+			List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
+			for (File f : cc.getInputFiles()) {
+				CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
+				cu.setSourceFile(f);
+				cus.add(cu);
+			}
+			
+			// create the output file
+			try {
+				if (cc.isVerbose()) System.out.println("GENERATING CODE");
+				List<File> allFiles = new ArrayList<File>();
+				for(CompilationUnit cu : cus) {
+					List<File> fileList = cu.codegen(cc);
+					if ( cc.isVerbose() ) {
+						for(File f : fileList) {
+							FileReader fr = new FileReader(f);
+							int charRead;
+							while((charRead = fr.read()) != -1) {
+								System.out.print((char)charRead);
+							}
 						}
 					}
+					allFiles.addAll(fileList);
 				}
-				allFiles.addAll(fileList);
-			}
-			
-			if ( cc.isKeepTemporaryFiles() == false ) {
-				for( File f : allFiles ) {
-					f.deleteOnExit();
+				
+				if ( cc.isKeepTemporaryFiles() == false ) {
+					for( File f : allFiles ) {
+						f.deleteOnExit();
+					}
 				}
+				
+				if ( cc.isInvokeCompiler() ) {
+					JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+					StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
+					Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
+	
+					// invoke the compiler
+					CompilationTask task = compiler.getTask(null, null, null, null, null, fileObjects);
+					Boolean resultCode = task.call();
+					if (cc.isVerbose()) System.out.println("result = " + resultCode.toString());
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-			
-			if ( cc.isInvokeCompiler() ) {
-				JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-				StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
-				Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
-
-				// invoke the compiler
-				CompilationTask task = compiler.getTask(null, null, null, null, null, fileObjects);
-				Boolean resultCode = task.call();
-				if (cc.isVerbose()) System.out.println("result = " + resultCode.toString());
+		} catch (Exception e) {
+			if (cc.compilerStackTraceEnabled()) {
+				e.printStackTrace();
+				throw new RuntimeException(e);
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+			else {
+				System.err.println(e.getMessage());
+				System.err.println("Enable stack trace for more information.");
+				throw new RuntimeException("Enable the compiler stack trace to get more information.");
+			}
 		}
     }
 
