@@ -37,21 +37,24 @@ public class StateDecl implements Decl {
 	private Token token;
 	private ID name;
 	private State stateDef;
-
-	public StateDecl(ID name, State stateDef) {
-		super();
-		this.setName(name);
-		this.setStateDef(stateDef);
-	}
-	
-	public StateDecl() {
-	}
+	private QI caseOf;
+	private boolean isCaseOf;
 	
 	public StateDecl(Token t, ID name, State stateDef) {
 		super();
 		this.token = t;
 		this.setName(name);
 		this.setStateDef(stateDef);
+		isCaseOf = false;
+	}
+	
+	public StateDecl(Token t, ID name, State stateDef, QI caseOf) {
+		super();
+		this.token = t;
+		this.setName(name);
+		this.setStateDef(stateDef);
+		this.caseOf = caseOf;
+		isCaseOf = true;
 	}
 	
 	public StateDecl(Token t) {
