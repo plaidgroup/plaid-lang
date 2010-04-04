@@ -28,16 +28,19 @@ import java.util.Map;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidObject;
+import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
 
 public class PlaidObjectMap implements PlaidObject {
 	protected Collection<PlaidObject> states;
 	protected Map<String,PlaidObject> members;
+	protected Collection<PlaidTag> tags;
 	protected boolean readonly = false;
 	
 	public PlaidObjectMap() {
 		states = new ArrayList<PlaidObject>();
 		members = new HashMap<String, PlaidObject>();
+		tags = new ArrayList<PlaidTag>();
 	}
 
 	public void setReadOnly(boolean ro) {
@@ -89,6 +92,29 @@ public class PlaidObjectMap implements PlaidObject {
 		result.addAll(states);
 		return Collections.unmodifiableCollection(result);
 	}
+	
+	@Override
+	public void addTag(PlaidTag tag) throws PlaidException {
+		if ( isReadOnly() ) throw new PlaidIllegalAccessException("Cannot change readonly object.");		
+		if ( !tags.contains(tag) ) {
+			tags.add(tag);
+		};
+	}
+
+	@Override
+	public void removeTag(PlaidTag tag) {
+		if ( isReadOnly() ) throw new PlaidIllegalAccessException("Cannot change readonly object.");
+		if ( tags.contains(tag)) {
+			tags.remove(tag);
+		}		
+	}
+
+	@Override
+	public Collection<PlaidTag> getTags() {
+		Collection<PlaidTag> result = new ArrayList<PlaidTag>();
+		result.addAll(tags);
+		return Collections.unmodifiableCollection(result);
+	}
 
 	@Override
 	public PlaidObject changeState(PlaidObject update) throws PlaidException {
@@ -96,6 +122,7 @@ public class PlaidObjectMap implements PlaidObject {
 		// cleanup current information
 		members.clear();
 		states.clear();
+		tags.clear();
 		
 		// convert other members 
 		for ( Map.Entry<String, PlaidObject> e : update.getMembers().entrySet() ) {
@@ -109,6 +136,7 @@ public class PlaidObjectMap implements PlaidObject {
 		
 		// add other states
 		states.addAll(update.getStates());
+		tags.addAll(update.getTags());
 		return Util.unit();
 	}
 
@@ -124,6 +152,11 @@ public class PlaidObjectMap implements PlaidObject {
 			PlaidStateMap sm = (PlaidStateMap)s;
 			sb.append(sm + ",");
 		}		
+		sb.append("}, tags={");
+		for( Object t : tags.toArray() ) {
+			PlaidTag tm = (PlaidTagMap)t;
+			sb.append(tm + ",");
+		}	
 		if ( sb.charAt(sb.length()-1) == ',') sb.deleteCharAt(sb.length()-1);
 		sb.append("})");
 		return sb.toString();

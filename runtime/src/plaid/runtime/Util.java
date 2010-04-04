@@ -36,11 +36,19 @@ public class Util {
 	}
 
 	public static PlaidState newState() throws PlaidException {
-		PlaidState ps = (PlaidState)cl.lookup("plaid.lang.State", unit());
-		PlaidState result = (PlaidState)ps.instantiate();
-		result.removeState(ps);
-		return result;
+		return cl.state();
+//		PlaidState ps = (PlaidState)cl.lookup("plaid.lang.State", unit());
+//		PlaidState result = (PlaidState)ps.instantiate();
+//		result.removeState(ps);
+//		return result;
 	}
+	
+//	public static PlaidState newState(String name) throws PlaidException {
+//		PlaidState ps = (PlaidState)cl.lookup("plaid.lang.State", unit());
+//		PlaidState result = (PlaidState)ps.instantiate();
+//		result.removeState(ps);
+//		return result;
+//	}
 	
 	public static PlaidObject string(String s) throws PlaidException {
 		PlaidState intState = (PlaidState)cl.lookup("plaid.lang.String", unit());
@@ -90,6 +98,10 @@ public class Util {
 	
 	public static PlaidObject lookup(String name, PlaidScope scope) {
 		return cl.lookup(name, scope);
+	}
+	
+	public static PlaidTag tag(String tag, PlaidState caseOf) {
+		return cl.tag(tag, caseOf);
 	}
 	
 	public static Object[] convertParamsToArray(PlaidObject params) throws PlaidException {

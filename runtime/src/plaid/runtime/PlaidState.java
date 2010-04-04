@@ -36,4 +36,15 @@ public interface PlaidState extends PlaidObject {
 	 * @return
 	 */
 	public PlaidState with(PlaidState ...args) throws PlaidException;
+	
+	/**
+	 * returns the state's prototype PlaidObject
+	 *
+	 * @return
+	 */
+	public PlaidObject getPrototype() throws PlaidException;
+	
+	public boolean hasTag() throws PlaidException;
+	
+	public PlaidTag getTag() throws PlaidException;
 }
