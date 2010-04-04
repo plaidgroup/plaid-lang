@@ -156,4 +156,15 @@ public class Integer$plaid {
 	
 	
 	}
+	
+	//TODO : should this Integer be a matchable tag?
+	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Integer")
+	public static final plaid.runtime.PlaidTag IntegerTag$plaid;
+	static {
+		final plaid.runtime.PlaidState vAr100$plaid;
+		final plaid.runtime.PlaidObject vAr101$plaid;
+		vAr101$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid.lang.Object", packageScope);
+		vAr100$plaid = plaid.runtime.Util.toPlaidState(vAr101$plaid);
+		IntegerTag$plaid = plaid.runtime.Util.tag("plaid.lang.Integer", vAr100$plaid);
+	}
 }

@@ -21,74 +21,88 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsField(name = "ifElse", toplevel = true)
 public class ifElse{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr24$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr27$plaid;
 	static {
-		vAr24$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr27$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr24$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr27$plaid);
 	@plaid.runtime.annotations.RepresentsField(name = "ifElse", toplevel = false)
 	public static final plaid.runtime.PlaidObject ifElse;
 	static {
 		ifElse = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject bool) throws plaid.runtime.PlaidException {
-				final plaid.runtime.PlaidObject vAr25$plaid;
-				final plaid.runtime.PlaidObject vAr26$plaid;
-				vAr26$plaid = bool;
-				final plaid.runtime.PlaidObject vAr27$plaid;
 				final plaid.runtime.PlaidObject vAr28$plaid;
-				vAr28$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid", current$c0pe);
 				final plaid.runtime.PlaidObject vAr29$plaid;
-				vAr29$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("lang", vAr28$plaid);
-				final plaid.runtime.PlaidObject vAr30$plaid;
-				vAr30$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("True", vAr29$plaid);
-				vAr27$plaid = plaid.runtime.Util.toPlaidState(vAr30$plaid);
-				if (vAr26$plaid.getStates().contains(vAr27$plaid)) {
-					vAr25$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
+				vAr29$plaid = bool;
+				final plaid.runtime.PlaidState vAr30$plaid;
+				final plaid.runtime.PlaidObject vAr32$plaid;
+				vAr32$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid", current$c0pe);
+				final plaid.runtime.PlaidObject vAr33$plaid;
+				vAr33$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("lang", vAr32$plaid);
+				final plaid.runtime.PlaidObject vAr34$plaid;
+				vAr34$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("True", vAr33$plaid);
+				vAr30$plaid = plaid.runtime.Util.toPlaidState(vAr34$plaid);
+				final plaid.runtime.PlaidTag vAr31$plaid;
+				if (vAr30$plaid.hasTag()) {
+					vAr31$plaid = vAr30$plaid.getTag();
+				}
+				else {
+					throw new plaid.runtime.PlaidException(vAr30$plaid.toString() + " is not assocaiated with a tag");
+				}
+				if (vAr29$plaid.getTags().contains(vAr31$plaid)) {
+					vAr28$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 						public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject trueClause) throws plaid.runtime.PlaidException {
-							final plaid.runtime.PlaidObject vAr31$plaid;
-							vAr31$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
+							final plaid.runtime.PlaidObject vAr35$plaid;
+							vAr35$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 								public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject falseClause) throws plaid.runtime.PlaidException {
-									final plaid.runtime.PlaidObject vAr32$plaid;
-									final plaid.runtime.PlaidObject vAr33$plaid;
-									final plaid.runtime.PlaidObject vAr34$plaid;
-									vAr33$plaid = trueClause;
-									vAr34$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-									vAr32$plaid = plaid.runtime.Util.call(vAr33$plaid, vAr34$plaid);
-									return vAr32$plaid;
+									final plaid.runtime.PlaidObject vAr36$plaid;
+									final plaid.runtime.PlaidObject vAr37$plaid;
+									final plaid.runtime.PlaidObject vAr38$plaid;
+									vAr37$plaid = trueClause;
+									vAr38$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+									vAr36$plaid = plaid.runtime.Util.call(vAr37$plaid, vAr38$plaid);
+									return vAr36$plaid;
 								}
 							}
 							);
-							return vAr31$plaid;
+							return vAr35$plaid;
 						}
 					}
 					);
 				}
 				else {
-					final plaid.runtime.PlaidObject vAr35$plaid;
-					final plaid.runtime.PlaidObject vAr36$plaid;
-					vAr36$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid", current$c0pe);
-					final plaid.runtime.PlaidObject vAr37$plaid;
-					vAr37$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("lang", vAr36$plaid);
-					final plaid.runtime.PlaidObject vAr38$plaid;
-					vAr38$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("False", vAr37$plaid);
-					vAr35$plaid = plaid.runtime.Util.toPlaidState(vAr38$plaid);
-					if (vAr26$plaid.getStates().contains(vAr35$plaid)) {
-						vAr25$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
+					final plaid.runtime.PlaidState vAr39$plaid;
+					final plaid.runtime.PlaidObject vAr41$plaid;
+					vAr41$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid", current$c0pe);
+					final plaid.runtime.PlaidObject vAr42$plaid;
+					vAr42$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("lang", vAr41$plaid);
+					final plaid.runtime.PlaidObject vAr43$plaid;
+					vAr43$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("False", vAr42$plaid);
+					vAr39$plaid = plaid.runtime.Util.toPlaidState(vAr43$plaid);
+					final plaid.runtime.PlaidTag vAr40$plaid;
+					if (vAr39$plaid.hasTag()) {
+						vAr40$plaid = vAr39$plaid.getTag();
+					}
+					else {
+						throw new plaid.runtime.PlaidException(vAr39$plaid.toString() + " is not assocaiated with a tag");
+					}
+					if (vAr29$plaid.getTags().contains(vAr40$plaid)) {
+						vAr28$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject trueClause) throws plaid.runtime.PlaidException {
-								final plaid.runtime.PlaidObject vAr39$plaid;
-								vAr39$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
+								final plaid.runtime.PlaidObject vAr44$plaid;
+								vAr44$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 									public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject falseClause) throws plaid.runtime.PlaidException {
-										final plaid.runtime.PlaidObject vAr40$plaid;
-										final plaid.runtime.PlaidObject vAr41$plaid;
-										final plaid.runtime.PlaidObject vAr42$plaid;
-										vAr41$plaid = falseClause;
-										vAr42$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-										vAr40$plaid = plaid.runtime.Util.call(vAr41$plaid, vAr42$plaid);
-										return vAr40$plaid;
+										final plaid.runtime.PlaidObject vAr45$plaid;
+										final plaid.runtime.PlaidObject vAr46$plaid;
+										final plaid.runtime.PlaidObject vAr47$plaid;
+										vAr46$plaid = falseClause;
+										vAr47$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+										vAr45$plaid = plaid.runtime.Util.call(vAr46$plaid, vAr47$plaid);
+										return vAr45$plaid;
 									}
 								}
 								);
-								return vAr39$plaid;
+								return vAr44$plaid;
 							}
 						}
 						);
@@ -97,7 +111,7 @@ public class ifElse{
 						throw new RuntimeException("Pattern match exhausted.");
 					}
 				}
-				return vAr25$plaid;
+				return vAr28$plaid;
 			}
 		}
 		);

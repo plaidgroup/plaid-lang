@@ -21,66 +21,66 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsField(name = "while$plaid", toplevel = true)
 public class while$plaid{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr43$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr48$plaid;
 	static {
-		vAr43$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr48$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr43$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr48$plaid);
 	@plaid.runtime.annotations.RepresentsField(name = "while$plaid", toplevel = false)
 	public static final plaid.runtime.PlaidObject while$plaid;
 	static {
 		while$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject cond) throws plaid.runtime.PlaidException {
-				final plaid.runtime.PlaidObject vAr44$plaid;
-				vAr44$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
+				final plaid.runtime.PlaidObject vAr49$plaid;
+				vAr49$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject body) throws plaid.runtime.PlaidException {
-						final plaid.runtime.PlaidObject vAr45$plaid;
-						final plaid.runtime.PlaidObject vAr46$plaid;
-						final plaid.runtime.PlaidObject vAr47$plaid;
-						final plaid.runtime.PlaidObject vAr48$plaid;
-						final plaid.runtime.PlaidState vAr49$plaid;
-						final plaid.runtime.PlaidState vAr50$plaid;
-						final plaid.runtime.PlaidState vAr51$plaid;
+						final plaid.runtime.PlaidObject vAr50$plaid;
+						final plaid.runtime.PlaidObject vAr51$plaid;
 						final plaid.runtime.PlaidObject vAr52$plaid;
-						vAr52$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("WhileState", current$c0pe);
-						vAr50$plaid = plaid.runtime.Util.toPlaidState(vAr52$plaid);
-						vAr51$plaid = plaid.runtime.Util.newState();
-						@plaid.runtime.annotations.RepresentsField(name = "condition", toplevel = false)
-						final plaid.runtime.PlaidObject vAr54$plaid;
-						vAr54$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr55$plaid) {
-								plaid.runtime.PlaidScope the$c0pe = current$c0pe;
-								final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(the$c0pe, this$plaid);
-								final plaid.runtime.PlaidObject vAr53$plaid;
-								vAr53$plaid = cond;
-								return vAr53$plaid;
-							}
-						}
-						);
-						vAr51$plaid.addMember("condition",vAr54$plaid);
-						@plaid.runtime.annotations.RepresentsField(name = "whileBody", toplevel = false)
+						final plaid.runtime.PlaidObject vAr53$plaid;
+						final plaid.runtime.PlaidState vAr54$plaid;
+						final plaid.runtime.PlaidState vAr55$plaid;
+						final plaid.runtime.PlaidState vAr56$plaid;
 						final plaid.runtime.PlaidObject vAr57$plaid;
-						vAr57$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr58$plaid) {
-								plaid.runtime.PlaidScope the$c0pe = current$c0pe;
-								final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(the$c0pe, this$plaid);
-								final plaid.runtime.PlaidObject vAr56$plaid;
-								vAr56$plaid = body;
-								return vAr56$plaid;
+						vAr57$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("WhileState", current$c0pe);
+						vAr55$plaid = plaid.runtime.Util.toPlaidState(vAr57$plaid);
+						vAr56$plaid = plaid.runtime.Util.newState();
+						@plaid.runtime.annotations.RepresentsField(name = "condition", toplevel = false)
+						final plaid.runtime.PlaidObject vAr59$plaid;
+						vAr59$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr60$plaid) {
+								plaid.runtime.PlaidScope vAr61$plaid = current$c0pe;
+								final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr61$plaid, this$plaid);
+								final plaid.runtime.PlaidObject vAr58$plaid;
+								vAr58$plaid = cond;
+								return vAr58$plaid;
 							}
 						}
 						);
-						vAr51$plaid.addMember("whileBody",vAr57$plaid);
-						vAr49$plaid = vAr50$plaid.with(vAr51$plaid);
-						vAr48$plaid = vAr49$plaid.instantiate();
-						vAr46$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("whileLoop", vAr48$plaid);
-						vAr47$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-						vAr45$plaid = plaid.runtime.Util.call(vAr46$plaid, vAr47$plaid);
-						return vAr45$plaid;
+						vAr56$plaid.addMember("condition",vAr59$plaid);
+						@plaid.runtime.annotations.RepresentsField(name = "whileBody", toplevel = false)
+						final plaid.runtime.PlaidObject vAr63$plaid;
+						vAr63$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr64$plaid) {
+								plaid.runtime.PlaidScope vAr65$plaid = current$c0pe;
+								final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr65$plaid, this$plaid);
+								final plaid.runtime.PlaidObject vAr62$plaid;
+								vAr62$plaid = body;
+								return vAr62$plaid;
+							}
+						}
+						);
+						vAr56$plaid.addMember("whileBody",vAr63$plaid);
+						vAr54$plaid = vAr55$plaid.with(vAr56$plaid);
+						vAr53$plaid = vAr54$plaid.instantiate();
+						vAr51$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("whileLoop", vAr53$plaid);
+						vAr52$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+						vAr50$plaid = plaid.runtime.Util.call(vAr51$plaid, vAr52$plaid);
+						return vAr50$plaid;
 					}
 				}
 				);
-				return vAr44$plaid;
+				return vAr49$plaid;
 			}
 		}
 		);

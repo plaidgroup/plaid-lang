@@ -69,4 +69,15 @@ public class String$plaid {
 			}
 		}));
 	}
+	
+	//TODO : should this String be a matchable tag?
+	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.String")
+	public static final plaid.runtime.PlaidTag StringTag$plaid;
+	static {
+		final plaid.runtime.PlaidState vAr100$plaid;
+		final plaid.runtime.PlaidObject vAr101$plaid;
+		vAr101$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid.lang.Object", packageScope);
+		vAr100$plaid = plaid.runtime.Util.toPlaidState(vAr101$plaid);
+		StringTag$plaid = plaid.runtime.Util.tag("plaid.lang.String", vAr100$plaid);
+	}
 }

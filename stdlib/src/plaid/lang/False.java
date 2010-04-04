@@ -21,14 +21,25 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "False", toplevel = true)
 public class False{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr8$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr6$plaid;
 	static {
-		vAr8$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr6$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr8$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr6$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "False", toplevel = false)
 	public static final plaid.runtime.PlaidObject False;
 	static {
-		False = plaid.runtime.Util.newState();
+		final plaid.runtime.PlaidState vAr7$plaid;
+		vAr7$plaid = plaid.runtime.Util.newState();
+		False = vAr7$plaid.getPrototype();
+	}
+	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.False")
+	public static final plaid.runtime.PlaidTag False$Tag$plaid;
+	static {
+		final plaid.runtime.PlaidState vAr8$plaid;
+		final plaid.runtime.PlaidObject vAr9$plaid;
+		vAr9$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Boolean", current$c0pe);
+		vAr8$plaid = plaid.runtime.Util.toPlaidState(vAr9$plaid);
+		False$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.False", vAr8$plaid);
 	}
 }
