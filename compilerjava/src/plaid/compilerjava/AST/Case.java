@@ -120,9 +120,25 @@ public class Case implements ASTnode {
 		else {
 			// otherwise generate code execute associated code if this case matches
 			ID potentialMatch = IdGen.getId();
-			out.declareFinalVar(CodeGen.plaidObjectType,potentialMatch.getName());
+			ID tag = IdGen.getId();
+			
+			//generate code to get the state to match against
+			out.declareFinalVar(CodeGen.plaidStateType,potentialMatch.getName());
 			qi.codegen(out, potentialMatch, localVars);
-			out.ifCondition(CodeGen.matchesState(toMatch.getName(),potentialMatch.getName()));  //if (toMatch.hasState(potentialMatch))
+
+			// get the state's tag - throw exception if it doesn't have one
+			out.declareFinalVar(CodeGen.plaidTagType, tag.getName());
+			out.ifCondition(CodeGen.stateHasTag(potentialMatch.getName()));  out.openBlock(); // if (potentialMatch.hasTag()) {
+			out.assignToStateTag(tag.getName(), potentialMatch.getName());
+			
+			out.closeBlock(); out.elseCase(); out.openBlock();  // } else {
+			
+			out.throwNewPlaidException(potentialMatch.getName() + ".toString()", " is not assocaiated with a tag"); //TODO : better error message
+			
+			out.closeBlock();  // }
+			
+			//test if the toMatch object has the tag 
+			out.ifCondition(CodeGen.objectHasTag(toMatch.getName(),tag.getName()));  //if (toMatch.hasState(potentialMatch))
 			out.openBlock(); // {
 			if (boundVar) { //if there is a bound variable
 				out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //PlaidObject x;

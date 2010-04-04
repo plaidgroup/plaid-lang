@@ -87,6 +87,7 @@ public class StateDecl implements Decl {
 	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
 		CodeGen out = new CodeGen(cc);	
 		ID freshImports = IdGen.getId();
+		ID theState = IdGen.getId();
 		
 		//package and needed imports
 		out.declarePackage(qid.toString()); //package qid;
@@ -103,11 +104,36 @@ public class StateDecl implements Decl {
 		out.stateAnnotation(name.getName(), false);
 		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, name.getName());
 		
+		
+		
 		out.openStaticBlock(); //static {
-		stateDef.codegen(out, name, new IDList());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+		out.declareFinalVar(CodeGen.plaidStateType, theState.getName());
+		stateDef.codegen(out, theState, new IDList());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+		out.assignToPrototype(name.getName(), theState.getName());
+		
 		out.closeBlock(); // } (for static block)
 		
+		if (isCaseOf) { //Declare variable to hold the tag
+			ID tag = new ID(name.getName() + "$Tag" + PlaidConstants.ID_SUFFIX);
+			ID caseOfState = IdGen.getId();
+			
+			String tagPath = qid.toString() + "." + name.getName();
+			out.tagAnnotation(tagPath);
+			out.declarePublicStaticFinalVar(CodeGen.plaidTagType, tag.getName());
+			
+			out.openStaticBlock(); //static {
+			out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
+			caseOf.codegen(out, caseOfState, new IDList());
+			
+			out.assignToNewTag(tag.getName(), tagPath,  caseOfState.getName());  //tag = new PlaidTag(caseOfState)
+			
+			out.closeBlock(); // } (for static block)
+		}
+		
+		
 		out.closeBlock(); // } (for class Def)
+		
+		
 		
 		return FileGen.createOutputFile(name.getName(), cc.getOutputDir(), out.formatFile(), qid);
 		
