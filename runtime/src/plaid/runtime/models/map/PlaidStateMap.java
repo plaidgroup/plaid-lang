@@ -31,16 +31,20 @@ import plaid.runtime.PlaidInvalidArgumentException;
 import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidState;
+import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsState;
+import plaid.runtime.annotations.RepresentsTag;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	protected PlaidPackageMap pkg;
 	protected String name;
 	protected RepresentsState psa;
-	protected PlaidObject templateState = new PlaidObjectMap();
+	protected PlaidObject prototype = new PlaidObjectMap();
 	protected Class<Object> templateClass;
+	protected PlaidTag tag;
+	protected boolean hasTag;
 	
 	public PlaidStateMap(PlaidPackageMap pkg, String name, Class<Object> templateClass) {
 		this.pkg = pkg;
@@ -51,16 +55,32 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 			RepresentsState psa = f.getAnnotation(RepresentsState.class);
 			if ( psa != null ) {
 				try {
-					templateState  = (PlaidObject)f.get(templateClass);
+					prototype = (PlaidObject)f.get(templateClass);
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Cannot get value from field : " + f.getName());
 				} catch (IllegalAccessException e) {
 					throw new PlaidIllegalAccessException("Cannot access field of class : " + templateClass.getName());
 				}
-				break;
+				continue;
+			}
+			RepresentsTag ta = f.getAnnotation(RepresentsTag.class);
+			if ( ta != null ) {
+				try {
+					tag  = (PlaidTag)f.get(templateClass);
+				} catch (IllegalArgumentException e) {
+					throw new PlaidInvalidArgumentException("Cannot get value from field : " + f.getName());
+				} catch (IllegalAccessException e) {
+					throw new PlaidIllegalAccessException("Cannot access field of class : " + templateClass.getName());
+				}
 			}
 		}
-		templateState.addState(this);
+		prototype.addState(this);
+		if (tag != null) {
+			hasTag = true;
+			prototype.addTag(tag);
+		} else {
+			hasTag = false;
+		}
 	}
 	
 	public PlaidStateMap() {
@@ -68,6 +88,8 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		this.name = "<ANONYMOUS>";
 		this.psa = null;
 		this.templateClass = null;
+		this.hasTag = false;
+		this.tag = null;
 	}
 	
 	public void setName(String name) {
@@ -86,7 +108,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	public Collection<PlaidObject> getStates() {
 		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
 		result.addAll(states);
-		result.addAll(templateState.getStates());
+		result.addAll(prototype.getStates());
 		return Collections.unmodifiableCollection(result);
 	}
 
@@ -102,11 +124,10 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	public PlaidState with(PlaidState... args) throws PlaidException {
 		PlaidStateMap result = new PlaidStateMap();
 		// merge with this
-		addToPlaidObject(result.templateState, this.templateState);
+		addToPlaidObject(result.prototype, this.prototype);
 		// merge with parameters
-		for ( PlaidObject p : args) {
-			PlaidStateMap ps = (PlaidStateMap)p;
-			addToPlaidObject(result.templateState, ps.templateState);
+		for ( PlaidState p : args) {
+			addToPlaidObject(result.prototype, p.getPrototype());
 		}
 		//result.setReadOnly(true);
 		return result;
@@ -121,9 +142,9 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 			return initialize(new PlaidJavaObjectMap());
 		} if ( psa != null && psa.stateobject()) {
 			PlaidStateMap psm = (PlaidStateMap) initialize(new PlaidStateMap());
-			if ( templateState instanceof PlaidStateMap ) {
-				psm.setName(((PlaidStateMap)templateState).getName());
-				psm.setPackage(((PlaidStateMap)templateState).getPackage());
+			if ( prototype instanceof PlaidStateMap ) {
+				psm.setName(((PlaidStateMap)prototype).getName());
+				psm.setPackage(((PlaidStateMap)prototype).getPackage());
 			}
 			return psm;
 		} else {
@@ -132,7 +153,9 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 
 	protected PlaidObject initialize(PlaidObjectMap pom) {
-		for ( Map.Entry<String, PlaidObject> member : templateState.getMembers().entrySet() ) {
+		
+		// add members from prototype initializing any that are proto-
+		for ( Map.Entry<String, PlaidObject> member : prototype.getMembers().entrySet() ) {
 			if ( member.getValue() instanceof PlaidProtoMethodMap ) {
 				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap)member.getValue();
 				pom.addMember(member.getKey(), new PlaidMethodMap(pom, ppmm.getDelegate()));
@@ -143,9 +166,14 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 			}
 		}
 		
-		// add ourself as to the states
-		for ( PlaidObject ps : this.templateState.getStates() ) {
+		// add states from prototype
+		for ( PlaidObject ps : this.prototype.getStates() ) {
 			pom.addState(ps);
+		}
+		
+		// add tags from the prototype
+		for (PlaidTag t : this.prototype.getTags()) {
+			pom.addTag(t);
 		}
 		
 		return pom;
@@ -161,6 +189,11 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		for ( PlaidObject s : source.getStates() ) {
 			target.addState(s);
 		}
+		
+		// copy tags
+		for (PlaidTag t : source.getTags()) {
+			target.addTag(t); //TODO : need to throw errors when tags cannot coexist
+		}
 	}
 	
 	public String toString() {
@@ -169,11 +202,26 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	@Override
 	public void addMember(String name, PlaidObject obj) {
-		templateState.addMember(name, obj);
+		prototype.addMember(name, obj);
 	}
 
 	@Override
 	public Map<String, PlaidObject> getMembers() {
-		return Collections.unmodifiableMap(templateState.getMembers());
+		return Collections.unmodifiableMap(prototype.getMembers());
+	}
+	
+	@Override
+	public PlaidObject getPrototype() {
+		return prototype;
+	}
+
+	@Override
+	public PlaidTag getTag() throws PlaidException {
+		return tag;
+	}
+
+	@Override
+	public boolean hasTag() throws PlaidException {
+		return hasTag;
 	}
 }

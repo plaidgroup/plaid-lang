@@ -33,6 +33,8 @@ import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidPackage;
 import plaid.runtime.PlaidScope;
+import plaid.runtime.PlaidState;
+import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsField;
 import plaid.runtime.annotations.RepresentsMethod;
@@ -228,6 +230,16 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	@Override
 	public PlaidScope packageScope(String qi, List<Import> imports) throws PlaidException {
 		return new PlaidPackageScopeMap(qi, imports);
+	}
+	
+	@Override 
+	public PlaidState state() {
+		return new PlaidStateMap();
+	}
+	
+	@Override 
+	public PlaidTag tag(String tag, PlaidState caseOf) {
+		return new PlaidTagMap(tag, caseOf);
 	}
 
 

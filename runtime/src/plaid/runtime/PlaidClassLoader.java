@@ -108,4 +108,20 @@ public interface PlaidClassLoader {
 	 * @return
 	 */
 	public PlaidScope lambdaScope(PlaidScope currentScope, PlaidObject thisVar);
+	
+	/**
+	 * return a new state object
+	 * 
+	 * @return
+	 */
+	public PlaidState state();
+	
+	/**
+	 * return a new Tag Object
+	 * 
+	 * @param tag  (the QI of the state with the tag)
+	 * @param caseOf (the PlaidState representing the state this tag is a case of)
+	 * @return
+	 */
+	public PlaidTag tag(String tag, PlaidState caseOf);
 }

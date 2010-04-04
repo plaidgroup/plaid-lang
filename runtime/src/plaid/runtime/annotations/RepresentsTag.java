@@ -17,41 +17,12 @@
  *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
  */
  
-package plaid.runtime;
+package plaid.runtime.annotations;
 
-import java.util.Collection;
-import java.util.Map;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
-
-
-/**
- * The PlaidObject interface is n
- */
-public interface PlaidObject {
-	public void addMember(String name, PlaidObject obj);
-
-	public void removeMember(String name);
-	
-	public Map<String, PlaidObject> getMembers();
-		
-	public void addState(PlaidObject state);
-
-	public void removeState(PlaidObject state);
-	
-	public Collection<PlaidObject> getStates() throws PlaidException;
-	
-	public void addTag(PlaidTag tag);
-	
-	public void removeTag(PlaidTag tag);
-	
-	public Collection<PlaidTag> getTags() throws PlaidException;
-	
-	/**
-	 * Change the state of the current object to the specified 
-	 * @param update
-	 * @return 
-	 * @throws PlaidException
-	 */
-	public PlaidObject changeState(PlaidObject update) throws PlaidException;
+@Retention(RetentionPolicy.RUNTIME)
+public @interface RepresentsTag {
+	String name();
 }
-
