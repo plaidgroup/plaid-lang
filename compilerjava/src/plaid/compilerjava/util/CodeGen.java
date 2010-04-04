@@ -109,6 +109,7 @@ public class CodeGen {
 	public static final String plaidStateType = runtimePackage + ".PlaidState";
 	public static final String plaidMethodType = runtimePackage + ".PlaidMethod";
 	public static final String plaidExceptionType = runtimePackage + ".PlaidException";
+	public static final String plaidTagType = runtimePackage + ".PlaidTag";
 	public static final String delegateType = utilsPackage + ".Delegate";
 	public static final String lambdaType = utilsPackage + ".Lambda";
 
@@ -131,6 +132,14 @@ public class CodeGen {
 	
 	public static final String containsMember(String target, String member) {
 		return target + ".getMembers().containsKey(\"" + member + "\")";
+	}
+	
+	public static final String stateHasTag(String target) {
+		return target + ".hasTag()";
+	}
+	
+	public static final String objectHasTag(String target, String tag) {
+		return target + ".getTags().contains(" + tag + ")";  //TODO : this is too simplistic given subtagging
 	}
 	
 	/*----------------------------
@@ -255,9 +264,33 @@ public class CodeGen {
 		updateVar(target);
 	}
 	
+	public final void assignToPrototype(String target, String state) {
+		assign(target);
+		append(state + ".getPrototype();");
+		updateVar(target);
+	}
+	
 	public final void assignToUnit(String target) {
 		assign(target);
 		append(utilClass + ".unit();");
+		updateVar(target);
+	}
+	
+	public final void assignToNewTag(String target, String tag, String caseOf) {
+		assign(target);
+		append(utilClass + ".tag(\"" + tag + "\", " + caseOf + ");");
+		updateVar(target);
+	}
+	
+	public final void assignToSuperTag(String target, String tag) {
+		assign(target);
+		append(tag + ".superTag();");
+		updateVar(target);
+	}
+	
+	public final void assignToStateTag(String target, String state) {
+		assign(target);
+		append(state + ".getTag();");
 		updateVar(target);
 	}
 	
@@ -414,6 +447,10 @@ public class CodeGen {
 		output.append("throw new " + plaidExceptionType + "(\"" + text + "\");"); 
 	}
 	
+	public final void throwNewPlaidException(String data, String text) {
+		output.append("throw new " + plaidExceptionType + "("  + data + " + \"" + text + "\");"); 
+	}
+	
 	/*----------------------------
 	 * create a main function for top-level declarations
 	 *----------------------------
@@ -464,6 +501,14 @@ public class CodeGen {
 	 */
 	public final void stateAnnotation(String name, boolean toplevel) {
 		output.append("@plaid.runtime.annotations.RepresentsState(name = \"" + name + "\", toplevel = " + toplevel + ")@");
+	}
+	
+	/**
+	 * @param name
+	 * @return trailing @ sign to allow for correct indentation during pretty printing
+	 */
+	public final void tagAnnotation(String name) {
+		output.append("@plaid.runtime.annotations.RepresentsTag(name = \"" + name + "\")@");
 	}
 	
 	public final void setLocation(Token t ) {
@@ -556,5 +601,5 @@ public class CodeGen {
 		test.formatFile();
 		System.out.println("=>");
 		System.out.print(test.toString());
-	}	
+	}
 }
