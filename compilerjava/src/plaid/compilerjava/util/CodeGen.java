@@ -138,8 +138,8 @@ public class CodeGen {
 		return target + ".hasTag()";
 	}
 	
-	public static final String objectHasTag(String target, String tag) {
-		return target + ".getTags().contains(" + tag + ")";  //TODO : this is too simplistic given subtagging
+	public static final String objectMatchesTag(String target, String tag) {
+		return target + ".matchesTag(" + tag + ")";
 	}
 	
 	/*----------------------------
@@ -292,6 +292,11 @@ public class CodeGen {
 		assign(target);
 		append(state + ".getTag();");
 		updateVar(target);
+	}
+	
+	public final void assignToQIDString(String target, String stateString) {
+		assign(target);
+		append("plaid.runtime.Util.getQualifiedIdString(" + stateString + ");" );
 	}
 	
 	/*----------------------------

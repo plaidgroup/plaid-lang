@@ -44,6 +44,8 @@ public interface PlaidObject {
 	
 	public void removeTag(PlaidTag tag);
 	
+	public boolean matchesTag(String tagName);
+	
 	public Collection<PlaidTag> getTags() throws PlaidException;
 	
 	/**
