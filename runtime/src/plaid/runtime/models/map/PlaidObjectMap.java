@@ -115,6 +115,15 @@ public class PlaidObjectMap implements PlaidObject {
 		result.addAll(tags);
 		return Collections.unmodifiableCollection(result);
 	}
+	
+	public boolean matchesTag(String tagString) {
+		for (PlaidTag tag : getTags()) {
+			if(tag.matches(tagString)) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	@Override
 	public PlaidObject changeState(PlaidObject update) throws PlaidException {

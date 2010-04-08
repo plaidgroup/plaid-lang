@@ -31,7 +31,20 @@ public class PlaidTagMap implements PlaidTag {
 	}
 
 	public String toString() {
-		return "Tag<" + theCase + " of " + caseOf.toString().substring(5);
-		
+		return "Tag<" + theCase + " of " + caseOf.toString().substring(5);	
+	}
+	
+	public String getName() {
+			return theCase;
+	}
+	
+	public boolean matches(String tag) {
+		if (tag.equals(getName())){
+			return true;
+		} else if (hasSuperTag()) {
+			return superTag().matches(tag);
+		} else {
+			return false;
+		}
 	}
 }

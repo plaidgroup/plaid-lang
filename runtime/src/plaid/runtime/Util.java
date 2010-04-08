@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
 
 public class Util {
@@ -200,5 +201,10 @@ public class Util {
 		} else {
 			throw new PlaidCastException("Failed to cast '"+obj+"'to PlaidState.");
 		}
+	}
+	
+	public static String getQualifiedIdString(PlaidState state) {
+		//TODO: update PlaidState interface to include getQI
+		return ((PlaidStateMap)state).getQI().toString();
 	}
 }
