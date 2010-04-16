@@ -89,10 +89,20 @@ public class CompilationUnit implements ASTnode {
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
+	public void visitChildren(ASTVisitor visitor) {
 //		for (Decl d : decls)
-//			visitor.visit(d);
-//		visitor.visit(imports);
-		visitor.visit(this);
+//			visitor.visitEdge(this, d);
+//		visitor.visitEdge(this, imports);
+//		for (Decl d : decls)
+//			visitor.visitChild(d);
+//		visitor.visitChild(imports);
+		for (Decl d : decls)
+			d.accept(visitor);
+		imports.accept(visitor);
+	}
+	
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visitNode(this);
 	}
 }

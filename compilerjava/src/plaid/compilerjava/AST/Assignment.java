@@ -112,8 +112,21 @@ public class Assignment implements Expression {
 	}
 
 	@Override
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitEdge(this, target);
+//		visitor.visitEdge(this, field);
+//		visitor.visitEdge(this, value);
+//		visitor.visitChild(target);
+//		visitor.visitChild(field);
+//		visitor.visitChild(value);
+		target.accept(visitor);
+		field.accept(visitor);
+		value.accept(visitor);
+	}
+	
+	@Override
 	public void accept(ASTVisitor visitor) {
-		visitor.visit(this);
+		visitor.visitNode(this);
 	}
 
 }

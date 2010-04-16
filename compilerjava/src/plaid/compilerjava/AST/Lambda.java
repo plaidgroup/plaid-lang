@@ -81,10 +81,17 @@ public class Lambda implements Expression {
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
-//		var.accept(visitor);
-//		body.accept(visitor);
-		visitor.visit(this);
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitEdge(this, var);
+//		visitor.visitEdge(this, body);
+//		visitor.visitChild(var);
+//		visitor.visitChild(body);
+		var.accept(visitor);
+		body.accept(visitor);
 	}
 
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visitNode(this);
+	}
 }

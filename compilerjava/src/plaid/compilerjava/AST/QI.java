@@ -105,8 +105,12 @@ public class QI implements State {
 	}
 
 	@Override
+	public void visitChildren(ASTVisitor visitor) {
+	}
+	
+	@Override
 	public void accept(ASTVisitor visitor) {
-		visitor.visit(this);
+		visitor.visitNode(this);
 	}
 
 }

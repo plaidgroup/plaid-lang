@@ -76,8 +76,12 @@ public class ImportList implements ASTnode {
 	}
 
 	@Override
+	public void visitChildren(ASTVisitor visitor) {
+	}
+	
+	@Override
 	public void accept(ASTVisitor visitor) {
-		visitor.visit(this);
+		visitor.visitNode(this);
 	}
 
 }

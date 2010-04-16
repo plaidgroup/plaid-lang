@@ -156,7 +156,17 @@ public class Case implements ASTnode {
 	}
 	
 	@Override
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitEdge(this, qi);
+//		visitor.visitEdge(this, x);
+//		visitor.visitEdge(this, e);
+		qi.accept(visitor);
+		x.accept(visitor);
+		e.accept(visitor);
+	}
+	
+	@Override
 	public void accept(ASTVisitor visitor) {
-		visitor.visit(this);
+		visitor.visitNode(this);
 	}
 }

@@ -22,9 +22,16 @@ package plaid.compilerjava.AST;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 
+/**
+ * 	- Every ASTNode implements a 'visitChildren' methods that call the 'visitEdge' method 
+ * 		to traverse through its children. This keeps the internal representation inside the ASTNode.
+ * @author mhahnenberg
+ *
+ */
 public interface ASTnode {
 
 	public Token getToken();
 	
+	public void visitChildren(ASTVisitor visitor);
 	public void accept(ASTVisitor visitor);
 }
