@@ -75,10 +75,17 @@ public class DeclList implements State {
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
+	public void visitChildren(ASTVisitor visitor) {
 //		for (Decl d : decls)
-//			d.accept(visitor);
-		visitor.visit(this);
+//			visitor.visitEdge(this, d);
+//		for (Decl d : decls)
+//			visitor.visitChild(d);
+		for (Decl d : decls)
+			d.accept(visitor);
 	}
 
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visitNode(this);
+	}
 }

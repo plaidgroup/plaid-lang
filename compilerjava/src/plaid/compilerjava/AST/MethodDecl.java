@@ -151,9 +151,18 @@ public class MethodDecl implements Decl {
 	}
 
 	@Override
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitEdge(this, body);
+//		visitor.visitEdge(this, arg);
+//		visitor.visitChild(body);
+//		visitor.visitChild(arg);
+		body.accept(visitor);
+		if (arg != null)
+			arg.accept(visitor);
+	}
+	
+	@Override
 	public void accept(ASTVisitor visitor) {
-//		body.accept(visitor);
-//		arg.accept(visitor);
-		visitor.visit(this);
+		visitor.visitNode(this);
 	}
 }

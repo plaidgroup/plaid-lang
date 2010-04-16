@@ -131,10 +131,17 @@ public class FieldDecl implements Decl{
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
-//		f.accept(visitor);
-//		e.accept(visitor);
-		visitor.visit(this);
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitEdge(this, f);
+//		visitor.visitEdge(this, e);
+//		visitor.visitChild(f);
+//		visitor.visitChild(e);
+		f.accept(visitor);
+		e.accept(visitor);
 	}
 
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visitNode(this);
+	}
 }

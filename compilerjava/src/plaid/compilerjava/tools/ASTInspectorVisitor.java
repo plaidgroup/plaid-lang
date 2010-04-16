@@ -1,7 +1,5 @@
 package plaid.compilerjava.tools;
 
-import java.util.List;
-
 import javax.swing.tree.*;
 
 import plaid.compilerjava.AST.ASTnode;
@@ -29,26 +27,27 @@ import plaid.compilerjava.AST.StateDecl;
 import plaid.compilerjava.AST.StringLiteral;
 import plaid.compilerjava.AST.UnitLiteral;
 import plaid.compilerjava.AST.With;
-import plaid.compilerjava.util.QualifiedID;
 
-// TODO: Refactor this code so that we don't have to have knowledge of the implicit
-// structure of each AST node.  One way to do this could be to have each AST node 
-// implement an additional method called visitChildren or something along those 
-// lines that we could call in each of these methods.  This is still more 
-// restricting than simply manually calling accept on each of the children inside 
-// the visitor class, so that represents a slight tradeoff between flexibility and 
-// modifiability.
+/* TODO: Refactor this code so that we don't have to have knowledge of the 
+ * implicit structure of each AST node.  One way to do this could be to have
+ * each AST node implement an additional method called visitChildren or 
+ * something along those lines that we could call in each of these methods.  
+ * This is still more restricting than simply manually calling accept on each 
+ * of the children inside the visitor class, so that represents a slight 
+ * tradeoff between flexibility of the ASTVisitor and future modifiability of 
+ * the AST.
+*/
 
-public class ASTInspectorVisitor implements ASTVisitor {
+public class ASTInspectorVisitor extends AbstractASTVisitor {
 	private DefaultMutableTreeNode root;
 	private DefaultMutableTreeNode curr;
 	
-	private static String getQID(List<String> ids) {
-		String ret = "";
-		for (String s : ids)
-			ret += "." + s;
-		return ret;
-	}
+//	private static String getQID(List<String> ids) {
+//		String ret = "";
+//		for (String s : ids)
+//			ret += "." + s;
+//		return ret;
+//	}
 	
 	public ASTInspectorVisitor() {
 		root = null;
@@ -68,243 +67,251 @@ public class ASTInspectorVisitor implements ASTVisitor {
 			curr.add(newNode);
 		}
 	}
+
+	@Override
+	public ASTVisitor enter(ASTnode node) {
+		return this;
+	}
+
+	@Override
+	public ASTnode leave(ASTnode node, ASTnode oldNode, ASTVisitor visitor) {
+		return node;
+	}
+	
+	private <T extends ASTnode> void addNodeVisitChildren(T node, DefaultMutableTreeNode newTreeNode) {
+		// add the node to the tree
+		addNode(newTreeNode);
+		// save the parent
+		DefaultMutableTreeNode parent = curr;
+		curr = newTreeNode;
+		// visit the children
+	    node.visitChildren(this);
+	    curr = parent;
+	}
 	
 	@Override
-	public void visit(Application e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Application");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getFunction().accept(this);
-		e.getArgument().accept(this);
-		curr = parent;
+	public ASTnode visitNode(Application node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Application"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(Assignment e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Assignment");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getField().accept(this);
-		e.getTarget().accept(this);
-		e.getValue().accept(this);
-		curr = parent;
+	public ASTnode visitNode(Assignment node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Assignment"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(Case e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Case");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getX().accept(this);
-		e.getQi().accept(this);
-		e.getE().accept(this);
-		curr = parent;
+	public ASTnode visitNode(Case node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Case"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(ChangeState e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("ChangeState");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getE().accept(this);
-		e.getSt().accept(this);
-		curr = parent;
+	public ASTnode visitNode(ChangeState node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("ChangeState"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(CompilationUnit e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("CompilationUnit");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getImports().accept(this);
-		for (Decl d : e.getDecls())
-			d.accept(this);
-		curr = parent;
+	public ASTnode visitNode(CompilationUnit node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("CompilationUnit"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(Decl e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Decl");
-		addNode(newNode);
+	public ASTnode visitNode(Decl node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Decl"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(DeclList e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("DeclList");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		for (Decl d : e.getDecls())
-			d.accept(this);
-		curr = parent;
+	public ASTnode visitNode(DeclList node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("DeclList"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(Dereference e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Dereference");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getLeft().accept(this);
-		e.getRight().accept(this);
-		curr = parent;
+	public ASTnode visitNode(Dereference node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Dereference"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(Expression e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Expression");
-		addNode(newNode);
+	public ASTnode visitNode(Expression node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Expression"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(FieldDecl e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("FieldDecl");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getF().accept(this);
-		e.getE().accept(this);
-		curr = parent;
+	public ASTnode visitNode(FieldDecl node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("FieldDecl"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(ID e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("ID : " + e.getName());
-		addNode(newNode);
+	public ASTnode visitNode(ID node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("ID : " + node.getName()));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(ImportList e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("ImportList");
-		addNode(newNode);
-		for (QualifiedID qi : e.getImports())
-			newNode.add(new DefaultMutableTreeNode(getQID(qi.getQidList())));
+	public ASTnode visitNode(ImportList node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("ImportList"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(IntLiteral e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("IntLiteral : " + e.toString());
-		addNode(newNode);
+	public ASTnode visitNode(IntLiteral node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("IntLiteral : " + node.toString()));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(Lambda e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Lambda");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getVar().accept(this);
-		e.getBody().accept(this);
-		curr = parent;
+	public ASTnode visitNode(Lambda node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Lambda"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(LetBinding e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("LetBinding");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getX().accept(this);
-		e.getExp().accept(this);
-		e.getBody().accept(this);
-		curr = parent;
+	public ASTnode visitNode(LetBinding node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("LetBinding"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(Match e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Match");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getE().accept(this);
-		for (Case c : e.getCaseList())
-			c.accept(this);
-		curr = parent;
+	public ASTnode visitNode(Match node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Match"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(MethodDecl e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("MethodDecl");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		if (e != null && e.getArg() != null)
-			e.getArg().accept(this);
-		if (e != null && e.getBody() != null)
-			e.getBody().accept(this);
-		curr = parent;
+	public ASTnode visitNode(MethodDecl node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("MethodDecl"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(NewInstance e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("NewInstance");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getSt().accept(this);
-		curr = parent;
+	public ASTnode visitNode(NewInstance node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("NewInstance"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(QI e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("QI");
-		addNode(newNode);
-		String qid = "";
-		for (String s : e.getQid())
-			qid += "." + s;
-		newNode.add(new DefaultMutableTreeNode(qid));
+	public ASTnode visitNode(QI node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("QI"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(State e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("State");
-		addNode(newNode);
+	public ASTnode visitNode(State node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("State"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(StateDecl e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("StateDecl");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getName().accept(this);
-		e.getStateDef().accept(this);
-		curr = parent;
+	public ASTnode visitNode(StateDecl node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("StateDecl"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(StringLiteral e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("StringLiteral");
-		addNode(newNode);
-		newNode.add(new DefaultMutableTreeNode("\"" + e.toString() + "\""));
+	public ASTnode visitNode(StringLiteral node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("StringLiteral : " + "\"" + node.toString() + "\""));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(UnitLiteral e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("UnitLiteral");
-		addNode(newNode);
+	public ASTnode visitNode(UnitLiteral node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("UnitLiteral"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(With e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("With");
-		addNode(newNode);
-		DefaultMutableTreeNode parent = curr;
-		curr = newNode;
-		e.getR1().accept(this);
-		e.getR2().accept(this);
-		curr = parent;
+	public ASTnode visitNode(With node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("With"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 	@Override
-	public void visit(ASTnode e) {
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("ASTnode");
-		addNode(newNode);
+	public ASTnode visitNode(ASTnode node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("ASTnode"));
+	    // leave
+	    return this.leave(node, node, visitor);
 	}
 
 }
