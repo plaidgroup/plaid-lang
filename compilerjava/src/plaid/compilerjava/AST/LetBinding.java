@@ -90,8 +90,20 @@ public class LetBinding implements Expression {
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visit(this);
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitEdge(this, x);
+//		visitor.visitEdge(this, exp);
+//		visitor.visitEdge(this, body);
+//		visitor.visitChild(x);
+//		visitor.visitChild(exp);
+//		visitor.visitChild(body);
+		x.accept(visitor);
+		exp.accept(visitor);
+		body.accept(visitor);
 	}
 
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visitNode(this);
+	}
 }

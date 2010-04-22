@@ -85,10 +85,16 @@ public class Application implements Expression {
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visit(this);
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitChild(function);
+//		visitor.visitChild(argument);
+		function.accept(visitor);
+		argument.accept(visitor);
 	}
-
-
+	
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visitNode(this);
+	}
 
 }

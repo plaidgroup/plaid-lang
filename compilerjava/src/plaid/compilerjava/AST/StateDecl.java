@@ -151,10 +151,18 @@ public class StateDecl implements Decl {
 	}
 
 	@Override
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitEdge(this, name);
+//		visitor.visitEdge(this, stateDef);
+//		visitor.visitChild(name);
+//		visitor.visitChild(stateDef);
+		name.accept(visitor);
+		stateDef.accept(visitor);
+	}
+	
+	@Override
 	public void accept(ASTVisitor visitor) {
-//		visitor.visit(name);
-//		visitor.visit(stateDef);
-		visitor.visit(this);
+		visitor.visitNode(this);
 	}
 
 }

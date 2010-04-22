@@ -48,7 +48,11 @@ public class UnitLiteral implements Expression {
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visit(this);
+	public void visitChildren(ASTVisitor visitor) {
 	}	
+	
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visitNode(this);
+	}
 }
