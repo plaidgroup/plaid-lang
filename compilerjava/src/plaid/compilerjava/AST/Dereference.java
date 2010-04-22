@@ -87,10 +87,18 @@ public class Dereference implements Expression {
 	}
 
 	@Override
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitEdge(this, left);
+//		visitor.visitEdge(this, right);
+//		visitor.visitChild(left);
+//		visitor.visitChild(right);
+		left.accept(visitor);
+		right.accept(visitor);
+	}
+	
+	@Override
 	public void accept(ASTVisitor visitor) {
-//		left.accept(visitor);
-//		right.accept(visitor);
-		visitor.visit(this);
+		visitor.visitNode(this);
 	}
 
 }

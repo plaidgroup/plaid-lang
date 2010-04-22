@@ -94,8 +94,15 @@ public class ChangeState implements Expression {
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visit(this);
+	public void visitChildren(ASTVisitor visitor) {
+//		visitor.visitEdge(this, e);
+//		visitor.visitEdge(this, st);
+		e.accept(visitor);
+		st.accept(visitor);
 	}
 
+	@Override
+	public void accept(ASTVisitor visitor) {
+		visitor.visitNode(this);
+	}
 }
