@@ -45,11 +45,20 @@ public class CompilerCore {
 	}
 	
 	
-	public void compile() throws FileNotFoundException {
+	public List<CompilationUnit> compile() throws FileNotFoundException {
+		System.out.println("hello");
 		try {
+			
+			if (cc.getInputFiles().size() > 0 && !cc.getInputDir().isEmpty()) {
+				throw new RuntimeException("Cannot compile a directory and input files"); //TODO: throw PlaidCompilerException
+			}
+			//TODO In compilation check if input files are plaid files, check if they are in the right directory
+			
+			ConvertInputDirToInputFiles(new File(cc.getInputDir()));
+			
 			if ( cc.getInputFiles().size() == 1) {
 				System.out.println("compiling " + cc.getInputFiles().get(0).getName());
-			} else {
+			} else if  (cc.getInputFiles().size() > 1){
 				System.out.println("compiling " + cc.getInputFiles().size() + " files");
 			}
 			
@@ -98,6 +107,7 @@ public class CompilerCore {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+			return cus;
 		} catch (Exception e) {
 			if (cc.compilerStackTraceEnabled()) {
 				e.printStackTrace();
@@ -111,6 +121,24 @@ public class CompilerCore {
 		}
     }
 
+	/**
+	 * Adds plaid files in this directory and its sub-directories to the compiler
+	 * configuration input file list.
+	 * @param dir The directory containing plaid files.
+	 */
+	private void ConvertInputDirToInputFiles(File dir) {
+		if (!dir.isDirectory()) {
+			throw new RuntimeException("Input directory " + dir.getName() + " is malformed."); 
+		}
+		for (File file : dir.listFiles()) {
+			if (file.isFile() && file.getName().endsWith(".plaid")) {
+				cc.addInputFile(file);
+			} else if (file.isDirectory()) {
+				ConvertInputDirToInputFiles(file);
+			}
+		}
+	}
+	
 	private static void version() {
 		System.out.println("PlaidCompiler Version 0.1 [ALPHPA]");
 	}
@@ -124,8 +152,10 @@ public class CompilerCore {
 		System.out.println(" -v|--version         This message.");
 		System.out.println(" -o|--output          The direct to put generated files.");
 		System.out.println(" -k|--keepTempFiles   Do not delete temporary created files.");
+		System.out.println(" -n|--nocompile       Do not compile generated java source.");
 		System.out.println(" -g|--debug           Generate debugging information.");
 		System.out.println(" -V|--verbose         Verbose compiler output");
+		System.out.println(" -d|--directory       Input directory");
 		System.out.println("");
 	}
 	
@@ -160,6 +190,17 @@ public class CompilerCore {
 					cc.setDebugMode(true);
 				} else if ( value.equals("-V") || value.equals("--verbose")) {
 					cc.setVerbose(true);
+				} else if (value.equals("-n") || value.equals("-nocompile")) {
+					cc.setInvokeCompiler(false);
+				}
+				else if ( value.equals("-d") || value.equals("--directory")) {
+					if ( it.hasNext()) {
+						cc.setInputDir(it.next());
+					} else {
+						System.out.println("ERROR: you must specify the input directory.");
+						usage();
+						System.exit(-1);
+					}
 				} else {
 					System.out.println("ERROR: found invalid command line option : " + value);
 					usage();
