@@ -27,6 +27,7 @@ import plaid.compilerjava.AST.CompilationUnit;
 
 public class CompilerConfiguration {
 	private String outputDir = System.getProperty("user.dir");
+	private String inputDir = "";
 	private boolean debugMode = false;
 	private List<File> inputFiles = new ArrayList<File>();
 	private boolean invokeCompiler = true;
@@ -39,6 +40,7 @@ public class CompilerConfiguration {
 	public CompilerConfiguration() {}
 	
 	public CompilerConfiguration(CompilerConfiguration other, CompilationUnit cu) {
+		this.inputDir = other.inputDir;
 		this.outputDir = other.outputDir;
 		this.debugMode = other.debugMode;
 		this.inputFiles = other.inputFiles;
@@ -57,6 +59,14 @@ public class CompilerConfiguration {
 		return outputDir;
 	}
 	
+	public String getInputDir() {
+		return inputDir;
+	}
+
+	public void setInputDir(String inputDir) {
+		this.inputDir = inputDir;
+	}
+
 	public void setOutputDir(String outputDir) {
 		this.outputDir = outputDir;
 	}
