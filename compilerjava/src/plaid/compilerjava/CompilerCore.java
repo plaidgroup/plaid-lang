@@ -46,7 +46,6 @@ public class CompilerCore {
 	
 	
 	public List<CompilationUnit> compile() throws FileNotFoundException {
-		System.out.println("hello");
 		try {
 			
 			if (cc.getInputFiles().size() > 0 && !cc.getInputDir().isEmpty()) {
@@ -54,7 +53,8 @@ public class CompilerCore {
 			}
 			//TODO In compilation check if input files are plaid files, check if they are in the right directory
 			
-			ConvertInputDirToInputFiles(new File(cc.getInputDir()));
+			if(!cc.getInputDir().isEmpty())
+				ConvertInputDirToInputFiles(new File(cc.getInputDir()));
 			
 			if ( cc.getInputFiles().size() == 1) {
 				System.out.println("compiling " + cc.getInputFiles().get(0).getName());
