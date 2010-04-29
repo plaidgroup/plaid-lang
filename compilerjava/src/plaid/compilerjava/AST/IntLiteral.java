@@ -53,6 +53,18 @@ public class IntLiteral implements Expression {
 		return token;
 	}
 	
+	public int getValue() {
+		return integer;
+	}
+
+	public void setValue(int integer) {
+		this.integer = integer;
+	}
+
+	public void setToken(Token token) {
+		this.token = token;
+	}
+
 	@Override
 	public String toString() {
 		return ""+integer;

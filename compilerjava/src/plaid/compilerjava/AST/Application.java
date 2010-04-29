@@ -27,13 +27,13 @@ import plaid.compilerjava.util.IdGen;
 
 public class Application implements Expression {
 	private Token token;
-	private Expression function;
-	private Expression argument;
+	private Expression f;
+	private Expression arg;
 	
 	public Application(Expression function, Expression argument) {
 		super();
-		this.function = function;
-		this.argument = argument;
+		this.f = function;
+		this.arg = argument;
 	}
 
 	public Application() {
@@ -42,8 +42,8 @@ public class Application implements Expression {
 	public Application(Token t, Expression function, Expression argument) {
 		super();
 		this.token = t;
-		this.function = function;
-		this.argument = argument;
+		this.f = function;
+		this.arg = argument;
 	}
 
 	public Application(Token t) {
@@ -52,19 +52,19 @@ public class Application implements Expression {
 
 	
 	public Expression getFunction() {
-		return function;
+		return f;
 	}
 
 	public void setFunction(Expression function) {
-		this.function = function;
+		this.f = function;
 	}
 
-	public Expression getArgument() {
-		return argument;
+	public Expression getArg() {
+		return arg;
 	}
 
 	public void setArgument(Expression argument) {
-		this.argument = argument;
+		this.arg = argument;
 	}
 	
 	public Token getToken() {
@@ -78,8 +78,8 @@ public class Application implements Expression {
 		ID z = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //public PlaidObject x
 		out.declareFinalVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
-		function.codegen(out, x, localVars);
-		argument.codegen(out, z, localVars);
+		f.codegen(out, x, localVars);
+		arg.codegen(out, z, localVars);
 		out.setLocation(token);
 		out.assignToCall(y.getName(),x.getName(), z.getName());  // y = Util.call(x,z);
 	}
@@ -88,8 +88,8 @@ public class Application implements Expression {
 	public void visitChildren(ASTVisitor visitor) {
 //		visitor.visitChild(function);
 //		visitor.visitChild(argument);
-		function.accept(visitor);
-		argument.accept(visitor);
+		f.accept(visitor);
+		arg.accept(visitor);
 	}
 	
 	@Override
