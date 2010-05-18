@@ -161,6 +161,8 @@ public class Util {
 				return Short.class;
 			} else if ( type.getName().endsWith("void")) {
 				return Void.class;
+			} else if ( type.getName().endsWith("long")) {
+				return Long.class;
 			}
 		}
 		return type;

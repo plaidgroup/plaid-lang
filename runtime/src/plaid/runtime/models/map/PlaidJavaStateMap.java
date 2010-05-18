@@ -36,6 +36,7 @@ import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidState;
 import plaid.runtime.Util;
+import plaid.runtime.utils.QualifiedIdentifier;
 
 public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaObject {
 	protected Object value;
@@ -44,6 +45,8 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 	
 	public PlaidJavaStateMap(Object value, Class<Object> valueClass) {
 		super();
+		this.setPackage(new PlaidPackageMap(new QualifiedIdentifier(valueClass.getPackage().getName())));
+		this.setName(valueClass.getSimpleName());
 		this.value   = value;
 		this.valueClass = valueClass;
 		this.members = new HashMap<String, PlaidObject>();

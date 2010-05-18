@@ -45,7 +45,7 @@ public class StateTest extends BaseTest {
 		PlaidObject mixInst = mixPlaidState.instantiate();
 		assertTrue ( mixInst != null );
 		
-		PlaidObject plus = Util.lookup("plus", mixInst);
+		PlaidObject plus = Util.lookup("plus$plaid", mixInst);
 		assertTrue ( plus != null );
 		
 		PlaidObject getFirst = Util.lookup("first", mixInst);

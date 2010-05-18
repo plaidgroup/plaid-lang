@@ -56,15 +56,12 @@ public class CompilerCore {
 			if(!cc.getInputDir().isEmpty())
 				ConvertInputDirToInputFiles(new File(cc.getInputDir()));
 			
-			if ( cc.getInputFiles().size() == 1) {
-				System.out.println("compiling " + cc.getInputFiles().get(0).getName());
-			} else if  (cc.getInputFiles().size() > 1){
-				System.out.println("compiling " + cc.getInputFiles().size() + " files");
-			}
+			System.out.println("compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir());
 			
 			// open the file
 			List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
 			for (File f : cc.getInputFiles()) {
+				System.out.println("parsing " + f.getName() + "...");
 				CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
 				cu.setSourceFile(f);
 				cus.add(cu);
@@ -88,7 +85,7 @@ public class CompilerCore {
 					allFiles.addAll(fileList);
 				}
 				
-				if ( cc.isKeepTemporaryFiles() == false ) {
+				if ( !cc.isKeepTemporaryFiles() ) {
 					for( File f : allFiles ) {
 						f.deleteOnExit();
 					}
