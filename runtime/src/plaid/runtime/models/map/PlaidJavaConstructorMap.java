@@ -69,14 +69,35 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 					Class<?>[] mpTypes = ctr.getParameterTypes();
 					if ( mpTypes.length == paramTypes.length ) {
 						boolean match = true;
+						boolean widened = false;
 						for (int i = 0; i < mpTypes.length; i++) {
 							Class<?> mpType = Util.convertPrimitiveTypes(mpTypes[i]);
-							Class<?> paramType = Util.convertPrimitiveTypes(paramTypes[i]);
-							if ( mpType.isAssignableFrom(paramType) == false ) {
-								match = false;
+							
+							// perform primitive widening if necessary
+							Class<?> paramType = Util.widenPrimitiveType(
+									Util.convertToPrimitive(paramTypes[i]), 
+									Util.convertToPrimitive(mpTypes[i])
+								);
+							if (paramType != null) {
+								widened = true;
+								paramType = Util.convertPrimitiveTypes(paramType);
 							}
-						}						
-						if ( match ) {
+							else {
+								paramType = Util.convertPrimitiveTypes(paramTypes[i]);
+							}
+							
+							if ( !mpType.isAssignableFrom(paramType) ) {
+								match = false;
+								break;
+							}
+						}
+						// if this is the first match we've seen, then record it
+						if (match && handle == null) {
+							handle = ctr;
+						}
+						// if we find a match and we didn't have to widen at all, this 
+						// is probably the method the user intended to call
+						else if (match && handle != null && !widened) {
 							handle = ctr;
 							break;
 						}
