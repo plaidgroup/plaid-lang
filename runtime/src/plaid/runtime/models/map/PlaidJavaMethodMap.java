@@ -30,6 +30,7 @@ import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
+import plaid.runtime.utils.QualifiedIdentifier;
 
 public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMethod {
 	protected String name;
@@ -65,7 +66,7 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 				for (int i = 0; i < params.length; i++) {
 					paramTypes[i] = params[i].getClass();
 				}
-			} 
+			}
 			
 			try {
 				//handle = instanceClass.getMethod(name, paramTypes);
@@ -77,7 +78,7 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 							for (int i = 0; i < mpTypes.length; i++) {
 								Class<?> mpType = Util.convertPrimitiveTypes(mpTypes[i]);
 								Class<?> paramType = Util.convertPrimitiveTypes(paramTypes[i]);
-								if ( mpType.isAssignableFrom(paramType) == false ) {
+								if ( !mpType.isAssignableFrom(paramType) ) {
 									match = false;
 								}
 							}						
@@ -97,7 +98,12 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 			if ( result == null ) {
 				return  PlaidRuntime.getRuntime().getClassLoader().unit();
 			} else {
-				return new PlaidJavaObjectMap(result);
+				PlaidJavaObject plaidResult = new PlaidJavaObjectMap(result);
+				// add the tag
+				plaidResult.addTag(new PlaidTagMap(result.getClass().getName(), 
+						new PlaidStateMap(new PlaidPackageMap(new QualifiedIdentifier("java.lang")), "Object", Object.class)));
+				return plaidResult;
+				
 			}
 		} catch (IllegalArgumentException e) {
 			throw new PlaidInvalidArgumentException("Cannot call method : " + name);
@@ -108,6 +114,45 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 		}
 	}
 
+	private Method matchObjectMethod(PlaidObject args) {
+		for (Method m : this.instance.getClass().getMethods()) {
+			if (m.getName().equals(this.name)) {
+				Class<?>[] paramTypes = m.getParameterTypes();
+				// we have a single argument, so try to get a Java object of the 
+				// expected type back
+				if (args instanceof PlaidJavaObject && paramTypes.length == 1) {
+					// if we can get back the proper type from the PlaidJavaObject, this is the method we're looking for
+					//if (((PlaidJavaObject)args).getJavaObject(paramTypes[0]) != null) {
+						//return m;
+					//}
+				}
+				else if (args == Util.unit() && paramTypes.length == 0) {
+					// we must match, so just return this method
+					return m;
+				} 
+				else {
+					// check for pair
+					Object[] params = Util.convertParamsToArray(args);
+					
+					if (params.length != paramTypes.length)
+						continue;
+					
+					// make sure the types match up
+					boolean methodMatches = true;
+					for (int i = 0; i < params.length; i++) {
+						if (!params[i].getClass().equals(paramTypes[i])) {
+							methodMatches = false;
+							break;
+						}
+					}
+					if (methodMatches)
+						return m;
+				}
+			}
+		}
+		throw new PlaidException("No methods of this object match the given signature.");
+	}
+	
 	@Override
 	public String toString() {
 		return "PlaidJavaMethod("+ name +")";

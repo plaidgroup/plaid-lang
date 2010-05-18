@@ -30,6 +30,7 @@ import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
+import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMethod{
 	public static final String NAME = "new";
@@ -94,7 +95,11 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 			if ( result == null ) {
 				return  PlaidRuntime.getRuntime().getClassLoader().unit();
 			} else {
-				return new PlaidJavaObjectMap(result);
+				PlaidJavaObject plaidResult = new PlaidJavaObjectMap(result);
+				// add the tag
+				plaidResult.addTag(new PlaidTagMap(result.getClass().getName(), 
+						new PlaidStateMap(new PlaidPackageMap(new QualifiedIdentifier("java.lang")), "Object", Object.class)));
+				return plaidResult;
 			}
 		} catch (IllegalArgumentException e) {
 			throw new PlaidInvalidArgumentException("Cannot call constructor.");

@@ -118,7 +118,7 @@ public class PlaidObjectMap implements PlaidObject {
 	
 	public boolean matchesTag(String tagString) {
 		for (PlaidTag tag : getTags()) {
-			if(tag.matches(tagString)) {
+			if (tag.matches(tagString)) {
 				return true;
 			}
 		}

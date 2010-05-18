@@ -112,8 +112,8 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
-				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() <
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()) <
+				((Integer)((PlaidJavaObject)args).getJavaObject());
 				if (x == true) return Util.trueObject();
 				else return Util.falseObject();
 			}

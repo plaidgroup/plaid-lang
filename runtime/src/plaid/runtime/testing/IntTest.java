@@ -39,7 +39,7 @@ public class IntTest extends BaseTest {
 		PlaidObject v1 = Util.integer(1);
 		PlaidObject v2 = Util.integer(2);
 		
-		PlaidObject plus = Util.lookup("plus", v1);
+		PlaidObject plus = Util.lookup("plus$plaid", v1);
 		assertTrue( plus != null );
 		
 		PlaidObject result = Util.call(plus, v2);

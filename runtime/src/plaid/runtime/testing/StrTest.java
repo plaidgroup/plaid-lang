@@ -40,7 +40,7 @@ public class StrTest extends BaseTest {
 		PlaidObject v1 = Util.string("Hello");
 		PlaidObject v2 = Util.string("World");
 		
-		PlaidObject plus = Util.lookup("plus", v1);
+		PlaidObject plus = Util.lookup("plus$plaid", v1);
 		assertTrue( plus != null );
 		
 		PlaidObject result = Util.call(plus, v2);
