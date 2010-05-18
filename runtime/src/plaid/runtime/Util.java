@@ -209,4 +209,78 @@ public class Util {
 		//TODO: update PlaidState interface to include getQI
 		return ((PlaidStateMap)state).getQI().toString();
 	}
+
+	/**
+	 * The following are the widening primitive conversion rules as detailed in 
+	 * the Java Language Specification 3rd Edition, section 5.1.2
+	 * 
+	 * byte to short, int, long, float, or double
+	 * short to int, long, float, or double
+	 * char to int, long, float, or double
+	 * int to long, float, or double
+	 * long to float or double
+ 	 * float to double 
+ 	 * 
+	 * @param fromClass
+	 * @param toClass
+	 * @return
+	 */
+	public static Class<?> widenPrimitiveType(Class<?> fromClass, Class<?> toClass) {
+		if (fromClass.isPrimitive() && toClass.isPrimitive()) {
+			if (fromClass.equals(byte.class)) {
+				return widenPrimitiveHelper(toClass, short.class, int.class, long.class, float.class, double.class);
+			}
+			else if (fromClass.equals(short.class)) {
+				return widenPrimitiveHelper(toClass, int.class, long.class, float.class, double.class);
+			}
+			else if (fromClass.equals(char.class)) {
+				return widenPrimitiveHelper(toClass, int.class, long.class, float.class, double.class);
+			}
+			else if (fromClass.equals(int.class)) {
+				return widenPrimitiveHelper(toClass, long.class, float.class, double.class);
+			}
+			else if (fromClass.equals(long.class)) {
+				return widenPrimitiveHelper(toClass, float.class, double.class);
+			}
+			else if (fromClass.equals(float.class)) {
+				return widenPrimitiveHelper(toClass, double.class);
+			}
+		}
+		return null;
+	}
+	
+	private static Class<?> widenPrimitiveHelper(Class<?> toClass, Class<?> ...validClasses) {
+		for (Class<?> c : validClasses) {
+			if (toClass.equals(c)) {
+				return c;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Converts the reference classes to their corresponding primitive types:
+	 * byte, short, int, long, float, or double
+	 * 
+	 * @param c
+	 * @return
+	 */
+	public static Class<?> convertToPrimitive(Class<?> c) {
+		if (c.equals(Byte.class)) {
+			return byte.class;
+		}
+		else if (c.equals(Short.class)){
+			return short.class;
+		}
+		else if (c.equals(Integer.class)) {
+			return int.class;
+		}
+		else if (c.equals(Float.class)) {
+			return float.class;
+		}
+		else if (c.equals(Double.class)) {
+			return double.class;
+		}
+		return c;
+	}
 }
