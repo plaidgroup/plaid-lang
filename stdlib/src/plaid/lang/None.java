@@ -21,25 +21,25 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "None", toplevel = true)
 public class None{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr98$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr361$plaid;
 	static {
-		vAr98$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr361$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr98$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr361$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "None", toplevel = false)
 	public static final plaid.runtime.PlaidObject None;
 	static {
-		final plaid.runtime.PlaidState vAr99$plaid;
-		vAr99$plaid = plaid.runtime.Util.newState();
-		None = vAr99$plaid.getPrototype();
+		final plaid.runtime.PlaidState vAr362$plaid;
+		vAr362$plaid = plaid.runtime.Util.newState();
+		None = vAr362$plaid.getPrototype();
 	}
 	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.None")
 	public static final plaid.runtime.PlaidTag None$Tag$plaid;
 	static {
-		final plaid.runtime.PlaidState vAr100$plaid;
-		final plaid.runtime.PlaidObject vAr101$plaid;
-		vAr101$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Option", current$c0pe);
-		vAr100$plaid = plaid.runtime.Util.toPlaidState(vAr101$plaid);
-		None$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.None", vAr100$plaid);
+		final plaid.runtime.PlaidState vAr363$plaid;
+		final plaid.runtime.PlaidObject vAr364$plaid;
+		vAr364$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Option", current$c0pe);
+		vAr363$plaid = plaid.runtime.Util.toPlaidState(vAr364$plaid);
+		None$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.None", vAr363$plaid);
 	}
 }

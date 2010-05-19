@@ -136,18 +136,20 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	@Override
  	public PlaidObject instantiate(PlaidObject ...args) throws PlaidException {
 		if ( args.length != 0 ) {
-			throw new PlaidInvalidArgumentException("Cannot instanticate PlaidState with arguments");
+			throw new PlaidInvalidArgumentException("Cannot instantiate PlaidState with arguments");
 		}
 		if ( psa != null && psa.javaobject() ) {
 			return initialize(new PlaidJavaObjectMap());
-		} if ( psa != null && psa.stateobject()) {
+		} 
+		if ( psa != null && psa.stateobject()) {
 			PlaidStateMap psm = (PlaidStateMap) initialize(new PlaidStateMap());
 			if ( prototype instanceof PlaidStateMap ) {
 				psm.setName(((PlaidStateMap)prototype).getName());
 				psm.setPackage(((PlaidStateMap)prototype).getPackage());
 			}
 			return psm;
-		} else {
+		} 
+		else {
 			return initialize(new PlaidObjectMap());
 		}
 	}
@@ -159,7 +161,8 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 			if ( member.getValue() instanceof PlaidProtoMethodMap ) {
 				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap)member.getValue();
 				pom.addMember(member.getKey(), new PlaidMethodMap(pom, ppmm.getDelegate()));
-			} else if ( member.getValue() instanceof PlaidProtoFieldMap ) {
+			} 
+			else if ( member.getValue() instanceof PlaidProtoFieldMap ) {
 				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap)member.getValue();
 				PlaidMethod initializer = new PlaidMethodMap(pom, ppfm.getInitalizer());
 				pom.addMember(member.getKey(), initializer.invoke(Util.unit()));

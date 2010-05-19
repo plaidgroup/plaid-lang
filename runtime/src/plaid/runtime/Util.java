@@ -18,6 +18,7 @@
  */
 package plaid.runtime;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -262,6 +263,8 @@ public class Util {
 	 * Converts the reference classes to their corresponding primitive types:
 	 * byte, short, int, long, float, or double
 	 * 
+	 * If the class does not have a primitive type then the class is simply returned.
+	 * 
 	 * @param c
 	 * @return
 	 */
@@ -282,5 +285,26 @@ public class Util {
 			return double.class;
 		}
 		return c;
+	}
+	
+	public static boolean requiresPrimitiveWidening(Method m, Class<?>[] argTypes) {
+		Class<?>[] methodArgTypes = m.getParameterTypes();
+		if (methodArgTypes.length != argTypes.length)
+			throw new RuntimeException("Incorrect number of args.");
+				
+		for (int i = 0; i < methodArgTypes.length; i++) {
+			Class<?> methodArgType = convertToPrimitive(methodArgTypes[i]);
+			Class<?> argType = convertToPrimitive(argTypes[i]);
+			if (methodArgType.isAssignableFrom(argType) || methodArgType.isAssignableFrom(argTypes[i])) {
+				continue;
+			}
+			else if (widenPrimitiveType(argType, methodArgType) != null) {
+				return true;
+			}
+			else {
+				throw new RuntimeException("Argument types do not match.");
+			}
+		}
+		return false;
 	}
 }

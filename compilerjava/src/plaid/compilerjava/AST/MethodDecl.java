@@ -65,6 +65,10 @@ public class MethodDecl implements Decl {
 			name += PlaidConstants.ID_SUFFIX;
 		this.name = name;
 	}
+	
+	public boolean hasArg() {
+		return arg != null;
+	}
 
 	public ID getArg() {
 		return arg;
