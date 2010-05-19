@@ -42,14 +42,9 @@ public class ifElse{
 				final plaid.runtime.PlaidObject vAr34$plaid;
 				vAr34$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("True", vAr33$plaid);
 				vAr30$plaid = plaid.runtime.Util.toPlaidState(vAr34$plaid);
-				final plaid.runtime.PlaidTag vAr31$plaid;
-				if (vAr30$plaid.hasTag()) {
-					vAr31$plaid = vAr30$plaid.getTag();
-				}
-				else {
-					throw new plaid.runtime.PlaidException(vAr30$plaid.toString() + " is not assocaiated with a tag");
-				}
-				if (vAr29$plaid.getTags().contains(vAr31$plaid)) {
+				final String vAr31$plaid;
+				vAr31$plaid = plaid.runtime.Util.getQualifiedIdString(vAr30$plaid);
+				if (vAr29$plaid.matchesTag(vAr31$plaid)) {
 					vAr28$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 						public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject trueClause) throws plaid.runtime.PlaidException {
 							final plaid.runtime.PlaidObject vAr35$plaid;
@@ -79,14 +74,9 @@ public class ifElse{
 					final plaid.runtime.PlaidObject vAr43$plaid;
 					vAr43$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("False", vAr42$plaid);
 					vAr39$plaid = plaid.runtime.Util.toPlaidState(vAr43$plaid);
-					final plaid.runtime.PlaidTag vAr40$plaid;
-					if (vAr39$plaid.hasTag()) {
-						vAr40$plaid = vAr39$plaid.getTag();
-					}
-					else {
-						throw new plaid.runtime.PlaidException(vAr39$plaid.toString() + " is not assocaiated with a tag");
-					}
-					if (vAr29$plaid.getTags().contains(vAr40$plaid)) {
+					final String vAr40$plaid;
+					vAr40$plaid = plaid.runtime.Util.getQualifiedIdString(vAr39$plaid);
+					if (vAr29$plaid.matchesTag(vAr40$plaid)) {
 						vAr28$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject trueClause) throws plaid.runtime.PlaidException {
 								final plaid.runtime.PlaidObject vAr44$plaid;

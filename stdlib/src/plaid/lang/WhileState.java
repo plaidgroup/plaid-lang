@@ -81,14 +81,9 @@ public class WhileState{
 					final plaid.runtime.PlaidObject vAr86$plaid;
 					vAr86$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("True", vAr85$plaid);
 					vAr82$plaid = plaid.runtime.Util.toPlaidState(vAr86$plaid);
-					final plaid.runtime.PlaidTag vAr83$plaid;
-					if (vAr82$plaid.hasTag()) {
-						vAr83$plaid = vAr82$plaid.getTag();
-					}
-					else {
-						throw new plaid.runtime.PlaidException(vAr82$plaid.toString() + " is not assocaiated with a tag");
-					}
-					if (vAr81$plaid.getTags().contains(vAr83$plaid)) {
+					final String vAr83$plaid;
+					vAr83$plaid = plaid.runtime.Util.getQualifiedIdString(vAr82$plaid);
+					if (vAr81$plaid.matchesTag(vAr83$plaid)) {
 						{
 							final plaid.runtime.PlaidObject newResult;
 							final plaid.runtime.PlaidObject vAr87$plaid;
@@ -112,14 +107,9 @@ public class WhileState{
 						final plaid.runtime.PlaidObject vAr95$plaid;
 						vAr95$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("False", vAr94$plaid);
 						vAr91$plaid = plaid.runtime.Util.toPlaidState(vAr95$plaid);
-						final plaid.runtime.PlaidTag vAr92$plaid;
-						if (vAr91$plaid.hasTag()) {
-							vAr92$plaid = vAr91$plaid.getTag();
-						}
-						else {
-							throw new plaid.runtime.PlaidException(vAr91$plaid.toString() + " is not assocaiated with a tag");
-						}
-						if (vAr81$plaid.getTags().contains(vAr92$plaid)) {
+						final String vAr92$plaid;
+						vAr92$plaid = plaid.runtime.Util.getQualifiedIdString(vAr91$plaid);
+						if (vAr81$plaid.matchesTag(vAr92$plaid)) {
 							vAr77$plaid = result;
 						}
 						else {

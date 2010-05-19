@@ -21,42 +21,42 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "Pair", toplevel = true)
 public class Pair{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr114$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr377$plaid;
 	static {
-		vAr114$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr377$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr114$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr377$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "Pair", toplevel = false)
 	public static final plaid.runtime.PlaidObject Pair;
 	static {
-		final plaid.runtime.PlaidState vAr115$plaid;
-		vAr115$plaid = plaid.runtime.Util.newState();
+		final plaid.runtime.PlaidState vAr378$plaid;
+		vAr378$plaid = plaid.runtime.Util.newState();
 		@plaid.runtime.annotations.RepresentsMethod(name = "first", toplevel = false)
-		final plaid.runtime.PlaidObject vAr116$plaid;
-		vAr116$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr118$plaid) {
-				plaid.runtime.PlaidScope vAr119$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr119$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr117$plaid;
-				vAr117$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("fst", current$c0pe);
-				return vAr117$plaid;
+		final plaid.runtime.PlaidObject vAr379$plaid;
+		vAr379$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr381$plaid) {
+				plaid.runtime.PlaidScope vAr382$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr382$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr380$plaid;
+				vAr380$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("fst", current$c0pe);
+				return vAr380$plaid;
 			}
 		}
 		);
-		vAr115$plaid.addMember("first",vAr116$plaid);
+		vAr378$plaid.addMember("first",vAr379$plaid);
 		@plaid.runtime.annotations.RepresentsMethod(name = "second", toplevel = false)
-		final plaid.runtime.PlaidObject vAr120$plaid;
-		vAr120$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr122$plaid) {
-				plaid.runtime.PlaidScope vAr123$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr123$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr121$plaid;
-				vAr121$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("snd", current$c0pe);
-				return vAr121$plaid;
+		final plaid.runtime.PlaidObject vAr383$plaid;
+		vAr383$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr385$plaid) {
+				plaid.runtime.PlaidScope vAr386$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr386$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr384$plaid;
+				vAr384$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("snd", current$c0pe);
+				return vAr384$plaid;
 			}
 		}
 		);
-		vAr115$plaid.addMember("second",vAr120$plaid);
-		Pair = vAr115$plaid.getPrototype();
+		vAr378$plaid.addMember("second",vAr383$plaid);
+		Pair = vAr378$plaid.getPrototype();
 	}
 }

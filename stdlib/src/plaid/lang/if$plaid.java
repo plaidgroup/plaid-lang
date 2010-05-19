@@ -42,14 +42,9 @@ public class if$plaid{
 				final plaid.runtime.PlaidObject vAr17$plaid;
 				vAr17$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("True", vAr16$plaid);
 				vAr13$plaid = plaid.runtime.Util.toPlaidState(vAr17$plaid);
-				final plaid.runtime.PlaidTag vAr14$plaid;
-				if (vAr13$plaid.hasTag()) {
-					vAr14$plaid = vAr13$plaid.getTag();
-				}
-				else {
-					throw new plaid.runtime.PlaidException(vAr13$plaid.toString() + " is not assocaiated with a tag");
-				}
-				if (vAr12$plaid.getTags().contains(vAr14$plaid)) {
+				final String vAr14$plaid;
+				vAr14$plaid = plaid.runtime.Util.getQualifiedIdString(vAr13$plaid);
+				if (vAr12$plaid.matchesTag(vAr14$plaid)) {
 					vAr11$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 						public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject func) throws plaid.runtime.PlaidException {
 							final plaid.runtime.PlaidObject vAr18$plaid;
@@ -72,14 +67,9 @@ public class if$plaid{
 					final plaid.runtime.PlaidObject vAr25$plaid;
 					vAr25$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("False", vAr24$plaid);
 					vAr21$plaid = plaid.runtime.Util.toPlaidState(vAr25$plaid);
-					final plaid.runtime.PlaidTag vAr22$plaid;
-					if (vAr21$plaid.hasTag()) {
-						vAr22$plaid = vAr21$plaid.getTag();
-					}
-					else {
-						throw new plaid.runtime.PlaidException(vAr21$plaid.toString() + " is not assocaiated with a tag");
-					}
-					if (vAr12$plaid.getTags().contains(vAr22$plaid)) {
+					final String vAr22$plaid;
+					vAr22$plaid = plaid.runtime.Util.getQualifiedIdString(vAr21$plaid);
+					if (vAr12$plaid.matchesTag(vAr22$plaid)) {
 						vAr11$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject func) throws plaid.runtime.PlaidException {
 								final plaid.runtime.PlaidObject vAr26$plaid;
