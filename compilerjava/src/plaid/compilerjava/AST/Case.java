@@ -160,9 +160,12 @@ public class Case implements ASTnode {
 //		visitor.visitEdge(this, qi);
 //		visitor.visitEdge(this, x);
 //		visitor.visitEdge(this, e);
-		qi.accept(visitor);
-		x.accept(visitor);
-		e.accept(visitor);
+		if (qi != null)
+			qi.accept(visitor);
+		if (x != null)
+			x.accept(visitor);
+		if (e != null)
+			e.accept(visitor);
 	}
 	
 	@Override
