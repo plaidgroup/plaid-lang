@@ -43,6 +43,7 @@ public interface ASTVisitor {
 	public ASTnode visitNode(State node);
 	public ASTnode visitNode(StateDecl node);
 	public ASTnode visitNode(StringLiteral node);
+	public ASTnode visitNode(Type node);
 	public ASTnode visitNode(UnitLiteral node);
 	public ASTnode visitNode(With node);
 }

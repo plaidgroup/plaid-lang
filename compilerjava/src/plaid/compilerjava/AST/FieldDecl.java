@@ -36,26 +36,35 @@ public class FieldDecl implements Decl{
 	private Token token;
 	private ID f;
 	private Expression e;
+	// if type is null, that means this is an argument to a function 
+	// whose type was not declared
+	// if type's image is the empty string, then type is dynamic
+	private Type type;
 	private final boolean abstractField;
 	
 	public boolean isAbstractField() {
 		return abstractField;
 	}
 
-	public FieldDecl(Token t, ID f, Expression e, boolean abstractField) {
+	public FieldDecl(Token t, ID f, Type type, Expression e, boolean abstractField) {
 		super();
 		this.token = t;
 		this.setF(f);
 		this.setE(e);
 		this.abstractField = abstractField;
+		this.type = type;
 	}
 
 	public FieldDecl(ID f, Expression e) {
-		this(null, f, e, false);
+		this(null, f, new Type(null, ""), e, false);
 	}
 	
 	public ID getF() {
 		return f;
+	}
+	
+	public Type getType() {
+		return this.type;
 	}
 
 	public void setF(ID f) {
@@ -132,10 +141,12 @@ public class FieldDecl implements Decl{
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, f);
-//		visitor.visitEdge(this, e);
-//		visitor.visitChild(f);
-//		visitor.visitChild(e);
+		if (type != null) {
+			type.accept(visitor);
+		}
+		else {
+			System.out.println("type is null");
+		}
 		f.accept(visitor);
 		e.accept(visitor);
 	}

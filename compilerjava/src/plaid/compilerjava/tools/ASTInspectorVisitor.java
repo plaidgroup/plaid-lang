@@ -25,6 +25,7 @@ import plaid.compilerjava.AST.QI;
 import plaid.compilerjava.AST.State;
 import plaid.compilerjava.AST.StateDecl;
 import plaid.compilerjava.AST.StringLiteral;
+import plaid.compilerjava.AST.Type;
 import plaid.compilerjava.AST.UnitLiteral;
 import plaid.compilerjava.AST.With;
 
@@ -285,6 +286,14 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 		addNodeVisitChildren(node, new DefaultMutableTreeNode("StringLiteral : " + "\"" + node.toString() + "\""));
 	    // leave
 	    return this.leave(node, node, visitor);
+	}
+	
+	@Override
+	public ASTnode visitNode(Type node) {
+		System.out.println("visiting type node");
+		ASTVisitor visitor = this.enter(node);
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Type : " + "\"" + node.toString() + "\""));
+		return this.leave(node, node, visitor);
 	}
 
 	@Override

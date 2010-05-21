@@ -439,32 +439,59 @@ Decl DeclState() :
 
 Decl DeclField() :
 {
-		Token t;
+		Token idToken;
+		Token typeToken = null;
 		Expression e;
 		FieldDecl d;
+		Type type;
 		ID name;
 }
 {
 		[
-				< VAR >
-		|		< VAL >
+				<VAR>
+		|		<VAL>
 		]
-		t = < ID >
-		{
-				name = new ID(t, t.image);
-		}
-		(
-				< EQUALS > e = Exp() < SEMICOLON >
+			(
+				LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind == ID})
+				typeToken = <ID> idToken = <ID>
 				{
-						d = new FieldDecl(t, name, e, false);
+					System.out.println("type declared");
+					type = new Type(typeToken, typeToken.image);
+					name = new ID(idToken, idToken.image);
 				}
-		|		< SEMICOLON >
+				(
+					<EQUALS> e = Exp() <SEMICOLON>
+					{
+						d = new FieldDecl(idToken, name, type, e, false);
+					}
+				|	<SEMICOLON>
+					{
+						d = new FieldDecl(idToken, name, type, new UnitLiteral(), true);
+					}
+				)
+			|	LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind != ID})
+				idToken = <ID>
 				{
-						d = new FieldDecl(t, name, new UnitLiteral(), true);
+					System.out.println("type not declared");
+					System.out.println("name: " + idToken.image);
+					type = new Type(null, "");
+					name = new ID(idToken, idToken.image);
+					
 				}
-		)
+				(
+					<EQUALS> e = Exp() <SEMICOLON>
+					{
+						d = new FieldDecl(idToken, name, type, e, false);
+					}
+				|	<SEMICOLON>
+					{
+						d = new FieldDecl(idToken, name, type, new UnitLiteral(), true);
+					}
+				)
+			)
 		{
-				return d;
+			System.out.println("\"" + d.getType().toString() + "\"");
+			return d;
 		}
 }
 
@@ -500,7 +527,7 @@ List < ID > DeclArgs() :
 		List < ID > args = new ArrayList < ID > ();
 }
 {
-		arg = < ID >
+		arg = <ID>
 		{
 				args.add(new ID(arg.image));
 		}
@@ -1099,7 +1126,7 @@ Expression ExpList() :
 						for (int i = size - 1; i >= 0; i--)
 						{
 								fst = new FieldDecl(expList.get(i).getToken(),
-													 new ID("fst"), expList.get(i), false);
+													 new ID("fst"), null, expList.get(i), false);
 								snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
 								pairFields = new ArrayList < Decl > ();
 								pairFields.add(fst);

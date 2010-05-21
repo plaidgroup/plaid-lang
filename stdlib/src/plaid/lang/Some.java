@@ -21,51 +21,51 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "Some", toplevel = true)
 public class Some{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr356$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr303$plaid;
 	static {
-		vAr356$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr303$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr356$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr303$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "Some", toplevel = false)
 	public static final plaid.runtime.PlaidObject Some;
 	static {
-		final plaid.runtime.PlaidState vAr357$plaid;
-		vAr357$plaid = plaid.runtime.Util.newState();
+		final plaid.runtime.PlaidState vAr304$plaid;
+		vAr304$plaid = plaid.runtime.Util.newState();
 		@plaid.runtime.annotations.RepresentsField(name = "value", toplevel = false)
-		final plaid.runtime.PlaidObject vAr359$plaid;
-		vAr359$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr360$plaid) {
-				plaid.runtime.PlaidScope vAr361$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr361$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr358$plaid;
-				vAr358$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-				return vAr358$plaid;
+		final plaid.runtime.PlaidObject vAr306$plaid;
+		vAr306$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr307$plaid) {
+				plaid.runtime.PlaidScope vAr308$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr308$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr305$plaid;
+				vAr305$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+				return vAr305$plaid;
 			}
 		}
 		);
-		vAr357$plaid.addMember("value",vAr359$plaid);
+		vAr304$plaid.addMember("value",vAr306$plaid);
 		@plaid.runtime.annotations.RepresentsMethod(name = "getValue", toplevel = false)
-		final plaid.runtime.PlaidObject vAr362$plaid;
-		vAr362$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr364$plaid) {
-				plaid.runtime.PlaidScope vAr365$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr365$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr363$plaid;
-				vAr363$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", current$c0pe);
-				return vAr363$plaid;
+		final plaid.runtime.PlaidObject vAr309$plaid;
+		vAr309$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr311$plaid) {
+				plaid.runtime.PlaidScope vAr312$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr312$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr310$plaid;
+				vAr310$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", current$c0pe);
+				return vAr310$plaid;
 			}
 		}
 		);
-		vAr357$plaid.addMember("getValue",vAr362$plaid);
-		Some = vAr357$plaid.getPrototype();
+		vAr304$plaid.addMember("getValue",vAr309$plaid);
+		Some = vAr304$plaid.getPrototype();
 	}
 	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Some")
 	public static final plaid.runtime.PlaidTag Some$Tag$plaid;
 	static {
-		final plaid.runtime.PlaidState vAr366$plaid;
-		final plaid.runtime.PlaidObject vAr367$plaid;
-		vAr367$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Option", current$c0pe);
-		vAr366$plaid = plaid.runtime.Util.toPlaidState(vAr367$plaid);
-		Some$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.Some", vAr366$plaid);
+		final plaid.runtime.PlaidState vAr313$plaid;
+		final plaid.runtime.PlaidObject vAr314$plaid;
+		vAr314$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Option", current$c0pe);
+		vAr313$plaid = plaid.runtime.Util.toPlaidState(vAr314$plaid);
+		Some$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.Some", vAr313$plaid);
 	}
 }

@@ -1,29 +1,6 @@
 package plaid.compilerjava.tools;
 
 import plaid.compilerjava.AST.*;
-import plaid.compilerjava.AST.Assignment;
-import plaid.compilerjava.AST.Case;
-import plaid.compilerjava.AST.ChangeState;
-import plaid.compilerjava.AST.CompilationUnit;
-import plaid.compilerjava.AST.Decl;
-import plaid.compilerjava.AST.DeclList;
-import plaid.compilerjava.AST.Dereference;
-import plaid.compilerjava.AST.Expression;
-import plaid.compilerjava.AST.FieldDecl;
-import plaid.compilerjava.AST.ID;
-import plaid.compilerjava.AST.ImportList;
-import plaid.compilerjava.AST.IntLiteral;
-import plaid.compilerjava.AST.Lambda;
-import plaid.compilerjava.AST.LetBinding;
-import plaid.compilerjava.AST.Match;
-import plaid.compilerjava.AST.MethodDecl;
-import plaid.compilerjava.AST.NewInstance;
-import plaid.compilerjava.AST.QI;
-import plaid.compilerjava.AST.State;
-import plaid.compilerjava.AST.StateDecl;
-import plaid.compilerjava.AST.StringLiteral;
-import plaid.compilerjava.AST.UnitLiteral;
-import plaid.compilerjava.AST.With;
 
 /**
  * AbstractASTVisitor is an abstract implementation of ASTVisitor that simply 
@@ -161,6 +138,11 @@ public abstract class AbstractASTVisitor implements ASTVisitor {
 	
 	@Override
 	public ASTnode visitNode(StringLiteral node) {
+		return visitHelper(node);
+	}
+	
+	@Override
+	public ASTnode visitNode(Type node) {
 		return visitHelper(node);
 	}
 	
