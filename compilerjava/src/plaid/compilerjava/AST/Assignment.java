@@ -119,9 +119,12 @@ public class Assignment implements Expression {
 //		visitor.visitChild(target);
 //		visitor.visitChild(field);
 //		visitor.visitChild(value);
-		target.accept(visitor);
-		field.accept(visitor);
-		value.accept(visitor);
+		if (target != null)
+			target.accept(visitor);
+		if (field != null)
+			field.accept(visitor);
+		if (value != null)
+			value.accept(visitor);
 	}
 	
 	@Override
