@@ -175,8 +175,15 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	public ASTnode visitNode(FieldDecl node) {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("FieldDecl"));
-	    // leave
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(node.getF().getName() + " (FieldDecl)");
+		addNodeVisitChildren(node, newNode);
+		for (int i = 0; i < newNode.getChildCount(); i++) {
+	    	if (((String)((DefaultMutableTreeNode)newNode.getChildAt(i)).getUserObject()).startsWith("ID")) {
+	    		newNode.remove(i);
+	    		break;
+	    	}
+	    }
+		// leave
 	    return this.leave(node, node, visitor);
 	}
 
@@ -184,7 +191,7 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	public ASTnode visitNode(ID node) {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("ID : " + node.getName()));
+		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.getName() + " (ID)"));
 	    // leave
 	    return this.leave(node, node, visitor);
 	}
@@ -238,7 +245,7 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	public ASTnode visitNode(MethodDecl node) {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("MethodDecl"));
+		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.getName() + " (MethodDecl)"));
 	    // leave
 	    return this.leave(node, node, visitor);
 	}
@@ -255,9 +262,7 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	@Override
 	public ASTnode visitNode(QI node) {
 		ASTVisitor visitor = this.enter(node);
-		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("QI"));
-	    // leave
+		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.toString() + " (QI)"));
 	    return this.leave(node, node, visitor);
 	}
 
@@ -274,8 +279,15 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	public ASTnode visitNode(StateDecl node) {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("StateDecl"));
-	    // leave
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(node.getName().getName() + " (StateDecl)");
+		addNodeVisitChildren(node, newNode);
+	    for (int i = 0; i < newNode.getChildCount(); i++) {
+	    	if (((String)((DefaultMutableTreeNode)newNode.getChildAt(i)).getUserObject()).startsWith("ID")) {
+	    		newNode.remove(i);
+	    		break;
+	    	}
+	    }
+		// leave
 	    return this.leave(node, node, visitor);
 	}
 

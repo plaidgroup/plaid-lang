@@ -141,13 +141,13 @@ public class FieldDecl implements Decl{
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
+		f.accept(visitor);
 		if (type != null) {
 			type.accept(visitor);
 		}
 		else {
 			System.out.println("type is null");
 		}
-		f.accept(visitor);
 		e.accept(visitor);
 	}
 
