@@ -23,6 +23,8 @@ import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
+import plaid.runtime.PlaidConstants;
+import plaid.runtime.Util;
 
 public class LetBinding implements Expression {
 
@@ -34,7 +36,7 @@ public class LetBinding implements Expression {
 	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable) {
 		super();
 		this.token = t;
-		this.x = x;
+		this.setX(x);
 		this.exp = e1;
 		this.body = e2;
 		this.mutable = mutable;
@@ -70,6 +72,8 @@ public class LetBinding implements Expression {
 	}
 
 	public void setX(ID x) {
+		if (Util.isKeyword(x.getName()))
+			x = new ID(x.getName() + PlaidConstants.ID_SUFFIX);
 		this.x = x;
 	}
 
