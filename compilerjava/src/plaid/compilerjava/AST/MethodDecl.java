@@ -21,6 +21,9 @@ package plaid.compilerjava.AST;
 
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -33,37 +36,43 @@ import plaid.compilerjava.util.QualifiedID;
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.Util;
 
-public class MethodDecl implements Decl {
-	private Token token;
-	private String name;
-	private Expression body;
-	private ID arg;
+public final class MethodDecl implements Decl {
+	private final Token token;
+	private final String name;
+	private final Expression body;
+	private final ID arg;
+	private final List<Type> argTypes;
+	private final Type retType;
 	private final boolean abstractMethod;
 	
-	public MethodDecl(Token t, String name, Expression exp, ID arg, boolean abstractMethod) {
+	public MethodDecl(Token t, String name, Type retType, Expression body, ID arg, List<Type> argTypes, boolean abstractMethod) {
 		this.token = t;
-		this.setName(name);
-		this.setBody(exp);
-		this.setArg(arg);
+		if (Util.isKeyword(name))
+			this.name = name + PlaidConstants.ID_SUFFIX;
+		else
+			this.name = name;
+		this.retType = retType;
+		this.body = body;
+		if (arg == null) {
+			// fresh ID for arg which will always be unit and never used
+			this.arg = IdGen.getId();
+		}
+		else {
+			this.arg = arg;
+		}
+		if (argTypes.size() == 0) {
+			argTypes.add(Type.UNIT);
+		}
+		this.argTypes = new ArrayList<Type>(argTypes);
 		this.abstractMethod = abstractMethod;
 	}
 	
 	public boolean isAbstractMethod() {
 		return abstractMethod;
 	}
-
-	public void setBody(Expression e) {
-		this.body = e;
-	}
 	
 	public String getName() {
 		return name;
-	}
-
-	public void setName(String name) {
-		if (Util.isKeyword(name))
-			name += PlaidConstants.ID_SUFFIX;
-		this.name = name;
 	}
 	
 	public boolean hasArg() {
@@ -74,10 +83,6 @@ public class MethodDecl implements Decl {
 		return arg;
 	}
 
-	public void setArg(ID arg) {
-		this.arg = arg;
-	}
-
 	public Expression getBody() {
 		return body;
 	}
@@ -86,8 +91,15 @@ public class MethodDecl implements Decl {
 		return token;
 	}
 	
+	public List<Type> getArgTypes() {
+		return Collections.unmodifiableList(argTypes);
+	}
+
+	public Type getRetType() {
+		return retType;
+	}
+
 	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
-		
 		ID freshReturn = IdGen.getId();
 		ID freshImports = IdGen.getId();
 		CodeGen out = new CodeGen(cc);
@@ -106,9 +118,8 @@ public class MethodDecl implements Decl {
 		imports.codegen(out, freshImports);
 		out.declareTopScope(qid.toString(),freshImports.getName());
 		
-		if (arg == null) {
+		if (name.equals("main") && argTypes.get(0) == Type.UNIT && argTypes.size() == 1) {
 			out.topLevelMain(name + "_func");
-			arg = IdGen.getId();  //fresh ID for arg which will always be null/unit and never used
 		} else {
 			localVars = localVars.add(arg);
 		}
@@ -119,7 +130,8 @@ public class MethodDecl implements Decl {
 		out.assignToNewLambda(thisMethod.getName(),arg.getName());
 		
 		out.declareFinalVar(CodeGen.plaidObjectType,freshReturn.getName());
-		body.codegen(out, freshReturn,localVars); //top level functions loopup with unit
+		//top level functions lookup with unit
+		body.codegen(out, freshReturn,localVars);
 		out.ret(freshReturn.getName());
 		out.closeAnonymousDeclaration(); // }});
 		
@@ -135,7 +147,6 @@ public class MethodDecl implements Decl {
 		out.setLocation(token);
 		ID freshMethName = IdGen.getId();
 		ID freshID = IdGen.getId();
-		if (arg == null) arg = IdGen.getId();
 		IDList newLocalVars = localVars.add(arg);
 		
 		out.methodAnnotation(newName, false); //@representsMethod...
@@ -156,10 +167,6 @@ public class MethodDecl implements Decl {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, body);
-//		visitor.visitEdge(this, arg);
-//		visitor.visitChild(body);
-//		visitor.visitChild(arg);
 		body.accept(visitor);
 		if (arg != null)
 			arg.accept(visitor);

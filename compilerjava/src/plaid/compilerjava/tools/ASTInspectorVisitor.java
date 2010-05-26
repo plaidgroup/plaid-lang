@@ -1,5 +1,7 @@
 package plaid.compilerjava.tools;
 
+import java.util.List;
+
 import javax.swing.tree.*;
 
 import plaid.compilerjava.AST.ASTnode;
@@ -245,9 +247,22 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	public ASTnode visitNode(MethodDecl node) {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.getName() + " (MethodDecl)"));
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(node.getName() + " (MethodDecl)");
+		DefaultMutableTreeNode typeNode = new DefaultMutableTreeNode(
+			"Type: " + buildFunctionTypeString(node.getArgTypes(), node.getRetType()));
+		addNodeVisitChildren(node, newNode);
+		newNode.add(typeNode);
 	    // leave
 	    return this.leave(node, node, visitor);
+	}
+	
+	private static String buildFunctionTypeString(List<Type> argTypes, Type retType) {
+		StringBuilder sb = new StringBuilder();
+		for (Type type : argTypes) {
+			sb.append(type.toString() + " -> ");
+		}
+		sb.append(retType.toString());
+		return sb.toString();
 	}
 
 	@Override
@@ -295,16 +310,15 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	public ASTnode visitNode(StringLiteral node) {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("StringLiteral : " + "\"" + node.toString() + "\""));
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("StringLiteral : " + node.toString()));
 	    // leave
 	    return this.leave(node, node, visitor);
 	}
 	
 	@Override
 	public ASTnode visitNode(Type node) {
-		System.out.println("visiting type node");
 		ASTVisitor visitor = this.enter(node);
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("Type : " + "\"" + node.toString() + "\""));
+		addNodeVisitChildren(node, new DefaultMutableTreeNode("Type : " + node.toString()));
 		return this.leave(node, node, visitor);
 	}
 
