@@ -228,9 +228,17 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	@Override
 	public ASTnode visitNode(LetBinding node) {
 		ASTVisitor visitor = this.enter(node);
-		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("LetBinding"));
-	    // leave
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("LetBinding");
+		addNodeVisitChildren(node, newNode);
+	    for (int i = 0; i < newNode.getChildCount(); i++) {
+	    	String label = ((String)((DefaultMutableTreeNode)newNode.getChildAt(i)).getUserObject());
+	    	if (label.contains("(ID)") && !label.contains("$plaid")) {
+	    		DefaultMutableTreeNode newChildNode = new DefaultMutableTreeNode(label + " : " + node.getType().toString());
+	    		newNode.remove(i);
+	    		newNode.insert(newChildNode, i);
+	    		break;
+	    	}
+	    }
 	    return this.leave(node, node, visitor);
 	}
 
