@@ -455,7 +455,6 @@ Decl DeclField() :
 				LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind == ID})
 				typeToken = <ID> idToken = <ID>
 				{
-					System.out.println("type declared");
 					type = new Type(typeToken, typeToken.image);
 					name = new ID(idToken, idToken.image);
 				}
@@ -472,9 +471,7 @@ Decl DeclField() :
 			|	LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind != ID})
 				idToken = <ID>
 				{
-					System.out.println("type not declared");
-					System.out.println("name: " + idToken.image);
-					type = new Type(null, "");
+					type = Type.DYN;
 					name = new ID(idToken, idToken.image);
 					
 				}
@@ -490,7 +487,6 @@ Decl DeclField() :
 				)
 			)
 		{
-			System.out.println("\"" + d.getType().toString() + "\"");
 			return d;
 		}
 }
@@ -498,48 +494,104 @@ Decl DeclField() :
 Decl DeclMethod() :
 {
 		Token t;
-		ID name, argID = null; //may not be any arguments
+		Token typeToken = null;
+		ID name;
+		//may not be any arguments
+		ID argID = null;
 		Expression e = null;
-		List < ID > argList = new ArrayList < ID > ();
+		List<Arg> argTypeList = new ArrayList<Arg>();
+		List<Type> typeList = new ArrayList<Type>();
+		List<ID> argList = new ArrayList<ID>();
 		MethodDecl d;
+		Type retType;
 }
 {
-		t = <METHOD> name = IdOrOperator() <LPAREN> [ argList = DeclArgs() ] <RPAREN> (e = BlockExpression(false) | <SEMICOLON> )
+		t = <METHOD> 
+		(LOOKAHEAD(<ID> IdOrOperator()) typeToken = <ID> name = IdOrOperator() | name = IdOrOperator()) 
+		<LPAREN> [argTypeList = DeclArgs()] <RPAREN> (e = BlockExpression(false) | <SEMICOLON> )
 		{
-			if (e == null) d = new MethodDecl(t, name.getName(), new UnitLiteral(), argID, true); //default method body is unit
+			// return type
+			if (typeToken == null) {
+				retType = Type.DYN;
+			}
 			else {
-				if (argList.size() == 1) argID = argList.get(0);
+				retType = new Type(typeToken, typeToken.image);
+			}
+			
+			// separate the args from their types
+			for (Arg arg : argTypeList) {
+				typeList.add(arg.getType());
+				argList.add(arg.getArg());
+			}
+			
+			if (e == null) {
+				//default method body is unit
+				d = new MethodDecl(t, name.getName(), retType, new UnitLiteral(), argID, typeList, true);
+			}
+			else {
+				if (argList.size() == 1) {
+					argID = argList.get(0);
+				}
 				else if (argList.size() > 1) {
 					argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
 					e = getBodyWithPairExtractions(argList, argID, 1, e);
 				}
-				d = new MethodDecl(t, name.getName(), e, argID, false);
+				// if we didn't have any arguments, then unit is our only argument
+				else {
+					typeList.add(Type.UNIT);
+				}
+				d = new MethodDecl(t, name.getName(), retType, e, argID, typeList, false);
 			}
 		}
-		
-		{return d;}
-
-}
-
-List < ID > DeclArgs() :
-{
-		Token arg;
-		List < ID > args = new ArrayList < ID > ();
-}
-{
-		arg = <ID>
 		{
-				args.add(new ID(arg.image));
+			return d;
+		}
+
+}
+
+List<Arg> DeclArgs() :
+{
+		Arg arg;
+		List<Arg> args = new ArrayList<Arg>();
+}
+{
+		arg = Arg()
+		{
+			args.add(arg);
 		}
 		(
-				< COMMA > arg = < ID >
-				{
-						args.add(new ID(arg.image));
-				}
+			<COMMA> arg = Arg()
+			{
+				args.add(arg);
+			}
 		)*
 		{
-				return args;
+			return args;
 		}
+}
+
+Arg Arg() :
+{
+	Token typeToken = null;
+	Token argToken = null;
+	Arg arg;
+}
+{
+	(
+		LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind == ID})
+		typeToken = <ID> argToken = <ID>
+		{
+			arg = new Arg(new Type(typeToken, typeToken.image), new ID(argToken, argToken.image));
+		}
+	|	LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind != ID})
+		argToken = <ID>
+		{
+			arg = new Arg(Type.DYN, new ID(argToken, argToken.image));
+		}
+	)
+	{
+		return arg;
+	}
 }
 
 State State() :
@@ -620,7 +672,7 @@ Expression BlockExpression(boolean isExp) :
 {
 		< LBRACE > [ e = StmtListSemi() ] < RBRACE >
 		{
-				if (isExp) return new Lambda(e.getToken(), IdGen.getId(), e);
+				if (isExp) return new Lambda(e.getToken(), null, IdGen.getId(), null, e);
 				else return e;
 		}
 }
@@ -1251,26 +1303,39 @@ String OpSuffix() :
 Expression Function() :
 {
 		Token t;
-		List < ID > argList;
+		List<Arg> argTypeList;
+		List<Type> typeList = new ArrayList<Type>();
+		List<ID> argList = new ArrayList<ID>();
 		Expression body;
-		ID var;
+		// might not have any args, so unit would be the arg
+		ID var = null;
 }
 {
-		//Lookahead problem because Exp() could be a blockExpression, but always want it to match BlockExpression() here because it shouldn't be treated as a lambda
-		t = < FN > < LPAREN > argList = DeclArgs() < RPAREN > < DARROW >
+		
+		
+		// Lookahead problem because Exp() could be a blockExpression, but 
+		// always want it to match BlockExpression() here because it shouldn't 
+		// be treated as a lambda
+		t = <FN> <LPAREN> argTypeList = DeclArgs() <RPAREN> <DARROW>
 		(
 				LOOKAHEAD("{")
 				body = BlockExpression(false)
 		|		body = Exp()
 		)
 		{
-				if (argList.size() == 1) var = argList.get(0);
-				else
-				{
-						var = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
-						body = getBodyWithPairExtractions(argList, var, 1, body);
-				}
-				return new Lambda(t, var, body);
+			for (Arg arg : argTypeList) {
+				typeList.add(arg.getType());
+				argList.add(arg.getArg());
+			}
+			if (argList.size() == 1) {
+				var = argList.get(0);
+			}
+			else if (argList.size() > 1) {
+				var = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
+				body = getBodyWithPairExtractions(argList, var, 1, body);
+			}
+			// TODO: where should the return type annotation go?
+			return new Lambda(t, null, var, typeList, body);
 		}
 }
 

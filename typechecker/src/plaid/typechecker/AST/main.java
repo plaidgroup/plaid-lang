@@ -1,24 +1,18 @@
 package plaid.typechecker.AST;
 @plaid.runtime.annotations.RepresentsMethod(name = "main", toplevel = true)
 public class main{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr1136$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr1137$plaid;
 	static {
-		vAr1136$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
-		vAr1136$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
+		vAr1137$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr1137$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.typechecker.AST",vAr1136$plaid);
-	public static void main(String[] args) {
-		plaid.lang.System.setArgs(args,0);
-		plaid.runtime.PlaidRuntime.getRuntime().init();
-		main_func.invoke(plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit());
-		plaid.runtime.PlaidRuntime.getRuntime().shutdown();
-	}
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.typechecker.AST",vAr1137$plaid);
 	@plaid.runtime.annotations.RepresentsMethod(name = "main", toplevel = false)
 	public static final plaid.runtime.PlaidMethod main_func;
 	static {
 		main_func = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject vAr1137$plaid) throws plaid.runtime.PlaidException {
-				final plaid.runtime.PlaidObject vAr1135$plaid;
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject vAr18$plaid) throws plaid.runtime.PlaidException {
+				final plaid.runtime.PlaidObject vAr1136$plaid;
 				{
 					plaid.runtime.PlaidObject javaAST;
 					final plaid.runtime.PlaidObject vAr1138$plaid;
@@ -68,11 +62,11 @@ public class main{
 							vAr1155$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("translateAST", vAr1157$plaid);
 							vAr1156$plaid = javaAST;
 							plaidAST = plaid.runtime.Util.call(vAr1155$plaid, vAr1156$plaid);
-							vAr1135$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+							vAr1136$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 						}
 					}
 				}
-				return vAr1135$plaid;
+				return vAr1136$plaid;
 			}
 		}
 		);
