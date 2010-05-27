@@ -7,6 +7,12 @@ public class main{
 		vAr1137$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
 	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.typechecker.AST",vAr1137$plaid);
+	public static void main(String[] args) {
+		plaid.lang.System.setArgs(args,0);
+		plaid.runtime.PlaidRuntime.getRuntime().init();
+		main_func.invoke(plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit());
+		plaid.runtime.PlaidRuntime.getRuntime().shutdown();
+	}
 	@plaid.runtime.annotations.RepresentsMethod(name = "main", toplevel = false)
 	public static final plaid.runtime.PlaidMethod main_func;
 	static {
