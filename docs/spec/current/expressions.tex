@@ -112,6 +112,9 @@ to an already-declared field of the current object \keyw{this}.
 The state change operator <- modifies the object to the left of the
 arrow as follows:
 
+\TODO{At some point, consider whether to support matching against
+structural types}
+
 \begin{itemize}
 
 \item
@@ -265,8 +268,10 @@ the cast can fail.}
 
 \end{quote}
 
-The \keyw{new} statement creates an object initialized according to the
-\nterm{State} specification given (defined below).
+The \keyw{new} statement creates an object initialized according to
+the \nterm{State} specification given (defined below).  The object
+creation and field assignment is done atomically; there is never a
+``partially initialized'' object.
 
 \pII{The cast expression casts the value to the given permission type,
 throwing an exception if the cast does not succeed.  The cast checks
@@ -603,6 +608,19 @@ value, the specifier must be omitted.
 \keyw{var} fields are mutable, \keyw{val} fields
 are not\pII{ (i.e. no setter is defined)}.
 
+Field initialization expressions are run in the order given;
+initializers are run even if a field is overridden.  Fields defined
+earlier are in scope during the execution of a field initializer.
+If the field initializer is run from inside a constructor, the
+object ``this'' being constructed is not in scope, as it will not
+even be created until all field initializers are run.  If the field
+initializer is run from a state change operation, then the old ``this''
+object is in scope, with whatever permissions are available in the
+context.  In the case of state update an expression of the form ``this.f''
+refers to the old value of a field, while ``f'' refers to the new value
+if ``f'' has been re-initialized already, otherwise the old value.
+
+
 \vII{If a type is missing and an expression is given for a
   \keyw{val} field, then the type of the field is inferred from the
   expression.  If the type is missing and either no expression is
@@ -620,6 +638,10 @@ permission.}
 \TODO{generalize the tuple construct so it can be used for more than method
 arguments}
 
+It is an error to have two methods, two fields, or a method and a
+field with the same name, unless one of the two has the ``overrides''
+keyword.
+
 \begin{quote}
 
 %%%%%%%%%%%%%%%%%% Modifiers %%%%%%%%%%%%%%%%%%%%%
@@ -629,6 +651,8 @@ arguments}
 \vII{\defspace \keyw{requires}}
 
 \defspace \keyw{overrides}
+
+\defspace \keyw{branded}
 
 \vII{\defspace \keyw{immutable}}
 
@@ -664,6 +688,10 @@ arguments}
 
 \keyw{overrides} indicates that a method overrides a function of the
 same name during composition.
+
+\keyw{branded} indicates that the type being defined is nominal, and
+is a (strict) subtype of the structural type given by its signature.
+If one state is a case of another, both states must be \keyw{branded}.
 
 \vII{\keyw{requires} is similar to \keyw{abstract} in Java.  However,
 things are more interesting in Plaid, because one can pass around an
