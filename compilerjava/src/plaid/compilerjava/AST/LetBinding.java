@@ -32,11 +32,16 @@ public class LetBinding implements Expression {
 	private ID x;
 	private Expression exp, body;
 	private boolean mutable;
+	private final Type type;
 
-	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable) {
+	public LetBinding(Token t, ID x, Type type, Expression e1, Expression e2, boolean mutable) {
 		super();
 		this.token = t;
 		this.setX(x);
+		if (type == null)
+			this.type = Type.DYN;
+		else	
+			this.type = type;
 		this.exp = e1;
 		this.body = e2;
 		this.mutable = mutable;
@@ -50,6 +55,10 @@ public class LetBinding implements Expression {
 		return token;
 	}
 	
+	public Type getType() {
+		return type;
+	}
+
 	@Override
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
@@ -95,12 +104,6 @@ public class LetBinding implements Expression {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, x);
-//		visitor.visitEdge(this, exp);
-//		visitor.visitEdge(this, body);
-//		visitor.visitChild(x);
-//		visitor.visitChild(exp);
-//		visitor.visitChild(body);
 		x.accept(visitor);
 		exp.accept(visitor);
 		body.accept(visitor);

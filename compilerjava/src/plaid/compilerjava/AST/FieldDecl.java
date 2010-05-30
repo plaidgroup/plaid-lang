@@ -56,7 +56,7 @@ public class FieldDecl implements Decl{
 	}
 
 	public FieldDecl(ID f, Expression e) {
-		this(null, f, new Type(null, ""), e, false);
+		this(null, f, Type.DYN, e, false);
 	}
 	
 	public ID getF() {
@@ -144,9 +144,6 @@ public class FieldDecl implements Decl{
 		f.accept(visitor);
 		if (type != null) {
 			type.accept(visitor);
-		}
-		else {
-			System.out.println("type is null");
 		}
 		e.accept(visitor);
 	}

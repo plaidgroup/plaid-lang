@@ -19,27 +19,47 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
-public class Lambda implements Expression {
-	private Token token;
-	private ID var;
-	private Expression body;
+public final class Lambda implements Expression {
+	private final Token token;
+	private final ID var;
+	private final List<Type> argTypes;
+	private final Type retType;
+	private final Expression body;
 	
 	public Lambda(ID var, Expression body) {
-		super();
-		this.var = var;
-		this.body = body;
+		this(null, Type.DYN, var, null, body);
 	}
 
-	public Lambda(Token t, ID var, Expression body) {
+	public Lambda(Token token, Type retType, ID var, List<Type> argTypes, Expression body) {
 		super();
-		this.token = t;
-		this.var = var;
+		if (argTypes == null) {
+			argTypes = new ArrayList<Type>();
+			argTypes.add(Type.UNIT);
+		}
+		if (retType == null) {
+			retType = Type.DYN;
+		}
+		
+		this.token = token;
+		this.retType = retType;
+		
+		// if var is unit, generate a fresh ID that won't get used in the body
+		if (var == null)
+			this.var = IdGen.getId();
+		else
+			this.var = var;
+		
+		this.argTypes = new ArrayList<Type>(argTypes);
 		this.body = body;
 	}
 
@@ -51,16 +71,16 @@ public class Lambda implements Expression {
 		return var;
 	}
 
-	public void setVar(ID var) {
-		this.var = var;
-	}
-
 	public Expression getBody() {
 		return body;
 	}
+	
+	public List<Type> getArgTypes() {
+		return Collections.unmodifiableList(argTypes);
+	}
 
-	public void setBody(Expression body) {
-		this.body = body;
+	public Type getRetType() {
+		return retType;
 	}
 
 	@Override
