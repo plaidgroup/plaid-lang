@@ -87,11 +87,11 @@ public class Assignment implements Expression {
 			if (localVars.contains(field))
 				out.assignToID(field.getName(),assignTo.getName()); // field = assignTo
 			else if (localVars.contains(CodeGen.thisVar)) { // Find member in this object
-                out.ifCondition(CodeGen.containsMember(CodeGen.thisVar,field.getName())); // if (this.containsField(field))
-                out.addMember(CodeGen.thisVar, field.getName(), assignTo.getName()); // this.addMember(field,assignTo)
-                out.elseCase(); // else
-                out.throwNewPlaidException(exceptionText); // throw new PlaidException(...)
-                out.updateVar("this", CodeGen.thisVar);
+				out.ifCondition(CodeGen.containsMember(CodeGen.thisVar,field.getName())); // if (this.containsField(field))
+				out.addMember(CodeGen.thisVar, field.getName(), assignTo.getName()); // this.addMember(field,assignTo)
+				out.elseCase(); // else
+				out.throwNewPlaidException(exceptionText); // throw new PlaidException(...)
+				out.updateVar("this", CodeGen.thisVar);
 			}
 			else { // There is no "this" available => it must be a write to a global variable
 				// TODO: Maybe create a separate method in CodeGen for doing this?
