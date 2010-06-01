@@ -19,7 +19,9 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
@@ -68,18 +70,18 @@ public class DeclList implements State {
 		
 		out.assignToNewStateObject(y.getName());  //y = util.newObject();
 		
+		Set<String> declNames = new HashSet<String>();
 		for (Decl decl : decls) {
+			declNames.add(decl.getName());
 			decl.codegen(out,y,localVars);
 		}
-
+		if (declNames.size() < decls.size()) {
+			throw new RuntimeException("Cannot have field and method with the same name!");
+		}
 	}
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		for (Decl d : decls)
-//			visitor.visitEdge(this, d);
-//		for (Decl d : decls)
-//			visitor.visitChild(d);
 		for (Decl d : decls)
 			d.accept(visitor);
 	}

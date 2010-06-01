@@ -36,9 +36,6 @@ public class FieldDecl implements Decl{
 	private Token token;
 	private ID f;
 	private Expression e;
-	// if type is null, that means this is an argument to a function 
-	// whose type was not declared
-	// if type's image is the empty string, then type is dynamic
 	private Type type;
 	private final boolean abstractField;
 	
@@ -83,6 +80,11 @@ public class FieldDecl implements Decl{
 	
 	public Token getToken() {
 		return token;
+	}
+	
+	@Override
+	public String getName() {
+		return this.f.getName();
 	}
 
 	//Top Level Field Decl
