@@ -33,6 +33,7 @@ import plaid.runtime.event.PlaidRuntimeLocationUpdateEvent;
 import plaid.runtime.event.PlaidRuntimeShutdownEvent;
 import plaid.runtime.event.PlaidRuntimeStateChangeEvent;
 import plaid.runtime.event.PlaidRuntimeVariableUpdateEvent;
+import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.models.map.PlaidRuntimeMap;
 
 public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeControl {
@@ -284,8 +285,29 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 
 	@Override
 	public void updateVar(String name, Object o) {
-		if ( currentState == RUNTIME_STATE.UNINITIALIZED ) return;
-		if ( name.endsWith(PlaidConstants.ID_SUFFIX)) return;
+		if (currentState == RUNTIME_STATE.UNINITIALIZED)
+			return;
+		if (name.endsWith(PlaidConstants.ID_SUFFIX))
+			return;
+		// since we're assigning this to a variable, we should make sure it exists
+		if (o instanceof PlaidLookupMap) {
+			PlaidLookupMap plm = (PlaidLookupMap)o;
+			try {
+				Util.toPlaidJavaObject(plm);
+			} catch (PlaidCastException pce1) {
+				try {
+					Util.toPlaidMethod(plm);
+				} catch (PlaidMethodNotFoundException exc) {
+					try {
+						Util.toPlaidState(plm);
+					} catch (PlaidCastException pce2) {
+						throw new PlaidRuntimeException("The name '" + 
+								plm.getToLookup() + "' is not defined in " + 
+								plm.getThePackage() + ".");
+					}
+				}
+			}
+		}
 		triggerVariableUpdate(new PlaidRuntimeVariableUpdateEvent(this, name, o));
 		checkRuntimeState();
 	}

@@ -27,6 +27,7 @@ import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
+import plaid.runtime.PlaidException;
 
 public class DeclList implements State {
 
@@ -76,7 +77,7 @@ public class DeclList implements State {
 			decl.codegen(out,y,localVars);
 		}
 		if (declNames.size() < decls.size()) {
-			throw new RuntimeException("Cannot have field and method with the same name!");
+			throw new PlaidException("Cannot have field and method with the same name.");
 		}
 	}
 

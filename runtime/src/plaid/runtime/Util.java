@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
 
@@ -192,7 +193,12 @@ public class Util {
 		} else {
 			if ( obj instanceof PlaidScope )  {
 				throw new PlaidMethodNotFoundException("Method '" + obj +"' not found.");
-			} else {
+			}
+			else if (obj instanceof PlaidLookupMap) {
+				PlaidLookupMap plm = (PlaidLookupMap)obj;
+				throw new PlaidMethodNotFoundException("The method '" + plm.getToLookup() + "' is undefined in '" + plm.getThePackage() + "'.");
+			}
+			else {
 				throw new PlaidCastException("Failed to cast '"+obj+"'to PlaidMethod.");
 			}
 		}
