@@ -107,7 +107,7 @@ public class FieldDecl implements Decl{
 		
 		//generate code to represent the field as a java field
 		out.fieldAnnotation(f.getName(), false);
-		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, f.getName());
+		out.declarePublicStaticVar(CodeGen.plaidObjectType, f.getName());
 		out.openStaticBlock(); //static {
 		e.codegen(out, f, new IDList());  //initialization code
 		out.closeBlock(); out.closeBlock(); //}}
