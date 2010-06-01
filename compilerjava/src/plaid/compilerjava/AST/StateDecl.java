@@ -61,8 +61,12 @@ public class StateDecl implements Decl {
 		this.token = t;
 	}
 
-	public ID getName() {
+	public ID getID() {
 		return name;
+	}
+	
+	public String getName() {
+		return this.name.getName();
 	}
 
 	public void setName(ID name) {
@@ -152,10 +156,6 @@ public class StateDecl implements Decl {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, name);
-//		visitor.visitEdge(this, stateDef);
-//		visitor.visitChild(name);
-//		visitor.visitChild(stateDef);
 		name.accept(visitor);
 		stateDef.accept(visitor);
 	}

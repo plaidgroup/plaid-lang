@@ -302,7 +302,7 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	public ASTnode visitNode(StateDecl node) {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(node.getName().getName() + " (StateDecl)");
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(node.getID().getName() + " (StateDecl)");
 		addNodeVisitChildren(node, newNode);
 	    for (int i = 0; i < newNode.getChildCount(); i++) {
 	    	if (((String)((DefaultMutableTreeNode)newNode.getChildAt(i)).getUserObject()).startsWith("ID")) {

@@ -32,5 +32,7 @@ public interface Decl extends ASTnode {
 	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc);
 
 	public void codegen(CodeGen out, ID y, IDList localVars);
+	
+	public String getName();
 }
 
