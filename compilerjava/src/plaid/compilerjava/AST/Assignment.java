@@ -83,17 +83,25 @@ public class Assignment implements Expression {
 		out.declareFinalVar(CodeGen.plaidObjectType, assignTo.getName());
 		value.codegen(out, assignTo, localVars);
 		
-		if (target == null ) { //ID is in this scope
-			if (localVars.contains(field)) {
+		if (target == null ) { // ID is in this scope
+			if (localVars.contains(field))
 				out.assignToID(field.getName(),assignTo.getName()); // field = assignTo
-			} else { //find member in this object
-				out.ifCondition(CodeGen.containsMember(CodeGen.thisVar,field.getName())); //if (this.containsField(field))
-				out.addMember(CodeGen.thisVar, field.getName(), assignTo.getName()); //this.addMember(field,assignTo)
-				out.elseCase(); // else
-				out.throwNewPlaidException(exceptionText); //throw new PlaidException(...)
-				out.updateVar("this", CodeGen.thisVar);
+			else if (localVars.contains(CodeGen.thisVar)) { // Find member in this object
+                out.ifCondition(CodeGen.containsMember(CodeGen.thisVar,field.getName())); // if (this.containsField(field))
+                out.addMember(CodeGen.thisVar, field.getName(), assignTo.getName()); // this.addMember(field,assignTo)
+                out.elseCase(); // else
+                out.throwNewPlaidException(exceptionText); // throw new PlaidException(...)
+                out.updateVar("this", CodeGen.thisVar);
 			}
-		} else { //find member in the target object
+			else { // There is no "this" available => it must be a write to a global variable
+				// TODO: Maybe create a separate method in CodeGen for doing this?
+				out.assign(field.getName() + "." + field.getName());
+				out.append(assignTo.getName());
+				out.append(";");
+				out.updateVar(field.getName(), assignTo.getName());
+			}
+		}
+		else { //find member in the target object
 			
 			//generate code for the target
 			ID targetObject = IdGen.getId();
@@ -113,12 +121,6 @@ public class Assignment implements Expression {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, target);
-//		visitor.visitEdge(this, field);
-//		visitor.visitEdge(this, value);
-//		visitor.visitChild(target);
-//		visitor.visitChild(field);
-//		visitor.visitChild(value);
 		if (target != null)
 			target.accept(visitor);
 		if (field != null)

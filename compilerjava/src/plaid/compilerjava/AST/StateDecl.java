@@ -109,10 +109,10 @@ public class StateDecl implements Decl {
 		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, name.getName());
 		
 		
-		
 		out.openStaticBlock(); //static {
 		out.declareFinalVar(CodeGen.plaidStateType, theState.getName());
-		stateDef.codegen(out, theState, new IDList());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+		IDList idList = new IDList().add(new ID(CodeGen.thisVar)); // "this" should be visible during field initializations
+		stateDef.codegen(out, theState, idList);//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
 		out.assignToPrototype(name.getName(), theState.getName());
 		
 		out.closeBlock(); // } (for static block)
