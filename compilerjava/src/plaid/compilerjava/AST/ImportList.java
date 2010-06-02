@@ -62,8 +62,28 @@ public class ImportList implements ASTnode {
 	public void setImports(List<QualifiedID> imports) {
 		this.imports = imports;
 	}
+	
+	private void addStdLibrary() {
+		List<String> stdLib = new ArrayList<String>();
+		stdLib.add("plaid");
+		stdLib.add("lang");
+		stdLib.add("*");
+		
+		// We don't want to have the same import twice
+		boolean haveStdLib = false;
+		for (QualifiedID qi : imports) {
+			if (qi.toString().equals("plaid.lang.*")) {
+				haveStdLib = true;
+				break;
+			}
+		}
+		if (!haveStdLib)
+			imports.add(new QualifiedID(stdLib));
+	}
 
 	public void codegen(CodeGen out, ID y) {
+		// We want to include plaid.lang.* by default, so add it if it's missing
+		addStdLibrary();
 		
 		out.openStaticBlock();  // static {
 		out.assignToNewJavaObject(y.getName(),"java.util.ArrayList<plaid.runtime.utils.Import>"); //y = new java..();
