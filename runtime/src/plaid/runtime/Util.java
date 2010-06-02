@@ -193,12 +193,11 @@ public class Util {
 		} else {
 			if ( obj instanceof PlaidScope )  {
 				throw new PlaidMethodNotFoundException("Method '" + obj +"' not found.");
-			}
-			else if (obj instanceof PlaidLookupMap) {
-				PlaidLookupMap plm = (PlaidLookupMap)obj;
-				throw new PlaidMethodNotFoundException("The method '" + plm.getToLookup() + "' is undefined in '" + plm.getThePackage() + "'.");
-			}
-			else {
+			} else if ( obj instanceof PlaidLookupMap ) {
+				PlaidLookupMap obj_m = (PlaidLookupMap) obj;
+				throw new PlaidMethodNotFoundException("Method '" + obj_m.getToLookup() + 
+					"' not found in package '" + obj_m.getThePackage() + "'.");
+			} else {
 				throw new PlaidCastException("Failed to cast '"+obj+"'to PlaidMethod.");
 			}
 		}
@@ -207,6 +206,10 @@ public class Util {
 	public static PlaidState toPlaidState(PlaidObject obj) throws PlaidCastException {
 		if ( obj instanceof PlaidState ) {
 			return (PlaidState)obj;
+		} else if ( obj instanceof PlaidLookupMap ) {
+			PlaidLookupMap obj_m = (PlaidLookupMap) obj;
+			throw new PlaidClassNotFoundException("State '" + obj_m.getToLookup() + 
+				"' not found in package '" + obj_m.getThePackage() + "'.");
 		} else {
 			throw new PlaidCastException("Failed to cast '"+obj+"'to PlaidState.");
 		}
