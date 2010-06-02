@@ -79,7 +79,7 @@ public class ChangeState implements Expression {
 		out.declareFinalVar(CodeGen.plaidObjectType,r.getName());
 		st.codegen(out, r, localVars);
 
-		//cast to  State
+		//cast to State
 		ID s = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidStateType,s.getName());
 		out.assignCastedtoState(s.getName(), r.getName());

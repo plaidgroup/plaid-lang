@@ -87,7 +87,7 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 				} catch (PlaidException ex) { /* continue with next state */ }
 			}
 			
-			throw new PlaidException("Member \"" + name + "\" not found.");
+			throw new PlaidException("Member '" + name + "' not found.");
 		}
 	}
 
