@@ -22,6 +22,7 @@ package plaid.runtime.models.map;
 import java.util.Map;
 
 import plaid.runtime.PlaidClassLoader;
+import plaid.runtime.PlaidInvalidArgumentException;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
@@ -60,7 +61,12 @@ public final class PlaidRuntimeMap extends PlaidRuntime {
 			enterCall(this$plaid, name);
 		}
 		
-		PlaidObject result =  Util.toPlaidMethod(func).invoke(args);
+		PlaidObject result;
+		try {
+			result = Util.toPlaidMethod(func).invoke(args);
+		} catch (ClassCastException exn) {
+			throw new PlaidInvalidArgumentException("Attempt to call " + this$plaid + "." + name + "() on " + args + " failed.");
+		}
 		leaveCall(this$plaid, name);
 
 		return result;
