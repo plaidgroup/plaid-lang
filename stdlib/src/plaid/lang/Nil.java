@@ -21,61 +21,62 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "Nil", toplevel = true)
 public class Nil{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr99$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr33$plaid;
 	static {
-		vAr99$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr33$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr33$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr99$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr33$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "Nil", toplevel = false)
 	public static final plaid.runtime.PlaidObject Nil;
 	static {
-		final plaid.runtime.PlaidState vAr100$plaid;
-		vAr100$plaid = plaid.runtime.Util.newState();
+		final plaid.runtime.PlaidState vAr34$plaid;
+		vAr34$plaid = plaid.runtime.Util.newState();
 		@plaid.runtime.annotations.RepresentsMethod(name = "append", toplevel = false)
-		final plaid.runtime.PlaidObject vAr101$plaid;
-		vAr101$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
+		final plaid.runtime.PlaidObject vAr35$plaid;
+		vAr35$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject cell) {
-				plaid.runtime.PlaidScope vAr103$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr103$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr102$plaid;
-				final plaid.runtime.PlaidObject vAr104$plaid;
-				final plaid.runtime.PlaidObject vAr105$plaid;
-				final plaid.runtime.PlaidObject vAr106$plaid;
-				vAr106$plaid = cell;
-				vAr104$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("copy", vAr106$plaid);
-				vAr105$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-				vAr102$plaid = plaid.runtime.Util.call(vAr104$plaid, vAr105$plaid);
-				return vAr102$plaid;
+				plaid.runtime.PlaidScope vAr37$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr37$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr36$plaid;
+				final plaid.runtime.PlaidObject vAr38$plaid;
+				final plaid.runtime.PlaidObject vAr39$plaid;
+				final plaid.runtime.PlaidObject vAr40$plaid;
+				vAr40$plaid = cell;
+				vAr38$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("copy", vAr40$plaid);
+				vAr39$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+				vAr36$plaid = plaid.runtime.Util.call(vAr38$plaid, vAr39$plaid);
+				return vAr36$plaid;
 			}
 		}
 		);
-		vAr100$plaid.addMember("append",vAr101$plaid);
+		vAr34$plaid.addMember("append",vAr35$plaid);
 		@plaid.runtime.annotations.RepresentsMethod(name = "copy", toplevel = false)
-		final plaid.runtime.PlaidObject vAr107$plaid;
-		vAr107$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr109$plaid) {
-				plaid.runtime.PlaidScope vAr110$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr110$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr108$plaid;
-				final plaid.runtime.PlaidState vAr111$plaid;
-				final plaid.runtime.PlaidObject vAr112$plaid;
-				vAr112$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Nil", current$c0pe);
-				vAr111$plaid = plaid.runtime.Util.toPlaidState(vAr112$plaid);
-				vAr108$plaid = vAr111$plaid.instantiate();
-				return vAr108$plaid;
+		final plaid.runtime.PlaidObject vAr41$plaid;
+		vAr41$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr28$plaid) {
+				plaid.runtime.PlaidScope vAr43$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr43$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr42$plaid;
+				final plaid.runtime.PlaidState vAr44$plaid;
+				final plaid.runtime.PlaidObject vAr45$plaid;
+				vAr45$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Nil", current$c0pe);
+				vAr44$plaid = plaid.runtime.Util.toPlaidState(vAr45$plaid);
+				vAr42$plaid = vAr44$plaid.instantiate();
+				return vAr42$plaid;
 			}
 		}
 		);
-		vAr100$plaid.addMember("copy",vAr107$plaid);
-		Nil = vAr100$plaid.getPrototype();
+		vAr34$plaid.addMember("copy",vAr41$plaid);
+		Nil = vAr34$plaid.getPrototype();
 	}
 	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Nil")
 	public static final plaid.runtime.PlaidTag Nil$Tag$plaid;
 	static {
-		final plaid.runtime.PlaidState vAr113$plaid;
-		final plaid.runtime.PlaidObject vAr114$plaid;
-		vAr114$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ListCell", current$c0pe);
-		vAr113$plaid = plaid.runtime.Util.toPlaidState(vAr114$plaid);
-		Nil$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.Nil", vAr113$plaid);
+		final plaid.runtime.PlaidState vAr46$plaid;
+		final plaid.runtime.PlaidObject vAr47$plaid;
+		vAr47$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ListCell", current$c0pe);
+		vAr46$plaid = plaid.runtime.Util.toPlaidState(vAr47$plaid);
+		Nil$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.Nil", vAr46$plaid);
 	}
 }

@@ -21,16 +21,17 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "Boolean", toplevel = true)
 public class Boolean{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr0$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr229$plaid;
 	static {
-		vAr0$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr229$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr229$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr0$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr229$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "Boolean", toplevel = false)
 	public static final plaid.runtime.PlaidObject Boolean;
 	static {
-		final plaid.runtime.PlaidState vAr1$plaid;
-		vAr1$plaid = plaid.runtime.Util.newState();
-		Boolean = vAr1$plaid.getPrototype();
+		final plaid.runtime.PlaidState vAr230$plaid;
+		vAr230$plaid = plaid.runtime.Util.newState();
+		Boolean = vAr230$plaid.getPrototype();
 	}
 }

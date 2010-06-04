@@ -21,16 +21,17 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "Option", toplevel = true)
 public class Option{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr297$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr1$plaid;
 	static {
-		vAr297$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr1$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr1$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr297$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr1$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "Option", toplevel = false)
 	public static final plaid.runtime.PlaidObject Option;
 	static {
-		final plaid.runtime.PlaidState vAr298$plaid;
-		vAr298$plaid = plaid.runtime.Util.newState();
-		Option = vAr298$plaid.getPrototype();
+		final plaid.runtime.PlaidState vAr2$plaid;
+		vAr2$plaid = plaid.runtime.Util.newState();
+		Option = vAr2$plaid.getPrototype();
 	}
 }

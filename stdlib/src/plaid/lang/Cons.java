@@ -21,131 +21,132 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "Cons", toplevel = true)
 public class Cons{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr115$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr48$plaid;
 	static {
-		vAr115$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr48$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr48$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr115$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr48$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "Cons", toplevel = false)
 	public static final plaid.runtime.PlaidObject Cons;
 	static {
-		final plaid.runtime.PlaidState vAr116$plaid;
-		vAr116$plaid = plaid.runtime.Util.newState();
+		final plaid.runtime.PlaidState vAr49$plaid;
+		vAr49$plaid = plaid.runtime.Util.newState();
 		@plaid.runtime.annotations.RepresentsField(name = "value", toplevel = false)
-		final plaid.runtime.PlaidObject vAr118$plaid;
-		vAr118$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr119$plaid) {
-				plaid.runtime.PlaidScope vAr120$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr120$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr117$plaid;
-				vAr117$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-				return vAr117$plaid;
+		final plaid.runtime.PlaidObject vAr51$plaid;
+		vAr51$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr52$plaid) {
+				plaid.runtime.PlaidScope vAr53$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr53$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr50$plaid;
+				vAr50$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+				return vAr50$plaid;
 			}
 		}
 		);
-		vAr116$plaid.addMember("value",vAr118$plaid);
+		vAr49$plaid.addMember("value",vAr51$plaid);
 		@plaid.runtime.annotations.RepresentsField(name = "next", toplevel = false)
-		final plaid.runtime.PlaidObject vAr122$plaid;
-		vAr122$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr123$plaid) {
-				plaid.runtime.PlaidScope vAr124$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr124$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr121$plaid;
-				vAr121$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-				return vAr121$plaid;
+		final plaid.runtime.PlaidObject vAr55$plaid;
+		vAr55$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr56$plaid) {
+				plaid.runtime.PlaidScope vAr57$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr57$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr54$plaid;
+				vAr54$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+				return vAr54$plaid;
 			}
 		}
 		);
-		vAr116$plaid.addMember("next",vAr122$plaid);
+		vAr49$plaid.addMember("next",vAr55$plaid);
 		@plaid.runtime.annotations.RepresentsMethod(name = "append", toplevel = false)
-		final plaid.runtime.PlaidObject vAr125$plaid;
-		vAr125$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
+		final plaid.runtime.PlaidObject vAr58$plaid;
+		vAr58$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject cell) {
-				plaid.runtime.PlaidScope vAr127$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr127$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr126$plaid;
+				plaid.runtime.PlaidScope vAr60$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr60$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr59$plaid;
 				{
-					final plaid.runtime.PlaidObject vAr96$plaid;
-					final plaid.runtime.PlaidObject vAr128$plaid;
-					final plaid.runtime.PlaidObject vAr129$plaid;
-					final plaid.runtime.PlaidObject vAr130$plaid;
-					final plaid.runtime.PlaidObject vAr131$plaid;
-					vAr131$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("next", current$c0pe);
-					vAr129$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("append", vAr131$plaid);
-					vAr130$plaid = cell;
-					vAr128$plaid = plaid.runtime.Util.call(vAr129$plaid, vAr130$plaid);
-					if (this$plaid.getMembers().containsKey("next")) this$plaid.addMember("next",vAr128$plaid);
+					final plaid.runtime.PlaidObject vAr29$plaid;
+					final plaid.runtime.PlaidObject vAr61$plaid;
+					final plaid.runtime.PlaidObject vAr62$plaid;
+					final plaid.runtime.PlaidObject vAr63$plaid;
+					final plaid.runtime.PlaidObject vAr64$plaid;
+					vAr64$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("next", current$c0pe);
+					vAr62$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("append", vAr64$plaid);
+					vAr63$plaid = cell;
+					vAr61$plaid = plaid.runtime.Util.call(vAr62$plaid, vAr63$plaid);
+					if (this$plaid.getMembers().containsKey("next")) this$plaid.addMember("next",vAr61$plaid);
 					else throw new plaid.runtime.PlaidException("Object does not have member next.  Assignment failed.");
-					vAr96$plaid = plaid.runtime.Util.unit();
-					vAr126$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("this", current$c0pe);
+					vAr29$plaid = plaid.runtime.Util.unit();
+					vAr59$plaid = this$plaid;
 				}
-				return vAr126$plaid;
+				return vAr59$plaid;
 			}
 		}
 		);
-		vAr116$plaid.addMember("append",vAr125$plaid);
+		vAr49$plaid.addMember("append",vAr58$plaid);
 		@plaid.runtime.annotations.RepresentsMethod(name = "copy", toplevel = false)
-		final plaid.runtime.PlaidObject vAr132$plaid;
-		vAr132$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr134$plaid) {
-				plaid.runtime.PlaidScope vAr135$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr135$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr133$plaid;
-				final plaid.runtime.PlaidState vAr136$plaid;
-				final plaid.runtime.PlaidState vAr137$plaid;
-				final plaid.runtime.PlaidState vAr138$plaid;
-				final plaid.runtime.PlaidObject vAr139$plaid;
-				vAr139$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Cons", current$c0pe);
-				vAr137$plaid = plaid.runtime.Util.toPlaidState(vAr139$plaid);
-				vAr138$plaid = plaid.runtime.Util.newState();
+		final plaid.runtime.PlaidObject vAr65$plaid;
+		vAr65$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr30$plaid) {
+				plaid.runtime.PlaidScope vAr67$plaid = current$c0pe;
+				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr67$plaid, this$plaid);
+				final plaid.runtime.PlaidObject vAr66$plaid;
+				final plaid.runtime.PlaidState vAr68$plaid;
+				final plaid.runtime.PlaidState vAr69$plaid;
+				final plaid.runtime.PlaidState vAr70$plaid;
+				final plaid.runtime.PlaidObject vAr71$plaid;
+				vAr71$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Cons", current$c0pe);
+				vAr69$plaid = plaid.runtime.Util.toPlaidState(vAr71$plaid);
+				vAr70$plaid = plaid.runtime.Util.newState();
 				@plaid.runtime.annotations.RepresentsField(name = "value", toplevel = false)
-				final plaid.runtime.PlaidObject vAr141$plaid;
-				vAr141$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr142$plaid) {
-						plaid.runtime.PlaidScope vAr143$plaid = current$c0pe;
-						final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr143$plaid, this$plaid);
-						final plaid.runtime.PlaidObject vAr140$plaid;
-						vAr140$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", current$c0pe);
-						return vAr140$plaid;
+				final plaid.runtime.PlaidObject vAr73$plaid;
+				vAr73$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr74$plaid) {
+						plaid.runtime.PlaidScope vAr75$plaid = current$c0pe;
+						final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr75$plaid, this$plaid);
+						final plaid.runtime.PlaidObject vAr72$plaid;
+						vAr72$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", current$c0pe);
+						return vAr72$plaid;
 					}
 				}
 				);
-				vAr138$plaid.addMember("value",vAr141$plaid);
+				vAr70$plaid.addMember("value",vAr73$plaid);
 				@plaid.runtime.annotations.RepresentsField(name = "next", toplevel = false)
-				final plaid.runtime.PlaidObject vAr145$plaid;
-				vAr145$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr146$plaid) {
-						plaid.runtime.PlaidScope vAr147$plaid = current$c0pe;
-						final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr147$plaid, this$plaid);
-						final plaid.runtime.PlaidObject vAr144$plaid;
-						final plaid.runtime.PlaidObject vAr148$plaid;
-						final plaid.runtime.PlaidObject vAr149$plaid;
-						final plaid.runtime.PlaidObject vAr150$plaid;
-						vAr150$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("next", current$c0pe);
-						vAr148$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("copy", vAr150$plaid);
-						vAr149$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-						vAr144$plaid = plaid.runtime.Util.call(vAr148$plaid, vAr149$plaid);
-						return vAr144$plaid;
+				final plaid.runtime.PlaidObject vAr77$plaid;
+				vAr77$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr78$plaid) {
+						plaid.runtime.PlaidScope vAr79$plaid = current$c0pe;
+						final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr79$plaid, this$plaid);
+						final plaid.runtime.PlaidObject vAr76$plaid;
+						final plaid.runtime.PlaidObject vAr80$plaid;
+						final plaid.runtime.PlaidObject vAr81$plaid;
+						final plaid.runtime.PlaidObject vAr82$plaid;
+						vAr82$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("next", current$c0pe);
+						vAr80$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("copy", vAr82$plaid);
+						vAr81$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+						vAr76$plaid = plaid.runtime.Util.call(vAr80$plaid, vAr81$plaid);
+						return vAr76$plaid;
 					}
 				}
 				);
-				vAr138$plaid.addMember("next",vAr145$plaid);
-				vAr136$plaid = vAr137$plaid.with(vAr138$plaid);
-				vAr133$plaid = vAr136$plaid.instantiate();
-				return vAr133$plaid;
+				vAr70$plaid.addMember("next",vAr77$plaid);
+				vAr68$plaid = vAr69$plaid.with(vAr70$plaid);
+				vAr66$plaid = vAr68$plaid.instantiate();
+				return vAr66$plaid;
 			}
 		}
 		);
-		vAr116$plaid.addMember("copy",vAr132$plaid);
-		Cons = vAr116$plaid.getPrototype();
+		vAr49$plaid.addMember("copy",vAr65$plaid);
+		Cons = vAr49$plaid.getPrototype();
 	}
 	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Cons")
 	public static final plaid.runtime.PlaidTag Cons$Tag$plaid;
 	static {
-		final plaid.runtime.PlaidState vAr151$plaid;
-		final plaid.runtime.PlaidObject vAr152$plaid;
-		vAr152$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ListCell", current$c0pe);
-		vAr151$plaid = plaid.runtime.Util.toPlaidState(vAr152$plaid);
-		Cons$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.Cons", vAr151$plaid);
+		final plaid.runtime.PlaidState vAr83$plaid;
+		final plaid.runtime.PlaidObject vAr84$plaid;
+		vAr84$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ListCell", current$c0pe);
+		vAr83$plaid = plaid.runtime.Util.toPlaidState(vAr84$plaid);
+		Cons$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.Cons", vAr83$plaid);
 	}
 }
