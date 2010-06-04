@@ -23,18 +23,26 @@ import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
+import plaid.runtime.PlaidConstants;
+import plaid.runtime.Util;
 
 public class ID implements Expression{
 	private Token token;
 	private String name;
 	
 	public ID(String name) {
-		this.name = name;
+		this.name = convertKeyword(name);
 	}
 	
 	public ID(Token t, String name) {
-		this.name = name;
+		this.name = convertKeyword(name);
 		this.token = t;
+	}
+	
+	public String convertKeyword(String name) {
+		if (Util.isKeyword(name))
+			name += PlaidConstants.ID_SUFFIX;
+		return name;
 	}
 	
 	public Token getToken() {
