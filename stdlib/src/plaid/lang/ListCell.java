@@ -21,16 +21,17 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "ListCell", toplevel = true)
 public class ListCell{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr97$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr31$plaid;
 	static {
-		vAr97$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr31$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr31$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr97$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr31$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "ListCell", toplevel = false)
 	public static final plaid.runtime.PlaidObject ListCell;
 	static {
-		final plaid.runtime.PlaidState vAr98$plaid;
-		vAr98$plaid = plaid.runtime.Util.newState();
-		ListCell = vAr98$plaid.getPrototype();
+		final plaid.runtime.PlaidState vAr32$plaid;
+		vAr32$plaid = plaid.runtime.Util.newState();
+		ListCell = vAr32$plaid.getPrototype();
 	}
 }

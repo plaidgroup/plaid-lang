@@ -21,25 +21,26 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "False", toplevel = true)
 public class False{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr6$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr235$plaid;
 	static {
-		vAr6$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr235$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr235$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr6$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr235$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "False", toplevel = false)
 	public static final plaid.runtime.PlaidObject False;
 	static {
-		final plaid.runtime.PlaidState vAr7$plaid;
-		vAr7$plaid = plaid.runtime.Util.newState();
-		False = vAr7$plaid.getPrototype();
+		final plaid.runtime.PlaidState vAr236$plaid;
+		vAr236$plaid = plaid.runtime.Util.newState();
+		False = vAr236$plaid.getPrototype();
 	}
 	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.False")
 	public static final plaid.runtime.PlaidTag False$Tag$plaid;
 	static {
-		final plaid.runtime.PlaidState vAr8$plaid;
-		final plaid.runtime.PlaidObject vAr9$plaid;
-		vAr9$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Boolean", current$c0pe);
-		vAr8$plaid = plaid.runtime.Util.toPlaidState(vAr9$plaid);
-		False$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.False", vAr8$plaid);
+		final plaid.runtime.PlaidState vAr237$plaid;
+		final plaid.runtime.PlaidObject vAr238$plaid;
+		vAr238$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Boolean", current$c0pe);
+		vAr237$plaid = plaid.runtime.Util.toPlaidState(vAr238$plaid);
+		False$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.False", vAr237$plaid);
 	}
 }

@@ -21,25 +21,26 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "True", toplevel = true)
 public class True{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr2$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr231$plaid;
 	static {
-		vAr2$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr231$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr231$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr2$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr231$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "True", toplevel = false)
 	public static final plaid.runtime.PlaidObject True;
 	static {
-		final plaid.runtime.PlaidState vAr3$plaid;
-		vAr3$plaid = plaid.runtime.Util.newState();
-		True = vAr3$plaid.getPrototype();
+		final plaid.runtime.PlaidState vAr232$plaid;
+		vAr232$plaid = plaid.runtime.Util.newState();
+		True = vAr232$plaid.getPrototype();
 	}
 	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.True")
 	public static final plaid.runtime.PlaidTag True$Tag$plaid;
 	static {
-		final plaid.runtime.PlaidState vAr4$plaid;
-		final plaid.runtime.PlaidObject vAr5$plaid;
-		vAr5$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Boolean", current$c0pe);
-		vAr4$plaid = plaid.runtime.Util.toPlaidState(vAr5$plaid);
-		True$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.True", vAr4$plaid);
+		final plaid.runtime.PlaidState vAr233$plaid;
+		final plaid.runtime.PlaidObject vAr234$plaid;
+		vAr234$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Boolean", current$c0pe);
+		vAr233$plaid = plaid.runtime.Util.toPlaidState(vAr234$plaid);
+		True$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.True", vAr233$plaid);
 	}
 }

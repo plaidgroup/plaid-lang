@@ -21,25 +21,26 @@
 package plaid.lang;
 @plaid.runtime.annotations.RepresentsState(name = "None", toplevel = true)
 public class None{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr299$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr3$plaid;
 	static {
-		vAr299$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr3$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr3$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr299$plaid);
+	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr3$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "None", toplevel = false)
 	public static final plaid.runtime.PlaidObject None;
 	static {
-		final plaid.runtime.PlaidState vAr300$plaid;
-		vAr300$plaid = plaid.runtime.Util.newState();
-		None = vAr300$plaid.getPrototype();
+		final plaid.runtime.PlaidState vAr4$plaid;
+		vAr4$plaid = plaid.runtime.Util.newState();
+		None = vAr4$plaid.getPrototype();
 	}
 	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.None")
 	public static final plaid.runtime.PlaidTag None$Tag$plaid;
 	static {
-		final plaid.runtime.PlaidState vAr301$plaid;
-		final plaid.runtime.PlaidObject vAr302$plaid;
-		vAr302$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Option", current$c0pe);
-		vAr301$plaid = plaid.runtime.Util.toPlaidState(vAr302$plaid);
-		None$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.None", vAr301$plaid);
+		final plaid.runtime.PlaidState vAr5$plaid;
+		final plaid.runtime.PlaidObject vAr6$plaid;
+		vAr6$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Option", current$c0pe);
+		vAr5$plaid = plaid.runtime.Util.toPlaidState(vAr6$plaid);
+		None$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.None", vAr5$plaid);
 	}
 }
