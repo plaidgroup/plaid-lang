@@ -81,8 +81,6 @@ public class LetBinding implements Expression {
 	}
 
 	public void setX(ID x) {
-		if (Util.isKeyword(x.getName()))
-			x = new ID(x.getName() + PlaidConstants.ID_SUFFIX);
 		this.x = x;
 	}
 
