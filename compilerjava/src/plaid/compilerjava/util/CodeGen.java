@@ -66,7 +66,7 @@ public class CodeGen {
 			for(char op : oldName.toCharArray()) {
 				newName += CodeGen.opNames.get(Character.toString(op));
 			}
-			newName += "$plaid";
+			newName += PlaidConstants.ID_SUFFIX;
 			return newName;
 		} else {
 			return oldName;

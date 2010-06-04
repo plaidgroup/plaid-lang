@@ -22,6 +22,7 @@ package plaid.runtime.models.map;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
+import plaid.runtime.PlaidConstants;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidInvalidArgumentException;
@@ -33,7 +34,7 @@ import plaid.runtime.Util;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMethod{
-	public static final String NAME = "new";
+	public static final String NAME = "new" + PlaidConstants.ID_SUFFIX;
 	protected Class<?> cl;
 	
 	public PlaidJavaConstructorMap(Class<?> cl) {
