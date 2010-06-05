@@ -1,0 +1,289 @@
+/*
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* A Turing Machine in Plaid */
+
+package coreExamples.turing;
+
+// TODO: implement restricted update for state changes
+
+state Cell {
+    method Cell getLeft() {
+    	left;
+    }
+    method getRight() {
+    	right;
+    }
+    val left;
+    val right;
+
+    method doPrint() {
+	// TODO: error messages should have correct line numbers
+	// if we change the line below to "printVl();" we get an error at line -1
+    	printVal();
+    	java.lang.System.out.print(" ");
+		val rt = this.getRight().doPrint();
+    }
+    method print() {
+	val lt = this.getLeft();
+	lt.print();
+    }
+}
+
+state Entry { }
+
+state Zero case of Entry {
+    method writeZero() {}
+    method writeOne() {
+    	val lt = getLeft();
+		val rt = getRight();
+		// now we are a Cell
+		this <- Cell with One { left = lt; right = rt; };
+    }
+    method printVal() {
+    	java.lang.System.out.print("0");
+    }
+}
+
+state One case of Entry {
+    method writeZero() {
+    	val lt = getLeft();
+		val rt = getRight();
+		// now we are a Cell
+		this <- Cell with Zero { left = lt; right = rt; };
+    }
+    method writeOne() {}
+    method printVal() {
+    	java.lang.System.out.print("1");
+    }
+}
+
+state LeftEnd = Zero {
+    method getLeft() {
+    	val myLeft = makeLeftEnd(this);
+		val myRight = this.getRight();
+
+		this <- Cell with Zero { left = myLeft; right = myRight; };
+
+		left;
+    }
+    method getRight() {
+    	right
+    }
+    val right;
+
+    method doPrint() {
+    	printVal();
+		java.lang.System.out.print(" ");
+		val rt = this.getRight().doPrint();
+    }
+    method print() {
+    	doPrint();
+    }
+}
+
+method makeLeftEnd(myRight) {
+    new LeftEnd { right = myRight; };
+}
+
+state RightEnd = Zero {
+    // TODO: eventually allow static "new" function here
+    method getRight() {
+    	val myLeft = getLeft();
+		val myRight = makeRightEnd(this);
+
+		this <- Cell with Zero { left = myLeft; right = myRight; };
+
+		right;
+    }
+
+    method getLeft() {
+    	left;
+    }
+    val left;
+
+    method doPrint() {
+    	printVal();
+    }
+    method print() {
+		val lt = this.getLeft();
+		lt.print();
+    }
+}
+
+method makeRightEnd(myLeft) {
+    new RightEnd { left = myLeft; };
+}
+
+state Start = Zero {
+    method getLeft() {
+    	val left = makeLeftEnd(this);
+
+		this <- RightEnd with Zero {
+	    	method getLeft() {
+	    		left;
+	    	}
+		};
+
+		/* Alternate approach to above, but creates garbage!
+		val newObj = makeRightEnd(left);
+		this <- newObj;		// TODO: this should work!
+		*/
+
+		left;
+   	}
+
+    method getRight() {
+    	val right = makeRightEnd(this);
+
+		this <- LeftEnd with Zero {
+		    method getRight() {
+		    	right;
+		    }
+		};
+
+		right;
+    }
+
+    method doPrint() {
+    	printVal();
+    }
+    method print() {
+    	doPrint();
+    }
+}
+
+state Halt {
+    val cell;
+
+    method print() {
+    	cell.print();
+    }
+
+    method run() {
+    }
+}
+
+state Beaver1A {
+    val cell;
+
+    method update() {
+        match (cell) {
+	   		case Zero {
+	    		cell.writeOne();
+				val newCell = cell.getRight();
+				this <- Halt { cell = newCell; };
+	    	}
+	    	case One { }
+		};
+    }
+
+    method run() {
+    	update();
+		run();
+    }
+}
+
+state Beaver2A {
+    val cell;
+
+    method update() {
+        match (cell) {
+		    case Zero {
+		    	cell.writeOne();
+				val newCell = cell.getRight();
+				this <- Beaver2B { cell = newCell; };
+	    	} case One {
+	    		cell.writeOne();
+				val newCell = cell.getLeft();
+				this <- Beaver2B { cell = newCell; };
+	 	   }
+		};
+    }
+
+    method run() {
+    	update();
+		run();
+    }
+}
+
+state Beaver2B {
+    val cell;
+
+    method update() {
+        match (cell) {
+		    case Zero {
+		    	cell.writeOne();
+				val newCell = cell.getLeft();
+			this <- Beaver2A { cell = newCell; };
+	    	} case One {
+	    		cell.writeOne();
+				val newCell = cell.getRight();
+				this <- Halt { cell = newCell; };
+	    	}
+		};
+    }
+
+    method run() {
+    	update();
+		run();
+    }
+}
+
+method beaver(machine) {
+    machine.run();
+    machine.print();
+}
+
+method turing() {
+    java.lang.System.out.println("running 1 state busy beaver:");
+    beaver(new Beaver1A { cell = new Start; });
+
+    java.lang.System.out.println();
+    java.lang.System.out.println();
+    java.lang.System.out.println("running 2 state busy beaver:");
+    beaver(new Beaver2A { cell = new Start; });
+}
+
+method test() {
+    var head = new Start;
+    head.print();
+    java.lang.System.out.println();
+    var head1 = head.getLeft();
+    var head2 = head1.getLeft();
+    var head3 = head2.getRight(); // same as head1
+    var head4 = head3.getRight(); // same as head
+    var head5 = head4.getRight(); // move 1 right
+    var head6 = head5.getLeft(); // same as head
+    var head7 = head6.getLeft(); // same as head1
+	head = head7; // test assignment
+    head2.print();
+    java.lang.System.out.println();
+    head7.writeOne();
+    head7.print();
+    java.lang.System.out.println();
+    java.lang.System.out.println("running a turning machine!");
+}
+
+method main() {
+    // TODO: shouldn't have to define a "main" method, should just be
+    // able to invoke turing() directly
+    turing();
+	test();
+}
