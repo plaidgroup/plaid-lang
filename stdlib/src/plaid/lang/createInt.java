@@ -26,7 +26,7 @@ public class createInt{
 		vAr77$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 		vAr77$plaid.add(new plaid.runtime.utils.Import("java.math.BigInteger"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr77$plaid);
+	public static final plaid.runtime.PlaidScope globalScope = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang",vAr77$plaid);
 	@plaid.runtime.annotations.RepresentsMethod(name = "createInt", toplevel = false)
 	public static plaid.runtime.PlaidMethod createInt_func;
 	static {
@@ -37,20 +37,20 @@ public class createInt{
 				plaid.runtime.PlaidState vAr79$plaid;
 				plaid.runtime.PlaidState vAr80$plaid;
 				plaid.runtime.PlaidObject vAr81$plaid;
-				vAr81$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Int", current$c0pe);
+				vAr81$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Int", globalScope);
 				vAr79$plaid = plaid.runtime.Util.toPlaidState(vAr81$plaid);
 				vAr80$plaid = plaid.runtime.Util.newState();
 				@plaid.runtime.annotations.RepresentsField(name = "value", toplevel = false)
 				plaid.runtime.PlaidObject vAr83$plaid;
 				vAr83$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr84$plaid) {
-						plaid.runtime.PlaidScope the$c0pe = current$c0pe;
+						plaid.runtime.PlaidScope the$c0pe = globalScope;
 						final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(the$c0pe, this$plaid);
 						plaid.runtime.PlaidObject vAr82$plaid;
 						plaid.runtime.PlaidObject vAr85$plaid;
 						plaid.runtime.PlaidObject vAr86$plaid;
 						plaid.runtime.PlaidObject vAr87$plaid;
-						vAr87$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("BigInteger", current$c0pe);
+						vAr87$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("BigInteger", globalScope);
 						vAr85$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("create", vAr87$plaid);
 						vAr86$plaid = intStr;
 						vAr82$plaid = plaid.runtime.Util.call(vAr85$plaid, vAr86$plaid);
