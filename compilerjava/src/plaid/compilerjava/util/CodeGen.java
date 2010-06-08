@@ -208,7 +208,9 @@ public class CodeGen {
 	public final void assignToProtoField(String target, String name) {
 		assign(target);
 		output.append(classLoader + ".protoField(new " + delegateType + " () {" +
-				"public " + plaidObjectType + " invoke" + "(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {");
+				"public " + plaidObjectType + " invoke" + "(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" + 
+					"final " + plaidScopeType + " temp$c0pe = " + CodeGen.localScope + ";" + 
+					"final " + plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);");
 	}
 	
 	

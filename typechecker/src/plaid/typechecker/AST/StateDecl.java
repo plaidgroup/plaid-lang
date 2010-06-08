@@ -1,90 +1,81 @@
 package plaid.typechecker.AST;
 @plaid.runtime.annotations.RepresentsState(name = "StateDecl", toplevel = true)
 public class StateDecl{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr1413$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr1332$plaid;
 	static {
-		vAr1413$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr1332$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr1332$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.typechecker.AST",vAr1413$plaid);
+	public static final plaid.runtime.PlaidScope global$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.typechecker.AST",vAr1332$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "StateDecl", toplevel = false)
 	public static final plaid.runtime.PlaidObject StateDecl;
 	static {
-		final plaid.runtime.PlaidState vAr1414$plaid;
-		vAr1414$plaid = plaid.runtime.Util.newState();
+		final plaid.runtime.PlaidState vAr1333$plaid;
+		vAr1333$plaid = plaid.runtime.Util.newState();
 		@plaid.runtime.annotations.RepresentsField(name = "token", toplevel = false)
-		final plaid.runtime.PlaidObject vAr1416$plaid;
-		vAr1416$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1417$plaid) {
-				plaid.runtime.PlaidScope vAr1418$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr1418$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr1415$plaid;
-				vAr1415$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-				return vAr1415$plaid;
+		final plaid.runtime.PlaidObject vAr1335$plaid;
+		vAr1335$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1336$plaid) {
+				final plaid.runtime.PlaidObject vAr1334$plaid;
+				vAr1334$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+				return vAr1334$plaid;
 			}
 		}
 		);
-		vAr1414$plaid.addMember("token",vAr1416$plaid);
+		vAr1333$plaid.addMember("token",vAr1335$plaid, true);
 		@plaid.runtime.annotations.RepresentsField(name = "name", toplevel = false)
-		final plaid.runtime.PlaidObject vAr1420$plaid;
-		vAr1420$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1421$plaid) {
-				plaid.runtime.PlaidScope vAr1422$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr1422$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr1419$plaid;
-				vAr1419$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-				return vAr1419$plaid;
+		final plaid.runtime.PlaidObject vAr1338$plaid;
+		vAr1338$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1339$plaid) {
+				final plaid.runtime.PlaidObject vAr1337$plaid;
+				vAr1337$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+				return vAr1337$plaid;
 			}
 		}
 		);
-		vAr1414$plaid.addMember("name",vAr1420$plaid);
+		vAr1333$plaid.addMember("name",vAr1338$plaid, true);
 		@plaid.runtime.annotations.RepresentsField(name = "stateDef", toplevel = false)
-		final plaid.runtime.PlaidObject vAr1424$plaid;
-		vAr1424$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1425$plaid) {
-				plaid.runtime.PlaidScope vAr1426$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr1426$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr1423$plaid;
-				vAr1423$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-				return vAr1423$plaid;
+		final plaid.runtime.PlaidObject vAr1341$plaid;
+		vAr1341$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1342$plaid) {
+				final plaid.runtime.PlaidObject vAr1340$plaid;
+				vAr1340$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+				return vAr1340$plaid;
 			}
 		}
 		);
-		vAr1414$plaid.addMember("stateDef",vAr1424$plaid);
+		vAr1333$plaid.addMember("stateDef",vAr1341$plaid, true);
 		@plaid.runtime.annotations.RepresentsField(name = "caseOf", toplevel = false)
-		final plaid.runtime.PlaidObject vAr1428$plaid;
-		vAr1428$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1429$plaid) {
-				plaid.runtime.PlaidScope vAr1430$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr1430$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr1427$plaid;
-				vAr1427$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-				return vAr1427$plaid;
+		final plaid.runtime.PlaidObject vAr1344$plaid;
+		vAr1344$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1345$plaid) {
+				final plaid.runtime.PlaidObject vAr1343$plaid;
+				vAr1343$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+				return vAr1343$plaid;
 			}
 		}
 		);
-		vAr1414$plaid.addMember("caseOf",vAr1428$plaid);
+		vAr1333$plaid.addMember("caseOf",vAr1344$plaid, true);
 		@plaid.runtime.annotations.RepresentsField(name = "isCaseOf", toplevel = false)
-		final plaid.runtime.PlaidObject vAr1432$plaid;
-		vAr1432$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
-			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1433$plaid) {
-				plaid.runtime.PlaidScope vAr1434$plaid = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(vAr1434$plaid, this$plaid);
-				final plaid.runtime.PlaidObject vAr1431$plaid;
-				vAr1431$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
-				return vAr1431$plaid;
+		final plaid.runtime.PlaidObject vAr1347$plaid;
+		vAr1347$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
+			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1348$plaid) {
+				final plaid.runtime.PlaidObject vAr1346$plaid;
+				vAr1346$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+				return vAr1346$plaid;
 			}
 		}
 		);
-		vAr1414$plaid.addMember("isCaseOf",vAr1432$plaid);
-		StateDecl = vAr1414$plaid.getPrototype();
+		vAr1333$plaid.addMember("isCaseOf",vAr1347$plaid, true);
+		StateDecl = vAr1333$plaid.getPrototype();
 	}
 	@plaid.runtime.annotations.RepresentsTag(name = "plaid.typechecker.AST.StateDecl")
 	public static final plaid.runtime.PlaidTag StateDecl$Tag$plaid;
 	static {
-		final plaid.runtime.PlaidState vAr1435$plaid;
-		final plaid.runtime.PlaidObject vAr1436$plaid;
-		vAr1436$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ASTNode", current$c0pe);
-		vAr1435$plaid = plaid.runtime.Util.toPlaidState(vAr1436$plaid);
-		StateDecl$Tag$plaid = plaid.runtime.Util.tag("plaid.typechecker.AST.StateDecl", vAr1435$plaid);
+		final plaid.runtime.PlaidState vAr1349$plaid;
+		final plaid.runtime.PlaidObject vAr1350$plaid;
+		vAr1350$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ASTNode", global$c0pe);
+		vAr1349$plaid = plaid.runtime.Util.toPlaidState(vAr1350$plaid);
+		StateDecl$Tag$plaid = plaid.runtime.Util.tag("plaid.typechecker.AST.StateDecl", vAr1349$plaid);
 	}
 }

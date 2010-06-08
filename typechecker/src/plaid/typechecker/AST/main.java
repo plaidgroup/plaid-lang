@@ -1,12 +1,12 @@
 package plaid.typechecker.AST;
 @plaid.runtime.annotations.RepresentsMethod(name = "main", toplevel = true)
 public class main{
-	public static final java.util.List<plaid.runtime.utils.Import> vAr1137$plaid;
+	public static final java.util.List<plaid.runtime.utils.Import> vAr1104$plaid;
 	static {
-		vAr1137$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
-		vAr1137$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
+		vAr1104$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
+		vAr1104$plaid.add(new plaid.runtime.utils.Import("plaid.lang.*"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.typechecker.AST",vAr1137$plaid);
+	public static final plaid.runtime.PlaidScope global$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.typechecker.AST",vAr1104$plaid);
 	public static void main(String[] args) {
 		plaid.lang.System.setArgs(args,0);
 		plaid.runtime.PlaidRuntime.getRuntime().init();
@@ -16,63 +16,70 @@ public class main{
 	@plaid.runtime.annotations.RepresentsMethod(name = "main", toplevel = false)
 	public static final plaid.runtime.PlaidMethod main_func;
 	static {
+		final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);
 		main_func = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambda(new plaid.runtime.utils.Lambda () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject vAr18$plaid) throws plaid.runtime.PlaidException {
-				final plaid.runtime.PlaidObject vAr1136$plaid;
+				final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+				final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
+				local$c0pe.insert("vAr18$plaid", vAr18$plaid, false);
+				plaid.runtime.PlaidObject vAr1103$plaid = plaid.runtime.Util.unit();
 				{
-					plaid.runtime.PlaidObject javaAST;
-					final plaid.runtime.PlaidObject vAr1138$plaid;
-					final plaid.runtime.PlaidObject vAr1139$plaid;
-					final plaid.runtime.PlaidObject vAr1140$plaid;
-					final plaid.runtime.PlaidObject vAr1141$plaid;
-					final plaid.runtime.PlaidObject vAr1142$plaid;
-					vAr1142$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid", current$c0pe);
-					vAr1141$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("compilerjava", vAr1142$plaid);
-					vAr1140$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ParserCore", vAr1141$plaid);
-					vAr1138$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("parse", vAr1140$plaid);
-					final plaid.runtime.PlaidObject vAr1143$plaid;
-					final plaid.runtime.PlaidObject vAr1144$plaid;
-					final plaid.runtime.PlaidObject vAr1145$plaid;
-					final plaid.runtime.PlaidObject vAr1146$plaid;
-					final plaid.runtime.PlaidObject vAr1147$plaid;
-					vAr1147$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("java", current$c0pe);
-					vAr1146$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("io", vAr1147$plaid);
-					vAr1145$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("FileInputStream", vAr1146$plaid);
-					vAr1143$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("new", vAr1145$plaid);
-					final plaid.runtime.PlaidObject vAr1148$plaid;
-					final plaid.runtime.PlaidObject vAr1149$plaid;
-					final plaid.runtime.PlaidObject vAr1150$plaid;
-					final plaid.runtime.PlaidObject vAr1151$plaid;
-					final plaid.runtime.PlaidObject vAr1152$plaid;
-					vAr1152$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("java", current$c0pe);
-					vAr1151$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("io", vAr1152$plaid);
-					vAr1150$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("File", vAr1151$plaid);
-					vAr1148$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("new", vAr1150$plaid);
-					vAr1149$plaid = plaid.runtime.Util.string("pld/addFive.plaid");
-					vAr1144$plaid = plaid.runtime.Util.call(vAr1148$plaid, vAr1149$plaid);
-					vAr1139$plaid = plaid.runtime.Util.call(vAr1143$plaid, vAr1144$plaid);
-					javaAST = plaid.runtime.Util.call(vAr1138$plaid, vAr1139$plaid);
+					final plaid.runtime.PlaidObject javaAST;
+					final plaid.runtime.PlaidObject vAr1105$plaid;
+					final plaid.runtime.PlaidObject vAr1106$plaid;
+					final plaid.runtime.PlaidObject vAr1107$plaid;
+					final plaid.runtime.PlaidObject vAr1108$plaid;
+					final plaid.runtime.PlaidObject vAr1109$plaid;
+					vAr1109$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid", local$c0pe);
+					vAr1108$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("compilerjava", vAr1109$plaid);
+					vAr1107$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ParserCore", vAr1108$plaid);
+					vAr1105$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("parse", vAr1107$plaid);
+					final plaid.runtime.PlaidObject vAr1110$plaid;
+					final plaid.runtime.PlaidObject vAr1111$plaid;
+					final plaid.runtime.PlaidObject vAr1112$plaid;
+					final plaid.runtime.PlaidObject vAr1113$plaid;
+					final plaid.runtime.PlaidObject vAr1114$plaid;
+					vAr1114$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("java", local$c0pe);
+					vAr1113$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("io", vAr1114$plaid);
+					vAr1112$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("FileInputStream", vAr1113$plaid);
+					vAr1110$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("new$plaid", vAr1112$plaid);
+					final plaid.runtime.PlaidObject vAr1115$plaid;
+					final plaid.runtime.PlaidObject vAr1116$plaid;
+					final plaid.runtime.PlaidObject vAr1117$plaid;
+					final plaid.runtime.PlaidObject vAr1118$plaid;
+					final plaid.runtime.PlaidObject vAr1119$plaid;
+					vAr1119$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("java", local$c0pe);
+					vAr1118$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("io", vAr1119$plaid);
+					vAr1117$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("File", vAr1118$plaid);
+					vAr1115$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("new$plaid", vAr1117$plaid);
+					vAr1116$plaid = plaid.runtime.Util.string("pld/addFive.plaid");
+					vAr1111$plaid = plaid.runtime.Util.call(vAr1115$plaid, vAr1116$plaid);
+					vAr1106$plaid = plaid.runtime.Util.call(vAr1110$plaid, vAr1111$plaid);
+					javaAST = plaid.runtime.Util.call(vAr1105$plaid, vAr1106$plaid);
+					local$c0pe.insert("javaAST", javaAST, false);
 					{
 						final plaid.runtime.PlaidObject translator;
-						final plaid.runtime.PlaidState vAr1153$plaid;
-						final plaid.runtime.PlaidObject vAr1154$plaid;
-						vAr1154$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ASTTranslator", current$c0pe);
-						vAr1153$plaid = plaid.runtime.Util.toPlaidState(vAr1154$plaid);
-						translator = vAr1153$plaid.instantiate();
+						final plaid.runtime.PlaidState vAr1120$plaid;
+						final plaid.runtime.PlaidObject vAr1121$plaid;
+						vAr1121$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("ASTTranslator", global$c0pe);
+						vAr1120$plaid = plaid.runtime.Util.toPlaidState(vAr1121$plaid);
+						translator = vAr1120$plaid.instantiate();
+						local$c0pe.insert("translator", translator, true);
 						{
-							plaid.runtime.PlaidObject plaidAST;
-							final plaid.runtime.PlaidObject vAr1155$plaid;
-							final plaid.runtime.PlaidObject vAr1156$plaid;
-							final plaid.runtime.PlaidObject vAr1157$plaid;
-							vAr1157$plaid = translator;
-							vAr1155$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("translateAST", vAr1157$plaid);
-							vAr1156$plaid = javaAST;
-							plaidAST = plaid.runtime.Util.call(vAr1155$plaid, vAr1156$plaid);
-							vAr1136$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
+							final plaid.runtime.PlaidObject plaidAST;
+							final plaid.runtime.PlaidObject vAr1122$plaid;
+							final plaid.runtime.PlaidObject vAr1123$plaid;
+							final plaid.runtime.PlaidObject vAr1124$plaid;
+							vAr1124$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("translator", local$c0pe);
+							vAr1122$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("translateAST", vAr1124$plaid);
+							vAr1123$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("javaAST", local$c0pe);
+							plaidAST = plaid.runtime.Util.call(vAr1122$plaid, vAr1123$plaid);
+							local$c0pe.insert("plaidAST", plaidAST, false);
+							vAr1103$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 						}
 					}
 				}
-				return vAr1136$plaid;
+				return vAr1103$plaid;
 			}
 		}
 		);
