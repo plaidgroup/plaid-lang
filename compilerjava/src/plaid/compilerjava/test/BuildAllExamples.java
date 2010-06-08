@@ -49,7 +49,7 @@ public class BuildAllExamples {
 		cc.addInputFile(f);
 		cc.setKeepTemporaryFiles(true);
 		cc.setInvokeCompiler(false);
-		cc.setDebugMode(true);
+		cc.setDebugMode(false);
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();
 	}

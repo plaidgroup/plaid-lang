@@ -120,7 +120,6 @@ public class Case implements ASTnode {
 		else {
 			// otherwise generate code execute associated code if this case matches
 			ID potentialMatch = IdGen.getId();
-//			ID tag = IdGen.getId();
 			ID potentialMatchTagString = IdGen.getId();
 			
 			//generate code to get the state to match against
@@ -130,17 +129,6 @@ public class Case implements ASTnode {
 			
 			out.declareFinalVar("String", potentialMatchTagString.getName());
 			out.assignToQIDString(potentialMatchTagString.getName(), potentialMatch.getName());
-
-//			// get the state's tag - throw exception if it doesn't have one
-//			out.declareFinalVar(CodeGen.plaidTagType, tag.getName());
-//			out.ifCondition(CodeGen.stateHasTag(potentialMatch.getName()));  out.openBlock(); // if (potentialMatch.hasTag()) {
-//			out.assignToStateTag(tag.getName(), potentialMatch.getName());
-//			
-//			out.closeBlock(); out.elseCase(); out.openBlock();  // } else {
-//			
-//			out.throwNewPlaidException(potentialMatch.getName() + ".toString()", " is not assocaiated with a tag"); //TODO : better error message
-//			
-//			out.closeBlock();  // }
 			
 			//test if the toMatch object has the tag 
 			out.ifCondition(CodeGen.objectMatchesTag(toMatch.getName(),potentialMatchTagString.getName()));  //if (toMatch.hasState(potentialMatch))
@@ -157,9 +145,6 @@ public class Case implements ASTnode {
 	
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, qi);
-//		visitor.visitEdge(this, x);
-//		visitor.visitEdge(this, e);
 		if (qi != null)
 			qi.accept(visitor);
 		if (x != null)

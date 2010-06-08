@@ -38,22 +38,24 @@ public class FieldDecl implements Decl{
 	private Expression e;
 	private Type type;
 	private final boolean abstractField;
+	private final boolean immutable;
 	
 	public boolean isAbstractField() {
 		return abstractField;
 	}
 
-	public FieldDecl(Token t, ID f, Type type, Expression e, boolean abstractField) {
+	public FieldDecl(Token t, ID f, Type type, Expression e, boolean abstractField, boolean immutable) {
 		super();
 		this.token = t;
 		this.setF(f);
 		this.setE(e);
 		this.abstractField = abstractField;
 		this.type = type;
+		this.immutable = immutable;
 	}
 
 	public FieldDecl(ID f, Expression e) {
-		this(null, f, Type.DYN, e, false);
+		this(null, f, Type.DYN, e, false, true);
 	}
 	
 	public ID getF() {
@@ -109,7 +111,11 @@ public class FieldDecl implements Decl{
 		out.fieldAnnotation(f.getName(), false);
 		out.declarePublicStaticVar(CodeGen.plaidObjectType, f.getName());
 		out.openStaticBlock(); //static {
+		out.append("final plaid.runtime.PlaidLocalScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);");
 		e.codegen(out, f, new IDList());  //initialization code
+		// make this immutable if it should be
+		// add this field to the global scope
+		out.insertIntoScope(CodeGen.globalScope, f.getName(), this.immutable);
 		out.closeBlock(); out.closeBlock(); //}}
 		
 		return FileGen.createOutputFile(f.getName(), cc.getOutputDir(), out.formatFile(), qid);
@@ -137,7 +143,7 @@ public class FieldDecl implements Decl{
 		e.codegen(out, fresh1, localVars);  //field initializer code
 		out.ret(fresh1.getName()); // return fresh1;
 		out.closeAnonymousDeclaration(); // }});
-		out.addMember(y.getName(), f.getName(), freshFieldName.getName());  //y.addMember(f,freshFieldName)
+		out.addMember(y.getName(), f.getName(), freshFieldName.getName(), this.immutable);  //y.addMember(f,freshFieldName)
 		
 	}
 
@@ -153,5 +159,9 @@ public class FieldDecl implements Decl{
 	@Override
 	public void accept(ASTVisitor visitor) {
 		visitor.visitNode(this);
+	}
+
+	public boolean getImmutable() {
+		return this.immutable;
 	}
 }

@@ -72,8 +72,6 @@ public class NewInstance implements Expression{
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, st);
-//		visitor.visitChild(st);
 		st.accept(visitor);
 	}
 	

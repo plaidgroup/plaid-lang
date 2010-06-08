@@ -82,7 +82,7 @@ public class QI implements State {
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		
-		String scope = CodeGen.currentScope;
+		String scope = CodeGen.globalScope;
 		ID fresh = null;
 		
 		for (String name : qid) {	

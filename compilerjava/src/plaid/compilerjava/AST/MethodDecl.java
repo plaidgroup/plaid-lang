@@ -99,6 +99,7 @@ public final class MethodDecl implements Decl {
 		return retType;
 	}
 
+	// Top-level method declaration
 	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
 		ID freshReturn = IdGen.getId();
 		ID freshImports = IdGen.getId();
@@ -127,9 +128,11 @@ public final class MethodDecl implements Decl {
 		out.methodAnnotation(name, false);
 		out.declarePublicStaticFinalVar(CodeGen.plaidMethodType, thisMethod.getName());
 		out.openStaticBlock(); // static {
+		// add local scope so that the lambda creation works properly
+		out.append("final " + CodeGen.plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(" + CodeGen.globalScope + ");");
 		out.assignToNewLambda(thisMethod.getName(),arg.getName());
 		
-		out.declareFinalVar(CodeGen.plaidObjectType,freshReturn.getName());
+		out.declareVar(CodeGen.plaidObjectType,freshReturn.getName());
 		//top level functions lookup with unit
 		body.codegen(out, freshReturn,localVars);
 		out.ret(freshReturn.getName());
@@ -155,13 +158,17 @@ public final class MethodDecl implements Decl {
 		
 		//body of the protofield
 		out.declareLambdaScope();
-		out.declareFinalVar(CodeGen.plaidObjectType,freshID.getName());
+		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
+		
+		// update var for the debugger
 		out.updateVar(arg.getName());
+		
 		body.codegen(out, freshID, newLocalVars);
 		out.ret(freshID.getName() );  //return freshID;
 		out.closeAnonymousDeclaration();  //}});
 		
-		out.addMember(y.getName(), newName, freshMethName.getName());  //y.addMember(name,freshMethName)
+		// TODO: methods are immutable by default?
+		out.addMember(y.getName(), newName, freshMethName.getName()/*, true*/);  //y.addMember(name,freshMethName)
 		
 	}
 

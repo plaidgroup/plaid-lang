@@ -78,44 +78,29 @@ public class Assignment implements Expression {
 	@Override
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
-		String exceptionText = "Object does not have member " + field.getName() + ".  Assignment failed.";
 		ID assignTo = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, assignTo.getName());
 		value.codegen(out, assignTo, localVars);
 		
-		if (target == null ) { // ID is in this scope
-			if (localVars.contains(field))
-				out.assignToID(field.getName(),assignTo.getName()); // field = assignTo
-			else if (localVars.contains(CodeGen.thisVar)) { // Find member in this object
-				out.ifCondition(CodeGen.containsMember(CodeGen.thisVar,field.getName())); // if (this.containsField(field))
-				out.addMember(CodeGen.thisVar, field.getName(), assignTo.getName()); // this.addMember(field,assignTo)
-				out.elseCase(); // else
-				out.throwNewPlaidException(exceptionText); // throw new PlaidException(...)
-				out.updateVar("this", CodeGen.thisVar);
-			}
-			else { // There is no "this" available => it must be a write to a global variable
-				// TODO: Maybe create a separate method in CodeGen for doing this?
-				out.assign(field.getName() + "." + field.getName());
-				out.append(assignTo.getName());
-				out.append(";");
-				out.updateVar(field.getName(), assignTo.getName());
-			}
+		// Generates (e.g.):
+		// PlaidObject var$foo = local$c0pe.lookup('y')
+		// local$c0pe.update('x', var$foo)
+		if (this.target == null) {
+			// need to make sure we've loaded it before
+			out.lookupInCurrentScope(this.field.getName());
+			out.updateVar(this.field, assignTo);
 		}
-		else { //find member in the target object
+		// we have a target, so we need to check if that particular 
+		// field of the target is mutable and if so assign the new value
+		else {
+			// evaluate the target
+			ID targetID = IdGen.getId();
+			out.declareFinalVar(CodeGen.plaidObjectType, targetID.getName());
+			out.assign(targetID.getName());
+			target.codegen(out, y, localVars);
 			
-			//generate code for the target
-			ID targetObject = IdGen.getId();
-			out.declareFinalVar(CodeGen.plaidObjectType, targetObject.getName()); //Plaid
-			target.codegen(out, targetObject, localVars);
-			
-			//generate code to return the member or throw an exception
-			out.ifCondition(CodeGen.containsMember(targetObject.getName(),field.getName()));  //if (target.containsField(field))
-			out.addMember(targetObject.getName(), field.getName(), assignTo.getName()); //target.addMemeber(field,assignTo)
-			out.elseCase(); //else
-			out.throwNewPlaidException(exceptionText);//throw new PlaidException(...)
-			out.updateVar(targetObject.getName());
+			out.updateMember(targetID.getName(), this.field.getName(), assignTo.getName());
 		}
-		out.assignToUnit(y.getName());
 		out.updateVar(assignTo.getName());
 	}
 

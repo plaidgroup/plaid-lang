@@ -55,8 +55,7 @@ public class ID implements Expression{
 
 		out.setLocation(token);
 		String newName = CodeGen.convertOpNames(name);
-		if (localVars.contains(newName)) out.assignToID(y.getName(),newName);  // y = newName
-		else out.assignToLookup(y.getName(), newName, CodeGen.currentScope);  // y = lookup(name,currentScope);	
+		out.assignToLookup(y.getName(), newName, CodeGen.localScope);  // y = lookup(name,currentScope);	
 	}
 
 	@Override
