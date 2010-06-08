@@ -19,6 +19,9 @@
  */
 
 package plaid.lang;
+
+import plaid.runtime.PlaidLocalScope;
+
 @plaid.runtime.annotations.RepresentsState(name = "Int", toplevel = true)
 public class Int{
 	public static java.util.List<plaid.runtime.utils.Import> vAr88$plaid;
@@ -26,7 +29,7 @@ public class Int{
 		vAr88$plaid = new java.util.ArrayList<plaid.runtime.utils.Import>();
 		vAr88$plaid.add(new plaid.runtime.utils.Import("java.math.BigInteger"));
 	}
-	public static final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang",vAr88$plaid);
+	public static final plaid.runtime.PlaidScope globalScope = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang",vAr88$plaid);
 	@plaid.runtime.annotations.RepresentsState(name = "Int", toplevel = false)
 	public static plaid.runtime.PlaidObject Int;
 	static {
@@ -35,26 +38,23 @@ public class Int{
 		plaid.runtime.PlaidObject vAr90$plaid;
 		vAr90$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr91$plaid) {
-				plaid.runtime.PlaidScope the$c0pe = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(the$c0pe, this$plaid);
 				plaid.runtime.PlaidObject vAr89$plaid;
 				vAr89$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 				return vAr89$plaid;
 			}
 		}
 		);
-		Int.addMember("value",vAr90$plaid);
+		Int.addMember("value",vAr90$plaid/*, true*/);
 		@plaid.runtime.annotations.RepresentsMethod(name = "plus", toplevel = false)
 		plaid.runtime.PlaidObject vAr92$plaid;
 		vAr92$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject x) {
-				plaid.runtime.PlaidScope the$c0pe = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(the$c0pe, this$plaid);
+				plaid.runtime.PlaidScope local$c0pe = new PlaidLocalScope(globalScope);
 				plaid.runtime.PlaidObject vAr93$plaid;
 				plaid.runtime.PlaidObject vAr94$plaid;
 				plaid.runtime.PlaidObject vAr95$plaid;
 				plaid.runtime.PlaidObject vAr96$plaid;
-				vAr96$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", current$c0pe);
+				vAr96$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", local$c0pe);
 				vAr94$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("add", vAr96$plaid);
 				plaid.runtime.PlaidObject vAr97$plaid;
 				vAr97$plaid = x;
@@ -64,18 +64,17 @@ public class Int{
 			}
 		}
 		);
-		Int.addMember("plus",vAr92$plaid);
+		Int.addMember("plus",vAr92$plaid/*, true*/);
 		@plaid.runtime.annotations.RepresentsMethod(name = "multiply", toplevel = false)
 		plaid.runtime.PlaidObject vAr98$plaid;
 		vAr98$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject x) {
-				plaid.runtime.PlaidScope the$c0pe = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(the$c0pe, this$plaid);
+				final plaid.runtime.PlaidScope local$c0pe = new PlaidLocalScope(globalScope);
 				plaid.runtime.PlaidObject vAr99$plaid;
 				plaid.runtime.PlaidObject vAr100$plaid;
 				plaid.runtime.PlaidObject vAr101$plaid;
 				plaid.runtime.PlaidObject vAr102$plaid;
-				vAr102$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", current$c0pe);
+				vAr102$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", local$c0pe);
 				vAr100$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("multiply", vAr102$plaid);
 				plaid.runtime.PlaidObject vAr103$plaid;
 				vAr103$plaid = x;
@@ -85,18 +84,17 @@ public class Int{
 			}
 		}
 		);
-		Int.addMember("multiply",vAr98$plaid);
+		Int.addMember("multiply",vAr98$plaid/*, true*/);
 		@plaid.runtime.annotations.RepresentsMethod(name = "minus", toplevel = false)
 		plaid.runtime.PlaidObject vAr104$plaid;
 		vAr104$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject x) {
-				plaid.runtime.PlaidScope the$c0pe = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(the$c0pe, this$plaid);
+				final plaid.runtime.PlaidScope local$c0pe = new PlaidLocalScope(globalScope);
 				plaid.runtime.PlaidObject vAr105$plaid;
 				plaid.runtime.PlaidObject vAr106$plaid;
 				plaid.runtime.PlaidObject vAr107$plaid;
 				plaid.runtime.PlaidObject vAr108$plaid;
-				vAr108$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", current$c0pe);
+				vAr108$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", local$c0pe);
 				vAr106$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("subtract", vAr108$plaid);
 				plaid.runtime.PlaidObject vAr109$plaid;
 				vAr109$plaid = x;
@@ -106,18 +104,17 @@ public class Int{
 			}
 		}
 		);
-		Int.addMember("minus",vAr104$plaid);
+		Int.addMember("minus",vAr104$plaid/*, true*/);
 		@plaid.runtime.annotations.RepresentsMethod(name = "divide", toplevel = false)
 		plaid.runtime.PlaidObject vAr110$plaid;
 		vAr110$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoMethod(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject x) {
-				plaid.runtime.PlaidScope the$c0pe = current$c0pe;
-				final plaid.runtime.PlaidScope current$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lambdaScope(the$c0pe, this$plaid);
+				plaid.runtime.PlaidScope local$c0pe = new PlaidLocalScope(globalScope);
 				plaid.runtime.PlaidObject vAr111$plaid;
 				plaid.runtime.PlaidObject vAr112$plaid;
 				plaid.runtime.PlaidObject vAr113$plaid;
 				plaid.runtime.PlaidObject vAr114$plaid;
-				vAr114$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", current$c0pe);
+				vAr114$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("value", local$c0pe);
 				vAr112$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("divide", vAr114$plaid);
 				plaid.runtime.PlaidObject vAr115$plaid;
 				vAr115$plaid = x;
@@ -127,6 +124,6 @@ public class Int{
 			}
 		}
 		);
-		Int.addMember("divide",vAr110$plaid);
+		Int.addMember("divide",vAr110$plaid/*, true*/);
 	}
 }

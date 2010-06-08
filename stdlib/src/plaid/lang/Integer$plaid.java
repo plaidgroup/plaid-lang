@@ -23,6 +23,8 @@ import java.util.ArrayList;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidJavaObject;
+import plaid.runtime.PlaidLocalScope;
+import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidScope;
@@ -33,7 +35,7 @@ import plaid.runtime.utils.Import;
 
 @RepresentsState(name="Integer", toplevel=true, javaobject=true)
 public class Integer$plaid {
-	public static PlaidScope packageScope = PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang", new ArrayList<Import>());
+	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 
 	@RepresentsState(name="Integer") 
 	public static PlaidObject foo = Util.newState();
@@ -44,115 +46,125 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() +
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		}));
+		})/*, true*/);
 		
 		foo.addMember("sub$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() -
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		}));
+		})/*, true*/);
 		
 		foo.addMember("mult$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() *
 				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		}));
+		})/*, true*/);
 		
 		foo.addMember("div$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() /
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		}));
+		})/*, true*/);
 		
 		foo.addMember("mod$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() %
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		}));
+		})/*, true*/);
 		
 		foo.addMember("eqeq$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() ==
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
-				if (x == true) return Util.trueObject();
-				else return Util.falseObject();
+					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				if (x == true)
+					return Util.trueObject();
+				else
+					return Util.falseObject();
 			}
-		}));
+		})/*, true*/);
 		
 		foo.addMember("lt$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()) <
-				((Integer)((PlaidJavaObject)args).getJavaObject());
-				if (x == true) return Util.trueObject();
-				else return Util.falseObject();
+					((Integer)((PlaidJavaObject)args).getJavaObject());
+				if (x == true)
+					return Util.trueObject();
+				else
+					return Util.falseObject();
 			}
-		}));
+		})/*, true*/);
 		
 		foo.addMember("gt$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() >
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
-				if (x == true) return Util.trueObject();
-				else return Util.falseObject();
+					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				if (x == true)
+					return Util.trueObject();
+				else
+					return Util.falseObject();
 			}
-		}));
+		})/*, true*/);
 		foo.addMember("lteq$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() <=
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
-				if (x == true) return Util.trueObject();
-				else return Util.falseObject();
+					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				if (x == true)
+					return Util.trueObject();
+				else
+					return Util.falseObject();
 			}
-		}));
+		})/*, true*/);
 
 		foo.addMember("gteq$plaid", Util.protoMethod(new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = PlaidRuntime.getRuntime().getClassLoader().lambdaScope(packageScope, thisVar);
+				PlaidScope scope = new PlaidLocalScope(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() >=
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
-				if (x == true) return Util.trueObject();
-				else return Util.falseObject();
+					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				if (x == true)
+					return Util.trueObject();
+				else
+					return Util.falseObject();
 			}
-		}));
+		})/*, true*/);
 	
 	
 	}
@@ -163,7 +175,7 @@ public class Integer$plaid {
 	static {
 		final plaid.runtime.PlaidState vAr100$plaid;
 		final plaid.runtime.PlaidObject vAr101$plaid;
-		vAr101$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid.lang.Object", packageScope);
+		vAr101$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Object", globalScope);
 		vAr100$plaid = plaid.runtime.Util.toPlaidState(vAr101$plaid);
 		IntegerTag$plaid = plaid.runtime.Util.tag("plaid.lang.Integer", vAr100$plaid);
 	}

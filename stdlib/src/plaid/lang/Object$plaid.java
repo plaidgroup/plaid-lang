@@ -21,6 +21,7 @@ package plaid.lang;
 
 import java.util.ArrayList;
 
+import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidScope;
 import plaid.runtime.annotations.RepresentsState;
@@ -28,5 +29,5 @@ import plaid.runtime.utils.Import;
 
 @RepresentsState(name="Object", toplevel=true)
 public class Object$plaid {
-	public static PlaidScope currentScope = PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang", new ArrayList<Import>());
+	public static PlaidScope currentScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 }
