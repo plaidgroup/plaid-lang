@@ -29,6 +29,10 @@ import java.util.Map;
  */
 public interface PlaidObject {
 	public void addMember(String name, PlaidObject obj);
+	
+	public void addMember(String name, PlaidObject obj, boolean immutable);
+	
+	public void updateMember(String name, PlaidObject obj);
 
 	public void removeMember(String name);
 	
@@ -47,7 +51,7 @@ public interface PlaidObject {
 	public boolean matchesTag(String tagName);
 	
 	public Collection<PlaidTag> getTags() throws PlaidException;
-	
+		
 	/**
 	 * Change the state of the current object to the specified 
 	 * @param update
@@ -55,5 +59,9 @@ public interface PlaidObject {
 	 * @throws PlaidException
 	 */
 	public PlaidObject changeState(PlaidObject update) throws PlaidException;
+
+	public Map<String, PlaidObject> getImmutableMembers();
+	
+	public Map<String, PlaidObject> getMutableMembers();
 }
 

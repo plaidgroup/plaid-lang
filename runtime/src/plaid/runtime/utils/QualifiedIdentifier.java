@@ -57,7 +57,10 @@ public final class QualifiedIdentifier {
 	}
 	
 	public QualifiedIdentifier getPrefix() {
-		return new QualifiedIdentifier(fragments.subList(0, fragments.size()-1));
+		if (fragments.size() > 1)
+			return new QualifiedIdentifier(fragments.subList(0, fragments.size()-1));
+		else
+			return new QualifiedIdentifier(fragments.get(0));
 	}
 
 	public List<String> split() {

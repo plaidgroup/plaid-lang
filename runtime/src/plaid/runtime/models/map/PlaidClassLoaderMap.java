@@ -27,15 +27,16 @@ import plaid.runtime.PlaidClassLoader;
 import plaid.runtime.PlaidClassNotFoundException;
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.PlaidException;
+import plaid.runtime.PlaidGlobalScope;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidJavaObject;
+import plaid.runtime.PlaidLocalScope;
 import plaid.runtime.PlaidMethod;
+import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidPackage;
-import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidState;
 import plaid.runtime.PlaidTag;
-import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsField;
 import plaid.runtime.annotations.RepresentsMethod;
 import plaid.runtime.annotations.RepresentsState;
@@ -45,13 +46,14 @@ import plaid.runtime.utils.Lambda;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public final class PlaidClassLoaderMap implements PlaidClassLoader {
-	protected PlaidRuntimeMap rt;
+	protected PlaidRuntimeMap runtime;
 	protected HashMap<String, PlaidObject> singletons = new HashMap<String, PlaidObject>();
 	public final PlaidObject unit;
+	// TODO: Change to singleton
 	
-	public PlaidClassLoaderMap(PlaidRuntimeMap rt) {
-		this.rt = rt;
-		unit = lookup("plaid.lang.Unit");
+	public PlaidClassLoaderMap(PlaidRuntimeMap runtime) {
+		this.runtime = runtime;
+		unit = loadClass("plaid.lang.Unit");
 		((PlaidObjectMap)unit).setReadOnly(false);
 		unit.addState(unit);
 		((PlaidObjectMap)unit).setReadOnly(true);
@@ -60,26 +62,28 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	@Override
 	public PlaidObject lookup(String name, PlaidObject pthis) throws PlaidException {
 
-		if ( pthis == unit() ) {
-			return lookup(name);
-		} else if ( pthis instanceof PlaidLookupMap ) {
+		if (pthis == unit()) {
+			return loadClass(name);
+		}
+		else if (pthis instanceof PlaidLookupMap) {
 			PlaidLookupMap ppm = (PlaidLookupMap)pthis;
 			return lookup(ppm.append(name));
-		}  else {
+		}
+		else {
 			// check members 
-			if ( pthis.getMembers().containsKey(name) ) {
+			if (pthis.getMembers().containsKey(name)) {
 				return pthis.getMembers().get(name);
 			}
 			
-			for (PlaidObject os : pthis.getStates() ) {
+			for (PlaidObject os : pthis.getStates()) {
 				PlaidStateMap s = (PlaidStateMap)os;
-				if ( s.getName().equals(name ) ) {
+				if (s.getName().equals(name)) {
 					return s;
 				}
 			}
 			
-			// check packages recursive 
-			for (PlaidObject os : pthis.getStates() ) {
+			// check packages recursively
+			for (PlaidObject os : pthis.getStates()) {
 				PlaidStateMap s = (PlaidStateMap)os;
 				PlaidPackage pkg = s.getPackage();					
 				try {
@@ -92,64 +96,8 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	}
 
 	@Override
-	public PlaidObject lookup(String name, PlaidScope currentScope)
-	throws PlaidException {
-		if(currentScope instanceof PlaidLambdaScopeMap) {
-			PlaidLambdaScopeMap scope = (PlaidLambdaScopeMap)currentScope;
-			if(name.equals(Util.thisVar)) {
-				return scope.getThisVar();
-			} 
-			else {
-				PlaidObject result;
-				try {
-					result = lookup(name, scope.getThisVar());
-				} catch (PlaidException ex) {
-					return lookup(name, scope.getParent());
-				}
-				return result;
-			}
-		} else if (currentScope instanceof PlaidPackageScopeMap) {
-			PlaidPackageScopeMap scope = (PlaidPackageScopeMap) currentScope;
-
-			PlaidLookupMap lookup = new PlaidLookupMap(scope.getQi(),new QualifiedIdentifier(name));
-
-			PlaidObject result = lookup(lookup);
-			if ( result != lookup ) {
-				return result;
-			}
-
-			// keep looking in imports
-			for ( Import i : scope.getImports() ) {
-				if ( i.isStar() ) {
-					// to find 
-					QualifiedIdentifier fqn = i.getIdentifier().append(name);
-					if ( singletons.containsKey(fqn.toString())) {
-						return singletons.get(fqn.toString());
-					}
-					PlaidObject po = lookup(fqn.toString());
-					if ( po != null ) {
-						return po;
-					}
-				} else {
-					if ( i.getIdentifier().getSuffix().equals(name) ) {
-						if ( singletons.containsKey(i.getIdentifier().toString())) {
-							return singletons.get(i.getIdentifier().toString());
-						}
-						PlaidObject po = lookup(i.getIdentifier().toString());
-						if ( po != null ) {
-							return po;
-						} else {
-							throw new PlaidClassNotFoundException("Cannot find class : " + i.getIdentifier().toString());
-						}
-					} 
-				}
-			}
-
-			// couldn't find anything 
-			return new PlaidLookupMap(scope.getQi(),new QualifiedIdentifier(name));
-		} else {
-			throw new PlaidException("Lookup only supports PackageScope and LambdaScope.");
-		}
+	public PlaidObject lookup(String name, PlaidScope currentScope) throws PlaidException {
+		return currentScope.lookup(name);
 	}
 
 	protected PlaidObject lookup(PlaidLookupMap lookup) throws PlaidClassNotFoundException {
@@ -166,18 +114,18 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 		}
 		
 		//lookup the QID in the package scope
-		PlaidObject value = lookup(lookupInPackage.toString());
+		PlaidObject value = loadClass(lookupInPackage.toString());
 		if (value != null) return value; //found an actual declaration
 		
 		//lookup QID in the top level scope
-		PlaidObject topLevelValue = lookup(lookupAtTopLevel.toString());
+		PlaidObject topLevelValue = loadClass(lookupAtTopLevel.toString());
 		if (topLevelValue != null) return topLevelValue; //found an actual declaration
 		
 		//otherwise, we need to return this lookup context
 		return lookup;
 	}
 	
-	protected PlaidObject lookup(String name) throws PlaidClassNotFoundException {
+	public PlaidObject loadClass(String name) throws PlaidClassNotFoundException {
 		if ( singletons.containsKey(name) ) {
 			return singletons.get(name);
 		}
@@ -220,16 +168,6 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	@Override
 	public PlaidObject unit() throws PlaidException {
 		return unit;
-	}
-	
-	@Override
-	public PlaidScope lambdaScope(PlaidScope currentScope, PlaidObject thisVar) {
-		return new PlaidLambdaScopeMap(currentScope, thisVar);
-	}
-
-	@Override
-	public PlaidScope packageScope(String qi, List<Import> imports) throws PlaidException {
-		return new PlaidPackageScopeMap(qi, imports);
 	}
 	
 	@Override 
@@ -326,6 +264,16 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 			}
 		}
 		throw new PlaidIllegalAccessException("Cannot find " + qi.getQI());
+	}
+
+	@Override
+	public PlaidGlobalScope globalScope(String qi, List<Import> imports) {
+		return PlaidGlobalScope.create(qi, imports);
+	}
+
+	@Override
+	public PlaidLocalScope localScope(PlaidScope parentScope) {
+		return new PlaidLocalScope(parentScope);
 	}
 	
 }

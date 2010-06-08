@@ -49,12 +49,11 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 		this.setName(valueClass.getSimpleName());
 		this.value   = value;
 		this.valueClass = valueClass;
-		this.members = new HashMap<String, PlaidObject>();
 		createConstructor();
 	}
 	
 	private void createConstructor() {
-		this.members.put(PlaidJavaConstructorMap.NAME, new PlaidJavaConstructorMap(valueClass));
+		this.addMember(PlaidJavaConstructorMap.NAME, new PlaidJavaConstructorMap(valueClass)/*, false*/);
 	}
 
 	public PlaidJavaStateMap() {
@@ -76,26 +75,40 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 	
 	@Override
 	public Map<String, PlaidObject> getMembers() {
-		if ( reflected == false && valueClass != null ) {
-			for ( Field f : valueClass.getFields() ) {
+		// TODO: Not sure if the use of mutability for all fields and immutability for all methods here is correct
+		Map<String, PlaidObject> members = new HashMap<String, PlaidObject>();
+		members.putAll(this.getImmutableMembers());
+		members.putAll(this.getMutableMembers());
+		reflected = true; //TODO: Tell Sven we did this // lol wtf?
+		return Collections.unmodifiableMap(members);
+	}
+	
+	@Override
+	public Map<String, PlaidObject> getMutableMembers() {
+		if (reflected == false  && valueClass != null) {
+			for (Field f : valueClass.getFields()) {
 				Object obj;
 				try {
 					obj = f.get(value);
-					members.put(f.getName(), new PlaidJavaObjectMap(obj));
+					this.mutableMembers.put(f.getName(), new PlaidJavaObjectMap(obj));
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Wrong argument.");
 				} catch (IllegalAccessException e) {
 					throw new PlaidIllegalAccessException("Cannot get field value");
 				}				
 			}
-			
-			for ( Method m : valueClass.getMethods() ) {
-				members.put(m.getName(), new PlaidJavaMethodMap(m.getName(), value, valueClass));
-			}
-			reflected = true; //TODO: Tell Sven we did this
 		}
-		
-		return Collections.unmodifiableMap(members);
+		return Collections.unmodifiableMap(this.mutableMembers);
+	}
+	
+	@Override
+	public Map<String, PlaidObject> getImmutableMembers() {
+		if (reflected == false  && valueClass != null) {
+			for (Method m : valueClass.getMethods()) {
+				this.immutableMembers.put(m.getName(), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+			}
+		}
+		return Collections.unmodifiableMap(this.immutableMembers);
 	}
 	
 	@Override

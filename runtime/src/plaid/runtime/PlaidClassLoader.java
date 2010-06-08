@@ -58,8 +58,8 @@ public interface PlaidClassLoader {
 	public PlaidJavaObject packJavaObject(Object o) throws PlaidException;
 	
 	/**
-	 * Create a new anonymous PlaidMethod object (aka lambda) that 
-	 * has pthis of unit;
+	 * Create a new anonymous PlaidMethod object (aka lambda) that has pthis 
+	 * of unit.
 	 * 
 	 * @param fn
 	 * @return new PlaidMethod that can be invoked  
@@ -68,8 +68,7 @@ public interface PlaidClassLoader {
 	public PlaidMethod lambda(Lambda fn) throws PlaidException;
 	
 	/**
-	 * Create a new PlaidMethod object that 
-	 * does not have this bound yet;
+	 * Create a new PlaidMethod object that does not have this bound yet.
 	 * 
 	 * @param fn
 	 * @return new PlaidMethod that must be instantiated before being invoked  
@@ -78,11 +77,10 @@ public interface PlaidClassLoader {
 	public PlaidMethod protoMethod(Delegate fn) throws PlaidException;
 	
 	/**
-	 * Create a new PlaidMethod object that 
-	 * does not have this bound yet;
+	 * Create a new PlaidMethod object that does not have this bound yet.
 	 * 
 	 * @param fn
-	 * @return new PlaidMethod that must be instantiated before being invoked  
+	 * @return new PlaidMethod that must be instantiated before being invoked
 	 * @throws PlaidException
 	 */
 	public PlaidMethod protoField(Delegate fn) throws PlaidException;
@@ -94,20 +92,6 @@ public interface PlaidClassLoader {
 	 * @throws PlaidException
 	 */
 	public PlaidObject unit() throws PlaidException;
-	
-	/**
-	 * @param qi Package name in standard dotted-name form.
-	 * @return PlaidScope representing package.
-	 * @throws PlaidException
-	 */
-	public PlaidScope packageScope(String qi, List<Import> imports) throws PlaidException;
-	
-	/**
-	 * @param currentScope
-	 * @param thisVar
-	 * @return
-	 */
-	public PlaidScope lambdaScope(PlaidScope currentScope, PlaidObject thisVar);
 	
 	/**
 	 * return a new state object
@@ -124,4 +108,26 @@ public interface PlaidClassLoader {
 	 * @return
 	 */
 	public PlaidTag tag(String tag, PlaidState caseOf);
+	
+	/**
+	 * TODO: Document
+	 * @param name
+	 * @return
+	 */
+	public PlaidObject loadClass(String name);
+	
+	/**
+	 * TODO: Document
+	 * @param qi
+	 * @param imports
+	 * @return
+	 */
+	public PlaidGlobalScope globalScope(String qi, List<Import> imports);
+	
+	/**
+	 * TODO: Document
+	 * @param parentScope
+	 * @return
+	 */
+	public PlaidLocalScope localScope(PlaidScope parentScope);
 }

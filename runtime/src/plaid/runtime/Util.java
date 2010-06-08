@@ -40,18 +40,7 @@ public class Util {
 
 	public static PlaidState newState() throws PlaidException {
 		return cl.state();
-//		PlaidState ps = (PlaidState)cl.lookup("plaid.lang.State", unit());
-//		PlaidState result = (PlaidState)ps.instantiate();
-//		result.removeState(ps);
-//		return result;
 	}
-	
-//	public static PlaidState newState(String name) throws PlaidException {
-//		PlaidState ps = (PlaidState)cl.lookup("plaid.lang.State", unit());
-//		PlaidState result = (PlaidState)ps.instantiate();
-//		result.removeState(ps);
-//		return result;
-//	}
 	
 	public static PlaidObject string(String s) throws PlaidException {
 		PlaidState intState = (PlaidState)cl.lookup("plaid.lang.String", unit());
@@ -138,8 +127,9 @@ public class Util {
 		PlaidState ps = toPlaidState(lookup("plaid.lang.Pair", unit()));
 		PlaidObject result = ps.instantiate();
 
-		result.addMember("fst", cl.packJavaObject(objs[0]));
-		result.addMember("snd", converArrayToParams(Arrays.copyOfRange(objs, 1, objs.length)));
+		// TODO: not sure if these params should be mutable or not
+		result.addMember("fst", cl.packJavaObject(objs[0])/*, false*/);
+		result.addMember("snd", converArrayToParams(Arrays.copyOfRange(objs, 1, objs.length))/*, false*/);
 		
 		return result;
 	}

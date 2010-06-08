@@ -22,6 +22,7 @@ package plaid.runtime.models.map;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import plaid.runtime.PlaidException;
@@ -47,24 +48,39 @@ public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJav
 
 	@Override
 	public Map<String, PlaidObject> getMembers() {
-		if ( reflected == false  && valueClass != null ) {
-			for ( Field f : valueClass.getFields() ) {
+		// TODO: Not sure if the use of mutability for all fields and immutability for all methods here is correct
+		Map<String, PlaidObject> members = new HashMap<String, PlaidObject>();
+		members.putAll(this.getImmutableMembers());
+		members.putAll(this.getMutableMembers());
+		return Collections.unmodifiableMap(members);
+	}
+	
+	@Override
+	public Map<String, PlaidObject> getMutableMembers() {
+		if (reflected == false  && valueClass != null) {
+			for (Field f : valueClass.getFields()) {
 				Object obj;
 				try {
 					obj = f.get(value);
-					members.put(f.getName(), new PlaidJavaObjectMap(obj));
+					this.mutableMembers.put(f.getName(), new PlaidJavaObjectMap(obj));
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Wrong argument.");
 				} catch (IllegalAccessException e) {
 					throw new PlaidIllegalAccessException("Cannot get field value");
 				}				
 			}
-			
-			for ( Method m : valueClass.getMethods() ) {
-				members.put(m.getName(), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+		}
+		return Collections.unmodifiableMap(this.mutableMembers);
+	}
+	
+	@Override
+	public Map<String, PlaidObject> getImmutableMembers() {
+		if (reflected == false  && valueClass != null) {
+			for (Method m : valueClass.getMethods()) {
+				this.immutableMembers.put(m.getName(), new PlaidJavaMethodMap(m.getName(), value, valueClass));
 			}
 		}
-		return Collections.unmodifiableMap(members);
+		return Collections.unmodifiableMap(this.immutableMembers);
 	}
 	
 	@Override
