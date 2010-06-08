@@ -22,6 +22,7 @@ package plaid.runtime.utils;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidObject;
 
+// TODO: Document
 public interface Lambda {
 	public PlaidObject invoke(PlaidObject args) throws PlaidException;
 }

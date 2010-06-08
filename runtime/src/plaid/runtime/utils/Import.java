@@ -45,5 +45,15 @@ public class Import {
 	public String toString() {
 		return "Import(" + qid.toString() + ")";
 	}
+	
+	public boolean equals(Object o) {
+		if (!(o instanceof Import))
+			return false;
+		return this.qid.equals(((Import)o).qid);
+	}
+	
+	public int hashCode() {
+		return this.qid.hashCode();
+	}
 }
 

@@ -42,10 +42,9 @@ public final class PlaidFunctionMap extends PlaidObjectMap implements PlaidMetho
 		this.name = name;
 	}
 
-
-
 	@Override
 	public PlaidObject invoke(PlaidObject args) throws PlaidException {
+		// unpack the args
 		return fn.invoke(args);
 	}
 

@@ -28,8 +28,6 @@ public interface PlaidJavaObject extends PlaidObject {
 	 * @throws PlaidIllegalAccessException
 	 */
 	public Object getJavaObject() throws PlaidException;
-	
-	//public Object getJavaObject(Class<?> desiredClass) throws PlaidException;
-	
+		
 	public void setJavaObject(Object o) throws PlaidException;
 }

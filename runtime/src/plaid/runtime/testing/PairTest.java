@@ -76,7 +76,7 @@ public class PairTest extends BaseTest {
 					throws PlaidException {
 				return Util.unit();
 			}
-		}));
+		})/*, true*/);
 		
 		init.addMember("snd", Util.protoField(new Delegate() {
 			
@@ -85,7 +85,7 @@ public class PairTest extends BaseTest {
 					throws PlaidException {
 				return Util.unit();
 			}
-		}));
+		})/*, true*/);
 		PlaidState pairInit = ps.with(init);
 		
 		PlaidObject pair = pairInit.instantiate();

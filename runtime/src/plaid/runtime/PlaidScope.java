@@ -1,24 +1,41 @@
-/**
- * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
- * 
- * This file is part of Plaid Programming Language.
- *
- * Plaid Programming Language is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- *  Plaid Programming Language is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 package plaid.runtime;
 
 public interface PlaidScope {
-
+	
+	/**
+	 * Looks up the given name in the current scope, recursively searching 
+	 * parent scopes if necessary.
+	 * 
+	 * @param name
+	 * @return The PlaidObject bound to this name in the current scope.
+	 */
+	public PlaidObject lookup(String name);
+	
+	/**
+	 * Inserts a new binding into the current scope.  If one already exists in 
+	 * the current scope (not the parent scopes) then this is an error.
+	 * 
+	 * @param name
+	 * @param plaidObj
+	 */
+	public void insert(String name, PlaidObject plaidObj);
+	
+	/**
+	 * TODO: Document
+	 * @param name
+	 * @param plaidObj
+	 * @param immutable
+	 */
+	void insert(String name, PlaidObject plaidObj, boolean immutable);
+	
+	/**
+	 * Updates a pre-existing variable name binding with a new PlaidObject.  
+	 * Recursively searches parent scopes until it encounters the specified 
+	 * name.  If the name does not already exist in this scope or one of its 
+	 * parent scopes then this is an error.
+	 * 
+	 * @param name
+	 * @param plaidObj
+	 */
+	public void update(String name, PlaidObject plaidObj);
 }

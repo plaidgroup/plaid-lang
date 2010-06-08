@@ -37,7 +37,6 @@ import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.models.map.PlaidRuntimeMap;
 
 public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeControl {
-
 	// static fields
 	private static PlaidRuntime runtime;
 
@@ -313,12 +312,12 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 	}
 
 	public static PlaidRuntime getRuntime() {
-		if ( runtime == null ) {
+		if (runtime == null) {
 			runtime = new PlaidRuntimeMap();
 		}
 		return runtime;
 	}
-
+	
 	public abstract PlaidClassLoader getClassLoader();
 
 	public abstract PlaidObject call(PlaidObject func, PlaidObject args);
