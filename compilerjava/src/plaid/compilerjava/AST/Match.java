@@ -84,9 +84,6 @@ public class Match implements Expression {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, e);
-//		for (Case c : caseList)
-//			visitor.visitEdge(this, c);
 		e.accept(visitor);
 		for (Case c : caseList)
 			c.accept(visitor);

@@ -151,7 +151,8 @@ public class StateDecl implements Decl {
 		out.stateAnnotation(name.getName(), false);
 		out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
 		stateDef.codegen(out, fresh, localVars);
-		out.addMember(y.getName(), name.getName(), fresh.getName()); //y.addMember(s,fresh)
+		// TODO: State decls are immutable by default
+		out.addMember(y.getName(), name.getName(), fresh.getName()/*, true*/); //y.addMember(s,fresh)
 	}
 
 	@Override

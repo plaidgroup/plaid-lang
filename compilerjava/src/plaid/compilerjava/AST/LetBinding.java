@@ -63,12 +63,12 @@ public class LetBinding implements Expression {
 	public void codegen(CodeGen out, ID y, IDList localVars) {
 		out.setLocation(token);
 		out.openBlock(); //{
-		if(mutable) {
-			out.declareVar(CodeGen.plaidObjectType, x.getName());
-		} else {
-			out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
-		}
+		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
 		exp.codegen(out, x, localVars);
+		if (!x.getName().contains("$plaid")) {
+			// set the immutability of the variable
+			out.insertIntoScope(CodeGen.localScope, x.getName(), !this.mutable);
+		}
 		
 		localVars = localVars.add(x);
 		body.codegen(out, y, localVars);

@@ -76,7 +76,7 @@ public class Dereference implements Expression {
 		
 		//generate code for the object to lookup the right ID in
 		ID x = IdGen.getId();
-		out.declareFinalVar(CodeGen.plaidObjectType,x.getName());
+		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
 		this.left.codegen(out, x, localVars);
 		out.setLocation(left.getToken());
 		
@@ -88,10 +88,6 @@ public class Dereference implements Expression {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, left);
-//		visitor.visitEdge(this, right);
-//		visitor.visitChild(left);
-//		visitor.visitChild(right);
 		left.accept(visitor);
 		right.accept(visitor);
 	}

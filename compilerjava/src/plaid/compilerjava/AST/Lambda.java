@@ -92,7 +92,7 @@ public final class Lambda implements Expression {
 		
 		out.assignToNewLambda(y.getName(),var.getName());  //y = new lambda(...{ {
 		
-		out.declareFinalVar(CodeGen.plaidObjectType,freshID.getName());
+		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
 		IDList newLocalVars = localVars.add(var);
 		body.codegen(out, freshID, newLocalVars);  //lambda body
 		out.ret(freshID.getName());
@@ -102,10 +102,6 @@ public final class Lambda implements Expression {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, var);
-//		visitor.visitEdge(this, body);
-//		visitor.visitChild(var);
-//		visitor.visitChild(body);
 		var.accept(visitor);
 		body.accept(visitor);
 	}

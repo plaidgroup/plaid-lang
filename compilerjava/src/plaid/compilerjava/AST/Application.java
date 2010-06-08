@@ -86,8 +86,6 @@ public class Application implements Expression {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitChild(function);
-//		visitor.visitChild(argument);
 		f.accept(visitor);
 		arg.accept(visitor);
 	}

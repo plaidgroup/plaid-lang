@@ -18,7 +18,7 @@ import plaid.runtime.PlaidException;
 
 public class ASTInspector {
 	public static void main(String[] args) throws PlaidException, FileNotFoundException, ParseException {
-		File plaidFile = new File("/Users/mhahnenberg/workspace/plaid-lang/stdlib/src/plaid/lang/List.plaid");
+		File plaidFile = new File("coreExamples/tree.plaid");
 		CompilationUnit root = ParserCore.parse(new FileInputStream(plaidFile));
 		System.out.println("drawing AST...");
 		drawAST(root);

@@ -88,10 +88,6 @@ public class With implements State {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-//		visitor.visitEdge(this, r1);
-//		visitor.visitEdge(this, r2);
-//		visitor.visitChild(r1);
-//		visitor.visitChild(r2);
 		r1.accept(visitor);
 		r2.accept(visitor);
 	}
