@@ -110,6 +110,7 @@ public class StateDecl implements Decl {
 		
 		
 		out.openStaticBlock(); //static {
+		out.append("final " + CodeGen.plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(" + CodeGen.globalScope + ");");
 		out.declareFinalVar(CodeGen.plaidStateType, theState.getName());
 		IDList idList = new IDList().add(new ID(CodeGen.thisVar)); // "this" should be visible during field initializations
 		stateDef.codegen(out, theState, idList);//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
