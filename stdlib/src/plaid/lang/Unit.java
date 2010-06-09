@@ -28,6 +28,6 @@ import plaid.runtime.utils.Import;
 
 @RepresentsState(name="Unit")
 public class Unit {
-	public static PlaidScope packageScope = PlaidRuntime.getRuntime().getClassLoader().packageScope("plaid.lang", new ArrayList<Import>());
+	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 
 }

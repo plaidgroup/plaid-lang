@@ -10,6 +10,7 @@ public class ASTNode{
 	@plaid.runtime.annotations.RepresentsState(name = "ASTNode", toplevel = false)
 	public static final plaid.runtime.PlaidObject ASTNode;
 	static {
+		final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);
 		final plaid.runtime.PlaidState vAr282$plaid;
 		vAr282$plaid = plaid.runtime.Util.newState();
 		ASTNode = vAr282$plaid.getPrototype();

@@ -32,6 +32,7 @@ import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidLocalScope;
 import plaid.runtime.PlaidMethod;
+import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidPackage;
@@ -70,6 +71,18 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 			return lookup(ppm.append(name));
 		}
 		else {
+			// if the name is our special Plaid constructor for Java objects, 
+			// look in the prototype of the current object
+			if (name.equals(PlaidJavaConstructorMap.NAME)) {
+				if (pthis instanceof PlaidJavaStateMap) {
+					PlaidJavaStateMap pjsm = (PlaidJavaStateMap)pthis;
+					return pjsm.prototype.getMembers().get(name);
+				}
+				else {
+					throw new PlaidRuntimeException("Non-Java object has a Java constructor.");
+				}
+			}
+			
 			// check members 
 			if (pthis.getMembers().containsKey(name)) {
 				return pthis.getMembers().get(name);

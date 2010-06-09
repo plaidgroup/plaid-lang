@@ -10,6 +10,7 @@ public class ASTVisitor{
 	@plaid.runtime.annotations.RepresentsState(name = "ASTVisitor", toplevel = false)
 	public static final plaid.runtime.PlaidObject ASTVisitor;
 	static {
+		final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);
 		final plaid.runtime.PlaidState vAr1369$plaid;
 		vAr1369$plaid = plaid.runtime.Util.newState();
 		ASTVisitor = vAr1369$plaid.getPrototype();
