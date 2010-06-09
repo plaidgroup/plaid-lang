@@ -22,7 +22,7 @@ package plaid.lang;
 import java.util.ArrayList;
 import java.util.List;
 
-public class System {
+public class Sys {
 	static List<String> commandArgs;
 	
 	public static void setArgs(String args[], int firstIndex) {
