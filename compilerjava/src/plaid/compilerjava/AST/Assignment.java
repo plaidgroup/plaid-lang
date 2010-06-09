@@ -45,6 +45,8 @@ public class Assignment implements Expression {
 		this.target = target;
 		this.field = field;
 		this.value = value;
+		
+		System.out.println("Assignment: target=" + this.target + " field=" + this.field.getName() + " value=" + this.value);
 	}
 	
 	public Token getToken() {
@@ -89,18 +91,19 @@ public class Assignment implements Expression {
 			// need to make sure we've loaded it before
 			out.lookupInCurrentScope(this.field.getName());
 			out.updateVar(this.field, assignTo);
+			out.assignToID(y.getName(), assignTo.getName());
 		}
 		// we have a target, so we need to check if that particular 
 		// field of the target is mutable and if so assign the new value
 		else {
 			// evaluate the target
-			ID targetID = IdGen.getId();
-			out.declareFinalVar(CodeGen.plaidObjectType, targetID.getName());
-			out.assign(targetID.getName());
-			target.codegen(out, y, localVars);
-			
-			out.updateMember(targetID.getName(), this.field.getName(), assignTo.getName());
+			ID temp = IdGen.getId();
+			out.declareFinalVar(CodeGen.plaidObjectType, temp.getName());
+			target.codegen(out, temp, localVars);
+			out.updateMember(temp.getName(), this.field.getName(), assignTo.getName());
+			out.assignToID(y.getName(), assignTo.getName());
 		}
+
 		out.updateVar(assignTo.getName());
 	}
 
