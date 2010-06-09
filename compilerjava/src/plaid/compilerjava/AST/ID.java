@@ -52,10 +52,9 @@ public class ID implements Expression{
 	public String getName() { return name; }
 	
 	public void codegen(CodeGen out, ID y, IDList localVars) {
-
 		out.setLocation(token);
 		String newName = CodeGen.convertOpNames(name);
-		out.assignToLookup(y.getName(), newName, CodeGen.localScope);  // y = lookup(name,currentScope);	
+		out.assignToLookup(y.getName(), newName, CodeGen.localScope);  // y = lookup(name,currentScope);
 	}
 
 	@Override
