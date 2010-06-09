@@ -10,12 +10,15 @@ public class Application{
 	@plaid.runtime.annotations.RepresentsState(name = "Application", toplevel = false)
 	public static final plaid.runtime.PlaidObject Application;
 	static {
+		final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);
 		final plaid.runtime.PlaidState vAr253$plaid;
 		vAr253$plaid = plaid.runtime.Util.newState();
 		@plaid.runtime.annotations.RepresentsField(name = "token", toplevel = false)
 		final plaid.runtime.PlaidObject vAr255$plaid;
 		vAr255$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr256$plaid) {
+				final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+				final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 				final plaid.runtime.PlaidObject vAr254$plaid;
 				vAr254$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 				return vAr254$plaid;
@@ -27,6 +30,8 @@ public class Application{
 		final plaid.runtime.PlaidObject vAr258$plaid;
 		vAr258$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr259$plaid) {
+				final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+				final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 				final plaid.runtime.PlaidObject vAr257$plaid;
 				vAr257$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 				return vAr257$plaid;
@@ -38,6 +43,8 @@ public class Application{
 		final plaid.runtime.PlaidObject vAr261$plaid;
 		vAr261$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr262$plaid) {
+				final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+				final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 				final plaid.runtime.PlaidObject vAr260$plaid;
 				vAr260$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 				return vAr260$plaid;

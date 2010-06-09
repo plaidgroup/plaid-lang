@@ -8,7 +8,7 @@ public class main{
 	}
 	public static final plaid.runtime.PlaidScope global$c0pe = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.typechecker.AST",vAr1104$plaid);
 	public static void main(String[] args) {
-		plaid.lang.System.setArgs(args,0);
+		plaid.lang.Sys.setArgs(args,0);
 		plaid.runtime.PlaidRuntime.getRuntime().init();
 		main_func.invoke(plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit());
 		plaid.runtime.PlaidRuntime.getRuntime().shutdown();

@@ -10,12 +10,15 @@ public class StringLiteral{
 	@plaid.runtime.annotations.RepresentsState(name = "StringLiteral", toplevel = false)
 	public static final plaid.runtime.PlaidObject StringLiteral;
 	static {
+		final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);
 		final plaid.runtime.PlaidState vAr1352$plaid;
 		vAr1352$plaid = plaid.runtime.Util.newState();
 		@plaid.runtime.annotations.RepresentsField(name = "token", toplevel = false)
 		final plaid.runtime.PlaidObject vAr1354$plaid;
 		vAr1354$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1355$plaid) {
+				final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+				final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 				final plaid.runtime.PlaidObject vAr1353$plaid;
 				vAr1353$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 				return vAr1353$plaid;
@@ -27,6 +30,8 @@ public class StringLiteral{
 		final plaid.runtime.PlaidObject vAr1357$plaid;
 		vAr1357$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1358$plaid) {
+				final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+				final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 				final plaid.runtime.PlaidObject vAr1356$plaid;
 				vAr1356$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 				return vAr1356$plaid;

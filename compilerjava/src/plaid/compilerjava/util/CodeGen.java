@@ -222,7 +222,7 @@ public class CodeGen {
 				"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" +
 					"final " + plaidScopeType + " " + CodeGen.localScope + " = " + classLoader + ".localScope(" + CodeGen.globalScope + ");" +
 					"local$c0pe.insert(\"" + name + "\", " + name + ", false" + ");" + 
-					"local$c0pe.insert(\"this\", " + thisVar + ", true" + ");");
+					"local$c0pe.insert(\"" + CodeGen.thisVar +"\", " + CodeGen.thisVar + ", true" + ");");
 		
 	}
 	
@@ -483,7 +483,7 @@ public class CodeGen {
 	 */
 	public final void topLevelMain(String functionName) {
 		append("public static void main(String[] args) {");
-		append("plaid.lang.System.setArgs(args,0);"); 
+		append("plaid.lang.Sys.setArgs(args,0);"); 
 		append(rt + ".init();");
 		if ( cc.isDebugMode() ) { 
 			String name = functionName.substring(0, functionName.length()-"_func".length());

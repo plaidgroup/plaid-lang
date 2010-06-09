@@ -10,6 +10,7 @@ public class ASTTranslator{
 	@plaid.runtime.annotations.RepresentsState(name = "ASTTranslator", toplevel = false)
 	public static final plaid.runtime.PlaidObject ASTTranslator;
 	static {
+		final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);
 		final plaid.runtime.PlaidState vAr286$plaid;
 		vAr286$plaid = plaid.runtime.Util.newState();
 		@plaid.runtime.annotations.RepresentsMethod(name = "translateAST", toplevel = false)
@@ -46,6 +47,8 @@ public class ASTTranslator{
 					final plaid.runtime.PlaidObject vAr301$plaid;
 					vAr301$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 						public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr302$plaid) {
+							final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+							final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 							final plaid.runtime.PlaidObject vAr300$plaid;
 							final plaid.runtime.PlaidObject vAr303$plaid;
 							final plaid.runtime.PlaidObject vAr304$plaid;
@@ -63,6 +66,8 @@ public class ASTTranslator{
 					final plaid.runtime.PlaidObject vAr307$plaid;
 					vAr307$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 						public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr308$plaid) {
+							final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+							final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 							final plaid.runtime.PlaidObject vAr306$plaid;
 							final plaid.runtime.PlaidObject vAr309$plaid;
 							final plaid.runtime.PlaidObject vAr310$plaid;
@@ -84,6 +89,8 @@ public class ASTTranslator{
 					final plaid.runtime.PlaidObject vAr315$plaid;
 					vAr315$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 						public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr316$plaid) {
+							final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+							final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 							final plaid.runtime.PlaidObject vAr314$plaid;
 							final plaid.runtime.PlaidObject vAr317$plaid;
 							final plaid.runtime.PlaidObject vAr318$plaid;
@@ -129,6 +136,8 @@ public class ASTTranslator{
 						final plaid.runtime.PlaidObject vAr333$plaid;
 						vAr333$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr334$plaid) {
+								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 								final plaid.runtime.PlaidObject vAr332$plaid;
 								final plaid.runtime.PlaidObject vAr335$plaid;
 								final plaid.runtime.PlaidObject vAr336$plaid;
@@ -146,6 +155,8 @@ public class ASTTranslator{
 						final plaid.runtime.PlaidObject vAr339$plaid;
 						vAr339$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr340$plaid) {
+								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 								final plaid.runtime.PlaidObject vAr338$plaid;
 								final plaid.runtime.PlaidObject vAr341$plaid;
 								final plaid.runtime.PlaidObject vAr342$plaid;
@@ -167,6 +178,8 @@ public class ASTTranslator{
 						final plaid.runtime.PlaidObject vAr347$plaid;
 						vAr347$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr348$plaid) {
+								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 								final plaid.runtime.PlaidObject vAr346$plaid;
 								final plaid.runtime.PlaidObject vAr349$plaid;
 								final plaid.runtime.PlaidObject vAr350$plaid;
@@ -188,6 +201,8 @@ public class ASTTranslator{
 						final plaid.runtime.PlaidObject vAr355$plaid;
 						vAr355$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr356$plaid) {
+								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 								final plaid.runtime.PlaidObject vAr354$plaid;
 								final plaid.runtime.PlaidObject vAr357$plaid;
 								final plaid.runtime.PlaidObject vAr358$plaid;
@@ -233,6 +248,8 @@ public class ASTTranslator{
 							final plaid.runtime.PlaidObject vAr373$plaid;
 							vAr373$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 								public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr374$plaid) {
+									final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+									final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 									final plaid.runtime.PlaidObject vAr372$plaid;
 									final plaid.runtime.PlaidObject vAr375$plaid;
 									final plaid.runtime.PlaidObject vAr376$plaid;
@@ -250,6 +267,8 @@ public class ASTTranslator{
 							final plaid.runtime.PlaidObject vAr379$plaid;
 							vAr379$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 								public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr380$plaid) {
+									final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+									final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 									final plaid.runtime.PlaidObject vAr378$plaid;
 									final plaid.runtime.PlaidObject vAr381$plaid;
 									final plaid.runtime.PlaidObject vAr382$plaid;
@@ -271,6 +290,8 @@ public class ASTTranslator{
 							final plaid.runtime.PlaidObject vAr387$plaid;
 							vAr387$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 								public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr388$plaid) {
+									final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+									final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 									final plaid.runtime.PlaidObject vAr386$plaid;
 									final plaid.runtime.PlaidObject vAr389$plaid;
 									final plaid.runtime.PlaidObject vAr390$plaid;
@@ -292,6 +313,8 @@ public class ASTTranslator{
 							final plaid.runtime.PlaidObject vAr395$plaid;
 							vAr395$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 								public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr396$plaid) {
+									final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+									final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 									final plaid.runtime.PlaidObject vAr394$plaid;
 									final plaid.runtime.PlaidObject vAr397$plaid;
 									final plaid.runtime.PlaidObject vAr398$plaid;
@@ -313,6 +336,8 @@ public class ASTTranslator{
 							final plaid.runtime.PlaidObject vAr403$plaid;
 							vAr403$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 								public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr404$plaid) {
+									final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+									final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 									final plaid.runtime.PlaidObject vAr402$plaid;
 									final plaid.runtime.PlaidObject vAr405$plaid;
 									final plaid.runtime.PlaidObject vAr406$plaid;
@@ -330,6 +355,8 @@ public class ASTTranslator{
 							final plaid.runtime.PlaidObject vAr409$plaid;
 							vAr409$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 								public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr410$plaid) {
+									final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+									final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 									final plaid.runtime.PlaidObject vAr408$plaid;
 									final plaid.runtime.PlaidObject vAr411$plaid;
 									final plaid.runtime.PlaidObject vAr412$plaid;
@@ -371,6 +398,8 @@ public class ASTTranslator{
 								final plaid.runtime.PlaidObject vAr425$plaid;
 								vAr425$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 									public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr426$plaid) {
+										final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+										final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 										final plaid.runtime.PlaidObject vAr424$plaid;
 										final plaid.runtime.PlaidObject vAr427$plaid;
 										final plaid.runtime.PlaidObject vAr428$plaid;
@@ -388,6 +417,8 @@ public class ASTTranslator{
 								final plaid.runtime.PlaidObject vAr431$plaid;
 								vAr431$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 									public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr432$plaid) {
+										final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+										final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 										final plaid.runtime.PlaidObject vAr430$plaid;
 										final plaid.runtime.PlaidObject vAr433$plaid;
 										final plaid.runtime.PlaidObject vAr434$plaid;
@@ -409,6 +440,8 @@ public class ASTTranslator{
 								final plaid.runtime.PlaidObject vAr439$plaid;
 								vAr439$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 									public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr440$plaid) {
+										final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+										final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 										final plaid.runtime.PlaidObject vAr438$plaid;
 										final plaid.runtime.PlaidObject vAr441$plaid;
 										final plaid.runtime.PlaidObject vAr442$plaid;
@@ -454,6 +487,8 @@ public class ASTTranslator{
 									final plaid.runtime.PlaidObject vAr457$plaid;
 									vAr457$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 										public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr458$plaid) {
+											final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+											final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 											final plaid.runtime.PlaidObject vAr456$plaid;
 											final plaid.runtime.PlaidObject vAr459$plaid;
 											final plaid.runtime.PlaidObject vAr460$plaid;
@@ -473,6 +508,8 @@ public class ASTTranslator{
 											final plaid.runtime.PlaidObject vAr468$plaid;
 											vAr468$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 												public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr469$plaid) {
+													final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+													final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 													final plaid.runtime.PlaidObject vAr467$plaid;
 													vAr467$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("translateAST", local$c0pe);
 													return vAr467$plaid;
@@ -484,6 +521,8 @@ public class ASTTranslator{
 											final plaid.runtime.PlaidObject vAr471$plaid;
 											vAr471$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 												public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr472$plaid) {
+													final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+													final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 													final plaid.runtime.PlaidObject vAr470$plaid;
 													final plaid.runtime.PlaidState vAr473$plaid;
 													final plaid.runtime.PlaidState vAr474$plaid;
@@ -500,6 +539,8 @@ public class ASTTranslator{
 													final plaid.runtime.PlaidObject vAr480$plaid;
 													vAr480$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 														public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr481$plaid) {
+															final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+															final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 															final plaid.runtime.PlaidObject vAr479$plaid;
 															final plaid.runtime.PlaidObject vAr482$plaid;
 															final plaid.runtime.PlaidObject vAr483$plaid;
@@ -517,6 +558,8 @@ public class ASTTranslator{
 													final plaid.runtime.PlaidObject vAr486$plaid;
 													vAr486$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 														public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr487$plaid) {
+															final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+															final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 															final plaid.runtime.PlaidObject vAr485$plaid;
 															vAr485$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 															return vAr485$plaid;
@@ -543,6 +586,8 @@ public class ASTTranslator{
 									final plaid.runtime.PlaidObject vAr489$plaid;
 									vAr489$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 										public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr490$plaid) {
+											final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+											final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 											final plaid.runtime.PlaidObject vAr488$plaid;
 											final plaid.runtime.PlaidObject vAr491$plaid;
 											final plaid.runtime.PlaidObject vAr492$plaid;
@@ -560,6 +605,8 @@ public class ASTTranslator{
 									final plaid.runtime.PlaidObject vAr495$plaid;
 									vAr495$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 										public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr496$plaid) {
+											final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+											final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 											final plaid.runtime.PlaidObject vAr494$plaid;
 											final plaid.runtime.PlaidObject vAr497$plaid;
 											final plaid.runtime.PlaidObject vAr498$plaid;
@@ -581,6 +628,8 @@ public class ASTTranslator{
 									final plaid.runtime.PlaidObject vAr503$plaid;
 									vAr503$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 										public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr504$plaid) {
+											final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+											final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 											final plaid.runtime.PlaidObject vAr502$plaid;
 											final plaid.runtime.PlaidObject vAr505$plaid;
 											final plaid.runtime.PlaidObject vAr506$plaid;
@@ -626,6 +675,8 @@ public class ASTTranslator{
 										final plaid.runtime.PlaidObject vAr521$plaid;
 										vAr521$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 											public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr522$plaid) {
+												final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+												final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 												final plaid.runtime.PlaidObject vAr520$plaid;
 												final plaid.runtime.PlaidObject vAr523$plaid;
 												final plaid.runtime.PlaidObject vAr524$plaid;
@@ -643,6 +694,8 @@ public class ASTTranslator{
 										final plaid.runtime.PlaidObject vAr527$plaid;
 										vAr527$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 											public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr528$plaid) {
+												final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+												final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 												final plaid.runtime.PlaidObject vAr526$plaid;
 												final plaid.runtime.PlaidObject vAr529$plaid;
 												final plaid.runtime.PlaidObject vAr530$plaid;
@@ -662,6 +715,8 @@ public class ASTTranslator{
 												final plaid.runtime.PlaidObject vAr538$plaid;
 												vAr538$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 													public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr539$plaid) {
+														final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+														final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 														final plaid.runtime.PlaidObject vAr537$plaid;
 														vAr537$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("translateAST", local$c0pe);
 														return vAr537$plaid;
@@ -673,6 +728,8 @@ public class ASTTranslator{
 												final plaid.runtime.PlaidObject vAr541$plaid;
 												vAr541$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 													public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr542$plaid) {
+														final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+														final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 														final plaid.runtime.PlaidObject vAr540$plaid;
 														final plaid.runtime.PlaidState vAr543$plaid;
 														final plaid.runtime.PlaidState vAr544$plaid;
@@ -689,6 +746,8 @@ public class ASTTranslator{
 														final plaid.runtime.PlaidObject vAr550$plaid;
 														vAr550$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 															public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr551$plaid) {
+																final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																final plaid.runtime.PlaidObject vAr549$plaid;
 																final plaid.runtime.PlaidObject vAr552$plaid;
 																final plaid.runtime.PlaidObject vAr553$plaid;
@@ -706,6 +765,8 @@ public class ASTTranslator{
 														final plaid.runtime.PlaidObject vAr556$plaid;
 														vAr556$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 															public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr557$plaid) {
+																final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																final plaid.runtime.PlaidObject vAr555$plaid;
 																vAr555$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 																return vAr555$plaid;
@@ -756,6 +817,8 @@ public class ASTTranslator{
 											final plaid.runtime.PlaidObject vAr569$plaid;
 											vAr569$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 												public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr570$plaid) {
+													final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+													final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 													final plaid.runtime.PlaidObject vAr568$plaid;
 													final plaid.runtime.PlaidObject vAr571$plaid;
 													final plaid.runtime.PlaidObject vAr572$plaid;
@@ -773,6 +836,8 @@ public class ASTTranslator{
 											final plaid.runtime.PlaidObject vAr575$plaid;
 											vAr575$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 												public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr576$plaid) {
+													final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+													final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 													final plaid.runtime.PlaidObject vAr574$plaid;
 													final plaid.runtime.PlaidObject vAr577$plaid;
 													final plaid.runtime.PlaidObject vAr578$plaid;
@@ -794,6 +859,8 @@ public class ASTTranslator{
 											final plaid.runtime.PlaidObject vAr583$plaid;
 											vAr583$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 												public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr584$plaid) {
+													final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+													final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 													final plaid.runtime.PlaidObject vAr582$plaid;
 													final plaid.runtime.PlaidObject vAr585$plaid;
 													final plaid.runtime.PlaidObject vAr586$plaid;
@@ -839,6 +906,8 @@ public class ASTTranslator{
 												final plaid.runtime.PlaidObject vAr601$plaid;
 												vAr601$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 													public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr602$plaid) {
+														final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+														final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 														final plaid.runtime.PlaidObject vAr600$plaid;
 														final plaid.runtime.PlaidObject vAr603$plaid;
 														final plaid.runtime.PlaidObject vAr604$plaid;
@@ -856,6 +925,8 @@ public class ASTTranslator{
 												final plaid.runtime.PlaidObject vAr607$plaid;
 												vAr607$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 													public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr608$plaid) {
+														final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+														final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 														final plaid.runtime.PlaidObject vAr606$plaid;
 														final plaid.runtime.PlaidObject vAr609$plaid;
 														final plaid.runtime.PlaidObject vAr610$plaid;
@@ -877,6 +948,8 @@ public class ASTTranslator{
 												final plaid.runtime.PlaidObject vAr615$plaid;
 												vAr615$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 													public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr616$plaid) {
+														final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+														final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 														final plaid.runtime.PlaidObject vAr614$plaid;
 														final plaid.runtime.PlaidObject vAr617$plaid;
 														final plaid.runtime.PlaidObject vAr618$plaid;
@@ -898,6 +971,8 @@ public class ASTTranslator{
 												final plaid.runtime.PlaidObject vAr623$plaid;
 												vAr623$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 													public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr624$plaid) {
+														final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+														final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 														final plaid.runtime.PlaidObject vAr622$plaid;
 														final plaid.runtime.PlaidObject vAr625$plaid;
 														final plaid.runtime.PlaidObject vAr626$plaid;
@@ -939,6 +1014,8 @@ public class ASTTranslator{
 													final plaid.runtime.PlaidObject vAr639$plaid;
 													vAr639$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 														public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr640$plaid) {
+															final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+															final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 															final plaid.runtime.PlaidObject vAr638$plaid;
 															final plaid.runtime.PlaidObject vAr641$plaid;
 															final plaid.runtime.PlaidObject vAr642$plaid;
@@ -956,6 +1033,8 @@ public class ASTTranslator{
 													final plaid.runtime.PlaidObject vAr645$plaid;
 													vAr645$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 														public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr646$plaid) {
+															final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+															final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 															final plaid.runtime.PlaidObject vAr644$plaid;
 															final plaid.runtime.PlaidObject vAr647$plaid;
 															final plaid.runtime.PlaidObject vAr648$plaid;
@@ -997,6 +1076,8 @@ public class ASTTranslator{
 														final plaid.runtime.PlaidObject vAr661$plaid;
 														vAr661$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 															public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr662$plaid) {
+																final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																final plaid.runtime.PlaidObject vAr660$plaid;
 																final plaid.runtime.PlaidObject vAr663$plaid;
 																final plaid.runtime.PlaidObject vAr664$plaid;
@@ -1014,6 +1095,8 @@ public class ASTTranslator{
 														final plaid.runtime.PlaidObject vAr667$plaid;
 														vAr667$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 															public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr668$plaid) {
+																final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																final plaid.runtime.PlaidObject vAr666$plaid;
 																final plaid.runtime.PlaidObject vAr669$plaid;
 																final plaid.runtime.PlaidObject vAr670$plaid;
@@ -1055,6 +1138,8 @@ public class ASTTranslator{
 															final plaid.runtime.PlaidObject vAr683$plaid;
 															vAr683$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr684$plaid) {
+																	final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																	final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																	final plaid.runtime.PlaidObject vAr682$plaid;
 																	final plaid.runtime.PlaidObject vAr685$plaid;
 																	final plaid.runtime.PlaidObject vAr686$plaid;
@@ -1072,6 +1157,8 @@ public class ASTTranslator{
 															final plaid.runtime.PlaidObject vAr689$plaid;
 															vAr689$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr690$plaid) {
+																	final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																	final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																	final plaid.runtime.PlaidObject vAr688$plaid;
 																	final plaid.runtime.PlaidObject vAr691$plaid;
 																	final plaid.runtime.PlaidObject vAr692$plaid;
@@ -1113,6 +1200,8 @@ public class ASTTranslator{
 																final plaid.runtime.PlaidObject vAr705$plaid;
 																vAr705$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																	public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr706$plaid) {
+																		final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																		final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																		final plaid.runtime.PlaidObject vAr704$plaid;
 																		final plaid.runtime.PlaidObject vAr707$plaid;
 																		final plaid.runtime.PlaidObject vAr708$plaid;
@@ -1130,6 +1219,8 @@ public class ASTTranslator{
 																final plaid.runtime.PlaidObject vAr711$plaid;
 																vAr711$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																	public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr712$plaid) {
+																		final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																		final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																		final plaid.runtime.PlaidObject vAr710$plaid;
 																		final plaid.runtime.PlaidObject vAr713$plaid;
 																		final plaid.runtime.PlaidObject vAr714$plaid;
@@ -1147,6 +1238,8 @@ public class ASTTranslator{
 																final plaid.runtime.PlaidObject vAr717$plaid;
 																vAr717$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																	public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr718$plaid) {
+																		final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																		final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																		final plaid.runtime.PlaidObject vAr716$plaid;
 																		final plaid.runtime.PlaidObject vAr719$plaid;
 																		final plaid.runtime.PlaidObject vAr720$plaid;
@@ -1192,6 +1285,8 @@ public class ASTTranslator{
 																	final plaid.runtime.PlaidObject vAr735$plaid;
 																	vAr735$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																		public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr736$plaid) {
+																			final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																			final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																			final plaid.runtime.PlaidObject vAr734$plaid;
 																			final plaid.runtime.PlaidObject vAr737$plaid;
 																			final plaid.runtime.PlaidObject vAr738$plaid;
@@ -1209,6 +1304,8 @@ public class ASTTranslator{
 																	final plaid.runtime.PlaidObject vAr741$plaid;
 																	vAr741$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																		public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr742$plaid) {
+																			final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																			final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																			final plaid.runtime.PlaidObject vAr740$plaid;
 																			final plaid.runtime.PlaidObject vAr743$plaid;
 																			final plaid.runtime.PlaidObject vAr744$plaid;
@@ -1226,6 +1323,8 @@ public class ASTTranslator{
 																	final plaid.runtime.PlaidObject vAr747$plaid;
 																	vAr747$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																		public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr748$plaid) {
+																			final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																			final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																			final plaid.runtime.PlaidObject vAr746$plaid;
 																			final plaid.runtime.PlaidObject vAr749$plaid;
 																			final plaid.runtime.PlaidObject vAr750$plaid;
@@ -1247,6 +1346,8 @@ public class ASTTranslator{
 																	final plaid.runtime.PlaidObject vAr755$plaid;
 																	vAr755$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																		public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr756$plaid) {
+																			final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																			final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																			final plaid.runtime.PlaidObject vAr754$plaid;
 																			final plaid.runtime.PlaidObject vAr757$plaid;
 																			final plaid.runtime.PlaidObject vAr758$plaid;
@@ -1268,6 +1369,8 @@ public class ASTTranslator{
 																	final plaid.runtime.PlaidObject vAr763$plaid;
 																	vAr763$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																		public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr764$plaid) {
+																			final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																			final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																			final plaid.runtime.PlaidObject vAr762$plaid;
 																			final plaid.runtime.PlaidObject vAr765$plaid;
 																			final plaid.runtime.PlaidObject vAr766$plaid;
@@ -1309,6 +1412,8 @@ public class ASTTranslator{
 																		final plaid.runtime.PlaidObject vAr779$plaid;
 																		vAr779$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr780$plaid) {
+																				final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																				final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																				final plaid.runtime.PlaidObject vAr778$plaid;
 																				final plaid.runtime.PlaidObject vAr781$plaid;
 																				final plaid.runtime.PlaidObject vAr782$plaid;
@@ -1326,6 +1431,8 @@ public class ASTTranslator{
 																		final plaid.runtime.PlaidObject vAr785$plaid;
 																		vAr785$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr786$plaid) {
+																				final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																				final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																				final plaid.runtime.PlaidObject vAr784$plaid;
 																				final plaid.runtime.PlaidObject vAr787$plaid;
 																				final plaid.runtime.PlaidObject vAr788$plaid;
@@ -1347,6 +1454,8 @@ public class ASTTranslator{
 																		final plaid.runtime.PlaidObject vAr793$plaid;
 																		vAr793$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																			public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr794$plaid) {
+																				final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																				final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																				final plaid.runtime.PlaidObject vAr792$plaid;
 																				final plaid.runtime.PlaidObject vAr795$plaid;
 																				final plaid.runtime.PlaidObject vAr796$plaid;
@@ -1366,6 +1475,8 @@ public class ASTTranslator{
 																				final plaid.runtime.PlaidObject vAr804$plaid;
 																				vAr804$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr805$plaid) {
+																						final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																						final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																						final plaid.runtime.PlaidObject vAr803$plaid;
 																						vAr803$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("translateAST", local$c0pe);
 																						return vAr803$plaid;
@@ -1377,6 +1488,8 @@ public class ASTTranslator{
 																				final plaid.runtime.PlaidObject vAr807$plaid;
 																				vAr807$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr808$plaid) {
+																						final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																						final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																						final plaid.runtime.PlaidObject vAr806$plaid;
 																						final plaid.runtime.PlaidState vAr809$plaid;
 																						final plaid.runtime.PlaidState vAr810$plaid;
@@ -1393,6 +1506,8 @@ public class ASTTranslator{
 																						final plaid.runtime.PlaidObject vAr816$plaid;
 																						vAr816$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr817$plaid) {
+																								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																								final plaid.runtime.PlaidObject vAr815$plaid;
 																								vAr815$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("caseList", local$c0pe);
 																								return vAr815$plaid;
@@ -1404,6 +1519,8 @@ public class ASTTranslator{
 																						final plaid.runtime.PlaidObject vAr819$plaid;
 																						vAr819$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr820$plaid) {
+																								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																								final plaid.runtime.PlaidObject vAr818$plaid;
 																								vAr818$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().unit();
 																								return vAr818$plaid;
@@ -1454,6 +1571,8 @@ public class ASTTranslator{
 																			final plaid.runtime.PlaidObject vAr832$plaid;
 																			vAr832$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																				public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr833$plaid) {
+																					final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																					final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																					final plaid.runtime.PlaidObject vAr831$plaid;
 																					final plaid.runtime.PlaidObject vAr834$plaid;
 																					final plaid.runtime.PlaidObject vAr835$plaid;
@@ -1471,6 +1590,8 @@ public class ASTTranslator{
 																			final plaid.runtime.PlaidObject vAr838$plaid;
 																			vAr838$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																				public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr839$plaid) {
+																					final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																					final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																					final plaid.runtime.PlaidObject vAr837$plaid;
 																					final plaid.runtime.PlaidObject vAr840$plaid;
 																					final plaid.runtime.PlaidObject vAr841$plaid;
@@ -1488,6 +1609,8 @@ public class ASTTranslator{
 																			final plaid.runtime.PlaidObject vAr844$plaid;
 																			vAr844$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																				public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr845$plaid) {
+																					final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																					final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																					final plaid.runtime.PlaidObject vAr843$plaid;
 																					final plaid.runtime.PlaidObject vAr846$plaid;
 																					final plaid.runtime.PlaidObject vAr847$plaid;
@@ -1509,6 +1632,8 @@ public class ASTTranslator{
 																			final plaid.runtime.PlaidObject vAr852$plaid;
 																			vAr852$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																				public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr853$plaid) {
+																					final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																					final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																					final plaid.runtime.PlaidObject vAr851$plaid;
 																					final plaid.runtime.PlaidObject vAr854$plaid;
 																					final plaid.runtime.PlaidObject vAr855$plaid;
@@ -1574,6 +1699,8 @@ public class ASTTranslator{
 																			final plaid.runtime.PlaidObject vAr874$plaid;
 																			vAr874$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																				public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr875$plaid) {
+																					final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																					final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																					final plaid.runtime.PlaidObject vAr873$plaid;
 																					final plaid.runtime.PlaidObject vAr876$plaid;
 																					final plaid.runtime.PlaidObject vAr877$plaid;
@@ -1615,6 +1742,8 @@ public class ASTTranslator{
 																				final plaid.runtime.PlaidObject vAr890$plaid;
 																				vAr890$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr891$plaid) {
+																						final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																						final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																						final plaid.runtime.PlaidObject vAr889$plaid;
 																						final plaid.runtime.PlaidObject vAr892$plaid;
 																						final plaid.runtime.PlaidObject vAr893$plaid;
@@ -1632,6 +1761,8 @@ public class ASTTranslator{
 																				final plaid.runtime.PlaidObject vAr896$plaid;
 																				vAr896$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																					public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr897$plaid) {
+																						final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																						final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																						final plaid.runtime.PlaidObject vAr895$plaid;
 																						final plaid.runtime.PlaidObject vAr898$plaid;
 																						final plaid.runtime.PlaidObject vAr899$plaid;
@@ -1677,6 +1808,8 @@ public class ASTTranslator{
 																					final plaid.runtime.PlaidObject vAr914$plaid;
 																					vAr914$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																						public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr915$plaid) {
+																							final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																							final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																							final plaid.runtime.PlaidObject vAr913$plaid;
 																							final plaid.runtime.PlaidObject vAr916$plaid;
 																							final plaid.runtime.PlaidObject vAr917$plaid;
@@ -1694,6 +1827,8 @@ public class ASTTranslator{
 																					final plaid.runtime.PlaidObject vAr920$plaid;
 																					vAr920$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																						public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr921$plaid) {
+																							final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																							final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																							final plaid.runtime.PlaidObject vAr919$plaid;
 																							final plaid.runtime.PlaidObject vAr922$plaid;
 																							final plaid.runtime.PlaidObject vAr923$plaid;
@@ -1735,6 +1870,8 @@ public class ASTTranslator{
 																						final plaid.runtime.PlaidObject vAr936$plaid;
 																						vAr936$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr937$plaid) {
+																								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																								final plaid.runtime.PlaidObject vAr935$plaid;
 																								final plaid.runtime.PlaidObject vAr938$plaid;
 																								final plaid.runtime.PlaidObject vAr939$plaid;
@@ -1752,6 +1889,8 @@ public class ASTTranslator{
 																						final plaid.runtime.PlaidObject vAr942$plaid;
 																						vAr942$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr943$plaid) {
+																								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																								final plaid.runtime.PlaidObject vAr941$plaid;
 																								final plaid.runtime.PlaidObject vAr944$plaid;
 																								final plaid.runtime.PlaidObject vAr945$plaid;
@@ -1773,6 +1912,8 @@ public class ASTTranslator{
 																						final plaid.runtime.PlaidObject vAr950$plaid;
 																						vAr950$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr951$plaid) {
+																								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																								final plaid.runtime.PlaidObject vAr949$plaid;
 																								final plaid.runtime.PlaidObject vAr952$plaid;
 																								final plaid.runtime.PlaidObject vAr953$plaid;
@@ -1794,6 +1935,8 @@ public class ASTTranslator{
 																						final plaid.runtime.PlaidObject vAr958$plaid;
 																						vAr958$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr959$plaid) {
+																								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																								final plaid.runtime.PlaidObject vAr957$plaid;
 																								final plaid.runtime.PlaidObject vAr960$plaid;
 																								final plaid.runtime.PlaidObject vAr961$plaid;
@@ -1815,6 +1958,8 @@ public class ASTTranslator{
 																						final plaid.runtime.PlaidObject vAr966$plaid;
 																						vAr966$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																							public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr967$plaid) {
+																								final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																								final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																								final plaid.runtime.PlaidObject vAr965$plaid;
 																								final plaid.runtime.PlaidObject vAr968$plaid;
 																								final plaid.runtime.PlaidObject vAr969$plaid;
@@ -1856,6 +2001,8 @@ public class ASTTranslator{
 																							final plaid.runtime.PlaidObject vAr982$plaid;
 																							vAr982$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																								public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr983$plaid) {
+																									final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																									final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																									final plaid.runtime.PlaidObject vAr981$plaid;
 																									final plaid.runtime.PlaidObject vAr984$plaid;
 																									final plaid.runtime.PlaidObject vAr985$plaid;
@@ -1873,6 +2020,8 @@ public class ASTTranslator{
 																							final plaid.runtime.PlaidObject vAr988$plaid;
 																							vAr988$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																								public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr989$plaid) {
+																									final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																									final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																									final plaid.runtime.PlaidObject vAr987$plaid;
 																									final plaid.runtime.PlaidObject vAr990$plaid;
 																									final plaid.runtime.PlaidObject vAr991$plaid;
@@ -1914,6 +2063,8 @@ public class ASTTranslator{
 																								final plaid.runtime.PlaidObject vAr1004$plaid;
 																								vAr1004$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																									public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1005$plaid) {
+																										final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																										final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																										final plaid.runtime.PlaidObject vAr1003$plaid;
 																										final plaid.runtime.PlaidObject vAr1006$plaid;
 																										final plaid.runtime.PlaidObject vAr1007$plaid;
@@ -1955,6 +2106,8 @@ public class ASTTranslator{
 																									final plaid.runtime.PlaidObject vAr1020$plaid;
 																									vAr1020$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																										public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1021$plaid) {
+																											final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																											final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																											final plaid.runtime.PlaidObject vAr1019$plaid;
 																											final plaid.runtime.PlaidObject vAr1022$plaid;
 																											final plaid.runtime.PlaidObject vAr1023$plaid;
@@ -1972,6 +2125,8 @@ public class ASTTranslator{
 																									final plaid.runtime.PlaidObject vAr1026$plaid;
 																									vAr1026$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																										public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1027$plaid) {
+																											final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																											final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																											final plaid.runtime.PlaidObject vAr1025$plaid;
 																											final plaid.runtime.PlaidObject vAr1028$plaid;
 																											final plaid.runtime.PlaidObject vAr1029$plaid;
@@ -1993,6 +2148,8 @@ public class ASTTranslator{
 																									final plaid.runtime.PlaidObject vAr1034$plaid;
 																									vAr1034$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 																										public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1035$plaid) {
+																											final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+																											final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 																											final plaid.runtime.PlaidObject vAr1033$plaid;
 																											final plaid.runtime.PlaidObject vAr1036$plaid;
 																											final plaid.runtime.PlaidObject vAr1037$plaid;

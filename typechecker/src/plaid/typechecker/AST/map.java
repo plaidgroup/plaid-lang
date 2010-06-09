@@ -70,6 +70,8 @@ public class map{
 								final plaid.runtime.PlaidObject vAr1080$plaid;
 								vAr1080$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().protoField(new plaid.runtime.utils.Delegate () {
 									public plaid.runtime.PlaidObject invoke(final plaid.runtime.PlaidObject this$plaid, final plaid.runtime.PlaidObject vAr1081$plaid) {
+										final plaid.runtime.PlaidScope temp$c0pe = local$c0pe;
+										final plaid.runtime.PlaidScope local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);
 										final plaid.runtime.PlaidObject vAr1079$plaid;
 										final plaid.runtime.PlaidState vAr1082$plaid;
 										final plaid.runtime.PlaidObject vAr1083$plaid;

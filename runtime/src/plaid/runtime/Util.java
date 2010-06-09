@@ -57,13 +57,13 @@ public class Util {
 	}
 	
 	public static PlaidObject trueObject() throws PlaidException {
-		PlaidState trueState = toPlaidState(cl.lookup("plaid.lang.True", unit()));
+		PlaidState trueState = toPlaidState(cl.lookup("plaid.lang.TrueState", unit()));
 		PlaidObject value = (PlaidObject)trueState.instantiate();
 		return value;
 	}
 	
 	public static PlaidObject falseObject() throws PlaidException {
-		PlaidState trueState = toPlaidState(cl.lookup("plaid.lang.False", unit()));
+		PlaidState trueState = toPlaidState(cl.lookup("plaid.lang.FalseState", unit()));
 		PlaidObject value = (PlaidObject)trueState.instantiate();
 		return value;
 	}
