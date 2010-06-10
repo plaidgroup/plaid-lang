@@ -38,4 +38,20 @@ public interface PlaidScope {
 	 * @param plaidObj
 	 */
 	public void update(String name, PlaidObject plaidObj);
+
+	/**
+	 * Inserts all of the members of the specified object into the current 
+	 * scope.
+	 * 
+	 * @param thisVar
+	 */
+	void insertAllMembers(PlaidObject obj);
+	
+	/**
+	 * Inserts all of the members of the specified object into the current 
+	 * scope.
+	 * 
+	 * @param thisVar
+	 */
+	void clearOldMembers(PlaidObject obj);
 }

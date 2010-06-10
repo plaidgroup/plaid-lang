@@ -1,6 +1,7 @@
 package plaid.runtime;
 
 import java.util.*;
+import java.util.Map.Entry;
 
 import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.utils.Import;
@@ -129,5 +130,21 @@ public final class PlaidGlobalScope implements PlaidScope {
 			globalScopes.put(qualID, newGlobalScope);
 		}
 		return newGlobalScope;
+	}
+	
+	@Override
+	public void insertAllMembers(PlaidObject obj) {
+		for (Entry<String, PlaidObject> member : obj.getImmutableMembers().entrySet()) {
+			this.insert(member.getKey(), member.getValue(), true);
+		}
+		
+		for (Entry<String, PlaidObject> member : obj.getMutableMembers().entrySet()) {
+			this.insert(member.getKey(), member.getValue(), false);
+		}
+	}
+	
+	@Override
+	public void clearOldMembers(PlaidObject obj) {
+		throw new PlaidRuntimeException("No state members should be in the global scope.");
 	}
 }

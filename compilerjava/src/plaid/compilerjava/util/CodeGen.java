@@ -175,10 +175,13 @@ public class CodeGen {
 	}
 	
 	public final void assignToChangedState(String target, String object, String newState) {
+		
 		assign(target);
 		changeState(object,newState);
 		append(";");
 		updateVar(target);
+		// make sure we change all the new instance variables in the current scope
+		append(CodeGen.localScope + ".insertAllMembers(" + CodeGen.thisVar + ");");
 	}
 
 	public final void assignToLookup(String target, String name, String scope) {
@@ -208,9 +211,9 @@ public class CodeGen {
 	public final void assignToProtoField(String target, String name) {
 		assign(target);
 		output.append(classLoader + ".protoField(new " + delegateType + " () {" +
-				"public " + plaidObjectType + " invoke" + "(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" + 
-					"final " + plaidScopeType + " temp$c0pe = " + CodeGen.localScope + ";" + 
-					"final " + plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);");
+			"public " + plaidObjectType + " invoke" + "(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" + 
+				"final " + plaidScopeType + " temp$c0pe = " + CodeGen.localScope + ";" + 
+				"final " + plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);");
 	}
 	
 	
@@ -219,11 +222,11 @@ public class CodeGen {
 	public final void assignToProtoMethod(String target, String name) {
 		assign(target);
 		output.append(classLoader + ".protoMethod(new " + delegateType + " () {" +
-				"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" +
-					"final " + plaidScopeType + " " + CodeGen.localScope + " = " + classLoader + ".localScope(" + CodeGen.globalScope + ");" +
-					"local$c0pe.insert(\"" + name + "\", " + name + ", false" + ");" + 
-					"local$c0pe.insert(\"" + CodeGen.thisVar +"\", " + CodeGen.thisVar + ", true" + ");");
-		
+			"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" +
+				"final " + plaidScopeType + " " + CodeGen.localScope + " = " + classLoader + ".localScope(" + CodeGen.globalScope + ");" +
+				"local$c0pe.insert(\"" + name + "\", " + name + ", false" + ");" + 
+				"local$c0pe.insert(\"" + CodeGen.thisVar +"\", " + CodeGen.thisVar + ", true" + ");" +
+				CodeGen.localScope + ".insertAllMembers(" + CodeGen.thisVar + ");");
 	}
 	
 	//Complicated generation of code to wrap a first class function declaration
@@ -231,10 +234,10 @@ public class CodeGen {
 	public final void assignToNewLambda(String target, String varName) {
 		assign(target);
 		append(classLoader + ".lambda(new " + lambdaType + " () {" + 
-				"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + varName + ") throws " + plaidExceptionType + " {" + 
-					"final " + plaidScopeType + " temp$c0pe = " + CodeGen.localScope + ";" + 
-					"final " + plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);" + 
-					"local$c0pe.insert(\"" + varName + "\", " + varName + ", false" + ");");
+			"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + varName + ") throws " + plaidExceptionType + " {" + 
+				"final " + plaidScopeType + " temp$c0pe = " + CodeGen.localScope + ";" + 
+				"final " + plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);" + 
+				"local$c0pe.insert(\"" + varName + "\", " + varName + ", false" + ");");
 	}
 	
 	public final void closeAnonymousDeclaration() {
