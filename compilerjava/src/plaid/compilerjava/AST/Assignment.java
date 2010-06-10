@@ -45,8 +45,6 @@ public class Assignment implements Expression {
 		this.target = target;
 		this.field = field;
 		this.value = value;
-		
-		System.out.println("Assignment: target=" + this.target + " field=" + this.field.getName() + " value=" + this.value);
 	}
 	
 	public Token getToken() {
