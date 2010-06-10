@@ -222,6 +222,7 @@ public class PlaidObjectMap implements PlaidObject {
 		// add other states
 		states.addAll(update.getStates());
 		tags.addAll(update.getTags());
+		
 		return Util.unit();
 	}
 
