@@ -24,10 +24,12 @@ public class PlaidLocalScope implements PlaidScope {
 	}
 	
 	public PlaidObject lookup(String name) {
-		if (this.immutableScopeMap.containsKey(name))
-			return this.immutableScopeMap.get(name);
-		else if (this.mutableScopeMap.containsKey(name))
+		// Search in mutable scope map first so that (mutable) method parameters
+		// properly shadow (immutable) methods.
+		if (this.mutableScopeMap.containsKey(name))
 			return this.mutableScopeMap.get(name);
+		else if (this.immutableScopeMap.containsKey(name))
+			return this.immutableScopeMap.get(name);
 		return this.parentScope.lookup(name);
 	}
 	
