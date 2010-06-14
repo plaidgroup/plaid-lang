@@ -64,6 +64,12 @@ public class ImportList implements ASTnode {
 	}
 	
 	private void addStdLibrary() {
+		List<String> globals = new ArrayList<String>();
+		globals.add("plaid");
+		globals.add("lang");
+		globals.add("globals");
+		globals.add("*");
+		
 		List<String> stdLib = new ArrayList<String>();
 		stdLib.add("plaid");
 		stdLib.add("lang");
@@ -71,14 +77,21 @@ public class ImportList implements ASTnode {
 		
 		// We don't want to have the same import twice
 		boolean haveStdLib = false;
+		boolean haveGlobals = false;
 		for (QualifiedID qi : imports) {
 			if (qi.toString().equals("plaid.lang.*")) {
 				haveStdLib = true;
-				break;
+				if (haveGlobals) break;
+			}
+			if(qi.toString().equals("plaid.lang.globals.*")) {
+				haveGlobals = true;
+				if (haveStdLib) break;
 			}
 		}
 		if (!haveStdLib)
 			imports.add(new QualifiedID(stdLib));
+		if (!haveGlobals)
+			imports.add(new QualifiedID(globals));
 	}
 
 	public void codegen(CodeGen out, ID y) {
