@@ -224,9 +224,9 @@ public class CodeGen {
 		output.append(classLoader + ".protoMethod(new " + delegateType + " () {" +
 			"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" +
 				"final " + plaidScopeType + " " + CodeGen.localScope + " = " + classLoader + ".localScope(" + CodeGen.globalScope + ");" +
+				CodeGen.localScope + ".insertAllMembers(" + CodeGen.thisVar + ");" + 
 				"local$c0pe.insert(\"" + name + "\", " + name + ", false" + ");" + 
-				"local$c0pe.insert(\"" + CodeGen.thisVar +"\", " + CodeGen.thisVar + ", true" + ");" +
-				CodeGen.localScope + ".insertAllMembers(" + CodeGen.thisVar + ");");
+				"local$c0pe.insert(\"" + CodeGen.thisVar +"\", " + CodeGen.thisVar + ", true" + ");");
 	}
 	
 	//Complicated generation of code to wrap a first class function declaration
