@@ -36,34 +36,34 @@ public class FieldDecl implements Decl{
 	private Token token;
 	private ID f;
 	private Expression e;
-	private Type type;
 	private final boolean abstractField;
 	private final boolean immutable;
+	private final FieldTypeDecl fieldType;
 	
 	public boolean isAbstractField() {
 		return abstractField;
 	}
 
-	public FieldDecl(Token t, ID f, Type type, Expression e, boolean abstractField, boolean immutable) {
+	public FieldDecl(Token t, ID f, Expression e, boolean abstractField, boolean immutable, FieldTypeDecl fieldType) {
 		super();
 		this.token = t;
 		this.setF(f);
 		this.setE(e);
 		this.abstractField = abstractField;
-		this.type = type;
+		this.fieldType = fieldType;
 		this.immutable = immutable;
 	}
 
 	public FieldDecl(ID f, Expression e) {
-		this(null, f, Type.DYN, e, false, true);
+		this(null, f, e, false, true, new FieldTypeDecl(null));
 	}
 	
 	public ID getF() {
 		return f;
 	}
 	
-	public Type getType() {
-		return this.type;
+	public FieldTypeDecl getFieldType() {
+		return this.fieldType;
 	}
 
 	public void setF(ID f) {
@@ -150,8 +150,8 @@ public class FieldDecl implements Decl{
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
 		f.accept(visitor);
-		if (type != null) {
-			type.accept(visitor);
+		if (fieldType != null) {
+			fieldType.accept(visitor);
 		}
 		e.accept(visitor);
 	}

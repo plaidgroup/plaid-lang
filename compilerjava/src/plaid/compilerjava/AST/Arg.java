@@ -8,16 +8,16 @@ package plaid.compilerjava.AST;
  *
  */
 public class Arg {
-	private final Type type;
+	private final PermType permType;
 	private final ID arg;
 	
-	public Arg(Type type, ID arg) {
-		this.type = type;
+	public Arg(PermType permType, ID arg) {
+		this.permType = permType;
 		this.arg = arg;
 	}
 
-	public Type getType() {
-		return type;
+	public PermType getPermType() {
+		return permType;
 	}
 
 	public ID getArg() {

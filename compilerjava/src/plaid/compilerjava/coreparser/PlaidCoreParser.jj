@@ -122,7 +122,7 @@ public class PlaidCoreParser
 		{
 				if (argList.size() > 0)
 				{
-						return new LetBinding(argList.get(0).getToken(), argList.get(0), null, getArg(argID, count), getBodyWithPairExtractions(argList.subList(1, argList.size()), argID, count + 1, body), false);
+						return new LetBinding(argList.get(0).getToken(), argList.get(0), getArg(argID, count), getBodyWithPairExtractions(argList.subList(1, argList.size()), argID, count + 1, body), false, null);
 				}
 				else
 				{
@@ -142,7 +142,7 @@ public class PlaidCoreParser
 						}
 						else
 						{
-								Expression newExp = new LetBinding(exp.getToken(), IdGen.getId(), Type.UNIT, exp, expList.get(i + 1), false);
+								Expression newExp = new LetBinding(exp.getToken(), IdGen.getId(), exp, expList.get(i + 1), false, null);
 								expList.remove(i);
 								expList.add(i, newExp);
 						}
@@ -238,16 +238,19 @@ TOKEN /*[IGNORE_CASE]*/:
 |	< THIS : "this" >
 |	< VAL : "val" >
 |	< VAR : "var" >
-|	< DYN : "dyn">
-|	< DYNAMIC : "dynamic" >
-|	< IMMUTABLE : "immutable" >
-|	< UNIQUE : "unique" >
 |	< NONE : "none" >	
 |	< WITH : "with" >
 | 	< AS : "as" >
 |	< REQUIRES : "requires" >
 |	< OVERRIDE : "override" >
+
+|	< DYN : "dyn">
+|	< DYNAMIC : "dynamic" >
+|	< IMMUTABLE : "immutable" >
+|	< UNIQUE : "unique" >
 | 	< UNIT : "unit" >
+| 	< FULL : "full" >
+| 	< PURE : "pure" >
 }
 
 /* Literals */
@@ -292,7 +295,7 @@ TOKEN :
 | 		< COMMA : "," >
 }
 
-/* Operators with Java Presidence */
+/* Operators with Java Precedence */
 TOKEN : 
 {
 		< QST : "?" >
@@ -377,6 +380,96 @@ List < Token > Package() :
 		}
 }
 
+/*****************************************************************************/
+/*								TYPING RULES	 							 */
+/*****************************************************************************/
+
+PermType PermType() :
+{
+  	PermType permType = null;	Type type = null;
+	Permission perm = null;
+}
+{	<DYN>
+	{
+	  	return PermType.DYN;	}
+| 	<UNIT>
+	{
+	  	return PermType.UNIT;	}
+	// TODO: Default permission?
+| 	perm = Permission() type = StructuralType()
+	{		return new PermType(perm, type);
+	}
+}
+
+Permission Permission() :
+{	Permission perm;
+}
+{	<FULL>	{
+	  	return Permission.FULL;	}
+| 	<IMMUTABLE>	{
+	  	return Permission.IMMUTABLE;	}
+| 	<PURE>	{
+	  	return Permission.PURE;	}
+}
+
+Type StructuralType() :
+{
+  	Token typeAbbrevTok;	Type right = null;
+	List<TypeDecl> typeDecls;
+}
+{
+  	// type abbreviation	typeAbbrevTok = <ID> [<WITH> right = StructuralType()]
+	{		return (new Type(new ID(typeAbbrevTok.image))).compose(right);
+	}
+	// type declarations
+	typeDecls = TypeDecls() [<WITH> right = StructuralType()]
+	{
+	  	return (new Type(typeDecls)).compose(right);	}
+}
+
+List<TypeDecl> TypeDecls() :{	List<TypeDecl> decls = new ArrayList<TypeDecl>();
+	TypeDecl currDecl;
+}{
+  	<LBRACE> (currDecl = TypeDecl() { decls.add(currDecl); })+ <RBRACE>
+  	{		return decls;
+  	}}
+
+TypeDecl TypeDecl() :{	TypeDecl decl;
+}
+{
+  	decl = MethodTypeDecl() { return decl; }
+| 	decl = FieldTypeDecl() { return decl; }}
+
+MethodTypeDecl MethodTypeDecl() :
+{	List<Arg> argList = new ArrayList<Arg>();
+	List<PermType> argPermTypeList = new ArrayList<PermType>();
+	PermType retPermType = null;
+	PermType recvState1 = null;
+	PermType recvState2 = null;
+	Token methodNameToken;
+}{
+  	// method T m(T x)[T >> T];
+  	<METHOD> retPermType = PermType() methodNameToken = <ID> <LPAREN> [argList = DeclArgs()] <RPAREN> [<LBRACK> recvState1 = PermType() <MARROW> recvState2 = PermType() <RBRACK>] <SEMICOLON>	{
+	  	for (Arg arg : argList) {
+	  	  	argPermTypeList.add(arg.getPermType());	  	}
+	  	if (argPermTypeList.size() == 0) {			argPermTypeList.add(PermType.UNIT);
+	  	}
+	  	return new MethodTypeDecl(retPermType, argPermTypeList, recvState1, recvState2);	}
+}
+
+FieldTypeDecl FieldTypeDecl() :{
+  	// there could be no type annotation
+  	PermType fieldPermType = null;
+  	Token fieldNameToken;}{
+  	// val T f;
+  	<VAL> fieldPermType = PermType() fieldNameToken = <ID> <SEMICOLON>
+  	{
+  	  	return new FieldTypeDecl(fieldPermType);  	}}
+
+/*****************************************************************************/
+/*							END OF TYPING RULES								 */
+/*****************************************************************************/
+
 ImportList Imports() :
 {
 		Token t;
@@ -437,10 +530,9 @@ Decl DeclState() :
 Decl DeclField() :
 {
 		Token idToken;
-		Token typeToken = null;
+		PermType permType = null;
 		Expression e;
 		FieldDecl d;
-		Type type;
 		ID name;
 		boolean immutable = true;
 }
@@ -450,85 +542,63 @@ Decl DeclField() :
 				  	immutable = false;
 				}
 		|		<VAL>
-				{
-		  			immutable = true;				}
 		]
-			(
-				LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind == ID})
-				typeToken = <ID> idToken = <ID>
-				{
-					type = new Type(typeToken, typeToken.image);
-					name = new ID(idToken, idToken.image);
-				}
-				(
-					<EQUALS> e = Exp() <SEMICOLON>
-					{
-						d = new FieldDecl(idToken, name, type, e, false, immutable);
-					}
-				|	<SEMICOLON>
-					{
-						d = new FieldDecl(idToken, name, type, new UnitLiteral(), true, immutable);
-					}
-				)
-			|	LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind != ID})
-				idToken = <ID>
-				{
-					type = Type.DYN;
-					name = new ID(idToken, idToken.image);
-					
-				}
-				(
-					<EQUALS> e = Exp() <SEMICOLON>
-					{
-						d = new FieldDecl(idToken, name, type, e, false, immutable);
-					}
-				|	<SEMICOLON>
-					{
-						d = new FieldDecl(idToken, name, type, new UnitLiteral(), true, immutable);
-					}
-				)
-			)
+		(LOOKAHEAD(PermType() <ID>) permType = PermType() idToken = <ID> | idToken = <ID>)
+		{
+			name = new ID(idToken, idToken.image);
+		}
+		(
+			<EQUALS> e = Exp() <SEMICOLON>
+			{
+				d = new FieldDecl(idToken, name, e, false, immutable, new FieldTypeDecl(permType));
+			}
+		|	<SEMICOLON>
+			{
+				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, new FieldTypeDecl(permType));
+			}
+		)
 		{
 			return d;
 		}
 }
 
+
+
 Decl DeclMethod() :
 {
 		Token t;
 		Token typeToken = null;
+		PermType recvState1 = null;
+		PermType recvState2 = null;
 		ID name;
 		//may not be any arguments
 		ID argID = null;
 		Expression e = null;
 		List<Arg> argTypeList = new ArrayList<Arg>();
-		List<Type> typeList = new ArrayList<Type>();
+		List<PermType> argPermTypeList = new ArrayList<PermType>();
 		List<ID> argList = new ArrayList<ID>();
 		MethodDecl d;
-		Type retType;
+		PermType retPermType = null;
 }
 {
 		t = <METHOD> 
-		(LOOKAHEAD(<ID> IdOrOperator()) typeToken = <ID> name = IdOrOperator() | name = IdOrOperator()) 
-		<LPAREN> [argTypeList = DeclArgs()] <RPAREN> (e = BlockExpression(false) | <SEMICOLON> )
-		{
-			// return type
-			if (typeToken == null) {
-				retType = Type.DYN;
-			}
-			else {
-				retType = new Type(typeToken, typeToken.image);
-			}
-			
+		(LOOKAHEAD(PermType() IdOrOperator()) retPermType = PermType() name = IdOrOperator() | name = IdOrOperator()) 
+		<LPAREN> [argTypeList = DeclArgs()] <RPAREN> [<LBRACK> recvState1 = PermType() <MARROW> recvState2 = PermType() <RBRACK>] (e = BlockExpression(false) | <SEMICOLON> )
+		{	
 			// separate the args from their types
 			for (Arg arg : argTypeList) {
-				typeList.add(arg.getType());
+				argPermTypeList.add(arg.getPermType());
 				argList.add(arg.getArg());
 			}
+
+			if (argPermTypeList.size() == 0) {				argPermTypeList.add(PermType.UNIT);
+			}
+
+			MethodTypeDecl methodType = new MethodTypeDecl(retPermType, argPermTypeList, recvState1, recvState2);
 			
 			if (e == null) {
 				//default method body is unit
-				d = new MethodDecl(t, name.getName(), retType, new UnitLiteral(), argID, typeList, true);
+				d = new MethodDecl(t, name.getName(), new UnitLiteral(), argID, true, methodType);
 			}
 			else {
 				if (argList.size() == 1) {
@@ -540,9 +610,9 @@ Decl DeclMethod() :
 				}
 				// if we didn't have any arguments, then unit is our only argument
 				else {
-					typeList.add(Type.UNIT);
+				  	argID = IdGen.getId();
 				}
-				d = new MethodDecl(t, name.getName(), retType, e, argID, typeList, false);
+				d = new MethodDecl(t, name.getName(), e, argID, false, methodType);
 			}
 		}
 		{
@@ -574,32 +644,21 @@ List<Arg> DeclArgs() :
 
 Arg Arg() :
 {
-	Token typeToken = null;
+	PermType permType = null;
 	Token argToken = null;
-	Arg arg;
 }
 {
-	(
-		LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind == ID})
-		typeToken = <ID> argToken = <ID>
-		{
-			arg = new Arg(new Type(typeToken, typeToken.image), new ID(argToken, argToken.image));
-		}
-	|	LOOKAHEAD({getToken(1).kind == ID && getToken(2).kind != ID})
-		argToken = <ID>
-		{
-			arg = new Arg(Type.DYN, new ID(argToken, argToken.image));
-		}
-	)
+  	// TODO: Make this PermType
+  	(LOOKAHEAD(PermType() <ID>) permType = PermType() argToken = <ID> | argToken = <ID>) 
 	{
-		return arg;
+		return new Arg(permType, new ID(argToken, argToken.image));
 	}
 }
 
 State State() :
 {
 		State s, with, init;
-		List < Token > dotName;
+		List<Token> dotName;
 }
 {
 		(
@@ -616,7 +675,7 @@ State State() :
 				]
 		)
 		[
-				< WITH > with = State()
+				<WITH> with = State()
 				{
 						s = new With(s, with);
 				}
@@ -628,24 +687,24 @@ State State() :
 
 DeclList DeclList() :
 {
-		List < Decl > declList = new ArrayList < Decl > ();
+		List<Decl> declList = new ArrayList<Decl>();
 		Decl d;
 }
 {
-		< LBRACE >
+		<LBRACE>
 		(
 				d = Decl()
 				{
 						declList.add(d);
 				}
 		)*
-		< RBRACE >
+		<RBRACE>
 		{
 				return new DeclList(declList);
 		}
 }
 
-List < Token > DotName() :
+List<Token> DotName() :
 {
 		Token t;
 		List < Token > dn = new ArrayList < Token > ();
@@ -672,10 +731,14 @@ Expression BlockExpression(boolean isExp) :
 		Expression e = new UnitLiteral();
 }
 {
-		< LBRACE > [ e = StmtListSemi() ] < RBRACE >
+		<LBRACE> [ e = StmtListSemi() ] <RBRACE>
 		{
-				if (isExp) return new Lambda(e.getToken(), null, IdGen.getId(), null, e);
-				else return e;
+				if (isExp) {					List<PermType> permTypes = new ArrayList<PermType>();
+					permTypes.add(PermType.UNIT);  
+					return new Lambda(e.getToken(), IdGen.getId(), e, new MethodTypeDecl(null, permTypes, null, null));
+				}
+				else
+					return e;
 		}
 }
 
@@ -1022,7 +1085,7 @@ Expression LocalVarDecl() :
 		boolean mutable = false;
 		Expression e;
 		ID name;
-		Type type;
+		PermType permType;
 }
 {
 		(
@@ -1031,17 +1094,17 @@ Expression LocalVarDecl() :
 		)
 		var = Arg()
 		{
-			type = var.getType();
+			permType = var.getPermType();
 			name = var.getArg();
 		}
 		<EQUALS> e = Exp() //local var declarations must be initialized
 		{
 			// Why is the body set to unit here?
-			return new LetBinding(t, name, type, e, new UnitLiteral(), mutable);
+			return new LetBinding(t, name, e, new UnitLiteral(), mutable, permType);
 		}
 }
 
-List < Case > CaseList() :
+List <Case> CaseList() :
 {
 		Token t,caseToken;
 		ID x = null;
@@ -1195,8 +1258,7 @@ Expression ExpList() :
 						With pairWith;
 						for (int i = size - 1; i >= 0; i--)
 						{
-								fst = new FieldDecl(expList.get(i).getToken(),
-													 new ID("fst"), null, expList.get(i), false, true);
+								fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldTypeDecl(null));
 								snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
 								pairFields = new ArrayList < Decl > ();
 								pairFields.add(fst);
@@ -1310,15 +1372,13 @@ Expression Function() :
 {
 		Token t;
 		List<Arg> argTypeList = new ArrayList<Arg>();
-		List<Type> typeList = new ArrayList<Type>();
+		List<PermType> permTypeList = new ArrayList<PermType>();
 		List<ID> argList = new ArrayList<ID>();
 		Expression body;
 		// might not have any args, so unit would be the arg
 		ID var = null;
 }
 {
-		
-		
 		// Lookahead problem because Exp() could be a blockExpression, but 
 		// always want it to match BlockExpression() here because it shouldn't 
 		// be treated as a lambda
@@ -1330,7 +1390,7 @@ Expression Function() :
 		)
 		{
 			for (Arg arg : argTypeList) {
-				typeList.add(arg.getType());
+				permTypeList.add(arg.getPermType());
 				argList.add(arg.getArg());
 			}
 			if (argList.size() == 1) {
@@ -1340,8 +1400,15 @@ Expression Function() :
 				var = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
 				body = getBodyWithPairExtractions(argList, var, 1, body);
 			}
+			else {
+			  // generate a bogus ID and put unit in the arg list and permtype list
+			  var = IdGen.getId();
+			  permTypeList.add(PermType.UNIT);			}
+
+			MethodTypeDecl methodType = new MethodTypeDecl(null, permTypeList, null, null);
+			
 			// TODO: where should the return type annotation go?
-			return new Lambda(t, null, var, typeList, body);
+			return new Lambda(t, var, body, methodType);
 		}
 }
 

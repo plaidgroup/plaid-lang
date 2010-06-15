@@ -32,26 +32,18 @@ import plaid.compilerjava.util.IdGen;
 public final class Lambda implements Expression {
 	private final Token token;
 	private final ID var;
-	private final List<Type> argTypes;
-	private final Type retType;
 	private final Expression body;
+	private final MethodTypeDecl methodType;
 	
+	// TODO: I'm not sure that this is a very good constructor...
 	public Lambda(ID var, Expression body) {
-		this(null, Type.DYN, var, null, body);
+		this(null, var, body, new MethodTypeDecl(null, null, null, null));
 	}
 
-	public Lambda(Token token, Type retType, ID var, List<Type> argTypes, Expression body) {
+	public Lambda(Token token, ID var, Expression body, MethodTypeDecl methodType) {
 		super();
-		if (argTypes == null) {
-			argTypes = new ArrayList<Type>();
-			argTypes.add(Type.UNIT);
-		}
-		if (retType == null) {
-			retType = Type.DYN;
-		}
 		
 		this.token = token;
-		this.retType = retType;
 		
 		// if var is unit, generate a fresh ID that won't get used in the body
 		if (var == null)
@@ -59,8 +51,8 @@ public final class Lambda implements Expression {
 		else
 			this.var = var;
 		
-		this.argTypes = new ArrayList<Type>(argTypes);
 		this.body = body;
+		this.methodType = methodType;
 	}
 
 	public Token getToken() {
@@ -73,14 +65,6 @@ public final class Lambda implements Expression {
 
 	public Expression getBody() {
 		return body;
-	}
-	
-	public List<Type> getArgTypes() {
-		return Collections.unmodifiableList(argTypes);
-	}
-
-	public Type getRetType() {
-		return retType;
 	}
 
 	@Override

@@ -32,16 +32,13 @@ public class LetBinding implements Expression {
 	private ID x;
 	private Expression exp, body;
 	private boolean mutable;
-	private final Type type;
+	private final PermType permType;
 
-	public LetBinding(Token t, ID x, Type type, Expression e1, Expression e2, boolean mutable) {
+	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable, PermType permType) {
 		super();
 		this.token = t;
 		this.setX(x);
-		if (type == null)
-			this.type = Type.DYN;
-		else	
-			this.type = type;
+		this.permType = permType;
 		this.exp = e1;
 		this.body = e2;
 		this.mutable = mutable;
@@ -55,8 +52,8 @@ public class LetBinding implements Expression {
 		return token;
 	}
 	
-	public Type getType() {
-		return type;
+	public PermType getPermType() {
+		return permType;
 	}
 
 	@Override

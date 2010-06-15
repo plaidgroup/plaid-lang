@@ -41,17 +41,15 @@ public final class MethodDecl implements Decl {
 	private final String name;
 	private final Expression body;
 	private final ID arg;
-	private final List<Type> argTypes;
-	private final Type retType;
 	private final boolean abstractMethod;
+	private final MethodTypeDecl methodType;
 	
-	public MethodDecl(Token t, String name, Type retType, Expression body, ID arg, List<Type> argTypes, boolean abstractMethod) {
+	public MethodDecl(Token t, String name, Expression body, ID arg, boolean abstractMethod, MethodTypeDecl methodType) {
 		this.token = t;
 		if (Util.isKeyword(name))
 			this.name = name + PlaidConstants.ID_SUFFIX;
 		else
 			this.name = name;
-		this.retType = retType;
 		this.body = body;
 		if (arg == null) {
 			// fresh ID for arg which will always be unit and never used
@@ -60,15 +58,18 @@ public final class MethodDecl implements Decl {
 		else {
 			this.arg = arg;
 		}
-		if (argTypes.size() == 0) {
-			argTypes.add(Type.UNIT);
-		}
-		this.argTypes = new ArrayList<Type>(argTypes);
+		if (methodType == null)
+			throw new RuntimeException("Method type is not allowed to be null.");
+		this.methodType = methodType;
 		this.abstractMethod = abstractMethod;
 	}
-	
+
 	public boolean isAbstractMethod() {
 		return abstractMethod;
+	}
+	
+	public MethodTypeDecl getMethodType() {
+		return this.methodType;
 	}
 	
 	public String getName() {
@@ -89,14 +90,6 @@ public final class MethodDecl implements Decl {
 
 	public Token getToken() {
 		return token;
-	}
-	
-	public List<Type> getArgTypes() {
-		return Collections.unmodifiableList(argTypes);
-	}
-
-	public Type getRetType() {
-		return retType;
 	}
 
 	// Top-level method declaration
@@ -119,7 +112,7 @@ public final class MethodDecl implements Decl {
 		imports.codegen(out, freshImports);
 		out.declareTopScope(qid.toString(),freshImports.getName());
 		
-		if (name.equals("main") && argTypes.get(0) == Type.UNIT && argTypes.size() == 1) {
+		if (name.equals("main") && this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1) {
 			out.topLevelMain(name + "_func");
 		} else {
 			localVars = localVars.add(arg);

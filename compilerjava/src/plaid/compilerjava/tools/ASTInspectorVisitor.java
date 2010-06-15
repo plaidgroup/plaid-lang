@@ -23,6 +23,7 @@ import plaid.compilerjava.AST.LetBinding;
 import plaid.compilerjava.AST.Match;
 import plaid.compilerjava.AST.MethodDecl;
 import plaid.compilerjava.AST.NewInstance;
+import plaid.compilerjava.AST.PermType;
 import plaid.compilerjava.AST.QI;
 import plaid.compilerjava.AST.State;
 import plaid.compilerjava.AST.StateDecl;
@@ -234,7 +235,7 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	    for (int i = 0; i < newNode.getChildCount(); i++) {
 	    	String label = ((String)((DefaultMutableTreeNode)newNode.getChildAt(i)).getUserObject());
 	    	if (label.contains("(ID)") && !label.contains("$plaid")) {
-	    		DefaultMutableTreeNode newChildNode = new DefaultMutableTreeNode(label + " : " + node.getType().toString());
+	    		DefaultMutableTreeNode newChildNode = new DefaultMutableTreeNode(label + " : " + node.getPermType());
 	    		newNode.remove(i);
 	    		newNode.insert(newChildNode, i);
 	    		break;
@@ -258,19 +259,27 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 		// create the new tree node and add it to the tree
 		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(node.getName() + " (MethodDecl)");
 		DefaultMutableTreeNode typeNode = new DefaultMutableTreeNode(
-			"Type: " + buildFunctionTypeString(node.getArgTypes(), node.getRetType()));
+			"Type: " + buildFunctionTypeString(node.getMethodType().getArgTypes(), node.getMethodType().getRetPermType()));
+		DefaultMutableTreeNode stateTransNode = new DefaultMutableTreeNode(
+			"State transition: [" + node.getMethodType().getRecvTypeBefore() + ">>" + node.getMethodType().getRecvTypeAfter() + "]");
 		addNodeVisitChildren(node, newNode);
 		newNode.add(typeNode);
+		newNode.add(stateTransNode);
 	    // leave
 	    return this.leave(node, node, visitor);
 	}
 	
-	private static String buildFunctionTypeString(List<Type> argTypes, Type retType) {
+	private static String buildFunctionTypeString(List<PermType> argTypes, PermType retType) {
 		StringBuilder sb = new StringBuilder();
-		for (Type type : argTypes) {
-			sb.append(type.toString() + " -> ");
+		if (argTypes == null) {
+			sb.append("null -> ");
 		}
-		sb.append(retType.toString());
+		else {
+			for (PermType permType : argTypes) {
+				sb.append(permType + " -> ");
+			}
+		}
+		sb.append(retType);
 		return sb.toString();
 	}
 
