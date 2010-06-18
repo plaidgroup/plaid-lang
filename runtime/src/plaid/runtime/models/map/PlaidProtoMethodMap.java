@@ -25,9 +25,11 @@ import plaid.runtime.PlaidObject;
 import plaid.runtime.utils.Delegate;
 
 public final class PlaidProtoMethodMap extends PlaidObjectMap implements PlaidMethod{
+	private final String fullyQualName;
 	protected Delegate method;
 	
-	public PlaidProtoMethodMap(Delegate method) {
+	public PlaidProtoMethodMap(String fullyQualName, Delegate method) {
+		this.fullyQualName = fullyQualName;
 		this.method = method;
 	}
 
@@ -38,6 +40,10 @@ public final class PlaidProtoMethodMap extends PlaidObjectMap implements PlaidMe
 	@Override
 	public PlaidObject invoke(PlaidObject args) throws PlaidException {
 		throw new PlaidException("Cannot call an uninitialized method");
+	}
+	
+	public String getFullyQualifiedName() {
+		return this.fullyQualName;
 	}
 
 }

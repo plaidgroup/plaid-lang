@@ -12,6 +12,13 @@ public interface PlaidScope {
 	public PlaidObject lookup(String name);
 	
 	/**
+	 * 
+	 * @param name
+	 * @return
+	 */
+	public PlaidObject shallowLookup(String name);
+	
+	/**
 	 * Inserts a new binding into the current scope.  If one already exists in 
 	 * the current scope (not the parent scopes) then this is an error.
 	 * 
@@ -26,7 +33,7 @@ public interface PlaidScope {
 	 * @param plaidObj
 	 * @param immutable
 	 */
-	void insert(String name, PlaidObject plaidObj, boolean immutable);
+	public void insert(String name, PlaidObject plaidObj, boolean immutable);
 	
 	/**
 	 * Updates a pre-existing variable name binding with a new PlaidObject.  
@@ -38,6 +45,12 @@ public interface PlaidScope {
 	 * @param plaidObj
 	 */
 	public void update(String name, PlaidObject plaidObj);
+	
+	/**
+	 * 
+	 * @param name
+	 */
+	public void remove(String name);
 
 	/**
 	 * Inserts all of the members of the specified object into the current 
@@ -48,10 +61,10 @@ public interface PlaidScope {
 	void insertAllMembers(PlaidObject obj);
 	
 	/**
-	 * Inserts all of the members of the specified object into the current 
-	 * scope.
+	 * Clears all of the members of the specified object from all scopes that 
+	 * it is currently referenced in.
 	 * 
 	 * @param thisVar
 	 */
-	void clearOldMembers(PlaidObject obj);
+	void clearOrUpdateOldMembers(PlaidObject oldObj, PlaidObject newObj);
 }

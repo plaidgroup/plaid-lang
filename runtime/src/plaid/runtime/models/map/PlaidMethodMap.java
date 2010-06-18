@@ -26,9 +26,11 @@ import plaid.runtime.utils.Delegate;
 
 public final class PlaidMethodMap extends PlaidObjectMap implements PlaidMethod {
 	protected PlaidObject varthis;
-	protected Delegate delegate;
+	protected final Delegate delegate;
+	private final String fullyQualName;
 	
-	public PlaidMethodMap(PlaidObject varthis, Delegate delegate) {
+	public PlaidMethodMap(String fullyQualName, PlaidObject varthis, Delegate delegate) {
+		this.fullyQualName = fullyQualName;
 		this.varthis = varthis;
 		this.delegate = delegate;
 	}
@@ -44,6 +46,21 @@ public final class PlaidMethodMap extends PlaidObjectMap implements PlaidMethod 
 
 	@Override
 	public String toString() {
-		return "PlaidMethodMap()";
+		return "PlaidMethodMap(" + this.fullyQualName + ")";
+	}
+	
+	public String getFullyQualifiedName() {
+		return this.fullyQualName;
+	}
+	
+	public boolean equals(Object o) {
+		if (!(o instanceof PlaidMethodMap)) {
+			return false;
+		}
+		return ((PlaidMethodMap)o).fullyQualName.equals(this.fullyQualName);
+	}
+	
+	public int hashCode() {
+		return this.fullyQualName.hashCode();
 	}
 }

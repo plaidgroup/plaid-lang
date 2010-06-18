@@ -126,7 +126,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		// merge with this
 		addToPlaidObject(result.prototype, this.prototype);
 		// merge with parameters
-		for ( PlaidState p : args) {
+		for (PlaidState p : args) {
 			addToPlaidObject(result.prototype, p.getPrototype());
 		}
 		//result.setReadOnly(true);
@@ -159,11 +159,11 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		for ( Map.Entry<String, PlaidObject> member : prototype.getImmutableMembers().entrySet() ) {
 			if ( member.getValue() instanceof PlaidProtoMethodMap ) {
 				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap)member.getValue();
-				pom.addMember(member.getKey(), new PlaidMethodMap(pom, ppmm.getDelegate()), true);
+				pom.addMember(member.getKey(), new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate()), true);
 			} 
 			else if ( member.getValue() instanceof PlaidProtoFieldMap ) {
 				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap)member.getValue();
-				PlaidMethod initializer = new PlaidMethodMap(pom, ppfm.getInitalizer());
+				PlaidMethod initializer = new PlaidMethodMap(member.getKey(), pom, ppfm.getInitalizer());
 				pom.addMember(member.getKey(), initializer.invoke(Util.unit()), true);
 			}
 		}
@@ -172,11 +172,11 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		for ( Map.Entry<String, PlaidObject> member : prototype.getMutableMembers().entrySet() ) {
 			if ( member.getValue() instanceof PlaidProtoMethodMap ) {
 				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap)member.getValue();
-				pom.addMember(member.getKey(), new PlaidMethodMap(pom, ppmm.getDelegate()), false);
+				pom.addMember(member.getKey(), new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate()), false);
 			} 
 			else if ( member.getValue() instanceof PlaidProtoFieldMap ) {
 				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap)member.getValue();
-				PlaidMethod initializer = new PlaidMethodMap(pom, ppfm.getInitalizer());
+				PlaidMethod initializer = new PlaidMethodMap(member.getKey(), pom, ppfm.getInitalizer());
 				pom.addMember(member.getKey(), initializer.invoke(Util.unit()), false);
 			}
 		}

@@ -80,8 +80,8 @@ public class Util {
 		return cl.protoField(dlg);
 	}
 	
-	public static PlaidMethod protoMethod(Delegate dlg) {
-		return cl.protoMethod(dlg);
+	public static PlaidMethod protoMethod(String fullyQualName, Delegate dlg) {
+		return cl.protoMethod(fullyQualName, dlg);
 	}
 	
 	public static PlaidObject lookup(String name, PlaidObject thisVar) {

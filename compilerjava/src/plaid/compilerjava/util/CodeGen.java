@@ -180,8 +180,6 @@ public class CodeGen {
 		changeState(object,newState);
 		append(";");
 		updateVar(target);
-		// make sure we change all the new instance variables in the current scope
-		append(CodeGen.localScope + ".insertAllMembers(" + CodeGen.thisVar + ");");
 	}
 
 	public final void assignToLookup(String target, String name, String scope) {
@@ -221,7 +219,8 @@ public class CodeGen {
 	//after body, follow with closeAnonymousDeclaration() function
 	public final void assignToProtoMethod(String target, String name) {
 		assign(target);
-		output.append(classLoader + ".protoMethod(new " + delegateType + " () {" +
+		// TODO: target + name is a temporary fix.  we should put the fully qualified name here
+		output.append(classLoader + ".protoMethod(\"" + target + name + "\", new " + delegateType + " () {" +
 			"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" +
 				"final " + plaidScopeType + " " + CodeGen.localScope + " = " + classLoader + ".localScope(" + CodeGen.globalScope + ");" +
 				CodeGen.localScope + ".insertAllMembers(" + CodeGen.thisVar + ");" + 

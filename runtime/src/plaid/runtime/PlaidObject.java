@@ -21,6 +21,7 @@ package plaid.runtime;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Set;
 
 
 
@@ -63,5 +64,13 @@ public interface PlaidObject {
 	public Map<String, PlaidObject> getImmutableMembers();
 	
 	public Map<String, PlaidObject> getMutableMembers();
+	
+	public PlaidObject copy();
+	
+	public void addNameBinding(String name, PlaidScope scope);
+	
+	public void removeNameBinding(String name, PlaidScope scope);
+		
+	public Set<PlaidScope> getBoundScopes();
 }
 

@@ -42,7 +42,7 @@ public class Integer$plaid {
 	
 	static {
 		
-		foo.addMember("plus$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("plus$plaid", Util.protoMethod("plaid.lang.Integer.plus$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -53,7 +53,7 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("sub$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("sub$plaid", Util.protoMethod("plaid.lang.Integer.sub$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -64,7 +64,7 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("mult$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("mult$plaid", Util.protoMethod("plaid.lang.Integer.mult$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -75,7 +75,7 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("div$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("div$plaid", Util.protoMethod("plaid.lang.Integer.div$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -86,7 +86,7 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("mod$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("mod$plaid", Util.protoMethod("plaid.lang.Integer.mod$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -97,7 +97,7 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("eqeq$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("eqeq$plaid", Util.protoMethod("plaid.lang.Integer.eqeq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -111,7 +111,7 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("lt$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("lt$plaid", Util.protoMethod("plaid.lang.Integer.lt$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -125,7 +125,7 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("gt$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("gt$plaid", Util.protoMethod("plaid.lang.Integer.gt$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -138,7 +138,7 @@ public class Integer$plaid {
 					return Util.falseObject();
 			}
 		})/*, true*/);
-		foo.addMember("lteq$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("lteq$plaid", Util.protoMethod("plaid.lang.Integer.lteq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -152,7 +152,7 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 
-		foo.addMember("gteq$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("gteq$plaid", Util.protoMethod("plaid.lang.Integer.gteq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
