@@ -22,7 +22,7 @@ package plaid.runtime.utils;
 public class Import {
 	private QualifiedIdentifier qid;
 	
-	public  Import(String im) {
+	public Import(String im) {
 		qid = new QualifiedIdentifier(im);
 	}
 	
@@ -34,7 +34,7 @@ public class Import {
 		}
 	}
 	
-	public QualifiedIdentifier getIdentifier() {
+	public QualifiedIdentifier getIdent() {
 		if ( isStar() ) {
 			return qid.getPrefix();
 		} else {

@@ -70,11 +70,12 @@ public interface PlaidClassLoader {
 	/**
 	 * Create a new PlaidMethod object that does not have this bound yet.
 	 * 
+	 * @param fullyQualName
 	 * @param fn
 	 * @return new PlaidMethod that must be instantiated before being invoked  
 	 * @throws PlaidException
 	 */
-	public PlaidMethod protoMethod(Delegate fn) throws PlaidException;
+	public PlaidMethod protoMethod(String fullyQualName, Delegate fn) throws PlaidException;
 	
 	/**
 	 * Create a new PlaidMethod object that does not have this bound yet.

@@ -89,11 +89,15 @@ public class ChangeState implements Expression {
 		out.declareFinalVar(CodeGen.plaidObjectType,i.getName());
 		out.assignToInstantiation(i.getName(), s.getName());
 		
-		// clear away all of the old state members from this state in the local scope
-		out.append(CodeGen.localScope + ".clearOldMembers(" + x.getName() + ");");
+		ID oldObj = IdGen.getId();
+		out.declareFinalVar(CodeGen.plaidObjectType, oldObj.getName());
+		out.append(oldObj.getName() + " = " + x.getName() + ".copy();");
 		
 		//assign result of state change to target (y)
 		out.assignToChangedState(y.getName(),x.getName(), i.getName());  // y = x.changeState(r);
+		
+		// clear away all of the old state members from this state in the local scope
+		out.append(CodeGen.localScope + ".clearOrUpdateOldMembers(" + oldObj.getName() + ", " + x.getName() + ");");
 	}
 
 	@Override

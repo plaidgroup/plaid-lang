@@ -40,7 +40,7 @@ public class String$plaid {
 	public static PlaidObject foo = Util.newObject();
 	
 	static {		
-		foo.addMember("plus$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("plus$plaid", Util.protoMethod("plaid.lang.String.plus$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -50,7 +50,7 @@ public class String$plaid {
 				return Util.string(x);
 			}
 		})/*, true*/);
-		foo.addMember("substring$plaid", Util.protoMethod(new Delegate() {
+		foo.addMember("substring$plaid", Util.protoMethod("plaid.lang.String.substring$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")

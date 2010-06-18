@@ -111,6 +111,7 @@ public class FieldDecl implements Decl{
 		out.fieldAnnotation(f.getName(), false);
 		out.declarePublicStaticVar(CodeGen.plaidObjectType, f.getName());
 		out.openStaticBlock(); //static {
+		// TODO: make this a function
 		out.append("final plaid.runtime.PlaidLocalScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);");
 		e.codegen(out, f, new IDList());  //initialization code
 		// make this immutable if it should be

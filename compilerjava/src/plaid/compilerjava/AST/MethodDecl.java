@@ -147,7 +147,7 @@ public final class MethodDecl implements Decl {
 		
 		out.methodAnnotation(newName, false); //@representsMethod...
 		out.declareFinalVar(CodeGen.plaidObjectType,freshMethName.getName());
-		out.assignToProtoMethod(freshMethName.getName(),arg.getName());  //freshMethName = new protofield( ... { {
+		out.assignToProtoMethod(freshMethName.getName(), arg.getName());  //freshMethName = new protofield( ... { {
 		
 		//body of the protofield
 		out.declareLambdaScope();
@@ -161,7 +161,7 @@ public final class MethodDecl implements Decl {
 		out.closeAnonymousDeclaration();  //}});
 		
 		// TODO: methods are immutable by default?
-		out.addMember(y.getName(), newName, freshMethName.getName()/*, true*/);  //y.addMember(name,freshMethName)
+		out.addMember(y.getName(), newName, freshMethName.getName());  //y.addMember(name,freshMethName)
 		
 	}
 

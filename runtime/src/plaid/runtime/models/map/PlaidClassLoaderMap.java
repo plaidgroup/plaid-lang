@@ -22,7 +22,6 @@ package plaid.runtime.models.map;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map.Entry;
 
 import plaid.runtime.PlaidClassLoader;
 import plaid.runtime.PlaidClassNotFoundException;
@@ -170,8 +169,8 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	}
 
 	@Override
-	public PlaidMethod protoMethod(Delegate fieldInit) throws PlaidException {
-		return new PlaidProtoMethodMap(fieldInit);
+	public PlaidMethod protoMethod(String fullyQualName, Delegate fieldInit) throws PlaidException {
+		return new PlaidProtoMethodMap(fullyQualName, fieldInit);
 	}
 
 	@Override
