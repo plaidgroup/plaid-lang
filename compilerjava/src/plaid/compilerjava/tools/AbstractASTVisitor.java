@@ -82,6 +82,11 @@ public abstract class AbstractASTVisitor implements ASTVisitor {
 	}
 	
 	@Override
+	public ASTnode visitNode(FieldTypeDecl node) {
+		return visitHelper(node);
+	}
+	
+	@Override
 	public ASTnode visitNode(ID node) {
 		return visitHelper(node);
 	}
@@ -117,7 +122,22 @@ public abstract class AbstractASTVisitor implements ASTVisitor {
 	}
 	
 	@Override
+	public ASTnode visitNode(MethodTypeDecl node) {
+		return visitHelper(node);
+	}
+	
+	@Override
 	public ASTnode visitNode(NewInstance node) {
+		return visitHelper(node);
+	}
+	
+	@Override
+	public ASTnode visitNode(Permission node) {
+		return visitHelper(node);
+	}
+	
+	@Override
+	public ASTnode visitNode(PermType node) {
 		return visitHelper(node);
 	}
 	
@@ -143,6 +163,11 @@ public abstract class AbstractASTVisitor implements ASTVisitor {
 	
 	@Override
 	public ASTnode visitNode(Type node) {
+		return visitHelper(node);
+	}
+	
+	@Override
+	public ASTnode visitNode(TypeDecl node) {
 		return visitHelper(node);
 	}
 	

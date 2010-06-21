@@ -51,7 +51,7 @@ public class Integer$plaid {
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		})/*, true*/);
+		}));
 		
 		foo.addMember("sub$plaid", Util.protoMethod("plaid.lang.Integer.sub$plaid", new Delegate() {
 			@Override
@@ -62,7 +62,7 @@ public class Integer$plaid {
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		})/*, true*/);
+		}));
 		
 		foo.addMember("mult$plaid", Util.protoMethod("plaid.lang.Integer.mult$plaid", new Delegate() {
 			@Override
@@ -73,7 +73,7 @@ public class Integer$plaid {
 				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		})/*, true*/);
+		}));
 		
 		foo.addMember("div$plaid", Util.protoMethod("plaid.lang.Integer.div$plaid", new Delegate() {
 			@Override

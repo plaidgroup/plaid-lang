@@ -167,9 +167,9 @@ public final class MethodDecl implements Decl {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-		body.accept(visitor);
-		if (arg != null)
-			arg.accept(visitor);
+		this.body.accept(visitor);
+		this.arg.accept(visitor);
+		this.methodType.accept(visitor);
 	}
 	
 	@Override

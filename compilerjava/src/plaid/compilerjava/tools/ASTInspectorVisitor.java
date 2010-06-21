@@ -15,6 +15,7 @@ import plaid.compilerjava.AST.DeclList;
 import plaid.compilerjava.AST.Dereference;
 import plaid.compilerjava.AST.Expression;
 import plaid.compilerjava.AST.FieldDecl;
+import plaid.compilerjava.AST.FieldTypeDecl;
 import plaid.compilerjava.AST.ID;
 import plaid.compilerjava.AST.ImportList;
 import plaid.compilerjava.AST.IntLiteral;
@@ -24,6 +25,7 @@ import plaid.compilerjava.AST.Match;
 import plaid.compilerjava.AST.MethodDecl;
 import plaid.compilerjava.AST.NewInstance;
 import plaid.compilerjava.AST.PermType;
+import plaid.compilerjava.AST.Permission;
 import plaid.compilerjava.AST.QI;
 import plaid.compilerjava.AST.State;
 import plaid.compilerjava.AST.StateDecl;
@@ -190,6 +192,16 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 		// leave
 	    return this.leave(node, node, visitor);
 	}
+	
+	@Override
+	public ASTnode visitNode(FieldTypeDecl node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("FieldTypeDecl");
+		addNodeVisitChildren(node, newNode);
+		// leave
+	    return this.leave(node, node, visitor);
+	}
 
 	@Override
 	public ASTnode visitNode(ID node) {
@@ -258,13 +270,7 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
 		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(node.getName() + " (MethodDecl)");
-		DefaultMutableTreeNode typeNode = new DefaultMutableTreeNode(
-			"Type: " + buildFunctionTypeString(node.getMethodType().getArgTypes(), node.getMethodType().getRetPermType()));
-		DefaultMutableTreeNode stateTransNode = new DefaultMutableTreeNode(
-			"State transition: [" + node.getMethodType().getRecvTypeBefore() + ">>" + node.getMethodType().getRecvTypeAfter() + "]");
 		addNodeVisitChildren(node, newNode);
-		newNode.add(typeNode);
-		newNode.add(stateTransNode);
 	    // leave
 	    return this.leave(node, node, visitor);
 	}
@@ -288,6 +294,15 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
 		addNodeVisitChildren(node, new DefaultMutableTreeNode("NewInstance"));
+	    // leave
+	    return this.leave(node, node, visitor);
+	}
+	
+	@Override
+	public ASTnode visitNode(Permission node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.toString()));
 	    // leave
 	    return this.leave(node, node, visitor);
 	}
@@ -336,7 +351,7 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	@Override
 	public ASTnode visitNode(Type node) {
 		ASTVisitor visitor = this.enter(node);
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("Type : " + node.toString()));
+		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.toString()));
 		return this.leave(node, node, visitor);
 	}
 

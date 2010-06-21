@@ -65,4 +65,8 @@ public class ID implements Expression{
 	public void accept(ASTVisitor visitor) {
 		visitor.visitNode(this);
 	}
+	
+	public String toString() {
+		return this.name;
+	}
 }

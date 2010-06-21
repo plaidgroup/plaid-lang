@@ -17,6 +17,8 @@ import plaid.compilerjava.tools.ASTVisitor;
 public class Type implements ASTnode {
 	public static final Type DYN = new Type(new ID("dyn"));
 	public static final Type UNIT = new Type(new ID("unit"));
+	// This is a marker to indicate that the type of the receiver should remain unchanged
+	public static final Type RECEIVER = new Type(new ID("receiver"));
 	
 	/**
 	 * Set of type abbreviations contained in this type.
@@ -63,8 +65,7 @@ public class Type implements ASTnode {
 
 	@Override
 	public void accept(ASTVisitor visitor) {
-		// TODO Auto-generated method stub
-		
+		visitor.visitNode(this);
 	}
 
 	@Override
@@ -75,7 +76,26 @@ public class Type implements ASTnode {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-		// TODO Auto-generated method stub
-		
+		for (ID id : this.typeAbbrevs) {
+			id.accept(visitor);
+		}
+		for (TypeDecl td : this.typeDecls) {
+			td.accept(visitor);
+		}
+	}
+	
+	public String toString() {
+		StringBuilder sb = new StringBuilder("Structural Type: {");
+		if (this.typeAbbrevs.size() > 0) {
+			sb.append("Type abbrevs: " + this.typeAbbrevs.toString());
+			if (this.typeDecls.size() > 0) {
+				sb.append(", ");
+			}
+		}
+		if (this.typeDecls.size() > 0) {
+			sb.append("Type decls: " + this.typeDecls.toString());
+		}
+		sb.append("}");
+		return sb.toString();
 	}
 }

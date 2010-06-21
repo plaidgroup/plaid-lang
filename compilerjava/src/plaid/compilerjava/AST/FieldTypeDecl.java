@@ -7,13 +7,14 @@ public class FieldTypeDecl implements TypeDecl {
 	private final PermType permType;
 	
 	public FieldTypeDecl(PermType permType) {
+		if (permType == null)
+			throw new RuntimeException("permType cannot be null");
 		this.permType = permType;
 	}
 
 	@Override
 	public void accept(ASTVisitor visitor) {
-		// TODO Auto-generated method stub
-		
+		visitor.visitNode(this);
 	}
 
 	@Override
@@ -24,8 +25,11 @@ public class FieldTypeDecl implements TypeDecl {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-		// TODO Auto-generated method stub
-		
+		this.permType.accept(visitor);
+	}
+
+	public Object getPermType() {
+		return this.permType;
 	}
 
 }
