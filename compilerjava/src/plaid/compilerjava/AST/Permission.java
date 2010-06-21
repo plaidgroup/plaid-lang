@@ -7,6 +7,9 @@ public class Permission implements ASTnode {
 	public static final Permission FULL = new Permission(null, "full");
 	public static final Permission IMMUTABLE = new Permission(null, "immutable");
 	public static final Permission PURE = new Permission(null, "pure");
+	public static final Permission DYN = new Permission(null, "dyn");
+	// This is a marker to indicate that the permission of the receiver should remain unchanged
+	public static final Permission RECEIVER = new Permission(null, "receiver");
 
 	private final Token token;
 	private final String image;
@@ -35,4 +38,7 @@ public class Permission implements ASTnode {
 		// no children
 	}
 
+	public String toString() {
+		return "Permission: " + this.image;
+	}
 }

@@ -12,6 +12,14 @@ public class MethodTypeDecl implements TypeDecl {
 	private final PermType recvTypeAfter;
 	
 	public MethodTypeDecl(PermType retType, List<PermType> argTypes, PermType beforeType, PermType afterType) {
+		if (retType == null || argTypes == null || beforeType == null || afterType == null) {
+			throw new RuntimeException("types cannot be null");
+		}
+		for (PermType pt : argTypes) {
+			if (pt == null) {
+				throw new RuntimeException("arg types cannot be null");
+			}
+		}
 		this.retPermType = retType;
 		this.argTypes = new ArrayList<PermType>();
 		this.argTypes.addAll(argTypes);
@@ -37,8 +45,7 @@ public class MethodTypeDecl implements TypeDecl {
 
 	@Override
 	public void accept(ASTVisitor visitor) {
-		// TODO Auto-generated method stub
-		
+		visitor.visitNode(this);
 	}
 
 	@Override
@@ -49,8 +56,22 @@ public class MethodTypeDecl implements TypeDecl {
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-		// TODO Auto-generated method stub
-		
+		for (PermType pt : this.argTypes) {
+			pt.accept(visitor);
+		}
+		this.retPermType.accept(visitor);
+		this.recvTypeBefore.accept(visitor);
+		this.recvTypeAfter.accept(visitor);
 	}
 
+	public String toString() {
+		StringBuilder sb = new StringBuilder("Method: {");
+		for (PermType argType : this.argTypes) {
+			sb.append(argType.toString() + " -> ");
+		}
+		sb.append(this.retPermType.toString());
+		sb.append(", ");
+		sb.append("[" + this.recvTypeBefore + " >> " + this.recvTypeAfter + "]}");
+		return sb.toString();
+	}
 }

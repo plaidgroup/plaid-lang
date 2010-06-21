@@ -150,11 +150,9 @@ public class FieldDecl implements Decl{
 
 	@Override
 	public void visitChildren(ASTVisitor visitor) {
-		f.accept(visitor);
-		if (fieldType != null) {
-			fieldType.accept(visitor);
-		}
-		e.accept(visitor);
+		this.f.accept(visitor);
+		this.fieldType.accept(visitor);
+		this.e.accept(visitor);
 	}
 
 	@Override

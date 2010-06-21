@@ -31,6 +31,7 @@ public interface ASTVisitor {
 	public ASTnode visitNode(Dereference node);
 	public ASTnode visitNode(Expression node);
 	public ASTnode visitNode(FieldDecl node);
+	public ASTnode visitNode(FieldTypeDecl node);
 	public ASTnode visitNode(ID node);
 	public ASTnode visitNode(ImportList node);
 	public ASTnode visitNode(IntLiteral node);
@@ -38,12 +39,16 @@ public interface ASTVisitor {
 	public ASTnode visitNode(LetBinding node);
 	public ASTnode visitNode(Match node);
 	public ASTnode visitNode(MethodDecl node);
+	public ASTnode visitNode(MethodTypeDecl node);
 	public ASTnode visitNode(NewInstance node);
+	public ASTnode visitNode(Permission node);
+	public ASTnode visitNode(PermType node);
 	public ASTnode visitNode(QI node);
 	public ASTnode visitNode(State node);
 	public ASTnode visitNode(StateDecl node);
 	public ASTnode visitNode(StringLiteral node);
 	public ASTnode visitNode(Type node);
+	public ASTnode visitNode(TypeDecl node);
 	public ASTnode visitNode(UnitLiteral node);
 	public ASTnode visitNode(With node);
 }

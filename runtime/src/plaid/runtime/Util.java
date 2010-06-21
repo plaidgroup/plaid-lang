@@ -98,23 +98,27 @@ public class Util {
 	
 	public static Object[] convertParamsToArray(PlaidObject params) throws PlaidException {
 		List<Object> objs = new ArrayList<Object>();
-		if ( params.getStates().contains(lookup("plaid.lang.Pair", unit())) ) {
+		if (params.getStates().contains(lookup("plaid.lang.Pair", unit()))) {
 			PlaidObject elem = params;
-			while ( elem != unit() ) {
-				if ( elem.getStates().contains(lookup("plaid.lang.Pair", unit()))) {
+			while (elem != unit()) {
+				if (elem.getStates().contains(lookup("plaid.lang.Pair", unit()))) {
 					PlaidObject fst = elem.getMembers().get("fst");
-					if ( fst instanceof PlaidJavaObject ) {
+					if (fst instanceof PlaidJavaObject) {
 						objs.add(((PlaidJavaObject)fst).getJavaObject());
 						elem = elem.getMembers().get("snd");
-					} else {
-						throw new PlaidInvalidArgumentException("Can ONLY convert PlaidJava Object");
+					}
+					else {
+						objs.add(params);
+						elem = elem.getMembers().get("snd");
 					}
 				}
 			}
-		} else if ( params instanceof PlaidJavaObject ){
+		}
+		else if (params instanceof PlaidJavaObject) {
 			objs.add(((PlaidJavaObject)params).getJavaObject());
-		} else {
-			throw new PlaidInvalidArgumentException("Can ONLY convert PlaidJava Object");
+		}
+		else {
+			objs.add(params);
 		}
 
 		return objs.toArray();
