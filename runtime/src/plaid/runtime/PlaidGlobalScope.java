@@ -87,8 +87,13 @@ public final class PlaidGlobalScope extends AbstractPlaidScope {
 	
 	@Override
 	public PlaidObject shallowLookup(String name) {
-		PlaidObject result = this.lookup(name);
-		return (result instanceof PlaidLookupMap) ? null : result;
+		// check scope map
+		if (this.mutableScopeMap.containsKey(name))
+			return this.mutableScopeMap.get(name);
+		else if (this.immutableScopeMap.containsKey(name))
+			return this.immutableScopeMap.get(name);
+		else
+			return null;
 	}
 	
 	@Override
@@ -115,13 +120,15 @@ public final class PlaidGlobalScope extends AbstractPlaidScope {
 											"declared with \"val\".");
 		}
 		else if (this.mutableScopeMap.containsKey(name)) {
+			// since we're binding a new object to the old variable name, we need 
+			// to remove the binding to the old object and add a new binding of 
+			// the same name to the new object
+			this.mutableScopeMap.get(name).removeNameBinding(name, this);
+			
 			this.mutableScopeMap.put(name, plaidObj);
 		}
 		
-		// since we're binding a new object to the old variable name, we need 
-		// to remove the binding to the old object and add a new binding of 
-		// the same name to the new object
-		this.shallowLookup(name).removeNameBinding(name, this);
+		
 		plaidObj.addNameBinding(name, this);
 	}
 	
@@ -152,13 +159,19 @@ public final class PlaidGlobalScope extends AbstractPlaidScope {
 	@Override
 	public void insertAllMembers(PlaidObject plaidObj) {
 		Map<String, PlaidObject> immMembers = plaidObj.getImmutableMembers();
-		Map<String, PlaidObject> mutMembers = plaidObj.getImmutableMembers();
+		Map<String, PlaidObject> mutMembers = plaidObj.getMutableMembers();
 		for (Entry<String, PlaidObject> member : immMembers.entrySet()) {
-			this.insert(member.getKey(), member.getValue(), true);
+			// if the lookup succeeds, we don't want to overwrite the old binding
+			if (this.shallowLookup(member.getKey()) == null) {
+				this.insert(member.getKey(), member.getValue(), true);
+			}
 		}
 		
 		for (Entry<String, PlaidObject> member : mutMembers.entrySet()) {
-			this.insert(member.getKey(), member.getValue(), false);
+			// if the lookup succeeds, we don't want to overwrite the old binding
+			if (this.shallowLookup(member.getKey()) == null) {
+				this.insert(member.getKey(), member.getValue(), true);
+			}
 		}
 	}
 	
@@ -171,8 +184,8 @@ public final class PlaidGlobalScope extends AbstractPlaidScope {
 			this.mutableScopeMap.remove(name);
 		}
 		else {
-			throw new PlaidRuntimeException("Variable does not exist in " +
-											"global scope.");
+			throw new PlaidUnboundVariableException("Variable does not " +
+					"exist in global scope.");
 		}
 	}
 }
