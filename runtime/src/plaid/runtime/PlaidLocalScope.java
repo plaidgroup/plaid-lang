@@ -64,6 +64,11 @@ public final class PlaidLocalScope extends AbstractPlaidScope {
 					"declared with \"val\".");
 		}
 		else if (this.mutableScopeMap.containsKey(name)) {
+			// since we're binding a new object to the old variable name, we 
+			// need to remove the binding to the old object and add a new 
+			// binding of the same name to the new object
+			this.mutableScopeMap.get(name).removeNameBinding(name, this);
+			
 			// if this is a state member, we have to update the actual state 
 			// ("this") as well as the binding in the current scope
 			if (this.stateMembers.contains(name)) {
@@ -74,10 +79,7 @@ public final class PlaidLocalScope extends AbstractPlaidScope {
 			}
 			this.mutableScopeMap.put(name, plaidObj);
 			
-			// since we're binding a new object to the old variable name, we 
-			// need to remove the binding to the old object and add a new 
-			// binding of the same name to the new object
-			this.shallowLookup(name).removeNameBinding(name, this);
+			
 			plaidObj.addNameBinding(name, this);
 		}
 		else {
@@ -90,16 +92,42 @@ public final class PlaidLocalScope extends AbstractPlaidScope {
 		Map<String, PlaidObject> immutableMembers = obj.getImmutableMembers();
 		Map<String, PlaidObject> mutableMembers = obj.getMutableMembers();
 		for (Entry<String, PlaidObject> member : immutableMembers.entrySet()) {
-			this.insert(member.getKey(), member.getValue(), true);
-			// need to make sure that these members can be shadowed correctly
-			this.stateMembers.add(member.getKey());
+			// if the lookup succeeds, we don't want to overwrite the old binding
+			if (this.globalBoundLookup(member.getKey()) == null) {
+				this.insert(member.getKey(), member.getValue(), true);
+				// need to make sure that these members can be shadowed correctly
+				this.stateMembers.add(member.getKey());
+			}
 		}
 		
 		for (Entry<String, PlaidObject> member : mutableMembers.entrySet()) {
-			this.insert(member.getKey(), member.getValue(), false);
-			// need to make sure that these members can be shadowed correctly
-			this.stateMembers.add(member.getKey());
+			// if the lookup succeeds, we don't want to overwrite the old binding
+			if (this.globalBoundLookup(member.getKey()) == null) {
+				this.insert(member.getKey(), member.getValue(), false);
+				// need to make sure that these members can be shadowed correctly
+				this.stateMembers.add(member.getKey());
+			}
 		}
+	}
+	
+	/**
+	 * Looks up the given name recursively in the scope name, but prevents 
+	 * the global scope from trying to load any classes if it can't find it.
+	 * 
+	 * @param name
+	 * @return
+	 */
+	private PlaidObject globalBoundLookup(String name) {
+		PlaidObject obj = this.shallowLookup(name);
+		if (obj == null) {
+			if (this.parentScope instanceof PlaidGlobalScope) {
+				obj = this.parentScope.shallowLookup(name);
+			}
+			else {
+				obj = this.globalBoundLookup(name);
+			}
+		}
+		return obj;
 	}
 	
 	@Override
@@ -124,7 +152,7 @@ public final class PlaidLocalScope extends AbstractPlaidScope {
 			this.mutableScopeMap.remove(name);
 		}
 		else {
-			throw new PlaidRuntimeException("Variable does not exist in " +
+			throw new PlaidUnboundVariableException("Variable does not exist in " +
 					"current scope.");
 		}
 		this.stateMembers.remove(name);
