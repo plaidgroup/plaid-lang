@@ -94,31 +94,32 @@ public final class MethodDecl implements Decl {
 
 	// Top-level method declaration
 	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
+		String newName = CodeGen.convertOpNames(this.name);
 		ID freshReturn = IdGen.getId();
 		ID freshImports = IdGen.getId();
 		CodeGen out = new CodeGen(cc);
 		IDList localVars = new IDList();
-		ID thisMethod = new ID(name + "_func");
+		ID thisMethod = new ID(newName + "_func");
 		
 		//package and needed imports
 		out.declarePackage(qid.toString());
 		
 		//annotation and class definition
-		out.methodAnnotation(name, true);
-		out.declarePublicClass(name); out.openBlock(); //public class name {
+		out.methodAnnotation(newName, true);
+		out.declarePublicClass(newName); out.openBlock(); //public class newName {
 
 		//generate code to create the package scope with imports
 		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
 		imports.codegen(out, freshImports);
 		out.declareTopScope(qid.toString(),freshImports.getName());
 		
-		if (name.equals("main") && this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1) {
-			out.topLevelMain(name + "_func");
+		if (newName.equals("main") && this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1) {
+			out.topLevelMain(newName + "_func");
 		} else {
 			localVars = localVars.add(arg);
 		}
 		
-		out.methodAnnotation(name, false);
+		out.methodAnnotation(newName, false);
 		out.declarePublicStaticFinalVar(CodeGen.plaidMethodType, thisMethod.getName());
 		out.openStaticBlock(); // static {
 		// add local scope so that the lambda creation works properly
@@ -134,7 +135,7 @@ public final class MethodDecl implements Decl {
 		out.closeBlock(); // }  (for static block)
 		out.closeBlock(); // }  (for class declaration)
 		
-		return FileGen.createOutputFile(name, cc.getOutputDir(), out.formatFile(), qid);
+		return FileGen.createOutputFile(newName, cc.getOutputDir(), out.formatFile(), qid);
 	}
 
 	@Override
@@ -162,7 +163,6 @@ public final class MethodDecl implements Decl {
 		
 		// TODO: methods are immutable by default?
 		out.addMember(y.getName(), newName, freshMethName.getName());  //y.addMember(name,freshMethName)
-		
 	}
 
 	@Override
