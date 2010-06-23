@@ -1,9 +1,12 @@
 package plaid.apps.webserver;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 //TODO - Temporary class, will be removed by coolstuffs from Plaid
-public JavaHelper{
+public class JavaHelper{
 	
-	public static String getRequestFromStream(InputStream input){
+	public static String getUriFromStream(InputStream input){
 		StringBuffer request = new StringBuffer(2048);
 	    int i;
 	    byte[] buffer = new byte[2048];
@@ -17,10 +20,10 @@ public JavaHelper{
 	    for (int j=0; j<i; j++) {
 	      request.append((char) buffer[j]);
 	    }
-	    return request.toString();
+	    return parseUri(request.toString());
 	}
 	
-	private String parseUri(String requestString) {
+	private static String parseUri(String requestString) {
 	    int index1, index2;
 	    index1 = requestString.indexOf(' ');
 	    if (index1 != -1) {
