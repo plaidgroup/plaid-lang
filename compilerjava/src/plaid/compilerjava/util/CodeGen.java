@@ -178,7 +178,6 @@ public class CodeGen {
 		
 		assign(target);
 		changeState(object,newState);
-		append(";");
 		updateVar(target);
 	}
 
