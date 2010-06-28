@@ -55,23 +55,31 @@ state WaitingHttpServer case of HttpServer{
 	
 	method await(){
 		System.out.println("Waiting for request");
+		var servletContainer = new ServletContainer;
 		while{ true }{
-			System.out.println("Inside while");
 			socket = this.serverSocket.accept();
-			System.out.println("Connection accepted");
 			inputStream = socket.getInputStream();
-			System.out.println("Got input stream");
 			outputStream = socket.getOutputStream();
-			System.out.println("Got output stream");
-	        var httpRequest = new Request{
+	        var request = new Request{
 	        	var inputStream = this.inputStream;
 	        };
-	        httpRequest.parse();
+	        //changes the state to ParsedRequest here
+	        var parsedRequest = request.parse(inputStream);
 	        var response = new Response{
 	        	var outputStream = this.outputStream;
-	        	var request = httpRequest;
+	        	var request = parsedRequest;
 	        };
-	        response.serveFileResource();
+	        ifElse(parsedRequest.getUri().startsWith("/servlet/")){
+	        	System.out.println("I am servlet"+request.getUri());
+	        	var plaidServlet = servletContainer.getOrAddServletInstanceToPool(request.getUri());
+	        	var servletRequest = parsedRequest.makeServletRequest();
+	        	var servletResponse = response.makeServletResponse();
+	        	plaidServlet.service(servletRequest,servletResponse);
+	        	
+	        }{
+	        	System.out.println("I am not a servlet");
+		        response.serveFileResource();
+	        };
 	        socket.close();
 		};
 	}
