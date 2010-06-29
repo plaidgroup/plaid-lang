@@ -42,9 +42,18 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 	// instance fields
 	@SuppressWarnings("all")
 	private PlaidClassLoader classLoader; 
-	private String currentFilename = "<UNKNOWN>";
-	private int currentLine = -1;
-	private int currentColumn = -1;
+	private ThreadLocal<String> currentFilename = new ThreadLocal<String> () {
+		@Override 
+		protected String initialValue() { return "<UNKNOWN>"; }
+	};
+	private ThreadLocal<Integer> currentLine = new ThreadLocal<Integer>() {
+		@Override 
+		protected Integer initialValue() { return -1; }
+	};
+	private ThreadLocal<Integer> currentColumn = new ThreadLocal<Integer>()  {
+		@Override 
+		protected Integer initialValue() { return -1; }
+	};
 	private RUNTIME_STATE currentState = RUNTIME_STATE.UNINITIALIZED;
 	private Object currentStateLock = new Object();
 	private List<PlaidRuntimeEventListener> eventListeners = new ArrayList<PlaidRuntimeEventListener>();
@@ -206,23 +215,23 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 	@Override
 	public void enterCall(PlaidObject this$plaid, String name) {
 		if ( currentState == RUNTIME_STATE.UNINITIALIZED ) return;
-		triggerCallEnterEvent(new PlaidRuntimeCallEnterEvent(this, name, this$plaid, currentFilename, currentLine, currentColumn));
+		triggerCallEnterEvent(new PlaidRuntimeCallEnterEvent(this, name, this$plaid, currentFilename.get(), currentLine.get(), currentColumn.get()));
 		checkRuntimeState();
 	}
 
 	@Override
 	public int getCurrentColumn() {
-		return currentColumn;
+		return currentColumn.get();
 	}
 	
 	@Override
 	public String getCurrentFilename() {
-		return currentFilename;
+		return currentFilename.get();
 	}
 
 	@Override
 	public int getCurrentLine() {
-		return currentLine;
+		return currentLine.get();
 	}
 
 	@Override
@@ -233,7 +242,7 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 	@Override
 	public void leaveCall(PlaidObject this$plaid, String name) {
 		if ( currentState == RUNTIME_STATE.UNINITIALIZED ) return;
-		triggerCallLeaveEvent(new PlaidRuntimeCallLeaveEvent(this, name, this$plaid, currentFilename, currentLine, currentColumn));
+		triggerCallLeaveEvent(new PlaidRuntimeCallLeaveEvent(this, name, this$plaid, currentFilename.get(), currentLine.get(), currentColumn.get()));
 	}
 
 	@Override
@@ -274,9 +283,9 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 	
 	@Override
 	public void updateLocation(String filename, int line, int column) {
-		currentFilename = filename;
-		currentLine = line;
-		currentColumn = column;
+		currentFilename.set(filename);
+		currentLine.set(line);
+		currentColumn.set(column);
 		triggerLocationUpdateEvent(new PlaidRuntimeLocationUpdateEvent(this, filename, line, column));
 		checkRuntimeState();
 	}
