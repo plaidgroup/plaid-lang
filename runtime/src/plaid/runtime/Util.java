@@ -84,6 +84,10 @@ public class Util {
 		return cl.protoMethod(fullyQualName, dlg);
 	}
 	
+	public static PlaidMemberDef memberDef(String memberName, PlaidTag definedIn, boolean mutable) {
+		return cl.memberDef(memberName, definedIn, mutable);
+	}
+	
 	public static PlaidObject lookup(String name, PlaidObject thisVar) {
 		return cl.lookup(name, thisVar);
 	}
@@ -92,7 +96,11 @@ public class Util {
 		return cl.lookup(name, scope);
 	}
 	
-	public static PlaidTag tag(String tag, PlaidState caseOf) {
+	public static PlaidTag tag(String tag) {
+		return cl.tag(tag);
+	}
+	
+	public static PlaidTag tag(String tag, PlaidTag caseOf) {
 		return cl.tag(tag, caseOf);
 	}
 	
@@ -102,14 +110,22 @@ public class Util {
 			PlaidObject elem = params;
 			while (elem != unit()) {
 				if (elem.getStates().contains(lookup("plaid.lang.Pair", unit()))) {
-					PlaidObject fst = elem.getMembers().get("fst");
+					PlaidObject fst = null;
+					PlaidObject snd = null;
+					for (PlaidMemberDef m: elem.getMembers().keySet()) {
+						if (m.getMemberName().equals("fst")) {
+							fst = elem.getMembers().get(m);
+						} else if (m.getMemberName().equals("snd")) {
+							snd = elem.getMembers().get(m);
+						}
+					}		
 					if (fst instanceof PlaidJavaObject) {
 						objs.add(((PlaidJavaObject)fst).getJavaObject());
-						elem = elem.getMembers().get("snd");
+						elem = snd;
 					}
 					else {
 						objs.add(params);
-						elem = elem.getMembers().get("snd");
+						elem = snd;
 					}
 				}
 			}
@@ -130,10 +146,8 @@ public class Util {
 		}
 		PlaidState ps = toPlaidState(lookup("plaid.lang.Pair", unit()));
 		PlaidObject result = ps.instantiate();
-
-		// TODO: not sure if these params should be mutable or not
-		result.addMember("fst", cl.packJavaObject(objs[0])/*, false*/);
-		result.addMember("snd", converArrayToParams(Arrays.copyOfRange(objs, 1, objs.length))/*, false*/);
+		result.addMember(Util.memberDef("fst", null, false), cl.packJavaObject(objs[0]));
+		result.addMember(Util.memberDef("snd", null, false), converArrayToParams(Arrays.copyOfRange(objs, 1, objs.length)));
 		
 		return result;
 	}
