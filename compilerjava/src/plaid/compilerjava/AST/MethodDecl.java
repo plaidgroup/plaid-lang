@@ -21,9 +21,7 @@ package plaid.compilerjava.AST;
 
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -93,12 +91,13 @@ public final class MethodDecl implements Decl {
 	}
 
 	// Top-level method declaration
-	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
+	@Override
+	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
 		String newName = CodeGen.convertOpNames(this.name);
 		ID freshReturn = IdGen.getId();
 		ID freshImports = IdGen.getId();
 		CodeGen out = new CodeGen(cc);
-		IDList localVars = new IDList();
+		IDList localVars = new IDList(globalVars);
 		ID thisMethod = new ID(newName + "_func");
 		
 		//package and needed imports
@@ -128,7 +127,7 @@ public final class MethodDecl implements Decl {
 		
 		out.declareVar(CodeGen.plaidObjectType,freshReturn.getName());
 		//top level functions lookup with unit
-		body.codegen(out, freshReturn,localVars);
+		body.codegen(out, freshReturn,localVars, new HashSet<ID>());
 		out.ret(freshReturn.getName());
 		out.closeAnonymousDeclaration(); // }});
 		
@@ -139,7 +138,7 @@ public final class MethodDecl implements Decl {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		String newName = CodeGen.convertOpNames(name);
 		out.setLocation(token);
 		ID freshMethName = IdGen.getId();
@@ -157,8 +156,9 @@ public final class MethodDecl implements Decl {
 		// update var for the debugger
 		out.updateVar(arg.getName());
 		
-		body.codegen(out, freshID, newLocalVars);
-		out.ret(freshID.getName() );  //return freshID;
+		System.out.println("Generating body for method " + this.name);
+		body.codegen(out, freshID, newLocalVars, stateVars);
+		out.ret(freshID.getName());  //return freshID;
 		out.closeAnonymousDeclaration();  //}});
 		
 		// TODO: methods are immutable by default?
@@ -175,5 +175,11 @@ public final class MethodDecl implements Decl {
 	@Override
 	public void accept(ASTVisitor visitor) {
 		visitor.visitNode(this);
+	}
+
+	@Override
+	public void codegen(CodeGen out, ID y, IDList localVars) {
+		// TODO Auto-generated method stub
+		
 	}
 }

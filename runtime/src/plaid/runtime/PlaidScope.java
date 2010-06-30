@@ -52,19 +52,19 @@ public interface PlaidScope {
 	 */
 	public void remove(String name);
 
-	/**
-	 * Inserts all of the members of the specified object into the current 
-	 * scope.
-	 * 
-	 * @param thisVar
-	 */
-	void insertAllMembers(PlaidObject obj);
-	
-	/**
-	 * Clears all of the members of the specified object from all scopes that 
-	 * it is currently referenced in.
-	 * 
-	 * @param thisVar
-	 */
-	void clearOrUpdateOldMembers(PlaidObject oldObj, PlaidObject newObj);
+//	/**
+//	 * Inserts all of the members of the specified object into the current 
+//	 * scope.
+//	 * 
+//	 * @param thisVar
+//	 */
+//	void insertAllMembers(PlaidObject obj);
+//	
+//	/**
+//	 * Clears all of the members of the specified object from all scopes that 
+//	 * it is currently referenced in.
+//	 * 
+//	 * @param thisVar
+//	 */
+//	void clearOrUpdateOldMembers(PlaidObject oldObj, PlaidObject newObj);
 }

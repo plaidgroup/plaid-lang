@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import java.io.File;
+import java.util.*;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -88,7 +89,7 @@ public class StateDecl implements Decl {
 	}
 	
 	@Override
-	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
+	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
 		CodeGen out = new CodeGen(cc);	
 		ID freshImports = IdGen.getId();
 		ID theState = IdGen.getId();
@@ -112,8 +113,9 @@ public class StateDecl implements Decl {
 		out.openStaticBlock(); //static {
 		out.append("final " + CodeGen.plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(" + CodeGen.globalScope + ");");
 		out.declareFinalVar(CodeGen.plaidStateType, theState.getName());
-		IDList idList = new IDList().add(new ID(CodeGen.thisVar)); // "this" should be visible during field initializations
-		stateDef.codegen(out, theState, idList);//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+		IDList idList = new IDList(globalVars).add(new ID(CodeGen.thisVar)); // "this" should be visible during field initializations
+		Set<ID> stateVars = new HashSet<ID>();
+		stateDef.codegen(out, theState, idList, stateVars);//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
 		out.assignToPrototype(name.getName(), theState.getName());
 		
 		out.closeBlock(); // } (for static block)
@@ -128,7 +130,7 @@ public class StateDecl implements Decl {
 			
 			out.openStaticBlock(); //static {
 			out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
-			caseOf.codegen(out, caseOfState, new IDList());
+			caseOf.codegen(out, caseOfState, idList, stateVars);
 			
 			out.assignToNewTag(tag.getName(), tagPath,  caseOfState.getName());  //tag = new PlaidTag(caseOfState)
 			
@@ -145,15 +147,15 @@ public class StateDecl implements Decl {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		
 		ID fresh = IdGen.getId();
 		out.stateAnnotation(name.getName(), false);
 		out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
-		stateDef.codegen(out, fresh, localVars);
+		stateDef.codegen(out, fresh, localVars, stateVars);
 		// TODO: State decls are immutable by default
-		out.addMember(y.getName(), name.getName(), fresh.getName()/*, true*/); //y.addMember(s,fresh)
+		out.addMember(y.getName(), name.getName(), fresh.getName()); //y.addMember(s,fresh)
 	}
 
 	@Override
@@ -165,6 +167,12 @@ public class StateDecl implements Decl {
 	@Override
 	public void accept(ASTVisitor visitor) {
 		visitor.visitNode(this);
+	}
+
+	@Override
+	public void codegen(CodeGen out, ID y, IDList localVars) {
+		// TODO Auto-generated method stub
+		
 	}
 
 }

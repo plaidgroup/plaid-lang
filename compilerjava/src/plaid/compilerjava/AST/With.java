@@ -19,6 +19,8 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.Set;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
@@ -71,7 +73,7 @@ public class With implements State {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		
 		ID fresh1 = IdGen.getId();
@@ -80,8 +82,8 @@ public class With implements State {
 		out.declareFinalVar(CodeGen.plaidStateType, fresh1.getName());
 		out.declareFinalVar(CodeGen.plaidStateType, fresh2.getName());
 		
-		r1.codegen(out, fresh1, localVars);
-		r2.codegen(out, fresh2, localVars);
+		r1.codegen(out, fresh1, localVars, stateVars);
+		r2.codegen(out, fresh2, localVars, stateVars);
 		
 		out.assignToWith(y.getName(),fresh1.getName(),fresh2.getName());  //y = //fresh1.with(fresh2); 
 	}
@@ -96,5 +98,11 @@ public class With implements State {
 	public void accept(ASTVisitor visitor) {
 		visitor.visitNode(this);
 	}
+
+//	@Override
+//	public void codegen(CodeGen out, ID y, IDList localVars) {
+//		// TODO Auto-generated method stub
+//		
+//	}
 
 }

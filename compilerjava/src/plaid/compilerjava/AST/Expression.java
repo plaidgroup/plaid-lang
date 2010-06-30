@@ -19,6 +19,8 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.Set;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
@@ -27,6 +29,6 @@ public interface Expression extends ASTnode {
 
 	public Token getToken();
 	
-	void codegen(CodeGen out, ID y, IDList localVars);
+	void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars);
 
 }

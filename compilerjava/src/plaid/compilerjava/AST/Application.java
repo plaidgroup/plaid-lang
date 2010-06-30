@@ -19,6 +19,8 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.Set;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
@@ -72,14 +74,30 @@ public class Application implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		ID x = IdGen.getId();
 		ID z = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //public PlaidObject x
 		out.declareFinalVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
-		f.codegen(out, x, localVars);
-		arg.codegen(out, z, localVars);
+		// if f is an ID and that ID isn't in the local vars then we need to try to find it in "this"
+		if (f instanceof ID) {
+			System.out.println("Generating code for method application: " + ((ID)f).getName());
+			if (((ID)f).getName().equals("foldrHelper")) {
+				System.out.println("local vars contains f: " + localVars.contains((ID)f));
+				System.out.println("state vars: " + stateVars);
+			}
+		}
+		if (f instanceof ID && !localVars.contains((ID)f) && stateVars.contains((ID)f)) {
+			System.out.println("inserting 'this': " + ((ID)f).getName());
+			f = new Dereference(new ID("this$plaid"), (ID)f);
+		}
+		f.codegen(out, x, localVars, stateVars);
+		// if we're being applied to an ID and that ID isn't in the local vars then we need to try to find it in "this"
+		if (arg instanceof ID && !localVars.contains((ID)arg) && stateVars.contains((ID)arg)) {
+			arg = new Dereference(new ID("this$plaid"), (ID)arg);
+		}
+		arg.codegen(out, z, localVars, stateVars);
 		out.setLocation(token);
 		out.assignToCall(y.getName(),x.getName(), z.getName());  // y = Util.call(x,z);
 	}

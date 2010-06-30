@@ -23,15 +23,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntimeException;
-import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
 
@@ -41,7 +38,6 @@ public class PlaidObjectMap implements PlaidObject {
 	protected Map<String,PlaidObject> mutableMembers;
 	protected Collection<PlaidTag> tags;
 	// map from scopes to sets of bound variable names for this object
-	protected final Map<PlaidScope, Set<String>> boundScopes;
 	protected boolean readonly = false;
 	
 	public PlaidObjectMap() {
@@ -49,7 +45,6 @@ public class PlaidObjectMap implements PlaidObject {
 		immutableMembers = new HashMap<String, PlaidObject>();
 		mutableMembers = new HashMap<String, PlaidObject>();
 		tags = new ArrayList<PlaidTag>();
-		this.boundScopes = new HashMap<PlaidScope, Set<String>>();
 	}
 
 	public void setReadOnly(boolean ro) {
@@ -288,29 +283,5 @@ public class PlaidObjectMap implements PlaidObject {
 		
 		sb.append("})");
 		return sb.toString();
-	}
-
-	@Override
-	public void addNameBinding(String name, PlaidScope scope) {
-		if (!this.boundScopes.containsKey(scope)) {
-			this.boundScopes.put(scope, new HashSet<String>());
-		}
-		this.boundScopes.get(scope).add(name);
-	}
-	
-	@Override
-	public void removeNameBinding(String name, PlaidScope scope) {
-		if (!this.boundScopes.containsKey(scope)) {
-			throw new PlaidRuntimeException("Object not bound in specified scope.");
-		}
-		Set<String> boundNames = this.boundScopes.get(scope);
-		if (!boundNames.contains(name)) {
-			throw new PlaidRuntimeException("Bound name '" + name + "' not found in specified scope.");
-		}
-	}
-
-	@Override
-	public Set<PlaidScope> getBoundScopes() {
-		return Collections.unmodifiableSet(this.boundScopes.keySet());
 	}
 }

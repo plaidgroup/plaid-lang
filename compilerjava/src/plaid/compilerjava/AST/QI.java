@@ -21,6 +21,7 @@ package plaid.compilerjava.AST;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
@@ -79,7 +80,7 @@ public class QI implements State {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		
 		String scope = CodeGen.globalScope;
@@ -112,5 +113,11 @@ public class QI implements State {
 	public void accept(ASTVisitor visitor) {
 		visitor.visitNode(this);
 	}
+
+//	@Override
+//	public void codegen(CodeGen out, ID y, IDList localVars) {
+//		// TODO Auto-generated method stub
+//		
+//	}
 
 }

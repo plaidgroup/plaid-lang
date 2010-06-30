@@ -19,6 +19,8 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.Set;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
@@ -65,19 +67,19 @@ public class ChangeState implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		
 		out.setLocation(token);
 		
 		//generate code for getting the object to change
 		ID x = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType,x.getName());
-		e.codegen(out, x, localVars);
+		e.codegen(out, x, localVars, stateVars);
 
 		//generate code for the new State
 		ID r = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType,r.getName());
-		st.codegen(out, r, localVars);
+		st.codegen(out, r, localVars, stateVars);
 
 		//cast to State
 		ID s = IdGen.getId();
@@ -89,15 +91,15 @@ public class ChangeState implements Expression {
 		out.declareFinalVar(CodeGen.plaidObjectType,i.getName());
 		out.assignToInstantiation(i.getName(), s.getName());
 		
-		ID oldObj = IdGen.getId();
-		out.declareFinalVar(CodeGen.plaidObjectType, oldObj.getName());
-		out.append(oldObj.getName() + " = " + x.getName() + ".copy();");
+//		ID oldObj = IdGen.getId();
+//		out.declareFinalVar(CodeGen.plaidObjectType, oldObj.getName());
+//		out.append(oldObj.getName() + " = " + x.getName() + ".copy();");
 		
 		//assign result of state change to target (y)
 		out.assignToChangedState(y.getName(),x.getName(), i.getName());  // y = x.changeState(r);
 		
-		// clear away all of the old state members from this state in the local scope
-		out.append(CodeGen.localScope + ".clearOrUpdateOldMembers(" + oldObj.getName() + ", " + x.getName() + ");");
+//		// clear away all of the old state members from this state in the local scope
+//		out.append(CodeGen.localScope + ".clearOrUpdateOldMembers(" + oldObj.getName() + ", " + x.getName() + ");");
 	}
 
 	@Override

@@ -22,7 +22,9 @@ package plaid.compilerjava.AST;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -73,9 +75,22 @@ public class CompilationUnit implements ASTnode {
 		CompilerConfiguration ccu = new CompilerConfiguration(cc, this);
 
 		List<File> fileList = new ArrayList<File>();
+		// Not sure if this is supposed to go here.  If a compilation unit is responsible for 
+		// multiple physical Plaid files across packages (perhaps even just across the individual files themselves 
+		// depending on the semantics we want), then it shouldn't b/c this will bridge the global 
+		// namespaces of everything this CompilationUnit is responsible for compiling.
+		// It also must be a Set and not the functional-style equivalent IDList because we 
+		// need for the declarations made in one method to be seen in all of the others.
+		Set<ID> globalVars = new HashSet<ID>();
+		// this loop *must* come before the second loop that does the actual code generation
+		// because we need to add all of the top-level declarations to the set of global IDs so 
+		// that the order in which the top-level declarations are compiled don't matter
+		for (Decl d : decls) {
+			globalVars.add(new ID(d.getName()));
+		}
 		//Declarations
 		for (Decl d : decls) {
-			fileList.add(d.codegen(new QualifiedID(packageName), imports, ccu));
+			fileList.add(d.codegen(new QualifiedID(packageName), imports, ccu, globalVars));
 		}
 		
 		return fileList;

@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import java.io.File;
+import java.util.*;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -91,8 +92,9 @@ public class FieldDecl implements Decl{
 
 	//Top Level Field Decl
 	@Override
-	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
-		CodeGen out = new CodeGen(cc);	
+	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
+		CodeGen out = new CodeGen(cc);
+		IDList localVars = new IDList(globalVars);
 		ID freshImports = IdGen.getId();
 		
 		//package and needed imports
@@ -113,7 +115,7 @@ public class FieldDecl implements Decl{
 		out.openStaticBlock(); //static {
 		// TODO: make this a function
 		out.append("final plaid.runtime.PlaidLocalScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);");
-		e.codegen(out, f, new IDList());  //initialization code
+		e.codegen(out, f, localVars, new HashSet<ID>());  //initialization code
 		// make this immutable if it should be
 		// add this field to the global scope
 		out.insertIntoScope(CodeGen.globalScope, f.getName(), this.immutable);
@@ -125,7 +127,7 @@ public class FieldDecl implements Decl{
 
 	//Normal Field Decl
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 
 		out.setLocation(token);
 		
@@ -141,7 +143,7 @@ public class FieldDecl implements Decl{
 		//protofield body
 		out.declareLambdaScope();
 		out.declareFinalVar(CodeGen.plaidObjectType, fresh1.getName()); //Public PlaidObect fresh1;
-		e.codegen(out, fresh1, localVars);  //field initializer code
+		e.codegen(out, fresh1, localVars, stateVars);  //field initializer code
 		out.ret(fresh1.getName()); // return fresh1;
 		out.closeAnonymousDeclaration(); // }});
 		out.addMember(y.getName(), f.getName(), freshFieldName.getName(), this.immutable);  //y.addMember(f,freshFieldName)
@@ -162,5 +164,11 @@ public class FieldDecl implements Decl{
 
 	public boolean getImmutable() {
 		return this.immutable;
+	}
+
+	@Override
+	public void codegen(CodeGen out, ID y, IDList localVars) {
+		// TODO Auto-generated method stub
+		
 	}
 }
