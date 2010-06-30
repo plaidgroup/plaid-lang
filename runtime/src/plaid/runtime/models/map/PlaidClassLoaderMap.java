@@ -22,6 +22,7 @@ package plaid.runtime.models.map;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import plaid.runtime.PlaidClassLoader;
 import plaid.runtime.PlaidClassNotFoundException;
@@ -31,11 +32,12 @@ import plaid.runtime.PlaidGlobalScope;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidLocalScope;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidMethod;
-import plaid.runtime.PlaidRuntimeException;
-import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidPackage;
+import plaid.runtime.PlaidRuntimeException;
+import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidState;
 import plaid.runtime.PlaidTag;
 import plaid.runtime.annotations.RepresentsField;
@@ -76,7 +78,10 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 			if (name.equals(PlaidJavaConstructorMap.NAME)) {
 				if (pthis instanceof PlaidJavaStateMap) {
 					PlaidJavaStateMap pjsm = (PlaidJavaStateMap)pthis;
-					return pjsm.prototype.getMembers().get(name);
+					Map<PlaidMemberDef, PlaidObject> members = pjsm.prototype.getMembers();
+					for (PlaidMemberDef m : members.keySet()) {
+						if (m.getMemberName().equals(name)) return members.get(m);
+					}
 				}
 				else {
 					throw new PlaidRuntimeException("Non-Java object has a Java constructor.");
@@ -84,8 +89,10 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 			}
 			
 			// check members 
-			if (pthis.getMembers().containsKey(name)) {
-				return pthis.getMembers().get(name);
+			Map<PlaidMemberDef,PlaidObject> members = pthis.getMembers();
+			for (PlaidMemberDef m : members.keySet()) {
+				if (name.equals(m.getMemberName()))
+					return members.get(m);
 			}
 			
 			for (PlaidObject os : pthis.getStates()) {
@@ -188,9 +195,14 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 		return new PlaidStateMap();
 	}
 	
+	@Override
+	public PlaidTag tag(String tagName) {
+		return new PlaidTagMap(tagName);
+	}
+	
 	@Override 
-	public PlaidTag tag(String tag, PlaidState caseOf) {
-		return new PlaidTagMap(tag, caseOf);
+	public PlaidTag tag(String tagName, PlaidTag caseOf) {
+		return new PlaidTagMap(tagName, caseOf);
 	}
 
 
@@ -287,5 +299,10 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	@Override
 	public PlaidLocalScope localScope(PlaidScope parentScope) {
 		return new PlaidLocalScope(parentScope);
+	}
+	
+	@Override
+	public PlaidMemberDef memberDef(String memberName, PlaidTag definedIn, boolean mutable){
+		return new PlaidMemberDefMap(memberName, definedIn, mutable);
 	}
 }

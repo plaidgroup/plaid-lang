@@ -64,11 +64,15 @@ public class NewInstance implements Expression{
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		out.setLocation(token);
 		ID r = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidStateType, r.getName()); 
-		st.codegen(out, r, localVars, stateVars);
+
+		st.codegenState(out, r, localVars, stateVars, null);
+
 		out.assignToInstantiation(y.getName(),r.getName()); //y = r.instantiate();
 	}
 

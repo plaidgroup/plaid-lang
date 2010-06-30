@@ -67,19 +67,19 @@ public class ChangeState implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
-		
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		out.setLocation(token);
 		
 		//generate code for getting the object to change
 		ID x = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType,x.getName());
-		e.codegen(out, x, localVars, stateVars);
+		e.codegenExpr(out, x, localVars, stateVars);
 
 		//generate code for the new State
 		ID r = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType,r.getName());
-		st.codegen(out, r, localVars, stateVars);
+		st.codegenState(out, r, localVars, stateVars, null);
 
 		//cast to State
 		ID s = IdGen.getId();

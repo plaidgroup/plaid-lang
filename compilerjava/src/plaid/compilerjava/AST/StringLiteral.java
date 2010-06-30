@@ -45,7 +45,7 @@ public class StringLiteral implements Expression{
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		
 		//wrap String as a PlaidObject

@@ -30,10 +30,12 @@ import plaid.compilerjava.util.QualifiedID;
 
 public interface Decl extends ASTnode {
 
-	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars);
+	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> stateVars);
 
-	public void codegen(CodeGen out, ID y, IDList localVars);
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars);
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, ID tagContext);
+	
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext);
+
 	
 	public String getName();
 }

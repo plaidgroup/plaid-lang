@@ -66,7 +66,8 @@ public final class Lambda implements Expression {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		
 		out.setLocation(token);
 		
@@ -76,7 +77,7 @@ public final class Lambda implements Expression {
 		
 		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
 		IDList newLocalVars = localVars.add(var);
-		body.codegen(out, freshID, newLocalVars, stateVars);  //lambda body
+		body.codegenExpr(out, freshID, newLocalVars, stateVars);  //lambda body
 		out.ret(freshID.getName());
 		
 		out.closeAnonymousDeclaration(); //}});");
