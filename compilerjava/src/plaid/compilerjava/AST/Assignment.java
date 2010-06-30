@@ -78,11 +78,12 @@ public class Assignment implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		out.setLocation(token);
 		ID assignTo = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, assignTo.getName());
-		value.codegen(out, assignTo, localVars, stateVars);
+		value.codegenExpr(out, assignTo, localVars, stateVars);
 		
 		// Generates (e.g.):
 		// PlaidObject var$foo = local$c0pe.lookup('y')
@@ -105,12 +106,14 @@ public class Assignment implements Expression {
 		}
 		// we have a target, so we need to check if that particular 
 		// field of the target is mutable and if so assign the new value
-		// evaluate the target
-		ID temp = IdGen.getId();
-		out.declareFinalVar(CodeGen.plaidObjectType, temp.getName());
-		target.codegen(out, temp, localVars, stateVars);
-		out.updateMember(temp.getName(), this.field.getName(), assignTo.getName());
-		out.assignToID(y.getName(), assignTo.getName());
+		else {
+			// evaluate the target
+			ID temp = IdGen.getId();
+			out.declareFinalVar(CodeGen.plaidObjectType, temp.getName());
+			target.codegenExpr(out, temp, localVars, stateVars);
+			out.updateMember(temp.getName(), this.field.getName(), assignTo.getName());
+			out.assignToID(y.getName(), assignTo.getName());
+		}
 
 		out.updateVar(assignTo.getName());
 	}
