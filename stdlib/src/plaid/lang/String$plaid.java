@@ -24,9 +24,10 @@ import java.util.ArrayList;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidLocalScope;
-import plaid.runtime.PlaidScope;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
+import plaid.runtime.PlaidScope;
 import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsState;
 import plaid.runtime.utils.Delegate;
@@ -36,11 +37,18 @@ import plaid.runtime.utils.Import;
 public class String$plaid {
 	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 	
+	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.String")
+	public static final plaid.runtime.PlaidTag StringTag$plaid;
+	static {
+		StringTag$plaid = plaid.runtime.Util.tag("plaid.lang.String");
+	}
+	
 	@RepresentsState(name="String") 
 	public static PlaidObject foo = Util.newObject();
 	
 	static {		
-		foo.addMember("plus$plaid", Util.protoMethod("plaid.lang.String.plus$plaid", new Delegate() {
+		PlaidMemberDef plus = Util.memberDef("plus$plaid", StringTag$plaid, false);
+		foo.addMember(plus, Util.protoMethod("plaid.lang.String.plus$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -49,8 +57,9 @@ public class String$plaid {
 				(((PlaidJavaObject)args).getJavaObject().toString());
 				return Util.string(x);
 			}
-		})/*, true*/);
-		foo.addMember("substring$plaid", Util.protoMethod("plaid.lang.String.substring$plaid", new Delegate() {
+		}));
+		PlaidMemberDef substring = Util.memberDef("substring$plaid", StringTag$plaid, false);
+		foo.addMember(substring, Util.protoMethod("plaid.lang.String.substring$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -71,14 +80,5 @@ public class String$plaid {
 		})/*, true*/);
 	}
 	
-	//TODO : should this String be a matchable tag?
-	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.String")
-	public static final plaid.runtime.PlaidTag StringTag$plaid;
-	static {
-		final plaid.runtime.PlaidState vAr100$plaid;
-		final plaid.runtime.PlaidObject vAr101$plaid;
-		vAr101$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("plaid.lang.Object", globalScope);
-		vAr100$plaid = plaid.runtime.Util.toPlaidState(vAr101$plaid);
-		StringTag$plaid = plaid.runtime.Util.tag("plaid.lang.String", vAr100$plaid);
-	}
+	
 }

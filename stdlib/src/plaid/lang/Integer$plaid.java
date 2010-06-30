@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidLocalScope;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
@@ -37,12 +38,18 @@ import plaid.runtime.utils.Import;
 public class Integer$plaid {
 	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 
+	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Integer")
+	public static final plaid.runtime.PlaidTag IntegerTag$plaid;
+	static {
+		IntegerTag$plaid = plaid.runtime.Util.tag("plaid.lang.Integer");
+	}
+	
 	@RepresentsState(name="Integer") 
 	public static PlaidObject foo = Util.newState();
 	
 	static {
-		
-		foo.addMember("plus$plaid", Util.protoMethod("plaid.lang.Integer.plus$plaid", new Delegate() {
+		PlaidMemberDef plus = Util.memberDef("plus$plaid", IntegerTag$plaid, false);
+		foo.addMember(plus, Util.protoMethod("plaid.lang.Integer.plus$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -53,7 +60,8 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("sub$plaid", Util.protoMethod("plaid.lang.Integer.sub$plaid", new Delegate() {
+		PlaidMemberDef sub = Util.memberDef("sub$plaid", IntegerTag$plaid, false);
+		foo.addMember(sub, Util.protoMethod("plaid.lang.Integer.sub$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -64,7 +72,8 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("mult$plaid", Util.protoMethod("plaid.lang.Integer.mult$plaid", new Delegate() {
+		PlaidMemberDef mult = Util.memberDef("mult$plaid", IntegerTag$plaid, false);
+		foo.addMember(mult, Util.protoMethod("plaid.lang.Integer.mult$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -75,7 +84,8 @@ public class Integer$plaid {
 			}
 		}));
 		
-		foo.addMember("div$plaid", Util.protoMethod("plaid.lang.Integer.div$plaid", new Delegate() {
+		PlaidMemberDef div = Util.memberDef("div$plaid", IntegerTag$plaid, false);
+		foo.addMember(div, Util.protoMethod("plaid.lang.Integer.div$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -86,7 +96,8 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("mod$plaid", Util.protoMethod("plaid.lang.Integer.mod$plaid", new Delegate() {
+		PlaidMemberDef mod = Util.memberDef("mod$plaid", IntegerTag$plaid, false);
+		foo.addMember(mod, Util.protoMethod("plaid.lang.Integer.mod$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -97,7 +108,8 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("eqeq$plaid", Util.protoMethod("plaid.lang.Integer.eqeq$plaid", new Delegate() {
+		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", IntegerTag$plaid, false);
+		foo.addMember(eqeq, Util.protoMethod("plaid.lang.Integer.eqeq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -111,7 +123,8 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("lt$plaid", Util.protoMethod("plaid.lang.Integer.lt$plaid", new Delegate() {
+		PlaidMemberDef lt = Util.memberDef("lt$plaid", IntegerTag$plaid, false);
+		foo.addMember(lt, Util.protoMethod("plaid.lang.Integer.lt$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -125,7 +138,8 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
-		foo.addMember("gt$plaid", Util.protoMethod("plaid.lang.Integer.gt$plaid", new Delegate() {
+		PlaidMemberDef gt = Util.memberDef("gt$plaid", IntegerTag$plaid, false);
+		foo.addMember(gt, Util.protoMethod("plaid.lang.Integer.gt$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -138,7 +152,9 @@ public class Integer$plaid {
 					return Util.falseObject();
 			}
 		})/*, true*/);
-		foo.addMember("lteq$plaid", Util.protoMethod("plaid.lang.Integer.lteq$plaid", new Delegate() {
+		
+		PlaidMemberDef lteq = Util.memberDef("lteq$plaid", IntegerTag$plaid, false);
+		foo.addMember(lteq, Util.protoMethod("plaid.lang.Integer.lteq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -152,7 +168,8 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 
-		foo.addMember("gteq$plaid", Util.protoMethod("plaid.lang.Integer.gteq$plaid", new Delegate() {
+		PlaidMemberDef gteq = Util.memberDef("gteq$plaid", IntegerTag$plaid, false);
+		foo.addMember(gteq, Util.protoMethod("plaid.lang.Integer.gteq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
@@ -169,14 +186,5 @@ public class Integer$plaid {
 	
 	}
 	
-	//TODO : should this Integer be a matchable tag?
-	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Integer")
-	public static final plaid.runtime.PlaidTag IntegerTag$plaid;
-	static {
-		final plaid.runtime.PlaidState vAr100$plaid;
-		final plaid.runtime.PlaidObject vAr101$plaid;
-		vAr101$plaid = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("Object", globalScope);
-		vAr100$plaid = plaid.runtime.Util.toPlaidState(vAr101$plaid);
-		IntegerTag$plaid = plaid.runtime.Util.tag("plaid.lang.Integer", vAr100$plaid);
-	}
+	
 }

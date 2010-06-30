@@ -23,6 +23,7 @@ import java.util.Map;
 
 import plaid.runtime.PlaidClassLoader;
 import plaid.runtime.PlaidInvalidArgumentException;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
@@ -42,9 +43,9 @@ public final class PlaidRuntimeMap extends PlaidRuntime {
 		if (func instanceof PlaidMethodMap) {
 			PlaidMethodMap pom = (PlaidMethodMap)func;
 			this$plaid = pom.varthis;
-			for (Map.Entry<String, PlaidObject> entry : this$plaid.getMembers().entrySet() ) {
+			for (Map.Entry<PlaidMemberDef, PlaidObject> entry : this$plaid.getMembers().entrySet() ) {
 				if ( entry.getValue() == func ) {
-					name = entry.getKey();
+					name = entry.getKey().getMemberName();
 					enterCall(this$plaid, name);
 				}
 			}

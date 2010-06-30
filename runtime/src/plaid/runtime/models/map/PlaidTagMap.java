@@ -1,23 +1,23 @@
 package plaid.runtime.models.map;
 
-import plaid.runtime.PlaidState;
 import plaid.runtime.PlaidTag;
 
 public class PlaidTagMap implements PlaidTag {
 
-	private String theCase;
-	private PlaidState caseOf;
+	private String tagName;
+	private PlaidTag caseOf;
 	private boolean hasSuperTag;
 	
-	public PlaidTagMap(String theCase, PlaidState caseOf) {
-		this.theCase = theCase;
-		this.caseOf = caseOf;
-		hasSuperTag = caseOf.hasTag();
+	public PlaidTagMap(String tagName) {
+		this.tagName = tagName;
+		hasSuperTag = false;
+		
 	}
 	
-	@Override
-	public PlaidState caseOf() {
-		return caseOf;
+	public PlaidTagMap(String tagName, PlaidTag caseOf) {
+		this.tagName = tagName;
+		this.caseOf = caseOf;
+		hasSuperTag = (caseOf != null);
 	}
 
 	@Override
@@ -27,15 +27,19 @@ public class PlaidTagMap implements PlaidTag {
 
 	@Override
 	public PlaidTag superTag() {
-		return caseOf.getTag();
+		return caseOf;
 	}
 
 	public String toString() {
-		return "Tag<" + theCase + " of " + caseOf.toString().substring(5);	
+		String s = "Tag<" + tagName;
+		if (hasSuperTag)
+			return  s + " of " + caseOf.getName() + ">";
+		else
+			return s + ">";
 	}
 	
 	public String getName() {
-			return theCase;
+			return tagName;
 	}
 	
 	public boolean matches(String tag) {

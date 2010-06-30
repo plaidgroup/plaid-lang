@@ -1,6 +1,8 @@
 package plaid.runtime;
 
-import java.util.*;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Class to handle local scoping.  Maps variable names to the objects they are 
