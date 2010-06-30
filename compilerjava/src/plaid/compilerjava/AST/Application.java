@@ -74,12 +74,15 @@ public class Application implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		out.setLocation(token);
 		ID x = IdGen.getId();
 		ID z = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //public PlaidObject x
 		out.declareFinalVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
+
 		// if f is an ID and that ID isn't in the local vars then we need to try to find it in "this"
 		if (f instanceof ID) {
 			System.out.println("Generating code for method application: " + ((ID)f).getName());
@@ -92,12 +95,13 @@ public class Application implements Expression {
 			System.out.println("inserting 'this': " + ((ID)f).getName());
 			f = new Dereference(new ID("this$plaid"), (ID)f);
 		}
-		f.codegen(out, x, localVars, stateVars);
+		f.codegenExpr(out, x, localVars, stateVars);
 		// if we're being applied to an ID and that ID isn't in the local vars then we need to try to find it in "this"
 		if (arg instanceof ID && !localVars.contains((ID)arg) && stateVars.contains((ID)arg)) {
 			arg = new Dereference(new ID("this$plaid"), (ID)arg);
 		}
-		arg.codegen(out, z, localVars, stateVars);
+		arg.codegenExpr(out, z, localVars, stateVars);
+
 		out.setLocation(token);
 		out.assignToCall(y.getName(),x.getName(), z.getName());  // y = Util.call(x,z);
 	}
