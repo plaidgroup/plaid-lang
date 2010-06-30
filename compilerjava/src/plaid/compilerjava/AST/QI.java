@@ -80,7 +80,8 @@ public class QI implements State {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
+
 		out.setLocation(token);
 		
 		String scope = CodeGen.globalScope;

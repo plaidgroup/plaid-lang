@@ -90,7 +90,7 @@ public class CompilationUnit implements ASTnode {
 		}
 		//Declarations
 		for (Decl d : decls) {
-			fileList.add(d.codegen(new QualifiedID(packageName), imports, ccu, globalVars));
+			fileList.add(d.codegenTopDecl(new QualifiedID(packageName), imports, ccu, globalVars));
 		}
 		
 		return fileList;

@@ -116,7 +116,7 @@ public class Case implements ASTnode {
 		if (defaultCase) {
 			out.ifCondition("true");
 			out.openBlock();
-			e.codegen(out, y, localVars, stateVars);
+			e.codegenExpr(out, y, localVars, stateVars);
 			out.closeBlock();
 		} 
 		else {
@@ -126,7 +126,7 @@ public class Case implements ASTnode {
 			
 			//generate code to get the state to match against
 			out.declareFinalVar(CodeGen.plaidStateType,potentialMatch.getName());
-			qi.codegen(out, potentialMatch, localVars, stateVars);
+			qi.codegenState(out, potentialMatch, localVars, stateVars, null);
 			
 			out.declareFinalVar("String", potentialMatchTagString.getName());
 			out.assignToQIDString(potentialMatchTagString.getName(), potentialMatch.getName());
@@ -139,7 +139,7 @@ public class Case implements ASTnode {
 				out.assignToID(x.getName(),toMatch.getName()); // x = toMatch
 				newLocalVars = localVars.add(x);
 			}
-			e.codegen(out, y, newLocalVars, stateVars);
+			e.codegenExpr(out, y, newLocalVars, stateVars);
 			out.closeBlock(); // }
 		}
 	}

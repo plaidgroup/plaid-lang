@@ -29,7 +29,9 @@ import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidInvalidArgumentException;
 import plaid.runtime.PlaidJavaObject;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
+import plaid.runtime.Util;
 
 public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObject {
 	private Object value;
@@ -47,41 +49,55 @@ public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJav
 	}
 
 	@Override
-	public Map<String, PlaidObject> getMembers() {
+	public Map<PlaidMemberDef, PlaidObject> getMembers() {
 		// TODO: Not sure if the use of mutability for all fields and immutability for all methods here is correct
-		Map<String, PlaidObject> members = new HashMap<String, PlaidObject>();
-		members.putAll(this.getImmutableMembers());
-		members.putAll(this.getMutableMembers());
-		return Collections.unmodifiableMap(members);
-	}
-	
-	@Override
-	public Map<String, PlaidObject> getMutableMembers() {
 		if (reflected == false  && valueClass != null) {
 			for (Field f : valueClass.getFields()) {
 				Object obj;
 				try {
 					obj = f.get(value);
-					this.mutableMembers.put(f.getName(), new PlaidJavaObjectMap(obj));
+					this.members.put(Util.memberDef(f.getName(), null, true), new PlaidJavaObjectMap(obj));
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Wrong argument.");
 				} catch (IllegalAccessException e) {
 					throw new PlaidIllegalAccessException("Cannot get field value");
 				}				
 			}
+			for (Method m : valueClass.getMethods()) {
+				this.members.put(Util.memberDef(m.getName(), null, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+			}
+			reflected = true; //TODO: Tell Sven we did this // lol wtf?
 		}
-		return Collections.unmodifiableMap(this.mutableMembers);
+		return Collections.unmodifiableMap(members);
 	}
 	
-	@Override
-	public Map<String, PlaidObject> getImmutableMembers() {
-		if (reflected == false  && valueClass != null) {
-			for (Method m : valueClass.getMethods()) {
-				this.immutableMembers.put(m.getName(), new PlaidJavaMethodMap(m.getName(), value, valueClass));
-			}
-		}
-		return Collections.unmodifiableMap(this.immutableMembers);
-	}
+//	@Override
+//	public Map<String, PlaidObject> getMutableMembers() {
+//		if (reflected == false  && valueClass != null) {
+//			for (Field f : valueClass.getFields()) {
+//				Object obj;
+//				try {
+//					obj = f.get(value);
+//					this.mutableMembers.put(f.getName(), new PlaidJavaObjectMap(obj));
+//				} catch (IllegalArgumentException e) {
+//					throw new PlaidInvalidArgumentException("Wrong argument.");
+//				} catch (IllegalAccessException e) {
+//					throw new PlaidIllegalAccessException("Cannot get field value");
+//				}				
+//			}
+//		}
+//		return Collections.unmodifiableMap(this.mutableMembers);
+//	}
+//	
+//	@Override
+//	public Map<String, PlaidObject> getImmutableMembers() {
+//		if (reflected == false  && valueClass != null) {
+//			for (Method m : valueClass.getMethods()) {
+//				this.immutableMembers.put(m.getName(), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+//			}
+//		}
+//		return Collections.unmodifiableMap(this.immutableMembers);
+//	}
 	
 	@Override
 	@SuppressWarnings("unchecked")

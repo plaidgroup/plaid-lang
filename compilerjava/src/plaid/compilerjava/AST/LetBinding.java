@@ -57,11 +57,13 @@ public class LetBinding implements Expression {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		out.setLocation(token);
 		out.openBlock(); //{
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
-		exp.codegen(out, x, localVars, stateVars);
+		exp.codegenExpr(out, x, localVars, stateVars);
+
 		if (!x.getName().contains("$plaid")) {
 			// set the immutability of the variable
 			out.insertIntoScope(CodeGen.localScope, x.getName(), !this.mutable);
@@ -71,7 +73,8 @@ public class LetBinding implements Expression {
 		stateVars.remove(x);
 		
 		localVars = localVars.add(x);
-		body.codegen(out, y, localVars, stateVars);
+		body.codegenExpr(out, y, localVars, stateVars);
+
 		
 		out.closeBlock(); // }
 		

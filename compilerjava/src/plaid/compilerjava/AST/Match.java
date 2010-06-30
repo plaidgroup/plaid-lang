@@ -66,14 +66,16 @@ public class Match implements Expression {
 		return token;
 	}
 	
-	public void codegen(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		ID toMatch = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, toMatch.getName());
+
 		if (e instanceof ID && !localVars.contains((ID)e) && stateVars.contains((ID)e)) {
 			e = new Dereference(new ID("this$plaid"), (ID)e);
 		}
-		e.codegen(out, toMatch, localVars, stateVars);
+		e.codegenExpr(out, toMatch, localVars, stateVars);
 		
 		for (Case c : caseList) {
 			c.codegen(out, y, toMatch, localVars, stateVars);
