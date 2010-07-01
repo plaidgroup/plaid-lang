@@ -23,33 +23,32 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
+import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidRuntimeException;
-import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
 
 public class PlaidObjectMap implements PlaidObject {
 	protected Collection<PlaidObject> states;
-	protected Map<String, PlaidObject> immutableMembers;
-	protected Map<String,PlaidObject> mutableMembers;
+	protected Map<PlaidMemberDef, PlaidObject> members;
+	//protected Map<PlaidMemberDef, PlaidObject> immutableMembers;
+	//protected Map<PlaidMemberDef,PlaidObject> mutableMembers;
 	protected Collection<PlaidTag> tags;
 	// map from scopes to sets of bound variable names for this object
-	protected final Map<PlaidScope, Set<String>> boundScopes;
 	protected boolean readonly = false;
 	
 	public PlaidObjectMap() {
 		states = new ArrayList<PlaidObject>();
-		immutableMembers = new HashMap<String, PlaidObject>();
-		mutableMembers = new HashMap<String, PlaidObject>();
+		members = new HashMap<PlaidMemberDef, PlaidObject>();
+		//immutableMembers = new HashMap<PlaidMemberDef, PlaidObject>();
+		//mutableMembers = new HashMap<PlaidMemberDef, PlaidObject>();
 		tags = new ArrayList<PlaidTag>();
-		this.boundScopes = new HashMap<PlaidScope, Set<String>>();
 	}
 
 	public void setReadOnly(boolean ro) {
@@ -61,37 +60,66 @@ public class PlaidObjectMap implements PlaidObject {
 	}
 	
 	@Override
-	public void addMember(String name, PlaidObject obj) {
-		this.addMember(name, obj, true);
-	}
-	
-	@Override
-	public void addMember(String name, PlaidObject obj, boolean immutable) {
+	public void addMember(PlaidMemberDef memberDef, PlaidObject obj) {
+		
 		if (this.isReadOnly())
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
-				
-		if (this.mutableMembers.containsKey(name) && immutable ||
-			this.immutableMembers.containsKey(name) && !immutable) {
-			throw new PlaidRuntimeException("Cannot have a member that is declared as both \"var\" and \"val\".");
-		}
+
+		boolean addedIsMutable = memberDef.isMutable();
+		String name = memberDef.getMemberName();
+		PlaidMemberDef existingDef = null;
 		
-		if (immutable) {
-			this.immutableMembers.put(name, obj);
-		}
-		else {
-			this.mutableMembers.put(name, obj);
+		//Look for existing member definition
+		existingDef = findExisting(name);
+
+		//update the existing member if compatible
+		if (existingDef != null) {
+			//check that old/new match in terms of mutability
+			boolean existingIsMutable = existingDef.isMutable();
+			if (existingIsMutable && !addedIsMutable)
+				throw new PlaidRuntimeException("Member \"" + name + "\" already exists as a mutable member.");
+			else if (!existingIsMutable && addedIsMutable)
+				throw new PlaidRuntimeException("Member \"" + name + "\" already exists as an immutable member.");
+
+			//check that the member is not already defined
+			if (!members.get(existingDef).equals(PlaidRuntime.getRuntime().getClassLoader().unit()))  //undefined means having a unit value right now
+				throw new PlaidRuntimeException("Member \"" + name + "\" already defined.");
+			
+			//find the correct tag to keep around
+			if (!existingDef.isAnonymous()) {
+				//cannot both be defined in a state
+				//TODO: overriding - take more specific tag if specified to override
+				if (!memberDef.isAnonymous()) {
+					throw new PlaidRuntimeException("Member \"" + name + "\" defined in states \"" + existingDef.definedIn() + 
+						"\" and \"" + memberDef.definedIn() + "\".");
+				} else { //take existing tag: just update the member
+					members.put(existingDef,obj);
+				}
+			} else { //remove existing def and use the added def
+				members.remove(existingDef);
+				members.put(memberDef, obj);
+			}
+		} else { // new member - just add it
+			members.put(memberDef, obj);
+			
 		}
 	}
 	
 	@Override
 	public void updateMember(String name, PlaidObject obj) {
-		if (this.immutableMembers.containsKey(name)) {
-			throw new PlaidRuntimeException("Cannot assign to variables declared with \"val\".");
+		if (this.isReadOnly()) {
+			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
-		else if (!this.mutableMembers.containsKey(name)) {
-			throw new PlaidRuntimeException("Name \"" + name + "\" is undefined.");
+		
+		PlaidMemberDef existingDef = findExisting(name);
+		if (existingDef == null) { //Cannot update a member that is not present
+			throw new PlaidRuntimeException("Member \"" + name + "\" is undefined.");
+		} else {
+			if (!existingDef.isMutable()) //Cannot update an immutable member
+				throw new PlaidRuntimeException("Cannot update immutable member \"" + name + "\".");
+			else  //update the definition
+				members.put(existingDef, obj);
 		}
-		this.mutableMembers.put(name, obj);
 	}
 
 	@Override
@@ -100,32 +128,29 @@ public class PlaidObjectMap implements PlaidObject {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
-		if (this.mutableMembers.containsKey(name)) {
-			this.mutableMembers.remove(name);
-		}
-		else if (this.immutableMembers.containsKey(name)) {
-			this.immutableMembers.remove(name);
-		}
+		//remove the member if it exists else throw exception
+		PlaidMemberDef existingDef = findExisting(name);
+		if (existingDef != null) members.remove(existingDef);
+		else throw new PlaidRuntimeException("Cannot remove undefined member \"" + name + "\".");
 	}
 
 	@Override
-	public Map<String, PlaidObject> getMembers() {
+	public Map<PlaidMemberDef, PlaidObject> getMembers() {
 		// TODO: Some sort of caching?
-		Map<String, PlaidObject> mapCopy = new HashMap<String, PlaidObject>();
-		mapCopy.putAll(mutableMembers);
-		mapCopy.putAll(immutableMembers);
+		Map<PlaidMemberDef, PlaidObject> mapCopy = new HashMap<PlaidMemberDef, PlaidObject>();
+		mapCopy.putAll(members);
 		return mapCopy;
 	}
 	
-	@Override
-	public Map<String, PlaidObject> getImmutableMembers() {
-		return Collections.unmodifiableMap(this.immutableMembers);
-	}
-	
-	@Override
-	public Map<String, PlaidObject> getMutableMembers() {
-		return Collections.unmodifiableMap(this.mutableMembers);
-	}
+//	@Override
+//	public Map<String, PlaidObject> getImmutableMembers() {
+//		return Collections.unmodifiableMap(this.immutableMembers);
+//	}
+//	
+//	@Override
+//	public Map<String, PlaidObject> getMutableMembers() {
+//		return Collections.unmodifiableMap(this.mutableMembers);
+//	}
 
 	@Override
 	public void addState(PlaidObject state) throws PlaidException {
@@ -201,33 +226,32 @@ public class PlaidObjectMap implements PlaidObject {
 		}
 		
 		// cleanup current information
-		mutableMembers.clear();
-		immutableMembers.clear();
+		members.clear(); //TODO: fix this
 		states.clear();
 		tags.clear();
 		
-		// convert other immutable members 
-		for (Map.Entry<String, PlaidObject> e : update.getImmutableMembers().entrySet()) {
+		// add in the members from the updating object
+		for (Map.Entry<PlaidMemberDef, PlaidObject> e : update.getMembers().entrySet()) {
 			if (e.getValue() instanceof PlaidMethodMap) {
 				PlaidMethodMap pmm = (PlaidMethodMap)e.getValue();
-				addMember(e.getKey(), new PlaidMethodMap(pmm.getFullyQualifiedName(), this, pmm.delegate), true);
+				addMember(e.getKey(), new PlaidMethodMap(pmm.getFullyQualifiedName(), this, pmm.delegate));
 			}
 			else {
-				addMember(e.getKey(), e.getValue(), true);
+				addMember(e.getKey(), e.getValue());
 			}
 		}
 		
-		// convert other mutable members 
-		for (Map.Entry<String, PlaidObject> e : update.getMutableMembers().entrySet()) {
-			if (e.getValue() instanceof PlaidMethodMap) {
-				PlaidMethodMap pmm = (PlaidMethodMap)e.getValue();
-				addMember(e.getKey(), new PlaidMethodMap(pmm.getFullyQualifiedName(), this, pmm.delegate), false);
-			}
-			else {
-				addMember(e.getKey(), e.getValue(), false);
-			}
-		}
-		
+//		// convert other mutable members 
+//		for (Map.Entry<String, PlaidObject> e : update.getMutableMembers().entrySet()) {
+//			if (e.getValue() instanceof PlaidMethodMap) {
+//				PlaidMethodMap pmm = (PlaidMethodMap)e.getValue();
+//				addMember(e.getKey(), new PlaidMethodMap(pmm.getFullyQualifiedName(), this, pmm.delegate), false);
+//			}
+//			else {
+//				addMember(e.getKey(), e.getValue(), false);
+//			}
+//		}
+//		
 		// add other states
 		states.addAll(update.getStates());
 		tags.addAll(update.getTags());
@@ -238,10 +262,12 @@ public class PlaidObjectMap implements PlaidObject {
 	@Override
 	public PlaidObject copy() {
 		PlaidObjectMap newObj = new PlaidObjectMap();
-		// add immutable members
-		newObj.immutableMembers.putAll(this.immutableMembers);
-		// add mutable members
-		newObj.mutableMembers.putAll(this.mutableMembers);
+		// add members
+		newObj.members.putAll(this.members);
+//		// add immutable members
+//		newObj.immutableMembers.putAll(this.immutableMembers);
+//		// add mutable members
+//		newObj.mutableMembers.putAll(this.mutableMembers);
 		// add states
 		newObj.states.addAll(this.states);
 		// add tags
@@ -252,22 +278,30 @@ public class PlaidObjectMap implements PlaidObject {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		
-		// mutable members
-		sb.append("\nPlaidObject(\n\tmutableMembers={");
-		for (String f : mutableMembers.keySet()) {
+		//members
+		sb.append("\nPlaidObject(\n\tmembers={");
+		for (PlaidMemberDef f : members.keySet()) {
 			sb.append(f + ", ");
 		}
 		if (sb.charAt(sb.length()-1) == ',')
 			sb.deleteCharAt(sb.length()-1);
 		
-		// immutable members
-		sb.append("}, \n\timmutableMembers={");
-		for (String f : immutableMembers.keySet()) {
-			sb.append(f + ", ");
-		}
-		if (sb.charAt(sb.length()-1) == ',')
-			sb.deleteCharAt(sb.length()-1);
-		
+//		// mutable members
+//		sb.append("\nPlaidObject(\n\tmutableMembers={");
+//		for (String f : mutableMembers.keySet()) {
+//			sb.append(f + ", ");
+//		}
+//		if (sb.charAt(sb.length()-1) == ',')
+//			sb.deleteCharAt(sb.length()-1);
+//		
+//		// immutable members
+//		sb.append("}, \n\timmutableMembers={");
+//		for (String f : immutableMembers.keySet()) {
+//			sb.append(f + ", ");
+//		}
+//		if (sb.charAt(sb.length()-1) == ',')
+//			sb.deleteCharAt(sb.length()-1);
+//		
 		// states
 		sb.append("}, \n\tstates={");
 		for( Object s : states.toArray() ) {
@@ -290,27 +324,13 @@ public class PlaidObjectMap implements PlaidObject {
 		return sb.toString();
 	}
 
-	@Override
-	public void addNameBinding(String name, PlaidScope scope) {
-		if (!this.boundScopes.containsKey(scope)) {
-			this.boundScopes.put(scope, new HashSet<String>());
+	private PlaidMemberDef findExisting(String name) {
+		for (PlaidMemberDef m : members.keySet()) {
+			if (name.equals(m.getMemberName())) {
+				return m;
+			}		
 		}
-		this.boundScopes.get(scope).add(name);
-	}
-	
-	@Override
-	public void removeNameBinding(String name, PlaidScope scope) {
-		if (!this.boundScopes.containsKey(scope)) {
-			throw new PlaidRuntimeException("Object not bound in specified scope.");
-		}
-		Set<String> boundNames = this.boundScopes.get(scope);
-		if (!boundNames.contains(name)) {
-			throw new PlaidRuntimeException("Bound name '" + name + "' not found in specified scope.");
-		}
+		return null;
 	}
 
-	@Override
-	public Set<PlaidScope> getBoundScopes() {
-		return Collections.unmodifiableSet(this.boundScopes.keySet());
-	}
 }

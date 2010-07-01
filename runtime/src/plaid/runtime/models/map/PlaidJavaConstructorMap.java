@@ -118,9 +118,9 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 				return  PlaidRuntime.getRuntime().getClassLoader().unit();
 			} else {
 				PlaidJavaObject plaidResult = new PlaidJavaObjectMap(result);
-				// add the tag
+				// add the tag  //TODO: this is not correct since Java objects will not actually have tags...?
 				plaidResult.addTag(new PlaidTagMap(result.getClass().getName(), 
-						new PlaidStateMap(new PlaidPackageMap(new QualifiedIdentifier("java.lang")), "Object", Object.class)));
+						new PlaidStateMap(new PlaidPackageMap(new QualifiedIdentifier("java.lang")), "Object", Object.class).getTag()));
 				return plaidResult;
 			}
 		} catch (IllegalArgumentException e) {

@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import java.io.File;
+import java.util.*;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -91,8 +92,9 @@ public class FieldDecl implements Decl{
 
 	//Top Level Field Decl
 	@Override
-	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
-		CodeGen out = new CodeGen(cc);	
+	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
+		CodeGen out = new CodeGen(cc);
+		IDList localVars = new IDList(globalVars);
 		ID freshImports = IdGen.getId();
 		
 		//package and needed imports
@@ -113,7 +115,8 @@ public class FieldDecl implements Decl{
 		out.openStaticBlock(); //static {
 		// TODO: make this a function
 		out.append("final plaid.runtime.PlaidLocalScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);");
-		e.codegen(out, f, new IDList());  //initialization code
+
+		e.codegenExpr(out, f, localVars, new HashSet<ID>());  //initialization code
 		// make this immutable if it should be
 		// add this field to the global scope
 		out.insertIntoScope(CodeGen.globalScope, f.getName(), this.immutable);
@@ -125,7 +128,7 @@ public class FieldDecl implements Decl{
 
 	//Normal Field Decl
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 
 		out.setLocation(token);
 		
@@ -136,15 +139,30 @@ public class FieldDecl implements Decl{
 		out.fieldAnnotation(f.getName(), false);  //@representsField...
 		out.declareFinalVar(CodeGen.plaidObjectType,freshFieldName.getName());
 		
-		out.assignToProtoField(freshFieldName.getName(), x.getName()); // freshFieldName = new protoField... {
+		if (abstractField) {
+			e.codegenExpr(out, freshFieldName, localVars, stateVars);  //field will just have the unit value if it is abstract 
+		} else {
+			out.assignToProtoField(freshFieldName.getName(), x.getName()); // freshFieldName = new protoField... {
+			
+			//protofield body
+			out.declareLambdaScope();
+			out.declareFinalVar(CodeGen.plaidObjectType, fresh1.getName()); //Public PlaidObect fresh1;
+			e.codegenExpr(out, fresh1, localVars, stateVars);  //field initializer code
+			out.ret(fresh1.getName()); // return fresh1;
+			out.closeAnonymousDeclaration(); // }});
+		}
+		//define the PlaidMemberDef
+		// TODO: methods are immutable by default?
+		ID memberDef = IdGen.getId();
+		out.declareFinalVar(CodeGen.plaidMemberDefType, memberDef.getName());
+		String definedIn;
+		if (tagContext != null)
+			definedIn = tagContext.getName();
+		else
+			definedIn = "null";
+		out.assignToNewMemberDef(memberDef.getName(), f.getName(), definedIn, !immutable);
 		
-		//protofield body
-		out.declareLambdaScope();
-		out.declareFinalVar(CodeGen.plaidObjectType, fresh1.getName()); //Public PlaidObect fresh1;
-		e.codegen(out, fresh1, localVars);  //field initializer code
-		out.ret(fresh1.getName()); // return fresh1;
-		out.closeAnonymousDeclaration(); // }});
-		out.addMember(y.getName(), f.getName(), freshFieldName.getName(), this.immutable);  //y.addMember(f,freshFieldName)
+		out.addMember(y.getName(), memberDef.getName(), freshFieldName.getName());  //y.addMember(f,freshFieldName)
 		
 	}
 
@@ -163,4 +181,13 @@ public class FieldDecl implements Decl{
 	public boolean getImmutable() {
 		return this.immutable;
 	}
+
+	@Override
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars,
+			ID tagContext) {
+		// TODO Auto-generated method stub
+		
+	}
+
+
 }

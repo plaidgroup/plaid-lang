@@ -28,6 +28,7 @@ import java.util.Map;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidInvalidArgumentException;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidState;
@@ -155,31 +156,33 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 
 	protected PlaidObject initialize(PlaidObjectMap pom) {
-		// add immutable members from prototype initializing any that are proto-
-		for ( Map.Entry<String, PlaidObject> member : prototype.getImmutableMembers().entrySet() ) {
+		// add members from prototype initializing any that are proto-
+		for ( Map.Entry<PlaidMemberDef, PlaidObject> member : prototype.getMembers().entrySet() ) {
 			if ( member.getValue() instanceof PlaidProtoMethodMap ) {
 				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap)member.getValue();
-				pom.addMember(member.getKey(), new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate()), true);
+				PlaidMethodMap method = new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate());
+				//method.addTag(ppmm.getTags().iterator().next());
+				pom.addMember(member.getKey(), method);
 			} 
 			else if ( member.getValue() instanceof PlaidProtoFieldMap ) {
 				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap)member.getValue();
-				PlaidMethod initializer = new PlaidMethodMap(member.getKey(), pom, ppfm.getInitalizer());
-				pom.addMember(member.getKey(), initializer.invoke(Util.unit()), true);
+				PlaidMethod initializer = new PlaidMethodMap(member.getKey().getMemberName(), pom, ppfm.getInitalizer());
+				pom.addMember(member.getKey(), initializer.invoke(Util.unit()));
 			}
 		}
 		
-		// add mutable members from prototype initializing any that are proto-
-		for ( Map.Entry<String, PlaidObject> member : prototype.getMutableMembers().entrySet() ) {
-			if ( member.getValue() instanceof PlaidProtoMethodMap ) {
-				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap)member.getValue();
-				pom.addMember(member.getKey(), new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate()), false);
-			} 
-			else if ( member.getValue() instanceof PlaidProtoFieldMap ) {
-				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap)member.getValue();
-				PlaidMethod initializer = new PlaidMethodMap(member.getKey(), pom, ppfm.getInitalizer());
-				pom.addMember(member.getKey(), initializer.invoke(Util.unit()), false);
-			}
-		}
+//		// add mutable members from prototype initializing any that are proto-
+//		for ( Map.Entry<String, PlaidObject> member : prototype.getMutableMembers().entrySet() ) {
+//			if ( member.getValue() instanceof PlaidProtoMethodMap ) {
+//				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap)member.getValue();
+//				pom.addMember(member.getKey(), new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate()), false);
+//			} 
+//			else if ( member.getValue() instanceof PlaidProtoFieldMap ) {
+//				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap)member.getValue();
+//				PlaidMethod initializer = new PlaidMethodMap(member.getKey(), pom, ppfm.getInitalizer());
+//				pom.addMember(member.getKey(), initializer.invoke(Util.unit()), false);
+//			}
+//		}
 		
 		// add states from prototype
 		for (PlaidObject ps : this.prototype.getStates()) {
@@ -195,15 +198,15 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 
 	protected void addToPlaidObject(PlaidObject target, PlaidObject source) {
-		// copy immutable members 
-		for ( Map.Entry<String, PlaidObject> e : source.getImmutableMembers().entrySet()) {
-			target.addMember(e.getKey(), e.getValue(), true);
+		// copy  members 
+		for ( Map.Entry<PlaidMemberDef, PlaidObject> e : source.getMembers().entrySet()) {
+			target.addMember(e.getKey(), e.getValue());
 		}
 		
-		// copy mutable members 
-		for ( Map.Entry<String, PlaidObject> e : source.getMutableMembers().entrySet()) {
-			target.addMember(e.getKey(), e.getValue(), false);
-		}
+//		// copy mutable members 
+//		for ( Map.Entry<String, PlaidObject> e : source.getMutableMembers().entrySet()) {
+//			target.addMember(e.getKey(), e.getValue(), false);
+//		}
 		
 		// copy states
 		for ( PlaidObject s : source.getStates() ) {
@@ -221,29 +224,24 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 
 	@Override
-	public void addMember(String name, PlaidObject obj) {
-		prototype.addMember(name, obj, true);
-	}
-	
-	@Override
-	public void addMember(String name, PlaidObject obj, boolean immutable) {
-		prototype.addMember(name, obj, immutable);
+	public void addMember(PlaidMemberDef name, PlaidObject obj) {
+		prototype.addMember(name, obj);
 	}
 
 	@Override
-	public Map<String, PlaidObject> getMembers() {
+	public Map<PlaidMemberDef, PlaidObject> getMembers() {
 		return Collections.unmodifiableMap(prototype.getMembers());
 	}
 	
-	@Override
-	public Map<String, PlaidObject> getImmutableMembers() {
-		return this.prototype.getImmutableMembers();
-	}
-	
-	@Override
-	public Map<String, PlaidObject> getMutableMembers() {
-		return this.prototype.getMutableMembers();
-	}
+//	@Override
+//	public Map<String, PlaidObject> getImmutableMembers() {
+//		return this.prototype.getImmutableMembers();
+//	}
+//	
+//	@Override
+//	public Map<String, PlaidObject> getMutableMembers() {
+//		return this.prototype.getMutableMembers();
+//	}
 	
 	@Override
 	public PlaidObject getPrototype() {

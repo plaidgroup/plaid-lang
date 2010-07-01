@@ -19,11 +19,15 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.Set;
+
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 
 public interface State extends ASTnode {
 
-	public void codegen(CodeGen out, ID y, IDList localVars);
+
+	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext);
+
 	
 }

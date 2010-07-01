@@ -19,6 +19,8 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.Set;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
@@ -68,16 +70,29 @@ public class Dereference implements Expression {
 	public Token getToken() {
 		return token;
 	}
-	
+
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		
 		out.setLocation(token);
 		
 		//generate code for the object to lookup the right ID in
 		ID x = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
-		this.left.codegen(out, x, localVars);
+
+		// if the left-hand side is an ID it means we're at the end of the deref chain
+		if (left instanceof ID && !localVars.contains((ID)left) && stateVars.contains((ID)left)) {
+			ID oldLeft = (ID)left;
+			stateVars.remove(left);
+			left = new Dereference(new ID("this$plaid"), (ID)left);
+			this.left.codegenExpr(out, x, localVars, stateVars);
+			stateVars.add(oldLeft);
+		}
+		else {
+			this.left.codegenExpr(out, x, localVars, stateVars);
+		}
+
 		out.setLocation(left.getToken());
 		
 		//code for the lookup

@@ -110,10 +110,12 @@ public class CodeGen {
 	public static final String plaidObjectType = runtimePackage + ".PlaidObject";
 	public static final String plaidStateType = runtimePackage + ".PlaidState";
 	public static final String plaidMethodType = runtimePackage + ".PlaidMethod";
+	public static final String plaidMemberDefType = runtimePackage + ".PlaidMemberDef";
 	public static final String plaidExceptionType = runtimePackage + ".PlaidException";
 	public static final String plaidTagType = runtimePackage + ".PlaidTag";
 	public static final String delegateType = utilsPackage + ".Delegate";
 	public static final String lambdaType = utilsPackage + ".Lambda";
+
 
 	
 	public CodeGen(CompilerConfiguration cc) {
@@ -175,6 +177,7 @@ public class CodeGen {
 	}
 	
 	public final void assignToChangedState(String target, String object, String newState) {
+		
 		assign(target);
 		changeState(object,newState);
 		updateVar(target);
@@ -221,7 +224,6 @@ public class CodeGen {
 		output.append(classLoader + ".protoMethod(\"" + target + name + "\", new " + delegateType + " () {" +
 			"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" +
 				"final " + plaidScopeType + " " + CodeGen.localScope + " = " + classLoader + ".localScope(" + CodeGen.globalScope + ");" +
-				CodeGen.localScope + ".insertAllMembers(" + CodeGen.thisVar + ");" + 
 				"local$c0pe.insert(\"" + name + "\", " + name + ", false" + ");" + 
 				"local$c0pe.insert(\"" + CodeGen.thisVar +"\", " + CodeGen.thisVar + ", true" + ");");
 	}
@@ -235,6 +237,12 @@ public class CodeGen {
 				"final " + plaidScopeType + " temp$c0pe = " + CodeGen.localScope + ";" + 
 				"final " + plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(temp$c0pe);" + 
 				"local$c0pe.insert(\"" + varName + "\", " + varName + ", false" + ");");
+	}
+	
+	//Member Definition
+	public final void assignToNewMemberDef(String target, String varName, String definedIn, boolean mutable) {
+		assign(target);
+		append(utilClass + ".memberDef(\"" + varName + "\", " + definedIn + ", " + mutable + ");");
 	}
 	
 	public final void closeAnonymousDeclaration() {
@@ -281,6 +289,12 @@ public class CodeGen {
 	public final void assignToUnit(String target) {
 		assign(target);
 		append(utilClass + ".unit();");
+		updateVar(target);
+	}
+	
+	public final void assignToNewTag(String target, String tag) {
+		assign(target);
+		append(utilClass + ".tag(\"" + tag + "\");");
 		updateVar(target);
 	}
 	
@@ -409,11 +423,11 @@ public class CodeGen {
 	 *----------------------------
 	 */
 	public final void addMember(String target, String memberName, String genName) {
-		output.append(target + ".addMember(\"" + memberName + "\"," + genName + ");");
+		output.append(target + ".addMember(" + memberName + "," + genName + ");");
 	}
 	
-	public final void addMember(String target, String memberName, String genName, boolean immutable) {
-		output.append(target + ".addMember(\"" + memberName + "\"," + genName + ", " + Boolean.toString(immutable) + ");");
+	public final void addTag(String target, String tagName) {
+		output.append(target + ".addTag(" + tagName + ");");
 	}
 	
 	public final void updateMember(String target, String memberName, String genName) {
@@ -452,7 +466,7 @@ public class CodeGen {
 	public final void newJavaObject(String type,String arg) {
 		output.append("new " + type + "(" + arg + ")");
 	}
-
+	
 	public final void unit() {
 		output.append( classLoader + ".unit()");
 	}

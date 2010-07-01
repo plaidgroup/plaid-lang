@@ -21,9 +21,7 @@ package plaid.compilerjava.AST;
 
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -93,12 +91,13 @@ public final class MethodDecl implements Decl {
 	}
 
 	// Top-level method declaration
-	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc) {
+
+	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
 		String newName = CodeGen.convertOpNames(this.name);
 		ID freshReturn = IdGen.getId();
 		ID freshImports = IdGen.getId();
 		CodeGen out = new CodeGen(cc);
-		IDList localVars = new IDList();
+		IDList localVars = new IDList(globalVars);
 		ID thisMethod = new ID(newName + "_func");
 		
 		//package and needed imports
@@ -128,7 +127,8 @@ public final class MethodDecl implements Decl {
 		
 		out.declareVar(CodeGen.plaidObjectType,freshReturn.getName());
 		//top level functions lookup with unit
-		body.codegen(out, freshReturn,localVars);
+		body.codegenExpr(out, freshReturn, localVars, new HashSet<ID>());
+
 		out.ret(freshReturn.getName());
 		out.closeAnonymousDeclaration(); // }});
 		
@@ -139,7 +139,7 @@ public final class MethodDecl implements Decl {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 		String newName = CodeGen.convertOpNames(name);
 		out.setLocation(token);
 		ID freshMethName = IdGen.getId();
@@ -148,21 +148,37 @@ public final class MethodDecl implements Decl {
 		
 		out.methodAnnotation(newName, false); //@representsMethod...
 		out.declareFinalVar(CodeGen.plaidObjectType,freshMethName.getName());
-		out.assignToProtoMethod(freshMethName.getName(), arg.getName());  //freshMethName = new protofield( ... { {
 		
-		//body of the protofield
-		out.declareLambdaScope();
-		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
+		if (abstractMethod) { //if abstract it will just be unit
+			body.codegenExpr(out, freshMethName, newLocalVars, stateVars);
+		} else { //otherwise create a protomethod
+			out.assignToProtoMethod(freshMethName.getName(), arg.getName());  //freshMethName = new protofield( ... { {
+			
+			//body of the protomethod
+			out.declareLambdaScope();
+			out.declareVar(CodeGen.plaidObjectType,freshID.getName());
+			
+			// update var for the debugger
+			out.updateVar(arg.getName());
+			
+			body.codegenExpr(out, freshID, newLocalVars, stateVars);
+			out.ret(freshID.getName() );  //return freshID;
+			out.closeAnonymousDeclaration();  //}});
+		}
 		
-		// update var for the debugger
-		out.updateVar(arg.getName());
-		
-		body.codegen(out, freshID, newLocalVars);
-		out.ret(freshID.getName() );  //return freshID;
-		out.closeAnonymousDeclaration();  //}});
-		
+
+		//define the PlaidMemberDef
 		// TODO: methods are immutable by default?
-		out.addMember(y.getName(), newName, freshMethName.getName());  //y.addMember(name,freshMethName)
+		ID memberDef = IdGen.getId();
+		out.declareFinalVar(CodeGen.plaidMemberDefType, memberDef.getName());
+		String definedIn;
+		if (tagContext != null)
+			definedIn = tagContext.getName();
+		else
+			definedIn = "null";
+		out.assignToNewMemberDef(memberDef.getName(), newName, definedIn, false);
+	
+		out.addMember(y.getName(), memberDef.getName(), freshMethName.getName());  //y.addMember(memberDef,freshMethName)
 	}
 
 	@Override
@@ -175,5 +191,12 @@ public final class MethodDecl implements Decl {
 	@Override
 	public void accept(ASTVisitor visitor) {
 		visitor.visitNode(this);
+	}
+
+	@Override
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars,
+			ID tagContext) {
+		// TODO Auto-generated method stub
+		
 	}
 }

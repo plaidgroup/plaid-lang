@@ -30,6 +30,7 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.TreePath;
 
 import plaid.runtime.PlaidJavaObject;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.tools.debugger.VariableViewer.VariabeChangeListener;
@@ -82,8 +83,8 @@ public class PlaidObjectExplorer extends JDialog implements VariabeChangeListene
 				states.add(state);
 			}
 
-			for (Map.Entry<String, PlaidObject> entry : dataObject.getMembers().entrySet() ) {
-				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue(),entry.getKey()));
+			for (Map.Entry<PlaidMemberDef, PlaidObject> entry : dataObject.getMembers().entrySet() ) {
+				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue(),entry.getKey().getMemberName()));
 				if ( entry.getValue() instanceof PlaidMethod ) {
 					methods.add(item);
 				} else {
@@ -101,8 +102,8 @@ public class PlaidObjectExplorer extends JDialog implements VariabeChangeListene
 				DefaultMutableTreeNode state= new DefaultMutableTreeNode(po);
 				states.add(state);
 			}
-			for (Map.Entry<String, PlaidObject> entry : dataObject.getMembers().entrySet() ) {
-				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue(),entry.getKey()));
+			for (Map.Entry<PlaidMemberDef, PlaidObject> entry : dataObject.getMembers().entrySet() ) {
+				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue(),entry.getKey().getMemberName()));
 				if ( entry.getValue() instanceof PlaidMethod ) {
 					methods.add(item);
 				} else {
@@ -112,8 +113,8 @@ public class PlaidObjectExplorer extends JDialog implements VariabeChangeListene
 			
 			fields.removeAllChildren();
 			methods.removeAllChildren();
-			for (Map.Entry<String, PlaidObject> entry : dataObject.getMembers().entrySet() ) {
-				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue(),entry.getKey()));
+			for (Map.Entry<PlaidMemberDef, PlaidObject> entry : dataObject.getMembers().entrySet() ) {
+				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue(),entry.getKey().getMemberName()));
 				if ( entry.getValue() instanceof PlaidMethod ) {
 					methods.add(item);
 				} else {
