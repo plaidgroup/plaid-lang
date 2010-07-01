@@ -21,23 +21,32 @@ package plaid.runtime;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.Set;
-
-
 
 /**
  * The PlaidObject interface is n
  */
 public interface PlaidObject {
-	public void addMember(String name, PlaidObject obj);
+	/**
+	 * Adds a member to the Plaid object
+	 * @param member - name and the definition location
+	 * @param obj - value of the member
+	 */
+	public void addMember(PlaidMemberDef member, PlaidObject obj);
 	
-	public void addMember(String name, PlaidObject obj, boolean immutable);
-	
+	/**
+	 * Update the value of a mutable member (field)
+	 * @param name - field name (does not change definition location, only the value of the field)
+	 * @param obj - new value for the field
+	 */
 	public void updateMember(String name, PlaidObject obj);
 
+	/**
+	 * Removes a member from the object
+	 * @param name - name of the member
+	 */
 	public void removeMember(String name);
 	
-	public Map<String, PlaidObject> getMembers();
+	public Map<PlaidMemberDef, PlaidObject> getMembers();
 		
 	public void addState(PlaidObject state);
 
@@ -61,16 +70,10 @@ public interface PlaidObject {
 	 */
 	public PlaidObject changeState(PlaidObject update) throws PlaidException;
 
-	public Map<String, PlaidObject> getImmutableMembers();
+	//public Map<String, PlaidObject> getImmutableMembers();
 	
-	public Map<String, PlaidObject> getMutableMembers();
+	//public Map<String, PlaidObject> getMutableMembers();
 	
 	public PlaidObject copy();
-	
-	public void addNameBinding(String name, PlaidScope scope);
-	
-	public void removeNameBinding(String name, PlaidScope scope);
-		
-	public Set<PlaidScope> getBoundScopes();
 }
 

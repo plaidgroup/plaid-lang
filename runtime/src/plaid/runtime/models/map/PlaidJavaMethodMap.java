@@ -159,7 +159,7 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 				if (plaidResult instanceof PlaidJavaObject) {
 					plaidResult.addTag(new PlaidTagMap(result.getClass().getName(), 
 							new PlaidStateMap(new PlaidPackageMap(
-									new QualifiedIdentifier("java.lang")), "Object", Object.class)));
+									new QualifiedIdentifier("java.lang")), "Object", Object.class).getTag())); //TODO: will we have this tag?
 				}
 				return plaidResult;
 				
@@ -175,7 +175,11 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 	 * This function is called when we invoke a Java method and it returns 
 	 * a value that must be converted to a corresponding pure Plaid value.
 	 * 
-	 * For now, this only concerns booleans as far as I know.
+	 * This includes Booleans and Integers (and implicitly the corresponding
+	 * built-in types boolean and int), and Strings.
+	 * 
+	 * TODO: Eventually this should be done for a wider suite of types that
+	 * exist on both sides.
 	 */
 	private PlaidObject getPlaidObjectRep(Object result) {
 		// if it's a boolean, we have to convert it to our special Plaid boolean
@@ -186,6 +190,13 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 			else {
 				return Util.falseObject();
 			}
+		}
+		else if (result.getClass().equals(Integer.class)) {
+			int val = ((Integer)result).intValue();
+			return Util.integer(val);
+		}
+		else if (result.getClass().equals(String.class)) {
+			return Util.string((String)result);
 		}
 		// otherwise just return the object wrapped in a PlaidJavaObject
 		else {

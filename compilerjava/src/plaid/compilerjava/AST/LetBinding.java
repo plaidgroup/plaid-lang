@@ -19,12 +19,12 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.Set;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
-import plaid.runtime.PlaidConstants;
-import plaid.runtime.Util;
 
 public class LetBinding implements Expression {
 
@@ -57,20 +57,29 @@ public class LetBinding implements Expression {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		out.setLocation(token);
 		out.openBlock(); //{
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
-		exp.codegen(out, x, localVars);
+		exp.codegenExpr(out, x, localVars, stateVars);
+
 		if (!x.getName().contains("$plaid")) {
 			// set the immutability of the variable
 			out.insertIntoScope(CodeGen.localScope, x.getName(), !this.mutable);
 		}
 		
+		// remove the variable if it's in the set of state vars
+		stateVars.remove(x);
+		
 		localVars = localVars.add(x);
-		body.codegen(out, y, localVars);
+		body.codegenExpr(out, y, localVars, stateVars);
+
 		
 		out.closeBlock(); // }
+		
+		// add the state variable back
+		stateVars.add(x);
 	}
 
 	public ID getX() {

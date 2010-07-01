@@ -19,6 +19,8 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.Set;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
@@ -76,20 +78,31 @@ public class Assignment implements Expression {
 	}
 	
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		out.setLocation(token);
 		ID assignTo = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, assignTo.getName());
-		value.codegen(out, assignTo, localVars);
+		value.codegenExpr(out, assignTo, localVars, stateVars);
 		
 		// Generates (e.g.):
 		// PlaidObject var$foo = local$c0pe.lookup('y')
 		// local$c0pe.update('x', var$foo)
 		if (this.target == null) {
-			// need to make sure we've loaded it before
-			out.lookupInCurrentScope(this.field.getName());
-			out.updateVar(this.field, assignTo);
-			out.assignToID(y.getName(), assignTo.getName());
+			// if we haven't seen it in this scope at all, then we must be referencing an instance field with an implicit "this"
+			if (!localVars.contains(this.field) && stateVars.contains(this.field)) {
+				this.target = new ID("this$plaid");
+			}
+			else {
+				// need to make sure we've loaded it before
+				out.lookupInCurrentScope(this.field.getName());
+				out.updateVar(this.field, assignTo);
+				out.assignToID(y.getName(), assignTo.getName());
+				
+				out.updateVar(assignTo.getName());
+				
+				return;
+			}
 		}
 		// we have a target, so we need to check if that particular 
 		// field of the target is mutable and if so assign the new value
@@ -97,7 +110,7 @@ public class Assignment implements Expression {
 			// evaluate the target
 			ID temp = IdGen.getId();
 			out.declareFinalVar(CodeGen.plaidObjectType, temp.getName());
-			target.codegen(out, temp, localVars);
+			target.codegenExpr(out, temp, localVars, stateVars);
 			out.updateMember(temp.getName(), this.field.getName(), assignTo.getName());
 			out.assignToID(y.getName(), assignTo.getName());
 		}

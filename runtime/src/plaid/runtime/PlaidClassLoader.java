@@ -105,10 +105,18 @@ public interface PlaidClassLoader {
 	 * return a new Tag Object
 	 * 
 	 * @param tag  (the QI of the state with the tag)
+	 * @return
+	 */
+	public PlaidTag tag(String tagName);
+	
+	/**
+	 * return a new Tag Object
+	 * 
+	 * @param tag  (the QI of the state with the tag)
 	 * @param caseOf (the PlaidState representing the state this tag is a case of)
 	 * @return
 	 */
-	public PlaidTag tag(String tag, PlaidState caseOf);
+	public PlaidTag tag(String tagName, PlaidTag caseOf);
 	
 	/**
 	 * TODO: Document
@@ -131,4 +139,13 @@ public interface PlaidClassLoader {
 	 * @return
 	 */
 	public PlaidLocalScope localScope(PlaidScope parentScope);
+	
+	/**
+	 * Returns a member definition object
+	 * @param memberName - the name of the member
+	 * @param definedIn - the tag which the member is defined in (null if anonymous)
+	 * @param mutable - set to true if this is a mutable member
+	 * @return
+	 */
+	public PlaidMemberDef memberDef(String memberName, PlaidTag definedIn, boolean mutable);
 }

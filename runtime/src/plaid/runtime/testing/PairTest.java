@@ -25,11 +25,13 @@ import org.junit.Test;
 
 import plaid.runtime.PlaidClassLoader;
 import plaid.runtime.PlaidException;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidState;
 import plaid.runtime.Util;
+import plaid.runtime.models.map.PlaidMemberDefMap;
 import plaid.runtime.utils.Delegate;
 
 public class PairTest extends BaseTest {
@@ -69,7 +71,8 @@ public class PairTest extends BaseTest {
 		assertTrue( ps != null );
 		
 		PlaidState init = Util.newState();
-		init.addMember("fst", Util.protoField(new Delegate() {
+		PlaidMemberDef fst = new PlaidMemberDefMap("fst");
+		init.addMember(fst, Util.protoField(new Delegate() {
 			
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)
@@ -77,8 +80,8 @@ public class PairTest extends BaseTest {
 				return Util.unit();
 			}
 		})/*, true*/);
-		
-		init.addMember("snd", Util.protoField(new Delegate() {
+		PlaidMemberDef snd = new PlaidMemberDefMap("snd");
+		init.addMember(snd, Util.protoField(new Delegate() {
 			
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)

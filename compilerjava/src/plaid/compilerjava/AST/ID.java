@@ -19,6 +19,8 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.Set;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
@@ -51,7 +53,8 @@ public class ID implements Expression{
 	
 	public String getName() { return name; }
 	
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	@Override
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		String newName = CodeGen.convertOpNames(name);
 		out.assignToLookup(y.getName(), newName, CodeGen.localScope);  // y = lookup(name,currentScope);
@@ -68,5 +71,15 @@ public class ID implements Expression{
 	
 	public String toString() {
 		return this.name;
+	}
+	
+	@Override
+	public boolean equals(Object o) {
+		return (o instanceof ID) ? ((ID)o).getName().equals(this.name) : false; 
+	}
+	
+	@Override
+	public int hashCode() {
+		return this.name.hashCode();
 	}
 }

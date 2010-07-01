@@ -16,34 +16,31 @@
  *  You should have received a copy of the GNU General Public License
  *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
 package plaid.apps.webserver;
-import javax.servlet.ServletRequest;
 
-state Request{
-	
-	method parse(inputStream){
-		var javaHelper = JavaHelper.new();
-		this <- ParsedRequest with {
-			var uri = javaHelper.getUriFromStream(inputStream);
-			var inputStream = inputStream;
+state ServletContainer{
+
+	var servletName2InstanceMap = java.util.HashMap.new();
+
+	method addOrReplaceInstanceToPool(servletUri,instance){
+		servletName2InstanceMap.put(servletUri,instance);
+		instance;
+	}
+
+	method removeInstanceFromPool(servletUri){
+		servletName2InstanceMap.remove(servletUri);
+	}
+
+	method getOrAddServletInstanceToPool(servletUri){
+		ifElse(servletName2InstanceMap.containsKey(servletUri)){
+			var readyPlaidServlet = servletName2InstanceMap.get(servletUri);
+
+		}{
+			var plaidServlet = new PlaidServlet with {
+				var servletUri = servletUri;
+			};
+			var readyServlet = plaidServlet.init();
+			addOrReplaceInstanceToPool(servletUri,readyServlet);
 		};
-		this;
 	}
 }
-
-state ParsedRequest case of Request{
-	
-	var uri;
-	
-	var inputStream;
-	
-	method getUri(){
-		this.uri;
-	}
-	
-	method makeServletRequest(){
-		plaid.apps.webserver.JavaServletRequest.new(this.inputStream);
-	}
-}
-

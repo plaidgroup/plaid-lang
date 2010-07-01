@@ -1,7 +1,6 @@
 package plaid.runtime;
 
 import java.util.*;
-import java.util.Map.Entry;
 
 import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.utils.Import;
@@ -110,8 +109,6 @@ public final class PlaidGlobalScope extends AbstractPlaidScope {
 		else {
 			this.mutableScopeMap.put(name, plaidObj);
 		}
-		
-		plaidObj.addNameBinding(name, this);
 	}
 	
 	public void update(String name, PlaidObject plaidObj) {
@@ -119,17 +116,9 @@ public final class PlaidGlobalScope extends AbstractPlaidScope {
 			throw new PlaidRuntimeException("Cannot assign to variables " +
 											"declared with \"val\".");
 		}
-		else if (this.mutableScopeMap.containsKey(name)) {
-			// since we're binding a new object to the old variable name, we need 
-			// to remove the binding to the old object and add a new binding of 
-			// the same name to the new object
-			this.mutableScopeMap.get(name).removeNameBinding(name, this);
-			
+		else if (this.mutableScopeMap.containsKey(name)) {		
 			this.mutableScopeMap.put(name, plaidObj);
 		}
-		
-		
-		plaidObj.addNameBinding(name, this);
 	}
 	
 	public boolean equals(Object o) {
@@ -154,25 +143,6 @@ public final class PlaidGlobalScope extends AbstractPlaidScope {
 			globalScopes.put(qualID, newGlobalScope);
 		}
 		return newGlobalScope;
-	}
-	
-	@Override
-	public void insertAllMembers(PlaidObject plaidObj) {
-		Map<String, PlaidObject> immMembers = plaidObj.getImmutableMembers();
-		Map<String, PlaidObject> mutMembers = plaidObj.getMutableMembers();
-		for (Entry<String, PlaidObject> member : immMembers.entrySet()) {
-			// if the lookup succeeds, we don't want to overwrite the old binding
-			if (this.shallowLookup(member.getKey()) == null) {
-				this.insert(member.getKey(), member.getValue(), true);
-			}
-		}
-		
-		for (Entry<String, PlaidObject> member : mutMembers.entrySet()) {
-			// if the lookup succeeds, we don't want to overwrite the old binding
-			if (this.shallowLookup(member.getKey()) == null) {
-				this.insert(member.getKey(), member.getValue(), true);
-			}
-		}
 	}
 	
 	@Override

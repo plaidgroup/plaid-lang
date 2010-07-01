@@ -1,6 +1,7 @@
 package plaid.compilerjava.util;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -8,10 +9,16 @@ import plaid.compilerjava.AST.ID;
 
 public class IDList implements Iterable<ID> {
 
-	private List<ID> elts;
+	private final List<ID> elts;
 	
-	public IDList(List<ID> elts) {
-		this.elts = elts;
+	public IDList(Collection<ID> elts) {
+		this.elts = new ArrayList<ID>();
+		this.elts.addAll(elts);
+	}
+	
+	private IDList(Collection<ID> elts, ID newElt) {
+		this(elts);
+		this.elts.add(newElt);
 	}
 	
 	public IDList() {
@@ -19,10 +26,7 @@ public class IDList implements Iterable<ID> {
 	}
 
 	public IDList add(ID id) {
-		List<ID> newElts = new ArrayList<ID>();
-		newElts.addAll(elts);
-		newElts.add(id);
-		return new IDList(newElts);
+		return new IDList(elts, id);
 	}
 	
 	public boolean contains(ID e) {

@@ -49,6 +49,7 @@ public class PlaidStandardLibrary {
 		cc.addInputFile(f);
 		cc.setKeepTemporaryFiles(true);
 		cc.setInvokeCompiler(false);
+		cc.setDebugMode(true);
 		cc.setCopyrightHeader(true);
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();

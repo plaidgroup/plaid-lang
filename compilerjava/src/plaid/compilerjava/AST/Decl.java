@@ -21,6 +21,7 @@ package plaid.compilerjava.AST;
 
 
 import java.io.File;
+import java.util.Set;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.util.CodeGen;
@@ -29,9 +30,12 @@ import plaid.compilerjava.util.QualifiedID;
 
 public interface Decl extends ASTnode {
 
-	public File codegen(QualifiedID qid, ImportList imports, CompilerConfiguration cc);
+	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> stateVars);
 
-	public void codegen(CodeGen out, ID y, IDList localVars);
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, ID tagContext);
+	
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext);
+
 	
 	public String getName();
 }

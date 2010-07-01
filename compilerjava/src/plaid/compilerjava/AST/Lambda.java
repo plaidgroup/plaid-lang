@@ -19,9 +19,7 @@
  
 package plaid.compilerjava.AST;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
@@ -68,7 +66,8 @@ public final class Lambda implements Expression {
 	}
 
 	@Override
-	public void codegen(CodeGen out, ID y, IDList localVars) {
+	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
+
 		
 		out.setLocation(token);
 		
@@ -78,7 +77,7 @@ public final class Lambda implements Expression {
 		
 		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
 		IDList newLocalVars = localVars.add(var);
-		body.codegen(out, freshID, newLocalVars);  //lambda body
+		body.codegenExpr(out, freshID, newLocalVars, stateVars);  //lambda body
 		out.ret(freshID.getName());
 		
 		out.closeAnonymousDeclaration(); //}});");
