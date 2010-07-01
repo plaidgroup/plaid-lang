@@ -175,7 +175,6 @@ public class CodeGen {
 	}
 	
 	public final void assignToChangedState(String target, String object, String newState) {
-		
 		assign(target);
 		changeState(object,newState);
 		updateVar(target);
