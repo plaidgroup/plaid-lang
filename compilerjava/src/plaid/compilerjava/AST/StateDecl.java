@@ -120,7 +120,7 @@ public class StateDecl implements Decl {
 		//generate code to create the package scope with imports
 		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
 		imports.codegen(out, freshImports);
-		out.declareTopScope(qid.toString(),freshImports.getName());
+		out.declareGlobalScope(qid.toString(),freshImports.getName());
 		
 		//Tag
 		//Declare variable to hold the tag
@@ -152,7 +152,8 @@ public class StateDecl implements Decl {
 		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, name.getName());
 		
 		out.openStaticBlock(); //static {
-		out.append("final " + CodeGen.plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(" + CodeGen.globalScope + ");");
+		//out.append("final " + CodeGen.plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(" + CodeGen.globalScope + ");");
+		out.declareLocalScope(CodeGen.globalScope);
 		out.declareFinalVar(CodeGen.plaidStateType, theState.getName());
 
 		IDList idList = new IDList(globalVars).add(new ID(CodeGen.thisVar)); // "this" should be visible during field initializations

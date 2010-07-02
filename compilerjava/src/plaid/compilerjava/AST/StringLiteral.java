@@ -52,7 +52,7 @@ public class StringLiteral implements Expression{
 		out.assign(y.getName());
 		out.plaidString(string);
 		out.append(";");  
-		out.updateVar(y.getName());
+		out.updateVarDebugInfo(y.getName());
 	}
 
 	@Override

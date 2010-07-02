@@ -1,8 +1,13 @@
-package plaid.runtime;
+package plaid.runtime.models.map;
 
 
 import java.util.HashSet;
 import java.util.Set;
+
+import plaid.runtime.PlaidObject;
+import plaid.runtime.PlaidRuntimeException;
+import plaid.runtime.PlaidScope;
+import plaid.runtime.PlaidUnboundVariableException;
 
 /**
  * Class to handle local scoping.  Maps variable names to the objects they are 
@@ -11,11 +16,11 @@ import java.util.Set;
  * @author mhahnenberg
  *
  */
-public final class PlaidLocalScope extends AbstractPlaidScope {
+public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	private final PlaidScope parentScope;
 	private final Set<String> stateMembers;
 	
-	public PlaidLocalScope(PlaidScope parentScope) {
+	public PlaidLocalScopeMap(PlaidScope parentScope) {
 		super();
 		this.parentScope = parentScope;
 		this.stateMembers = new HashSet<String>();

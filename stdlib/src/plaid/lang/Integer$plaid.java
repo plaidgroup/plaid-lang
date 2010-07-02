@@ -23,7 +23,6 @@ import java.util.ArrayList;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidJavaObject;
-import plaid.runtime.PlaidLocalScope;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidObject;
@@ -31,6 +30,7 @@ import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidScope;
 import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsState;
+import plaid.runtime.models.map.PlaidLocalScopeMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 
@@ -53,7 +53,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() +
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
@@ -65,7 +65,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() -
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
@@ -77,7 +77,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() *
 				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
@@ -89,7 +89,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() /
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
@@ -101,7 +101,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() %
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
@@ -113,7 +113,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() ==
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				if (x == true)
@@ -128,7 +128,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()) <
 					((Integer)((PlaidJavaObject)args).getJavaObject());
 				if (x == true)
@@ -143,7 +143,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() >
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				if (x == true)
@@ -158,7 +158,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() <=
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				if (x == true)
@@ -173,7 +173,7 @@ public class Integer$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() >=
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				if (x == true)

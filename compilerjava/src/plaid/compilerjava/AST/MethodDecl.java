@@ -110,7 +110,7 @@ public final class MethodDecl implements Decl {
 		//generate code to create the package scope with imports
 		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
 		imports.codegen(out, freshImports);
-		out.declareTopScope(qid.toString(),freshImports.getName());
+		out.declareGlobalScope(qid.toString(),freshImports.getName());
 		
 		if (newName.equals("main") && this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1) {
 			out.topLevelMain(newName + "_func");
@@ -122,7 +122,8 @@ public final class MethodDecl implements Decl {
 		out.declarePublicStaticFinalVar(CodeGen.plaidMethodType, thisMethod.getName());
 		out.openStaticBlock(); // static {
 		// add local scope so that the lambda creation works properly
-		out.append("final " + CodeGen.plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(" + CodeGen.globalScope + ");");
+		//out.append("final " + CodeGen.plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(" + CodeGen.globalScope + ");");
+		out.declareLocalScope(CodeGen.globalScope);
 		out.assignToNewLambda(thisMethod.getName(),arg.getName());
 		
 		out.declareVar(CodeGen.plaidObjectType,freshReturn.getName());
@@ -140,6 +141,8 @@ public final class MethodDecl implements Decl {
 
 	@Override
 	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
+		if (abstractMethod) return; //do nothing for abstract methods
+		
 		String newName = CodeGen.convertOpNames(name);
 		out.setLocation(token);
 		ID freshMethName = IdGen.getId();
@@ -149,22 +152,22 @@ public final class MethodDecl implements Decl {
 		out.methodAnnotation(newName, false); //@representsMethod...
 		out.declareFinalVar(CodeGen.plaidObjectType,freshMethName.getName());
 		
-		if (abstractMethod) { //if abstract it will just be unit
-			body.codegenExpr(out, freshMethName, newLocalVars, stateVars);
-		} else { //otherwise create a protomethod
+		//if (abstractMethod) { //if abstract it will just be unit
+		//	body.codegenExpr(out, freshMethName, newLocalVars, stateVars);
+		//} else { //otherwise create a protomethod
 			out.assignToProtoMethod(freshMethName.getName(), arg.getName());  //freshMethName = new protofield( ... { {
 			
 			//body of the protomethod
-			out.declareLambdaScope();
+			//out.declareLambdaScope();
 			out.declareVar(CodeGen.plaidObjectType,freshID.getName());
 			
 			// update var for the debugger
-			out.updateVar(arg.getName());
+			out.updateVarDebugInfo(arg.getName());
 			
 			body.codegenExpr(out, freshID, newLocalVars, stateVars);
 			out.ret(freshID.getName() );  //return freshID;
 			out.closeAnonymousDeclaration();  //}});
-		}
+		//}
 		
 
 		//define the PlaidMemberDef

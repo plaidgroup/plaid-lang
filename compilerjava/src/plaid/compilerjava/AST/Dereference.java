@@ -82,16 +82,16 @@ public class Dereference implements Expression {
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
 
 		// if the left-hand side is an ID it means we're at the end of the deref chain
-		if (left instanceof ID && !localVars.contains((ID)left) && stateVars.contains((ID)left)) {
-			ID oldLeft = (ID)left;
-			stateVars.remove(left);
-			left = new Dereference(new ID("this$plaid"), (ID)left);
+//		if (left instanceof ID && !localVars.contains((ID)left) && stateVars.contains((ID)left)) {
+//			ID oldLeft = (ID)left;
+//			stateVars.remove(left);
+//			left = new Dereference(new ID("this$plaid"), (ID)left);
+//			this.left.codegenExpr(out, x, localVars, stateVars);
+//			stateVars.add(oldLeft);
+//		}
+//		else {
 			this.left.codegenExpr(out, x, localVars, stateVars);
-			stateVars.add(oldLeft);
-		}
-		else {
-			this.left.codegenExpr(out, x, localVars, stateVars);
-		}
+//		}
 
 		out.setLocation(left.getToken());
 		

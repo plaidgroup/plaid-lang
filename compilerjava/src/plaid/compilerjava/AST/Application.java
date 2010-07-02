@@ -84,22 +84,22 @@ public class Application implements Expression {
 		out.declareFinalVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
 
 		// if f is an ID and that ID isn't in the local vars then we need to try to find it in "this"
-		if (f instanceof ID) {
-			System.out.println("Generating code for method application: " + ((ID)f).getName());
-			if (((ID)f).getName().equals("foldrHelper")) {
-				System.out.println("local vars contains f: " + localVars.contains((ID)f));
-				System.out.println("state vars: " + stateVars);
-			}
-		}
-		if (f instanceof ID && !localVars.contains((ID)f) && stateVars.contains((ID)f)) {
-			System.out.println("inserting 'this': " + ((ID)f).getName());
-			f = new Dereference(new ID("this$plaid"), (ID)f);
-		}
+//		if (f instanceof ID) {
+//			System.out.println("Generating code for method application: " + ((ID)f).getName());
+//			if (((ID)f).getName().equals("foldrHelper")) {
+//				System.out.println("local vars contains f: " + localVars.contains((ID)f));
+//				System.out.println("state vars: " + stateVars);
+//			}
+//		}
+//		if (f instanceof ID && !localVars.contains((ID)f) && stateVars.contains((ID)f)) {
+//			System.out.println("inserting 'this': " + ((ID)f).getName());
+//			f = new Dereference(new ID("this$plaid"), (ID)f);
+//		}
 		f.codegenExpr(out, x, localVars, stateVars);
 		// if we're being applied to an ID and that ID isn't in the local vars then we need to try to find it in "this"
-		if (arg instanceof ID && !localVars.contains((ID)arg) && stateVars.contains((ID)arg)) {
-			arg = new Dereference(new ID("this$plaid"), (ID)arg);
-		}
+//		if (arg instanceof ID && !localVars.contains((ID)arg) && stateVars.contains((ID)arg)) {
+//			arg = new Dereference(new ID("this$plaid"), (ID)arg);
+//		}
 		arg.codegenExpr(out, z, localVars, stateVars);
 
 		out.setLocation(token);

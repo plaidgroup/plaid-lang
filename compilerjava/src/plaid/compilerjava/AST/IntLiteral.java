@@ -37,7 +37,7 @@ public class IntLiteral implements Expression {
 		out.assign(y.getName());
 		out.plaidInt(integer);
 		out.append(";");
-		out.updateVar(y.getName());
+		out.updateVarDebugInfo(y.getName());
 	}
 	
 	public IntLiteral(int integer) {

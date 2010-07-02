@@ -21,6 +21,8 @@ package plaid.runtime;
 
 import java.util.List;
 
+import plaid.runtime.models.map.PlaidGlobalScopeMap;
+import plaid.runtime.models.map.PlaidLocalScopeMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 import plaid.runtime.utils.Lambda;
@@ -131,14 +133,14 @@ public interface PlaidClassLoader {
 	 * @param imports
 	 * @return
 	 */
-	public PlaidGlobalScope globalScope(String qi, List<Import> imports);
+	public PlaidGlobalScopeMap globalScope(String qi, List<Import> imports);
 	
 	/**
 	 * TODO: Document
 	 * @param parentScope
 	 * @return
 	 */
-	public PlaidLocalScope localScope(PlaidScope parentScope);
+	public PlaidLocalScopeMap localScope(PlaidScope parentScope);
 	
 	/**
 	 * Returns a member definition object

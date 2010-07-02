@@ -43,7 +43,7 @@ public class BuildAllExamples {
 	}
 	
 	@Test
-	public void BuildPlaidStandardLibrary () throws FileNotFoundException {
+	public void compile() throws FileNotFoundException {
 		CompilerConfiguration cc = new CompilerConfiguration();
 		cc.setOutputDir("coreOutput");
 		cc.addInputFile(f);
