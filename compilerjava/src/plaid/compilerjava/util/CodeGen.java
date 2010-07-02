@@ -516,6 +516,7 @@ public class CodeGen {
 	 * Annotations for fields, methods, and states (intermediate format to allow pretty printing)
 	 *----------------------------
 	 */
+	
 	/**
 	 * @param name
 	 * @param toplevel
@@ -537,10 +538,11 @@ public class CodeGen {
 	/**
 	 * @param name
 	 * @param toplevel
+	 * @param members - comma separated list of member names
 	 * @return trailing @ sign to allow for correct indentation during pretty printing
 	 */
-	public final void stateAnnotation(String name, boolean toplevel) {
-		output.append("@plaid.runtime.annotations.RepresentsState(name = \"" + name + "\", toplevel = " + toplevel + ")@");
+	public final void stateAnnotation(String name, boolean toplevel, String members) {
+		output.append("@plaid.runtime.annotations.RepresentsState(name = \"" + name + "\", toplevel = " + toplevel + ", members = \"" + members + "\")@");
 	}
 	
 	/**
@@ -613,6 +615,7 @@ public class CodeGen {
 				i = search + indent(search + 1);
 				i = search + newLine(search + 1);
 				output.deleteCharAt(search);
+				i--; //reflect deleted character
 			}
 		}	
 		return output.toString();
@@ -640,7 +643,7 @@ public class CodeGen {
 	 */
 	public static void main(String args[]) {
 		CodeGen test = new CodeGen(new CompilerConfiguration());
-		test.append("@annotation(test,true)@Class A{int i;String z = \"test\";{i = 2;}}");
+		test.append("@annotation(test,true)@@annotation2(test,false)@Class A{int i;String z = \"test\";{i = 2;}}");
 		System.out.print(test.toString());
 		test.formatFile();
 		System.out.println("=>");

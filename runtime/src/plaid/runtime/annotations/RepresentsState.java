@@ -25,6 +25,7 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RepresentsState {
 	String name();
+	String members() default "";
 	boolean toplevel() default false;
 	boolean javaobject() default false;
 	boolean stateobject() default false;
