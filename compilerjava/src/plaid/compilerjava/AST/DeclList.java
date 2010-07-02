@@ -93,11 +93,6 @@ public class DeclList implements State {
 		
 		for (Decl decl : decls) {
 			declNames.add(decl.getName());
-			System.out.println("Adding to state vars: " + decl.getName());
-			stateVars.add(new ID(decl.getName()));
-		}
-		
-		for (Decl decl : decls) {
 			decl.codegenNestedDecl(out, y, localVars, stateVars, tagContext);
 		}
 		if (declNames.size() < decls.size()) {

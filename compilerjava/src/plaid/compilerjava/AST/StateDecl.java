@@ -20,7 +20,12 @@
 package plaid.compilerjava.AST;
 
 import java.io.File;
-import java.util.*;
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.Stack;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -32,6 +37,7 @@ import plaid.compilerjava.util.IdGen;
 import plaid.compilerjava.util.QualifiedID;
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.Util;
+import plaid.runtime.annotations.RepresentsState;
 
 public class StateDecl implements Decl {
 
@@ -99,8 +105,16 @@ public class StateDecl implements Decl {
 		//package and needed imports
 		out.declarePackage(qid.toString()); //package qid;
 		
-		//annotation and class definition
-		out.stateAnnotation(name.getName(), true);
+		//determine what members this state has and add annotations
+		Set<ID> stateVars = genStateVars(imports.getImports());
+		
+		StringBuilder members = new StringBuilder();
+		for (ID member : stateVars) members.append(member.getName() + ",");
+		String memberString = members.toString();
+		if (memberString.length() > 0) memberString = memberString.substring(0,memberString.length()-1);
+		
+		// state annotation and class definition
+		out.stateAnnotation(name.getName(), true, memberString);
 		out.declarePublicClass(name.getName()); out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports
@@ -115,7 +129,7 @@ public class StateDecl implements Decl {
 		out.tagAnnotation(tagPath);
 		out.declarePublicStaticFinalVar(CodeGen.plaidTagType, tag.getName());
 		
-		Set<ID> stateVars = new HashSet<ID>();
+
 		
 		out.openStaticBlock(); //static {
 		if (isCaseOf) { //if we have a super tag
@@ -134,7 +148,7 @@ public class StateDecl implements Decl {
 
 		
 		//annotation for the prototype object representing the state
-		out.stateAnnotation(name.getName(), false);
+		out.stateAnnotation(name.getName(), false, "");
 		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, name.getName());
 		
 		out.openStaticBlock(); //static {
@@ -162,7 +176,7 @@ public class StateDecl implements Decl {
 		out.setLocation(token);
 		
 		ID fresh = IdGen.getId();
-		out.stateAnnotation(name.getName(), false);
+		out.stateAnnotation(name.getName(), false, "");
 		out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
 		stateDef.codegenState(out, fresh, localVars, stateVars, tagContext);
 
@@ -187,5 +201,68 @@ public class StateDecl implements Decl {
 		// TODO Auto-generated method stub
 		
 	}
-
+	
+	private Set<ID> genStateVars(List<QualifiedID> imports) {
+		Set<ID> stateVars = new HashSet<ID>();
+		Stack<State> workList = new Stack<State>();
+		workList.push(stateDef);
+		
+		
+		State s;
+		while(!workList.isEmpty()) {
+			s = workList.pop();
+			if (s instanceof DeclList) {
+				List<Decl> decls = ((DeclList) s).getDecls();
+				for (Decl decl : decls) {
+					//System.out.println("Adding to state vars: " + decl.getName());
+					stateVars.add(new ID(decl.getName()));
+				}
+			} else if (s instanceof With) {
+				With w = (With) s;
+				workList.push(w.getR1());
+				workList.push(w.getR2());
+			} else if (s instanceof QI) {
+				
+				
+				loadStateMembers(((QI) s).toString(), imports, stateVars);
+			}
+		}
+		
+		return stateVars;
+	}
+	
+	@SuppressWarnings("unchecked")
+	private void loadStateMembers(String stateName, List<QualifiedID> imports, Set<ID> stateVars) {
+		ClassLoader cl = this.getClass().getClassLoader();
+		
+		List<String> toLookup = new ArrayList<String>();
+		toLookup.add(stateName);
+		for (QualifiedID i : imports) {
+			String theImport = i.toString();
+			if (theImport.endsWith(stateName)) toLookup.add(theImport);
+			else if (theImport.endsWith("*")) toLookup.add(theImport.substring(0,theImport.length()-1) + stateName);
+		}
+		
+		Class<Object> obj = null;
+		for (String lkup : toLookup) {
+		
+			String names[] = {lkup + PlaidConstants.ID_SUFFIX, lkup};
+			for ( String current : names) {
+				try {
+					obj = (Class<Object>) cl.loadClass(current);
+					for (Annotation a : obj.getAnnotations()) {
+						if (a instanceof RepresentsState) {
+							String memberString = ((RepresentsState) a).members();
+							for (String s : memberString.split(",")) stateVars.add(new ID(s));
+						}
+					}
+					return; //once we've found the class, we're done
+				} catch (ClassNotFoundException e) {
+					// If there is no classfile then we need to keep searching
+				}
+			}
+		}
+		
+		
+	}
 }
