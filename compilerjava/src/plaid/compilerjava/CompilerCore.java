@@ -67,6 +67,27 @@ public class CompilerCore {
 				cus.add(cu);
 			}
 			
+			// create header output files during a first pass
+//			try {
+//				if (cc.isVerbose()) System.out.println("GENERATING HEADERS");
+//				List<File> allFiles = new ArrayList<File>();
+//				for(CompilationUnit cu : cus) {
+//					List<File> fileList = cu.generateHeaders(cc);
+//					if ( cc.isVerbose() ) {
+//						for(File f : fileList) {
+//							FileReader fr = new FileReader(f);
+//							int charRead;
+//							while((charRead = fr.read()) != -1) {
+//								System.out.print((char)charRead);
+//							}
+//						}
+//					}
+//					allFiles.addAll(fileList);
+//				}
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//			}
+			
 			// create the output file
 			try {
 				if (cc.isVerbose()) System.out.println("GENERATING CODE");

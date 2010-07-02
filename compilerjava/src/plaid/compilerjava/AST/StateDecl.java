@@ -94,8 +94,49 @@ public class StateDecl implements Decl {
 		return token;
 	}
 	
+	//create a simple file with the
+//	public File generateHeader(QualifiedID qid, CompilerConfiguration cc) {
+//		
+//		CodeGen out = new CodeGen(cc);	
+//		
+//		//package and needed imports
+//		out.declarePackage(qid.toString()); //package qid;
+//		
+//		//generate list of members declared in the state (not as part of composed states)
+//		Set<String> stateVars = new HashSet<String>();
+//		Stack<State> workList = new Stack<State>();
+//		workList.push(stateDef);
+//		State s;
+//		while(!workList.isEmpty()) {
+//			s = workList.pop();
+//			if (s instanceof DeclList) {
+//				List<Decl> decls = ((DeclList) s).getDecls();
+//				for (Decl decl : decls) {
+//					stateVars.add(decl.getName());
+//				}
+//			} else if (s instanceof With) {
+//				With w = (With) s;
+//				workList.push(w.getR1());
+//				workList.push(w.getR2());
+//			} else if (s instanceof QI) {
+//				//Do nothing on first pass
+//			}
+//		}
+//		
+//		StringBuilder members = new StringBuilder();
+//		for (String member : stateVars) members.append(member + ",");
+//		String memberString = members.toString();
+//		if (memberString.length() > 0) memberString = memberString.substring(0,memberString.length()-1);
+//		
+//		// state annotation and class definition - and no more
+//		out.stateAnnotation(name.getName(), true, memberString);
+//		out.declarePublicClass(name.getName()); out.openBlock();  out.closeBlock(); // public class f { }
+//		
+//		return FileGen.createOutputFile(name.getName(), cc.getOutputDir(), out.formatFile(), qid);
+//		
+//	}
+	
 	@Override
-
 	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
 
 		CodeGen out = new CodeGen(cc);	
@@ -106,7 +147,7 @@ public class StateDecl implements Decl {
 		out.declarePackage(qid.toString()); //package qid;
 		
 		//determine what members this state has and add annotations
-		Set<ID> stateVars = genStateVars(imports.getImports());
+		Set<ID> stateVars = genStateVars(qid, imports.getImports());
 		
 		StringBuilder members = new StringBuilder();
 		for (ID member : stateVars) members.append(member.getName() + ",");
@@ -203,11 +244,20 @@ public class StateDecl implements Decl {
 		
 	}
 	
-	private Set<ID> genStateVars(List<QualifiedID> imports) {
+	private Set<ID> genStateVars(QualifiedID qid, List<QualifiedID> imports) {
 		Set<ID> stateVars = new HashSet<ID>();
 		Stack<State> workList = new Stack<State>();
 		workList.push(stateDef);
 		
+		//This seems the wrong way to do this...
+		List<QualifiedID> statepath = new ArrayList<QualifiedID>();
+		List<String> qidList = qid.getQidList();
+		List<String> newQidList = new ArrayList<String>();
+		newQidList.addAll(qidList);
+		newQidList.add("*");
+		QualifiedID declPackageQid = new QualifiedID(newQidList);
+		statepath.add(declPackageQid);
+		statepath.addAll(imports);
 		
 		State s;
 		while(!workList.isEmpty()) {
@@ -224,8 +274,7 @@ public class StateDecl implements Decl {
 				workList.push(w.getR2());
 			} else if (s instanceof QI) {
 				
-				
-				loadStateMembers(((QI) s).toString(), imports, stateVars);
+				loadStateMembers(((QI) s).toString(), statepath, stateVars);
 			}
 		}
 		
@@ -233,12 +282,12 @@ public class StateDecl implements Decl {
 	}
 	
 	@SuppressWarnings("unchecked")
-	private void loadStateMembers(String stateName, List<QualifiedID> imports, Set<ID> stateVars) {
+	private void loadStateMembers(String stateName, List<QualifiedID> statepath, Set<ID> stateVars) {
 		ClassLoader cl = this.getClass().getClassLoader();
 		
 		List<String> toLookup = new ArrayList<String>();
 		toLookup.add(stateName);
-		for (QualifiedID i : imports) {
+		for (QualifiedID i : statepath) {
 			String theImport = i.toString();
 			if (theImport.endsWith(stateName)) toLookup.add(theImport);
 			else if (theImport.endsWith("*")) toLookup.add(theImport.substring(0,theImport.length()-1) + stateName);

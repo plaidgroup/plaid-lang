@@ -71,6 +71,17 @@ public class CompilationUnit implements ASTnode {
 	
 	public List<Decl> getDecls() { return this.decls; }
 
+//	public List<File> generateHeaders(CompilerConfiguration cc) {
+//		CompilerConfiguration ccu = new CompilerConfiguration(cc, this);
+//
+//		List<File> fileList = new ArrayList<File>();
+//		for (Decl d : decls) {
+//			if (d instanceof StateDecl) fileList.add(((StateDecl) d).generateHeader(new QualifiedID(packageName), ccu));
+//		}
+//		
+//		return fileList;
+//	}
+	
 	public List<File> codegen(CompilerConfiguration cc) {
 		CompilerConfiguration ccu = new CompilerConfiguration(cc, this);
 
