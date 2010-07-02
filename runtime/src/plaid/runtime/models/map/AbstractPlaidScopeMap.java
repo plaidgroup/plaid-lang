@@ -1,7 +1,10 @@
-package plaid.runtime;
+package plaid.runtime.models.map;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import plaid.runtime.PlaidObject;
+import plaid.runtime.PlaidScope;
 
 /**
  * Abstract class for the implementation of some common functionality of both 
@@ -10,11 +13,11 @@ import java.util.Map;
  * @author mhahnenberg
  *
  */
-public abstract class AbstractPlaidScope implements PlaidScope {
+public abstract class AbstractPlaidScopeMap implements PlaidScope {
 	protected final Map<String, PlaidObject> immutableScopeMap;
 	protected final Map<String, PlaidObject> mutableScopeMap;
 	
-	public AbstractPlaidScope() {
+	public AbstractPlaidScopeMap() {
 		this.immutableScopeMap = new HashMap<String, PlaidObject>();
 		this.mutableScopeMap = new HashMap<String, PlaidObject>();
 	}

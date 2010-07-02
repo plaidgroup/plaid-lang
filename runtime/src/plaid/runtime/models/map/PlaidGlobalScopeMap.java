@@ -1,8 +1,13 @@
-package plaid.runtime;
+package plaid.runtime.models.map;
 
 import java.util.*;
 
-import plaid.runtime.models.map.PlaidLookupMap;
+import plaid.runtime.PlaidClassLoader;
+import plaid.runtime.PlaidClassNotFoundException;
+import plaid.runtime.PlaidObject;
+import plaid.runtime.PlaidRuntime;
+import plaid.runtime.PlaidRuntimeException;
+import plaid.runtime.PlaidUnboundVariableException;
 import plaid.runtime.utils.Import;
 import plaid.runtime.utils.QualifiedIdentifier;
 
@@ -15,16 +20,16 @@ import plaid.runtime.utils.QualifiedIdentifier;
  * @author mhahnenberg
  *
  */
-public final class PlaidGlobalScope extends AbstractPlaidScope {
+public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	private final Set<Import> imports;
 	private final Map<String, PlaidObject> mutableScopeMap;
 	private final Map<String, PlaidObject> immutableScopeMap;
 	private final QualifiedIdentifier globalPackage;
 	
-	private static final Map<QualifiedIdentifier, PlaidGlobalScope> 
-		globalScopes = new HashMap<QualifiedIdentifier, PlaidGlobalScope>();
+	private static final Map<QualifiedIdentifier, PlaidGlobalScopeMap> 
+		globalScopes = new HashMap<QualifiedIdentifier, PlaidGlobalScopeMap>();
 
-	private PlaidGlobalScope(String qi, List<Import> imports) {
+	private PlaidGlobalScopeMap(String qi, List<Import> imports) {
 		this.imports = new HashSet<Import>(imports);
 		this.imports.add(new Import(qi + ".*"));
 		this.mutableScopeMap = new HashMap<String, PlaidObject>();
@@ -122,24 +127,24 @@ public final class PlaidGlobalScope extends AbstractPlaidScope {
 	}
 	
 	public boolean equals(Object o) {
-		if (!(o instanceof PlaidGlobalScope))
+		if (!(o instanceof PlaidGlobalScopeMap))
 			return false;
-		return ((PlaidGlobalScope)o).globalPackage.equals(this.globalPackage);
+		return ((PlaidGlobalScopeMap)o).globalPackage.equals(this.globalPackage);
 	}
 	
 	public int hashCode() {
 		return this.globalPackage.hashCode();
 	}
 	
-	public static PlaidGlobalScope create(String qi, List<Import> imports) {
+	public static PlaidGlobalScopeMap create(String qi, List<Import> imports) {
 		QualifiedIdentifier qualID = new QualifiedIdentifier(qi);
-		PlaidGlobalScope newGlobalScope;
+		PlaidGlobalScopeMap newGlobalScope;
 		if (globalScopes.containsKey(qualID)) {
 			newGlobalScope = globalScopes.get(qualID);
 			newGlobalScope.imports.addAll(imports);
 		}
 		else {
-			newGlobalScope = new PlaidGlobalScope(qi, imports);
+			newGlobalScope = new PlaidGlobalScopeMap(qi, imports);
 			globalScopes.put(qualID, newGlobalScope);
 		}
 		return newGlobalScope;

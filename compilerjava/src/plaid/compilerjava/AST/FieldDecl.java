@@ -107,15 +107,16 @@ public class FieldDecl implements Decl{
 		//generate code to create the package scope with imports
 		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
 		imports.codegen(out, freshImports);
-		out.declareTopScope(qid.toString(),freshImports.getName());
+		out.declareGlobalScope(qid.toString(),freshImports.getName());
 		
 		//generate code to represent the field as a java field
 		out.fieldAnnotation(f.getName(), false);
 		out.declarePublicStaticVar(CodeGen.plaidObjectType, f.getName());
 		out.openStaticBlock(); //static {
 		// TODO: make this a function
-		out.append("final plaid.runtime.PlaidLocalScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);");
-
+		//out.append("final plaid.runtime.PlaidLocalScope local$c0pe = new plaid.runtime.PlaidLocalScope(global$c0pe);");
+		out.declareLocalScope(CodeGen.globalScope);
+		
 		e.codegenExpr(out, f, localVars, new HashSet<ID>());  //initialization code
 		// make this immutable if it should be
 		// add this field to the global scope
@@ -130,6 +131,8 @@ public class FieldDecl implements Decl{
 	@Override
 	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 
+		if (abstractField) return;  //do nothing for abstract fields
+		
 		out.setLocation(token);
 		
 		ID fresh1 = IdGen.getId();
@@ -139,18 +142,18 @@ public class FieldDecl implements Decl{
 		out.fieldAnnotation(f.getName(), false);  //@representsField...
 		out.declareFinalVar(CodeGen.plaidObjectType,freshFieldName.getName());
 		
-		if (abstractField) {
-			e.codegenExpr(out, freshFieldName, localVars, stateVars);  //field will just have the unit value if it is abstract 
-		} else {
+		//if (abstractField) {
+		//.codegenExpr(out, freshFieldName, localVars, stateVars);  //field will just have the unit value if it is abstract 
+		//} else {
 			out.assignToProtoField(freshFieldName.getName(), x.getName()); // freshFieldName = new protoField... {
 			
 			//protofield body
-			out.declareLambdaScope();
+			//out.declareLambdaScope();
 			out.declareFinalVar(CodeGen.plaidObjectType, fresh1.getName()); //Public PlaidObect fresh1;
 			e.codegenExpr(out, fresh1, localVars, stateVars);  //field initializer code
 			out.ret(fresh1.getName()); // return fresh1;
 			out.closeAnonymousDeclaration(); // }});
-		}
+		//}
 		//define the PlaidMemberDef
 		// TODO: methods are immutable by default?
 		ID memberDef = IdGen.getId();

@@ -28,10 +28,8 @@ import plaid.runtime.PlaidClassLoader;
 import plaid.runtime.PlaidClassNotFoundException;
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.PlaidException;
-import plaid.runtime.PlaidGlobalScope;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidJavaObject;
-import plaid.runtime.PlaidLocalScope;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
@@ -292,13 +290,13 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	}
 
 	@Override
-	public PlaidGlobalScope globalScope(String qi, List<Import> imports) {
-		return PlaidGlobalScope.create(qi, imports);
+	public PlaidGlobalScopeMap globalScope(String qi, List<Import> imports) {
+		return PlaidGlobalScopeMap.create(qi, imports);
 	}
 
 	@Override
-	public PlaidLocalScope localScope(PlaidScope parentScope) {
-		return new PlaidLocalScope(parentScope);
+	public PlaidLocalScopeMap localScope(PlaidScope parentScope) {
+		return new PlaidLocalScopeMap(parentScope);
 	}
 	
 	@Override

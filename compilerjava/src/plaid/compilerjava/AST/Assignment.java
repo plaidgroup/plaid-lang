@@ -96,10 +96,10 @@ public class Assignment implements Expression {
 			else {
 				// need to make sure we've loaded it before
 				out.lookupInCurrentScope(this.field.getName());
-				out.updateVar(this.field, assignTo);
+				out.updateVarInScope(this.field.getName(), assignTo.getName());
 				out.assignToID(y.getName(), assignTo.getName());
 				
-				out.updateVar(assignTo.getName());
+				out.updateVarDebugInfo(assignTo.getName());
 				
 				return;
 			}
@@ -113,7 +113,7 @@ public class Assignment implements Expression {
 			out.updateMember(temp.getName(), this.field.getName(), assignTo.getName());
 			out.assignToID(y.getName(), assignTo.getName());
 
-		out.updateVar(assignTo.getName());
+		out.updateVarDebugInfo(assignTo.getName());
 	}
 
 	@Override

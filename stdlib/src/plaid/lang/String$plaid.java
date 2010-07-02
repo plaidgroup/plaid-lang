@@ -23,13 +23,13 @@ import java.util.ArrayList;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidJavaObject;
-import plaid.runtime.PlaidLocalScope;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidScope;
 import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsState;
+import plaid.runtime.models.map.PlaidLocalScopeMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 
@@ -52,7 +52,7 @@ public class String$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				String x = ((String)((PlaidJavaObject)thisVar).getJavaObject()) +
 				(((PlaidJavaObject)args).getJavaObject().toString());
 				return Util.string(x);
@@ -63,7 +63,7 @@ public class String$plaid {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScope(globalScope);
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				String x;
 				if (args instanceof PlaidJavaObject) {
 					x = ((String)((PlaidJavaObject)thisVar).getJavaObject()).substring(((Integer)((PlaidJavaObject)args).getJavaObject()));
