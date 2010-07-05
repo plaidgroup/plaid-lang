@@ -80,7 +80,7 @@ public class QI implements State {
 	}
 
 	@Override
-	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
+	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
 
 		out.setLocation(token);
 		

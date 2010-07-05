@@ -28,12 +28,6 @@ import plaid.runtime.utils.Import;
 
 @RepresentsState(name="Object", toplevel=true)
 public class Object$plaid {
-	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Object")
-	public static final plaid.runtime.PlaidTag Object$Tag$plaid;
-	static {
-		Object$Tag$plaid = plaid.runtime.Util.tag("plaid.lang.Object");
-		plaid.runtime.PlaidRuntime.getRuntime().updateVar("Object$Tag$plaid",Object$Tag$plaid);
-	}
 	
 	public static PlaidScope currentScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 }

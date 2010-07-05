@@ -129,7 +129,7 @@ public class FieldDecl implements Decl{
 
 	//Normal Field Decl
 	@Override
-	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
 
 		if (abstractField) return;  //do nothing for abstract fields
 		
@@ -142,9 +142,9 @@ public class FieldDecl implements Decl{
 		out.fieldAnnotation(f.getName(), false);  //@representsField...
 		out.declareFinalVar(CodeGen.plaidObjectType,freshFieldName.getName());
 		
-		//if (abstractField) {
-		//.codegenExpr(out, freshFieldName, localVars, stateVars);  //field will just have the unit value if it is abstract 
-		//} else {
+//		if (abstractField) {
+//			e.codegenExpr(out, freshFieldName, localVars, stateVars);  //field will just have the unit value if it is abstract - won't be initialized 
+//		} else {
 			out.assignToProtoField(freshFieldName.getName(), x.getName()); // freshFieldName = new protoField... {
 			
 			//protofield body
@@ -158,12 +158,12 @@ public class FieldDecl implements Decl{
 		// TODO: methods are immutable by default?
 		ID memberDef = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidMemberDefType, memberDef.getName());
-		String definedIn;
-		if (tagContext != null)
-			definedIn = tagContext.getName();
-		else
-			definedIn = "null";
-		out.assignToNewMemberDef(memberDef.getName(), f.getName(), definedIn, !immutable);
+//		String definedIn;
+//		if (stateContext != null)
+//			definedIn = stateContext;
+//		else
+//			definedIn = "<Anonymous>";
+		out.assignToNewMemberDef(memberDef.getName(), f.getName(), stateContext, !immutable);
 		
 		out.addMember(y.getName(), memberDef.getName(), freshFieldName.getName());  //y.addMember(f,freshFieldName)
 		
@@ -185,12 +185,12 @@ public class FieldDecl implements Decl{
 		return this.immutable;
 	}
 
-	@Override
-	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars,
-			ID tagContext) {
-		// TODO Auto-generated method stub
-		
-	}
+//	@Override
+//	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars,
+//			String stateContext) {
+//		// TODO Auto-generated method stub
+//		
+//	}
 
 
 }

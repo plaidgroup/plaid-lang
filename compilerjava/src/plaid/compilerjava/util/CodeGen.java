@@ -243,7 +243,7 @@ public class CodeGen {
 	//Member Definition
 	public final void assignToNewMemberDef(String target, String varName, String definedIn, boolean mutable) {
 		assign(target);
-		append(utilClass + ".memberDef(\"" + varName + "\", " + definedIn + ", " + mutable + ");");
+		append(utilClass + ".memberDef(\"" + varName + "\", \"" + definedIn + "\", " + mutable + ");");
 	}
 	
 	public final void closeAnonymousDeclaration() {

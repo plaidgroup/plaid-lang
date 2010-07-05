@@ -159,7 +159,7 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 				if (plaidResult instanceof PlaidJavaObject) {
 					plaidResult.addTag(new PlaidTagMap(result.getClass().getName(), 
 							new PlaidStateMap(new PlaidPackageMap(
-									new QualifiedIdentifier("java.lang")), "Object", Object.class).getTag())); //TODO: will we have this tag?
+									new QualifiedIdentifier("java.lang")), "Object", Object.class))); //TODO: will we have this tag?
 				}
 				return plaidResult;
 				

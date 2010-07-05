@@ -1,28 +1,28 @@
 package plaid.runtime.models.map;
 
 import plaid.runtime.PlaidMemberDef;
-import plaid.runtime.PlaidTag;
+import plaid.runtime.PlaidState;
 
 public class PlaidMemberDefMap implements PlaidMemberDef {
 
 	private String memberName;
-	private PlaidTag definedIn;
+	private String definedIn;
 	private boolean anonymous;
 	private boolean mutable;
 	
-	public PlaidMemberDefMap(String memberName, PlaidTag definedIn, boolean mutable) {
+	public PlaidMemberDefMap(String memberName, String definedIn, boolean mutable) {
 		this.memberName = memberName;
 		this.definedIn = definedIn;
 		this.mutable = mutable;
-		anonymous = (definedIn == null);
+		anonymous = (definedIn.equals("<Anonymous>"));  //TODO : This should be done better
 	}
 	
-	public PlaidMemberDefMap(String memberName, PlaidTag definedIn) {
+	public PlaidMemberDefMap(String memberName, String definedIn) {
 		this(memberName, definedIn, false);
 	}
 	
 	public PlaidMemberDefMap(String memberName) {
-		this(memberName, null, false);
+		this(memberName, "<Anonymous>", false);
 	}
 	
 	public PlaidMemberDefMap(String memberName, boolean mutable) {
@@ -33,7 +33,7 @@ public class PlaidMemberDefMap implements PlaidMemberDef {
 		return memberName;
 	}
 
-	public PlaidTag definedIn() {
+	public String definedIn() {
 		return definedIn;
 	}
 
@@ -58,7 +58,7 @@ public class PlaidMemberDefMap implements PlaidMemberDef {
 		if (anonymous)
 			ret.append(",anonymous)");
 		else
-			ret.append("," + definedIn.getName() + ")");
+			ret.append("," + definedIn.toString() + ")");
 		
 		
 		return ret.toString();

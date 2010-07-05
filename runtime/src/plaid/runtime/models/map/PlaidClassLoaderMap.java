@@ -193,13 +193,8 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 		return new PlaidStateMap();
 	}
 	
-	@Override
-	public PlaidTag tag(String tagName) {
-		return new PlaidTagMap(tagName);
-	}
-	
 	@Override 
-	public PlaidTag tag(String tagName, PlaidTag caseOf) {
+	public PlaidTag tag(String tagName, PlaidState caseOf) {
 		return new PlaidTagMap(tagName, caseOf);
 	}
 
@@ -300,7 +295,7 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	}
 	
 	@Override
-	public PlaidMemberDef memberDef(String memberName, PlaidTag definedIn, boolean mutable){
+	public PlaidMemberDef memberDef(String memberName, String definedIn, boolean mutable){
 		return new PlaidMemberDefMap(memberName, definedIn, mutable);
 	}
 }
