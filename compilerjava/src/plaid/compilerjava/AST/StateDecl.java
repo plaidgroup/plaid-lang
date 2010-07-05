@@ -162,49 +162,40 @@ public class StateDecl implements Decl {
 		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>",freshImports.getName());
 		imports.codegen(out, freshImports);
 		out.declareGlobalScope(qid.toString(),freshImports.getName());
-		
-		//Tag
-		//Declare variable to hold the tag
-		ID tag = new ID(name.getName() + "$Tag" + PlaidConstants.ID_SUFFIX);
-		String tagPath = qid.toString() + "." + name.getName();
-		out.tagAnnotation(tagPath);
-		out.declarePublicStaticFinalVar(CodeGen.plaidTagType, tag.getName());
-		
 
-		
-		out.openStaticBlock(); //static {
-		if (isCaseOf) { //if we have a super tag
-			ID caseOfState = IdGen.getId();
-			ID caseOfTag = IdGen.getId();
-			out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
-			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, null);
-			out.declareFinalVar(CodeGen.plaidTagType, caseOfTag.getName());
-			out.assignToStateTag(caseOfTag.getName(), caseOfState.getName());
-			
-			out.assignToNewTag(tag.getName(), tagPath,  caseOfTag.getName());  //tag = new PlaidTag(caseOfState)
-		} else { //if we don't
-			out.assignToNewTag(tag.getName(), tagPath);
-		}
-		out.closeBlock(); // } (for static block to init tag)
-
-		
 		//annotation for the prototype object representing the state
 		out.stateAnnotation(name.getName(), false, "");
 		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, name.getName());
 		
 		out.openStaticBlock(); //static {
-		//out.append("final " + CodeGen.plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(" + CodeGen.globalScope + ");");
 		out.declareLocalScope(CodeGen.globalScope);
 		out.declareFinalVar(CodeGen.plaidStateType, theState.getName());
 
 		IDList idList = new IDList(globalVars).add(new ID(CodeGen.thisVar)); // "this" should be visible during field initializations
 		
-		stateDef.codegenState(out, theState, idList, stateVars, tag);//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+		stateDef.codegenState(out, theState, idList, stateVars, qid.toString() + "." + name.getName());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
 
 		out.assignToPrototype(name.getName(), theState.getName());
 		
 		out.closeBlock(); // } (for static block to init prototype)
 
+		if (isCaseOf) { //if we have a tag	
+			//Tag
+			//Declare variable to hold the tag
+			ID tag = new ID(name.getName() + "$Tag" + PlaidConstants.ID_SUFFIX);
+			String tagPath = qid.toString() + "." + name.getName();
+			out.tagAnnotation(tagPath);
+			out.declarePublicStaticFinalVar(CodeGen.plaidTagType, tag.getName());
+			
+			out.openStaticBlock(); //static {	
+			ID caseOfState = IdGen.getId();
+			out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
+			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, null);
+			out.assignToNewTag(tag.getName(), tagPath,  caseOfState.getName());  //tag = new PlaidTag(caseOfState)
+			
+			out.closeBlock(); // } (for static block to init tag)
+		}
+		
 		out.closeBlock(); // } (for class Def)
 		
 		return FileGen.createOutputFile(name.getName(), cc.getOutputDir(), out.formatFile(), qid);
@@ -213,14 +204,14 @@ public class StateDecl implements Decl {
 
 	//TODO : when will this codegen be called?
 	@Override
-	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
 
 		out.setLocation(token);
 		
 		ID fresh = IdGen.getId();
 		out.stateAnnotation(name.getName(), false, "");
 		out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
-		stateDef.codegenState(out, fresh, localVars, stateVars, tagContext);
+		stateDef.codegenState(out, fresh, localVars, stateVars, stateContext + "." + name.getName());  //TODO : stateContext here may not be right...
 
 		// TODO: State decls are immutable by default
 		out.addMember(y.getName(), name.getName(), fresh.getName()); //y.addMember(s,fresh)
@@ -237,12 +228,12 @@ public class StateDecl implements Decl {
 		visitor.visitNode(this);
 	}
 
-	@Override
-	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars,
-			ID tagContext) {
-		// TODO Auto-generated method stub
-		
-	}
+//	@Override
+//	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars,
+//			String tagContext) {
+//		// TODO Auto-generated method stub
+//		
+//	}
 	
 	private Set<ID> genStateVars(QualifiedID qid, List<QualifiedID> imports) {
 		Set<ID> stateVars = new HashSet<ID>();

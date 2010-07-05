@@ -84,7 +84,7 @@ public class DeclList implements State {
 	
 	// for state declarations
 	@Override
-	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
+	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
 
 		out.setLocation(token);
 		
@@ -93,7 +93,7 @@ public class DeclList implements State {
 		
 		for (Decl decl : decls) {
 			declNames.add(decl.getName());
-			decl.codegenNestedDecl(out, y, localVars, stateVars, tagContext);
+			decl.codegenNestedDecl(out, y, localVars, stateVars, stateContext);
 		}
 		if (declNames.size() < decls.size()) {
 			throw new PlaidException("Cannot have field and method with the same name.");

@@ -47,6 +47,32 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	protected PlaidTag tag;
 	protected boolean hasTag;
 	
+	public static PlaidStateMap loadPlaidState(Class<Object> templateClass) {
+		PlaidStateMap theState = null;
+		RepresentsState psa = null;
+		
+		for (Field f : templateClass.getFields()) {
+			psa = f.getAnnotation(RepresentsState.class);
+			if (psa != null) {
+				try {
+					theState = (PlaidStateMap)f.get(templateClass);
+				} catch (IllegalArgumentException e) {
+					throw new PlaidInvalidArgumentException("Cannot get value from field : " + f.getName());
+				} catch (IllegalAccessException e) {
+					throw new PlaidIllegalAccessException("Cannot access field of class : " + templateClass.getName());
+				}
+				break;
+			}
+		}
+		
+		if (theState != null) {
+			theState.psa = psa;
+			theState.templateClass = templateClass;	
+		}
+		
+		return theState;
+	}
+	
 	public PlaidStateMap(PlaidPackageMap pkg, String name, Class<Object> templateClass) {
 		this.pkg = pkg;
 		this.name = name;
@@ -170,19 +196,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 				pom.addMember(member.getKey(), initializer.invoke(Util.unit()));
 			}
 		}
-		
-//		// add mutable members from prototype initializing any that are proto-
-//		for ( Map.Entry<String, PlaidObject> member : prototype.getMutableMembers().entrySet() ) {
-//			if ( member.getValue() instanceof PlaidProtoMethodMap ) {
-//				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap)member.getValue();
-//				pom.addMember(member.getKey(), new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate()), false);
-//			} 
-//			else if ( member.getValue() instanceof PlaidProtoFieldMap ) {
-//				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap)member.getValue();
-//				PlaidMethod initializer = new PlaidMethodMap(member.getKey(), pom, ppfm.getInitalizer());
-//				pom.addMember(member.getKey(), initializer.invoke(Util.unit()), false);
-//			}
-//		}
 		
 		// add states from prototype
 		for (PlaidObject ps : this.prototype.getStates()) {

@@ -37,17 +37,11 @@ import plaid.runtime.utils.Import;
 public class String$plaid {
 	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 	
-	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.String")
-	public static final plaid.runtime.PlaidTag StringTag$plaid;
-	static {
-		StringTag$plaid = plaid.runtime.Util.tag("plaid.lang.String");
-	}
-	
 	@RepresentsState(name="String") 
 	public static PlaidObject foo = Util.newObject();
 	
 	static {		
-		PlaidMemberDef plus = Util.memberDef("plus$plaid", StringTag$plaid, false);
+		PlaidMemberDef plus = Util.memberDef("plus$plaid", "plaid.lang.String", false);
 		foo.addMember(plus, Util.protoMethod("plaid.lang.String.plus$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -58,7 +52,7 @@ public class String$plaid {
 				return Util.string(x);
 			}
 		}));
-		PlaidMemberDef substring = Util.memberDef("substring$plaid", StringTag$plaid, false);
+		PlaidMemberDef substring = Util.memberDef("substring$plaid", "plaid.lang.String", false);
 		foo.addMember(substring, Util.protoMethod("plaid.lang.String.substring$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -79,6 +73,4 @@ public class String$plaid {
 			}
 		})/*, true*/);
 	}
-	
-	
 }

@@ -84,7 +84,7 @@ public class Util {
 		return cl.protoMethod(fullyQualName, dlg);
 	}
 	
-	public static PlaidMemberDef memberDef(String memberName, PlaidTag definedIn, boolean mutable) {
+	public static PlaidMemberDef memberDef(String memberName, String definedIn, boolean mutable) {
 		return cl.memberDef(memberName, definedIn, mutable);
 	}
 	
@@ -96,11 +96,7 @@ public class Util {
 		return cl.lookup(name, scope);
 	}
 	
-	public static PlaidTag tag(String tag) {
-		return cl.tag(tag);
-	}
-	
-	public static PlaidTag tag(String tag, PlaidTag caseOf) {
+	public static PlaidTag tag(String tag, PlaidState caseOf) {
 		return cl.tag(tag, caseOf);
 	}
 	
