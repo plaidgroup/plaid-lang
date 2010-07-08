@@ -158,7 +158,7 @@ public class CompilerCore {
 	}
 	
 	private static void version() {
-		System.out.println("PlaidCompiler Version 0.1 [ALPHPA]");
+		System.out.println("PlaidCompiler Version 0.1 [ALPHA]");
 	}
 	
 	private static void usage() {
@@ -202,7 +202,7 @@ public class CompilerCore {
 						usage();
 						System.exit(-1);
 					}
-				} else if ( value.equals("-k") || value.equals("--keekTemp")) {
+				} else if ( value.equals("-k") || value.equals("--keepTempFiles")) {
 					cc.setKeepTemporaryFiles(true);
 				} else if ( value.equals("-g") || value.equals("--debug")) {
 					cc.setDebugMode(true);

@@ -57,7 +57,7 @@ public class ID implements Expression{
 	@Override
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		if (!localVars.contains(this) && stateVars.contains(this)) { //Might need to add 'this' in front
-			System.out.println("inserting 'this': " + name);
+//			System.out.println("inserting 'this': " + name);
 			Dereference newDeref = new Dereference(new ID("this$plaid"), this);
 			newDeref.codegenExpr(out, y, localVars, new HashSet<ID>()); //know that it is 'this.ID' so no need for stateVars when generating
 		} else {

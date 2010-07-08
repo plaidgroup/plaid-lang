@@ -136,6 +136,22 @@ public class StateDecl implements Decl {
 //		
 //	}
 	
+	public QI getCaseOf() {
+		return caseOf;
+	}
+
+	public void setCaseOf(QI caseOf) {
+		this.caseOf = caseOf;
+	}
+
+	public boolean getIsCaseOf() {
+		return isCaseOf;
+	}
+
+	public void setIsCaseOf(boolean isCaseOf) {
+		this.isCaseOf = isCaseOf;
+	}
+
 	@Override
 	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
 
