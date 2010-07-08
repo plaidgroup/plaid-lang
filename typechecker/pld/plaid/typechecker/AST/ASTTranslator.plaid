@@ -15,7 +15,11 @@ state ASTTranslator {
 			case plaid.compilerjava.AST.Assignment {
 				new Assignment with {
 					val /*Token*/ token = root.getToken();
-					val /*Expression*/ target = translateAST(root.getTarget());
+					val /*Expression*/ target = ifElse (root.hasTarget()) {
+							translateAST(root.getTarget());
+						} {
+							new NullNode;
+						};
 					val /*ID*/ field = translateAST(root.getField());
 					val /*Expression*/ value = translateAST(root.getValue());
 				};
@@ -64,7 +68,7 @@ state ASTTranslator {
 					val /*Token*/ token = root.getToken();
 					val /*ID*/ f = translateAST(root.getF());
 					val /*Expression*/ e = translateAST(root.getE());
-					val /*boolean*/ abstractField = root.getAbstractField();
+					val /*boolean*/ abstractField = root.isAbstractField();
 				};
 			}
 			case plaid.compilerjava.AST.ID {
@@ -88,7 +92,7 @@ state ASTTranslator {
 			case plaid.compilerjava.AST.Lambda {
 				new Lambda with {
 					val /*Token*/ token = root.getToken();
-					val /*ID*/ var = translateAST(root.getVar());
+					val /*ID*/ x = translateAST(root.getVar());
 					val /*Expression*/ body = translateAST(root.getBody());
 				};
 			}
@@ -115,8 +119,8 @@ state ASTTranslator {
 					val /*Expression*/ body = translateAST(root.getBody());
 					val /*ID*/ arg = ifElse (root.hasArg()) {
 							translateAST(root.getArg());
-						}{
-							root.getArg();
+						} {
+							new NullNode;
 						};
 					val /*boolean*/ abstractMethod = root.isAbstractMethod();
 				};
@@ -136,10 +140,14 @@ state ASTTranslator {
 			case plaid.compilerjava.AST.StateDecl {
 				new StateDecl with {
 					val /*Token*/ token = root.getToken();
-					val /*ID*/ name = translateAST(root.getName());
+					val /*ID*/ name = new ID { var name = root.getName(); };
 					val /*State*/ stateDef = translateAST(root.getStateDef());
-					val /*QI*/ caseOf = translateAST(root.getCaseOf());
 					val /*boolean*/ isCaseOf = root.getIsCaseOf();
+					val /*QI*/ caseOf = ifElse (root.getIsCaseOf()) {
+							translateAST(root.getCaseOf());
+						} {
+							new NullNode;
+						};
 				};
 			}
 			case plaid.compilerjava.AST.StringLiteral {
@@ -162,7 +170,7 @@ state ASTTranslator {
 			}
 			default {
 				// TODO: ???
-				java.lang.System.out.println("Unknown AST node type.");
+				java.lang.System.out.print("Unknown AST node type: ");
 				java.lang.System.out.println((root.getClass()).getSimpleName());
 			}
 		}
@@ -180,8 +188,10 @@ method map(f, list) {
 }
 
 method main() {
-	var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("pld/addFive.plaid")));
+	var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("pld/rewriteTest.plaid")));
 	val translator = new ASTTranslator;
 	var plaidAST = translator.translateAST(javaAST);
 	plaidAST.accept(new visitor.PrintVisitor);
+//	plaidAST.accept(new visitor.RewriteVisitor);
+//	plaidAST.accept(new visitor.PrintVisitor);
 }
