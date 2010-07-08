@@ -60,6 +60,10 @@ public class Assignment implements Expression {
 	public void setTarget(Expression target) {
 		this.target = target;
 	}
+	
+	public boolean hasTarget() {
+		return this.target != null;
+	}
 
 	public ID getField() {
 		return field;
