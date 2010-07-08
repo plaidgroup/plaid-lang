@@ -189,10 +189,27 @@ public class StateDecl implements Decl {
 
 		IDList idList = new IDList(globalVars).add(new ID(CodeGen.thisVar)); // "this" should be visible during field initializations
 		
-		stateDef.codegenState(out, theState, idList, stateVars, qid.toString() + "." + name.getName());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
-
-		out.assignToPrototype(name.getName(), theState.getName());
 		
+		
+		// with caseOf State
+		if (!isCaseOf) {
+			stateDef.codegenState(out, theState, idList, stateVars, qid.toString() + "." + name.getName());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+			out.assignToPrototype(name.getName(), theState.getName());
+		} else {
+			ID caseOfState = IdGen.getId();
+			ID declaredState = IdGen.getId();
+			out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
+			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, null);
+			out.declareFinalVar(CodeGen.plaidStateType, declaredState.getName());
+			stateDef.codegenState(out, declaredState, idList, stateVars, qid.toString() + "." + name.getName());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+			out.assignToWith(theState.getName(),caseOfState.getName(),declaredState.getName());  //y = fresh1.with(fresh2); 
+					
+			out.assignToPrototype(name.getName(), theState.getName());
+			
+			// because of subtagging, we don't want the resulting object to have the caseOf's state's tag
+			out.ifCondition(caseOfState.getName() + ".hasTag()"); //If the caseOf State has a tag
+			out.append(name.getName() + ".removeTag(" + caseOfState.getName() + ".getTag());"); //remove it from the prototype
+		}
 		out.closeBlock(); // } (for static block to init prototype)
 
 		if (isCaseOf) { //if we have a tag	
@@ -255,6 +272,7 @@ public class StateDecl implements Decl {
 		Set<ID> stateVars = new HashSet<ID>();
 		Stack<State> workList = new Stack<State>();
 		workList.push(stateDef);
+		workList.push(caseOf);
 		
 		//This seems the wrong way to do this...
 		List<QualifiedID> statepath = new ArrayList<QualifiedID>();

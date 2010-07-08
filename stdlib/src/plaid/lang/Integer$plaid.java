@@ -117,6 +117,21 @@ public class Integer$plaid {
 			}
 		})/*, true*/);
 		
+		PlaidMemberDef bangeq = Util.memberDef("bangeq$plaid", "plaid.lang.Integer", false);
+		foo.addMember(bangeq, Util.protoMethod("plaid.lang.Integer.bangeq$plaid", new Delegate() {
+			@Override
+			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
+				@SuppressWarnings("unused")
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() !=
+					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				if (x == true)
+					return Util.trueObject();
+				else
+					return Util.falseObject();
+			}
+		})/*, true*/);
+		
 		PlaidMemberDef lt = Util.memberDef("lt$plaid", "plaid.lang.Integer", false);
 		foo.addMember(lt, Util.protoMethod("plaid.lang.Integer.lt$plaid", new Delegate() {
 			@Override

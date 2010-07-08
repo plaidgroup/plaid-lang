@@ -246,6 +246,11 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		return Collections.unmodifiableMap(prototype.getMembers());
 	}
 	
+	@Override
+	public void removeTag(PlaidTag tag) {
+		prototype.removeTag(tag);
+	}
+	
 //	@Override
 //	public Map<String, PlaidObject> getImmutableMembers() {
 //		return this.prototype.getImmutableMembers();
@@ -269,5 +274,10 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	@Override
 	public boolean hasTag() throws PlaidException {
 		return hasTag;
+	}
+
+	@Override
+	public String getPath() {
+		return pkg.getQI().toString() + "." + name;
 	}
 }
