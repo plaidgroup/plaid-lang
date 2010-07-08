@@ -155,7 +155,7 @@ public final class MethodDecl implements Decl {
 		//if (abstractMethod) { //if abstract it will just be unit - won't be added to initialized object
 		//	body.codegenExpr(out, freshMethName, newLocalVars, stateVars);
 		//} else { //otherwise create a protomethod
-			out.assignToProtoMethod(freshMethName.getName(), arg.getName());  //freshMethName = new protofield( ... { {
+			out.assignToProtoMethod(freshMethName.getName(), arg.getName(), stateContext + "." + name);  //freshMethName = new protofield( ... { {
 			
 			//body of the protomethod
 			//out.declareLambdaScope();

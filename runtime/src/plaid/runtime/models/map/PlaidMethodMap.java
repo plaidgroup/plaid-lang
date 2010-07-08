@@ -38,7 +38,7 @@ public final class PlaidMethodMap extends PlaidObjectMap implements PlaidMethod 
 	public void setThis(PlaidObject varthis) {
 		this.varthis = varthis;
 	}
-
+	
 	@Override
 	public PlaidObject invoke(PlaidObject args) throws PlaidException {
 		return delegate.invoke(varthis, args);

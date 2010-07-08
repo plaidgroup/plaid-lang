@@ -31,17 +31,9 @@ public class With implements State {
 
 	private Token token;
 	private State r1,r2;
-	private boolean init;
 	
 	public With(State r1, State r2) {
-		this(r1, r2, false);
-	}
-	
-	public With(State r1, State r2, boolean init) {
-		super();
-		this.r1 = r1;
-		this.r2 = r2;
-		this.init = init;
+		this(null, r1, r2);
 	}
 
 	public With(Token t) {
@@ -54,7 +46,7 @@ public class With implements State {
 		this.r1 = r1;
 		this.r2 = r2;
 	}
-
+	
 	public With() {
 	}
 	
@@ -90,10 +82,8 @@ public class With implements State {
 		out.declareFinalVar(CodeGen.plaidStateType, fresh2.getName());
 		
 		r1.codegenState(out, fresh1, localVars, stateVars, stateContext);
-		if (!init)
-			r2.codegenState(out, fresh2, localVars, stateVars, stateContext);
-		else  //If this is initializing a state, then it should be an anonymous definition
-			r2.codegenState(out, fresh2, localVars, stateVars, "<Anonymous>");
+
+		r2.codegenState(out, fresh2, localVars, stateVars, stateContext);
 
 		
 		out.assignToWith(y.getName(),fresh1.getName(),fresh2.getName());  //y = fresh1.with(fresh2); 
