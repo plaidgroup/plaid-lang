@@ -1,5 +1,7 @@
 package plaid.runtime;
 
+import java.util.List;
+
 public interface PlaidTag {
 	
 	public PlaidState caseOf();
@@ -11,4 +13,8 @@ public interface PlaidTag {
 	public boolean matches(String tag);
 	
 	public String getName();
+	
+	public String rootState();
+	
+	public List<String> getHierarchy();
 }

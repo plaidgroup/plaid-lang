@@ -23,7 +23,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Stack;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
@@ -225,6 +227,97 @@ public class PlaidObjectMap implements PlaidObject {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
+		if (!changeByTransition(update)) changeByWipe(update);
+		
+		return Util.unit();
+	}
+	
+	private boolean changeByTransition(PlaidObject update) {
+		boolean isTransition = false;
+		
+		
+		//Need to figure out which states from the old object to remove members from
+		//and which states from the new object to add members from
+		//1) first find tags from matching hierarchies and pair them	
+		Map<PlaidTag,PlaidTag> outIn = new HashMap<PlaidTag,PlaidTag>();
+		for (PlaidTag newTag : update.getTags()) {
+			for (PlaidTag existingTag : this.getTags()) {
+				if (newTag.rootState().equals(existingTag.rootState())); {
+					if (outIn.keySet().contains(existingTag)) throw new PlaidRuntimeException(existingTag + " already a member of this object");
+					outIn.put(existingTag, newTag);
+					isTransition = true;
+				}
+			}
+		}
+		if (!isTransition) return false; //Do wipe away state change if no tags match
+		
+		//2) next find the roots of each pair and determine which states are do not add state
+		//   and which are do not remove states
+		List<String> noAdd = new ArrayList<String>();
+		List<String> toRemove = new ArrayList<String>();
+		for (PlaidTag existingTag : outIn.keySet()) {
+			List<String> existingHierarchy = existingTag.getHierarchy();
+			int existingCount = existingHierarchy.size()-1;
+			List<String> newHierarchy = outIn.get(existingTag).getHierarchy();
+			int newCount = newHierarchy.size()-1;
+			
+			
+			while ( existingCount >= 0 && newCount >= 0 &&
+					existingHierarchy.get(existingCount).equals(newHierarchy.get(newCount))) {
+				newCount--;
+				existingCount--;
+			}
+			
+			if ( existingCount < 0 ) { //we are transitioning down
+				// do not add members from states at the existing state and above
+				newCount++;
+				while ( newCount < newHierarchy.size() ) noAdd.add(newHierarchy.get(newCount++));
+			} else if ( newCount < 0 ) { //we are transitioning up
+				// remove members here and below
+				while ( existingCount >= 0 ) toRemove.add(existingHierarchy.get(existingCount--));
+				// do not add members above
+				newCount++;
+				while ( newCount < newHierarchy.size() ) noAdd.add(newHierarchy.get(newCount++));
+			} else { //we are transitioning across
+				// remove members here and below
+				while ( existingCount >= 0 ) toRemove.add(existingHierarchy.get(existingCount--));
+				// do not add above here
+				newCount++;
+				while ( newCount < newHierarchy.size() ) noAdd.add(newHierarchy.get(newCount++));
+			}
+		}
+		
+		//3) loop over existing members removing those defined in states from toRemove List
+		List<PlaidMemberDef> removeDefs = new ArrayList<PlaidMemberDef>();
+		for (PlaidMemberDef member : members.keySet()) {
+			if (toRemove.contains(member.definedIn())) removeDefs.add(member);
+		}
+		for (PlaidMemberDef rem : removeDefs) members.remove(rem);
+		
+		//4) remove outgoing tags
+		for (PlaidTag outTag : outIn.keySet()) removeTag(outTag);
+		
+		//5) loop over updating members adding those defined in states not in the noAdd list
+		Map<PlaidMemberDef,PlaidObject> newMembers = update.getMembers();
+		for (PlaidMemberDef incomingMember : newMembers.keySet()) {
+			if (!noAdd.contains(incomingMember.definedIn())) {
+				PlaidObject newMember = newMembers.get(incomingMember);
+				if (newMember instanceof PlaidMethodMap) { //update this pointer if necessary
+					PlaidMethodMap oldMethod = (PlaidMethodMap) newMember;
+					newMember = new PlaidMethodMap(oldMethod.getFullyQualifiedName(), this, oldMethod.delegate);
+				}
+				members.put(incomingMember,newMember);
+			}
+		}
+		//6) add incoming tags
+		for (PlaidTag inTag : outIn.values()) addTag(inTag);
+			
+		return true;
+	
+	}
+	
+	private void changeByWipe(PlaidObject update) {
+
 		// cleanup current information
 		members.clear(); //TODO: fix this
 		states.clear();
@@ -241,22 +334,9 @@ public class PlaidObjectMap implements PlaidObject {
 			}
 		}
 		
-//		// convert other mutable members 
-//		for (Map.Entry<String, PlaidObject> e : update.getMutableMembers().entrySet()) {
-//			if (e.getValue() instanceof PlaidMethodMap) {
-//				PlaidMethodMap pmm = (PlaidMethodMap)e.getValue();
-//				addMember(e.getKey(), new PlaidMethodMap(pmm.getFullyQualifiedName(), this, pmm.delegate), false);
-//			}
-//			else {
-//				addMember(e.getKey(), e.getValue(), false);
-//			}
-//		}
-//		
 		// add other states
 		states.addAll(update.getStates());
 		tags.addAll(update.getTags());
-		
-		return Util.unit();
 	}
 	
 	@Override
