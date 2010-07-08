@@ -219,10 +219,10 @@ public class CodeGen {
 	
 	//Complicated generation of code to add a method to an uninitialized state
 	//after body, follow with closeAnonymousDeclaration() function
-	public final void assignToProtoMethod(String target, String name) {
+	public final void assignToProtoMethod(String target, String name, String path) {
 		assign(target);
 		// TODO: target + name is a temporary fix.  we should put the fully qualified name here
-		output.append(classLoader + ".protoMethod(\"" + target + name + "\", new " + delegateType + " () {" +
+		output.append(classLoader + ".protoMethod(\"" + path + "\", new " + delegateType + " () {" +
 			"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" +
 				"final " + plaidScopeType + " " + localScope + " = " + classLoader + ".localScope(" + CodeGen.globalScope + ");");
 		insertIntoScope(localScope, name, false);
