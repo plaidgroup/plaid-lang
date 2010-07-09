@@ -23,10 +23,39 @@ package coreExamples.turing;
 
 // TODO: implement restricted update for state changes
 
+state Entry { }
+
+state Zero case of Entry {
+	
+	method writeZero() {}
+	method writeOne() {
+		this <- One;
+	}
+	method printVal() {
+		java.lang.System.out.print("0");
+	}
+}
+
+state One case of Entry {
+	
+	method writeZero() {	
+		this <- Zero;
+	}
+	
+	method writeOne() {}
+	
+	method printVal() {
+		java.lang.System.out.print("1");
+	}
+}
+
 state Cell {
+	method printVal();
+ }
+
+state InnerCell case of Cell {
 	val left;
 	val right;
-	method printVal();
 
 	method getLeft() {
 		left;
@@ -49,51 +78,13 @@ state Cell {
 		lt.print();
 	}
 }
-
-state Entry { }
-
-state Zero case of Entry {
-	method getRight();
-	method getLeft();
-	
-	method writeZero() {}
-	method writeOne() {
-		val lt = getLeft();
-		val rt = getRight();
-		// now we are a Cell
-		this <- Cell with One { left = lt; right = rt; };
-	}
-	method printVal() {
-		java.lang.System.out.print("0");
-	}
-}
-
-state One case of Entry {
-	method getRight();
-	method getLeft();
-	
-	method writeZero() {
-		val lt = getLeft();
-		val rt = getRight();
-		// now we are a Cell
-		this <- Cell with Zero { left = lt; right = rt; };
-	}
-	
-	method writeOne() {}
-	
-	method printVal() {
-		java.lang.System.out.print("1");
-	}
-}
-
-state LeftEnd = Zero with {
+state LeftEnd case of Cell {
 	val right;
 	
 	method getLeft() {
 		val lt = makeLeftEnd(this);
-		val rt = getRight();
 		
-		this <- Cell with Zero { left = lt; right = rt; };
+		this <- InnerCell { left = lt; };  //right maintained right now - maybe not always be...
 		
 		lt;
 	}
@@ -114,18 +105,17 @@ state LeftEnd = Zero with {
 }
 
 method makeLeftEnd(myRight) {
-	new LeftEnd { right = myRight; };
+	new LeftEnd { right = myRight; } with Zero;
 }
 
-state RightEnd = Zero with {
+state RightEnd case of Cell {
 	val left;
 
 	// TODO: eventually allow static "new" function here
 	method getRight() {
-		val lt = getLeft();
 		val rt = makeRightEnd(this);
 
-		this <- Cell with Zero { left = lt; right = rt; };
+		this <- InnerCell { right = rt; }; //left maintained right now - maybe not always be...
 
 		rt;
 	}
@@ -145,16 +135,14 @@ state RightEnd = Zero with {
 }
 
 method makeRightEnd(myLeft) {
-	new RightEnd { left = myLeft; };
+	new RightEnd { left = myLeft; } with Zero;
 }
 
-state Start = Zero with {
+state Start case of Cell {
 	method getLeft() {
 		val lt = makeLeftEnd(this);
 
-		this <- RightEnd {
-			left = lt;
-		};
+		this <- RightEnd { left = lt; }; 
 
 		/* Alternate approach to above, but creates garbage!
 		val newObj = makeRightEnd(left);
@@ -167,10 +155,7 @@ state Start = Zero with {
 	method getRight() {
 		val rt = makeRightEnd(this);
 
-		this <- LeftEnd {
-			right = rt;
-		};
-
+		this <- LeftEnd { right = rt; };
 		rt;
 	}
 
@@ -266,16 +251,18 @@ method beaver(machine) {
 
 method turing() {
 	java.lang.System.out.println("running 1 state busy beaver:");
-	beaver(new Beaver1A { cell = new Start; });
+	beaver(new Beaver1A { cell = new Start with Zero; });
 
 	java.lang.System.out.println();
 	java.lang.System.out.println();
 	java.lang.System.out.println("running 2 state busy beaver:");
-	beaver(new Beaver2A { cell = new Start; });
+	beaver(new Beaver2A { cell = new Start with Zero; });
 }
 
 method test() {
-	var head = new Start;
+	var head = new Start with Zero;
+	java.lang.System.out.println();
+	java.lang.System.out.println();
 	head.print();
 	java.lang.System.out.println();
 	var head1 = head.getLeft();
