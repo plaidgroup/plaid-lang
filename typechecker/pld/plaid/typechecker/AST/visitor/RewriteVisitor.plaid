@@ -5,8 +5,13 @@ import plaid.typechecker.AST.*;
 state RewriteVisitor {
 	var localVars = new MyList with { var head = new MyNil; };
 	var stateVars = new MySet with { var head = new MySetNil; };
+	var imports = 0;
+	var packageName = 0;
 
 	method contains(vars, node) {
+//		java.lang.System.out.print("node = ");
+//		java.lang.System.out.println(node);
+		
 		var found = false;
 		
 		vars.map(fn (v) => {
@@ -20,8 +25,13 @@ state RewriteVisitor {
 
 	method visitAssignment(node) {
 		if (node.target.isNull()) {
-			if (!contains(localVars, node) /* && contains(stateVars, node)*/) {
-				node.target = new ID { var name = "this$plaid"; };
+			if (!contains(localVars, node.field) && contains(stateVars, node.field)) {
+				node <- Assignment with {
+					val token = node.token;
+					val target = new ID { var name = "this$plaid"; };
+					val field = node.field;
+					val value = node.value;
+				};
 			}
 		};
 		node.field.accept(this);
@@ -37,10 +47,15 @@ state RewriteVisitor {
 		node.x.accept(this);
 		node.e.accept(this);
 		
-		localVars.remove(node.x);
+		if (!node.defaultCase && node.boundVar) {
+			localVars.remove(node.x);
+		};
 	}
 	
 	method visitCompilationUnit(node) {
+		imports = node.javaImports;
+		packageName = node.packageName;
+		
 		node.decls.map(fn (decl) => {
 			localVars.append(new ID { var name = decl.getName(); })
 		});
@@ -55,7 +70,7 @@ state RewriteVisitor {
 	}
 
 	method visitID(node) {
-		if (!contains(localVars, node) /* && contains(stateVars, node)*/) {
+		if (!contains(localVars, node) && contains(stateVars, node)) {
 			node <- Dereference with {
 				left = new ID { var token = node.token; var name = "this$plaid"; };
 				right = new ID { var token = node.token; var name = node.name; };
@@ -74,6 +89,11 @@ state RewriteVisitor {
 	}
 
 	method visitMatch(node) {
+		node.e.accept(this);
+		node.caseList.map(fn (c) => {
+			c.accept(this);
+		});
+/*			
 		var changed = false;
 		
 		match (node.e) {
@@ -98,6 +118,7 @@ state RewriteVisitor {
 				c.accept(this);
 			});
 		};
+*/
 	}
 	
 	method visitMethodDecl(node) {
@@ -111,13 +132,25 @@ state RewriteVisitor {
 		localVars.remove(node.arg);
 	}
 
-	method generateStateVars() {
-		// TODO: How to implement this? Call the Java implementation?
-		new MySet { var head = new MySetNil; };
+	method generateStateVars(node) {
+		var helper = plaid.compilerjava.AST.StateDeclHelper.new();
+		var qid = plaid.compilerjava.util.QualifiedID.new(packageName);
+		// TODO: Handle caseOf!
+		var l = helper.generateStateVars(qid, imports.getImports(), node.javaStateDef);
+		var mySet = new MySet { var head = new MySetNil; };
+		val iter = l.iterator();
+		java.lang.System.out.println(l);
+		
+		while { iter.hasNext(); } {
+			val javaID = iter.next();
+			mySet.add(new ID { var name = javaID.getName(); });
+		};
+		
+		mySet;
 	}
 
 	method visitStateDecl(node) {
-		stateVars = generateStateVars();
+		stateVars = generateStateVars(node);
 		
 		node.name.accept(this);
 		node.stateDef.accept(this);
@@ -144,11 +177,13 @@ state RewriteVisitor {
 	
 	method visitDereference(node) {
 		node.left.accept(this);
-		node.right.accept(this)
+		// The right child is always an ID and we don't need to visit it
+		// node.right.accept(this);
 	}
 	
 	method visitFieldDecl(node) {
-		node.f.accept(this);
+		// Does not need to be visited
+		// node.f.accept(this);
 		node.e.accept(this)
 	}
 	
