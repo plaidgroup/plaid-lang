@@ -86,6 +86,10 @@ public class Case implements ASTnode {
 	public void setQi(QI qi) {
 		this.qi = qi;
 	}
+	
+	public boolean hasQi() {
+		return qi != null;
+	}
 
 	public ID getX() {
 		return x;
@@ -93,6 +97,10 @@ public class Case implements ASTnode {
 
 	public void setX(ID x) {
 		this.x = x;
+	}
+	
+	public boolean hasX() {
+		return x != null;
 	}
 
 	public Expression getE() {
