@@ -242,8 +242,9 @@ public class PlaidObjectMap implements PlaidObject {
 		Map<PlaidTag,PlaidTag> outIn = new HashMap<PlaidTag,PlaidTag>();
 		for (PlaidTag newTag : update.getTags()) {
 			for (PlaidTag existingTag : this.getTags()) {
-				if (newTag.rootState().equals(existingTag.rootState())); {
+				if (newTag.rootState().equals(existingTag.rootState())) {
 					if (outIn.keySet().contains(existingTag)) throw new PlaidRuntimeException(existingTag + " already a member of this object");
+					if (outIn.values().contains(existingTag)) throw new PlaidRuntimeException(newTag + " already a member of the new object");
 					outIn.put(existingTag, newTag);
 					isTransition = true;
 				}
@@ -292,7 +293,7 @@ public class PlaidObjectMap implements PlaidObject {
 		for (PlaidMemberDef member : members.keySet()) {
 			if (toRemove.contains(member.definedIn())) removeDefs.add(member);
 		}
-		for (PlaidMemberDef rem : removeDefs) members.remove(rem);
+		for (PlaidMemberDef rem : removeDefs) removeMember(rem.getMemberName());
 		
 		//4) remove outgoing tags
 		for (PlaidTag outTag : outIn.keySet()) removeTag(outTag);
@@ -306,7 +307,7 @@ public class PlaidObjectMap implements PlaidObject {
 					PlaidMethodMap oldMethod = (PlaidMethodMap) newMember;
 					newMember = new PlaidMethodMap(oldMethod.getFullyQualifiedName(), this, oldMethod.delegate);
 				}
-				members.put(incomingMember,newMember);
+				addMember(incomingMember,newMember);
 			}
 		}
 		//6) add incoming tags
