@@ -22,7 +22,6 @@ package plaid.runtime.models.map;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 import plaid.runtime.PlaidException;
@@ -56,7 +55,7 @@ public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJav
 				Object obj;
 				try {
 					obj = f.get(value);
-					this.members.put(Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true), new PlaidJavaObjectMap(obj));
+					this.members.put(Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false), new PlaidJavaObjectMap(obj));
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Wrong argument.");
 				} catch (IllegalAccessException e) {
@@ -64,7 +63,7 @@ public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJav
 				}				
 			}
 			for (Method m : valueClass.getMethods()) {
-				this.members.put(Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+				this.members.put(Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
 			}
 			reflected = true; //TODO: Tell Sven we did this // lol wtf?
 		}

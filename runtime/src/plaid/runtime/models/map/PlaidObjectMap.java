@@ -25,13 +25,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Stack;
+import java.util.Set;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
-import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
@@ -72,34 +71,48 @@ public class PlaidObjectMap implements PlaidObject {
 		PlaidMemberDef existingDef = null;
 		
 		//Look for existing member definition
-		existingDef = findExisting(name);
+		existingDef = findExisting(name, members.keySet());
 
-		//update the existing member if compatible
-		if (existingDef != null) {
-			//check that old/new match in terms of mutability
-			boolean existingIsMutable = existingDef.isMutable();
-			if (existingIsMutable && !addedIsMutable)
-				throw new PlaidRuntimeException("Member \"" + name + "\" already exists as a mutable member.");
-			else if (!existingIsMutable && addedIsMutable)
-				throw new PlaidRuntimeException("Member \"" + name + "\" already exists as an immutable member.");
-
-			//check that the member is not already defined
-			if (!members.get(existingDef).equals(PlaidRuntime.getRuntime().getClassLoader().unit()))  //undefined means having a unit value right now
-				throw new PlaidRuntimeException("Member \"" + name + "\" already defined.");
-			
-			//find the correct tag to keep around
-			if (!existingDef.isAnonymous()) {
-				//cannot both be defined in a state
-				//TODO: overriding - take more specific tag if specified to override
-				if (!memberDef.isAnonymous()) {
-					throw new PlaidRuntimeException("Member \"" + name + "\" defined in states \"" + existingDef.definedIn() + 
-						"\" and \"" + memberDef.definedIn() + "\".");
-				} else { //take existing tag: just update the member
-					members.put(existingDef,obj);
-				}
-			} else { //remove existing def and use the added def
+		//if existing - update the existing member if allowed
+		if (existingDef != null ) {
+				
+			//if existing is abstract, remove it and add the new one (do not update defined in)
+			if (members.get(existingDef) instanceof PlaidAbstractValueMap) {
 				members.remove(existingDef);
 				members.put(memberDef, obj);
+			} else {
+				
+				//check that old/new match in terms of mutability
+				boolean existingIsMutable = existingDef.isMutable();
+				if (existingIsMutable && !addedIsMutable)
+					throw new PlaidRuntimeException("Member \"" + name + "\" already exists as a mutable member.");
+				else if (!existingIsMutable && addedIsMutable)
+					throw new PlaidRuntimeException("Member \"" + name + "\" already exists as an immutable member.");
+	
+				//check that the member is not already defined or that it is being overriden
+				if (!(members.get(existingDef) instanceof PlaidAbstractValueMap) && !memberDef.overrides())  //undefined means having a unit value right now
+					throw new PlaidRuntimeException("Member \"" + name + "\" already defined.");
+			
+				//find the correct tag to keep around
+				if (memberDef.overrides()) {
+					if (existingDef.isAnonymous()) {
+						memberDef.bindOverride("<Anonymous>"); // TODO: don't use a string like this
+					} else memberDef.bindOverride(existingDef.definedIn());
+					
+					members.remove(existingDef);
+					members.put(memberDef, obj);
+				} else if (!existingDef.isAnonymous()) {
+					//cannot both be defined in a state
+					if (!memberDef.isAnonymous()) {
+						throw new PlaidRuntimeException("Member \"" + name + "\" defined in states \"" + existingDef.definedIn() + 
+							"\" and \"" + memberDef.definedIn() + "\".");
+					} else { //take existing tag: just update the member
+						members.put(existingDef,obj);
+					}
+				} else { //remove existing def and use the added def
+					members.remove(existingDef);
+					members.put(memberDef, obj);
+				}
 			}
 		} else { // new member - just add it
 			members.put(memberDef, obj);
@@ -113,7 +126,7 @@ public class PlaidObjectMap implements PlaidObject {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
-		PlaidMemberDef existingDef = findExisting(name);
+		PlaidMemberDef existingDef = findExisting(name, members.keySet());
 		if (existingDef == null) { //Cannot update a member that is not present
 			throw new PlaidRuntimeException("Member \"" + name + "\" is undefined.");
 		} else {
@@ -131,7 +144,7 @@ public class PlaidObjectMap implements PlaidObject {
 		}
 		
 		//remove the member if it exists else throw exception
-		PlaidMemberDef existingDef = findExisting(name);
+		PlaidMemberDef existingDef = findExisting(name, members.keySet());
 		if (existingDef != null) members.remove(existingDef);
 		else throw new PlaidRuntimeException("Cannot remove undefined member \"" + name + "\".");
 	}
@@ -256,6 +269,7 @@ public class PlaidObjectMap implements PlaidObject {
 		//   and which are do not remove states
 		List<String> noAdd = new ArrayList<String>();
 		List<String> toRemove = new ArrayList<String>();
+		List<String> removedOverrides = new ArrayList<String>();
 		for (PlaidTag existingTag : outIn.keySet()) {
 			List<String> existingHierarchy = existingTag.getHierarchy();
 			int existingCount = existingHierarchy.size()-1;
@@ -291,7 +305,10 @@ public class PlaidObjectMap implements PlaidObject {
 		//3) loop over existing members removing those defined in states from toRemove List
 		List<PlaidMemberDef> removeDefs = new ArrayList<PlaidMemberDef>();
 		for (PlaidMemberDef member : members.keySet()) {
-			if (toRemove.contains(member.definedIn())) removeDefs.add(member);
+			if (toRemove.contains(member.definedIn())) {
+				removeDefs.add(member);
+				if (member.overrides()) removedOverrides.add(member.getMemberName());
+			}
 		}
 		for (PlaidMemberDef rem : removeDefs) removeMember(rem.getMemberName());
 		
@@ -299,15 +316,18 @@ public class PlaidObjectMap implements PlaidObject {
 		for (PlaidTag outTag : outIn.keySet()) removeTag(outTag);
 		
 		//5) loop over updating members adding those defined in states not in the noAdd list
+		//   except those which are abstract (missing) (or were previously overriden - to implement)
 		Map<PlaidMemberDef,PlaidObject> newMembers = update.getMembers();
 		for (PlaidMemberDef incomingMember : newMembers.keySet()) {
-			if (!noAdd.contains(incomingMember.definedIn())) {
-				PlaidObject newMember = newMembers.get(incomingMember);
-				if (newMember instanceof PlaidMethodMap) { //update this pointer if necessary
-					PlaidMethodMap oldMethod = (PlaidMethodMap) newMember;
-					newMember = new PlaidMethodMap(oldMethod.getFullyQualifiedName(), this, oldMethod.delegate);
+			if (!noAdd.contains(incomingMember.definedIn()) || //in the noAdd list, or
+					members.get(findExisting(incomingMember.getMemberName(), members.keySet())) instanceof PlaidAbstractValueMap || //abstract
+					removedOverrides.contains(incomingMember.getMemberName())) { //previously overriden
+				PlaidObject incomingMemberValue = newMembers.get(incomingMember);
+				if (incomingMemberValue instanceof PlaidMethodMap) { //update this pointer if necessary
+					PlaidMethodMap oldMethod = (PlaidMethodMap) incomingMemberValue;
+					incomingMemberValue = new PlaidMethodMap(oldMethod.getFullyQualifiedName(), this, oldMethod.delegate);
 				}
-				addMember(incomingMember,newMember);
+				addMember(incomingMember, incomingMemberValue);
 			}
 		}
 		//6) add incoming tags
@@ -362,27 +382,12 @@ public class PlaidObjectMap implements PlaidObject {
 		//members
 		sb.append("\nPlaidObject(\n\tmembers={");
 		for (PlaidMemberDef f : members.keySet()) {
+			if (members.get(f) instanceof PlaidAbstractValueMap) sb.append("Abstract ");
 			sb.append(f + ", ");
 		}
 		if (sb.charAt(sb.length()-1) == ',')
 			sb.deleteCharAt(sb.length()-1);
-		
-//		// mutable members
-//		sb.append("\nPlaidObject(\n\tmutableMembers={");
-//		for (String f : mutableMembers.keySet()) {
-//			sb.append(f + ", ");
-//		}
-//		if (sb.charAt(sb.length()-1) == ',')
-//			sb.deleteCharAt(sb.length()-1);
-//		
-//		// immutable members
-//		sb.append("}, \n\timmutableMembers={");
-//		for (String f : immutableMembers.keySet()) {
-//			sb.append(f + ", ");
-//		}
-//		if (sb.charAt(sb.length()-1) == ',')
-//			sb.deleteCharAt(sb.length()-1);
-//		
+	
 		// states
 		sb.append("}, \n\tstates={");
 		for( Object s : states.toArray() ) {
@@ -405,8 +410,8 @@ public class PlaidObjectMap implements PlaidObject {
 		return sb.toString();
 	}
 
-	private PlaidMemberDef findExisting(String name) {
-		for (PlaidMemberDef m : members.keySet()) {
+	protected static final PlaidMemberDef findExisting(String name, Set<PlaidMemberDef> members) {
+		for (PlaidMemberDef m : members) {
 			if (name.equals(m.getMemberName())) {
 				return m;
 			}		

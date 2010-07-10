@@ -20,10 +20,10 @@
 package plaid.compilerjava.util;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 import plaid.compilerjava.CompilerConfiguration;
-import plaid.compilerjava.AST.ID;
 import plaid.compilerjava.coreparser.Token;
 import plaid.runtime.PlaidConstants;
 
@@ -116,7 +116,7 @@ public class CodeGen {
 	public static final String delegateType = utilsPackage + ".Delegate";
 	public static final String lambdaType = utilsPackage + ".Lambda";
 	
-
+	public static final String anonymousDeclaration = "<Anonymous>";
 
 	
 	public CodeGen(CompilerConfiguration cc) {
@@ -241,9 +241,14 @@ public class CodeGen {
 	}
 	
 	//Member Definition
-	public final void assignToNewMemberDef(String target, String varName, String definedIn, boolean mutable) {
+	public final void assignToNewMemberDef(String target, String varName, String definedIn, boolean mutable, boolean overrides) {
 		assign(target);
-		append(utilClass + ".memberDef(\"" + varName + "\", \"" + definedIn + "\", " + mutable + ");");
+		append(utilClass + ".memberDef(\"" + varName + "\", \"" + definedIn + "\", " + mutable + ", " + overrides + ");");
+	}
+	
+	public final void assignToAnonymousMemberDef(String target, String varName, boolean mutable, boolean overrides) {
+		assign(target);
+		append(utilClass + ".anonymousMemberDef(\"" + varName + "\", " + mutable + ", " + overrides + ");");
 	}
 	
 	public final void closeAnonymousDeclaration() {
@@ -278,6 +283,12 @@ public class CodeGen {
 	public final void assignToWith(String target, String s1, String s2) {
 		assign(target);
 		with(s1,s2);
+		updateVarDebugInfo(target);
+	}
+	
+	public final void assignToStateInitialization(String target, String toInit, String initState) {
+		assign(target);
+		output.append(toInit + ".initState(" + initState + ");");
 		updateVarDebugInfo(target);
 	}
 	

@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidMemberDef;
-import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidScope;
@@ -42,7 +41,7 @@ public class Integer$plaid {
 	public static PlaidObject foo = Util.newState();
 	
 	static {
-		PlaidMemberDef plus = Util.memberDef("plus$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef plus = Util.memberDef("plus$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(plus, Util.protoMethod("plaid.lang.Integer.plus$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -54,7 +53,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		PlaidMemberDef sub = Util.memberDef("sub$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef sub = Util.memberDef("sub$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(sub, Util.protoMethod("plaid.lang.Integer.sub$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -66,7 +65,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		PlaidMemberDef mult = Util.memberDef("mult$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef mult = Util.memberDef("mult$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(mult, Util.protoMethod("plaid.lang.Integer.mult$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -78,7 +77,7 @@ public class Integer$plaid {
 			}
 		}));
 		
-		PlaidMemberDef div = Util.memberDef("div$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef div = Util.memberDef("div$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(div, Util.protoMethod("plaid.lang.Integer.div$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -88,9 +87,9 @@ public class Integer$plaid {
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		})/*, true*/);
+		}));
 		
-		PlaidMemberDef mod = Util.memberDef("mod$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef mod = Util.memberDef("mod$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(mod, Util.protoMethod("plaid.lang.Integer.mod$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -100,9 +99,9 @@ public class Integer$plaid {
 					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
 				return Util.integer(x);
 			}
-		})/*, true*/);
+		}));
 		
-		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(eqeq, Util.protoMethod("plaid.lang.Integer.eqeq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -115,9 +114,9 @@ public class Integer$plaid {
 				else
 					return Util.falseObject();
 			}
-		})/*, true*/);
+		}));
 		
-		PlaidMemberDef bangeq = Util.memberDef("bangeq$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef bangeq = Util.memberDef("bangeq$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(bangeq, Util.protoMethod("plaid.lang.Integer.bangeq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -130,9 +129,9 @@ public class Integer$plaid {
 				else
 					return Util.falseObject();
 			}
-		})/*, true*/);
+		}));
 		
-		PlaidMemberDef lt = Util.memberDef("lt$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef lt = Util.memberDef("lt$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(lt, Util.protoMethod("plaid.lang.Integer.lt$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -145,9 +144,9 @@ public class Integer$plaid {
 				else
 					return Util.falseObject();
 			}
-		})/*, true*/);
+		}));
 		
-		PlaidMemberDef gt = Util.memberDef("gt$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef gt = Util.memberDef("gt$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(gt, Util.protoMethod("plaid.lang.Integer.gt$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -160,9 +159,9 @@ public class Integer$plaid {
 				else
 					return Util.falseObject();
 			}
-		})/*, true*/);
+		}));
 		
-		PlaidMemberDef lteq = Util.memberDef("lteq$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef lteq = Util.memberDef("lteq$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(lteq, Util.protoMethod("plaid.lang.Integer.lteq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -175,9 +174,9 @@ public class Integer$plaid {
 				else
 					return Util.falseObject();
 			}
-		})/*, true*/);
+		}));
 
-		PlaidMemberDef gteq = Util.memberDef("gteq$plaid", "plaid.lang.Integer", false);
+		PlaidMemberDef gteq = Util.memberDef("gteq$plaid", "plaid.lang.Integer", false, false);
 		foo.addMember(gteq, Util.protoMethod("plaid.lang.Integer.gteq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -190,6 +189,6 @@ public class Integer$plaid {
 				else
 					return Util.falseObject();
 			}
-		})/*, true*/);	
+		}));	
 	}
 }

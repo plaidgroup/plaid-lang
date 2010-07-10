@@ -40,12 +40,13 @@ public class FieldDecl implements Decl{
 	private final boolean abstractField;
 	private final boolean immutable;
 	private final FieldTypeDecl fieldType;
+	private final boolean overrides;
 	
 	public boolean isAbstractField() {
 		return abstractField;
 	}
 
-	public FieldDecl(Token t, ID f, Expression e, boolean abstractField, boolean immutable, FieldTypeDecl fieldType) {
+	public FieldDecl(Token t, ID f, Expression e, boolean abstractField, boolean immutable, FieldTypeDecl fieldType, boolean overrides) {
 		super();
 		this.token = t;
 		this.setF(f);
@@ -53,10 +54,11 @@ public class FieldDecl implements Decl{
 		this.abstractField = abstractField;
 		this.fieldType = fieldType;
 		this.immutable = immutable;
+		this.overrides = overrides;
 	}
 
 	public FieldDecl(ID f, Expression e) {
-		this(null, f, e, false, true, new FieldTypeDecl(PermType.RECEIVER));
+		this(null, f, e, false, true, new FieldTypeDecl(PermType.RECEIVER), false);
 	}
 	
 	public ID getF() {
@@ -131,7 +133,7 @@ public class FieldDecl implements Decl{
 	@Override
 	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
 
-		if (abstractField) return;  //do nothing for abstract fields
+		//if (abstractField) return;  //do nothing for abstract fields
 		
 		out.setLocation(token);
 		
@@ -142,28 +144,24 @@ public class FieldDecl implements Decl{
 		out.fieldAnnotation(f.getName(), false);  //@representsField...
 		out.declareFinalVar(CodeGen.plaidObjectType,freshFieldName.getName());
 		
-//		if (abstractField) {
-//			e.codegenExpr(out, freshFieldName, localVars, stateVars);  //field will just have the unit value if it is abstract - won't be initialized 
-//		} else {
+		if (abstractField) {
+			e.codegenExpr(out, freshFieldName, localVars, stateVars);  //field will just have the unit value if it is abstract - won't be initialized 
+		} else {
 			out.assignToProtoField(freshFieldName.getName(), x.getName()); // freshFieldName = new protoField... {
 			
 			//protofield body
-			//out.declareLambdaScope();
 			out.declareFinalVar(CodeGen.plaidObjectType, fresh1.getName()); //Public PlaidObect fresh1;
 			e.codegenExpr(out, fresh1, localVars, stateVars);  //field initializer code
 			out.ret(fresh1.getName()); // return fresh1;
 			out.closeAnonymousDeclaration(); // }});
-		//}
+		}
 		//define the PlaidMemberDef
-		// TODO: methods are immutable by default?
 		ID memberDef = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidMemberDefType, memberDef.getName());
-//		String definedIn;
-//		if (stateContext != null)
-//			definedIn = stateContext;
-//		else
-//			definedIn = "<Anonymous>";
-		out.assignToNewMemberDef(memberDef.getName(), f.getName(), stateContext, !immutable);
+		if (stateContext.equals(CodeGen.anonymousDeclaration))
+			out.assignToAnonymousMemberDef(memberDef.getName(), f.getName(), !immutable, overrides);
+		else
+			out.assignToNewMemberDef(memberDef.getName(), f.getName(), stateContext, !immutable, overrides);
 		
 		out.addMember(y.getName(), memberDef.getName(), freshFieldName.getName());  //y.addMember(f,freshFieldName)
 		

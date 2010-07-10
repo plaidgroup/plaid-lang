@@ -295,7 +295,7 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	}
 	
 	@Override
-	public PlaidMemberDef memberDef(String memberName, String definedIn, boolean mutable){
-		return new PlaidMemberDefMap(memberName, definedIn, mutable);
+	public PlaidMemberDef memberDef(String memberName, boolean anonymous, String definedIn, boolean mutable, boolean overrides) {
+		return new PlaidMemberDefMap(memberName, anonymous, definedIn, mutable, overrides);
 	}
 }

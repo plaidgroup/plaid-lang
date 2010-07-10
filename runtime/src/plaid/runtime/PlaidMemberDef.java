@@ -10,4 +10,12 @@ public interface PlaidMemberDef {
 	
 	public boolean isMutable();
 	
+	public boolean overrides();
+	
+	public boolean overrideIsBound();
+	
+	public void bindOverride(String overridenDef) throws PlaidRuntimeException;
+	
+	public String overridenDef();
+	
 }

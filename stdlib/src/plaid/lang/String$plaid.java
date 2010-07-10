@@ -41,7 +41,7 @@ public class String$plaid {
 	public static PlaidObject foo = Util.newObject();
 	
 	static {		
-		PlaidMemberDef plus = Util.memberDef("plus$plaid", "plaid.lang.String", false);
+		PlaidMemberDef plus = Util.memberDef("plus$plaid", "plaid.lang.String", false, false);
 		foo.addMember(plus, Util.protoMethod("plaid.lang.String.plus$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -52,7 +52,7 @@ public class String$plaid {
 				return Util.string(x);
 			}
 		}));
-		PlaidMemberDef substring = Util.memberDef("substring$plaid", "plaid.lang.String", false);
+		PlaidMemberDef substring = Util.memberDef("substring$plaid", "plaid.lang.String", false, false);
 		foo.addMember(substring, Util.protoMethod("plaid.lang.String.substring$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -71,6 +71,6 @@ public class String$plaid {
 				}
 				return Util.string(x);
 			}
-		})/*, true*/);
+		}));
 	}
 }

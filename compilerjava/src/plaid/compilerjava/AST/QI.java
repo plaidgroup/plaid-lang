@@ -33,34 +33,55 @@ public class QI implements State {
 
 	private Token token;
 	private List<String> qid;
+	private boolean hasInit = false;
+	private DeclList initState = null;
 	
-	public QI(List<String> qid) {
-		super();
+	public QI(Token t, List<String> qid, DeclList initState) {
+		this.token = t;
 		this.qid = qid;
+		if (initState != null) {
+			hasInit = true;
+			this.initState = initState;
+		}
 	}
 	
-	public QI(String qi) {
+	public QI(Token t, String qi, DeclList initState) {
+		this.token = t;
 		qid = new ArrayList<String>();
 		for ( String f : qi.split("\\.") ) {
 			qid.add(f);
 		}
+		if (initState != null) {
+			hasInit = true;
+			this.initState = initState;
+		}
+	}
+	
+	public QI(List<String> qid) {
+		this(null, qid, null);
+	}
+	
+	public QI(List<String> qid, DeclList init) {
+		this(null, qid, init);
+	}
+	
+	public QI(String qi) {
+		this(null, qi, null);
+	}
+	
+	public QI(String qi, DeclList init) {
+		this(null, qi, init);
 	}
 	
 	public QI() {
 	}
 
 	public QI(Token t, List<String> qid) {
-		super();
-		this.token = t;
-		this.qid = qid;
+		this(t, qid, null);
 	}
 	
 	public QI(Token t, String qi) {
-		this.token = t;
-		qid = new ArrayList<String>();
-		for ( String f : qi.split("\\.") ) {
-			qid.add(f);
-		}
+		this(t, qi, null);
 	}
 	
 	public QI(Token t) {
@@ -94,7 +115,24 @@ public class QI implements State {
 			scope = fresh.getName();
 		}
 		
-		out.assignCastedtoState(y.getName(),fresh.getName()); //y = (PlaidState)fresh
+		if (hasInit) {
+			ID initialization = IdGen.getId();
+			ID toInit = IdGen.getId();
+			
+			//make sure we got a state out of the lookup
+			out.declareFinalVar(CodeGen.plaidStateType, toInit.getName());
+			out.assignCastedtoState(toInit.getName(),fresh.getName()); //toInit = (PlaidState)fresh
+			
+			//generate code for the initialization state
+			out.declareFinalVar(CodeGen.plaidStateType, initialization.getName());
+			initState.codegenState(out, initialization, localVars, stateVars, CodeGen.anonymousDeclaration);
+		
+			//initialize the state
+			out.assignToStateInitialization(y.getName(), toInit.getName(), initialization.getName());	
+		
+		} else {
+			out.assignCastedtoState(y.getName(),fresh.getName()); //y = (PlaidState)fresh
+		}
 		
 	}
 

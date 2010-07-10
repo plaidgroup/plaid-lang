@@ -511,6 +511,7 @@ Decl Decl() :
 		Decl d;
 }
 {
+		(LOOKAHEAD(2) //Because of 'overrides val ...' vs 'overrides method ...' 
 		d = DeclField()
 		{
 				return d;
@@ -523,6 +524,7 @@ Decl Decl() :
 		{
 				return d;
 		}
+		)
 }
 
 Decl DeclState() :
@@ -553,8 +555,12 @@ Decl DeclField() :
 		FieldDecl d;
 		ID name;
 		boolean immutable = true;
+		boolean overrides = false;
 }
 {
+		[
+			< OVERRIDE > { overrides = true; }
+		]
 		[
 				<VAR>				{
 				  	immutable = false;
@@ -571,11 +577,11 @@ Decl DeclField() :
 		(
 			<EQUALS> e = Exp() <SEMICOLON>
 			{
-				d = new FieldDecl(idToken, name, e, false, immutable, new FieldTypeDecl(permType));
+				d = new FieldDecl(idToken, name, e, false, immutable, new FieldTypeDecl(permType), overrides);
 			}
 		|	<SEMICOLON>
 			{
-				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, new FieldTypeDecl(permType));
+				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, new FieldTypeDecl(permType), overrides);
 			}
 		)
 		{
@@ -600,8 +606,10 @@ Decl DeclMethod() :
 		List<ID> argList = new ArrayList<ID>();
 		MethodDecl d;
 		PermType retPermType = null;
+		boolean override = false;
 }
 {
+		[ <OVERRIDE> { override = true; } ]
 		t = <METHOD> 
 		(LOOKAHEAD(PermType() IdOrOperator()) retPermType = PermType() name = IdOrOperator() | name = IdOrOperator()) 
 		<LPAREN> [argTypeList = DeclArgs()] <RPAREN> [<LBRACK> recvState1 = PermType() <MARROW> recvState2 = PermType() <RBRACK>] (e = BlockExpression(false) | <SEMICOLON>)
@@ -626,7 +634,7 @@ Decl DeclMethod() :
 			
 			if (e == null) {
 				//default method body is unit
-				d = new MethodDecl(t, name.getName(), new UnitLiteral(), argID, true, methodType);
+				d = new MethodDecl(t, name.getName(), new UnitLiteral(), argID, true, methodType, override);
 			}
 			else {
 				if (argList.size() == 1) {
@@ -640,7 +648,7 @@ Decl DeclMethod() :
 				else {
 				  	argID = IdGen.getId();
 				}
-				d = new MethodDecl(t, name.getName(), e, argID, false, methodType);
+				d = new MethodDecl(t, name.getName(), e, argID, false, methodType, override);
 			}
 		}
 		{
@@ -687,22 +695,21 @@ Arg Arg() :
 
 State State() :
 {
-		State s, with, init;
+		State s, with;
+		DeclList init = null;
 		List<Token> dotName;
 }
 {
 		(
 				s = DeclList()
-		|		dotName = DotName()
+		|		dotName = DotName() [init = DeclList() ]
 				{
-						s = new QI(tokenToStringList(dotName));
-				}
-				[
-						init = DeclList()
-						{
-								s = new With(s, init);
+						if (init == null ) {
+							s = new QI(tokenToStringList(dotName));
+						} else {
+							s = new QI(tokenToStringList(dotName), init);
 						}
-				]
+				}
 		)
 		[
 				<WITH> with = State()
@@ -1283,18 +1290,18 @@ Expression ExpList() :
 				{ //translate to pairs:  (a,b,...,n) => (a,(b,(...(n,unit)...)))
 						int size = expList.size();
 						Expression second = new UnitLiteral();
-						QI pair = new QI("plaid.lang.Pair");
+						//QI pair = new QI("plaid.lang.Pair");
 						List < Decl > pairFields;
 						FieldDecl fst, snd;
-						With pairWith;
+						QI pairWith;
 						for (int i = size - 1; i >= 0; i--)
 						{
-								fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldTypeDecl(PermType.RECEIVER));
+								fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldTypeDecl(PermType.RECEIVER), false);
 								snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
 								pairFields = new ArrayList < Decl > ();
 								pairFields.add(fst);
 								pairFields.add(snd);
-								pairWith = new With(pair, new DeclList(pairFields));
+								pairWith = new QI("plaid.lang.Pair", new DeclList(pairFields));
 								second = new NewInstance(expList.get(i).getToken(), pairWith);
 						}
 						return second; //TODO: write utility function for this like for ExpListSemi

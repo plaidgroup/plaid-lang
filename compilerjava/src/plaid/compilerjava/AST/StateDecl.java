@@ -198,7 +198,7 @@ public class StateDecl implements Decl {
 			ID caseOfState = IdGen.getId();
 			ID declaredState = IdGen.getId();
 			out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
-			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, null);
+			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, CodeGen.anonymousDeclaration);
 			out.declareFinalVar(CodeGen.plaidStateType, declaredState.getName());
 			stateDef.codegenState(out, declaredState, idList, stateVars, qid.toString() + "." + name.getName());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
 			out.assignToWith(theState.getName(),caseOfState.getName(),declaredState.getName());  //y = fresh1.with(fresh2); 
@@ -222,7 +222,7 @@ public class StateDecl implements Decl {
 			out.openStaticBlock(); //static {	
 			ID caseOfState = IdGen.getId();
 			out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
-			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, null);
+			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, CodeGen.anonymousDeclaration);
 			out.assignToNewTag(tag.getName(), tagPath,  caseOfState.getName());  //tag = new PlaidTag(caseOfState)
 			
 			out.closeBlock(); // } (for static block to init tag)

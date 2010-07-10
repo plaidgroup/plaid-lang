@@ -37,6 +37,16 @@ public interface PlaidState extends PlaidObject {
 	 */
 	public PlaidState with(PlaidState ...args) throws PlaidException;
 	
+	
+	/**
+	 * Similar to With, but treating the parameter state as an initialization
+	 * to the current state (syntax S { ... })
+	 *	
+	 * @param inti   the initialization state
+	 * @return
+	 */
+	public PlaidState initState(PlaidState init) throws PlaidException;
+	
 	/**
 	 * returns the state's prototype PlaidObject
 	 *
