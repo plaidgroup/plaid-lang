@@ -92,11 +92,13 @@ public class DeclList implements State {
 		Set<String> declNames = new HashSet<String>();
 		
 		for (Decl decl : decls) {
-			declNames.add(decl.getName());
-			decl.codegenNestedDecl(out, y, localVars, stateVars, stateContext);
-		}
-		if (declNames.size() < decls.size()) {
-			throw new PlaidException("Cannot have field and method with the same name.");
+			String name = decl.getName();
+			if (declNames.contains(name)) {
+				throw new PlaidException("Cannot have two members defined with the name \"" + name + "\".");
+			} else { 
+				declNames.add(decl.getName());
+				decl.codegenNestedDecl(out, y, localVars, stateVars, stateContext);
+			}
 		}
 	}
 

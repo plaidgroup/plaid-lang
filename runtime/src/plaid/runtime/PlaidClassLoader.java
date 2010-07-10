@@ -137,9 +137,11 @@ public interface PlaidClassLoader {
 	/**
 	 * Returns a member definition object
 	 * @param memberName - the name of the member
+	 * @param anonymous - whether or not this member was defined in an anonymous state
 	 * @param definedIn - the tag which the member is defined in (null if anonymous)
 	 * @param mutable - set to true if this is a mutable member
+	 * @param overrides - whether or not this member overrides a previously defined member
 	 * @return
 	 */
-	public PlaidMemberDef memberDef(String memberName, String definedIn, boolean mutable);
+	public PlaidMemberDef memberDef(String memberName, boolean anonymous, String definedIn, boolean mutable, boolean overrides);
 }

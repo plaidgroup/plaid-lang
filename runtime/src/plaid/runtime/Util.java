@@ -84,8 +84,12 @@ public class Util {
 		return cl.protoMethod(fullyQualName, dlg);
 	}
 	
-	public static PlaidMemberDef memberDef(String memberName, String definedIn, boolean mutable) {
-		return cl.memberDef(memberName, definedIn, mutable);
+	public static PlaidMemberDef memberDef(String memberName, String definedIn, boolean mutable, boolean overrides) {
+		return cl.memberDef(memberName, false, definedIn, mutable, overrides);
+	}
+	
+	public static PlaidMemberDef anonymousMemberDef(String memberName, boolean mutable, boolean overrides) {
+		return cl.memberDef(memberName, true, null, mutable, overrides);
 	}
 	
 	public static PlaidObject lookup(String name, PlaidObject thisVar) {
@@ -142,8 +146,8 @@ public class Util {
 		}
 		PlaidState ps = toPlaidState(lookup("plaid.lang.Pair", unit()));
 		PlaidObject result = ps.instantiate();
-		result.addMember(Util.memberDef("fst", null, false), cl.packJavaObject(objs[0]));
-		result.addMember(Util.memberDef("snd", null, false), converArrayToParams(Arrays.copyOfRange(objs, 1, objs.length)));
+		result.addMember(Util.anonymousMemberDef("fst", false, false), cl.packJavaObject(objs[0]));
+		result.addMember(Util.anonymousMemberDef("snd", false, false), converArrayToParams(Arrays.copyOfRange(objs, 1, objs.length)));
 		
 		return result;
 	}

@@ -79,7 +79,7 @@ public class ChangeState implements Expression {
 		//generate code for the new State
 		ID r = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType,r.getName());
-		st.codegenState(out, r, localVars, stateVars, "<Anonymous>");
+		st.codegenState(out, r, localVars, stateVars, CodeGen.anonymousDeclaration);
 
 		//cast to State
 		ID s = IdGen.getId();
