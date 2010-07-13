@@ -418,7 +418,8 @@ Permission Permission() :
 | 	<PURE>	{
 	  	return Permission.PURE;	}
 | 	<SHARED>
-	{		return Permission.SHARED;
+	{
+		return Permission.SHARED;
 	}
 | 	<UNIQUE>
 	{
@@ -453,7 +454,7 @@ List<TypeDecl> TypeDecls() :{	List<TypeDecl> decls = new ArrayList<TypeDecl>()
 TypeDecl TypeDecl() :{	TypeDecl decl;
 }
 {
-  	decl = MethodTypeDecl() { return decl; }
+  	decl = MethodTypeDecl() <SEMICOLON> { return decl; }
 | 	decl = FieldTypeDecl() { return decl; }}
 
 MethodTypeDecl MethodTypeDecl() :
@@ -484,7 +485,7 @@ MethodTypeDecl MethodTypeDecl() :
   	[<LBRACK>  	{
   	  	// initialize the type transition map so we know that they put an annotation in, even if it's empty
   	  	boundVarTypeTrans = new HashMap<ID, List<PermType>>();  	}
-  	[(LOOKAHEAD(PermType() PermType() [<THIS>]) recvState1 = PermType() <MARROW> recvState2 = PermType() [<THIS>]
+  	[(LOOKAHEAD(PermType() <MARROW> PermType() [<THIS>]) recvState1 = PermType() <MARROW> recvState2 = PermType() [<THIS>]
 	| 	tempState1 = PermType() <MARROW> tempState2 = PermType() boundVarToken = <ID>
   	{
   	  	// for each extra annotation for the variables changed in the method add it to the map
@@ -501,7 +502,8 @@ MethodTypeDecl MethodTypeDecl() :
   	  	typeTrans.add(tempState2);
   	  	boundVarTypeTrans.put(new ID(boundVarToken.image), typeTrans);
 	})*] <RBRACK>]	{
-	  	if (argPermTypeList.size() == 0) {
+	  	if (argList.size() == 0) {
+	  	  	argNameList.add(IdGen.getId());
 			argPermTypeList.add(PermType.UNIT);
 	  	}
 	  	else { 
@@ -516,7 +518,8 @@ MethodTypeDecl MethodTypeDecl() :
 FieldTypeDecl FieldTypeDecl() :{
   	// there could be no type annotation
   	PermType fieldPermType = null;
-  	Token fieldNameToken;}{
+  	Token fieldNameToken;
+}{
   	// val T f;
   	<VAL> fieldPermType = PermType() fieldNameToken = <ID> <SEMICOLON>
   	{
@@ -603,9 +606,7 @@ Decl DeclField() :
 			< OVERRIDE > { overrides = true; }
 		]
 		[
-				<VAR>				{
-				  	immutable = false;
-				}
+				<VAR> { immutable = false; }
 		|		<VAL>
 		]
 		(LOOKAHEAD(PermType() <ID>) permType = PermType() idToken = <ID> | idToken = <ID>)
@@ -661,10 +662,7 @@ Decl DeclMethod() :
 					argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
 					e = getBodyWithPairExtractions(argList, argID, 1, e);
 				}
-				// if we didn't have any arguments, then unit is our only argument
-				else {
-				  	argID = IdGen.getId();
-				}
+
 				d = new MethodDecl(methodType.getToken(), methodType.getName().getName(), e, argID, false, methodType, override);
 			}
 		}
