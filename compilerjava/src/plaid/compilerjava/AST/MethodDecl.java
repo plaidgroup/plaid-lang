@@ -43,8 +43,8 @@ public final class MethodDecl implements Decl {
 	private final MethodTypeDecl methodType;
 	private final boolean overrides;
 	
-	public MethodDecl(Token t, String name, Expression body, ID arg, boolean abstractMethod, MethodTypeDecl methodType, boolean overrides) {
-		this.token = t;
+	public MethodDecl(Token token, String name, Expression body, ID arg, boolean abstractMethod, MethodTypeDecl methodType, boolean overrides) {
+		this.token = token;
 		if (Util.isKeyword(name))
 			this.name = name + PlaidConstants.ID_SUFFIX;
 		else
@@ -86,10 +86,6 @@ public final class MethodDecl implements Decl {
 
 	public Expression getBody() {
 		return body;
-	}
-
-	public Token getToken() {
-		return token;
 	}
 
 	// Top-level method declaration
@@ -194,6 +190,11 @@ public final class MethodDecl implements Decl {
 	@Override
 	public void accept(ASTVisitor visitor) {
 		visitor.visitNode(this);
+	}
+
+	@Override
+	public Token getToken() {
+		return null;
 	}
 
 //	@Override

@@ -34,9 +34,9 @@ public final class Lambda implements Expression {
 	private final MethodTypeDecl methodType;
 	
 	// TODO: I'm not sure that this is a very good constructor...
-	public Lambda(ID var, Expression body) {
-		this(null, var, body, new MethodTypeDecl(null, null, null, null));
-	}
+//	public Lambda(ID var, Expression body) {
+//		this(null, var, body, new MethodTypeDecl(null, null, null, null, null));
+//	}
 
 	public Lambda(Token token, ID var, Expression body, MethodTypeDecl methodType) {
 		super();

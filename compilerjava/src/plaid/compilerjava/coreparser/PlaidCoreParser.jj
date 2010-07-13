@@ -243,12 +243,14 @@ TOKEN /*[IGNORE_CASE]*/:
 | 	< AS : "as" >
 |	< REQUIRES : "requires" >
 |	< OVERRIDE : "override" >
+| 	< UNIT : "unit" >
 
+/* Permission kinds */
 |	< DYN : "dyn">
 |	< DYNAMIC : "dynamic" >
 |	< IMMUTABLE : "immutable" >
+| 	< SHARED : "shared" >
 |	< UNIQUE : "unique" >
-| 	< UNIT : "unit" >
 | 	< FULL : "full" >
 | 	< PURE : "pure" >
 }
@@ -389,9 +391,10 @@ List < Token > Package() :
 PermType PermType() :
 {
   	PermType permType = null;	Type type = null;
-	Permission perm = null;
+	Permission perm = Permission.DEFAULT;
 }
-{	(	<DYN>
+{	(
+	// TODO: what's dyn's deal?	<DYN>
 	{
 	  	return PermType.DYN;	}
 	// TODO: Should unit be a permission/type combo?
@@ -399,7 +402,7 @@ PermType PermType() :
 	{
 	  	return PermType.UNIT;	}
 	// TODO: Default permission?
-| 	perm = Permission() type = StructuralType()
+| 	[perm = Permission()] type = StructuralType()
 	{		return new PermType(perm, type);
 	}
 	)
@@ -414,6 +417,12 @@ Permission Permission() :
 	  	return Permission.IMMUTABLE;	}
 | 	<PURE>	{
 	  	return Permission.PURE;	}
+| 	<SHARED>
+	{		return Permission.SHARED;
+	}
+| 	<UNIQUE>
+	{
+	  	return Permission.UNIQUE;	}  
 	)
 }
 
@@ -448,30 +457,60 @@ TypeDecl TypeDecl() :{	TypeDecl decl;
 | 	decl = FieldTypeDecl() { return decl; }}
 
 MethodTypeDecl MethodTypeDecl() :
-{	List<Arg> argList = new ArrayList<Arg>();
+{
+	Token t;
+  	List<Arg> argList = new ArrayList<Arg>();
 	List<PermType> argPermTypeList = new ArrayList<PermType>();
-	PermType retPermType = null;
-	PermType recvState1 = null;
-	PermType recvState2 = null;
-	Token methodNameToken;
+	List<ID> argNameList = new ArrayList<ID>();
+	PermType retPermType = PermType.DYN;
+
+	PermType recvState1 = PermType.RECEIVER;
+	PermType recvState2 = PermType.RECEIVER;
+	
+	PermType tempState1 = null;
+	PermType tempState2 = null;
+
+	ID methodName;
+	Token boundVarToken;
+
+	Map<ID, List<PermType>> boundVarTypeTrans = null;
 }{
-  	// method T m(T x)[T >> T];
-  	<METHOD> retPermType = PermType() methodNameToken = <ID> <LPAREN> [argList = DeclArgs()] <RPAREN> [<LBRACK> recvState1 = PermType() <MARROW> recvState2 = PermType() <RBRACK>] <SEMICOLON>	{
-	  	for (Arg arg : argList) {
-	  	  	argPermTypeList.add(arg.getPermType());	  	}
-	  	if (argPermTypeList.size() == 0) {			argPermTypeList.add(PermType.UNIT);
+  	// method T m(T x)[T >> T, T1 >> T2 x, T3 >> T3 y]
+  	t = <METHOD>
+  	(LOOKAHEAD(PermType() IdOrOperator()) retPermType = PermType() methodName = IdOrOperator() | methodName = IdOrOperator())
+  	<LPAREN> [argList = DeclArgs()] <RPAREN>
+	// as it's written now, empty brackets are legal.  I figured it might be desirable to explicitly state that
+	// nothing changes state in the method.
+  	[<LBRACK>  	{
+  	  	// initialize the type transition map so we know that they put an annotation in, even if it's empty
+  	  	boundVarTypeTrans = new HashMap<ID, List<PermType>>();  	}
+  	[(LOOKAHEAD(PermType() PermType() [<THIS>]) recvState1 = PermType() <MARROW> recvState2 = PermType() [<THIS>]
+	| 	tempState1 = PermType() <MARROW> tempState2 = PermType() boundVarToken = <ID>
+  	{
+  	  	// for each extra annotation for the variables changed in the method add it to the map
+  	  	List<PermType> typeTrans = new ArrayList<PermType>();
+  	  	typeTrans.add(tempState1);
+  	  	typeTrans.add(tempState2);
+  	  	boundVarTypeTrans.put(new ID(boundVarToken.image), typeTrans);
+	})
+	(<COMMA> tempState1 = PermType() <MARROW> tempState2 = PermType() boundVarToken = <ID>
+  	{
+  	  	// for each extra annotation for the variables changed in the method add it to the map
+  	  	List<PermType> typeTrans = new ArrayList<PermType>();
+  	  	typeTrans.add(tempState1);
+  	  	typeTrans.add(tempState2);
+  	  	boundVarTypeTrans.put(new ID(boundVarToken.image), typeTrans);
+	})*] <RBRACK>]	{
+	  	if (argPermTypeList.size() == 0) {
+			argPermTypeList.add(PermType.UNIT);
 	  	}
-
-	  	if (recvState1 == null && recvState2 == null) {
-			recvState1 = PermType.RECEIVER;
-			recvState2 = PermType.RECEIVER;
-		}
-
-		if (retPermType == null) {
-		  	retPermType = PermType.DYN;
-		}
+	  	else { 
+	  		for (Arg arg : argList) {
+	  	  		argPermTypeList.add(arg.getPermType());
+	  	  		argNameList.add(arg.getArg());	  		}
+	 	}
 			
-	  	return new MethodTypeDecl(retPermType, argPermTypeList, recvState1, recvState2);	}
+	  	return new MethodTypeDecl(t, methodName, retPermType, argNameList, argPermTypeList, recvState1, recvState2, boundVarTypeTrans);	}
 }
 
 FieldTypeDecl FieldTypeDecl() :{
@@ -511,7 +550,11 @@ Decl Decl() :
 		Decl d;
 }
 {
-		(LOOKAHEAD(2) //Because of 'overrides val ...' vs 'overrides method ...' 
+		LOOKAHEAD([Permission()] <STATE>) d = DeclState()
+		{
+				return d;
+		}
+| 		(LOOKAHEAD(2) //Because of 'overrides val ...' vs 'overrides method ...' 
 		d = DeclField()
 		{
 				return d;
@@ -520,31 +563,29 @@ Decl Decl() :
 		{
 				return d;
 		}
-|		d = DeclState()
-		{
-				return d;
-		}
 		)
 }
 
 Decl DeclState() :
 {
-		Token t, s, c = null;
-		State stateDef;
-		List<Token> qi = null;
-
+	Token t, s, c = null;
+	State stateDef;
+	List<Token> qi = null;
+	Permission defaultPerm = Permission.DYN;
 }
-{
-		s = < STATE > t = < ID > [ c = <CASE> <OF> qi = DotName() { }]
-		(
-				< EQUALS > stateDef = State()
-		|		stateDef = DeclList()
-		)
-		{
-				if (qi == null) { return new StateDecl(s, new ID(t.image), stateDef);}
-				else {
-					return new StateDecl(s, new ID(t.image), stateDef, new QI(tokenToStringList(qi))); }
+{	[defaultPerm = Permission()] s = <STATE> t = <ID> [ c = <CASE> <OF> qi = DotName() { } ]
+	(
+		<EQUALS> stateDef = State()
+	|	stateDef = DeclList()
+	)
+	{
+		if (qi == null) {
+			return new StateDecl(s, new ID(t.image), stateDef, defaultPerm);
 		}
+		else {
+			return new StateDecl(s, new ID(t.image), stateDef, new QI(tokenToStringList(qi)), defaultPerm);
+		}
+	}
 }
 
 Decl DeclField() :
@@ -593,11 +634,6 @@ Decl DeclField() :
 
 Decl DeclMethod() :
 {
-		Token t;
-		Token typeToken = null;
-		PermType recvState1 = null;
-		PermType recvState2 = null;
-		ID name;
 		//may not be any arguments
 		ID argID = null;
 		Expression e = null;
@@ -606,37 +642,18 @@ Decl DeclMethod() :
 		List<ID> argList = new ArrayList<ID>();
 		MethodDecl d;
 		PermType retPermType = null;
+		MethodTypeDecl methodType;
 		boolean override = false;
 }
 {
-		[ <OVERRIDE> { override = true; } ]
-		t = <METHOD> 
-		(LOOKAHEAD(PermType() IdOrOperator()) retPermType = PermType() name = IdOrOperator() | name = IdOrOperator()) 
-		<LPAREN> [argTypeList = DeclArgs()] <RPAREN> [<LBRACK> recvState1 = PermType() <MARROW> recvState2 = PermType() <RBRACK>] (e = BlockExpression(false) | <SEMICOLON>)
+		[<OVERRIDE>{ override = true; }] methodType = MethodTypeDecl() (e = BlockExpression(false) | <SEMICOLON>)
 		{	
-			// separate the args from their types
-			for (Arg arg : argTypeList) {
-				argPermTypeList.add(arg.getPermType());
-				argList.add(arg.getArg());
-			}
-
-			if (argPermTypeList.size() == 0) {				argPermTypeList.add(PermType.UNIT);
-			}
-
-			if (recvState1 == null && recvState2 == null) {				recvState1 = PermType.RECEIVER;
-				recvState2 = PermType.RECEIVER;
-			}
-
-			if (retPermType == null) {
-			  	retPermType = PermType.DYN;			}
-
-			MethodTypeDecl methodType = new MethodTypeDecl(retPermType, argPermTypeList, recvState1, recvState2);
-			
 			if (e == null) {
 				//default method body is unit
-				d = new MethodDecl(t, name.getName(), new UnitLiteral(), argID, true, methodType, override);
+				d = new MethodDecl(methodType.getToken(), methodType.getName().getName(), new UnitLiteral(), argID, true, methodType, override);
 			}
 			else {
+			  	argList = methodType.getArgNames();
 				if (argList.size() == 1) {
 					argID = argList.get(0);
 				}
@@ -648,7 +665,7 @@ Decl DeclMethod() :
 				else {
 				  	argID = IdGen.getId();
 				}
-				d = new MethodDecl(t, name.getName(), e, argID, false, methodType, override);
+				d = new MethodDecl(methodType.getToken(), methodType.getName().getName(), e, argID, false, methodType, override);
 			}
 		}
 		{
@@ -765,18 +782,21 @@ List<Token> DotName() :
 
 Expression BlockExpression(boolean isExp) :
 {
-		Expression e = new UnitLiteral();
+	Expression e = new UnitLiteral();
 }
 {
 		<LBRACE> [ e = StmtListSemi() ] <RBRACE>
 		{
 				if (isExp) {					List<PermType> permTypes = new ArrayList<PermType>();
 					permTypes.add(PermType.UNIT);
+					ID varID = IdGen.getId();
+					List<ID> argNames = new ArrayList<ID>();
+					argNames.add(varID);
 					// TODO: Use something other than RECEIVER to indicate a default/place we need to do inference
-					return new Lambda(e.getToken(), IdGen.getId(), e, new MethodTypeDecl(PermType.RECEIVER, permTypes, PermType.RECEIVER, PermType.RECEIVER));
+					return new Lambda(e.getToken(), varID, e, new MethodTypeDecl(e.getToken(), IdGen.getId(), PermType.RECEIVER, argNames, permTypes, PermType.RECEIVER, PermType.RECEIVER, null));
 				}
-				else
-					return e;
+				else {					return e;
+				}
 		}
 }
 
@@ -1385,12 +1405,47 @@ Expression Function() :
 		Expression body;
 		// might not have any args, so unit would be the arg
 		ID var = null;
+
+		Map<ID, List<PermType>> boundVarTypeTrans = new HashMap<ID, List<PermType>>();
+
+		List<PermType> typeTrans = null;
+
+		Token idTok;
+		ID boundVarID;
+
+		PermType tempPermType1;
+		PermType tempPermType2;
 }
 {
 		// Lookahead problem because Exp() could be a blockExpression, but 
 		// always want it to match BlockExpression() here because it shouldn't 
 		// be treated as a lambda
-		t = <FN> <LPAREN> [argTypeList = DeclArgs()] <RPAREN> <DARROW>
+		t = <FN> <LPAREN> [argTypeList = DeclArgs()] <RPAREN>
+		[<LBRACK>
+		{
+  	  		// initialize the type transition map so we know that they put an annotation in, even if it's empty
+  	  		boundVarTypeTrans = new HashMap<ID, List<PermType>>();
+  		}
+		[tempPermType1 = PermType() <MARROW> tempPermType2 = PermType() idTok = <ID>
+		{
+		  	boundVarID = new ID(idTok.image);
+		  	if (boundVarTypeTrans.containsKey(boundVarID)) {				throw new RuntimeException("Duplicate bound variable state change annotations.");
+		  	}
+		  	typeTrans = new ArrayList<PermType>();
+		  	typeTrans.add(tempPermType1);
+		  	typeTrans.add(tempPermType2);
+		  	boundVarTypeTrans.put(boundVarID, typeTrans);		}
+		(<COMMA> tempPermType1 = PermType() <MARROW> tempPermType2 = PermType() idTok = <ID>		{
+		  	boundVarID = new ID(idTok.image);
+		  	if (boundVarTypeTrans.containsKey(boundVarID)) {
+				throw new RuntimeException("Duplicate bound variable state change annotations.");
+		  	}
+		  	typeTrans = new ArrayList<PermType>();
+		  	typeTrans.add(tempPermType1);
+		  	typeTrans.add(tempPermType2);
+		  	boundVarTypeTrans.put(boundVarID, typeTrans);		}
+		)*] <RBRACK>]
+		<DARROW>
 		(
 				LOOKAHEAD("{")
 				body = BlockExpression(false)
@@ -1414,7 +1469,9 @@ Expression Function() :
 			  permTypeList.add(PermType.UNIT);			}
 
 			// TODO: Use something other than RECEIVER to indicate that we need to do inference
-			MethodTypeDecl methodType = new MethodTypeDecl(PermType.RECEIVER, permTypeList, PermType.RECEIVER, PermType.RECEIVER);
+			List<ID > argNameList = new ArrayList<ID >();
+			argNameList.add(var);
+			MethodTypeDecl methodType = new MethodTypeDecl(t, IdGen.getId(), PermType.RECEIVER, argNameList, permTypeList, PermType.RECEIVER, PermType.RECEIVER, boundVarTypeTrans);
 			
 			// TODO: where should the return type annotation go?
 			return new Lambda(t, var, body, methodType);

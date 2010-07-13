@@ -45,26 +45,26 @@ public class StateDecl implements Decl {
 	private State stateDef;
 	private QI caseOf;
 	private boolean isCaseOf;
+	private final Permission defaultPerm;
 	
-	public StateDecl(Token t, ID name, State stateDef) {
+	public StateDecl(Token t, ID name, State stateDef, Permission defaultPerm) {
+		this(t, name, stateDef, null, defaultPerm);
+	}
+	
+	public StateDecl(Token t, ID name, State stateDef, QI caseOf, Permission defaultPerm) {
 		super();
 		this.token = t;
 		this.setName(name);
 		this.setStateDef(stateDef);
-		isCaseOf = false;
-	}
-	
-	public StateDecl(Token t, ID name, State stateDef, QI caseOf) {
-		super();
-		this.token = t;
-		this.setName(name);
-		this.setStateDef(stateDef);
-		this.caseOf = caseOf;
-		isCaseOf = true;
-	}
-	
-	public StateDecl(Token t) {
-		this.token = t;
+		if (caseOf == null) {
+			this.caseOf = null;
+			isCaseOf = false;
+		}
+		else {
+			this.caseOf = caseOf;
+			isCaseOf = true;
+		}
+		this.defaultPerm = defaultPerm;
 	}
 
 	public ID getID() {

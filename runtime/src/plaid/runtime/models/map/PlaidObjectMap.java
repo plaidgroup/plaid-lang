@@ -151,10 +151,7 @@ public class PlaidObjectMap implements PlaidObject {
 
 	@Override
 	public Map<PlaidMemberDef, PlaidObject> getMembers() {
-		// TODO: Some sort of caching?
-		Map<PlaidMemberDef, PlaidObject> mapCopy = new HashMap<PlaidMemberDef, PlaidObject>();
-		mapCopy.putAll(members);
-		return mapCopy;
+		return Collections.unmodifiableMap(this.members);
 	}
 	
 //	@Override
