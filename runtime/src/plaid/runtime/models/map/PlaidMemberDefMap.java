@@ -74,7 +74,10 @@ public class PlaidMemberDefMap implements PlaidMemberDef {
 	
 	@Override
 	public void bindOverride(String overridenDef) throws PlaidRuntimeException {
-		if (!overrideIsBound) this.overridenDef = overridenDef;
+		if (!overrideIsBound) {
+			this.overridenDef = overridenDef;
+			overrideIsBound = true;
+		}
 		else throw new PlaidRuntimeException("Cannot re-bind an overriden member");
 	}
 	
