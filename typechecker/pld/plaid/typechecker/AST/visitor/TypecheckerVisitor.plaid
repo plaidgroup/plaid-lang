@@ -1,0 +1,208 @@
+package plaid.typechecker.AST.visitor;
+
+
+// TODO: have two separate visitors, one for synthesis and one for analysis
+state TypecheckerVisitor {
+	val returnedPermType;
+	val context;
+	
+	method isWritable(perm) {
+		ifElse (perm == Permission.UNIQUE) {
+			true;
+		}{
+			// TODO: Add more cases if necessary
+			ifElse (perm == Permission.FULL) {
+				true;
+			}{
+				false;
+			};
+		};
+	}
+
+	method analyzeID(node) {
+		// get the type of x from the context
+		// if x is dyn
+			// if T != None/Void/Unit whatever
+				// x remainds dyn in the context
+				// return true
+			// otherwise
+				// return false
+		// otherwise x is of type T1
+			// if T1 can be split into the target permtype and a third T3
+				// put x back in the context as T3
+				// return true
+			// otherwise
+				// return false
+	}
+	
+	method analyzeExpr(node) {
+		// synthesize the type (T1) of this node
+		// if T1 is dyn or if the desired permtype is a super-permtype of T1
+			// return true
+		// otherwise
+			// return false
+	}
+
+	method visitUnannotatedLetBinding(node) {
+		// Typecheck the bound expression
+		node.expression.accept(this);
+		val permType = this.returnedPermType;
+		
+		// Use the type found for x in the new context
+		context.put(node.x, type);
+		
+		// Typecheck the body with the new context
+		node.body.accept(this);
+		
+		// Remove the binding for x from the returned context
+		context.remove(node.x);
+		
+		// Return the type of the body (we don't have to do anything b/c it's stored in the returnedPermType field already)
+	}
+	
+	method visitAnnotatedLetBinding(node) {
+		// If we can analyze the bound expression as the annotated type
+			// Use the annotated type for x in the new context
+		// Typecheck the body with the new context
+		// Return the type of the body
+	}
+	
+	method visitNewInstance(node) {
+		// typecheck S
+		node.state.accept(this);
+		
+		// if the state is dyn
+		ifElse (this.returnedPermType == PermType.DYN) {
+			this.returnedPermType = PermType.DYN;
+		}{
+			// get the structural type of the state (tau)
+			val structuralType = this.returnedPermType.type;
+			this.returnedPermType = new PermType(Permission.UNIQUE, structuralType);
+		}	
+	}
+	
+	method visitChangeState(node) {
+		val xPermType = context.get(node.x);
+		// if x has writable permission
+		ifElse (isWritable(xPermType)) {
+			// typecheck S
+			node.state.accept(this);
+			
+			// if S is dyn
+			ifElse (this.returnedPermType == PermType.DYN) {
+				// demote everything else in the context
+				context.demote();
+				
+				// update x in the context with dyn
+				context.put(x, PermType.DYN);
+			}{
+				// demote everything else in context
+				context.demote();
+				
+				// update x in the context with unique tau
+				context.put(x, new PermType(Permission.UNIQUE, this.returnedPermType.type));
+			};
+		}{
+			ifElse (this.returnedPermType == PermType.DYN) {
+				// typecheck S and ignore result
+				node.state.accept(this);
+				
+				// demote everything else in context
+				context.demote();
+				
+				// x retains type dyn
+				context.put(x, PermType.DYN);
+			
+			}{
+				// TODO: throw an error
+			};
+		};
+		
+		// return void/none/unit whatever
+		this.returnedPermType = PermType.VOID;
+	}
+	
+	method visitApplication(node) {
+		// if the receiver has type T1 = (p tau) in the context
+			// unfold tau into tau_prime
+			// check tau_prime for the method we're trying to call
+			// analyze the type of the receiver as the starting state of the receiver as specified by the method
+			// using the permtype we get back from the type analysis, merge it with the final type of the receiver as specified by the method into T1_prime
+			// analyze the type of the argument as the starting type of the argument specified by the method
+			// using the permtype we get back from the type analysis, merge it with the final type of the argument as specified by the method into T2_prime
+			// update the type of x1 to T1_prime in the context
+			// update the type of x2 to T2_prime in the context
+			// demote everything else in the context
+			// return the return type specified by the method
+		// otherwise if the receiver is of type dyn
+			// demote everything else
+			// the receiver retains type dyn
+			// demote the original type of the argument
+			// return dyn
+	}
+	
+	method visitDereference(node) {
+		// typecheck the left side
+		// if the read is destructive
+			// if the receiver has writable permission
+				// unfold the type of the receiver
+				// if the field is a member of the unfolded type
+					// get the type (tau) resulting from the removal of the field in question from the receiver's type
+					// update the permtype of x to whatever its original writable permission was + tau
+					// demote everything else
+					// return the type of the field
+				// otherwise
+					// throw an error
+			// else if the receiver is dyn
+				// x retains dyn in the context
+				// demote everything else
+				// return dyn
+			// otherwise
+				// throw an error
+		// otherwise
+			// if the receiver is dynamic
+				// x retains type dyn
+				// return dyn
+			// otherwise
+				// get permission (p) and type (t) of receiver
+				// tprime = unfold t
+				// check tprime for field f of permtype T_f
+				// get the permission residue (T) of T_f
+				// x retains its original type
+				// return T
+	}
+	
+	method visitLamdba(node) {
+		// lookup the types of the variables declared as bound in the scope of the lambda
+		// lookup the starting type of the argument
+		// typecheck the body of the lambda with the new context
+		// check each bound variable to make sure that 
+	}
+	
+	method visitMatch(node) {
+		// if x is dyn
+			// for all the cases
+				// typecheck the case expression with x : dyn in the context
+				// join all of the resulting contexts
+				// join all of the resulting types
+			// return the result of the joining of the types
+		// otherwise
+			// get the permission (p) and the type (tau) of x in the current context
+			// for all the cases
+				// typecheck the case expression assuming x has the permtype p (tau with t) (i.e. assume that x has the tag the expression is looking for)
+				// join all of the resulting contexts
+				// join all of the resulting types for the case expressions
+			// return the result of the joined resulting types
+	}
+	
+	method visitWith(node) {
+		// typecheck left
+		// typecheck right
+		// if left is dyn
+			// return type of right
+		// else if right is dyn
+			// return type of left
+		// otherwise
+			// TODO: what if they have two different permissions?
+	}
+}
