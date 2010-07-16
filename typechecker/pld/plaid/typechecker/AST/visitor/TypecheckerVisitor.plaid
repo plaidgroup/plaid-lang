@@ -114,8 +114,7 @@ state TypecheckerVisitor {
 				context.put(x, PermType.DYN);
 			
 			}{
-				// TODO: throw an error
-				java.lang.System.out.println("ERROR");
+				throw new Exception{ val message = "Object does not have writable permission: " + node.x.getName(); };
 			};
 		};
 		
@@ -164,31 +163,49 @@ state TypecheckerVisitor {
 				// return the permission residue (T) of T_f
 				this.returnedPermType = recvPermType.getPermResidue();
 			}{
-				// TODO: throw an error
-				java.lang.System.out.println("ERROR");
+				throw new Exception{ val message = "Object does not contain specified field: " + node.left.getName(); };
 			}
 		}
 	}
 	
 	method visitDestructiveDereference(node) {
 		// get the type of x
-		val xType = context.get(node.left);
+		val recvPermType = context.get(node.left);
 		
 		// if the receiver has writable permission
+		ifElse (recvPermType.getPermission().isWritable()) {
 			// unfold the type of the receiver
+			val unfoldedType = recvPermType.getType().unfold();
+			
 			// if the field is a member of the unfolded type
+			ifElse () {
+				// get the type of the field
+				val fieldPermType = unfoldedType.get(node.right);
+			
 				// get the type (tau) resulting from the removal of the field in question from the receiver's type
-				// update the permtype of x to whatever its original writable permission was + tau
+				val resultRecvType = unfoldedType.remove(node.right);
+				
 				// demote everything else
+				context.demote();
+				
+				// update the permtype of x to whatever its original writable permission was + tau
+				context.put(node.left, new PermType{ val perm = recvPermType.getPermission(); val type = resultRecvType; });
+				
 				// return the type of the field
-			// otherwise
-				// throw an error
-		// else if the receiver is dyn
-			// x retains dyn in the context
+				this.returnedPermType = fieldPermType;
+			}{
+				throw new Exception{ val message = "Object does not contain specified field: " + node.left.getName(); };
+			};
+		}{
+			// else if the receiver is dyn
+			ifElse () {
+				// x retains dyn in the context
 			// demote everything else
 			// return dyn
-		// otherwise
-			// throw an error
+			}{
+				throw new Exception{ val message = "Object does not have writable permission: " + node.left.getName(); };
+			};
+		};
 	}
 	
 	method visitLamdba(node) {
