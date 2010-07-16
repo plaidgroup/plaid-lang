@@ -28,24 +28,15 @@ import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
 public class Dereference implements Expression {
-	private Token token;
-	private Expression left;
-	private ID right;
+	private final Token token;
+	private final ID left;
+	private final ID right;
 	
-	public Dereference() {}
-
-	public Dereference(Token t) {
-		this.token = t;
+	public Dereference(ID left, ID right) {
+		this(null, left, right);
 	}
 	
-	public Dereference(Expression left, ID right) {
-		super();
-		this.left = left;
-		this.right = right;
-	}
-	
-	public Dereference(Token t, Expression left, ID right) {
-		super();
+	public Dereference(Token t, ID left, ID right) {
 		this.token = t;
 		this.left = left;
 		this.right = right;
@@ -57,14 +48,6 @@ public class Dereference implements Expression {
 	
 	public ID getRight() {
 		return right;
-	}
-	
-	public void setLeft(Expression e) {
-		this.left = e;
-	}
-
-	public void setRight(ID e) {
-		this.right = e;
 	}
 	
 	public Token getToken() {
