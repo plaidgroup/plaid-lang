@@ -196,8 +196,10 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 								(mutable ? "mutable" : "immutable")  + " like the original definition in.");
 			
 					// else add as an override member and bind override to the found member
-					PlaidMemberDef overrideMemberDef = Util.memberDef(memberName, this.getPath(), mutable, true);
-					overrideMemberDef.bindOverride(originalDef);
+					//TODO: do we need to distinguish that this was done in an init?
+					//otherwise, sometimes overriding something defined in the same place as the overrid
+					PlaidMemberDef overrideMemberDef = Util.memberDef(memberName, this.getPath(), mutable, true); 
+					//overrideMemberDef.bindOverride(originalDef); //This is done in addMember()
 					result.addMember(overrideMemberDef, initMembers.get(member));
 				} else { 
 					
