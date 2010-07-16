@@ -2,7 +2,7 @@ package plaid.typechecker.AST.visitor;
 
 import plaid.typechecker.AST.*;
 
-state RewriteVisitor {
+state RewriteVisitor case of LeafVisitor {
 	var localVars = new MyList with { var head = new MyNil; };
 	var stateVars = new MySet with { var head = new MySetNil; };
 	var imports = 0;
@@ -20,7 +20,7 @@ state RewriteVisitor {
 		found;
 	}
 
-	method visitAssignment(node) {
+	override method visitAssignment(node) {
 		if (node.target.isNull()) {
 			if (!contains(localVars, node.field) && contains(stateVars, node.field)) {
 				node.target = new ID { val name = "this$plaid"; };
@@ -30,7 +30,7 @@ state RewriteVisitor {
 		node.value.accept(this);
 	}
 
-	method visitCase(node) {
+	override method visitCase(node) {
 		if (!node.defaultCase && node.boundVar) {
 			localVars.append(node.x);
 		};
@@ -44,7 +44,7 @@ state RewriteVisitor {
 		};
 	}
 	
-	method visitCompilationUnit(node) {
+	override method visitCompilationUnit(node) {
 		imports = node.javaImports;
 		packageName = node.packageName;
 		
@@ -61,7 +61,7 @@ state RewriteVisitor {
 		});
 	}
 
-	method visitID(node) {
+	override method visitID(node) {
 		if (!contains(localVars, node) && contains(stateVars, node)) {
 			node <- Dereference {
 				override val token = node.token;
@@ -72,7 +72,7 @@ state RewriteVisitor {
 		}
 	}
 
-	method visitLambda(node) {
+	override method visitLambda(node) {
 		localVars.append(node.x);
 
 		node.x.accept(this);
@@ -81,14 +81,14 @@ state RewriteVisitor {
 		localVars.remove(node.x);
 	}
 
-	method visitMatch(node) {
+	override method visitMatch(node) {
 		node.e.accept(this);
 		node.caseList.map(fn (c) => {
 			c.accept(this);
 		});
 	}
 	
-	method visitMethodDecl(node) {
+	override method visitMethodDecl(node) {
 		if (!node.name.equals("main")) {
 			localVars.append(node.arg);
 		};
@@ -118,7 +118,7 @@ state RewriteVisitor {
 		mySet;
 	}
 
-	method visitStateDecl(node) {
+	override method visitStateDecl(node) {
 		stateVars = generateStateVars(node);
 		
 		node.name.accept(this);
@@ -128,70 +128,15 @@ state RewriteVisitor {
 		stateVars = new MySet { var head = new MySetNil; };
 	}
 	
-	method visitApplication(node) {
-		node.f.accept(this);
-		node.arg.accept(this)
-	}
-	
-	method visitChangeState(node) {
-		node.e.accept(this);
-		node.s.accept(this)
-	}
-	
-	method visitDeclList(node) {
-		node.decls.map(fn (decl) => {
-			decl.accept(this)
-		});
-	}
-	
-	method visitDereference(node) {
+	override method visitDereference(node) {
 		node.left.accept(this);
 		// The right child is always an ID and we don't need to visit it
 		// node.right.accept(this);
 	}
 	
-	method visitFieldDecl(node) {
+	override method visitFieldDecl(node) {
 		// Does not need to be visited
 		// node.f.accept(this);
 		node.e.accept(this)
 	}
-	
-	method visitImportList(node) {
-		node.imports.map(fn (im) => {
-			im.accept(this)
-		});
-	}
-	
-	method visitIntLiteral(node) {
-	}
-	
-	method visitInvalidNode(node) {
-	}
-	
-	method visitLetBinding(node) {
-		node.x.accept(this);
-		node.exp.accept(this);
-		node.body.accept(this)
-	}
-	
-	method visitNewInstance(node) {
-		node.st.accept(this)
-	}
-	
-	method visitNullNode(node) {
-	}
-	
-	method visitQI(node) {
-	}
-	
-	method visitStringLiteral(node) {
-	}
-	
-	method visitUnitLiteral(node) {
-	}
-	
-	method visitWith(node) {
-		node.s1.accept(this);
-		node.s2.accept(this)
-	}	
 }
