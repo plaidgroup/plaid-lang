@@ -266,6 +266,7 @@ TOKEN /*[IGNORE_CASE]*/:
 |	< REQUIRES : "requires" >
 |	< OVERRIDE : "override" >
 | 	< UNIT : "unit" >
+| 	< THROW: "throw" >
 
 /* Permission kinds */
 |	< DYN : "dyn">
@@ -314,7 +315,7 @@ TOKEN :
 |		< DARROW : "=>" >
 |		< MARROW : ">>" >
 |		< AT : "@" >
-|       < DOT : "." > 
+|       < DOT : "." >
 |		< SEMICOLON : ";">
 | 		< COMMA : "," >
 }
@@ -865,6 +866,11 @@ Expression Exp() :
 		{
 				return e;
 		}
+| 		t = < THROW > e = Exp()
+		{
+		  	ID exnID = IdGen.getId();
+   			return new LetBinding(t, exnID, e, new Throws(t, exnID), false, null);
+   		}
 |		t = < MATCH > < LPAREN > e = Exp() < RPAREN > < LBRACE > cl = CaseList() < RBRACE >
 		{
 				return new Match(t, e, cl);
@@ -1256,6 +1262,7 @@ ID IdOrOperator() :
 Expression SimpleExp() :
 {
 		Token t;
+		Token dotToken;
 		Expression e, arg;
 		State s;
 		List < Token > dotName;
@@ -1290,10 +1297,15 @@ Expression SimpleExp() :
 			curriedArgs = new ArrayList < Expression > ();		  
 		}
 		(
-				< DOT > (t = < ID > | t = < NEW >)
+				(dotToken = <DOT> | dotToken = <BANG>) (t = < ID > | t = < NEW >)
 				{
 				  	ID freshID = IdGen.getId();
-				  	e = new LetBinding(t, freshID, e, new Dereference(t, freshID, new ID(t.image)), false, null);
+				  	Expression deref;
+				  	if (dotToken.image.equals(".")) {
+				  		deref = new Dereference(t, freshID, new ID(t.image));				  	}
+				  	else {
+				  		deref = new DestructiveDereference(t, freshID, new ID(t.image));				  	}
+				  	e = new LetBinding(t, freshID, e, deref, false, null);
 				}
 				(
 					arg = ArgExp()
