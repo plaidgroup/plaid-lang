@@ -115,6 +115,7 @@ state TypecheckerVisitor {
 			
 			}{
 				// TODO: throw an error
+				java.lang.System.out.println("ERROR");
 			};
 		};
 		
@@ -142,34 +143,52 @@ state TypecheckerVisitor {
 	}
 	
 	method visitDereference(node) {
-		// typecheck the left side
-		// if the read is destructive
-			// if the receiver has writable permission
-				// unfold the type of the receiver
-				// if the field is a member of the unfolded type
-					// get the type (tau) resulting from the removal of the field in question from the receiver's type
-					// update the permtype of x to whatever its original writable permission was + tau
-					// demote everything else
-					// return the type of the field
-				// otherwise
-					// throw an error
-			// else if the receiver is dyn
-				// x retains dyn in the context
+		// get the permtype of x
+		val recvPermType = context.get(node.left);
+		
+		// if the receiver is dynamic
+		ifElse (recvPermType == PermType.DYN) {
+			// x retains type dyn and the resulting expression has type dyn
+			this.returnedPermType = PermType.DYN;
+		}{
+			// get permission (p) and type (t) of receiver
+			val recvPerm = recvPermType.getPermission();
+			val recvType = recvPermType.getType();
+			
+			// tprime = unfold t
+			val unfoldedRecvType = recvType.unfold();
+			
+			// check tprime for field f of permtype T_f
+			ifElse (unfoldedRecvType.contains(node.right)) {
+				// x retains its original type
+				// return the permission residue (T) of T_f
+				this.returnedPermType = recvPermType.getPermResidue();
+			}{
+				// TODO: throw an error
+				java.lang.System.out.println("ERROR");
+			}
+		}
+	}
+	
+	method visitDestructiveDereference(node) {
+		// get the type of x
+		val xType = context.get(node.left);
+		
+		// if the receiver has writable permission
+			// unfold the type of the receiver
+			// if the field is a member of the unfolded type
+				// get the type (tau) resulting from the removal of the field in question from the receiver's type
+				// update the permtype of x to whatever its original writable permission was + tau
 				// demote everything else
-				// return dyn
+				// return the type of the field
 			// otherwise
 				// throw an error
+		// else if the receiver is dyn
+			// x retains dyn in the context
+			// demote everything else
+			// return dyn
 		// otherwise
-			// if the receiver is dynamic
-				// x retains type dyn
-				// return dyn
-			// otherwise
-				// get permission (p) and type (t) of receiver
-				// tprime = unfold t
-				// check tprime for field f of permtype T_f
-				// get the permission residue (T) of T_f
-				// x retains its original type
-				// return T
+			// throw an error
 	}
 	
 	method visitLamdba(node) {
