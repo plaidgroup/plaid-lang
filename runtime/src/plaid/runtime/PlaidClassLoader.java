@@ -19,6 +19,7 @@
  
 package plaid.runtime;
 
+import java.io.IOException;
 import java.util.List;
 
 import plaid.runtime.models.map.PlaidGlobalScopeMap;
@@ -111,6 +112,8 @@ public interface PlaidClassLoader {
 	 * @return
 	 */
 	public PlaidTag tag(String tagName, PlaidState caseOf);
+	
+	public List<Class> getClasses(String packageName) throws ClassNotFoundException, IOException;
 	
 	/**
 	 * TODO: Document

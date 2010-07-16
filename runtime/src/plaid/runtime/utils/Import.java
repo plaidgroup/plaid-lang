@@ -42,16 +42,19 @@ public class Import {
 		}
  	}
 
+	@Override
 	public String toString() {
 		return "Import(" + qid.toString() + ")";
 	}
 	
+	@Override
 	public boolean equals(Object o) {
 		if (!(o instanceof Import))
 			return false;
 		return this.qid.equals(((Import)o).qid);
 	}
 	
+	@Override
 	public int hashCode() {
 		return this.qid.hashCode();
 	}
