@@ -106,30 +106,52 @@ public class Util {
 	
 	public static Object[] convertParamsToArray(PlaidObject params) throws PlaidException {
 		List<Object> objs = new ArrayList<Object>();
+		// it's a pair, so look at the things in it
 		if (params.getStates().contains(lookup("plaid.lang.Pair", unit()))) {
 			PlaidObject elem = params;
-			while (elem != unit()) {
+			while (true) {
 				if (elem.getStates().contains(lookup("plaid.lang.Pair", unit()))) {
 					PlaidObject fst = null;
 					PlaidObject snd = null;
+					// look up the first and second members of the pair
 					for (PlaidMemberDef m: elem.getMembers().keySet()) {
 						if (m.getMemberName().equals("fst")) {
 							fst = elem.getMembers().get(m);
 						} else if (m.getMemberName().equals("snd")) {
 							snd = elem.getMembers().get(m);
 						}
-					}		
-					if (fst instanceof PlaidJavaObject) {
-						objs.add(((PlaidJavaObject)fst).getJavaObject());
-						elem = snd;
 					}
+					// if the first element is a pair, then we have to keep going
+					if (fst.getStates().contains(lookup("plaid.lang.Pair", unit()))) {
+						if (snd instanceof PlaidJavaObject) {
+							objs.add(((PlaidJavaObject) snd).getJavaObject());
+						}
+						else {
+							objs.add(snd);
+						}
+						elem = fst;
+					}
+					// otherwise, this is the last pair 
 					else {
-						objs.add(params);
-						elem = snd;
+						if (snd instanceof PlaidJavaObject) {
+							objs.add(((PlaidJavaObject) snd).getJavaObject());
+						}
+						else {
+							objs.add(snd);
+						}
+						
+						if (fst instanceof PlaidJavaObject) {
+							objs.add(((PlaidJavaObject) fst).getJavaObject());
+						}
+						else {
+							objs.add(fst);
+						}
+						break;
 					}
 				}
 			}
 		}
+		// it's a single Java argument, so convert it and add it to the list of params
 		else if (params instanceof PlaidJavaObject) {
 			objs.add(((PlaidJavaObject)params).getJavaObject());
 		}

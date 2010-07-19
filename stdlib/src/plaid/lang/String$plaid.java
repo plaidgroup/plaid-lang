@@ -63,9 +63,9 @@ public class String$plaid {
 					x = ((String)((PlaidJavaObject)thisVar).getJavaObject()).substring(((Integer)((PlaidJavaObject)args).getJavaObject()));
 				} else { // must be a pair
 					PlaidObject firstMethod = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("first", args);
-					PlaidObject firstArg = plaid.runtime.Util.call(args, firstMethod);
+					PlaidObject secondArg = plaid.runtime.Util.call(args, firstMethod);
 					PlaidObject secondMethod = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("second", args);
-					PlaidObject secondArg = plaid.runtime.Util.call(args, secondMethod);
+					PlaidObject firstArg = plaid.runtime.Util.call(args, secondMethod);
 					x = ((String)((PlaidJavaObject)thisVar).getJavaObject()).substring(((Integer)((PlaidJavaObject)firstArg).getJavaObject()),
 																					   ((Integer)((PlaidJavaObject)secondArg).getJavaObject()));	
 				}
