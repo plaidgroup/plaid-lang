@@ -37,7 +37,7 @@ public final class QualifiedIdentifier {
 	}
 	
 	public boolean isEmpty() {
-		return (fragments.isEmpty())?true:false;
+		return fragments.isEmpty();
 	}
 	
 	public String getQI() {
@@ -64,7 +64,7 @@ public final class QualifiedIdentifier {
 	}
 
 	public List<String> split() {
-		return new ArrayList<String>(new ArrayList<String>(fragments));
+		return new ArrayList<String>(fragments);
 	}
 	
 	public QualifiedIdentifier append(String name) {
@@ -85,8 +85,8 @@ public final class QualifiedIdentifier {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result
-				+ ((fragments == null) ? 0 : fragments.hashCode());
+		for (String s : fragments)
+			result = prime * result	+ s.hashCode();
 		return result;
 	}
 
@@ -98,13 +98,9 @@ public final class QualifiedIdentifier {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
+
 		QualifiedIdentifier other = (QualifiedIdentifier) obj;
-		if (fragments == null) {
-			if (other.fragments != null)
-				return false;
-		} else if (!fragments.equals(other.fragments))
-			return false;
-		return true;
+		return this.fragments.equals(other.fragments);
 	}
 
 	@Override
