@@ -95,10 +95,12 @@ public class PlaidObjectMap implements PlaidObject {
 			
 				//find the correct tag to keep around
 				if (memberDef.overrides()) {
-					if (existingDef.isAnonymous()) {
-						memberDef.bindOverride("<Anonymous>"); // TODO: don't use a string like this
-					} else memberDef.bindOverride(existingDef.definedIn());
-					
+					if (!memberDef.overrideIsBound()) {  //TODO:will we ever want to re-bind an override?
+						if (existingDef.isAnonymous()) {
+							memberDef.bindOverride("<Anonymous>"); // TODO: don't use a string like this
+						} else 
+							memberDef.bindOverride(existingDef.definedIn());
+					}
 					members.remove(existingDef);
 					members.put(memberDef, obj);
 				} else if (!existingDef.isAnonymous()) {
