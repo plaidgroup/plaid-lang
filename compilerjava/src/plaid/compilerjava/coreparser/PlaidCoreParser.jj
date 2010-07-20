@@ -244,6 +244,7 @@ TOKEN /*[IGNORE_CASE]*/:
 |	< REQUIRES : "requires" >
 |	< OVERRIDE : "override" >
 | 	< UNIT : "unit" >
+| 	< THROW: "throw" >
 
 /* Permission kinds */
 |	< DYN : "dyn">
@@ -847,6 +848,11 @@ Expression Exp() :
 		{
 				return new Match(t, e, cl);
 		}
+| 		t = < THROW > e = Exp()
+		{
+		  	ID exnID = IdGen.getId();
+  			return new LetBinding(t, exnID, e, new Throws(t, exnID), false, null);
+ 		}
 |		e = ConditionalExpression() [ e = ExpSuffix(e) ]
 		{
 				return e;
@@ -1219,6 +1225,7 @@ ID IdOrOperator() :
 Expression SimpleExp() :
 {
 		Token t;
+		Token dotToken;
 		Expression e, arg;
 		State s;
 		List < Token > dotName;
@@ -1253,18 +1260,22 @@ Expression SimpleExp() :
 			curriedArgs = new ArrayList < Expression > ();		  
 		}
 		(
-				< DOT > (t = < ID > | t = < NEW >)
-				{
-					e = new Dereference(t, e, new ID(t.image));
+		  	(dotToken = <DOT> | dotToken = <BANG>) (t = < ID > | t = < NEW >)
+			{
+			  	if (dotToken.image.equals(".")) {					e = new Dereference(t, e, new ID(t.image));
+			  	}
+			  	else {
+			  	  	e = new DestructiveDereference(t, e, new ID(t.image));			  	}
+				
+			}
+			(
+				arg = ArgExp()
+				{					curriedArgs.add(arg);
 				}
-				(
-					arg = ArgExp()
-					{						curriedArgs.add(arg);
-					}
-				)*
-				{
-					e = foldCurriedArgs(e, curriedArgs);
-					curriedArgs = new ArrayList < Expression > ();				}
+			)*
+			{
+				e = foldCurriedArgs(e, curriedArgs);
+				curriedArgs = new ArrayList < Expression > ();			}
 		)*
 		{
 				return foldCurriedArgs(e, curriedArgs);
