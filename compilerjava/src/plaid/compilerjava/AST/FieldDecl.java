@@ -57,8 +57,8 @@ public class FieldDecl implements Decl{
 		this.overrides = overrides;
 	}
 
-	public FieldDecl(Token t, ID f, Expression e) {
-		this(t, f, e, false, true, new FieldTypeDecl(PermType.RECEIVER), false);
+	public FieldDecl(ID f, Expression e) {
+		this(null, f, e, false, true, new FieldTypeDecl(PermType.RECEIVER), false);
 	}
 	
 	public ID getF() {

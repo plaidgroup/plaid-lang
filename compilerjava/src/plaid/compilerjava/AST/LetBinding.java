@@ -28,17 +28,16 @@ import plaid.compilerjava.util.IDList;
 
 public class LetBinding implements Expression {
 
-	private final Token token;
-	private final ID x;
-	private final Expression exp;
-	private Expression body;
-	private final boolean mutable;
+	private Token token;
+	private ID x;
+	private Expression exp, body;
+	private boolean mutable;
 	private final PermType permType;
 
 	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable, PermType permType) {
 		super();
 		this.token = t;
-		this.x = x;
+		this.setX(x);
 		this.permType = permType;
 		this.exp = e1;
 		this.body = e2;
@@ -65,13 +64,7 @@ public class LetBinding implements Expression {
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
 		exp.codegenExpr(out, x, localVars, stateVars);
 
-		// if the variable name contains our plaid suffix, then this might be a lookup variable, so 
-		// we don't want to check if the variable is a lookup map like we do normally when inserting 
-		// variables into the local scope
-		if (x.getName().contains("$plaid")) {
-			out.append(CodeGen.localScope + ".insert(\"" + x.getName() + "\", " + x.getName() + ", "+ !this.mutable + ");");
-		}
-		else {
+		if (!x.getName().contains("$plaid")) {
 			// set the immutability of the variable
 			out.insertIntoScope(CodeGen.localScope, x.getName(), !this.mutable);
 		}
@@ -93,14 +86,22 @@ public class LetBinding implements Expression {
 		return x;
 	}
 
+	public void setX(ID x) {
+		this.x = x;
+	}
+
 	public Expression getExp() {
 		return exp;
+	}
+
+	public void setExp(Expression exp) {
+		this.exp = exp;
 	}
 
 	public Expression getBody() {
 		return body;
 	}
-	
+
 	public void setBody(Expression body) {
 		this.body = body;
 	}
