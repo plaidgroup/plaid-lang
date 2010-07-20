@@ -1,7 +1,7 @@
 package plaid.typechecker.AST.visitor;
 
 
-// TODO: have two separate visitors, one for synthesis and one for analysis
+// TODO: have two separate visitors, one for synthesis and one for analysis?
 state TypecheckerVisitor {
 	val returnedPermType;
 	val context;
@@ -69,7 +69,7 @@ state TypecheckerVisitor {
 	
 	method visitNewInstance(node) {
 		// typecheck S
-		node.state.accept(this);
+		node.s.accept(this);
 		
 		// if the state is dyn
 		ifElse (this.returnedPermType == PermType.DYN) {
@@ -77,8 +77,8 @@ state TypecheckerVisitor {
 		}{
 			// get the structural type of the state (tau)
 			val structuralType = this.returnedPermType.type;
-			this.returnedPermType = new PermType(Permission.UNIQUE, structuralType);
-		}	
+			this.returnedPermType = new PermType{ val /*Permission*/ perm = Permission.UNIQUE; val /*Type*/ type = structuralType; };
+		};
 	}
 	
 	method visitChangeState(node) {
@@ -86,7 +86,7 @@ state TypecheckerVisitor {
 		// if x has writable permission
 		ifElse (isWritable(xPermType)) {
 			// typecheck S
-			node.state.accept(this);
+			node.s.accept(this);
 			
 			// if S is dyn
 			ifElse (this.returnedPermType == PermType.DYN) {
@@ -100,12 +100,12 @@ state TypecheckerVisitor {
 				context.demote();
 				
 				// update x in the context with unique tau
-				context.put(x, new PermType(Permission.UNIQUE, this.returnedPermType.type));
+				context.put(x, new PermType{ val /*Permission*/ perm = Permission.UNIQUE; val /*Type*/ type = this.returnedPermType.type; });
 			};
 		}{
 			ifElse (this.returnedPermType == PermType.DYN) {
 				// typecheck S and ignore result
-				node.state.accept(this);
+				node.s.accept(this);
 				
 				// demote everything else in context
 				context.demote();
@@ -122,7 +122,85 @@ state TypecheckerVisitor {
 		this.returnedPermType = PermType.VOID;
 	}
 	
-	method visitApplication(node) {
+	method visitLambdaApplication(node) {
+		// typecheck the lambda (f)
+		node.f.accept(this);
+		
+		// if f is dyn
+		ifElse (this.returnedPermType == PermType.DYN) {
+			// demote everything else
+			context.demote();
+			
+			// f has type dyn
+			context.put(node.f, PermType.DYN);
+			
+			// TODO: the arguments have type dyn
+			
+			// TODO: the bound variables have type dyn
+			
+			// return dyn
+			this.returnedPermType = PermType.DYN;
+		// otherwise
+		}{
+			// TODO: get T1, T1', T2, T2', T from the type of the lambda
+			// create a new context
+			val newContext = new Context;
+			
+			// typecheck the arguments
+			node.arg.accept(this);
+			newContext.put(node.arg, this.returnedPermType);
+			
+			// TODO: analyze y as type T_1 in the new context
+			
+			// get the type of y (T_y'') from the new context after analysis
+			val newArgPermType = newContext.get(node.arg);
+			
+			// merge T_1' with T_y'' to get T_y'
+			val mergedArgPermType = argPermType.mergeWith(newArgPermType);
+			
+			// for each variable z bound in the lambda
+			var i = 0;
+			val newBoundVarTypes = new List;
+			while { i < boundVars.size() } {
+				val z = boundVars.get(i);
+			
+				// create a new context
+				val newContext = new Context;
+				
+				// add z with type T_z to the new context
+				newContext.put(z, oldContext.get(z));
+				
+				// TODO: analyze z as type T_2 with the new context
+				
+				// get the type of z (T_z'') from the new context after analysis
+				val newBoundVarType = newContext.get(z);
+				
+				// merge T_2' with T_z'' to get T_z'
+				mergedBoundVarTypes.add(boundVarType.mergeWith(newBoundVarType));
+				
+				i = i + 1;
+			};
+			
+			// demote everything in the old context
+			context.demote();
+			
+			// y has type T_y' and each z has type T_z' in the old context
+			context.put(y, mergedArgPermType);
+			
+			i = 0;
+			while { i < boundVars.size() } {
+				val z = boundVars.get(i);
+				context.put(z, mergedBoundVarTypes.get(i));
+				
+				i = i + 1;
+			};
+			
+			// return T
+			//this.returnedPermType = ;
+		}
+	}
+	
+	method visitMethodApplication(node) {
 		// if the receiver has type T1 = (p tau) in the context
 			// unfold tau into tau_prime
 			// check tau_prime for the method we're trying to call
@@ -216,12 +294,31 @@ state TypecheckerVisitor {
 	}
 	
 	method visitMatch(node) {
+		// typecheck the thing being matched
+		val xPermType = context.get(node.x);
+		
+		val caseContexts = new List;
+		val caseTypes = new List;
+		
 		// if x is dyn
+		ifElse (xPermType == PermType.DYN) {
+			var i = 0;
 			// for all the cases
+			while { i < node.cases.size() } {
+				val contextCopy = context.copy();
+				
 				// typecheck the case expression with x : dyn in the context
-				// join all of the resulting contexts
-				// join all of the resulting types
+				contextCopy.put(x, PermType.DYN);
+				node.cases.get(i).accept(this);
+				
+				// add the resulting context to the list of contexts needing to be joined
+				caseContexts.add(contextCopy);
+				caseTypes.add(this.returnedPermType);
+			};
+			// join all of the resulting contexts
+			// join all of the resulting types
 			// return the result of the joining of the types
+		}{
 		// otherwise
 			// get the permission (p) and the type (tau) of x in the current context
 			// for all the cases
@@ -229,16 +326,31 @@ state TypecheckerVisitor {
 				// join all of the resulting contexts
 				// join all of the resulting types for the case expressions
 			// return the result of the joined resulting types
+		};
 	}
 	
 	method visitWith(node) {
 		// typecheck left
+		node.left.accept(this);
+		val leftPermType = this.returnedPermType;
+		
 		// typecheck right
+		node.right.accept(this);
+		val rightPermType = this.returnedPermType;
+		
 		// if left is dyn
+		ifElse (leftPermType == PermType.DYN) {
 			// return type of right
-		// else if right is dyn
-			// return type of left
-		// otherwise
-			// TODO: what if they have two different permissions?
+			this.returnedPermType = rightPermType;
+		}{
+			// else if right is dyn
+			ifElse (rightPermType == PermType.DYN) {
+				// return type of left
+				this.returnedPermType = leftPermType;
+			// otherwise
+			}{
+				// TODO: what if they have two different permissions?
+			};
+		};
 	}
 }

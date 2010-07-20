@@ -108,7 +108,6 @@ public class CodeGen {
 	//types for the runtime
 	public static final String plaidScopeType = runtimePackage + ".PlaidScope";
 	public static final String plaidObjectType = runtimePackage + ".PlaidObject";
-	public static final String plaidJavaObjectType = runtimePackage + ".PlaidJavaObject";
 	public static final String plaidStateType = runtimePackage + ".PlaidState";
 	public static final String plaidMethodType = runtimePackage + ".PlaidMethod";
 	public static final String plaidMemberDefType = runtimePackage + ".PlaidMemberDef";
