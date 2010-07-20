@@ -69,7 +69,7 @@ public class PlaidMemberDefMap implements PlaidMemberDef {
 	
 	@Override
 	public boolean overrideIsBound() {
-		return overrideIsBound();
+		return overrideIsBound;
 	}
 	
 	@Override
