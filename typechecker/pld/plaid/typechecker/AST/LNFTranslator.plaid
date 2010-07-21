@@ -2,9 +2,11 @@ package plaid.typechecker.AST;
 
 import plaid.lang.*;
 
-state ASTTranslator {
+state LNFTranslator case of ASTTranslator {
+	var counter = 0;
+	
 	// TODO: Refactor this into a Plaid List library
-	method map(f, list) {
+	override method map(f, list) {
 		val iter = list.iterator();
 		val newList = new plaid.lang.List with { var head = new plaid.lang.Nil; };
 		while {iter.hasNext();} {
@@ -12,15 +14,47 @@ state ASTTranslator {
 		};
 		newList
 	}
-
-	method translateAST(root) {
+	
+	method generateID(tok) {
+		// translateAST(plaid.compilerjava.util.IdGen.getId())
+		
+		
+		counter = counter + 1;
+		val n = "LNF$vAr" + counter + "$plaid";
+		new ID with {
+			val /*Token*/ token = tok;
+			val /*String*/ name = n;
+		};
+	}
+	
+	override method translateAST(root) {
 		match(root) {
 			case plaid.compilerjava.AST.Application {
-				new Application with {
-					val /*Token*/ token = root.getToken();
-					val /*Expression*/ f = translateAST(root.getFunction());
-					val /*Expression*/ arg = translateAST(root.getArg());
-				};
+				match (root.getFunction()) {
+					// Already in LNF
+					case plaid.compilerjava.AST.ID {
+						new LNFApplication {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ f = translateAST(root.getFunction());
+							val /*Expression*/ arg = translateAST(root.getArg());
+						};
+					}
+					// The function is some more complicated expression => add a let binding
+					default {
+						val id = generateID(root.getToken());
+						new UnannotatedLetBinding with {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = translateAST(root.getFunction());
+							val /*Expression*/ body = new LNFApplication with {
+								val /*Token*/ token = root.getToken();
+								val /*ID*/ f = id;
+								val /*Expression*/ arg = translateAST(root.getArg());
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
+				}
 			}
 			case plaid.compilerjava.AST.Assignment {
 				new Assignment with {
@@ -53,11 +87,33 @@ state ASTTranslator {
 				};
 			}
 			case plaid.compilerjava.AST.ChangeState {
-				new ChangeState with {
-					val /*Token*/ token = root.getToken();
-					val /*Expression*/ e = translateAST(root.getE());
-					val /*State*/ s = translateAST(root.getSt());
-				};
+				val expr = root.getE();
+				
+				match (expr) {
+					// Already LNF
+					case plaid.compilerjava.AST.ID {
+						new LNFChangeState with {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ e = translateAST(expr);
+							val /*State*/ s = translateAST(root.getSt());
+						};
+					}
+					// Bring AST to LNF
+					default {
+						val id = generateID(root.getToken());
+						new UnannotatedLetBinding with {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = translateAST(expr);
+							val /*Expression*/ body = new LNFChangeState with {
+								val /*Token*/ token = root.getToken();
+								val /*ID*/ e = id;
+								val /*State*/ s = translateAST(root.getSt());
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
+				}
 			}
 			case plaid.compilerjava.AST.CompilationUnit {
 				new CompilationUnit with {
@@ -76,17 +132,61 @@ state ASTTranslator {
 				};
 			}
 			case plaid.compilerjava.AST.Dereference {
-				new Dereference with {
-					val /*Token*/ token = root.getToken();
-					val /*Expression*/ left = translateAST(root.getLeft());
-					val /*ID*/ right = translateAST(root.getRight());
-				};
+				val left = root.getLeft();
+				
+				match (left) {
+					// Already LNF
+					case plaid.compilerjava.AST.ID {
+						new LNFDereference with {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ left = translateAST(root.getLeft());
+							val /*ID*/ right = translateAST(root.getRight());
+						};
+					}
+					// Bring AST to LNF
+					default {
+						val id = generateID(root.getToken());
+						new UnannotatedLetBinding with {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = translateAST(left);
+							val /*Expression*/ body = new LNFDereference with {
+								val /*Token*/ token = root.getToken();
+								val /*ID*/ left = id;
+								val /*ID*/ right = translateAST(root.getRight());
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
+				}
 			}
 			case plaid.compilerjava.AST.DestructiveDereference {
-				new DestructiveDereference with {
-					val /*Token*/ token = root.getToken();
-					val /*Expression*/ left = translateAST(root.getLeft());
-					val /*ID*/ right = translateAST(root.getRight());
+				val left = root.getLeft();
+				
+				match (left) {
+					// Already LNF
+					case plaid.compilerjava.AST.ID {
+						new LNFDestructiveDereference with {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ left = translateAST(root.getLeft());
+							val /*ID*/ right = translateAST(root.getRight());
+						};
+					}
+					// Bring AST to LNF
+					default {
+						val id = generateID(root.getToken());
+						new UnannotatedLetBinding with {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = translateAST(left);
+							val /*Expression*/ body = new LNFDestructiveDereference with {
+								val /*Token*/ token = root.getToken();
+								val /*ID*/ left = id;
+								val /*ID*/ right = translateAST(root.getRight());
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
 				}
 			}
 			case plaid.compilerjava.AST.FieldDecl {
@@ -132,11 +232,33 @@ state ASTTranslator {
 				};
 			}
 			case plaid.compilerjava.AST.Match {
-				new Match with {
-					val /*Token*/ token = root.getToken();
-					val /*Expression*/ e = translateAST(root.getE());
-					val /*List<Case>*/ caseList = map(translateAST, root.getCaseList());
-				};
+				val expr = root.getE();
+				
+				match (expr) {
+					// Already in LNF
+					case plaid.compilerjava.AST.ID {
+						new LNFMatch with {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ e = translateAST(expr);
+							val /*List<Case>*/ caseList = map(translateAST, root.getCaseList());
+						};
+					}
+					// Bring AST to LNF
+					default {
+						val id = generateID(root.getToken());
+						new UnannotatedLetBinding with {
+							val /*Token*/ token = root.getToken();
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = translateAST(left);
+							val /*Expression*/ body = new LNFMatch with {
+								val /*Token*/ token = root.getToken();
+								val /*ID*/ e = id;
+								val /*List<Case>*/ caseList = map(translateAST, root.getCaseList());
+							};
+							val /*boolean*/ mutable = false;
+						};						
+					}
+				}
 			}
 			case plaid.compilerjava.AST.MethodDecl {
 				new MethodDecl with {
