@@ -27,4 +27,5 @@ public @interface RepresentsField {
 	String name();
 	boolean toplevel() default false;
 	boolean readonly() default false;
+	String inPackage() default "";
 }

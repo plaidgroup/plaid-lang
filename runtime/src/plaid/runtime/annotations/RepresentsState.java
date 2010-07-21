@@ -29,4 +29,5 @@ public @interface RepresentsState {
 	boolean toplevel() default false;
 	boolean javaobject() default false;
 	boolean stateobject() default false;
+	String inPackage() default "";
 }

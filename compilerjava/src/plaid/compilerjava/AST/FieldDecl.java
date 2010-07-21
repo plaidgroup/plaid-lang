@@ -98,12 +98,13 @@ public class FieldDecl implements Decl{
 		CodeGen out = new CodeGen(cc);
 		IDList localVars = new IDList(globalVars);
 		ID freshImports = IdGen.getId();
+		String thePackage = qid.toString();
 		
 		//package and needed imports
-		out.declarePackage(qid.toString()); //package qid;
+		out.declarePackage(thePackage); //package qid;
 		
 		//annotation and class definition
-		out.fieldAnnotation(f.getName(), true);
+		out.topFieldAnnotation(f.getName(), thePackage);
 		out.declarePublicClass(f.getName()); out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports
@@ -112,7 +113,7 @@ public class FieldDecl implements Decl{
 		out.declareGlobalScope(qid.toString(),freshImports.getName());
 		
 		//generate code to represent the field as a java field
-		out.fieldAnnotation(f.getName(), false);
+		out.fieldAnnotation(f.getName());
 		out.declarePublicStaticVar(CodeGen.plaidObjectType, f.getName());
 		out.openStaticBlock(); //static {
 		// TODO: make this a function
@@ -141,7 +142,7 @@ public class FieldDecl implements Decl{
 		ID freshFieldName = IdGen.getId();
 		ID x = IdGen.getId();
 		
-		out.fieldAnnotation(f.getName(), false);  //@representsField...
+		out.fieldAnnotation(f.getName());  //@representsField(... toplevel = false)
 		out.declareFinalVar(CodeGen.plaidObjectType,freshFieldName.getName());
 		
 		if (abstractField) {
