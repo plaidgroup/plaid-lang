@@ -27,4 +27,5 @@ public @interface RepresentsMethod {
 	String name();
 	boolean toplevel() default false;
 	boolean readonly() default false; 
+	String inPackage() default "";
 }

@@ -97,12 +97,13 @@ public final class MethodDecl implements Decl {
 		CodeGen out = new CodeGen(cc);
 		IDList localVars = new IDList(globalVars);
 		ID thisMethod = new ID(newName + "_func");
+		String thePackage = qid.toString();
 		
 		//package and needed imports
-		out.declarePackage(qid.toString());
+		out.declarePackage(thePackage);
 		
 		//annotation and class definition
-		out.methodAnnotation(newName, true);
+		out.topMethodAnnotation(newName, thePackage);
 		out.declarePublicClass(newName); out.openBlock(); //public class newName {
 
 		//generate code to create the package scope with imports
@@ -116,7 +117,7 @@ public final class MethodDecl implements Decl {
 			localVars = localVars.add(arg);
 		}
 		
-		out.methodAnnotation(newName, false);
+		out.methodAnnotation(newName);
 		out.declarePublicStaticFinalVar(CodeGen.plaidMethodType, thisMethod.getName());
 		out.openStaticBlock(); // static {
 		// add local scope so that the lambda creation works properly
@@ -147,7 +148,7 @@ public final class MethodDecl implements Decl {
 		ID freshID = IdGen.getId();
 		IDList newLocalVars = localVars.add(arg);
 		
-		out.methodAnnotation(newName, false); //@representsMethod...
+		out.methodAnnotation(newName); //@representsMethod(... toplevel = false)
 		out.declareFinalVar(CodeGen.plaidObjectType,freshMethName.getName());
 		
 		if (abstractMethod) { //if abstract it will just be unit - won't be added to initialized object
