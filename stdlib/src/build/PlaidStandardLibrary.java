@@ -62,7 +62,7 @@ public class PlaidStandardLibrary {
 	    File cur = new File(currentdir);
 	    assertTrue( cur.isDirectory() );
 	    for (File f : cur.listFiles()) {
-			if ( f.getName().equals("src")) {
+			if ( f.getName().startsWith("plaid")) {
 				List<File> files = new ArrayList<File>();
 				findPlaidFile(f, files);
 				for (File file : files) {
