@@ -89,7 +89,7 @@ public class CompilerCore {
 				declaredPackage = declaredPackage.substring(0, declaredPackage.length()-1);
 				
 				//make sure the packages match
-				if (!declaredPackage.equals((directoryPackage))) 
+				if (!directoryPackage.endsWith(declaredPackage)) 
 					throw new RuntimeException("File '" + filename + "' in package '" + declaredPackage + 
 							"' resides in mismatched directory '" + directoryPackage + "'.");
 				
