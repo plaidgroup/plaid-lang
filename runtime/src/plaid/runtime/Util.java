@@ -124,7 +124,7 @@ public class Util {
 						elem = snd;
 					}
 					else {
-						objs.add(params);
+						objs.add(fst);
 						elem = snd;
 					}
 				}
