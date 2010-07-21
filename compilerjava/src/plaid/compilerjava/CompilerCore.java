@@ -36,6 +36,7 @@ import javax.tools.ToolProvider;
 import javax.tools.JavaCompiler.CompilationTask;
 
 import plaid.compilerjava.AST.CompilationUnit;
+import plaid.compilerjava.AST.Decl;
 
 public class CompilerCore {
 	private CompilerConfiguration cc;
@@ -65,6 +66,43 @@ public class CompilerCore {
 				CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
 				cu.setSourceFile(f);
 				cus.add(cu);
+				
+				//Error checking - enforce file conventions
+				// all files must be in the directory corresponding to the package
+				// file package.plaid can have multiple declarations
+				// all other files can have only one declaration which is the same as the filename
+				String sep = System.getProperty("file.separator");
+				String filepath = f.toString();
+				String filename = null;
+				String directoryPackage = "";
+				for (String dir : filepath.split(sep)) {
+					if (dir.endsWith(".plaid")) //make sure we're at the end of the list
+						filename = dir;
+					else
+						directoryPackage += dir + ".";
+				}
+				directoryPackage = directoryPackage.substring(0, directoryPackage.length()-1);
+				if (filename == null) throw new RuntimeException("No Plaid file found");
+				
+				String declaredPackage = "";
+				for (String p : cu.getPackageName()) declaredPackage += p + ".";
+				declaredPackage = declaredPackage.substring(0, declaredPackage.length()-1);
+				
+				//make sure the packages match
+				if (!declaredPackage.equals((directoryPackage))) 
+					throw new RuntimeException("File '" + filename + "' in package '" + declaredPackage + 
+							"' resides in mismatched directory '" + directoryPackage + "'.");
+				
+				if (!filename.equals("package.plaid")) { //check that the declaration matches the filename
+					String declname = filename.substring(0,filename.length()-6); //*.plaid
+					List<Decl> declList = cu.getDecls();
+					if (declList.size() > 1) 
+						throw new RuntimeException("File '" + filename + "' can only contain the declaration for '" + declname + "'.");
+					else if (!declList.get(0).getName().equals(declname))
+						throw new RuntimeException("File '" + filename + "' contains mismatched declaration for '" + declList.get(0).getName() + "'." );
+				}
+				
+				
 			}
 			
 			// create header output files during a first pass
