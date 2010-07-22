@@ -250,14 +250,14 @@ public class StateDecl implements Decl {
 	}
 
 	@Override
-	public void visitChildren(ASTVisitor visitor) {
+	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		name.accept(visitor);
 		stateDef.accept(visitor);
 	}
 	
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visitNode(this);
+	public <T> T accept(ASTVisitor<T> visitor) {
+		return visitor.visitNode(this);
 	}
 
 //	@Override

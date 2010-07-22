@@ -107,14 +107,14 @@ public class Application implements Expression {
 	}
 
 	@Override
-	public void visitChildren(ASTVisitor visitor) {
+	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		f.accept(visitor);
 		arg.accept(visitor);
 	}
 	
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visitNode(this);
+	public <T> T accept(ASTVisitor<T> visitor) {
+		return visitor.visitNode(this);
 	}
 
 }
