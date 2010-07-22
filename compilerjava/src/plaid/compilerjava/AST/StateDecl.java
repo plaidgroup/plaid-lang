@@ -157,9 +157,10 @@ public class StateDecl implements Decl {
 		CodeGen out = new CodeGen(cc);	
 		ID freshImports = IdGen.getId();
 		ID theState = IdGen.getId();
+		String thePackage = qid.toString();
 		
 		//package and needed imports
-		out.declarePackage(qid.toString()); //package qid;
+		out.declarePackage(thePackage); //package qid;
 		
 		//determine what members this state has and add annotations
 		Set<ID> stateVars = new StateDeclHelper().genStateVars(qid, imports.getImports(), stateDef, caseOf);
@@ -170,7 +171,7 @@ public class StateDecl implements Decl {
 		if (memberString.length() > 0) memberString = memberString.substring(0,memberString.length()-1);
 		
 		// state annotation and class definition
-		out.stateAnnotation(name.getName(), true, memberString);
+		out.topStateAnnotation(name.getName(), thePackage, memberString);
 		out.declarePublicClass(name.getName()); out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports
@@ -179,7 +180,7 @@ public class StateDecl implements Decl {
 		out.declareGlobalScope(qid.toString(),freshImports.getName());
 
 		//annotation for the prototype object representing the state
-		out.stateAnnotation(name.getName(), false, "");
+		out.stateAnnotation(name.getName());
 		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, name.getName());
 		
 		out.openStaticBlock(); //static {
@@ -241,7 +242,7 @@ public class StateDecl implements Decl {
 		out.setLocation(token);
 		
 		ID fresh = IdGen.getId();
-		out.stateAnnotation(name.getName(), false, "");
+		out.stateAnnotation(name.getName()); //TODO : figure out how nested states work
 		out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
 		stateDef.codegenState(out, fresh, localVars, stateVars, stateContext + "." + name.getName());  //TODO : stateContext here may not be right...
 

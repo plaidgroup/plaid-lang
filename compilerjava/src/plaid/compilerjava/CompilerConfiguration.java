@@ -28,6 +28,8 @@ import plaid.compilerjava.AST.CompilationUnit;
 public class CompilerConfiguration {
 	private String outputDir = System.getProperty("user.dir");
 	private String inputDir = "";
+	private List<String> plaidpath = new ArrayList<String>();
+	
 	private boolean debugMode = false;
 	private List<File> inputFiles = new ArrayList<File>();
 	private boolean invokeCompiler = true;
@@ -42,6 +44,7 @@ public class CompilerConfiguration {
 	public CompilerConfiguration(CompilerConfiguration other, CompilationUnit cu) {
 		this.inputDir = other.inputDir;
 		this.outputDir = other.outputDir;
+		this.plaidpath = other.plaidpath;
 		this.debugMode = other.debugMode;
 		this.inputFiles = other.inputFiles;
 		this.invokeCompiler = other.invokeCompiler;
@@ -131,4 +134,11 @@ public class CompilerConfiguration {
 		return this.printCompilerStackTrace;
 	}
 	
+	public List<String> getPlaidpath() {
+		return plaidpath;
+	}
+	
+	public void addToPlaidPath(String dir) {
+		plaidpath.add(dir);
+	}
 }

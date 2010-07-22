@@ -36,6 +36,7 @@ import javax.tools.ToolProvider;
 import javax.tools.JavaCompiler.CompilationTask;
 
 import plaid.compilerjava.AST.CompilationUnit;
+import plaid.compilerjava.AST.Decl;
 
 public class CompilerCore {
 	private CompilerConfiguration cc;
@@ -65,8 +66,10 @@ public class CompilerCore {
 				CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
 				cu.setSourceFile(f);
 				cus.add(cu);
+				
+				fileSystemChecks(cu, f.toString());
+				
 			}
-			
 			// create header output files during a first pass
 //			try {
 //				if (cc.isVerbose()) System.out.println("GENERATING HEADERS");
@@ -174,6 +177,7 @@ public class CompilerCore {
 		System.out.println(" -g|--debug           Generate debugging information.");
 		System.out.println(" -V|--verbose         Verbose compiler output");
 		System.out.println(" -d|--directory       Input directory");
+		System.out.println(" -p|--plaidpath       ';' separated list of locations to search for other plaid resources.");
 		System.out.println("");
 	}
 	
@@ -219,6 +223,16 @@ public class CompilerCore {
 						usage();
 						System.exit(-1);
 					}
+				} else if ( value.equals("-p") || value.equals("--plaidpath")) {
+					if (it.hasNext()) {
+						for (String dir : it.next().split(";")) {
+							cc.addToPlaidPath(dir);
+						}
+					} else {
+						System.out.println("ERROR: you must specify the plaidpath.");
+						usage();
+						System.exit(-1);
+					}
 				} else {
 					System.out.println("ERROR: found invalid command line option : " + value);
 					usage();
@@ -231,9 +245,51 @@ public class CompilerCore {
 			}
 		}
 		
+		if (cc.getPlaidpath().size() == 0) cc.addToPlaidPath(System.getProperty("user.dir")); //default plaidpath to user directory
+		
 		return cc;
 	}
 
+	private void fileSystemChecks(CompilationUnit cu, String filepath) {
+		//Error checking - enforce file conventions
+		// all files must be in the directory corresponding to the package
+		// file package.plaid can have multiple declarations
+		// all other files can have only one declaration which is the same as the filename
+		String sep = System.getProperty("file.separator");
+		String filename = null;
+		String directoryPackage = "";
+		for (String dir : filepath.split(sep)) {
+			if (dir.endsWith(".plaid")) //make sure we're at the end of the list
+				filename = dir;
+			else
+				directoryPackage += dir + ".";
+		}
+		directoryPackage = directoryPackage.substring(0, directoryPackage.length()-1);
+		if (filename == null) throw new RuntimeException("No Plaid file found");
+		
+		String declaredPackage = "";
+		for (String p : cu.getPackageName()) declaredPackage += p + ".";
+		declaredPackage = declaredPackage.substring(0, declaredPackage.length()-1);
+		
+		//make sure the packages match
+		if (!declaredPackage.endsWith((directoryPackage))) 
+			throw new RuntimeException("File '" + filename + "' in package '" + declaredPackage + 
+					"' resides in mismatched directory '" + directoryPackage + "'.");
+		
+		if (!filename.equals("package.plaid")) { //check that the declaration matches the filename
+			String declname = filename.substring(0,filename.length()-6); //*.plaid
+			List<Decl> declList = cu.getDecls();
+			if (declList.size() > 1) 
+				throw new RuntimeException("File '" + filename + "' can only contain the declaration for '" + declname + "'.");
+			else if (!declList.get(0).getName().equals(declname))
+				throw new RuntimeException("File '" + filename + "' contains mismatched declaration for '" + declList.get(0).getName() + "'." );
+		}
+		
+		
+		
+		
+	}
+	
 	public static void main(String args[]) {
 		CompilerConfiguration cc = parseParameters(args);
 

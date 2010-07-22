@@ -565,8 +565,13 @@ public class CodeGen {
 	 * @param toplevel
 	 * @return trailing @ sign to allow for correct indentation during pretty printing
 	 */
-	public final void methodAnnotation(String name, boolean toplevel) {
-		output.append("@plaid.runtime.annotations.RepresentsMethod(name = \"" + name + "\", toplevel = " + toplevel + ")@");
+	public final void topMethodAnnotation(String name, String thePackage) {
+
+		output.append("@plaid.runtime.annotations.RepresentsMethod(name = \"" + name + "\", inPackage = \"" + thePackage + "\", toplevel = " + true + ")@");
+	}
+	
+	public final void methodAnnotation(String name) {
+		output.append("@plaid.runtime.annotations.RepresentsMethod(name = \"" + name + "\", toplevel = " + false + ")@");
 	}
 	
 	/**
@@ -574,8 +579,12 @@ public class CodeGen {
 	 * @param toplevel
 	 * @return trailing @ sign to allow for correct indentation during pretty printing
 	 */
-	public final void fieldAnnotation(String name, boolean toplevel) {
-		output.append("@plaid.runtime.annotations.RepresentsField(name = \"" + name + "\", toplevel = " + toplevel + ")@");
+	public final void topFieldAnnotation(String name, String thePackage) {
+		output.append("@plaid.runtime.annotations.RepresentsField(name = \"" + name + "\", inPackage = \"" + thePackage + "\", toplevel = " + true + ")@");
+	}
+	
+	public final void fieldAnnotation(String name) {
+		output.append("@plaid.runtime.annotations.RepresentsField(name = \"" + name + "\", toplevel = " + false + ")@");
 	}
 	
 	/**
@@ -584,8 +593,12 @@ public class CodeGen {
 	 * @param members - comma separated list of member names
 	 * @return trailing @ sign to allow for correct indentation during pretty printing
 	 */
-	public final void stateAnnotation(String name, boolean toplevel, String members) {
-		output.append("@plaid.runtime.annotations.RepresentsState(name = \"" + name + "\", toplevel = " + toplevel + ", members = \"" + members + "\")@");
+	public final void topStateAnnotation(String name, String thePackage, String members) {
+		output.append("@plaid.runtime.annotations.RepresentsState(name = \"" + name + "\", inPackage = \"" + thePackage + "\", toplevel = " + true + ", members = \"" + members + "\")@");
+	}
+	
+	public final void stateAnnotation(String name) {
+		output.append("@plaid.runtime.annotations.RepresentsState(name = \"" + name + "\", toplevel = " + false + ")@");
 	}
 	
 	/**
