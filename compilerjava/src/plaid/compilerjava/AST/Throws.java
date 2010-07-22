@@ -18,15 +18,14 @@ public class Throws implements Expression {
 	}
 
 	@Override
-	public void visitChildren(ASTVisitor visitor) {
-		// TODO Auto-generated method stub
-		
+	public <T> void visitChildren(ASTVisitor<T> visitor) {
+		throwableID.accept(visitor);
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
+	public <T> T accept(ASTVisitor<T> visitor) {
 		// TODO Auto-generated method stub
-		
+		return visitor.visitNode(this);
 	}
 
 	@Override
