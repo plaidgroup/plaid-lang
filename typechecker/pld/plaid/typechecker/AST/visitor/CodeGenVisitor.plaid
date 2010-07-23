@@ -1,0 +1,237 @@
+package plaid.typechecker.AST.visitor;
+
+
+state CodeGenVisitor case of Visitor {
+	var root; 		// The root of the AST to generate code for
+	var qid;		// Package declaration.
+	var imports;	// Import list.
+	var cc;			// Compiler configuration.
+	var globals;	// Global variables.
+	var out;		// Java codegen helper object.
+	
+	// Additional global values for passing state around accept() calls.
+	// TODO: Reimplement using state change once that's working properly?
+	var freshImports;
+	var freshReturn;
+	var locals;
+	var y;
+	var stateVars;
+	
+	// Java true and false values
+	// TODO: Add some feature to plaid to make this nicer
+	val jtrue  = java.lang.Boolean.TRUE;
+	val jfalse = java.lang.Boolean.FALSE;
+
+	// Create a new file with Decl as top level
+	// Client access method
+	method createDecl(root2, qid2, imports2, cc2, globals2) {
+		// Initialize CodeGenVisitor
+		root = root2;
+		qid = qid2;
+		imports = imports2;
+		cc = cc2;
+		globals = globals2;
+		out = CodeGen.new(cc);
+	
+		match (node) {
+			case FieldDecl {
+				// Create this decl as a field and return the new file
+				createFieldDecl();
+			}
+			case MethodDecl {
+				createMethodDecl();
+			}
+			case StateDecl {
+				createStateDecl();
+			}
+			default {
+				System.out.println(
+					"Error: Trying to generate non-Decl at top-level");
+				System.exit(1);
+			}
+		}
+	}
+
+	// Create a new file with FieldDecl as top level
+	method createFieldDecl() {
+		locals = IDList.new(globals);
+		freshImports = IdGen.getId();
+		
+		// package qid;
+		out.declarePackage(qid.toString());
+		
+		//@plaid.runtime.annotations (...)
+		out.fieldAnnotation(root.f.getName(), jtrue);
+		
+		// public class c {
+		out.declarePublicClass(root.f.getName()); 
+		out.openBlock();
+		
+		// Get imports, define scopes
+		out.declarePublicStaticFinalVar(
+			"java.util.List<plaid.runtime.utils.Import>",
+			freshImports.getName());
+		
+		imports.accept(this);
+		
+		out.declareGlobalScope(qid.toString(), freshImports.getName());
+		
+		out.openStaticBlock(); //static {
+		out.declareLocalScope(CodeGen.globalScope);
+		
+		// Generate the expr
+		y = root.f;
+		stateVars = HashSet.new();
+		e.accept(this);
+		
+		// TODO: Want to declare as immutable, 
+		// but root.immutable field does not exist
+		// out.insertIntoScope(CodeGen.globalScope, 
+		//     root.f.getName(), root.immutable);
+		
+		out.closeBlock(); out.closeBlock(); //}}
+		
+		FileGen.createOutputFile(f.getName(), cc.getOutputDir(), out.formatFile(), qid);
+		
+	}
+
+	method createMethodDecl() {
+		var thisMethod = ID.new(root.name + "_func");
+		freshReturn = IdGen.getId();
+	    freshImports = IdGen.getId();
+		locals = IDList.new(globals);
+		
+		//package and needed imports
+		out.declarePackage(qid.toString());
+		
+		//annotation and class definition
+		out.methodAnnotation(root.name, jtrue);
+		out.declarePublicClass(root.name); out.openBlock(); //public class name {
+
+		//generate code to create the package scope with imports
+		out.declarePublicStaticFinalVar(
+			"java.util.List<plaid.runtime.utils.Import>",
+			freshImports.getName());
+			
+		imports.accept(this);
+		
+		out.declareGlobalScope(qid.toString(), freshImports.getName());
+		
+		if (root.name.equals("main") && this.methodType.getArgTypes().get(0)
+			== PermType.UNIT && this.methodType.getArgTypes().size() == 1) {
+			out.topLevelMain(root.name + "_func");
+		} else {
+			locals = locals.add(arg);
+		};
+		
+		out.methodAnnotation(root.name, jfalse);
+		out.declarePublicStaticFinalVar(CodeGen.plaidMethodType,
+			thisMethod.getName());
+		out.openStaticBlock(); // static {
+		
+		// add local scope so that the lambda creation works properly
+		out.declareLocalScope(CodeGen.globalScope);
+		out.assignToNewLambda(thisMethod.getName(), arg.getName());
+		out.declareVar(CodeGen.plaidObjectType, freshReturn.getName());
+		
+		//top level functions lookup with unit
+		stateVars = HashSet.new();
+		body.accept(this);
+
+		out.ret(freshReturn.getName());
+		out.closeAnonymousDeclaration(); // }});
+		
+		out.closeBlock(); // }  (for static block)
+		out.closeBlock(); // }  (for class declaration)
+		
+		FileGen.createOutputFile(root.name, cc.getOutputDir(), 
+			out.formatFile(), qid);
+	}
+	
+	method createStateDecl() {
+		
+	}
+
+
+	// Internal methods called by node.accept()
+	method visitApplication(node) {
+		
+	}
+	
+	method visitAssignment(node) {
+	
+	}
+	
+	method visitCase(node) {
+	
+	}
+	
+	method visitChangeState(node) {
+	
+	}
+	
+	method visitDeclList(node) {
+	
+	}
+	
+	method visitDereference(node) {
+	
+	}
+	
+	method visitFieldDecl(node) {
+	
+	}
+	
+	method visitID(node) {
+	
+	}
+	
+	method visitImportList(node) {
+		var freshImports = args;
+		
+	}
+	
+	method visitIntLiteral(node) {
+	
+	}
+	
+	method visitLambda(node) {
+	
+	}
+	
+	method visitLetBinding(node) {
+	
+	}
+	
+	method visitMatch(node) {
+	
+	}
+	
+	method visitMethodDecl(node) {
+	
+	}
+	
+	method visitNewInstance(node) {
+	
+	}
+	
+	method visitQI(node) {
+	
+	}
+	
+	method visitStateDecl(node) {
+	
+	}
+	
+	method visitStringLiteral(node) {
+	
+	}
+	
+	method visitUnitLiteral(node) {
+	
+	}
+	
+	method visitWith(node) {
+	
+	}
+}
