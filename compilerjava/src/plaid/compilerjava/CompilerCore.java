@@ -255,7 +255,13 @@ public class CompilerCore {
 		// all files must be in the directory corresponding to the package
 		// file package.plaid can have multiple declarations
 		// all other files can have only one declaration which is the same as the filename
-		String sep = System.getProperty("file.separator");
+		
+		// Bug discovered by Aparup:
+		// Windows systems, unlike Unix systems, use backslashes as separators.  As this character
+		// is used inside a regular expression by String.split(), we have to escape the backslash,
+		// otherwise we get a syntax error in our regular expression.  If we are on a Unix system,
+		// escaping the slash (\/) does not change the behavior.
+		String sep = "\\" + System.getProperty("file.separator");
 		String filename = null;
 		String directoryPackage = "";
 		for (String dir : filepath.split(sep)) {
@@ -272,7 +278,7 @@ public class CompilerCore {
 		declaredPackage = declaredPackage.substring(0, declaredPackage.length()-1);
 		
 		//make sure the packages match
-		if (!declaredPackage.endsWith((directoryPackage))) 
+		if (!directoryPackage.endsWith(declaredPackage))
 			throw new RuntimeException("File '" + filename + "' in package '" + declaredPackage + 
 					"' resides in mismatched directory '" + directoryPackage + "'.");
 		
