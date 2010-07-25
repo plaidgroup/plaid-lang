@@ -33,6 +33,7 @@ public class CoreParserTests {
 		CompilerConfiguration cc = new CompilerConfiguration();
 		cc.setOutputDir(outputDir);
 		cc.addInputFile(new File(fileLoc));
+		cc.addToPlaidPath("bin/");
 		CompilerCore compiler = new CompilerCore(cc);
 		return compiler;
 	}

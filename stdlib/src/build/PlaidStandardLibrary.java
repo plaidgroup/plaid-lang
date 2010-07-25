@@ -51,6 +51,7 @@ public class PlaidStandardLibrary {
 		cc.setInvokeCompiler(false);
 		cc.setDebugMode(true);
 		cc.setCopyrightHeader(true);
+		cc.addToPlaidPath("bin/");
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();
 	}
