@@ -51,6 +51,7 @@ import plaid.compilerjava.util.MemberRep;
 import plaid.compilerjava.util.MethodRep;
 import plaid.compilerjava.util.PackageRep;
 import plaid.compilerjava.util.StateRep;
+import plaid.runtime.PlaidException;
 import plaid.runtime.annotations.RepresentsField;
 import plaid.runtime.annotations.RepresentsMethod;
 import plaid.runtime.annotations.RepresentsState;
@@ -231,17 +232,25 @@ public class CompilerCore {
 				if (cc.isVerbose()) System.out.println("GENERATING CODE");
 				List<File> allFiles = new ArrayList<File>();
 				for(CompilationUnit cu : cus) {
-					List<File> fileList = cu.codegen(cc, plaidpath);
-					if ( cc.isVerbose() ) {
-						for(File f : fileList) {
-							FileReader fr = new FileReader(f);
-							int charRead;
-							while((charRead = fr.read()) != -1) {
-								System.out.print((char)charRead);
+					try {
+						
+						List<File> fileList = cu.codegen(cc, plaidpath);
+						
+						if ( cc.isVerbose() ) {
+							for(File f : fileList) {
+								FileReader fr = new FileReader(f);
+								int charRead;
+								while((charRead = fr.read()) != -1) {
+									System.out.print((char)charRead);
+								}
 							}
 						}
+						allFiles.addAll(fileList);
+					} catch (PlaidException p) {
+						System.out.println("Error while compiling " + cu.getSourceFile().toString() + ":");
+						System.out.println("");
+						p.printStackTrace();
 					}
-					allFiles.addAll(fileList);
 				}
 				
 				if ( !cc.isKeepTemporaryFiles() ) {
@@ -262,7 +271,7 @@ public class CompilerCore {
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
-			}
+			} 
 			return cus;
 		} catch (Exception e) {
 			if (cc.compilerStackTraceEnabled()) {
