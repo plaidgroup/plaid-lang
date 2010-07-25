@@ -50,6 +50,11 @@ public class BuildAllExamples {
 		cc.setKeepTemporaryFiles(true);
 		cc.setInvokeCompiler(false);
 		cc.setDebugMode(false);
+		String sep = System.getProperty("file.separator");
+		cc.addToPlaidPath("bin" + sep);
+		String projectDir = System.getProperty("user.dir");
+		String stdLibDir = projectDir.substring(0,projectDir.lastIndexOf(sep));
+		cc.addToPlaidPath(stdLibDir + sep + "stdlib" + sep + "bin" + sep);
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();
 	}

@@ -26,10 +26,14 @@ import java.util.Set;
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
+import plaid.compilerjava.util.MemberRep;
+import plaid.compilerjava.util.PackageRep;
 import plaid.compilerjava.util.QualifiedID;
 
 public interface Decl extends ASTnode {
 
+	public MemberRep generateHeader(PackageRep plaidpath, ImportList imports, String inPackage);
+	
 	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> stateVars);
 
 	//public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, String stateContext);

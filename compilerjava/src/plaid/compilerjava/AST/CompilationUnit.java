@@ -29,11 +29,14 @@ import java.util.Set;
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
+import plaid.compilerjava.util.MemberRep;
+import plaid.compilerjava.util.PackageRep;
 import plaid.compilerjava.util.QualifiedID;
 
 public class CompilationUnit implements ASTnode {
 	private List<Decl> decls;
 	private List<String> packageName;
+	private String packageString;
 	private ImportList imports;
 	private File sourceFile = new File(">>UNKNOWN<<");
 
@@ -61,6 +64,16 @@ public class CompilationUnit implements ASTnode {
 		return packageName; 
 	}
 	
+	public String getPackageString() {
+		if (packageString == null){
+			String temp = "";
+			for (String s : packageName) 
+				temp += s + ".";
+			packageString = temp.substring(0,temp.length() - 1);
+		}
+		return packageString;
+	}
+	
 	public ImportList getImports() {
 		return imports;
 	}
@@ -70,19 +83,8 @@ public class CompilationUnit implements ASTnode {
 	}
 	
 	public List<Decl> getDecls() { return this.decls; }
-
-//	public List<File> generateHeaders(CompilerConfiguration cc) {
-//		CompilerConfiguration ccu = new CompilerConfiguration(cc, this);
-//
-//		List<File> fileList = new ArrayList<File>();
-//		for (Decl d : decls) {
-//			if (d instanceof StateDecl) fileList.add(((StateDecl) d).generateHeader(new QualifiedID(packageName), ccu));
-//		}
-//		
-//		return fileList;
-//	}
 	
-	public List<File> codegen(CompilerConfiguration cc) {
+	public List<File> codegen(CompilerConfiguration cc, PackageRep plaidpath) {
 		CompilerConfiguration ccu = new CompilerConfiguration(cc, this);
 
 		List<File> fileList = new ArrayList<File>();
@@ -96,8 +98,8 @@ public class CompilationUnit implements ASTnode {
 		// this loop *must* come before the second loop that does the actual code generation
 		// because we need to add all of the top-level declarations to the set of global IDs so 
 		// that the order in which the top-level declarations are compiled don't matter
-		for (Decl d : decls) {
-			globalVars.add(new ID(d.getName()));
+		for (MemberRep m : plaidpath.getPackageMembers(getPackageString())) {  //TODO : current the global vars are everything in this package - is this right?
+			globalVars.add(new ID(m.getName()));
 		}
 		//Declarations
 		for (Decl d : decls) {
