@@ -20,15 +20,19 @@
 package plaid.compilerjava.AST;
 
 import java.io.File;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.FieldRep;
 import plaid.compilerjava.util.FileGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
+import plaid.compilerjava.util.MemberRep;
+import plaid.compilerjava.util.PackageRep;
 import plaid.compilerjava.util.QualifiedID;
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.Util;
@@ -92,6 +96,11 @@ public class FieldDecl implements Decl{
 		return this.f.getName();
 	}
 
+	@Override
+	public MemberRep generateHeader(PackageRep plaidpath, ImportList imports, String inPackage) {
+		return new FieldRep(f.getName());
+	}
+	
 	//Top Level Field Decl
 	@Override
 	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {

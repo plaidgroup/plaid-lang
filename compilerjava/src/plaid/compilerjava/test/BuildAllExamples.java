@@ -35,29 +35,34 @@ import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.CompilerCore;
 import uk.ac.lkl.common.util.testing.LabelledParameterized;
 
-@RunWith(LabelledParameterized.class)
+//@RunWith(LabelledParameterized.class)
 public class BuildAllExamples {
-	private File f;
-	public BuildAllExamples(File f) {
-		this.f = f;
-	}
+//	private File f;
+//	public BuildAllExamples(File f) {
+//		this.f = f;
+//	}
 	
 	@Test
 	public void compile() throws FileNotFoundException {
 		CompilerConfiguration cc = new CompilerConfiguration();
 		cc.setOutputDir("coreOutput");
-		cc.addInputFile(f);
+		for (File f : inputFiles())
+			cc.addInputFile(f);
 		cc.setKeepTemporaryFiles(true);
 		cc.setInvokeCompiler(false);
 		cc.setDebugMode(false);
+		String sep = System.getProperty("file.separator");
+		cc.addToPlaidPath("bin" + sep);
+		String projectDir = System.getProperty("user.dir");
+		String stdLibDir = projectDir.substring(0,projectDir.lastIndexOf(sep));
+		cc.addToPlaidPath(stdLibDir + sep + "stdlib" + sep + "bin" + sep);
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();
 	}
 
-	@Parameters
-	public static Collection<Object[]> inputFiles() {
-		Collection<Object[]> results = new ArrayList<Object[]>();
-	    String currentdir = System.getProperty("user.dir"); // should be work space by default
+	private static List<File> inputFiles() {
+		List<File> results = new ArrayList<File>();
+	    String currentdir = System.getProperty("user.dir") + System.getProperty("file.separator"); // should be work space by default
 	    File cur = new File(currentdir);
 	    assertTrue( cur.isDirectory() );
 	    for (File f : cur.listFiles()) {
@@ -65,14 +70,33 @@ public class BuildAllExamples {
 				List<File> files = new ArrayList<File>();
 				findPlaidFile(f, files);
 				for (File file : files) {
-					File f1 = new File(file.getAbsolutePath().substring(currentdir.length()+1));
-					results.add(new Object[] { f1 });
+					File f1 = new File(file.getAbsolutePath().substring(currentdir.length()));
+					results.add(f1);
 				}
 			}
 		}
 	    return results;
 	}
-	
+//	
+//	@Parameters
+//	public static Collection<Object[]> inputFiles() {
+//		Collection<Object[]> results = new ArrayList<Object[]>();
+//	    String currentdir = System.getProperty("user.dir"); // should be work space by default
+//	    File cur = new File(currentdir);
+//	    assertTrue( cur.isDirectory() );
+//	    for (File f : cur.listFiles()) {
+//			if ( f.getName().equals("coreExamples")) {
+//				List<File> files = new ArrayList<File>();
+//				findPlaidFile(f, files);
+//				for (File file : files) {
+//					File f1 = new File(file.getAbsolutePath().substring(currentdir.length()+1));
+//					results.add(new Object[] { f1 });
+//				}
+//			}
+//		}
+//	    return results;
+//	}
+//	
 	
 	private static void findPlaidFile(File f, List<File> files) {
 		if ( f.isFile() ) {

@@ -82,7 +82,7 @@ public class StateDeclHelper {
 					for (Annotation a : obj.getAnnotations()) {
 						if (a instanceof RepresentsState) {
 							String memberString = ((RepresentsState) a).members();
-							for (String s : memberString.split(",")) stateVars.add(new ID(s));
+							if (memberString.length() > 0 ) for (String s : memberString.split(",")) stateVars.add(new ID(s));
 						}
 					}
 					return; //once we've found the class, we're done

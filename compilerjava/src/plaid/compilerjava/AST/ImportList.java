@@ -20,11 +20,15 @@
 package plaid.compilerjava.AST;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.util.CodeGen;
+import plaid.compilerjava.util.MemberRep;
+import plaid.compilerjava.util.PackageRep;
 import plaid.compilerjava.util.QualifiedID;
 
 public class ImportList implements ASTnode {
@@ -94,9 +98,108 @@ public class ImportList implements ASTnode {
 			imports.add(new QualifiedID(globals));
 	}
 
+	public void checkAndExpandImports(PackageRep plaidpath, List<String> declMembers, String thePackage) {
+		//first make sure the std library is there
+		addStdLibrary();
+		
+		//make sure we don't have multiple imports with the same name
+		//also give precedence to explicitly named imports over .* imports (even if this is first - same as Java)
+		Map<String, Boolean> fromStar = new HashMap<String, Boolean>();
+		Map<String, String> fromPackage = new HashMap<String, String>();	
+		List<String> duplicateStarMembers = new ArrayList<String>();
+		List<String> javaPackages = new ArrayList<String>();
+		
+		//then get rid of all .* imports (efficiency during runtime)
+		for (QualifiedID qid : imports) {
+			String theImport = qid.toString();
+			
+			if (!theImport.contains(".") || theImport.endsWith(".")) throw new RuntimeException("malformed import " + theImport);
+			
+			String packageName = theImport.substring(0,theImport.lastIndexOf("."));
+			String memberName = theImport.substring(theImport.lastIndexOf(".") + 1);
+			if (memberName.equals("*")) {
+				List<MemberRep> pMembers = plaidpath.getPackageMembers(theImport.substring(0, theImport.length() - 2));
+				if (pMembers == null) { // 
+					if (theImport.startsWith("java")) //TODO:handle java better
+						javaPackages.add(theImport);
+					else
+						throw new RuntimeException("Cannot find package " + packageName + ".");
+				} else {
+					for (MemberRep m : pMembers) {
+						memberName = m.getName();
+						if (declMembers.contains(memberName)) {
+							//do nothing - do not import members defined in this decl except for from the current package (below)
+						} else if (fromPackage.containsKey(memberName)) {
+							if (fromStar.get(memberName) == true) { //indicate that we have duplicate star imports
+								duplicateStarMembers.add(memberName);
+								fromPackage.put(memberName,fromPackage.get(memberName) + ";" + packageName);
+							} else {
+								//do nothing - explicit import takes precedence
+							}
+						} else {
+							fromPackage.put(memberName, packageName);
+							fromStar.put(memberName, true); //could be overriden by explicit import later
+						}
+					}
+				}
+			} else {
+				if (declMembers.contains(memberName))
+					throw new RuntimeException("Member " + memberName + " explicitly imported into a compilation unit where it is also defined.");
+				if (fromPackage.containsKey(memberName) && fromStar.get(memberName) == false) {
+					throw new RuntimeException("Member " + memberName + " explicitly imported from both " + 
+							packageName + " and " + fromPackage.get(memberName) + ".");
+					
+				}
+				
+				fromPackage.put(memberName, packageName);
+				fromStar.put(memberName, false);
+				duplicateStarMembers.remove(memberName); //made explicit - remove if looked ambiguous earlier
+
+			}
+		}
+		
+		//import packagemembers including those declared in this compilation unit
+		for (MemberRep m : plaidpath.getPackageMembers(thePackage)) {
+			String member = m.getName();
+			if (fromPackage.containsKey(member)) { //imported somewhere else
+				if (fromStar.get(member) == true) { //package defined overrides a star import
+					fromPackage.put(member, thePackage);
+				} else {
+					//Do nothing - explicit import does override package declaration
+				}
+			} else {
+				fromPackage.put(member, thePackage);
+			}
+		}
+		
+		// check we don't have any ambiguous * imports
+		if (!duplicateStarMembers.isEmpty()) {
+			StringBuilder errMsg = new StringBuilder("Must make following ambiguous imports explicit");
+			String nextChar = ":";
+			for (String member : duplicateStarMembers) {
+				errMsg.append(nextChar + " member " + member + " from packages: ");
+				
+				for (String pack : fromPackage.get(member).split(";")) {
+					errMsg.append(pack + ", ");
+				}
+				errMsg.delete(errMsg.length() - 2, errMsg.length());
+				
+				nextChar = ";";
+			}
+			
+			throw new RuntimeException(errMsg.toString());
+		}
+		
+		//create new import list, order doesn't matter since all of the imported members have unique names
+		imports = new ArrayList<QualifiedID>();
+		for (String member : fromPackage.keySet()) imports.add(new QualifiedID(fromPackage.get(member) + "." + member, "."));
+		for (String javaPackage : javaPackages) imports.add(new QualifiedID(javaPackage, "."));
+		
+	}
+	
 	public void codegen(CodeGen out, ID y) {
 		// We want to include plaid.lang.* by default, so add it if it's missing
-		addStdLibrary();
+		//addStdLibrary(); do this in a prior step
 		
 		out.openStaticBlock();  // static {
 		out.assignToNewJavaObject(y.getName(),"java.util.ArrayList<plaid.runtime.utils.Import>"); //y = new java..();
@@ -105,7 +208,7 @@ public class ImportList implements ASTnode {
 			out.append(y.getName() + ".add(new plaid.runtime.utils.Import(\"" + qi.toString() + "\"));");
 		}
 
-		out.append("}");
+		out.closeBlock();
 	}
 
 	@Override

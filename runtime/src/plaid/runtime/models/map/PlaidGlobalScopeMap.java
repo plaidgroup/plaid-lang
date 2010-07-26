@@ -23,8 +23,8 @@ import plaid.runtime.utils.QualifiedIdentifier;
  *
  */
 public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
-	private static final Map<Import, Set<Import>> expandedImports = new HashMap<Import, Set<Import>>();
-	private static final Set<Import> nonExpandedImports = new HashSet<Import>();
+	//private static final Map<Import, Set<Import>> expandedImports = new HashMap<Import, Set<Import>>();
+	private static final Set<Import> javaImports = new HashSet<Import>();
 	
 	private final Map<String, Import> importMap;
 	private final Map<String, PlaidObject> mutableScopeMap;
@@ -36,22 +36,27 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	private PlaidGlobalScopeMap(String qi, List<Import> imports) {
 		this.importMap = new HashMap<String, Import>();
 		this.addImports(imports);
-		this.addImport(new Import(qi + ".*"));
+		//this.addImport(new Import(qi + ".*"));  //this will now be done in the compiler
 		this.mutableScopeMap = new HashMap<String, PlaidObject>();
 		this.immutableScopeMap = new HashMap<String, PlaidObject>();
 		this.globalPackage = new QualifiedIdentifier(qi);
 	}
 	
 	private void addImport(Import imp) {
-		Collection<Import> expanded = expandImport(imp);
-		for (Import im : expanded) {
-			Import current = this.importMap.get(im.getIdent().getSuffix());
+		
+		
+		//Collection<Import> expanded = expandImport(imp); //this is now done in the compiler
+		//for (Import im : expanded) {					   
+		if (imp.isStar()) //java imports are the only starred imports, leave these for slow lookup
+			javaImports.add(imp);
+		else {
+			Import current = this.importMap.get(imp.getIdent().getSuffix());
 			if (current == null)
-				this.importMap.put(im.getIdent().getSuffix(), im);
-			else if (!current.equals(im))
+				this.importMap.put(imp.getIdent().getSuffix(), imp);
+			else if (!current.equals(imp))
 				throw new PlaidRuntimeException("Import conflict: Symbol `" + current.getIdent().getSuffix() 
 					+ "' imported from packages `" + current.getIdent().getPrefix()
-					+ "' and `" + im.getIdent().getPrefix() + "'.");
+					+ "' and `" + imp.getIdent().getPrefix() + "'.");
 		}
 	}
 	
@@ -60,37 +65,37 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 			this.addImport(imp);
 	}
 	
-	@SuppressWarnings("unchecked")
-	private Collection<Import> expandImport(Import imp) {
-		Set<Import> expanded = new HashSet<Import>();
-		
-		if (expandedImports.containsKey(imp))
-			return expandedImports.get(imp);
-		
-		if (imp.isStar()) {
-			try {
-				PlaidClassLoader cl = PlaidRuntime.getRuntime().getClassLoader();
-				List<Class> classes = cl.getClasses(imp.getIdent().toString());
-				for (Class c : classes)
-					expanded.add(new Import(c.getName()));
-			}
-			catch (IOException e) {
-				System.out.println("IOException");
-			}
-			catch (ClassNotFoundException e) {
-				System.out.println("ClassNotFoundException");
-			}
-		}
-		else
-			expanded.add(imp);
-		
-		if (expanded.isEmpty())
-			nonExpandedImports.add(imp);
-		else
-			expandedImports.put(imp, expanded);
-		
-		return expanded;
-	}
+//	@SuppressWarnings("unchecked")
+//	private Collection<Import> expandImport(Import imp) {
+//		Set<Import> expanded = new HashSet<Import>();
+//		
+//		if (expandedImports.containsKey(imp))
+//			return expandedImports.get(imp);
+//		
+//		if (imp.isStar()) {
+//			try {
+//				PlaidClassLoader cl = PlaidRuntime.getRuntime().getClassLoader();
+//				List<Class> classes = cl.getClasses(imp.getIdent().toString());
+//				for (Class c : classes)
+//					expanded.add(new Import(c.getName()));
+//			}
+//			catch (IOException e) {
+//				System.out.println("IOException");
+//			}
+//			catch (ClassNotFoundException e) {
+//				System.out.println("ClassNotFoundException");
+//			}
+//		}
+//		else
+//			expanded.add(imp);
+//		
+//		if (expanded.isEmpty())
+//			nonExpandedImports.add(imp);
+//		else
+//			expandedImports.put(imp, expanded);
+//		
+//		return expanded;
+//	}
 	
 	public PlaidObject lookup(String name) {
 		// check scope map
@@ -119,7 +124,7 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 		
 		// We currently can't expand Java imports like import java.util.*;
 		// So to keep everything working we fall back to our old (slower) system in that case.
-		for (Import im : nonExpandedImports) {
+		for (Import im : javaImports) {
 			PlaidClassLoader cl = PlaidRuntime.getRuntime().getClassLoader();
 			QualifiedIdentifier nameQI = new QualifiedIdentifier(name);
 			QualifiedIdentifier fullQualName;

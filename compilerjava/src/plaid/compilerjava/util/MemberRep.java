@@ -1,7 +1,24 @@
 package plaid.compilerjava.util;
 
-public interface MemberRep {
+public abstract class MemberRep {
 	
-	public String getName();
+	private String name;
+	private boolean recompiling = false;
+	
+	public MemberRep(String name) {
+		this.name = name;
+	}
+	
+	public String getName() {
+		return name;
+	}
+	
+	public void startRecompilation() {
+		recompiling = true;
+	}
+	
+	public boolean isRecompiling() {
+		return recompiling;
+	}
 	
 }

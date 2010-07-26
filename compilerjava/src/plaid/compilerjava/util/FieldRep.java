@@ -1,9 +1,12 @@
 package plaid.compilerjava.util;
 
-public class FieldRep implements MemberRep {
-	private String name;
+public class FieldRep extends MemberRep {
 	
-	public String getName() {
-		return name;
+	public FieldRep(String name) {
+		super(name);
+	}
+	
+	public String toString() {
+		return "field " + getName();
 	}
 }

@@ -24,10 +24,16 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
+import java.util.Stack;
 
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -37,6 +43,18 @@ import javax.tools.JavaCompiler.CompilationTask;
 
 import plaid.compilerjava.AST.CompilationUnit;
 import plaid.compilerjava.AST.Decl;
+import plaid.compilerjava.AST.FieldDecl;
+import plaid.compilerjava.AST.MethodDecl;
+import plaid.compilerjava.AST.StateDecl;
+import plaid.compilerjava.util.FieldRep;
+import plaid.compilerjava.util.MemberRep;
+import plaid.compilerjava.util.MethodRep;
+import plaid.compilerjava.util.PackageRep;
+import plaid.compilerjava.util.StateRep;
+import plaid.runtime.PlaidException;
+import plaid.runtime.annotations.RepresentsField;
+import plaid.runtime.annotations.RepresentsMethod;
+import plaid.runtime.annotations.RepresentsState;
 
 public class CompilerCore {
 	private CompilerConfiguration cc;
@@ -52,14 +70,13 @@ public class CompilerCore {
 			if (cc.getInputFiles().size() > 0 && !cc.getInputDir().isEmpty()) {
 				throw new RuntimeException("Cannot compile a directory and input files"); //TODO: throw PlaidCompilerException
 			}
-			//TODO In compilation check if input files are plaid files, check if they are in the right directory
 			
 			if(!cc.getInputDir().isEmpty())
 				ConvertInputDirToInputFiles(new File(cc.getInputDir()));
 			
 			System.out.println("compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir());
 			
-			// open the file
+			// open the file(s)
 			List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
 			for (File f : cc.getInputFiles()) {
 				System.out.println("parsing " + f.getName() + "...");
@@ -70,6 +87,125 @@ public class CompilerCore {
 				fileSystemChecks(cu, f.toString());
 				
 			}
+			
+			//Build up a representation of plaidpath
+			PackageRep plaidpath = new PackageRep("$TOPLEVEL$");
+			Stack<File> directoryWorklist = new Stack<File>();
+			for (String base : cc.getPlaidpath()) {
+				File baseDir = new File(base);
+				if (!baseDir.isDirectory()) throw new RuntimeException("plaidpath entry " + base + " is not a directory");
+				else {
+					directoryWorklist.push(baseDir);
+					String absoluteBase = baseDir.getAbsolutePath();
+					File currentDirectory;
+					URLClassLoader defLoader = null;
+					while(!directoryWorklist.isEmpty()) {
+						currentDirectory = directoryWorklist.pop();
+						for (File file : currentDirectory.listFiles()) {
+							if (file.isFile()) {
+								if (file.getName().endsWith(".class")) { //load in the hopes that this is a compiled .plaid file
+									String filepath = file.getAbsolutePath();
+									String className = filepath.substring(absoluteBase.length() + 1, filepath.length() - 6).replace(System.getProperty("file.separator"), ".");
+									if (defLoader == null) {
+										URL[] loaderDir = { new URL("file://" + absoluteBase) };
+										defLoader = new URLClassLoader(loaderDir);
+									}
+									Class<?> classRep = defLoader.loadClass(className);
+									for (Annotation a : classRep.getAnnotations()) {
+										String thePackage = null;
+										MemberRep member = null;
+										
+										if (a instanceof RepresentsField) {
+											RepresentsField f = (RepresentsField) a;
+											thePackage = f.inPackage();
+											member = new FieldRep(f.name());
+										} else if (a instanceof RepresentsMethod) {
+											RepresentsMethod m = (RepresentsMethod) a;
+											thePackage = m.inPackage();
+											member = new MethodRep(m.name());
+										} else if (a instanceof RepresentsState) {
+											RepresentsState s = (RepresentsState) a;
+											thePackage = s.inPackage();
+											StateRep state = new StateRep(s.name());
+											for (String sm : s.members().split(",")) state.addMember(sm);
+											member = state;
+										}
+										if (member != null) { //if this was a plaid generated java file
+											if (!className.startsWith(thePackage))
+												throw new RuntimeException("Package " + thePackage + "of member " + member.getName() + " does not match file path " + className + ".");
+										
+											plaidpath.addMember(thePackage, member);
+										}
+									}
+								}
+							} else if (file.isDirectory()) directoryWorklist.add(file);
+						}
+					}					
+				}
+			}
+			
+			//we want to remove the stuff we're trying to compile so that we don't make assumptions based on
+			//the previous form of the source files
+			//but also want a complete picture for resolving imports and thence QIs
+			for (CompilationUnit c : cus) {
+				String cPackage = c.getPackageString();
+				for (Decl d : c.getDecls()) {
+					String memberName = d.getName();
+					if (plaidpath.memberExists(cPackage, memberName)) {  //indicate that this is outdated and will be updated soon
+						plaidpath.lookupMember(cPackage, memberName).startRecompilation(); 
+					} else { //add shell for use in import resolution
+						MemberRep newMem = null;
+						if (d instanceof FieldDecl) newMem = new FieldRep(memberName);
+						else if (d instanceof MethodDecl) newMem = new MethodRep(memberName);
+						else if (d instanceof StateDecl) newMem = new StateRep(memberName);
+						else throw new RuntimeException("New type of MemberRep not accounted for");
+						
+						//will be replaced later
+						newMem.startRecompilation();
+						plaidpath.addMember(cPackage, newMem);
+					}
+					
+				}	
+			}
+			
+			Queue<StateRep> dependants = new LinkedList<StateRep>();
+			for (CompilationUnit c : cus) {
+				String cPackage = c.getPackageString();
+				
+				//expand imports
+				List<String> declaredMembers = new ArrayList<String>();
+				for (Decl d : c.getDecls()) declaredMembers.add(d.getName());
+				c.getImports().checkAndExpandImports(plaidpath, declaredMembers, cPackage);
+				
+				//fill out plaidpath with declared members (shell info only)
+				for (Decl d : c.getDecls()) {
+					MemberRep rep = d.generateHeader(plaidpath, c.getImports(), cPackage);
+					if (rep instanceof StateRep && ((StateRep) rep).hasNeeds()) {
+						dependants.add((StateRep) rep);  //keep track of ones we need to return to
+					}
+					plaidpath.addMember(cPackage, rep);
+				}
+			}
+			
+			while (!dependants.isEmpty()) {
+				StateRep s = dependants.remove();
+				List<String> newNeeds = new ArrayList<String>();
+				for (String path : s.getNeeds()) {
+					if (plaidpath.memberExists(path)) {
+						MemberRep r = plaidpath.lookupMember(path);
+						if (r instanceof StateRep) {
+							StateRep depState = (StateRep) r;
+							s.addMembers(depState.getMembers());
+							newNeeds.addAll(depState.getNeeds());
+						} else throw new RuntimeException("Something went wrong with dependencies.");
+					} else {
+						throw new RuntimeException("Required Dependency " + path + " not found.");
+					}
+				}
+				s.setNeeds(newNeeds);  //replace old needs with the new needs
+				if (s.hasNeeds()) dependants.add(s);
+			}
+
 			// create header output files during a first pass
 //			try {
 //				if (cc.isVerbose()) System.out.println("GENERATING HEADERS");
@@ -96,17 +232,25 @@ public class CompilerCore {
 				if (cc.isVerbose()) System.out.println("GENERATING CODE");
 				List<File> allFiles = new ArrayList<File>();
 				for(CompilationUnit cu : cus) {
-					List<File> fileList = cu.codegen(cc);
-					if ( cc.isVerbose() ) {
-						for(File f : fileList) {
-							FileReader fr = new FileReader(f);
-							int charRead;
-							while((charRead = fr.read()) != -1) {
-								System.out.print((char)charRead);
+					try {
+						
+						List<File> fileList = cu.codegen(cc, plaidpath);
+						
+						if ( cc.isVerbose() ) {
+							for(File f : fileList) {
+								FileReader fr = new FileReader(f);
+								int charRead;
+								while((charRead = fr.read()) != -1) {
+									System.out.print((char)charRead);
+								}
 							}
 						}
+						allFiles.addAll(fileList);
+					} catch (PlaidException p) {
+						System.out.println("Error while compiling " + cu.getSourceFile().toString() + ":");
+						System.out.println("");
+						p.printStackTrace();
 					}
-					allFiles.addAll(fileList);
 				}
 				
 				if ( !cc.isKeepTemporaryFiles() ) {
@@ -127,7 +271,7 @@ public class CompilerCore {
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
-			}
+			} 
 			return cus;
 		} catch (Exception e) {
 			if (cc.compilerStackTraceEnabled()) {
@@ -255,7 +399,13 @@ public class CompilerCore {
 		// all files must be in the directory corresponding to the package
 		// file package.plaid can have multiple declarations
 		// all other files can have only one declaration which is the same as the filename
-		String sep = System.getProperty("file.separator");
+		
+		// Bug discovered by Aparup:
+		// Windows systems, unlike Unix systems, use backslashes as separators.  As this character
+		// is used inside a regular expression by String.split(), we have to escape the backslash,
+		// otherwise we get a syntax error in our regular expression.  If we are on a Unix system,
+		// escaping the slash (\/) does not change the behavior.
+		String sep = "\\" + System.getProperty("file.separator");
 		String filename = null;
 		String directoryPackage = "";
 		for (String dir : filepath.split(sep)) {
@@ -267,12 +417,10 @@ public class CompilerCore {
 		directoryPackage = directoryPackage.substring(0, directoryPackage.length()-1);
 		if (filename == null) throw new RuntimeException("No Plaid file found");
 		
-		String declaredPackage = "";
-		for (String p : cu.getPackageName()) declaredPackage += p + ".";
-		declaredPackage = declaredPackage.substring(0, declaredPackage.length()-1);
+		String declaredPackage = cu.getPackageString();
 		
 		//make sure the packages match
-		if (!declaredPackage.endsWith((directoryPackage))) 
+		if (!directoryPackage.endsWith(declaredPackage))
 			throw new RuntimeException("File '" + filename + "' in package '" + declaredPackage + 
 					"' resides in mismatched directory '" + directoryPackage + "'.");
 		
