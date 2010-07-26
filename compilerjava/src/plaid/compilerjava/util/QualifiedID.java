@@ -19,6 +19,7 @@
  
 package plaid.compilerjava.util;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class QualifiedID {
@@ -28,6 +29,17 @@ public class QualifiedID {
 	public QualifiedID(List<String> qidList) {
 		super();
 		this.qidList = qidList;
+	}
+	
+	public QualifiedID(String qid, String sep) {
+		qidList = new ArrayList<String>();
+		int indexOfSep = qid.indexOf(sep);
+		while(indexOfSep > -1) {
+			qidList.add(qid.substring(0,indexOfSep));
+			qid = qid.substring(indexOfSep+1);
+			indexOfSep = qid.indexOf(".");
+		}
+		qidList.add(qid);
 	}
 
 	public List<String> getQidList() {

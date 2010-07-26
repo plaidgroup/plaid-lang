@@ -28,36 +28,33 @@ import java.util.Collection;
 import java.util.List;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized.Parameters;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.CompilerCore;
-import uk.ac.lkl.common.util.testing.LabelledParameterized;
 
-@RunWith(LabelledParameterized.class)
 public class PlaidStandardLibrary {
-	private File f;
-	public PlaidStandardLibrary(File f) {
-		this.f = f;
-	}
+//	private File f;
+//	public PlaidStandardLibrary(File f) {
+//		this.f = f;
+//	}
 	
 	@Test
 	public void BuildPlaidStandardLibrary () throws FileNotFoundException {
 		CompilerConfiguration cc = new CompilerConfiguration();
 		cc.setOutputDir("src");
-		cc.addInputFile(f);
+		for (File f : inputFiles())
+			cc.addInputFile(f);
 		cc.setKeepTemporaryFiles(true);
 		cc.setInvokeCompiler(false);
 		cc.setDebugMode(true);
 		cc.setCopyrightHeader(true);
+		cc.addToPlaidPath("bin/");
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();
 	}
 
-	@Parameters
-	public static Collection<Object[]> inputFiles() {
-		Collection<Object[]> results = new ArrayList<Object[]>();
+	private static List<File> inputFiles() {
+		List<File> results = new ArrayList<File>();
 	    String currentdir = System.getProperty("user.dir") + System.getProperty("file.separator"); // should be work space by default
 	    File cur = new File(currentdir);
 	    assertTrue( cur.isDirectory() );
@@ -67,7 +64,7 @@ public class PlaidStandardLibrary {
 				findPlaidFile(f, files);
 				for (File file : files) {
 					File f1 = new File(file.getAbsolutePath().substring(currentdir.length()));
-					results.add(new Object[] { f1 });
+					results.add(f1);
 				}
 			}
 		}

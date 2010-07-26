@@ -21,7 +21,8 @@ package plaid.compilerjava.AST;
 
 
 import java.io.File;
-import java.util.*;
+import java.util.HashSet;
+import java.util.Set;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
@@ -30,6 +31,9 @@ import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
+import plaid.compilerjava.util.MemberRep;
+import plaid.compilerjava.util.MethodRep;
+import plaid.compilerjava.util.PackageRep;
 import plaid.compilerjava.util.QualifiedID;
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.Util;
@@ -88,8 +92,11 @@ public final class MethodDecl implements Decl {
 		return body;
 	}
 
+	public MemberRep generateHeader(PackageRep plaidpath, ImportList imports, String inPackage) {
+		return new MethodRep(name);
+	}
+	
 	// Top-level method declaration
-
 	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
 		String newName = CodeGen.convertOpNames(this.name);
 		ID freshReturn = IdGen.getId();

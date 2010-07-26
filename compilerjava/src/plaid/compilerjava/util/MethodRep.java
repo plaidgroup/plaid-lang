@@ -1,9 +1,13 @@
 package plaid.compilerjava.util;
 
-public class MethodRep implements MemberRep {
-	private String name;
+public class MethodRep extends MemberRep {
 	
-	public String getName() {
-		return name;
+	public MethodRep(String name) {
+		super(name);
 	}
+	
+	public String toString() {
+		return "method " + getName();
+	}
+
 }
