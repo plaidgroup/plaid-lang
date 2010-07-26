@@ -211,4 +211,12 @@ public final class MethodDecl implements Decl {
 //		// TODO Auto-generated method stub
 //		
 //	}
+	
+	@Override
+	public String toString() {
+		StringBuilder toRet= new StringBuilder();
+		if (abstractMethod) toRet.append("abstract ");
+		toRet.append("method " + name);
+		return toRet.toString();
+	}
 }

@@ -54,6 +54,11 @@ public class StateRep extends MemberRep {
 			toRet.setCharAt(toRet.lastIndexOf(","), ')');
 		else
 			toRet.append(")");
+		if (!needs.isEmpty()) {
+			toRet.append(" Needs(");
+			for (String n : needs) toRet.append(n + ",");
+			toRet.setCharAt(toRet.lastIndexOf(","), ')');
+		}
 		return toRet.toString();
 
 	}
