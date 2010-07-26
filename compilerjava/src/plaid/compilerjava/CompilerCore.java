@@ -92,7 +92,21 @@ public class CompilerCore {
 			PackageRep plaidpath = new PackageRep("$TOPLEVEL$");
 			Stack<File> directoryWorklist = new Stack<File>();
 			for (String base : cc.getPlaidpath()) {
+
 				File baseDir = new File(base);
+				if (baseDir.getAbsolutePath().contains("..")) { //realtive paths need to be processed
+					String absPath = baseDir.getAbsolutePath();
+					while (absPath.contains("..")) {
+						int dotDotLoc = absPath.indexOf("..");
+						String prefix = absPath.substring(0,dotDotLoc-1);  //don't include previous separator
+						String suffix = absPath.substring(dotDotLoc + 2);
+						String sep = suffix.substring(0,1);
+						absPath = prefix.substring(0,prefix.lastIndexOf(sep)) + suffix;  //get rid of .. and previous dir  
+					}
+					
+					baseDir = new File(absPath); //update the file to have the correct path without ".."'s
+				
+				}
 				if (!baseDir.isDirectory()) throw new RuntimeException("plaidpath entry " + base + " is not a directory");
 				else {
 					directoryWorklist.push(baseDir);
@@ -108,37 +122,43 @@ public class CompilerCore {
 									String className = filepath.substring(absoluteBase.length(), filepath.length() - 6).replace(System.getProperty("file.separator"), ".");
 									if (defLoader == null) {
 										URL[] loaderDir = { new URL("file://" + absoluteBase) };
-										defLoader = new URLClassLoader(loaderDir);
+										defLoader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
 									}
 //									System.out.println("Trying to load \"" + className + "\"...");
 //									System.out.println("  filepath = \"" + filepath + "\"");
 //									System.out.println("  absoluteBase = \"" + absoluteBase + "\"");
-									Class<?> classRep = defLoader.loadClass(className);
-									for (Annotation a : classRep.getAnnotations()) {
-										String thePackage = null;
-										MemberRep member = null;
-										
-										if (a instanceof RepresentsField) {
-											RepresentsField f = (RepresentsField) a;
-											thePackage = f.inPackage();
-											member = new FieldRep(f.name());
-										} else if (a instanceof RepresentsMethod) {
-											RepresentsMethod m = (RepresentsMethod) a;
-											thePackage = m.inPackage();
-											member = new MethodRep(m.name());
-										} else if (a instanceof RepresentsState) {
-											RepresentsState s = (RepresentsState) a;
-											thePackage = s.inPackage();
-											StateRep state = new StateRep(s.name());
-											for (String sm : s.members().split(",")) state.addMember(sm);
-											member = state;
+									try {
+										Class<?> classRep = defLoader.loadClass(className);
+//										if (classRep.getAnnotations().length == 0) System.out.println("Not Finding annotations");
+										for (Annotation a : classRep.getAnnotations()) {
+											String thePackage = null;
+											MemberRep member = null;
+											
+											if (a instanceof RepresentsField) {
+												RepresentsField f = (RepresentsField) a;
+												thePackage = f.inPackage();
+												member = new FieldRep(f.name());
+											} else if (a instanceof RepresentsMethod) {
+												RepresentsMethod m = (RepresentsMethod) a;
+												thePackage = m.inPackage();
+												member = new MethodRep(m.name());
+											} else if (a instanceof RepresentsState) {
+												RepresentsState s = (RepresentsState) a;
+												thePackage = s.inPackage();
+												StateRep state = new StateRep(s.name());
+												for (String sm : s.members().split(",")) state.addMember(sm);
+												member = state;
+											}
+											if (member != null) { //if this was a plaid generated java file
+												if (!className.startsWith(thePackage))
+													throw new RuntimeException("Package " + thePackage + "of member " + member.getName() + " does not match file path " + className + ".");
+											
+												plaidpath.addMember(thePackage, member);
+//												System.out.println("added " + thePackage + "." + member.getName());
+											}
 										}
-										if (member != null) { //if this was a plaid generated java file
-											if (!className.startsWith(thePackage))
-												throw new RuntimeException("Package " + thePackage + "of member " + member.getName() + " does not match file path " + className + ".");
-										
-											plaidpath.addMember(thePackage, member);
-										}
+									} catch (NoClassDefFoundError e) {
+										e.printStackTrace();
 									}
 								}
 							} else if (file.isDirectory()) directoryWorklist.add(file);
@@ -236,7 +256,7 @@ public class CompilerCore {
 				List<File> allFiles = new ArrayList<File>();
 				for(CompilationUnit cu : cus) {
 					try {
-						
+						System.out.println("generateing code for:\n" + cu);
 						List<File> fileList = cu.codegen(cc, plaidpath);
 						
 						if ( cc.isVerbose() ) {

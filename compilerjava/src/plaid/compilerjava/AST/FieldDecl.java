@@ -199,6 +199,14 @@ public class FieldDecl implements Decl{
 //		// TODO Auto-generated method stub
 //		
 //	}
+	
+	@Override
+	public String toString() {
+		StringBuilder toRet= new StringBuilder();
+		if (abstractField) toRet.append("abstract ");
+		toRet.append("field " + f.getName());
+		return toRet.toString();
+	}
 
 
 }

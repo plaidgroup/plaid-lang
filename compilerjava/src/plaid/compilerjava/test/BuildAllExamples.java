@@ -54,8 +54,9 @@ public class BuildAllExamples {
 		String sep = System.getProperty("file.separator");
 		cc.addToPlaidPath("bin" + sep);
 		String projectDir = System.getProperty("user.dir");
-		String stdLibDir = projectDir.substring(0,projectDir.lastIndexOf(sep));
-		cc.addToPlaidPath(stdLibDir + sep + "stdlib" + sep + "bin" + sep);
+		cc.addToPlaidPath(".." + sep + "stdlib" + sep + "bin" + sep);
+//		String stdLibDir = projectDir.substring(0,projectDir.lastIndexOf(sep));
+//		cc.addToPlaidPath(stdLibDir + sep + "stdlib" + sep + "bin" + sep);
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();
 	}
