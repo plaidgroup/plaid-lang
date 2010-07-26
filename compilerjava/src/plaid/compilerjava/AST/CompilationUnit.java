@@ -117,14 +117,24 @@ public class CompilationUnit implements ASTnode {
 	}
 
 	@Override
-	public void visitChildren(ASTVisitor visitor) {
+	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		for (Decl d : decls)
 			d.accept(visitor);
 		imports.accept(visitor);
 	}
 	
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visitNode(this);
+	public <T> T accept(ASTVisitor<T> visitor) {
+		return visitor.visitNode(this);
+	}
+	
+	@Override
+	public String toString() {
+		StringBuilder toRet = new StringBuilder("package: ");
+		toRet.append(getPackageString());
+		toRet.append("\n declares:\n");
+		for(Decl d : decls) toRet.append("\t" + d.getName() + "\n");
+		
+		return toRet.toString();
 	}
 }

@@ -32,6 +32,6 @@ public interface ASTnode {
 
 	public Token getToken();
 	
-	public void visitChildren(ASTVisitor visitor);
-	public void accept(ASTVisitor visitor);
+	public <T> void visitChildren(ASTVisitor<T> visitor);
+	public <T> T accept(ASTVisitor<T> visitor);
 }

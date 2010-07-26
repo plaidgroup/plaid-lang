@@ -13,8 +13,8 @@ public class FieldTypeDecl implements TypeDecl {
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visitNode(this);
+	public <T> T accept(ASTVisitor<T> visitor) {
+		return visitor.visitNode(this);
 	}
 
 	@Override
@@ -24,7 +24,7 @@ public class FieldTypeDecl implements TypeDecl {
 	}
 
 	@Override
-	public void visitChildren(ASTVisitor visitor) {
+	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		this.permType.accept(visitor);
 	}
 

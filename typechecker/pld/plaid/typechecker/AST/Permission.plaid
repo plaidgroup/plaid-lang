@@ -3,4 +3,309 @@ package plaid.typechecker.AST;
 state Permission {
 	val /*Token*/ token;
 	val /*String*/ image;
+	
+	val permSplits = java.util.HashMap.new();
+	
+	/**
+	 * Determines whether a specific permission is writable.  If this permission 
+	 * allows a stage change, then the permission is writable and this function 
+	 * returns true.  Returns false otherwise.
+	 */
+	method isWritable();
+	
+	/**
+	 * Determines whether the current permission can be split into 
+	 * the specified permission.  If it can, the function returns Some((p2, p3))
+	 * where p2 and p3 are the results of the split as specified by the 
+	 * permission splitting judgment.  If it cannot, the function returns None.
+	 */
+	method split(p2);
+	
+	/**
+	 * Compares this permission to the specified permission.  If they are of the
+	 * same type, then they are considered equal.  Returns true if the two
+	 * permissions are equal and false otherwise.
+	 */
+	method ==(p2);
+	
+	/**
+	 * Returns the stronger of the two access permissions.
+	 */
+	method merge(p2);
+}
+
+state UniquePermission case of Permission {
+	override method isWritable() {
+		true;
+	}
+
+	override method split(p2) {
+		match(p2) {
+			// unique => unique/none
+			case UniquePermission {
+				(p2, new NonePermission)
+			}
+			// unique => full/pure
+			case FullPermission {
+				(p2, new PurePermission)
+			}
+			// unique => shared/shared
+			case SharedPermission {
+				(p2, p2)
+			}
+			// unique => immutable/immutable
+			case ImmutablePermission {
+				(p2, p2)
+			}
+			// unique => pure/full
+			case PurePermission {
+				(p2, new FullPermission)
+			}
+			// unique => none/unique
+			case NonePermission {
+				(p2, this)
+			}
+			default {
+				new None;
+			}
+		};
+	}
+	
+	override method ==(p2) {
+		match(p2) {
+			case UniquePermission {
+				true;
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	override method merge(p2) {
+		this;
+	}
+}
+
+state FullPermission case of Permission {
+	override method isWritable() {
+		true;
+	}
+
+	override method split(p2) {
+		match(p2) {
+			// full => full/pure
+			case FullPermission {
+				(p2, new PurePermission)
+			}
+			// full => shared/shared
+			case SharedPermission {
+				(p2, p2)
+			}
+			// full => immutable/immutable
+			case ImmutablePermission {
+				(p2, p2)
+			}
+			// full => pure/full
+			case PurePermission {
+				(p2, this)
+			}
+			// full => none/full
+			case NonePermission {
+				(p2, this)
+			}
+			default {
+				new None;
+			}
+		};
+	}
+	
+	override method ==(p2) {
+		match(p2) {
+			case FullPermission {
+				true;
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	override method merge(p2) {
+		ifElse (p2 == UNIQUE) {
+			p2;
+		}{
+			this;
+		};
+	}
+}
+
+state SharedPermission case of Permission {
+	override method isWritable() {
+		false;
+	}
+
+	override method split(p2) {
+		match(p2) {
+			// shared => shared/shared
+			case SharedPermission {
+				(p2, this)
+			}
+			// shared => none/shared
+			case NonePermission {
+				(p2, this)
+			}
+			default {
+				new None;
+			}
+		};
+	}
+	
+	override method ==(p2) {
+		match(p2) {
+			case SharedPermission {
+				true;
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	// TODO: Not sure if this is correct.
+	override method merge(p2) {
+		ifElse (p2 == UNIQUE) {
+			p2;
+		}{
+			ifElse (p2 == FULL) {
+				p2;
+			}{
+				this;
+			};
+		};
+	}
+}
+
+state ImmutablePermission case of Permission {
+	override method isWritable() {
+		false;
+	}
+
+	override method split(p2) {
+		match(p2) {
+			// immutable => immutable/immutable
+			case ImmutablePermission {
+				(p2, this)
+			}
+			// immutable => pure/immutable
+			case PurePermission {
+				(p2, this)
+			}
+			// immutable => none/immutable
+			case NonePermission {
+				(p2, this)
+			}
+			default {
+				new None;
+			}
+		};
+	}
+	
+	override method ==(p2) {
+		match(p2) {
+			case ImmutablePermission {
+				true;
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	// TODO: Not sure if this is correct.
+	override method merge(p2) {
+		ifElse (p2 == UNIQUE) {
+			p2;
+		}{
+			ifElse (p2 == FULL) {
+				p2;
+			}{
+				this;
+			};
+		};
+	}
+}
+
+state PurePermission case of Permission {
+	override method isWritable() {
+		true;
+	}
+
+	override method split(p2) {
+		match(p2) {
+			// pure => pure/pure
+			case PurePermission {
+				(p2, this)
+			}
+			// pure => none/pure
+			case NonePermission {
+				(p2, this)
+			}
+			default {
+				new None;
+			}
+		};
+	}
+	
+	override method ==(p2) {
+		match(p2) {
+			case PurePermission {
+				true;
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	override method merge(p2) {
+		ifElse (p2 == NONE) {
+			this;
+		}{
+			p2;
+		};
+	}
+}
+
+state NonePermission case of Permission {
+	override method isWritable() {
+		false;
+	}
+
+	override method split(p2) {
+		match(p2) {
+			// none => none/none
+			case NonePermission {
+				(p2, this)
+			}
+			default {
+				new None;
+			}
+		};
+	}
+	
+	override method ==(p2) {
+		match(p2) {
+			case NonePermission {
+				true;
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	override method merge(p2) {
+		p2;
+	}
 }

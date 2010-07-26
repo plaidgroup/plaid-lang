@@ -152,7 +152,9 @@ public class StateDecl implements Decl {
 		else { //try imports
 			for (QualifiedID anImport : imports.getImports()) {
 				potentialNeed = anImport.toString();
-				if (potentialNeed.endsWith(qid)) {  //TODO : this will be a problem if you can compose with Java objects
+				//TODO : this will be a problem if you can compose with Java objects
+				if ((qid.contains(".") && potentialNeed.equals(qid)) || //either contains a dot and is equal to the whole import
+						potentialNeed.endsWith("." + qid)) {  //or is just the suffix (but must be the complete name)
 					if (plaidpath.memberExists(potentialNeed)) {
 						return potentialNeed;
 					} else
@@ -160,6 +162,7 @@ public class StateDecl implements Decl {
 				}
 			}
 		}
+		int x = 1;
 		throw new RuntimeException("Name " + qid + " not declared or imported");
 	}
 	
@@ -263,14 +266,14 @@ public class StateDecl implements Decl {
 	}
 
 	@Override
-	public void visitChildren(ASTVisitor visitor) {
+	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		name.accept(visitor);
 		stateDef.accept(visitor);
 	}
 	
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visitNode(this);
+	public <T> T accept(ASTVisitor<T> visitor) {
+		return visitor.visitNode(this);
 	}
 
 //	@Override
@@ -279,4 +282,12 @@ public class StateDecl implements Decl {
 //		// TODO Auto-generated method stub
 //		
 //	}
+	
+	@Override
+	public String toString() {
+		StringBuilder toRet= new StringBuilder();
+	
+		toRet.append("state " + name);
+		return toRet.toString();
+	}
 }
