@@ -178,15 +178,15 @@ public class FieldDecl implements Decl{
 	}
 
 	@Override
-	public void visitChildren(ASTVisitor visitor) {
+	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		this.f.accept(visitor);
 		this.fieldType.accept(visitor);
 		this.e.accept(visitor);
 	}
 
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visitNode(this);
+	public <T> T accept(ASTVisitor<T> visitor) {
+		return visitor.visitNode(this);
 	}
 
 	public boolean getImmutable() {
@@ -199,6 +199,14 @@ public class FieldDecl implements Decl{
 //		// TODO Auto-generated method stub
 //		
 //	}
+	
+	@Override
+	public String toString() {
+		StringBuilder toRet= new StringBuilder();
+		if (abstractField) toRet.append("abstract ");
+		toRet.append("field " + f.getName());
+		return toRet.toString();
+	}
 
 
 }

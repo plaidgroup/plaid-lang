@@ -40,7 +40,6 @@ public interface Decl extends ASTnode {
 	
 	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext);
 
-	
 	public String getName();
 }
 

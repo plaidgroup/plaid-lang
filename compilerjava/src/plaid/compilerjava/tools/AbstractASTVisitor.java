@@ -11,17 +11,17 @@ import plaid.compilerjava.AST.*;
  * @author mhahnenberg
  *
  */
-public abstract class AbstractASTVisitor implements ASTVisitor {
-	public ASTVisitor enter(ASTnode node) {
+public abstract class AbstractASTVisitor implements ASTVisitor<ASTnode> {
+	public ASTVisitor<ASTnode> enter(ASTnode node) {
 		return this;
 	}
 	
-	public ASTnode leave(ASTnode node, ASTnode oldNode, ASTVisitor visitor) {
+	public ASTnode leave(ASTnode node, ASTnode oldNode, ASTVisitor<ASTnode> visitor) {
 		return node;
 	}
 	
 	private <T extends ASTnode> ASTnode visitHelper(T node) {
-		ASTVisitor visitor = this.enter(node);
+		ASTVisitor<ASTnode> visitor = this.enter(node);
 	    node.visitChildren(this);
 	    return this.leave(node, node, visitor);
 	}

@@ -189,15 +189,15 @@ public final class MethodDecl implements Decl {
 	}
 
 	@Override
-	public void visitChildren(ASTVisitor visitor) {
+	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		this.body.accept(visitor);
 		this.arg.accept(visitor);
 		this.methodType.accept(visitor);
 	}
 	
 	@Override
-	public void accept(ASTVisitor visitor) {
-		visitor.visitNode(this);
+	public <T> T accept(ASTVisitor<T> visitor) {
+		return visitor.visitNode(this);
 	}
 
 	@Override
@@ -211,4 +211,12 @@ public final class MethodDecl implements Decl {
 //		// TODO Auto-generated method stub
 //		
 //	}
+	
+	@Override
+	public String toString() {
+		StringBuilder toRet= new StringBuilder();
+		if (abstractMethod) toRet.append("abstract ");
+		toRet.append("method " + name);
+		return toRet.toString();
+	}
 }
