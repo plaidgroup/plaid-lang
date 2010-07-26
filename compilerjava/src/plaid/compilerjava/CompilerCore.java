@@ -96,7 +96,7 @@ public class CompilerCore {
 				if (!baseDir.isDirectory()) throw new RuntimeException("plaidpath entry " + base + " is not a directory");
 				else {
 					directoryWorklist.push(baseDir);
-					String absoluteBase = baseDir.getAbsolutePath();
+					String absoluteBase = baseDir.getAbsolutePath() + System.getProperty("file.separator");
 					File currentDirectory;
 					URLClassLoader defLoader = null;
 					while(!directoryWorklist.isEmpty()) {
@@ -105,11 +105,14 @@ public class CompilerCore {
 							if (file.isFile()) {
 								if (file.getName().endsWith(".class")) { //load in the hopes that this is a compiled .plaid file
 									String filepath = file.getAbsolutePath();
-									String className = filepath.substring(absoluteBase.length() + 1, filepath.length() - 6).replace(System.getProperty("file.separator"), ".");
+									String className = filepath.substring(absoluteBase.length(), filepath.length() - 6).replace(System.getProperty("file.separator"), ".");
 									if (defLoader == null) {
 										URL[] loaderDir = { new URL("file://" + absoluteBase) };
 										defLoader = new URLClassLoader(loaderDir);
 									}
+//									System.out.println("Trying to load \"" + className + "\"...");
+//									System.out.println("  filepath = \"" + filepath + "\"");
+//									System.out.println("  absoluteBase = \"" + absoluteBase + "\"");
 									Class<?> classRep = defLoader.loadClass(className);
 									for (Annotation a : classRep.getAnnotations()) {
 										String thePackage = null;
