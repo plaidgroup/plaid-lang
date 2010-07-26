@@ -1,6 +1,5 @@
 package plaid.runtime.models.map;
 
-import java.io.IOException;
 import java.util.*;
 
 import plaid.runtime.PlaidClassLoader;
@@ -43,10 +42,6 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	}
 	
 	private void addImport(Import imp) {
-		
-		
-		//Collection<Import> expanded = expandImport(imp); //this is now done in the compiler
-		//for (Import im : expanded) {					   
 		if (imp.isStar()) //java imports are the only starred imports, leave these for slow lookup
 			javaImports.add(imp);
 		else {
@@ -64,38 +59,6 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 		for (Import imp : imports)
 			this.addImport(imp);
 	}
-	
-//	@SuppressWarnings("unchecked")
-//	private Collection<Import> expandImport(Import imp) {
-//		Set<Import> expanded = new HashSet<Import>();
-//		
-//		if (expandedImports.containsKey(imp))
-//			return expandedImports.get(imp);
-//		
-//		if (imp.isStar()) {
-//			try {
-//				PlaidClassLoader cl = PlaidRuntime.getRuntime().getClassLoader();
-//				List<Class> classes = cl.getClasses(imp.getIdent().toString());
-//				for (Class c : classes)
-//					expanded.add(new Import(c.getName()));
-//			}
-//			catch (IOException e) {
-//				System.out.println("IOException");
-//			}
-//			catch (ClassNotFoundException e) {
-//				System.out.println("ClassNotFoundException");
-//			}
-//		}
-//		else
-//			expanded.add(imp);
-//		
-//		if (expanded.isEmpty())
-//			nonExpandedImports.add(imp);
-//		else
-//			expandedImports.put(imp, expanded);
-//		
-//		return expanded;
-//	}
 	
 	public PlaidObject lookup(String name) {
 		// check scope map
