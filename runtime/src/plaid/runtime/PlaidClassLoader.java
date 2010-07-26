@@ -113,8 +113,6 @@ public interface PlaidClassLoader {
 	 */
 	public PlaidTag tag(String tagName, PlaidState caseOf);
 	
-	public List<Class> getClasses(String packageName) throws ClassNotFoundException, IOException;
-	
 	/**
 	 * TODO: Document
 	 * @param name
