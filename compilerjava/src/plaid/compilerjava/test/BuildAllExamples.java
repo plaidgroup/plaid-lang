@@ -24,16 +24,12 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized.Parameters;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.CompilerCore;
-import uk.ac.lkl.common.util.testing.LabelledParameterized;
 
 //@RunWith(LabelledParameterized.class)
 public class BuildAllExamples {
@@ -50,13 +46,11 @@ public class BuildAllExamples {
 			cc.addInputFile(f);
 		cc.setKeepTemporaryFiles(true);
 		cc.setInvokeCompiler(false);
-		cc.setDebugMode(false);
+		cc.setDebugMode(true);
+		cc.setPrettyPrint(true);
 		String sep = System.getProperty("file.separator");
 		cc.addToPlaidPath("bin" + sep);
-		String projectDir = System.getProperty("user.dir");
 		cc.addToPlaidPath(".." + sep + "stdlib" + sep + "bin" + sep);
-//		String stdLibDir = projectDir.substring(0,projectDir.lastIndexOf(sep));
-//		cc.addToPlaidPath(stdLibDir + sep + "stdlib" + sep + "bin" + sep);
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();
 	}
