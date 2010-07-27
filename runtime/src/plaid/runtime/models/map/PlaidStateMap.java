@@ -255,22 +255,21 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		for ( Map.Entry<PlaidMemberDef, PlaidObject> member : prototype.getMembers().entrySet() ) {
 			PlaidObject memberValue = member.getValue();
 			PlaidMemberDef memberKey = member.getKey();
-			if ( memberValue instanceof PlaidProtoMethodMap ) {
-			
+			if (memberValue instanceof PlaidProtoMethodMap) {
 				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap) memberValue;
 				PlaidMethodMap method = new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate());
 				pom.addMember(memberKey, method);
-			
-			} else if ( memberValue  instanceof PlaidProtoFieldMap ) {
-			
+			} 
+			else if (memberValue  instanceof PlaidProtoFieldMap) {
 				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap) memberValue;
 				PlaidMethod initializer = new PlaidMethodMap(memberKey.getMemberName(), pom, ppfm.getInitalizer());
 				pom.addMember(memberKey, initializer.invoke(Util.unit()));
-			
-			} else if ( memberValue instanceof PlaidAbstractValueMap ) {
-			
+			} 
+			else if (memberValue instanceof PlaidAbstractValueMap) {
 				pom.addMember(memberKey, memberValue);
-			
+			}
+			else {
+				pom.addMember(memberKey, memberValue);
 			}
 		}
 		
