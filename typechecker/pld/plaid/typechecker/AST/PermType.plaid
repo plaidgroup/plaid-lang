@@ -1,0 +1,72 @@
+package plaid.typechecker.AST;
+
+state PermType {
+	val /*Permission*/ perm;
+	val /*Type*/ type;
+	
+	method copy(){
+		new PermType{
+			val perm = this.perm;
+			val type = this.type;
+		};
+	}
+
+	/**
+	 * Merges the two permtypes together.  Merging takes the stronger of the 
+	 * two access permissions and the union of the two types.
+	 *
+	 * TODO: should this really be the union of the types?  What if the types
+	 * do not have the supertype/subtype relation?  Is this actually a problem?
+	 */
+	method merge(p2) {
+		new PermType{ val perm = this.perm.merge(p2.perm); 
+					  val type = this.type.merge(p2.type); };
+	}
+	
+	/**
+	 * Joins the two permtypes together.  Joining takes the weaker of the two 
+	 * access permissions and the intersection of the types.
+	 *
+	 * TODO: should this really be the intersection of the types?  What if the 
+	 * types do not have the supertype/subtype relation?  Is this actually a problem?
+	 */
+	method join() {
+		new PermType{ val perm = this.perm.join(p2.perm);
+					  val type = this.type.join(p2.type); };
+	}
+	
+	method split(PermType p2) {
+		val otherPerm = p2.perm;
+		val otherType = p2.type;
+		
+		val splitPerm = this.perm.split(otherPerm);
+		
+		ifElse (otherType.isSubtypeOf(this.type)) {
+			(p2, new PermType{ val perm = splitPerm.second(); val type = this.type; })
+		}{
+			match(p2) {
+				case DynPermType {
+					match (this.perm) {
+						case UniquePermission {
+							new None;
+						}
+						default {
+							(p2, this)
+						}
+					};
+				}
+				default {
+					new None;
+				}
+			};
+		};
+	}
+	
+	method residue() {
+		this.split(this).second();
+	}
+	
+	method isWritable() {
+		perm.isWritable();
+	}
+}
