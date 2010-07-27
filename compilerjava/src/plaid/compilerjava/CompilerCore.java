@@ -381,8 +381,7 @@ public class CompilerCore {
 					cc.setVerbose(true);
 				} else if (value.equals("-n") || value.equals("-nocompile")) {
 					cc.setInvokeCompiler(false);
-				}
-				else if ( value.equals("-d") || value.equals("--directory")) {
+				} else if ( value.equals("-d") || value.equals("--directory")) {
 					if ( it.hasNext()) {
 						cc.setInputDir(it.next());
 					} else {
@@ -400,7 +399,9 @@ public class CompilerCore {
 						usage();
 						System.exit(-1);
 					}
-				} else {
+				} else if ( value.equals("-r") || value.equals("--readable")){ 
+					cc.setPrettyPrint(true);
+				}else {
 					System.out.println("ERROR: found invalid command line option : " + value);
 					usage();
 					System.exit(-1);

@@ -37,6 +37,7 @@ public class CompilerConfiguration {
 	private boolean verbose = false;
 	private boolean copyright = false;
 	private boolean printCompilerStackTrace = true;
+	private boolean prettyPrint = false;
 	private CompilationUnit cu = null;
 	
 	public CompilerConfiguration() {}
@@ -51,6 +52,7 @@ public class CompilerConfiguration {
 		this.keepTemporaryFiles = other.keepTemporaryFiles;
 		this.verbose = other.verbose;
 		this.copyright = other.copyright;
+		this.prettyPrint = other.prettyPrint;
 		this.cu = cu;
 	}
 
@@ -140,5 +142,13 @@ public class CompilerConfiguration {
 	
 	public void addToPlaidPath(String dir) {
 		plaidpath.add(dir);
+	}
+	
+	public boolean prettyPrint() {
+		return prettyPrint;
+	}
+	
+	public void setPrettyPrint(boolean prettyPrint) {
+		this.prettyPrint = prettyPrint;
 	}
 }

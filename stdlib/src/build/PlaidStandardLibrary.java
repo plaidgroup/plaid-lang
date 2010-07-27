@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import org.junit.Test;
@@ -47,6 +46,7 @@ public class PlaidStandardLibrary {
 		cc.setKeepTemporaryFiles(true);
 		cc.setInvokeCompiler(false);
 		cc.setDebugMode(true);
+		cc.setPrettyPrint(true);
 		cc.setCopyrightHeader(true);
 		cc.addToPlaidPath("bin/");
 		CompilerCore compiler = new CompilerCore(cc);
