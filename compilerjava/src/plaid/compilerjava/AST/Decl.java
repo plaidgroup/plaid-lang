@@ -34,7 +34,7 @@ public interface Decl extends ASTnode {
 
 	public MemberRep generateHeader(PackageRep plaidpath, ImportList imports, String inPackage);
 	
-	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> stateVars);
+	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars, PackageRep plaidPath);
 
 	//public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, String stateContext);
 	

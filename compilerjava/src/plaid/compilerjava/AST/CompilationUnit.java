@@ -94,6 +94,9 @@ public class CompilationUnit implements ASTnode {
 		// namespaces of everything this CompilationUnit is responsible for compiling.
 		// It also must be a Set and not the functional-style equivalent IDList because we 
 		// need for the declarations made in one method to be seen in all of the others.
+		
+		//move this stuff inside the decls and give it the plaidpath instead
+		
 		Set<ID> globalVars = new HashSet<ID>();
 		// this loop *must* come before the second loop that does the actual code generation
 		// because we need to add all of the top-level declarations to the set of global IDs so 
@@ -103,7 +106,7 @@ public class CompilationUnit implements ASTnode {
 		}
 		//Declarations
 		for (Decl d : decls) {
-			fileList.add(d.codegenTopDecl(new QualifiedID(packageName), imports, ccu, globalVars));
+			fileList.add(d.codegenTopDecl(new QualifiedID(packageName), imports, ccu, globalVars, plaidpath));
 		}
 		
 		return fileList;

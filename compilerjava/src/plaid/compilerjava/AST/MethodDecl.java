@@ -97,7 +97,7 @@ public final class MethodDecl implements Decl {
 	}
 	
 	// Top-level method declaration
-	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
+	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars, PackageRep plaidpath) {
 		String newName = CodeGen.convertOpNames(this.name);
 		ID freshReturn = IdGen.getId();
 		ID freshImports = IdGen.getId();
