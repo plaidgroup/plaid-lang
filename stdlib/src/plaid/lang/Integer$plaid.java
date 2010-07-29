@@ -33,7 +33,7 @@ import plaid.runtime.models.map.PlaidLocalScopeMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 
-@RepresentsState(name="Integer", inPackage = "plaid.lang", toplevel=true, javaobject=true, members = "+,-,*,/,%,==,!=,<,>,<=,>=")
+@RepresentsState(name="Integer", inPackage = "plaid.lang", toplevel=true, javaobject=true, members = "m(+),m(-),m(*),m(/),m(%),m(==),m(!=),m(<),m(>),m(<=),m(>=)")
 public class Integer$plaid {
 	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 	
