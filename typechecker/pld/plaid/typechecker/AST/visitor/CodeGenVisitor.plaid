@@ -1,0 +1,372 @@
+package plaid.typechecker.AST.visitor;
+
+//import plaid.compilerjava.util.*;
+//import plaid.runtime.PlaidConstants;
+
+state CodeGenVisitor case of ASTVisitor {
+	var root; 		// The root of the AST to generate code for
+	var qid;		// Package declaration.
+	var imports;	// Import list.
+	var cc;			// Compiler configuration.
+	var globals;	// Global variables.
+	var out;		// Java codegen helper object.
+	
+	// Additional global values for passing state around accept() calls.
+	// Invariant: Assigned before accept() call, and copied to local variables
+	// at the beginning of method call.
+	// TODO: Reimplement using state change once that's working properly?
+	var g_freshImports;
+	var g_freshReturn;
+	var g_locals;
+	var g_y;
+	var g_stateVars;
+	var g_theState;
+	var g_idList;
+	var g_name;
+	var g_declaredState;
+	
+	// Java true and false values
+	// TODO: Add some feature to plaid to make this nicer
+	val jtrue  = java.lang.Boolean.TRUE;
+	val jfalse = java.lang.Boolean.FALSE;
+
+	// Create a new file with Decl as top level
+	// Client access method
+	method createDecl(root2, qid2, imports2, cc2, globals2) {
+		// Initialize CodeGenVisitor
+		root = root2;
+		qid = qid2;
+		imports = imports2;
+		cc = cc2;
+		globals = globals2;
+		out = CodeGen.new(cc);
+	
+		match (node) {
+			case FieldDecl {
+				// Create this decl as a field and return the new file
+				createFieldDecl();
+			}
+			case MethodDecl {
+				createMethodDecl();
+			}
+			case StateDecl {
+				createStateDecl();
+			}
+			default {
+				System.out.println(
+					"Error: Trying to generate non-Decl at top-level");
+				System.exit(1);
+			}
+		}
+	}
+
+	// Create a new file with FieldDecl as top level
+	method createFieldDecl() {
+		var locals = IDList.new(globals);
+		var freshImports = IdGen.getId();
+		
+		// package qid;
+		out.declarePackage(qid.toString());
+		
+		// @plaid.runtime.annotations (...)
+		out.fieldAnnotation(root.f.getName(), jtrue);
+		
+		// public class c {
+		out.declarePublicClass(root.f.getName()); 
+		out.openBlock();
+		
+		// Get imports, define scopes
+		out.declarePublicStaticFinalVar(
+			"java.util.List<plaid.runtime.utils.Import>",
+			freshImports.getName());
+		
+		g_locals = locals;
+		g_freshImports = freshImports;
+		imports.accept(this);
+		
+		out.declareGlobalScope(qid.toString(), freshImports.getName());
+		
+		out.openStaticBlock(); //static {
+		out.declareLocalScope(out.globalScope);
+		
+		// Generate the expr
+		var y = root.f;
+		var stateVars = HashSet.new();
+		g_y = y;
+		g_stateVars = stateVars;
+		e.accept(this);
+		
+		// TODO: Want to declare as immutable, 
+		// but root.immutable field does not exist
+		// out.insertIntoScope(out.globalScope, 
+		//     root.f.getName(), root.immutable);
+		
+		out.closeBlock(); out.closeBlock(); //}}
+		
+		FileGen.createOutputFile(f.getName(), cc.getOutputDir(),
+			out.formatFile(), qid);
+		
+	}
+
+	method createMethodDecl() {
+		var thisMethod = ID.new(root.name + "_func");
+		var freshReturn = IdGen.getId();
+	    var freshImports = IdGen.getId();
+		var locals = IDList.new(globals);
+		
+		//package and needed imports
+		out.declarePackage(qid.toString());
+		
+		//annotation and class definition
+		out.methodAnnotation(root.name, jtrue);
+		out.declarePublicClass(root.name); out.openBlock(); //public class name {
+
+		//generate code to create the package scope with imports
+		out.declarePublicStaticFinalVar(
+			"java.util.List<plaid.runtime.utils.Import>",
+			freshImports.getName());
+			
+		g_freshReturn = freshReturn;
+		g_freshImports = freshImports;
+		g_locals = locals;
+		imports.accept(this);
+		
+		out.declareGlobalScope(qid.toString(), freshImports.getName());
+		
+		if (root.name.equals("main")) { //TODO: && has no arguments
+			out.topLevelMain(root.name + "_func");
+		} else {
+			locals = locals.add(arg);
+		};
+		
+		out.methodAnnotation(root.name, jfalse);
+		out.declarePublicStaticFinalVar(out.plaidMethodType,
+			thisMethod.getName());
+		out.openStaticBlock(); // static {
+		
+		// add local scope so that the lambda creation works properly
+		out.declareLocalScope(out.globalScope);
+		out.assignToNewLambda(thisMethod.getName(), arg.getName());
+		out.declareVar(out.plaidObjectType, freshReturn.getName());
+		
+		//top level functions lookup with unit
+		var stateVars = HashSet.new();
+		g_stateVars = stateVars;
+		body.accept(this);
+
+		out.ret(freshReturn.getName());
+		out.closeAnonymousDeclaration(); // }});
+		
+		out.closeBlock(); // }  (for static block)
+		out.closeBlock(); // }  (for class declaration)
+		
+		FileGen.createOutputFile(root.name, cc.getOutputDir(), 
+			out.formatFile(), qid);
+	}
+	
+	method createStateDecl() {
+		var freshImports = IdGen.getId();
+		var theState = IdGen.getId();
+		var thePackage = qid.toString();
+		
+		//package and needed imports
+		out.declarePackage(thePackage); //package qid;
+		
+		//determine what members this state has and add annotations
+		var stateVars = genStateVars(qid, imports.getImports(), root.stateDef,
+			root.caseOf); //TODO write this method in Plaid
+		
+		var members = StringBuilder.new();
+		
+		var i = 0;
+		while { i < stateVars.size() } {
+			members.append(stateVars.get(i).getName() + ",");
+			i = i + 1;
+		};
+		
+		var memberString = members.toString();
+		if (memberString.length() > 0) {
+			memberString = memberString.substring(0, memberString.length() - 1);
+		};
+		
+		// state annotation and class definition
+		out.topStateAnnotation(root.name.getName(), thePackage, memberString);
+		out.declarePublicClass(root.name.getName()); 
+		out.openBlock();  // public class f {
+		
+		//generate code to create the package scope with imports
+		out.declarePublicStaticFinalVar(
+			"java.util.List<plaid.runtime.utils.Import>",
+			freshImports.getName());
+			
+		g_freshImports = freshImports;
+		g_theState = theState;
+		g_stateVars = stateVars;
+		imports.accept(this);
+		out.declareGlobalScope(qid.toString(), freshImports.getName());
+
+		//annotation for the prototype object representing the state
+		out.stateAnnotation(root.name.getName());
+		out.declarePublicStaticFinalVar(out.plaidObjectType, 
+			root.name.getName());
+		
+		out.openStaticBlock(); //static {
+		out.declareLocalScope(out.globalScope);
+		out.declareFinalVar(out.plaidStateType, theState.getName());
+
+		var idList = IDList.new(globals);
+		// "this" should be visible during field initializations
+		idList.add(ID.new(out.thisVar)); 
+		
+		// with caseOf State
+		ifElse  (!root.isCaseOf) {
+			// this is this declaration.  It will not have any members, but 
+			// at runtime can forward to its enclosing (instantiated) state
+			g_name = qid.toString() + "." + root.name.getName();
+			g_idList = idList;
+			root.stateDef.accept(this);
+			
+			out.assignToPrototype(root.name.getName(), theState.getName());
+		}{
+			var caseOfState = IdGen.getId();
+			var declaredState = IdGen.getId();
+			out.declareFinalVar(out.plaidStateType, caseOfState.getName());
+			g_name = out.anonymousDeclaration;
+			g_idList = idList;
+			root.caseOf.accept(this);
+			out.declareFinalVar(out.plaidStateType, declaredState.getName());
+			
+			// this is this declaration.  It will not have any members, but
+			// at runtime can forward to its enclosing (instantiated) state
+			g_name = qid.toString() + "." + root.name.getName();
+			g_declaredState = declaredState;
+			stateDef.accept(this);
+			
+			//y = fresh1.with(fresh2); 
+			out.assignToWith(theState.getName(),caseOfState.getName(),
+				declaredState.getName());  
+					
+			out.assignToPrototype(name.getName(), theState.getName());
+			
+			// because of subtagging, we don't want the resulting object to 
+			// have the caseOf's state's tag
+			
+			// If the caseOf State has a tag
+			out.ifCondition(caseOfState.getName() + ".hasTag()"); 
+			// //remove it from the prototype
+			//out.append(root. name.getName() + ".removeTag(" + 
+			//	caseOfState.getName() + ".getTag());"); 
+		};
+		out.closeBlock(); // } (for static block to init prototype)
+
+		if (root.isCaseOf) { //if we have a tag	
+			//Declare variable to hold the tag
+			var tag = ID.new(name.getName() + "$Tag" + 
+				PlaidConstants.ID_SUFFIX);
+			var tagPath = qid.toString() + "." + root.name.getName();
+			out.tagAnnotation(tagPath);
+			out.declarePublicStaticFinalVar(out.plaidTagType, tag.getName());
+			
+			out.openStaticBlock(); //static {	
+			var caseOfState = IdGen.getId();
+			out.declareFinalVar(out.plaidStateType, caseOfState.getName());
+			caseOf.accept(this);
+			g_idList = IDList.new();
+			g_theState = caseOfState;
+			g_declaredState = out.anonymousDeclaration;
+			caseOf.codegenState(this);
+			//tag = new PlaidTag(caseOfState)
+			out.assignToNewTag(tag.getName(), tagPath, caseOfState.getName());
+			
+			out.closeBlock(); // } (for static block to init tag)
+		};
+		
+		out.closeBlock(); // } (for class Def)
+		
+		FileGen.createOutputFile(name.getName(), cc.getOutputDir(),
+			out.formatFile(), qid);
+	}
+
+
+	// Internal methods called by node.accept()
+	method visitApplication(node) {
+		
+	}
+	
+	method visitAssignment(node) {
+	
+	}
+	
+	method visitCase(node) {
+	
+	}
+	
+	method visitChangeState(node) {
+	
+	}
+	
+	method visitDeclList(node) {
+	
+	}
+	
+	method visitDereference(node) {
+	
+	}
+	
+	method visitFieldDecl(node) {
+	
+	}
+	
+	method visitID(node) {
+	
+	}
+	
+	method visitImportList(node) {
+		var freshImports = args;
+		
+	}
+	
+	method visitIntLiteral(node) {
+	
+	}
+	
+	method visitLambda(node) {
+	
+	}
+	
+	method visitLetBinding(node) {
+	
+	}
+	
+	method visitMatch(node) {
+	
+	}
+	
+	method visitMethodDecl(node) {
+	
+	}
+	
+	method visitNewInstance(node) {
+	
+	}
+	
+	method visitQI(node) {
+	
+	}
+	
+	method visitStateDecl(node) {
+	
+	}
+	
+	method visitStringLiteral(node) {
+	
+	}
+	
+	method visitUnitLiteral(node) {
+	
+	}
+	
+	method visitWith(node) {
+	
+	}
+}
