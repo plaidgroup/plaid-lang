@@ -1,30 +1,20 @@
 package plaid.typechecker.AST.visitor;
 
 import plaid.typechecker.AST.*;
-import plaid.typechecker.AST.visitor.MySet.*;
-import plaid.typechecker.AST.visitor.MyList.*;
 
 state RewriteVisitor case of LeafVisitor {
-	var localVars = new MyList with { var head = new MyNil; };
-	var stateVars = new MySet with { var head = new MySetNil; };
+	var localVars = java.util.HashSet.new();
+	var stateVars = java.util.HashSet.new();
 	var imports = 0;
 	var packageName = 0;
 
 	method contains(vars, node) {
-		var found = false;
-		
-		vars.map(fn (v) => {
-			if (v == node) {
-				found = true;
-			};
-		});
-		
-		found;
+		vars.contains(node);
 	}
 
 	override method visitAssignment(node) {
 		if (node.target.isNull()) {
-			if (!contains(localVars, node.field) && contains(stateVars, node.field)) {
+			if (!localVars.contains(node.field) && stateVars.contains(node.field)) {
 				node.target = new ID { val name = "this$plaid"; };
 			}
 		};
@@ -34,7 +24,7 @@ state RewriteVisitor case of LeafVisitor {
 
 	override method visitCase(node) {
 		if (!node.defaultCase && node.boundVar) {
-			localVars.append(node.x);
+			localVars.add(node.x);
 		};
 		
 		node.qi.accept(this);
@@ -51,7 +41,7 @@ state RewriteVisitor case of LeafVisitor {
 		packageName = node.packageName;
 		
 		node.decls.map(fn (decl) => {
-			localVars.append(new ID { val name = decl.getName(); })
+			localVars.add(new ID { val name = decl.getName(); })
 		});
 		
 		node.decls.map(fn (decl) => {
@@ -64,7 +54,7 @@ state RewriteVisitor case of LeafVisitor {
 	}
 
 	override method visitID(node) {
-		if (!contains(localVars, node) && contains(stateVars, node)) {
+		if (!localVars.contains(node) && stateVars.contains(node)) {
 			node <- Dereference {
 				override val token = node.token;
 				val left = new ID { val name = "this$plaid"; };
@@ -75,7 +65,7 @@ state RewriteVisitor case of LeafVisitor {
 	}
 
 	override method visitLambda(node) {
-		localVars.append(node.x);
+		localVars.add(node.x);
 
 		node.x.accept(this);
 		node.body.accept(this);
@@ -92,7 +82,7 @@ state RewriteVisitor case of LeafVisitor {
 	
 	override method visitMethodDecl(node) {
 		if (!node.name.equals("main")) {
-			localVars.append(node.arg);
+			localVars.add(node.arg);
 		};
 		
 		node.body.accept(this);
@@ -108,7 +98,7 @@ state RewriteVisitor case of LeafVisitor {
 		var qid = plaid.compilerjava.util.QualifiedID.new(packageName);
 		// TODO: Handle caseOf!
 		var l = helper.generateStateVars(qid, imports.getImports(), node.javaStateDef);
-		var mySet = new MySet { var head = new MySetNil; };
+		var mySet = java.util.HashSet.new();
 		val iter = l.iterator();
 //		java.lang.System.out.println(l);
 		
@@ -127,7 +117,7 @@ state RewriteVisitor case of LeafVisitor {
 		node.stateDef.accept(this);
 		node.caseOf.accept(this);
 		
-		stateVars = new MySet { var head = new MySetNil; };
+		stateVars = java.util.HashSet.new();
 	}
 	
 	override method visitDereference(node) {
