@@ -141,6 +141,10 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		return Collections.unmodifiableCollection(result);
 	}
 
+	public void setPrototype(PlaidObject plaidObj) {
+		this.prototype = plaidObj;
+	}
+	
 	public PlaidPackageMap getPackage() {
 		return pkg;
 	}

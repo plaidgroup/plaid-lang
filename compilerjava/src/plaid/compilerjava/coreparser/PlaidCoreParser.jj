@@ -524,7 +524,7 @@ FieldTypeDecl FieldTypeDecl() :{
   	// val T f;
   	<VAL> fieldPermType = PermType() fieldNameToken = <ID> <SEMICOLON>
   	{
-  	  	return new FieldTypeDecl(fieldPermType);  	}}
+  	  	return new FieldTypeDecl(new ID(fieldNameToken.image), fieldPermType);  	}}
 
 /*****************************************************************************/
 /*							END OF TYPING RULES								 */
@@ -620,11 +620,11 @@ Decl DeclField() :
 		(
 			<EQUALS> e = Exp() <SEMICOLON>
 			{
-				d = new FieldDecl(idToken, name, e, false, immutable, new FieldTypeDecl(permType), overrides);
+				d = new FieldDecl(idToken, name, e, false, immutable, new FieldTypeDecl(new ID(idToken.image), permType), overrides);
 			}
 		|	<SEMICOLON>
 			{
-				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, new FieldTypeDecl(permType), overrides);
+				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, new FieldTypeDecl(new ID(idToken.image), permType), overrides);
 			}
 		)
 		{
@@ -1303,39 +1303,39 @@ Expression ExpList() :
 		List < Expression > expList = new ArrayList < Expression > ();
 }
 {
-		e = Exp()
+	e = Exp()
+	{
+		expList.add(e);
+	}
+	(
+		< COMMA > nextExp = Exp()
 		{
-				expList.add(e);
+			expList.add(nextExp);
 		}
-		(
-				< COMMA > nextExp = Exp()
-				{
-						expList.add(nextExp);
-				}
-		)*
-		{
-				if (expList.size() == 1) return e;
-				else
-				{ //translate to pairs:  (a,b,...,n) => (a,(b,(...(n,unit)...)))
-						int size = expList.size();
-						Expression second = new UnitLiteral();
-						//QI pair = new QI("plaid.lang.Pair");
-						List < Decl > pairFields;
-						FieldDecl fst, snd;
-						QI pairWith;
-						for (int i = size - 1; i >= 0; i--)
-						{
-								fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldTypeDecl(PermType.RECEIVER), false);
-								snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
-								pairFields = new ArrayList < Decl > ();
-								pairFields.add(fst);
-								pairFields.add(snd);
-								pairWith = new QI("plaid.lang.Pair", new DeclList(pairFields));
-								second = new NewInstance(expList.get(i).getToken(), pairWith);
-						}
-						return second; //TODO: write utility function for this like for ExpListSemi
-				}
+	)*
+	{
+		if (expList.size() == 1) return e;
+		else
+		{ 	//translate to pairs:  (a,b,...,n) => (a,(b,(...(n,unit)...)))
+			int size = expList.size();
+			Expression second = new UnitLiteral();
+			//QI pair = new QI("plaid.lang.Pair");
+			List < Decl > pairFields;
+			FieldDecl fst, snd;
+			QI pairWith;
+			for (int i = size - 1; i >= 0; i--)
+			{
+				fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldTypeDecl(new ID("fst"), PermType.RECEIVER), false);
+				snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
+				pairFields = new ArrayList < Decl > ();
+				pairFields.add(fst);
+				pairFields.add(snd);
+				pairWith = new QI("plaid.lang.Pair", new DeclList(pairFields));
+				second = new NewInstance(expList.get(i).getToken(), pairWith);
+			}
+			return second; //TODO: write utility function for this like for ExpListSemi
 		}
+	}
 }
 
 Expression ExpSuffix(Expression prefix) :

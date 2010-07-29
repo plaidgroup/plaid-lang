@@ -5,8 +5,10 @@ import plaid.compilerjava.tools.ASTVisitor;
 
 public class FieldTypeDecl implements TypeDecl {
 	private final PermType permType;
+	private final ID name;
 	
-	public FieldTypeDecl(PermType permType) {
+	public FieldTypeDecl(ID name, PermType permType) {
+		this.name = name;
 		if (permType == null)
 			throw new RuntimeException("permType cannot be null");
 		this.permType = permType;
@@ -30,6 +32,10 @@ public class FieldTypeDecl implements TypeDecl {
 
 	public Object getPermType() {
 		return this.permType;
+	}
+	
+	public ID getName() {
+		return this.name;
 	}
 
 }

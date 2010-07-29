@@ -62,7 +62,7 @@ public class FieldDecl implements Decl{
 	}
 
 	public FieldDecl(ID f, Expression e) {
-		this(null, f, e, false, true, new FieldTypeDecl(PermType.RECEIVER), false);
+		this(null, f, e, false, true, new FieldTypeDecl(f, PermType.RECEIVER), false);
 	}
 	
 	public ID getF() {
