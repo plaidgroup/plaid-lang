@@ -29,6 +29,7 @@ import java.util.Set;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
+import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntimeException;
@@ -418,4 +419,56 @@ public class PlaidObjectMap implements PlaidObject {
 		return null;
 	}
 
+	@Override
+	public int hashCode() {
+		PlaidMemberDef hashmember = PlaidObjectMap.findExisting("hashCode", this.members.keySet());
+		if (hashmember == null)
+			return super.hashCode();
+		PlaidObject hashmethobj = this.members.get(hashmember);
+		if (hashmethobj == null)
+			return super.hashCode();
+		if (!(hashmethobj instanceof PlaidMethodMap))
+			return super.hashCode();
+		
+		PlaidMethodMap hashmeth = (PlaidMethodMap) hashmethobj;
+		PlaidObject retval = hashmeth.invoke(Util.unit());
+		
+		// We need to find out if retval is a (Plaid) integer and return its value
+		// TODO: This is a hack!
+		if (!(retval instanceof PlaidJavaObject))
+			return super.hashCode();
+		
+		Object jo = ((PlaidJavaObject) retval).getJavaObject();
+		if (!(jo instanceof Integer))
+			return super.hashCode();
+		
+		return ((Integer) jo).intValue();
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == null)
+			return false;
+		if (this == other)
+			return true;
+		if (!(other instanceof PlaidObjectMap))
+			return false;
+		
+		PlaidObjectMap po = (PlaidObjectMap) other;
+		PlaidMemberDef eqmember = PlaidObjectMap.findExisting("eqeq$plaid", this.members.keySet());
+		if (eqmember == null)
+			return false;
+		PlaidObject eqmethobj = this.members.get(eqmember);
+		if (eqmethobj == null)
+			return false;
+		if (!(eqmethobj instanceof PlaidMethodMap))
+			return false;
+		
+		PlaidMethodMap eqmeth = (PlaidMethodMap) eqmethobj;
+		PlaidObject retval = eqmeth.invoke(po);
+		
+		// We need to find out if retval is a (Plaid) true
+		// TODO: This is a hack!
+		return retval.toString().contains("plaid.lang.True");
+	}
 }

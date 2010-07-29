@@ -104,7 +104,16 @@ public class PlaidMemberDefMap implements PlaidMemberDef {
 		return ret.toString();
 	}
 
-
-	
-	
+	@Override
+	public boolean equals(Object other) {
+		if (other == null)
+			return false;
+		if (this == other)
+			return true;
+		if (!(other instanceof PlaidMemberDefMap))
+			return false;
+		
+		PlaidMemberDefMap o = (PlaidMemberDefMap) other;
+		return this.toString().equals(o.toString());
+	}
 }
