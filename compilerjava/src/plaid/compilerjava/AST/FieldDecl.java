@@ -103,7 +103,7 @@ public class FieldDecl implements Decl{
 	
 	//Top Level Field Decl
 	@Override
-	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars) {
+	public File codegenTopDecl(QualifiedID qid, ImportList imports, CompilerConfiguration cc, Set<ID> globalVars, PackageRep plaidpath) {
 		CodeGen out = new CodeGen(cc);
 		IDList localVars = new IDList(globalVars);
 		ID freshImports = IdGen.getId();

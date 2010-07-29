@@ -124,12 +124,9 @@ public class CompilerCore {
 										URL[] loaderDir = { new URL("file://" + absoluteBase) };
 										defLoader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
 									}
-//									System.out.println("Trying to load \"" + className + "\"...");
-//									System.out.println("  filepath = \"" + filepath + "\"");
-//									System.out.println("  absoluteBase = \"" + absoluteBase + "\"");
 									try {
 										Class<?> classRep = defLoader.loadClass(className);
-//										if (classRep.getAnnotations().length == 0) System.out.println("Not Finding annotations");
+
 										for (Annotation a : classRep.getAnnotations()) {
 											String thePackage = null;
 											MemberRep member = null;
@@ -146,7 +143,7 @@ public class CompilerCore {
 												RepresentsState s = (RepresentsState) a;
 												thePackage = s.inPackage();
 												StateRep state = new StateRep(s.name());
-												for (String sm : s.members().split(",")) state.addMember(sm);
+												state.addMembers(MemberRep.deserializeStateMembers(s.members()));
 												member = state;
 											}
 											if (member != null) { //if this was a plaid generated java file
@@ -154,7 +151,6 @@ public class CompilerCore {
 													throw new RuntimeException("Package " + thePackage + "of member " + member.getName() + " does not match file path " + className + ".");
 											
 												plaidpath.addMember(thePackage, member);
-//												System.out.println("added " + thePackage + "." + member.getName());
 											}
 										}
 									} catch (NoClassDefFoundError e) {
@@ -196,7 +192,7 @@ public class CompilerCore {
 				String cPackage = c.getPackageString();
 				
 				//expand imports
-				List<String> declaredMembers = new ArrayList<String>();
+				List<String> declaredMembers = new ArrayList<String>(); //right now declared members are just those in the file, not the whole package
 				for (Decl d : c.getDecls()) declaredMembers.add(d.getName());
 				c.getImports().checkAndExpandImports(plaidpath, declaredMembers, cPackage);
 				
@@ -218,7 +214,7 @@ public class CompilerCore {
 						MemberRep r = plaidpath.lookupMember(path);
 						if (r instanceof StateRep) {
 							StateRep depState = (StateRep) r;
-							s.addMembers(depState.getMembers());
+							s.addMembers(depState.getMembers()); //TODO : make sure this still works after changing to list of MemberReps
 							newNeeds.addAll(depState.getNeeds());
 						} else throw new RuntimeException("Something went wrong with dependencies.");
 					} else {
@@ -228,27 +224,6 @@ public class CompilerCore {
 				s.setNeeds(newNeeds);  //replace old needs with the new needs
 				if (s.hasNeeds()) dependants.add(s);
 			}
-
-			// create header output files during a first pass
-//			try {
-//				if (cc.isVerbose()) System.out.println("GENERATING HEADERS");
-//				List<File> allFiles = new ArrayList<File>();
-//				for(CompilationUnit cu : cus) {
-//					List<File> fileList = cu.generateHeaders(cc);
-//					if ( cc.isVerbose() ) {
-//						for(File f : fileList) {
-//							FileReader fr = new FileReader(f);
-//							int charRead;
-//							while((charRead = fr.read()) != -1) {
-//								System.out.print((char)charRead);
-//							}
-//						}
-//					}
-//					allFiles.addAll(fileList);
-//				}
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
 			
 			// create the output file
 			try {
@@ -256,7 +231,7 @@ public class CompilerCore {
 				List<File> allFiles = new ArrayList<File>();
 				for(CompilationUnit cu : cus) {
 					try {
-						System.out.println("generateing code for:\n" + cu);
+						System.out.println("generating code for:\n" + cu);
 						List<File> fileList = cu.codegen(cc, plaidpath);
 						
 						if ( cc.isVerbose() ) {
