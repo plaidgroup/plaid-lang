@@ -1,169 +1,225 @@
 package plaid.typechecker.AST.visitor;
 
-//import plaid.compilerjava.util.*;
-//import plaid.runtime.PlaidConstants;
-
 state CodeGenVisitor case of ASTVisitor {
-	var root; 		// The root of the AST to generate code for
-	var qid;		// Package declaration.
-	var imports;	// Import list.
-	var cc;			// Compiler configuration.
-	var globals;	// Global variables.
-	var out;		// Java codegen helper object.
-	
-	// Additional global values for passing state around accept() calls.
+	val jCodeGen = plaid.compilerjava.util.CodeGen;
+	var out = "";	// Java codegen helper object.
+
+	// Additional fields for passing state around accept() calls.
 	// Invariant: Assigned before accept() call, and copied to local variables
 	// at the beginning of method call.
 	// TODO: Reimplement using state change once that's working properly?
-	var g_freshImports;
-	var g_freshReturn;
-	var g_locals;
-	var g_y;
-	var g_stateVars;
-	var g_theState;
-	var g_idList;
-	var g_name;
-	var g_declaredState;
-	
-	// Java true and false values
-	// TODO: Add some feature to plaid to make this nicer
-	val jtrue  = java.lang.Boolean.TRUE;
-	val jfalse = java.lang.Boolean.FALSE;
+	var g_packageName = "";
+	var g_returnVar = "";
+	var g_imports = "";
 
-	// Create a new file with Decl as top level
-	// Client access method
-	method createDecl(root2, qid2, imports2, cc2, globals2) {
-		// Initialize CodeGenVisitor
-		root = root2;
-		qid = qid2;
-		imports = imports2;
-		cc = cc2;
-		globals = globals2;
-		out = CodeGen.new(cc);
-	
-		match (node) {
-			case FieldDecl {
-				// Create this decl as a field and return the new file
-				createFieldDecl();
-			}
-			case MethodDecl {
-				createMethodDecl();
-			}
-			case StateDecl {
-				createStateDecl();
-			}
-			default {
-				System.out.println(
-					"Error: Trying to generate non-Decl at top-level");
-				System.exit(1);
-			}
-		}
+
+	method visitApplication(node) {
+		
 	}
+	
+	method visitAssignment(node) {
+	
+	}
+	
+	method visitCase(node) {
+	
+	}
+	
+	method visitChangeState(node) {
+	
+	}
+	
+	method visitCompilationUnit(node) {
+		java.lang.System.out.println("Generating code for '" + node.packageName + "'...");
+		g_packageName = node.packageName;
+		g_imports = node.imports;
 
-	// Create a new file with FieldDecl as top level
-	method createFieldDecl() {
-		var locals = IDList.new(globals);
-		var freshImports = IdGen.getId();
+		node.decls.map(fn (d) => {
+			d.accept(this);
+		});
+	}
+	
+	method visitDeclList(node) {
+	
+	}
+	
+	method visitDereference(node) {
+	
+	}
+	
+	method handleTopLevelFieldDecl(node) {
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setPrettyPrint(java.lang.Boolean.TRUE);
+		out = jCodeGen.new(cc);
+		var freshImports = plaid.compilerjava.util.IdGen.getId();
 		
 		// package qid;
-		out.declarePackage(qid.toString());
+		val qid = plaid.compilerjava.AST.QI.new(g_packageName);
+		val thePackage = qid.toString();
+		out.declarePackage(thePackage);
 		
 		// @plaid.runtime.annotations (...)
-		out.fieldAnnotation(root.f.getName(), jtrue);
+		out.topFieldAnnotation(node.f.name, thePackage);
 		
 		// public class c {
-		out.declarePublicClass(root.f.getName()); 
+		out.declarePublicClass(node.f.name); 
 		out.openBlock();
 		
 		// Get imports, define scopes
-		out.declarePublicStaticFinalVar(
-			"java.util.List<plaid.runtime.utils.Import>",
-			freshImports.getName());
+		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.getName());
 		
-		g_locals = locals;
-		g_freshImports = freshImports;
-		imports.accept(this);
+		g_imports.accept(this);
 		
-		out.declareGlobalScope(qid.toString(), freshImports.getName());
+		out.declareGlobalScope(thePackage, freshImports.getName());
 		
+		out.fieldAnnotation(node.f.name);
 		out.openStaticBlock(); //static {
-		out.declareLocalScope(out.globalScope);
+		out.declareLocalScope(jCodeGen.globalScope);
 		
 		// Generate the expr
-		var y = root.f;
-		var stateVars = HashSet.new();
-		g_y = y;
-		g_stateVars = stateVars;
-		e.accept(this);
+		node.e.accept(this);
 		
-		// TODO: Want to declare as immutable, 
-		// but root.immutable field does not exist
-		// out.insertIntoScope(out.globalScope, 
-		//     root.f.getName(), root.immutable);
+		// TODO: Improve translation of Plaid booleans
+		ifElse (node.immutableField) {
+			out.insertIntoScope(jCodeGen.globalScope, node.f.name, java.lang.Boolean.TRUE);
+		} {
+			out.insertIntoScope(jCodeGen.globalScope, node.f.name, java.lang.Boolean.FALSE);
+		};
 		
 		out.closeBlock(); out.closeBlock(); //}}
 		
-		FileGen.createOutputFile(f.getName(), cc.getOutputDir(),
-			out.formatFile(), qid);
-		
+		val result = out.formatFile();
+		java.lang.System.out.println(result);
+		java.lang.System.out.println("-------------------------------------------");	
 	}
+	
+	method visitFieldDecl(node) {
+		handleTopLevelFieldDecl(node);
+	}
+	
+	method visitID(node) {
+	
+	}
+	
+	method visitImportList(node) {
+		out.openStaticBlock();  // static {
+		out.assignToNewJavaObject(g_returnVar.getName(), "java.util.ArrayList<plaid.runtime.utils.Import>");
 
-	method createMethodDecl() {
-		var thisMethod = ID.new(root.name + "_func");
-		var freshReturn = IdGen.getId();
-	    var freshImports = IdGen.getId();
-		var locals = IDList.new(globals);
+		val it = node.imports.iterator();
+		while { it.hasNext(); } {
+			val qi = it.next();
+			var s = g_returnVar.getName();
+			s = s + ".add(new plaid.runtime.utils.Import(\\\"";
+			s = s + qi.toString();
+			s = s + "\\\"));"; 
+			out.append(s);
+		};
+
+		out.closeBlock();
+	}
+	
+	method visitIntLiteral(node) {
+	
+	}
+	
+	method visitLambda(node) {
+	
+	}
+	
+	method visitLetBinding(node) {
+	
+	}
+	
+	method visitMatch(node) {
+	
+	}
+	
+	method handleTopLevelMethodDecl(node) {
+		val newName = jCodeGen.convertOpNames(node.name);
+		java.lang.System.out.println("Generating code for method '" + newName + "'...");
+
+		g_returnVar = plaid.compilerjava.util.IdGen.getId();
+		val freshImports = plaid.compilerjava.util.IdGen.getId();
+		
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setPrettyPrint(java.lang.Boolean.TRUE);
+		out = jCodeGen.new(cc);
+		
+		val qid = plaid.compilerjava.AST.QI.new(g_packageName);
+		val thisMethod = newName + "_func";
+		val thePackage = qid.toString();
 		
 		//package and needed imports
-		out.declarePackage(qid.toString());
+		out.declarePackage(thePackage);
 		
 		//annotation and class definition
-		out.methodAnnotation(root.name, jtrue);
-		out.declarePublicClass(root.name); out.openBlock(); //public class name {
+		out.topMethodAnnotation(newName, thePackage);
+		out.declarePublicClass(newName);
+		out.openBlock(); //public class newName {
 
 		//generate code to create the package scope with imports
-		out.declarePublicStaticFinalVar(
-			"java.util.List<plaid.runtime.utils.Import>",
-			freshImports.getName());
-			
-		g_freshReturn = freshReturn;
-		g_freshImports = freshImports;
-		g_locals = locals;
-		imports.accept(this);
+		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.getName());
 		
+		g_imports.accept(this);
+
 		out.declareGlobalScope(qid.toString(), freshImports.getName());
 		
-		if (root.name.equals("main")) { //TODO: && has no arguments
-			out.topLevelMain(root.name + "_func");
-		} else {
-			locals = locals.add(arg);
+		if (newName.equals("main") /*&& this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1*/) {
+			out.topLevelMain(newName + "_func");
 		};
-		
-		out.methodAnnotation(root.name, jfalse);
-		out.declarePublicStaticFinalVar(out.plaidMethodType,
-			thisMethod.getName());
-		out.openStaticBlock(); // static {
-		
-		// add local scope so that the lambda creation works properly
-		out.declareLocalScope(out.globalScope);
-		out.assignToNewLambda(thisMethod.getName(), arg.getName());
-		out.declareVar(out.plaidObjectType, freshReturn.getName());
-		
-		//top level functions lookup with unit
-		var stateVars = HashSet.new();
-		g_stateVars = stateVars;
-		body.accept(this);
 
-		out.ret(freshReturn.getName());
+		out.methodAnnotation(newName);
+		out.declarePublicStaticFinalVar(jCodeGen.plaidMethodType, thisMethod);
+		out.openStaticBlock(); // static {
+		// add local scope so that the lambda creation works properly
+		out.declareLocalScope(jCodeGen.globalScope);
+		out.assignToNewLambda(thisMethod, node.arg.name);
+		
+		out.declareVar(jCodeGen.plaidObjectType, g_returnVar.getName());
+		//top level functions lookup with unit
+		node.body.accept(this);
+
+		out.ret(g_returnVar.getName());
 		out.closeAnonymousDeclaration(); // }});
 		
 		out.closeBlock(); // }  (for static block)
 		out.closeBlock(); // }  (for class declaration)
 		
-		FileGen.createOutputFile(root.name, cc.getOutputDir(), 
-			out.formatFile(), qid);
+//		return FileGen.createOutputFile(newName, cc.getOutputDir(), out.formatFile(), qid);
+		val result = out.formatFile();
+		java.lang.System.out.println(result);
+		java.lang.System.out.println("-------------------------------------------");
 	}
 	
+	method visitMethodDecl(node) {
+		// TODO: Handle nested decls
+		handleTopLevelMethodDecl(node);
+	}
+	
+	method visitNewInstance(node) {
+	
+	}
+	
+	method visitQI(node) {
+	
+	}
+	
+	method visitStateDecl(node) {
+	
+	}
+	
+	method visitStringLiteral(node) {
+	
+	}
+	
+	method visitUnitLiteral(node) {
+	
+	}
+	
+	method visitWith(node) {
+	
+	}
+
 	method createStateDecl() {
 		var freshImports = IdGen.getId();
 		var theState = IdGen.getId();
@@ -285,88 +341,5 @@ state CodeGenVisitor case of ASTVisitor {
 		
 		FileGen.createOutputFile(name.getName(), cc.getOutputDir(),
 			out.formatFile(), qid);
-	}
-
-
-	// Internal methods called by node.accept()
-	method visitApplication(node) {
-		
-	}
-	
-	method visitAssignment(node) {
-	
-	}
-	
-	method visitCase(node) {
-	
-	}
-	
-	method visitChangeState(node) {
-	
-	}
-	
-	method visitDeclList(node) {
-	
-	}
-	
-	method visitDereference(node) {
-	
-	}
-	
-	method visitFieldDecl(node) {
-	
-	}
-	
-	method visitID(node) {
-	
-	}
-	
-	method visitImportList(node) {
-		var freshImports = args;
-		
-	}
-	
-	method visitIntLiteral(node) {
-	
-	}
-	
-	method visitLambda(node) {
-	
-	}
-	
-	method visitLetBinding(node) {
-	
-	}
-	
-	method visitMatch(node) {
-	
-	}
-	
-	method visitMethodDecl(node) {
-	
-	}
-	
-	method visitNewInstance(node) {
-	
-	}
-	
-	method visitQI(node) {
-	
-	}
-	
-	method visitStateDecl(node) {
-	
-	}
-	
-	method visitStringLiteral(node) {
-	
-	}
-	
-	method visitUnitLiteral(node) {
-	
-	}
-	
-	method visitWith(node) {
-	
 	}
 }
