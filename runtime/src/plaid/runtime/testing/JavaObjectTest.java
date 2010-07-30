@@ -45,7 +45,7 @@ public class JavaObjectTest extends BaseTest {
 		PlaidObject ps = Util.string("Hello World");
 		PlaidObject substr = Util.lookup("substring", ps);
 		
-		PlaidObject args = Util.converArrayToParams(new Integer[] {6, 11} );
+		PlaidObject args = Util.convertArrayToParams(new Integer[] {6, 11} );
 		PlaidObject result = Util.call(substr, args);
 		Object obj = ((PlaidJavaObject)result).getJavaObject();
 		assertTrue( obj instanceof String );
