@@ -106,7 +106,7 @@ public class PairTest extends BaseTest {
 	@Test
 	public void TestArrayToPairs() {
 		Integer[] values = {1,2,3,4,5};
-		PlaidObject pairs = Util.converArrayToParams(values);
+		PlaidObject pairs = Util.convertArrayToParams(values);
 		assertTrue( pairs != null );
 		
 		Object[] objs = Util.convertParamsToArray(pairs);

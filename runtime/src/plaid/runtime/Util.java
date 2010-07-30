@@ -140,14 +140,14 @@ public class Util {
 		return objs.toArray();
 	}
 	
-	public static PlaidObject converArrayToParams(Object[] objs) {
+	public static PlaidObject convertArrayToParams(Object[] objs) {
 		if ( objs.length == 0 ) {
 			return unit();
 		}
 		PlaidState ps = toPlaidState(lookup("plaid.lang.Pair", unit()));
 		PlaidObject result = ps.instantiate();
 		result.addMember(Util.anonymousMemberDef("fst", false, false), cl.packJavaObject(objs[0]));
-		result.addMember(Util.anonymousMemberDef("snd", false, false), converArrayToParams(Arrays.copyOfRange(objs, 1, objs.length)));
+		result.addMember(Util.anonymousMemberDef("snd", false, false), convertArrayToParams(Arrays.copyOfRange(objs, 1, objs.length)));
 		
 		return result;
 	}
@@ -300,6 +300,9 @@ public class Util {
 		}
 		else if (c.equals(Double.class)) {
 			return double.class;
+		}
+		else if (c.equals(Boolean.class)) {
+			return boolean.class;
 		}
 		return c;
 	}
