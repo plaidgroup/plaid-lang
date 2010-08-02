@@ -1,9 +1,12 @@
 package typechecker.tests.utils;
 
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import plaid.runtime.PlaidException;
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidState;
@@ -12,9 +15,13 @@ import plaid.runtime.models.map.PlaidJavaObjectMap;
 import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
 import plaid.typechecker.AST.FieldTypeDecl;
+import plaid.typechecker.AST.FullPermission;
 import plaid.typechecker.AST.ID;
+import plaid.typechecker.AST.ImmutablePermission;
 import plaid.typechecker.AST.IntLiteral;
 import plaid.typechecker.AST.PermType;
+import plaid.typechecker.AST.PurePermission;
+import plaid.typechecker.AST.SharedPermission;
 import plaid.typechecker.AST.Type;
 import plaid.typechecker.AST.UnannotatedLetBinding;
 import plaid.typechecker.AST.UniquePermission;
@@ -157,6 +164,58 @@ public class TestUtils {
 	}
 	
 	/**
+	 * Constructs a new FullPermission object.
+	 * 
+	 * @return The new FullPermission object;
+	 */
+	public static PlaidObject full() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(FullPermission.FullPermission, newState);
+	}
+	
+	/**
+	 * Constructs a new SharedPermission object.
+	 * 
+	 * @return The new SharedPermission object;
+	 */
+	public static PlaidObject shared() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(SharedPermission.SharedPermission, newState);
+	}
+	
+	/**
+	 * Constructs a new ImmutablePermission object.
+	 * 
+	 * @return The new ImmutablePermission object;
+	 */
+	public static PlaidObject immutable() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(ImmutablePermission.ImmutablePermission, newState);
+	}
+	
+	/**
+	 * Constructs a new PurePermission object.
+	 * 
+	 * @return The new PurePermission object;
+	 */
+	public static PlaidObject pure() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(PurePermission.PurePermission, newState);
+	}
+	
+	/**
 	 * Constructs a new Type object based upon the specified type abbreviations 
 	 * and declarations.
 	 * 
@@ -172,7 +231,7 @@ public class TestUtils {
 		}
 		Set<PlaidObject> typeDecls = new HashSet<PlaidObject>();
 		for (PlaidObject decl : decls) {
-			typeAbbrevs.add(decl);
+			typeDecls.add(decl);
 		}
 	
 		// create a new blank prototype
@@ -222,6 +281,23 @@ public class TestUtils {
 		
 		// instantiate the new prototype
 		return initAndInstantiateState(FieldTypeDecl.FieldTypeDecl, newState);
+	}
+	
+	/**
+	 * Fetches the specified field from within the given PlaidObject.
+	 * 
+	 * @param fieldName
+	 * @param obj
+	 * @return
+	 */
+	public static PlaidObject getField(String fieldName, PlaidObject obj) {
+		Map<PlaidMemberDef, PlaidObject> members = obj.getMembers();
+		for (Entry<PlaidMemberDef, PlaidObject> member : members.entrySet()) {
+			if (member.getKey().getMemberName().equals(fieldName)) {
+				return member.getValue();
+			}
+		}
+		return null;
 	}
 	
 	/**
