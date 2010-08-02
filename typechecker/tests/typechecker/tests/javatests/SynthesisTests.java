@@ -1,5 +1,7 @@
 package typechecker.tests.javatests;
 
+import static org.junit.Assert.assertTrue;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -26,6 +28,14 @@ public class SynthesisTests {
 		PlaidObject let = TestUtils.let(x, exp, body);
 		PlaidObject typechecker = TestUtils.typechecker();
 		PlaidObject resultPermType = Util.call(Util.lookup("visitUnannotatedLetBinding", typechecker), let);
-		// TODO: Compare the results to what is expected.
+
+		// Compare the results to what is expected.
+		PlaidObject perm = TestUtils.unique();
+		// TODO: Adapt this once we have a real type for integers
+		PlaidObject type = TestUtils.type(new PlaidObject[0], new PlaidObject[0]);
+		PlaidObject expectedPermType = TestUtils.permtype(perm, type);
+		
+		// This equals() call actually calls method== defined in PermType.plaid
+		assertTrue(resultPermType.equals(expectedPermType));
 	}
 }
