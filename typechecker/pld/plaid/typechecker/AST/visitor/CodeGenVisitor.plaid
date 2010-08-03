@@ -1,17 +1,20 @@
 package plaid.typechecker.AST.visitor;
 
+import plaid.typechecker.util.*;
+
 state CodeGenVisitor case of ASTVisitor {
-	val jCodeGen = plaid.compilerjava.util.CodeGen;
-	var out = "";	// Java codegen helper object.
+	val /* CodeGen */ jCodeGen = plaid.compilerjava.util.CodeGen;
+	var /* CodeGen */ out = "";	// Java codegen helper object.
+	var /* IdGen */ idgen = ""; // Plaid ID generator.
 
 	// Additional fields for passing state around accept() calls.
 	// Invariant: Assigned before accept() call, and copied to local variables
 	// at the beginning of method call.
 	// TODO: Reimplement using state change once that's working properly?
-	var g_packageName = "";
+	var /* QualifiedID */ g_packageName = "";
 	var g_returnVar = "";
-	var g_imports = "";
-	var g_y = "";
+	var /* ImportList */ g_imports = "";
+	var /* ID */ g_y = "";
 
 
 	method visitApplication(node) {
@@ -19,7 +22,24 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitAssignment(node) {
+		val y = g_y;
+		out.setLocation(node.token);
+		val /* ID */ assignTo = idgen.getId();
+		out.declareFinalVar(jCodeGen.plaidObjectType, assignTo.name);
+		g_y = assignTo;
+		node.value.accept(this);
 		
+		// we have a target, so we need to check if that particular 
+		// field of the target is mutable and if so assign the new value
+		// evaluate the target
+		val temp = idgen.getId();
+		out.declareFinalVar(jCodeGen.plaidObjectType, temp.name);
+		g_y = temp;
+		node.target.accept(this);
+		out.updateMember(temp.name, node.field.name, assignTo.name);
+		out.assignToID(y.name, assignTo.name);
+
+		out.updateVarDebugInfo(assignTo.name);
 	}
 	
 	method visitCase(node) {
@@ -52,7 +72,8 @@ state CodeGenVisitor case of ASTVisitor {
 		val cc = plaid.compilerjava.CompilerConfiguration.new();
 		cc.setPrettyPrint(java.lang.Boolean.TRUE);
 		out = jCodeGen.new(cc);
-		var freshImports = plaid.compilerjava.util.IdGen.getId();
+		idgen = new IdGen;
+		var freshImports = idgen.getId();
 		
 		// package qid;
 		val qid = plaid.compilerjava.AST.QI.new(g_packageName);
@@ -67,11 +88,11 @@ state CodeGenVisitor case of ASTVisitor {
 		out.openBlock();
 		
 		// Get imports, define scopes
-		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.getName());
+		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
 		
 		g_imports.accept(this);
 		
-		out.declareGlobalScope(thePackage, freshImports.getName());
+		out.declareGlobalScope(thePackage, freshImports.name);
 		
 		out.fieldAnnotation(node.f.name);
 		out.openStaticBlock(); //static {
@@ -106,13 +127,13 @@ state CodeGenVisitor case of ASTVisitor {
 	
 	method visitImportList(node) {
 		out.openStaticBlock();  // static {
-		out.assignToNewJavaObject(g_returnVar.getName(), 
+		out.assignToNewJavaObject(g_returnVar.name, 
 			"java.util.ArrayList<plaid.runtime.utils.Import>");
 
 		val it = node.imports.iterator();
 		while { it.hasNext(); } {
 			val qi = it.next();
-			var s = g_returnVar.getName();
+			var s = g_returnVar.name;
 			s = s + ".add(new plaid.runtime.utils.Import(\\\"";
 			s = s + qi.toString();
 			s = s + "\\\"));"; 
@@ -143,11 +164,13 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method handleTopLevelMethodDecl(node) {
+		idgen = new IdGen;
+		
 		val newName = jCodeGen.convertOpNames(node.name);
 		java.lang.System.out.println("Generating code for method '" + newName + "'...");
 
-		g_returnVar = plaid.compilerjava.util.IdGen.getId();
-		val freshImports = plaid.compilerjava.util.IdGen.getId();
+		g_returnVar = idgen.getId();
+		val freshImports = idgen.getId();
 		
 		val cc = plaid.compilerjava.CompilerConfiguration.new();
 		cc.setPrettyPrint(java.lang.Boolean.TRUE);
@@ -166,11 +189,11 @@ state CodeGenVisitor case of ASTVisitor {
 		out.openBlock(); //public class newName {
 
 		//generate code to create the package scope with imports
-		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.getName());
+		out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
 		
 		g_imports.accept(this);
 
-		out.declareGlobalScope(qid.toString(), freshImports.getName());
+		out.declareGlobalScope(qid.toString(), freshImports.name);
 		
 		if (newName.equals("main") /*&& this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1*/) {
 			out.topLevelMain(newName + "_func");
@@ -183,11 +206,11 @@ state CodeGenVisitor case of ASTVisitor {
 		out.declareLocalScope(jCodeGen.globalScope);
 		out.assignToNewLambda(thisMethod, node.arg.name);
 		
-		out.declareVar(jCodeGen.plaidObjectType, g_returnVar.getName());
+		out.declareVar(jCodeGen.plaidObjectType, g_returnVar.name);
 		//top level functions lookup with unit
 		node.body.accept(this);
 
-		out.ret(g_returnVar.getName());
+		out.ret(g_returnVar.name);
 		out.closeAnonymousDeclaration(); // }});
 		
 		out.closeBlock(); // }  (for static block)
@@ -233,8 +256,9 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 
 	method createStateDecl() {
-		var freshImports = IdGen.getId();
-		var theState = IdGen.getId();
+		idgen = new IdGen;
+		var freshImports = idgen.getId();
+		var theState = idgen.getId();
 		var thePackage = qid.toString();
 		
 		//package and needed imports
@@ -248,7 +272,7 @@ state CodeGenVisitor case of ASTVisitor {
 		
 		var i = 0;
 		while { i < stateVars.size() } {
-			members.append(stateVars.get(i).getName() + ",");
+			members.append(stateVars.get(i).name + ",");
 			i = i + 1;
 		};
 		
@@ -258,29 +282,29 @@ state CodeGenVisitor case of ASTVisitor {
 		};
 		
 		// state annotation and class definition
-		out.topStateAnnotation(root.name.getName(), thePackage, memberString);
-		out.declarePublicClass(root.name.getName()); 
+		out.topStateAnnotation(root.name.name, thePackage, memberString);
+		out.declarePublicClass(root.name.name); 
 		out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports
 		out.declarePublicStaticFinalVar(
 			"java.util.List<plaid.runtime.utils.Import>",
-			freshImports.getName());
+			freshImports.name);
 			
 		g_freshImports = freshImports;
 		g_theState = theState;
 		g_stateVars = stateVars;
 		imports.accept(this);
-		out.declareGlobalScope(qid.toString(), freshImports.getName());
+		out.declareGlobalScope(qid.toString(), freshImports.name);
 
 		//annotation for the prototype object representing the state
-		out.stateAnnotation(root.name.getName());
+		out.stateAnnotation(root.name.name);
 		out.declarePublicStaticFinalVar(out.plaidObjectType, 
-			root.name.getName());
+			root.name.name);
 		
 		out.openStaticBlock(); //static {
 		out.declareLocalScope(out.globalScope);
-		out.declareFinalVar(out.plaidStateType, theState.getName());
+		out.declareFinalVar(out.plaidStateType, theState.name);
 
 		var idList = IDList.new(globals);
 		// "this" should be visible during field initializations
@@ -290,68 +314,68 @@ state CodeGenVisitor case of ASTVisitor {
 		ifElse  (!root.isCaseOf) {
 			// this is this declaration.  It will not have any members, but 
 			// at runtime can forward to its enclosing (instantiated) state
-			g_name = qid.toString() + "." + root.name.getName();
+			g_name = qid.toString() + "." + root.name.name;
 			g_idList = idList;
 			root.stateDef.accept(this);
 			
-			out.assignToPrototype(root.name.getName(), theState.getName());
+			out.assignToPrototype(root.name.name, theState.name);
 		}{
-			var caseOfState = IdGen.getId();
-			var declaredState = IdGen.getId();
-			out.declareFinalVar(out.plaidStateType, caseOfState.getName());
+			var caseOfState = idgen.getId();
+			var declaredState = idgen.getId();
+			out.declareFinalVar(out.plaidStateType, caseOfState.name);
 			g_name = out.anonymousDeclaration;
 			g_idList = idList;
 			root.caseOf.accept(this);
-			out.declareFinalVar(out.plaidStateType, declaredState.getName());
+			out.declareFinalVar(out.plaidStateType, declaredState.name);
 			
 			// this is this declaration.  It will not have any members, but
 			// at runtime can forward to its enclosing (instantiated) state
-			g_name = qid.toString() + "." + root.name.getName();
+			g_name = qid.toString() + "." + root.name.name;
 			g_declaredState = declaredState;
 			stateDef.accept(this);
 			
 			//y = fresh1.with(fresh2); 
-			out.assignToWith(theState.getName(),caseOfState.getName(),
-				declaredState.getName());  
+			out.assignToWith(theState.name,caseOfState.name,
+				declaredState.name);  
 					
-			out.assignToPrototype(name.getName(), theState.getName());
+			out.assignToPrototype(name.name, theState.name);
 			
 			// because of subtagging, we don't want the resulting object to 
 			// have the caseOf's state's tag
 			
 			// If the caseOf State has a tag
-			out.ifCondition(caseOfState.getName() + ".hasTag()"); 
+			out.ifCondition(caseOfState.name + ".hasTag()"); 
 			// //remove it from the prototype
-			//out.append(root. name.getName() + ".removeTag(" + 
-			//	caseOfState.getName() + ".getTag());"); 
+			//out.append(root. name.name + ".removeTag(" + 
+			//	caseOfState.name + ".getTag());"); 
 		};
 		out.closeBlock(); // } (for static block to init prototype)
 
 		if (root.isCaseOf) { //if we have a tag	
 			//Declare variable to hold the tag
-			var tag = ID.new(name.getName() + "$Tag" + 
+			var tag = ID.new(name.name + "$Tag" + 
 				PlaidConstants.ID_SUFFIX);
-			var tagPath = qid.toString() + "." + root.name.getName();
+			var tagPath = qid.toString() + "." + root.name.name;
 			out.tagAnnotation(tagPath);
-			out.declarePublicStaticFinalVar(out.plaidTagType, tag.getName());
+			out.declarePublicStaticFinalVar(out.plaidTagType, tag.name);
 			
 			out.openStaticBlock(); //static {	
-			var caseOfState = IdGen.getId();
-			out.declareFinalVar(out.plaidStateType, caseOfState.getName());
+			var caseOfState = idgen.getId();
+			out.declareFinalVar(out.plaidStateType, caseOfState.name());
 			caseOf.accept(this);
 			g_idList = IDList.new();
 			g_theState = caseOfState;
 			g_declaredState = out.anonymousDeclaration;
 			caseOf.codegenState(this);
 			//tag = new PlaidTag(caseOfState)
-			out.assignToNewTag(tag.getName(), tagPath, caseOfState.getName());
+			out.assignToNewTag(tag.name, tagPath, caseOfState.name);
 			
 			out.closeBlock(); // } (for static block to init tag)
 		};
 		
 		out.closeBlock(); // } (for class Def)
 		
-		FileGen.createOutputFile(name.getName(), cc.getOutputDir(),
+		FileGen.createOutputFile(name.name, cc.getOutputDir(),
 			out.formatFile(), qid);
 	}
 }
