@@ -1,4 +1,4 @@
-package plaid.apps.webserver;
+package plaidapps.webserver;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -13,6 +13,30 @@ import javax.servlet.ServletInputStream;
 import javax.servlet.ServletRequest;
 
 public class JavaServletRequest implements ServletRequest{
+
+	@Override
+	public String getLocalAddr() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public String getLocalName() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public int getLocalPort() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	public int getRemotePort() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
 
 	InputStream inputStream;
 	

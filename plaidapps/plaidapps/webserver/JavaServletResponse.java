@@ -1,4 +1,4 @@
-package plaid.apps.webserver;
+package plaidapps.webserver;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -9,6 +9,18 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
 
 public class JavaServletResponse implements ServletResponse {
+
+	@Override
+	public String getContentType() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void setCharacterEncoding(String arg0) {
+		// TODO Auto-generated method stub
+		
+	}
 
 	OutputStream outputStream;
 	

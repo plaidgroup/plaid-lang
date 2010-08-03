@@ -1,4 +1,4 @@
-package plaid.apps.webserver;
+package plaidapps.webserver;
 
 import java.io.IOException;
 import java.io.InputStream;
