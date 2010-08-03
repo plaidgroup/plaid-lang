@@ -35,7 +35,7 @@ public class ASTInspector {
 	}
 	
 	public static <T extends ASTnode> void drawAST(T root) {
-		JFrame mainFrame = new JFrame("Plaid AST Insepctor");
+		JFrame mainFrame = new JFrame("Plaid AST Inspector");
 		mainFrame.add(new ASTInspectorPanel(genTreeViewAST(root)));
 		mainFrame.setMinimumSize(new Dimension(500, 500));
 		mainFrame.pack();
