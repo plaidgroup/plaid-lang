@@ -1,0 +1,134 @@
+package plaid.typechecker.AST.visitor;
+
+import plaid.typechecker.AST.*;
+
+state RewriteVisitor case of LeafVisitor {
+	var localVars = java.util.HashSet.new();
+	var stateVars = java.util.HashSet.new();
+	var imports = 0;
+	var packageName = 0;
+
+	method contains(vars, node) {
+		vars.contains(node);
+	}
+
+	override method visitAssignment(node) {
+		if (node.target.isNull()) {
+			if (!localVars.contains(node.field) && stateVars.contains(node.field)) {
+				node.target = new ID { val name = "this$plaid"; };
+			}
+		};
+		node.field.accept(this);
+		node.value.accept(this);
+	}
+
+	override method visitCase(node) {
+		if (!node.defaultCase && node.boundVar) {
+			localVars.add(node.x);
+		};
+		
+		node.qi.accept(this);
+		node.x.accept(this);
+		node.e.accept(this);
+		
+		if (!node.defaultCase && node.boundVar) {
+			localVars.remove(node.x);
+		};
+	}
+	
+	override method visitCompilationUnit(node) {
+		imports = node.javaImports;
+		packageName = node.packageName;
+		
+		node.decls.map(fn (decl) => {
+			localVars.add(new ID { val name = decl.getName(); })
+		});
+		
+		node.decls.map(fn (decl) => {
+			decl.accept(this)
+		});
+		
+		node.decls.map(fn (decl) => {
+			localVars.remove(new ID { val name = decl.getName(); })
+		});
+	}
+
+	override method visitID(node) {
+		if (!localVars.contains(node) && stateVars.contains(node)) {
+			node <- Dereference {
+				override val token = node.token;
+				val left = new ID { val name = "this$plaid"; };
+				val right = new ID { val name = node.name; };
+			};
+			// node.accept(this);
+		}
+	}
+
+	override method visitLambda(node) {
+		localVars.add(node.x);
+
+		node.x.accept(this);
+		node.body.accept(this);
+		
+		localVars.remove(node.x);
+	}
+
+	override method visitMatch(node) {
+		node.e.accept(this);
+		node.caseList.map(fn (c) => {
+			c.accept(this);
+		});
+	}
+	
+	override method visitMethodDecl(node) {
+		if (!node.name.equals("main")) {
+			localVars.add(node.arg);
+		};
+		
+		node.body.accept(this);
+		node.arg.accept(this);
+		
+		if (!node.name.equals("main")) {
+			localVars.remove(node.arg);
+		};
+	}
+
+	method generateStateVars(node) {
+		var helper = plaid.compilerjava.AST.StateDeclHelper.new();
+		var qid = plaid.compilerjava.util.QualifiedID.new(packageName);
+		// TODO: Handle caseOf!
+		var l = helper.generateStateVars(qid, imports.getImports(), node.javaStateDef);
+		var mySet = java.util.HashSet.new();
+		val iter = l.iterator();
+//		java.lang.System.out.println(l);
+		
+		while { iter.hasNext(); } {
+			val javaID = iter.next();
+			mySet.add(new ID { val name = javaID.getName(); });
+		};
+		
+		mySet;
+	}
+
+	override method visitStateDecl(node) {
+		stateVars = generateStateVars(node);
+		
+		node.name.accept(this);
+		node.stateDef.accept(this);
+		node.caseOf.accept(this);
+		
+		stateVars = java.util.HashSet.new();
+	}
+	
+	override method visitDereference(node) {
+		node.left.accept(this);
+		// The right child is always an ID and we don't need to visit it
+		// node.right.accept(this);
+	}
+	
+	override method visitFieldDecl(node) {
+		// Does not need to be visited
+		// node.f.accept(this);
+		node.e.accept(this)
+	}
+}
