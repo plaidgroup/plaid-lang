@@ -1,10 +1,14 @@
 package typechecker.tests.javatests;
 
+import static org.junit.Assert.assertTrue;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidRuntimeState.RUNTIME_STATE;
+import typechecker.tests.utils.TestUtils;
 
 public class MiscTests {
 	@BeforeClass
@@ -26,7 +30,32 @@ public class MiscTests {
 	
 	@Test
 	public void testPermissionEquals() {
-		// TODO: stub
+		// Generate two sets of permissions so that equals() doesn't rely on references
+		PlaidObject[] perms1 = {
+			TestUtils.full(),
+			TestUtils.immutable(),
+			TestUtils.pure(),
+			TestUtils.shared(),
+			TestUtils.unique()
+		};
+		
+		PlaidObject[] perms2 = {
+			TestUtils.full(),
+			TestUtils.immutable(),
+			TestUtils.pure(),
+			TestUtils.shared(),
+			TestUtils.unique()
+		};
+		
+		for (int i = 0; i < perms1.length; ++i) {
+			for (int j = 0; j < perms2.length; ++j) {
+				boolean result = perms1[i].equals(perms2[j]);
+				boolean expected = (i == j);
+				
+				// equals() should return true iff i == j
+				assertTrue(result == expected);
+			}
+		}
 	}
 	
 	@Test
