@@ -268,6 +268,9 @@ public class StateDecl implements Decl {
 			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, CodeGen.anonymousDeclaration);
 			out.assignToNewTag(tag.getName(), tagPath,  caseOfState.getName());  //tag = new PlaidTag(caseOfState)
 			
+			out.append(name.getName() + ".addTag(" + name.getName() + "$Tag" + PlaidConstants.ID_SUFFIX + ");");
+			out.updateVarDebugInfo(name.getName());
+			
 			out.closeBlock(); // } (for static block to init tag)
 		}
 		
