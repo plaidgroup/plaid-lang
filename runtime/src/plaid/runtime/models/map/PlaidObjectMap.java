@@ -468,7 +468,6 @@ public class PlaidObjectMap implements PlaidObject {
 		PlaidObject retval = eqmeth.invoke(po);
 		
 		// We need to find out if retval is a (Plaid) true
-		// TODO: This is a hack!
-		return retval.toString().contains("plaid.lang.True");
+		return retval.matchesTag("plaid.lang.True");
 	}
 }
