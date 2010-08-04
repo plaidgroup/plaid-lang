@@ -47,7 +47,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	protected PlaidObject prototype = new PlaidObjectMap();
 	protected Class<Object> templateClass;
 	protected PlaidTag tag;
-	protected boolean hasTag;
 	
 	public static PlaidStateMap loadPlaidState(Class<Object> templateClass) {
 		PlaidStateMap theState = null;
@@ -80,6 +79,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		this.name = name;
 		this.psa = templateClass.getAnnotation(RepresentsState.class);
 		this.templateClass = templateClass;
+		
 		for (Field f : templateClass.getFields()) {
 			RepresentsState psa = f.getAnnotation(RepresentsState.class);
 			if (psa != null) {
@@ -103,13 +103,8 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 				}
 			}
 		}
+		
 		prototype.addState(this);
-		if (tag != null) {
-			hasTag = true;
-			prototype.addTag(tag);
-		} else {
-			hasTag = false;
-		}
 	}
 	
 	public PlaidStateMap() {
@@ -117,7 +112,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		this.name = "<ANONYMOUS>";
 		this.psa = null;
 		this.templateClass = null;
-		this.hasTag = false;
 		this.tag = null;
 	}
 	
@@ -296,11 +290,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 			target.addMember(e.getKey(), e.getValue());
 		}
 		
-//		// copy mutable members 
-//		for ( Map.Entry<String, PlaidObject> e : source.getMutableMembers().entrySet()) {
-//			target.addMember(e.getKey(), e.getValue(), false);
-//		}
-		
 		// copy states
 		for ( PlaidObject s : source.getStates() ) {
 			target.addState(s);
@@ -338,16 +327,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		prototype.removeTag(tag);
 	}
 	
-//	@Override
-//	public Map<String, PlaidObject> getImmutableMembers() {
-//		return this.prototype.getImmutableMembers();
-//	}
-//	
-//	@Override
-//	public Map<String, PlaidObject> getMutableMembers() {
-//		return this.prototype.getMutableMembers();
-//	}
-	
 	@Override
 	public PlaidObject getPrototype() {
 		return prototype;
@@ -360,13 +339,11 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	@Override
 	public boolean hasTag() throws PlaidException {
-		return hasTag;
+		return tag != null;
 	}
 
 	@Override
 	public String getPath() {
 		return pkg.getQI().toString() + "." + name;
 	}
-
-
 }

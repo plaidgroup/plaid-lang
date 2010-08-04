@@ -39,8 +39,6 @@ import plaid.runtime.Util;
 public class PlaidObjectMap implements PlaidObject {
 	protected Collection<PlaidObject> states;
 	protected Map<PlaidMemberDef, PlaidObject> members;
-	//protected Map<PlaidMemberDef, PlaidObject> immutableMembers;
-	//protected Map<PlaidMemberDef,PlaidObject> mutableMembers;
 	protected Collection<PlaidTag> tags;
 	// map from scopes to sets of bound variable names for this object
 	protected boolean readonly = false;
@@ -48,8 +46,6 @@ public class PlaidObjectMap implements PlaidObject {
 	public PlaidObjectMap() {
 		states = new ArrayList<PlaidObject>();
 		members = new HashMap<PlaidMemberDef, PlaidObject>();
-		//immutableMembers = new HashMap<PlaidMemberDef, PlaidObject>();
-		//mutableMembers = new HashMap<PlaidMemberDef, PlaidObject>();
 		tags = new ArrayList<PlaidTag>();
 	}
 
@@ -157,16 +153,6 @@ public class PlaidObjectMap implements PlaidObject {
 		return Collections.unmodifiableMap(this.members);
 	}
 	
-//	@Override
-//	public Map<String, PlaidObject> getImmutableMembers() {
-//		return Collections.unmodifiableMap(this.immutableMembers);
-//	}
-//	
-//	@Override
-//	public Map<String, PlaidObject> getMutableMembers() {
-//		return Collections.unmodifiableMap(this.mutableMembers);
-//	}
-
 	@Override
 	public void addState(PlaidObject state) throws PlaidException {
 		if (isReadOnly()) {
@@ -365,10 +351,6 @@ public class PlaidObjectMap implements PlaidObject {
 		PlaidObjectMap newObj = new PlaidObjectMap();
 		// add members
 		newObj.members.putAll(this.members);
-//		// add immutable members
-//		newObj.immutableMembers.putAll(this.immutableMembers);
-//		// add mutable members
-//		newObj.mutableMembers.putAll(this.mutableMembers);
 		// add states
 		newObj.states.addAll(this.states);
 		// add tags
