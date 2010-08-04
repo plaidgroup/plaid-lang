@@ -42,6 +42,7 @@ public class Throws implements Expression {
 			Set<ID> stateVars) {
 		ID freshID = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, freshID.getName());
+		out.insertIntoScope(CodeGen.localScope, this.throwableID.getName(), true);
 		
 		// This code expects the object that is returned to it to have a String field named "message".
 		// If it doesn't, everything will explode in a giant fireball, as you can see from the code below.
