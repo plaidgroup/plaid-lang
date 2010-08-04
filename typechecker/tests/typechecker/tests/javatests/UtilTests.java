@@ -2,18 +2,14 @@ package typechecker.tests.javatests;
 
 import static org.junit.Assert.*;
 
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidRuntimeState.RUNTIME_STATE;
-import plaid.runtime.Util;
 import typechecker.tests.utils.TestUtils;
 
 /**
@@ -37,22 +33,29 @@ public class UtilTests {
 	
 	@Test
 	public void testFieldDeclConstruction() {
-		// TODO
+		PlaidObject[] fooAbbrevs = {TestUtils.id("String")};
+		PlaidObject[] fooDecls = {};
+		PlaidObject fooID = TestUtils.id("foo");
+		
+		PlaidObject fooField = TestUtils.fieldType(fooID, TestUtils.permtype(TestUtils.full(), TestUtils.type(fooAbbrevs, fooDecls)));
+		assertTrue(TestUtils.full().equals(TestUtils.getField("perm", TestUtils.getField("permType", fooField))));
 	}
 	
 	@Test
 	public void testTypeConstructionNoAbbrevsNoDecls() {
-		// TODO: These hang for some reason
 		PlaidObject[] abbrevs = {};
 		PlaidObject[] decls = {};
 		
 		PlaidObject structType = TestUtils.type(abbrevs, decls);
 		
+		Set<PlaidObject> typeAbbrevs = TestUtils.getTypeAbbrevs(structType);
+		Set<PlaidObject> typeDecls = TestUtils.getTypeDecls(structType);
+		assertTrue(typeAbbrevs.isEmpty());
+		assertTrue(typeDecls.isEmpty());
 	}
 	
 	@Test
 	public void testTypeConstructionNoAbbrevs() {
-		// TODO: these hang for some reason
 		PlaidObject[] fooAbbrevs = {TestUtils.id("String")};
 		PlaidObject[] fooDecls = {};
 		
@@ -72,22 +75,27 @@ public class UtilTests {
 		
 		PlaidObject structType = TestUtils.type(abbrevs, decls);
 		
-		Set<PlaidObject> typeAbbrevs = (Set<PlaidObject>)Util.toPlaidJavaObject(TestUtils.getField("typeAbbrevs", structType)).getJavaObject();
+		Set<PlaidObject> typeAbbrevs = TestUtils.getTypeAbbrevs(structType);
 		assertTrue(typeAbbrevs.isEmpty());
 		
-		Set<PlaidObject> typeDecls = (Set<PlaidObject>)Util.toPlaidJavaObject(TestUtils.getField("typeDecls", structType)).getJavaObject();
+		Set<PlaidObject> typeDecls = TestUtils.getTypeDecls(structType);
 		assertTrue(typeDecls.contains(fooField));
 		assertTrue(typeDecls.contains(barField));
 	}
 	
 	@Test
 	public void testTypeConstructionNoDecls() {
+		PlaidObject intAbbrev = TestUtils.id("Integer");
+		
 		PlaidObject[] abbrevs = {
-				
+				intAbbrev
 		};
 		PlaidObject[] decls = {};
 		
 		PlaidObject structType = TestUtils.type(abbrevs, decls);
-		
+		Set<PlaidObject> typeAbbrevs = TestUtils.getTypeAbbrevs(structType);
+		Set<PlaidObject> typeDecls = TestUtils.getTypeDecls(structType);
+		assertTrue(typeAbbrevs.contains(intAbbrev));
+		assertTrue(typeDecls.isEmpty());
 	}
 }

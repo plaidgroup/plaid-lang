@@ -301,6 +301,31 @@ public class TestUtils {
 	}
 	
 	/**
+	 * Takes a PlaidObject representing a structural type (Type) and returns 
+	 * the Java Set containing the type abbreviations in that structural type.
+	 * 
+	 * @param structType
+	 * @return
+	 */
+	@SuppressWarnings("unchecked")
+	public static Set<PlaidObject> getTypeAbbrevs(PlaidObject structType) {
+		return (Set<PlaidObject>)Util.toPlaidJavaObject(TestUtils.getField("typeAbbrevs", structType)).getJavaObject();
+	}
+	
+	/**
+	 * Takes a PlaidObject representing a structural type (Type) and returns
+	 * the Java Set containing the type declarations in that structural type
+	 * (methods and fields).
+	 * 
+	 * @param structType
+	 * @return
+	 */
+	@SuppressWarnings("unchecked")
+	public static Set<PlaidObject> getTypeDecls(PlaidObject structType) {
+		return (Set<PlaidObject>)Util.toPlaidJavaObject(TestUtils.getField("typeDecls", structType)).getJavaObject();
+	}
+	
+	/**
 	 * Creates a new ProtoField that simply initializes the field with whatever
 	 * object is passed to the function.
 	 * 
