@@ -7,7 +7,12 @@ import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 
+import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
+
+import plaid.compilerjava.util.MemberRep;
 import plaid.compilerjava.util.QualifiedID;
+import plaid.compilerjava.util.StateRep;
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.annotations.RepresentsState;
 
@@ -81,8 +86,11 @@ public class StateDeclHelper {
 					obj = (Class<Object>) cl.loadClass(current);
 					for (Annotation a : obj.getAnnotations()) {
 						if (a instanceof RepresentsState) {
-							String memberString = ((RepresentsState) a).members();
-							if (memberString.length() > 0 ) for (String s : memberString.split(",")) stateVars.add(new ID(s));
+							String memberString = ((RepresentsState) a).jsonRep();
+							StateRep rep = StateRep.parseJSONObject((JSONObject)JSONValue.parse(memberString));
+							for (MemberRep member : rep.getMembers()) {
+								stateVars.add(new ID(member.getName()));
+							}
 						}
 					}
 					return; //once we've found the class, we're done
