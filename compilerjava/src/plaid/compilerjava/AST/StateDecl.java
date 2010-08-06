@@ -189,19 +189,15 @@ public class StateDecl implements Decl {
 		out.declarePackage(thePackage); //package qid;
 		
 		//determine what members this state has and add annotations
-		String memberString = "";
+		String repString = "";
 		Set<ID> stateVars = new HashSet<ID>();
 		if (plaidpath.memberExists(thePackage, name.getName())) {
 			MemberRep stateRep = plaidpath.lookupMember(thePackage, name.getName());
-			if (stateRep instanceof StateRep) {
-				for (MemberRep m : ((StateRep) stateRep).getMembers()) {
-					memberString += m.serialize() + ",";
-					stateVars.add(new ID(m.getName()));
-				}
-				if (memberString.length() > 0) memberString = memberString.substring(0,memberString.length()-1);
-			} else {
+			if (!(stateRep instanceof StateRep)) {
 				throw new RuntimeException(thePackage + "." + name.getName() + " is not a state.");
 			}
+			repString = MemberRep.escapeJSONString(stateRep.toJSONString());
+			
 		} else {
 			throw new RuntimeException("Cannot find state " + thePackage + "." + name.getName());
 		}
@@ -213,7 +209,7 @@ public class StateDecl implements Decl {
 //		if (memberString.length() > 0) memberString = memberString.substring(0,memberString.length()-1);
 		
 		// state annotation and class definition
-		out.topStateAnnotation(name.getName(), thePackage, memberString);
+		out.topStateAnnotation(name.getName(), thePackage, repString);
 		out.declarePublicClass(name.getName()); out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports

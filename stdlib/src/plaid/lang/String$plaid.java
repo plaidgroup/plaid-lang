@@ -33,7 +33,7 @@ import plaid.runtime.models.map.PlaidLocalScopeMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 
-@RepresentsState(name="String", inPackage = "plaid.lang", toplevel=true, javaobject=true, members = "m(+),m(substring)")
+@RepresentsState(name="String", inPackage = "plaid.lang", toplevel=true, javaobject=true, jsonRep = "{\"member_type\": \"state\",\"name\": \"String\",\"members\": [{\"member_type\": \"method\",\"name\": \"+\",},{\"member_type\": \"method\",\"name\": \"substring\",}]}")
 public class String$plaid {
 	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 	

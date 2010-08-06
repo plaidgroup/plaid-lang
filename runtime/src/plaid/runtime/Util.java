@@ -140,6 +140,18 @@ public class Util {
 		return objs.toArray();
 	}
 	
+	public static PlaidObject packPlaidObjectsIntoArray(PlaidObject... objs) {
+		if (objs.length == 0) {
+			return unit();
+		}
+		PlaidState ps = toPlaidState(lookup("plaid.lang.Pair", unit()));
+		PlaidObject result = ps.instantiate();
+		result.addMember(Util.anonymousMemberDef("fst", false, false), objs[0]);
+		result.addMember(Util.anonymousMemberDef("snd", false, false), convertArrayToParams(Arrays.copyOfRange(objs, 1, objs.length)));
+		
+		return result;
+	}
+	
 	public static PlaidObject convertArrayToParams(Object[] objs) {
 		if ( objs.length == 0 ) {
 			return unit();
