@@ -597,8 +597,8 @@ public class CodeGen {
 	 * @param members - comma separated list of member names
 	 * @return trailing @ sign to allow for correct indentation during pretty printing
 	 */
-	public final void topStateAnnotation(String name, String thePackage, String members) {
-		output.append("@plaid.runtime.annotations.RepresentsState(name = \"" + name + "\", inPackage = \"" + thePackage + "\", toplevel = " + true + ", members = \"" + members + "\")");
+	public final void topStateAnnotation(String name, String thePackage, String jsonRep) {
+		output.append("@plaid.runtime.annotations.RepresentsState(name = \"" + name + "\", inPackage = \"" + thePackage + "\", toplevel = " + true + ", jsonRep = \"" + jsonRep + "\")");
 		if (cc.prettyPrint()) output.append("@");
 	}
 	
