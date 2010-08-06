@@ -41,6 +41,9 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 import javax.tools.JavaCompiler.CompilationTask;
 
+import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
+
 import plaid.compilerjava.AST.CompilationUnit;
 import plaid.compilerjava.AST.Decl;
 import plaid.compilerjava.AST.FieldDecl;
@@ -142,8 +145,11 @@ public class CompilerCore {
 											} else if (a instanceof RepresentsState) {
 												RepresentsState s = (RepresentsState) a;
 												thePackage = s.inPackage();
-												StateRep state = new StateRep(s.name());
-												state.addMembers(MemberRep.deserializeStateMembers(s.members()));
+												JSONObject obj = (JSONObject) JSONValue.parse(s.jsonRep());
+												if (obj == null) {
+													System.out.println("break");
+												}
+												StateRep state = StateRep.parseJSONObject(obj);
 												member = state;
 											}
 											if (member != null) { //if this was a plaid generated java file

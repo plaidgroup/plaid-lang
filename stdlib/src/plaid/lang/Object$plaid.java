@@ -26,7 +26,7 @@ import plaid.runtime.PlaidScope;
 import plaid.runtime.annotations.RepresentsState;
 import plaid.runtime.utils.Import;
 
-@RepresentsState(name="Object", inPackage = "plaid.lang", toplevel=true)
+@RepresentsState(name="Object", inPackage = "plaid.lang", toplevel=true, jsonRep="{\"member_type\": \"state\",\"name\": \"Object\",\"members\": []}")
 public class Object$plaid {
 	
 	public static PlaidScope currentScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());

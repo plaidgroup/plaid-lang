@@ -5,15 +5,19 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import plaid.runtime.PlaidConstants;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
+import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidState;
 import plaid.runtime.Util;
 import plaid.runtime.models.map.PlaidJavaObjectMap;
 import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
+import plaid.runtime.utils.QualifiedIdentifier;
+import plaid.runtime.annotations.RepresentsState;
 import plaid.typechecker.AST.FieldTypeDecl;
 import plaid.typechecker.AST.FullPermission;
 import plaid.typechecker.AST.ID;
@@ -359,5 +363,36 @@ public class TestUtils {
 		
 		// instantiate the new prototype
 		return initializedState.instantiate();
+	}
+
+	@SuppressWarnings("unchecked")
+	public static PlaidObject getStructuralTypeFromAbbrev(String name) {
+		// check if we can find the file 
+		ClassLoader cl = PlaidRuntime.getRuntime().getClassLoader().getClass().getClassLoader();
+		
+		String names[] = {name + PlaidConstants.ID_SUFFIX, name};
+		Class<Object> obj = null;
+		for (String current : names) {
+			try {
+				obj = (Class<Object>)cl.loadClass(current);
+				break;
+			} catch (ClassNotFoundException e) {
+				// If there is no classfile then we need to keep searching
+			}
+		}
+		
+		if (obj == null) {
+			return null;
+		}
+		
+		RepresentsState stateAnnotation = obj.getAnnotation(RepresentsState.class);
+		
+		// TODO: get the type out of the state annotation and return it
+		
+		return null;
+	}
+
+	public static void addToContext(PlaidObject context, PlaidObject x, PlaidObject xPermType) {
+		Util.call(TestUtils.getField("put", context), Util.packPlaidObjectsIntoArray(x, xPermType));
 	}
 }
