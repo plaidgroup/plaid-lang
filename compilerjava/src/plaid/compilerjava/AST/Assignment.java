@@ -109,12 +109,12 @@ public class Assignment implements Expression {
 		}
 		// we have a target, so we need to check if that particular 
 		// field of the target is mutable and if so assign the new value
-			// evaluate the target
-			ID temp = IdGen.getId();
-			out.declareFinalVar(CodeGen.plaidObjectType, temp.getName());
-			target.codegenExpr(out, temp, localVars, stateVars);
-			out.updateMember(temp.getName(), this.field.getName(), assignTo.getName());
-			out.assignToID(y.getName(), assignTo.getName());
+		// evaluate the target
+		ID temp = IdGen.getId();
+		out.declareFinalVar(CodeGen.plaidObjectType, temp.getName());
+		target.codegenExpr(out, temp, localVars, stateVars);
+		out.updateMember(temp.getName(), this.field.getName(), assignTo.getName());
+		out.assignToID(y.getName(), assignTo.getName());
 
 		out.updateVarDebugInfo(assignTo.getName());
 	}

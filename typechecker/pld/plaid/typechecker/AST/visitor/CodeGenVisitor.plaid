@@ -12,34 +12,65 @@ state CodeGenVisitor case of ASTVisitor {
 	// at the beginning of method call.
 	// TODO: Reimplement using state change once that's working properly?
 	var /* QualifiedID */ g_packageName = "";
-	var g_returnVar = "";
+	var /* ID */ g_returnVar = "";
 	var /* ImportList */ g_imports = "";
 	var /* ID */ g_y = "";
 
 
 	method visitApplication(node) {
+		//out.setLocation(token);
+		var /* ID */ x = idgen.getId();
+		var /* ID */ y = g_y;
+		var /* ID */ z = idgen.getId();
+		// public final PlaidObject x;
+		// public final PlaidObject z;
+		out.declareFinalVar(jCodeGen.plaidObjectType, x.name);
+		out.declareFinalVar(jCodeGen.plaidObjectType, z.name);
 		
+		g_y = x;
+		node.f.accept(this);
+		
+		g_y = z;
+		node.arg.accept(this);
+		
+		//out.setLocation(token);
+		// y = Util.call(x,z);
+		out.assignToCall(y.name, x.name, z.name);  
 	}
 	
 	method visitAssignment(node) {
-		val y = g_y;
-		out.setLocation(node.token);
+		val /* ID */ y = g_y;
+		//out.setLocation(node.token); TODO: Why does this break?
 		val /* ID */ assignTo = idgen.getId();
 		out.declareFinalVar(jCodeGen.plaidObjectType, assignTo.name);
 		g_y = assignTo;
 		node.value.accept(this);
 		
-		// we have a target, so we need to check if that particular 
-		// field of the target is mutable and if so assign the new value
-		// evaluate the target
-		val temp = idgen.getId();
-		out.declareFinalVar(jCodeGen.plaidObjectType, temp.name);
-		g_y = temp;
-		node.target.accept(this);
-		out.updateMember(temp.name, node.field.name, assignTo.name);
-		out.assignToID(y.name, assignTo.name);
-
-		out.updateVarDebugInfo(assignTo.name);
+		// Generates (e.g.):
+		// PlaidObject var$foo = local$c0pe.lookup('y')
+		// local$c0pe.update('x', var$foo)
+		ifElse (node.target.isNull()) {
+			// if we haven't seen it in this scope at all, then we must be 
+			// referencing an instance field with an implicit "this"
+			// need to make sure we've loaded it before
+			out.lookupInCurrentScope(node.field.name);
+			out.updateVarInScope(node.field.name, assignTo.name);
+			out.assignToID(y.name, assignTo.name);
+			
+			out.updateVarDebugInfo(assignTo.name);
+		} {
+			// we have a target, so we need to check if that particular 
+			// field of the target is mutable and if so assign the new value
+			// evaluate the target
+			val /* ID */ temp = idgen.getId();
+			out.declareFinalVar(jCodeGen.plaidObjectType, temp.name);
+			g_y = temp;
+			node.target.accept(this);
+			out.updateMember(temp.name, node.field.name, assignTo.name);
+			out.assignToID(y.name, assignTo.name);
+	
+			out.updateVarDebugInfo(assignTo.name);
+		}
 	}
 	
 	method visitCase(node) {
@@ -65,11 +96,28 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitDereference(node) {
-	
+		val /* ID */ y = g_y;
+		//out.setLocation(token);
+		
+		//generate code for the object to lookup the right ID in
+		var /* ID */  x = idgen.getId();
+		out.declareFinalVar(jCodeGen.plaidObjectType, x.name);
+
+		g_y = x;
+		node.left.accept(this);
+
+		//out.setLocation(left.token);
+		
+		//code for the lookup
+		//out.setLocation(right.token);
+		//out.setLocation(y.token);
+		out.assignToLookup(y.name, jCodeGen.convertOpNames(node.right.name), 
+			x.name);
 	}
 	
 	method handleTopLevelFieldDecl(node) {
 		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setDebugMode(java.lang.Boolean.FALSE);
 		cc.setPrettyPrint(java.lang.Boolean.TRUE);
 		out = jCodeGen.new(cc);
 		idgen = new IdGen;
@@ -144,7 +192,7 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitIntLiteral(node) {
-		out.setLocation(node.token);
+		//out.setLocation(node.token);
 		out.assign(g_y.name);
 		out.plaidInt(node.integer);
 		out.append(";");
@@ -174,6 +222,7 @@ state CodeGenVisitor case of ASTVisitor {
 		
 		val cc = plaid.compilerjava.CompilerConfiguration.new();
 		cc.setPrettyPrint(java.lang.Boolean.TRUE);
+		cc.setDebugMode(java.lang.Boolean.FALSE);
 		out = jCodeGen.new(cc);
 		
 		val qid = plaid.compilerjava.AST.QI.new(g_packageName);
@@ -241,7 +290,7 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitStringLiteral(node) {
-		out.setLocation(node.token);
+		//out.setLocation(node.token);
 		out.assign(g_y.name);
 		out.plaidString(node.string);
 		out.append(";");  
