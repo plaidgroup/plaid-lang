@@ -23,6 +23,7 @@ import plaid.typechecker.AST.FullPermission;
 import plaid.typechecker.AST.ID;
 import plaid.typechecker.AST.ImmutablePermission;
 import plaid.typechecker.AST.IntLiteral;
+import plaid.typechecker.AST.NonePermission;
 import plaid.typechecker.AST.PermType;
 import plaid.typechecker.AST.PurePermission;
 import plaid.typechecker.AST.SharedPermission;
@@ -69,7 +70,7 @@ public class TestUtils {
 		return initAndInstantiateState(UnannotatedLetBinding.UnannotatedLetBinding, 
 				newState);
 	}
-	
+		
 	/**
 	 * Constructs a new ID using the given name.
 	 * 
@@ -217,6 +218,19 @@ public class TestUtils {
 		
 		// instantiate the new prototype
 		return initAndInstantiateState(PurePermission.PurePermission, newState);
+	}
+	
+	/**
+	 * Constructs a new NonePermission object.
+	 * 
+	 * @return The new NonePermission object;
+	 */
+	public static PlaidObject none() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(NonePermission.NonePermission, newState);
 	}
 	
 	/**
