@@ -36,7 +36,8 @@ public class MiscTests {
 			TestUtils.immutable(),
 			TestUtils.pure(),
 			TestUtils.shared(),
-			TestUtils.unique()
+			TestUtils.unique(),
+			TestUtils.none()
 		};
 		
 		PlaidObject[] perms2 = {
@@ -44,7 +45,8 @@ public class MiscTests {
 			TestUtils.immutable(),
 			TestUtils.pure(),
 			TestUtils.shared(),
-			TestUtils.unique()
+			TestUtils.unique(),
+			TestUtils.none()
 		};
 		
 		for (int i = 0; i < perms1.length; ++i) {
