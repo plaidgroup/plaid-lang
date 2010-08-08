@@ -67,8 +67,6 @@ public final class Lambda implements Expression {
 
 	@Override
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
-
-		
 		out.setLocation(token);
 		
 		ID freshID = IdGen.getId();

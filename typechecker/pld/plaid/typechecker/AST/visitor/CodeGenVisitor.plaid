@@ -170,7 +170,11 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitID(node) {
-	
+		out.setLocation(node.token);
+		val /* String */ newName = jCodeGen.convertOpNames(node.name);
+		
+		// y = lookup(name, currentScope);
+		out.assignToLookup(g_y.name, newName, jCodeGen.localScope);  
 	}
 	
 	method visitImportList(node) {
@@ -200,11 +204,41 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitLambda(node) {
-	
+		//out.setLocation(node.token);
+		val /* ID */ y = g_y;
+		
+		var /*ID*/ freshID = idgen.getId();
+		
+		out.assignToNewLambda(y.name, node.x.name);  //y = new lambda(...{ {
+		
+		out.declareVar(jCodeGen.plaidObjectType, freshID.name);
+		g_y = freshID;
+		node.body.accept(this);
+		out.ret(freshID.name);
+		
+		out.closeAnonymousDeclaration(); //}});");
 	}
 	
 	method visitLetBinding(node) {
+		val /* ID */ y = g_y;
 	
+		//out.setLocation(node.token);
+		out.openBlock(); //{
+		out.declareFinalVar(jCodeGen.plaidObjectType, node.x.name);
+		
+		g_y = node.x;
+		node.exp.accept(this);
+
+		if (!node.x.name.contains("$plaid")) {
+			// set the immutability of the variable
+			out.insertIntoScope(jCodeGen.localScope, node.x.name, 
+				(!node.mutable).jval);
+		};
+		
+		g_y = y;
+		node.body.accept(this);
+		
+		out.closeBlock(); // }
 	}
 	
 	method visitMatch(node) {
@@ -298,7 +332,11 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitUnitLiteral(node) {
-	
+		//out.setLocation(node.token);
+		out.assign(g_y.name);
+		out.unit2(); // Identical to unit(), but that's a reserved word
+		out.append(";");
+		out.updateVarDebugInfo(g_y.name);
 	}
 	
 	method visitWith(node) {
