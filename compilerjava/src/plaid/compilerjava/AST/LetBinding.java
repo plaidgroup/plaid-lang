@@ -58,7 +58,6 @@ public class LetBinding implements Expression {
 
 	@Override
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
-
 		out.setLocation(token);
 		out.openBlock(); //{
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());

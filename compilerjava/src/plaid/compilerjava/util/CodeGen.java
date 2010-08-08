@@ -514,6 +514,12 @@ public class CodeGen {
 		output.append( classLoader + ".unit()");
 	}
 	
+	// Exists so that this method can be called from Plaid code,
+	// unit being a reserved word
+	public final void unit2() {
+		output.append (classLoader + ".unit()");
+	}
+	
 	public final void plaidString(String s) {
 		output.append(utilClass + ".string(\"" + s + "\")"); 
 	}
