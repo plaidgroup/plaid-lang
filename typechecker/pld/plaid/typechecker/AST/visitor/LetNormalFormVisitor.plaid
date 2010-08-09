@@ -1,0 +1,230 @@
+package plaid.typechecker.AST.visitor;
+
+import plaid.typechecker.AST.*;
+
+state LetNormalFormVisitor case of LeafVisitor {
+	var counter = 0;
+
+	method generateID(tok) {
+		counter = counter + 1;
+		val n = "LNF$vAr" + counter + "$plaid";
+		new ID with {
+			val /*Token*/ token = tok;
+			val /*String*/ name = n;
+		};
+	}
+	
+	override method visitApplication(node) {
+		node.f.accept(this);
+		node.arg.accept(this);
+		
+		val function = node.f;
+		val argument = node.arg;
+		val tok = node.token;
+		
+		match (function) {
+			case ID {
+				match (argument) {
+					// Already LNF
+					case ID {
+					}
+					// Argument is more complex => insert let binding
+					default {
+						val id = generateID(tok);
+						node <- UnannotatedLetBinding {
+							override val /*Token*/ token = tok;
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = argument;
+							val /*Expression*/ body = new LNFApplication {
+								val /*Token*/ token = tok;
+								val /*ID*/ f = function;
+								val /*ID*/ arg = id;
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
+				}
+			}
+			// The function is some more complicated expression
+			default {
+				match (argument) {
+					// Function is complex expression but argument is simple ID => add one let binding
+					case ID {
+						val id = generateID(tok);
+						node <- UnannotatedLetBinding {
+							override val /*Token*/ token = tok;
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = function;
+							val /*Expression*/ body = new LNFApplication {
+								val /*Token*/ token = tok;
+								val /*ID*/ f = id;
+								val /*ID*/ arg = argument;
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
+					// Both argument and function are complex expression => add two let bindings
+					default {
+						val id1 = generateID(tok);
+						val id2 = generateID(tok);
+						node <- UnannotatedLetBinding {
+							override val /*Token*/ token = tok;
+							val /*ID*/ x = id1;
+							val /*Expression*/ exp = function;
+							val /*Expression*/ body = new UnannotatedLetBinding {
+								val /*Token*/ token = tok;
+								val /*ID*/ x = id2;
+								val /*Expression*/ exp = argument;
+								val /*Expression*/ body = new LNFApplication {
+									val /*Token*/ token = tok;
+									val /*ID*/ f = id1;
+									val /*ID*/ arg = id2;
+								};
+								val /*boolean*/ mutable = false;
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
+				}
+			}
+		}
+	}
+	
+	override method visitChangeState(node) {
+		node.e.accept(this);
+		node.s.accept(this);
+		
+		val tok = node.token;
+		val expr = node.e;
+		val st = node.s;
+		
+		match (expr) {
+			// Already LNF
+			case ID {
+				node <- LNFChangeState {
+					override val /*Token*/ token = tok;
+					val /*ID*/ e = expr;
+					val /*State*/ s = st;
+				};
+			}
+			// Bring AST to LNF
+			default {
+				val id = generateID(tok);
+				node <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = expr;
+					val /*Expression*/ body = new LNFChangeState {
+						val /*Token*/ token = tok;
+						val /*ID*/ e = id;
+						val /*State*/ s = st;
+					};
+					val /*boolean*/ mutable = false;
+				};
+			}
+		}
+	}
+	
+	override method visitDereference(node) {
+		node.left.accept(this);
+		node.right.accept(this);
+		
+		val l = node.left;
+		val tok = node.token;
+		
+		match (l) {
+			// Already LNF
+			case ID {
+				node <- LNFDereference {
+					override val /*Token*/ token = tok;
+					override val /*ID*/ left = l;
+					override val /*ID*/ right = node.right;
+				};
+			}
+			// Bring AST to LNF
+			default {
+				val id = generateID(tok);
+				node <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = l;
+					val /*Expression*/ body = new LNFDereference {
+						val /*Token*/ token = tok;
+						val /*ID*/ left = id;
+						val /*ID*/ right = node.right;
+					};
+					val /*boolean*/ mutable = false;
+				};
+			}
+		}
+	}
+
+	override method visitDestructiveDereference(node) {
+		node.left.accept(this);
+		node.right.accept(this);
+		
+		val l = node.left;
+		val tok = node.token;
+		
+		match (l) {
+			// Already LNF
+			case ID {
+				node <- LNFDereference {
+					override val /*Token*/ token = tok;
+					override val /*ID*/ left = l;
+					override val /*ID*/ right = node.right;
+				};
+			}
+			// Bring AST to LNF
+			default {
+				val id = generateID(tok);
+				node <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = l;
+					val /*Expression*/ body = new LNFDereference {
+						val /*Token*/ token = tok;
+						val /*ID*/ left = id;
+						val /*ID*/ right = node.right;
+					};
+					val /*boolean*/ mutable = false;
+				};
+			}
+		}
+	}
+	
+	override method visitMatch(node) {
+		node.e.accept(this);
+		node.caseList.map(fn (c) => {
+			c.accept(this)
+		});
+		val expr = node.e;
+		val tok = node.token;
+				
+		match (expr) {
+			// Already in LNF
+			case ID {
+				node <- LNFMatch {
+					override val /*Token*/ token = tok;
+					override val /*ID*/ e = expr;
+					override val /*List<Case>*/ caseList = node.caseList;
+				};
+			}
+			// Bring AST to LNF
+			default {
+				val id = generateID(tok);
+				node <- UnannotatedLetBinding with {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = expr;
+					val /*Expression*/ body = new LNFMatch {
+						val /*Token*/ token = tok;
+						val /*ID*/ e = id;
+						val /*List<Case>*/ caseList = node.caseList;
+					};
+					val /*boolean*/ mutable = false;
+				};						
+			}
+		}
+	}
+}
