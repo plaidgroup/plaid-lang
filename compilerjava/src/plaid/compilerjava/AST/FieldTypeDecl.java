@@ -30,7 +30,7 @@ public class FieldTypeDecl implements TypeDecl {
 		this.permType.accept(visitor);
 	}
 
-	public Object getPermType() {
+	public PermType getPermType() {
 		return this.permType;
 	}
 	

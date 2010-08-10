@@ -10,6 +10,8 @@ import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
+import plaid.runtime.PlaidObject;
+
 public class StateRep extends MemberRep {
 	private List<MemberRep> declaredMembers = new ArrayList<MemberRep>();
 	private List<String> needs = new ArrayList<String>();
