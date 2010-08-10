@@ -40,4 +40,12 @@ public class PermType implements ASTnode {
 	public Token getToken() {
 		return null;
 	}
+
+	public Permission getPermission() {
+		return this.perm;
+	}
+	
+	public Type getType() {
+		return this.type;
+	}
 }

@@ -7,6 +7,8 @@ import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
+import plaid.runtime.PlaidObject;
+
 public abstract class MemberRep implements JSONAware {
 	
 	private String name;
@@ -110,5 +112,4 @@ public abstract class MemberRep implements JSONAware {
 	public static final String escapeJSONString(String json) {
 		return json.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'");
 	}
-	
 }

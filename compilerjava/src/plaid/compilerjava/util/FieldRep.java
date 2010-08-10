@@ -6,10 +6,19 @@ import java.util.Map;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
+import plaid.compilerjava.AST.FieldTypeDecl;
+import plaid.runtime.PlaidObject;
+
 public class FieldRep extends MemberRep {
+	private final FieldTypeDecl type;
 	
 	public FieldRep(String name) {
+		this(name, null);
+	}
+	
+	public FieldRep(String name, FieldTypeDecl type) {
 		super(name);
+		this.type = type;
 	}
 	
 	public String toString() {
@@ -32,6 +41,10 @@ public class FieldRep extends MemberRep {
 		obj.put("member_type", "field");
 		obj.put("name", this.getName());
 		return JSONValue.toJSONString(obj);
+	}
+	
+	public FieldTypeDecl getType() {
+		return this.type;
 	}
 
 	public static FieldRep parseJSONObject(JSONObject obj) {

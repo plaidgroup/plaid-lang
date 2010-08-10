@@ -6,10 +6,19 @@ import java.util.Map;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
+import plaid.compilerjava.AST.MethodTypeDecl;
+import plaid.runtime.PlaidObject;
+
 public class MethodRep extends MemberRep {
+	private final MethodTypeDecl type;
 	
 	public MethodRep(String name) {
+		this(name, null);
+	}
+	
+	public MethodRep(String name, MethodTypeDecl type) {
 		super(name);
+		this.type = type;
 	}
 	
 	public String toString() {
@@ -31,7 +40,12 @@ public class MethodRep extends MemberRep {
 		Map<String, Object> obj = new HashMap<String, Object>();
 		obj.put("member_type", "method");
 		obj.put("name", this.getName());
+		//obj.put("ret_type", this.type.getRetPermType());
 		return JSONValue.toJSONString(obj);
+	}
+	
+	public MethodTypeDecl getType() {
+		return this.type;
 	}
 
 	public static MethodRep parseJSONObject(JSONObject obj) {
@@ -43,5 +57,4 @@ public class MethodRep extends MemberRep {
 		
 		return rep;
 	}
-	
 }

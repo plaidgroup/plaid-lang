@@ -1,10 +1,21 @@
 package typechecker.tests.utils;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
+
+import plaid.compilerjava.AST.Permission;
+import plaid.compilerjava.AST.TypeDecl;
+import plaid.compilerjava.util.FieldRep;
+import plaid.compilerjava.util.MemberRep;
+import plaid.compilerjava.util.MethodRep;
+import plaid.compilerjava.util.StateRep;
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidMemberDef;
@@ -18,11 +29,13 @@ import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.QualifiedIdentifier;
 import plaid.runtime.annotations.RepresentsState;
+import plaid.typechecker.AST.DynPermType;
 import plaid.typechecker.AST.FieldTypeDecl;
 import plaid.typechecker.AST.FullPermission;
 import plaid.typechecker.AST.ID;
 import plaid.typechecker.AST.ImmutablePermission;
 import plaid.typechecker.AST.IntLiteral;
+import plaid.typechecker.AST.MethodTypeDecl;
 import plaid.typechecker.AST.NonePermission;
 import plaid.typechecker.AST.PermType;
 import plaid.typechecker.AST.PurePermission;
@@ -155,83 +168,7 @@ public class TestUtils {
 		return initAndInstantiateState(PermType.PermType, newState);
 	}
 	
-	/**
-	 * Constructs a new UniquePermission object.
-	 * 
-	 * @return The new UniquePermission object;
-	 */
-	public static PlaidObject unique() {
-		// create a new blank prototype
-		PlaidState newState = Util.newState();
-		
-		// instantiate the new prototype
-		return initAndInstantiateState(UniquePermission.UniquePermission, newState);
-	}
 	
-	/**
-	 * Constructs a new FullPermission object.
-	 * 
-	 * @return The new FullPermission object;
-	 */
-	public static PlaidObject full() {
-		// create a new blank prototype
-		PlaidState newState = Util.newState();
-		
-		// instantiate the new prototype
-		return initAndInstantiateState(FullPermission.FullPermission, newState);
-	}
-	
-	/**
-	 * Constructs a new SharedPermission object.
-	 * 
-	 * @return The new SharedPermission object;
-	 */
-	public static PlaidObject shared() {
-		// create a new blank prototype
-		PlaidState newState = Util.newState();
-		
-		// instantiate the new prototype
-		return initAndInstantiateState(SharedPermission.SharedPermission, newState);
-	}
-	
-	/**
-	 * Constructs a new ImmutablePermission object.
-	 * 
-	 * @return The new ImmutablePermission object;
-	 */
-	public static PlaidObject immutable() {
-		// create a new blank prototype
-		PlaidState newState = Util.newState();
-		
-		// instantiate the new prototype
-		return initAndInstantiateState(ImmutablePermission.ImmutablePermission, newState);
-	}
-	
-	/**
-	 * Constructs a new PurePermission object.
-	 * 
-	 * @return The new PurePermission object;
-	 */
-	public static PlaidObject pure() {
-		// create a new blank prototype
-		PlaidState newState = Util.newState();
-		
-		// instantiate the new prototype
-		return initAndInstantiateState(PurePermission.PurePermission, newState);
-	}
-	
-	/**
-	 * Constructs a new NonePermission object.
-	 * 
-	 * @return The new NonePermission object;
-	 */
-	public static PlaidObject none() {
-		// create a new blank prototype
-		PlaidState newState = Util.newState();
-		
-		// instantiate the new prototype
-		return initAndInstantiateState(NonePermission.NonePermission, newState);
-	}
 	
 	/**
 	 * Constructs a new Type object based upon the specified type abbreviations 
@@ -266,19 +203,28 @@ public class TestUtils {
 	}
 	
 	/**
-	 * TODO
+	 * TODO: add type change information
 	 * @param name
 	 * @param retPermType
 	 * @param argTypes
-	 * @param recvPermTypeBefore
-	 * @param recvPermTypeAfter
-	 * @param varTypeTrans
 	 * @return
 	 */
-	public static PlaidObject methodType(PlaidObject name, PlaidObject retPermType, 
-			PlaidObject argTypes, PlaidObject recvPermTypeBefore, 
-			PlaidObject recvPermTypeAfter, PlaidObject varTypeTrans) {
-		return null;
+	public static PlaidObject methodType(PlaidObject name, 
+										 PlaidObject retPermType, 
+										 PlaidObject argTypes) {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// add the necessary members to the new prototype
+		newState.addMember(Util.anonymousMemberDef("name", false, false), 
+				protoField(name));
+		newState.addMember(Util.anonymousMemberDef("retPermType", false, false), 
+				protoField(retPermType));
+		newState.addMember(Util.anonymousMemberDef("argTypes", false, false), 
+				protoField(argTypes));
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(MethodTypeDecl.MethodTypeDecl, newState);
 	}
 	
 	/**
@@ -378,6 +324,21 @@ public class TestUtils {
 		// instantiate the new prototype
 		return initializedState.instantiate();
 	}
+	
+	private static PlaidObject stateRepToStructuralType(StateRep rep) {
+		PlaidObject[] typeAbbrevs = {
+			Util.string(rep.getName())
+		};
+		
+		List<MemberRep> members = rep.getMembers();
+		List<PlaidObject> typeDecls = new ArrayList<PlaidObject>();
+		
+		for (MemberRep member : members) {
+			typeDecls.add(TestUtils.memberRepToPlaidType(member));
+		}
+		
+		return TestUtils.type(typeAbbrevs, (PlaidObject[])typeDecls.toArray());
+	}
 
 	@SuppressWarnings("unchecked")
 	public static PlaidObject getStructuralTypeFromAbbrev(String name) {
@@ -402,11 +363,230 @@ public class TestUtils {
 		RepresentsState stateAnnotation = obj.getAnnotation(RepresentsState.class);
 		
 		// TODO: get the type out of the state annotation and return it
+		StateRep stateRep = StateRep.parseJSONObject((JSONObject)JSONValue.parse(stateAnnotation.jsonRep()));
 		
-		return null;
+		return TestUtils.stateRepToStructuralType(stateRep);
 	}
 
 	public static void addToContext(PlaidObject context, PlaidObject x, PlaidObject xPermType) {
 		Util.call(TestUtils.getField("put", context), Util.packPlaidObjectsIntoArray(x, xPermType));
+	}
+	
+	/*
+	 *************************************************************************
+	 *                             New stuff                                 *
+	 *************************************************************************
+	 */
+	
+	/**
+	 * Constructs a new UniquePermission object.
+	 * 
+	 * @return The new UniquePermission object;
+	 */
+	public static PlaidObject unique() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(UniquePermission.UniquePermission, newState);
+	}
+	
+	/**
+	 * Constructs a new FullPermission object.
+	 * 
+	 * @return The new FullPermission object;
+	 */
+	public static PlaidObject full() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(FullPermission.FullPermission, newState);
+	}
+	
+	/**
+	 * Constructs a new SharedPermission object.
+	 * 
+	 * @return The new SharedPermission object;
+	 */
+	public static PlaidObject shared() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(SharedPermission.SharedPermission, newState);
+	}
+	
+	/**
+	 * Constructs a new ImmutablePermission object.
+	 * 
+	 * @return The new ImmutablePermission object;
+	 */
+	public static PlaidObject immutable() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(ImmutablePermission.ImmutablePermission, newState);
+	}
+	
+	/**
+	 * Constructs a new PurePermission object.
+	 * 
+	 * @return The new PurePermission object;
+	 */
+	public static PlaidObject pure() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(PurePermission.PurePermission, newState);
+	}
+	
+	/**
+	 * Constructs a new NonePermission object.
+	 * 
+	 * @return The new NonePermission object;
+	 */
+	public static PlaidObject none() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(NonePermission.NonePermission, newState);
+	}
+	
+	// TODO: is this where we should do this?
+	private static PlaidObject dyn() {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(DynPermType.DynPermType, newState);
+	}
+	
+	private static PlaidObject javaPermTypeToPlaidPermType(plaid.compilerjava.AST.PermType permType) {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		PlaidObject perm = TestUtils.javaPermToPlaidPerm(permType.getPermission());
+		PlaidObject type = TestUtils.type(permType.getType());
+		
+		// add the necessary members to the new prototype
+		newState.addMember(Util.anonymousMemberDef("perm", false, false), 
+				protoField(perm));
+		newState.addMember(Util.anonymousMemberDef("type", false, false), 
+				protoField(type));
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(PermType.PermType, newState);
+	}
+	
+	private static PlaidObject javaPermToPlaidPerm(plaid.compilerjava.AST.Permission perm) {
+		if (perm.equals(Permission.UNIQUE)) {
+			return TestUtils.unique();
+		}
+		else if (perm.equals(Permission.FULL)) {
+			return TestUtils.full();
+		}
+		else if (perm.equals(Permission.IMMUTABLE)) {
+			return TestUtils.immutable();
+		}
+		else if (perm.equals(Permission.SHARED)) {
+			return TestUtils.shared();
+		}
+		else if (perm.equals(Permission.PURE)) {
+			return TestUtils.pure();
+		}
+		else if (perm.equals(Permission.DYN)) {
+			return TestUtils.dyn();
+		}
+		// TODO: add a case for the None permission
+		else {
+			throw new RuntimeException("Unhandled permission type.");
+		}
+	}
+	
+	private static PlaidObject type(plaid.compilerjava.AST.Type structType) {
+		Set<plaid.compilerjava.AST.ID> abbrevs = structType.getTypeAbbrevs();
+		Set<TypeDecl> typeDecls = structType.getTypeDecls();
+		
+		// convert the abbrevs and add them
+		Set<PlaidObject> plaidAbbrevs = new HashSet<PlaidObject>();
+		for (plaid.compilerjava.AST.ID abbrev : abbrevs) {
+			plaidAbbrevs.add(TestUtils.id(abbrev.getName()));
+		}
+		
+		// convert the decls and add them
+		Set<PlaidObject> plaidTypeDecls = new HashSet<PlaidObject>();
+		for (TypeDecl typeDecl : typeDecls) {
+			if (typeDecl instanceof MethodTypeDecl) {
+				plaidTypeDecls.add(TestUtils.methodType((plaid.compilerjava.AST.MethodTypeDecl)typeDecl));
+			}
+			else if (typeDecl instanceof FieldTypeDecl) {
+				plaidTypeDecls.add(TestUtils.fieldType((plaid.compilerjava.AST.FieldTypeDecl)typeDecl));
+			}
+			else {
+				throw new RuntimeException("Unhandled type decl.");
+			}
+		}
+		
+		return TestUtils.type((PlaidObject[])plaidAbbrevs.toArray(), 
+							  (PlaidObject[])plaidTypeDecls.toArray());
+	}
+	
+	private static PlaidObject methodType(plaid.compilerjava.AST.MethodTypeDecl decl) {
+		String name = decl.getName().getName();
+		plaid.compilerjava.AST.PermType retType = decl.getRetPermType();
+		List<plaid.compilerjava.AST.PermType> argTypes = decl.getArgTypes();
+		
+		List<PlaidObject> plaidPermTypes = new ArrayList<PlaidObject>();
+		for (plaid.compilerjava.AST.PermType argType : argTypes) {
+			plaidPermTypes.add(TestUtils.javaPermTypeToPlaidPermType(argType));
+		}
+		
+		return TestUtils.methodType(TestUtils.id(name), 
+									TestUtils.javaPermTypeToPlaidPermType(retType), 
+									new PlaidJavaObjectMap(plaidPermTypes));
+	}
+	
+	private static PlaidObject fieldType(plaid.compilerjava.AST.FieldTypeDecl decl) {
+		String name = decl.getName().getName();
+		plaid.compilerjava.AST.PermType fieldType = decl.getPermType();
+		
+		return TestUtils.fieldType(TestUtils.id(name), 
+								   TestUtils.javaPermTypeToPlaidPermType(fieldType));
+	}
+	
+	private static PlaidObject memberRepToPlaidType(MemberRep rep) {
+		if (rep instanceof MethodRep) {
+			MethodRep methodRep = (MethodRep)rep;
+			
+			plaid.compilerjava.AST.MethodTypeDecl typeDecl = methodRep.getType();
+			plaid.compilerjava.AST.PermType retType = typeDecl.getRetPermType();
+			List<plaid.compilerjava.AST.PermType> argTypes = typeDecl.getArgTypes();
+			List<PlaidObject> plaidArgTypes = new ArrayList<PlaidObject>();
+			for (plaid.compilerjava.AST.PermType argType : argTypes) {
+				plaidArgTypes.add(TestUtils.javaPermTypeToPlaidPermType(argType));
+			}
+			
+			return TestUtils.methodType(TestUtils.id(methodRep.getName()), 
+								 TestUtils.javaPermTypeToPlaidPermType(retType), 
+								 new PlaidJavaObjectMap(plaidArgTypes));
+		}
+		else if (rep instanceof FieldRep) {
+			FieldRep fieldRep = (FieldRep)rep;
+			
+			plaid.compilerjava.AST.FieldTypeDecl typeDecl = fieldRep.getType();
+			
+			return TestUtils.fieldType(TestUtils.id(fieldRep.getName()), 
+					TestUtils.javaPermTypeToPlaidPermType(typeDecl.getPermType()));
+		}
+		else if (rep instanceof StateRep) {
+			throw new RuntimeException("State decls not supported yet.");
+		}
+		else {
+			throw new RuntimeException("Unknown MemberRep type.");
+		}
 	}
 }

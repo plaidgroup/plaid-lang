@@ -32,6 +32,12 @@ public class UtilTests {
 	}
 	
 	@Test
+	public void testIntegerTypeAbbrev() {
+		PlaidObject intType = TestUtils.getStructuralTypeFromAbbrev("plaid.lang.Integer");
+		System.out.println("break");
+	}
+	
+	@Test
 	public void testFieldDeclConstruction() {
 		PlaidObject[] fooAbbrevs = {TestUtils.id("String")};
 		PlaidObject[] fooDecls = {};

@@ -19,7 +19,7 @@ import plaid.compilerjava.util.MemberRep;
  */
 public class JSONFileConverter {
 	public static void main(String[] args) {
-		File f = new File("misc/StateType.json");
+		File f = new File("misc/StringType.json");
 		try {
 			// read in the file
 			BufferedReader br = new BufferedReader(new FileReader(f));
