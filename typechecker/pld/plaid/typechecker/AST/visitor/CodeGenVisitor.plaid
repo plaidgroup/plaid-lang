@@ -12,25 +12,25 @@ state CodeGenVisitor case of ASTVisitor {
 	// at the beginning of method call.
 	// TODO: Reimplement using state change once that's working properly?
 	var /* QualifiedID */ g_packageName = "";
-	var /* ID */ g_returnVar = "";
 	var /* ImportList */ g_imports = "";
 	var /* ID */ g_y = "";
+	var /* Boolean */ g_top = false;
 
 
 	method visitApplication(node) {
 		//this.out.setLocation(token);
 		var /* ID */ x = this.idgen.getId();
-		var /* ID */ y = this.g_y;
+		var /* ID */ y = this.y;
 		var /* ID */ z = this.idgen.getId();
 		// public final PlaidObject x;
 		// public final PlaidObject z;
 		this.out.declareFinalVar(this.out.plaidObjectType, x.name);
 		this.out.declareFinalVar(this.out.plaidObjectType, z.name);
 		
-		this.g_y = x;
+		this.y = x;
 		node.f.accept(this);
 		
-		this.g_y = z;
+		this.y = z;
 		node.arg.accept(this);
 		
 		//this.out.setLocation(token);
@@ -39,11 +39,12 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitAssignment(node) {
-		val /* ID */ y = this.g_y;
+		val /* ID */ y = this.y;
 		//this.out.setLocation(node.token); TODO: Why does this break?
 		val /* ID */ assignTo = this.idgen.getId();
 		this.out.declareFinalVar(this.out.plaidObjectType, assignTo.name);
-		this.g_y = assignTo;
+		
+		this.y = assignTo;
 		node.value.accept(this);
 		
 		// Generates (e.g.):
@@ -64,7 +65,7 @@ state CodeGenVisitor case of ASTVisitor {
 			// evaluate the target
 			val /* ID */ temp = this.idgen.getId();
 			this.out.declareFinalVar(this.out.plaidObjectType, temp.name);
-			this.g_y = temp;
+			this.y = temp;
 			node.target.accept(this);
 			this.out.updateMember(temp.name, node.field.name, assignTo.name);
 			this.out.assignToID(y.name, assignTo.name);
@@ -83,10 +84,14 @@ state CodeGenVisitor case of ASTVisitor {
 	
 	method visitCompilationUnit(node) {
 		java.lang.System.out.println("Generating code for '" + node.packageName + "'...");
-		this.g_packageName = node.packageName;
-		this.g_imports = node.imports;
+		this.packageName = node.packageName;
+		this.imports = node.imports;
+		this.idgen = new IdGen;
+		val qid = new QI {val qid = this.packageName;};
+		this.imports.imports.add(qid.all());
 
 		node.decls.map(fn (d) => {
+			this.top = true;
 			d.accept(this);
 		});
 	}
@@ -96,14 +101,14 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitDereference(node) {
-		val /* ID */ y = this.g_y;
+		val /* ID */ y = this.y;
 		//this.out.setLocation(token);
 		
 		//generate code for the object to lookup the right ID in
 		var /* ID */  x = this.idgen.getId();
 		this.out.declareFinalVar(this.out.plaidObjectType, x.name);
 
-		this.g_y = x;
+		this.y = x;
 		node.left.accept(this);
 
 		//this.out.setLocation(left.token);
@@ -119,54 +124,62 @@ state CodeGenVisitor case of ASTVisitor {
 		val cc = plaid.compilerjava.CompilerConfiguration.new();
 		cc.setDebugMode(java.lang.Boolean.FALSE);
 		cc.setPrettyPrint(java.lang.Boolean.TRUE);
+		cc.setOutputDir("testOutput/");
 		this.out = this.jCodeGen.new(cc);
-		this.idgen = new IdGen;
 		var freshImports = this.idgen.getId();
 		
 		// package qid;
-		val qid = plaid.compilerjava.AST.QI.new(this.g_packageName);
+		val qid = new QI {val qid = this.packageName;};
 		val thePackage = qid.toString();
 		this.out.declarePackage(thePackage);
 		
 		// @plaid.runtime.annotations (...)
-		this.out.topFieldAnnotation(node.f.name, thePackage);
+		this.out.topFieldAnnotation(node.getName(), thePackage);
 		
 		// public class c {
-		this.out.declarePublicClass(node.f.name); 
+		this.out.declarePublicClass(node.getName()); 
 		this.out.openBlock();
 		
 		// Get imports, define scopes
 		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
 		
-		this.g_imports.accept(this);
+		this.y = freshImports;
+		this.imports.accept(this);
 		
 		this.out.declareGlobalScope(thePackage, freshImports.name);
 		
-		this.out.fieldAnnotation(node.f.name);
+		this.out.fieldAnnotation(node.getName());
+		this.out.declarePublicStaticVar(this.out.plaidObjectType, node.getName());
 		this.out.openStaticBlock(); //static {
 		this.out.declareLocalScope(this.out.globalScope);
 		
 		// Generate the expr
-		this.out.declareVar(this.out.plaidObjectType, node.f.name);
-		this.g_y = node.f;
+		this.out.declareVar(this.out.plaidObjectType, node.getName());
+		this.y = node.f;
 		node.e.accept(this);
 		
 		// TODO: Improve translation of Plaid booleans
 		ifElse (node.immutableField) {
-			this.out.insertIntoScope(this.out.globalScope, node.f.name, java.lang.Boolean.TRUE);
+			this.out.insertIntoScope(this.out.globalScope, node.getName(), java.lang.Boolean.TRUE);
 		} {
-			this.out.insertIntoScope(this.out.globalScope, node.f.name, java.lang.Boolean.FALSE);
+			this.out.insertIntoScope(this.out.globalScope, node.getName(), java.lang.Boolean.FALSE);
 		};
 		
 		this.out.closeBlock(); this.out.closeBlock(); //}}
 		
-		val result = this.out.formatFile();
-		java.lang.System.out.println(result);
-		java.lang.System.out.println("-------------------------------------------");	
+		plaid.compilerjava.util.FileGen.createOutputFile(node.getName(), 
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+		
+		//val result = this.out.formatFile();
+		//java.lang.System.out.println(result);
+		//java.lang.System.out.println("-------------------------------------------");	
 	}
 	
 	method visitFieldDecl(node) {
-		this.handleTopLevelFieldDecl(node);
+		if(this.top) {
+			this.top = false;
+			this.handleTopLevelFieldDecl(node);
+		};
 	}
 	
 	method visitID(node) {
@@ -174,18 +187,22 @@ state CodeGenVisitor case of ASTVisitor {
 		val /* String */ newName = this.jCodeGen.convertOpNames(node.name);
 		
 		// y = lookup(name, currentScope);
-		this.out.assignToLookup(this.g_y.name, newName, this.out.localScope);  
+		this.out.assignToLookup(this.y.name, newName, this.out.localScope);  
 	}
 	
 	method visitImportList(node) {
+		val y = this.y;
+	
 		this.out.openStaticBlock();  // static {
-		this.out.assignToNewJavaObject(this.g_returnVar.name, 
+		this.out.assignToNewJavaObject(y.name, 
 			"java.util.ArrayList<plaid.runtime.utils.Import>");
+		
+		node.addStdLibrary();
 
 		val it = node.imports.iterator();
 		while { it.hasNext(); } {
 			val qi = it.next();
-			var s = this.g_returnVar.name;
+			var s = y.name;
 			s = s + ".add(new plaid.runtime.utils.Import(\\\"";
 			s = s + qi.toString();
 			s = s + "\\\"));"; 
@@ -197,22 +214,22 @@ state CodeGenVisitor case of ASTVisitor {
 	
 	method visitIntLiteral(node) {
 		//this.out.setLocation(node.token);
-		this.out.assign(this.g_y.name);
+		this.out.assign(this.y.name);
 		this.out.plaidInt(node.integer);
 		this.out.append(";");
-		this.out.updateVarDebugInfo(this.g_y.name);
+		this.out.updateVarDebugInfo(this.y.name);
 	}
 	
 	method visitLambda(node) {
 		//this.out.setLocation(node.token);
-		val /* ID */ y = this.g_y;
+		val /* ID */ y = this.y;
 		
 		var /*ID*/ freshID = this.idgen.getId();
 		
 		this.out.assignToNewLambda(y.name, node.x.name);  //y = new lambda(...{ {
 		
 		this.out.declareVar(this.out.plaidObjectType, freshID.name);
-		this.g_y = freshID;
+		this.y = freshID;
 		node.body.accept(this);
 		this.out.ret(freshID.name);
 		
@@ -220,12 +237,12 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method visitLetBinding(node) {
-		val /* ID */ y = this.g_y;
+		val /* ID */ y = this.y;
 	
 		//this.out.setLocation(node.token);
 		this.out.declareFinalVar(this.out.plaidObjectType, node.x.name);
 		
-		this.g_y = node.x;
+		this.y = node.x;
 		node.exp.accept(this);
 
 		if (!node.x.name.contains("$plaid")) {
@@ -234,7 +251,7 @@ state CodeGenVisitor case of ASTVisitor {
 				(!node.mutable).jval);
 		};
 		
-		this.g_y = y;
+		this.y = y;
 		node.body.accept(this);
 	}
 	
@@ -243,20 +260,19 @@ state CodeGenVisitor case of ASTVisitor {
 	}
 	
 	method handleTopLevelMethodDecl(node) {
-		this.idgen = new IdGen;
-		
 		val newName = this.jCodeGen.convertOpNames(node.name);
 		java.lang.System.out.println("Generating code for method '" + newName + "'...");
 
-		this.g_returnVar = this.idgen.getId();
+		val freshReturn = this.idgen.getId();
 		val freshImports = this.idgen.getId();
 		
 		val cc = plaid.compilerjava.CompilerConfiguration.new();
 		cc.setPrettyPrint(java.lang.Boolean.TRUE);
 		cc.setDebugMode(java.lang.Boolean.FALSE);
+		cc.setOutputDir("testOutput/");
 		this.out = this.jCodeGen.new(cc);
 		
-		val qid = plaid.compilerjava.AST.QI.new(this.g_packageName);
+		val qid = new QI {val qid = this.packageName;};
 		val thisMethod = newName + "_func";
 		val thePackage = qid.toString();
 		
@@ -271,7 +287,8 @@ state CodeGenVisitor case of ASTVisitor {
 		//generate code to create the package scope with imports
 		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
 		
-		this.g_imports.accept(this);
+		this.y = freshImports;
+		this.imports.accept(this);
 
 		this.out.declareGlobalScope(qid.toString(), freshImports.name);
 		
@@ -286,26 +303,29 @@ state CodeGenVisitor case of ASTVisitor {
 		this.out.declareLocalScope(this.out.globalScope);
 		this.out.assignToNewLambda(thisMethod, node.arg.name);
 		
-		this.out.declareVar(this.out.plaidObjectType, this.g_returnVar.name);
+		this.out.declareVar(this.out.plaidObjectType, freshReturn.name);
 		//top level functions lookup with unit
-		this.g_y = this.idgen.getId();
+		this.y = freshReturn;
 		node.body.accept(this);
 
-		this.out.ret(this.g_returnVar.name);
+		this.out.ret(freshReturn.name);
 		this.out.closeAnonymousDeclaration(); // }});
 		
 		this.out.closeBlock(); // }  (for static block)
 		this.out.closeBlock(); // }  (for class declaration)
 		
-//		return FileGen.createOutputFile(newName, cc.getOutputDir(), this.out.formatFile(), qid);
-		val result = this.out.formatFile();
-		java.lang.System.out.println(result);
-		java.lang.System.out.println("-------------------------------------------");
+		plaid.compilerjava.util.FileGen.createOutputFile(newName,
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+		//val result = this.out.formatFile();
+		//java.lang.System.out.println(result);
+		//java.lang.System.out.println("-------------------------------------------");
 	}
 	
 	method visitMethodDecl(node) {
-		// TODO: Handle nested decls
-		this.handleTopLevelMethodDecl(node);
+		if(this.top) {
+			this.top = false;
+			this.handleTopLevelMethodDecl(node);
+		}
 	}
 	
 	method visitNewInstance(node) {
@@ -316,50 +336,21 @@ state CodeGenVisitor case of ASTVisitor {
 	
 	}
 	
-	method visitStateDecl(node) {
-	
-	}
-	
-	method visitStringLiteral(node) {
-		//this.out.setLocation(node.token);
-		this.out.assign(this.g_y.name);
-		this.out.plaidString(node.string);
-		this.out.append(";");  
-		this.out.updateVarDebugInfo(this.g_y.name);
-	}
-	
-	method visitUnitLiteral(node) {
-		//this.out.setLocation(node.token);
-		this.out.assign(this.g_y.name);
-		this.out.unit2(); // Identical to unit(), but that's a reserved word
-		this.out.append(";");
-		this.out.updateVarDebugInfo(this.g_y.name);
-	}
-	
-	method visitWith(node) {
-	
-	}
-
-	method createStateDecl() {
-		this.idgen = new IdGen;
+	method handleTopLevelStateDecl(node) {
 		var freshImports = this.idgen.getId();
 		var theState = this.idgen.getId();
 		var thePackage = qid.toString();
 		
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setPrettyPrint(java.lang.Boolean.TRUE);
+		cc.setDebugMode(java.lang.Boolean.FALSE);
+		cc.setOutputDir("testOutput/");
+		this.out = this.jCodeGen.new(cc);
+		
 		//package and needed imports
 		this.out.declarePackage(thePackage); //package qid;
 		
-		//determine what members this state has and add annotations
-		var stateVars = genStateVars(qid, imports.getImports(), root.stateDef,
-			root.caseOf); //TODO write this method in Plaid
-		
 		var members = StringBuilder.new();
-		
-		var i = 0;
-		while { i < stateVars.size() } {
-			members.append(stateVars.get(i).name + ",");
-			i = i + 1;
-		};
 		
 		var memberString = members.toString();
 		if (memberString.length() > 0) {
@@ -367,25 +358,24 @@ state CodeGenVisitor case of ASTVisitor {
 		};
 		
 		// state annotation and class definition
-		this.out.topStateAnnotation(root.name.name, thePackage, memberString);
-		this.out.declarePublicClass(root.name.name); 
+		this.out.topStateAnnotation(root.getName(), thePackage, memberString);
+		this.out.declarePublicClass(root.getName()); 
 		this.out.openBlock();  // public class f {
 		
 		//generate code to create the package scope with imports
 		this.out.declarePublicStaticFinalVar(
 			"java.util.List<plaid.runtime.utils.Import>",
 			freshImports.name);
-			
-		this.g_freshImports = freshImports;
-		this.g_theState = theState;
-		this.g_stateVars = stateVars;
+		
+		this.freshImports = freshImports;
+		this.theState = theState;
 		imports.accept(this);
 		this.out.declareGlobalScope(qid.toString(), freshImports.name);
 
 		//annotation for the prototype object representing the state
-		this.out.stateAnnotation(root.name.name);
+		this.out.stateAnnotation(node.getName());
 		this.out.declarePublicStaticFinalVar(this.out.plaidObjectType, 
-			root.name.name);
+			node.getName());
 		
 		this.out.openStaticBlock(); //static {
 		this.out.declareLocalScope(this.out.globalScope);
@@ -399,24 +389,24 @@ state CodeGenVisitor case of ASTVisitor {
 		ifElse  (!root.isCaseOf) {
 			// this is this declaration.  It will not have any members, but 
 			// at runtime can forward to its enclosing (instantiated) state
-			this.g_name = qid.toString() + "." + root.name.name;
-			this.g_idList = idList;
+			this.name = qid.toString() + "." + root.getName();
+			this.idList = idList;
 			root.stateDef.accept(this);
 			
-			this.out.assignToPrototype(root.name.name, theState.name);
+			this.out.assignToPrototype(root.getName(), theState.name);
 		}{
 			var caseOfState = this.idgen.getId();
 			var declaredState = this.idgen.getId();
 			this.out.declareFinalVar(this.out.plaidStateType, caseOfState.name);
-			this.g_name = this.out.anonymousDeclaration;
-			this.g_idList = idList;
+			this.name = this.out.anonymousDeclaration;
+			this.idList = idList;
 			root.caseOf.accept(this);
 			this.out.declareFinalVar(this.out.plaidStateType, declaredState.name);
 			
 			// this is this declaration.  It will not have any members, but
 			// at runtime can forward to its enclosing (instantiated) state
-			this.g_name = qid.toString() + "." + root.name.name;
-			this.g_declaredState = declaredState;
+			this.name = qid.toString() + "." + root.getName();
+			this.declaredState = declaredState;
 			stateDef.accept(this);
 			
 			//y = fresh1.with(fresh2); 
@@ -436,11 +426,11 @@ state CodeGenVisitor case of ASTVisitor {
 		};
 		this.out.closeBlock(); // } (for static block to init prototype)
 
-		if (root.isCaseOf) { //if we have a tag	
+		if (node.isCaseOf) { //if we have a tag	
 			//Declare variable to hold the tag
 			var tag = ID.new(name.name + "$Tag" + 
 				PlaidConstants.ID_SUFFIX);
-			var tagPath = qid.toString() + "." + root.name.name;
+			var tagPath = qid.toString() + "." + node.getName();
 			this.out.tagAnnotation(tagPath);
 			this.out.declarePublicStaticFinalVar(this.out.plaidTagType, tag.name);
 			
@@ -448,9 +438,9 @@ state CodeGenVisitor case of ASTVisitor {
 			var caseOfState = this.idgen.getId();
 			this.out.declareFinalVar(this.out.plaidStateType, caseOfState.name());
 			caseOf.accept(this);
-			this.g_idList = IDList.new();
-			this.g_theState = caseOfState;
-			this.g_declaredState = this.out.anonymousDeclaration;
+			this.idList = IDList.new();
+			this.theState = caseOfState;
+			this.declaredState = this.out.anonymousDeclaration;
 			caseOf.codegenState(this);
 			//tag = new PlaidTag(caseOfState)
 			this.out.assignToNewTag(tag.name, tagPath, caseOfState.name);
@@ -460,7 +450,34 @@ state CodeGenVisitor case of ASTVisitor {
 		
 		this.out.closeBlock(); // } (for class Def)
 		
-		FileGen.createOutputFile(name.name, cc.getOutputDir(),
-			this.out.formatFile(), qid);
+		plaid.compilerjava.util.FileGen.createOutputFile(node.getName(), 
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+	}
+	
+	method visitStateDecl(node) {
+		if(this.top) {
+			this.top = false;
+			this.handleTopLevelStateDecl(node);
+		}
+	}
+	
+	method visitStringLiteral(node) {
+		//this.out.setLocation(node.token);
+		this.out.assign(this.y.name);
+		this.out.plaidString(node.string);
+		this.out.append(";");  
+		this.out.updateVarDebugInfo(this.y.name);
+	}
+	
+	method visitUnitLiteral(node) {
+		//this.out.setLocation(node.token);
+		this.out.assign(this.y.name);
+		this.out.unit2(); // Identical to unit(), but that's a reserved word
+		this.out.append(";");
+		this.out.updateVarDebugInfo(this.y.name);
+	}
+	
+	method visitWith(node) {
+	
 	}
 }

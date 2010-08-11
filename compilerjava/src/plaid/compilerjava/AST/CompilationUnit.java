@@ -29,6 +29,7 @@ import java.util.Set;
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
+import plaid.compilerjava.util.IdGen;
 import plaid.compilerjava.util.MemberRep;
 import plaid.compilerjava.util.PackageRep;
 import plaid.compilerjava.util.QualifiedID;
