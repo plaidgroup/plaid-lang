@@ -26,7 +26,7 @@ public class IdGen {
 	private static int counter = 0;
 	private final static String prefix = "vAr";
 	
-	//called at the beginging of code generation to reset the counter
+	//called at the beginning of code generation to reset the counter
 	public static void init() {
 		counter = 0;
 	}
@@ -37,5 +37,4 @@ public class IdGen {
 		counter++;
 		return new ID(idName);
 	}
-
 }

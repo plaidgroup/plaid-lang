@@ -25,11 +25,11 @@ import java.io.PrintWriter;
 
 public class FileGen {
 
-	public static File createOutputFile(String name, String outputDirectory, String code, QualifiedID qid) {
+	public static File createOutputFile(String name, String outputDirectory, String code, String qid) {
 		String directory, file;
 		
 		try {
-			directory = outputDirectory + System.getProperty("file.separator")+ qid.toDirectoryName();
+			directory = outputDirectory + System.getProperty("file.separator")+ qid;
 			file = name + ".java";
 			
 			File outputDir = new File(directory);
@@ -46,4 +46,7 @@ public class FileGen {
 		}
 	}
 	
+	public static File createOutputFile(String name, String outputDirectory, String code, QualifiedID qid) {
+		return createOutputFile(name, outputDirectory, code, qid.toDirectoryName());
+	}
 }

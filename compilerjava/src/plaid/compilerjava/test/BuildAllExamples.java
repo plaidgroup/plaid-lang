@@ -46,7 +46,7 @@ public class BuildAllExamples {
 			cc.addInputFile(f);
 		cc.setKeepTemporaryFiles(true);
 		cc.setInvokeCompiler(false);
-		cc.setDebugMode(true);
+		cc.setDebugMode(false);
 		cc.setPrettyPrint(true);
 		String sep = System.getProperty("file.separator");
 		cc.addToPlaidPath("bin" + sep);
