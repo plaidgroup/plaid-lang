@@ -1,9 +1,12 @@
 package plaid.compilerjava.AST;
 
+import org.json.simple.JSONAware;
+import org.json.simple.JSONObject;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 
-public class Permission implements ASTnode {
+public class Permission implements ASTnode, JSONAware {
 	public static final Permission FULL = new Permission(null, "full");
 	public static final Permission IMMUTABLE = new Permission(null, "immutable");
 	public static final Permission PURE = new Permission(null, "pure");
@@ -46,5 +49,13 @@ public class Permission implements ASTnode {
 
 	public String toString() {
 		return "Permission: " + this.image;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public String toJSONString() {
+		JSONObject obj = new JSONObject();
+		obj.put("name", this.image);
+		return obj.toJSONString();
 	}
 }

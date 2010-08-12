@@ -9,6 +9,7 @@ import org.json.simple.JSONValue;
 
 import plaid.runtime.PlaidObject;
 
+// TODO: Merge this with TypeDecl?
 public abstract class MemberRep implements JSONAware {
 	
 	private String name;
@@ -47,21 +48,21 @@ public abstract class MemberRep implements JSONAware {
 	//	f(<name>)  represents a field member
 	//	m(<name>)  represents a method member
 	//	s(<name>)  represents a state member
-	public static final List<MemberRep> deserializeStateMembers(String members) {
-		List<MemberRep> toRet = new ArrayList<MemberRep>();
-		
-		for (String m : members.split(",")) {
-			if (m.length() != 0) {
-				if (m.startsWith("f")) toRet.add(new FieldRep(m.substring(2,m.length()-1)));
-				else if (m.startsWith("m")) toRet.add(new MethodRep(m.substring(2,m.length()-1)));
-				else if (m.startsWith("s")) toRet.add(new StateRep(m.substring(2,m.length()-1)));  //TODO : fill this out? or mark as needing to be filled out
-				else throw new RuntimeException("Bad member String, delete old source and try recompiling everything");
-			}
-		}
-		
-		return toRet;
-		
-	}
+//	public static final List<MemberRep> deserializeStateMembers(String members) {
+//		List<MemberRep> toRet = new ArrayList<MemberRep>();
+//		
+//		for (String m : members.split(",")) {
+//			if (m.length() != 0) {
+//				if (m.startsWith("f")) toRet.add(new FieldRep(m.substring(2,m.length()-1)));
+//				else if (m.startsWith("m")) toRet.add(new MethodRep(m.substring(2,m.length()-1)));
+//				else if (m.startsWith("s")) toRet.add(new StateRep(m.substring(2,m.length()-1)));  //TODO : fill this out? or mark as needing to be filled out
+//				else throw new RuntimeException("Bad member String, delete old source and try recompiling everything");
+//			}
+//		}
+//		
+//		return toRet;
+//		
+//	}
 	
 	/**
 	 * Creates an escaped JSON representation of the member it is called on.

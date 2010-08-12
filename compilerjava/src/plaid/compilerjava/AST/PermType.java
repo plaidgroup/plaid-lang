@@ -1,9 +1,12 @@
 package plaid.compilerjava.AST;
 
+import org.json.simple.JSONAware;
+import org.json.simple.JSONObject;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 
-public class PermType implements ASTnode {
+public class PermType implements ASTnode, JSONAware {
 	public static final PermType UNIT = new PermType(Permission.IMMUTABLE, Type.UNIT);
 	public static final PermType DYN = new PermType(Permission.DYN, Type.DYN);
 	// This is a marker to indicate that the permission and type of the receiver should remain unchanged
@@ -47,5 +50,14 @@ public class PermType implements ASTnode {
 	
 	public Type getType() {
 		return this.type;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public String toJSONString() {
+		JSONObject obj = new JSONObject();
+		obj.put("permission", this.perm);
+		obj.put("type", this.type);
+		return obj.toJSONString();
 	}
 }

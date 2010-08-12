@@ -2,6 +2,9 @@ package plaid.compilerjava.AST;
 
 import java.util.*;
 
+import org.json.simple.JSONAware;
+import org.json.simple.JSONObject;
+
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 
@@ -14,7 +17,7 @@ import plaid.compilerjava.tools.ASTVisitor;
  * @author mhahnenberg
  *
  */
-public class Type implements ASTnode {
+public class Type implements ASTnode, JSONAware {
 	public static final Type DYN = new Type(new ID("dyn"));
 	public static final Type UNIT = new Type(new ID("unit"));
 	// This is a marker to indicate that the type of the receiver should remain unchanged
@@ -97,5 +100,13 @@ public class Type implements ASTnode {
 		}
 		sb.append("}");
 		return sb.toString();
+	}
+
+	@Override
+	public String toJSONString() {
+		JSONObject obj = new JSONObject();
+		//obj.put("abbrevs", value);
+		//obj.put("members", value);
+		return obj.toJSONString();
 	}
 }
