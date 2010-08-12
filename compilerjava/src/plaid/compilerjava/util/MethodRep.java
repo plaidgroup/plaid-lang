@@ -7,8 +7,10 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
 import plaid.compilerjava.AST.MethodTypeDecl;
+import plaid.compilerjava.AST.PermType;
 import plaid.runtime.PlaidObject;
 
+// TODO: merge this with MethodTypeDecl?
 public class MethodRep extends MemberRep {
 	private final MethodTypeDecl type;
 	
@@ -40,7 +42,13 @@ public class MethodRep extends MemberRep {
 		Map<String, Object> obj = new HashMap<String, Object>();
 		obj.put("member_type", "method");
 		obj.put("name", this.getName());
-		//obj.put("ret_type", this.type.getRetPermType());
+//		if (this.type == null) {
+//			obj.put("ret_type", null);
+//			obj.put("", null);
+//		}
+//		else {
+//			obj.put("ret_type", this.type.getRetPermType());
+//		}
 		return JSONValue.toJSONString(obj);
 	}
 	
@@ -52,6 +60,8 @@ public class MethodRep extends MemberRep {
 		if (!obj.get("member_type").equals("method")) {
 			throw new RuntimeException("Trying to parse MethodRep from non-method!");
 		}
+		
+//		PermType retType = (PermType)obj.get("ret_type");
 		
 		MethodRep rep = new MethodRep((String)obj.get("name"));
 		

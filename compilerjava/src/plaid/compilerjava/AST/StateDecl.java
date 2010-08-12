@@ -197,7 +197,9 @@ public class StateDecl implements Decl {
 				throw new RuntimeException(thePackage + "." + name.getName() + " is not a state.");
 			}
 			repString = MemberRep.escapeJSONString(stateRep.toJSONString());
-			
+			for (MemberRep member : ((StateRep)stateRep).getMembers()) {
+				stateVars.add(new ID(member.getName()));
+			}
 		} else {
 			throw new RuntimeException("Cannot find state " + thePackage + "." + name.getName());
 		}

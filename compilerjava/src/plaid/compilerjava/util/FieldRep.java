@@ -9,6 +9,7 @@ import org.json.simple.JSONValue;
 import plaid.compilerjava.AST.FieldTypeDecl;
 import plaid.runtime.PlaidObject;
 
+//TODO: merge this with FieldTypeDecl?
 public class FieldRep extends MemberRep {
 	private final FieldTypeDecl type;
 	
@@ -40,6 +41,12 @@ public class FieldRep extends MemberRep {
 		Map<String, Object> obj = new HashMap<String, Object>();
 		obj.put("member_type", "field");
 		obj.put("name", this.getName());
+//		if (this.type == null) {
+//			//obj.put("", value);
+//		}
+//		else {
+//			obj.put("", this.type.getPermType());
+//		}
 		return JSONValue.toJSONString(obj);
 	}
 	

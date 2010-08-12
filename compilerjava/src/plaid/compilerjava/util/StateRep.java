@@ -12,6 +12,7 @@ import org.json.simple.JSONValue;
 
 import plaid.runtime.PlaidObject;
 
+//TODO: re-purpose this as StateTypeDecl (similar to Method/FieldTypeDecl)?
 public class StateRep extends MemberRep {
 	private List<MemberRep> declaredMembers = new ArrayList<MemberRep>();
 	private List<String> needs = new ArrayList<String>();
@@ -101,9 +102,6 @@ public class StateRep extends MemberRep {
 	}
 	
 	public static StateRep parseJSONObject(JSONObject obj) {
-		if (obj.get("member_type") == null) {
-			System.out.println("break");
-		}
 		if (!obj.get("member_type").equals("state")) {
 			throw new RuntimeException("Trying to parse StateRep from non-state!");
 		}
