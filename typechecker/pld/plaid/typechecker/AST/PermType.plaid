@@ -57,26 +57,41 @@ state PermType {
 		val otherPerm = p2.perm;
 		val otherType = p2.type;
 		
-		val splitPerm = this.perm.split(otherPerm);
-		
-		ifElse (otherType.isSubtypeOf(this.type)) {
-			(p2, new PermType{ val perm = splitPerm.second(); val type = this.type; })
-		}{
-			match(p2) {
-				case DynPermType {
-					match (this.perm) {
-						case UniquePermission {
+		match(p2) {
+			// if the target type is dyn, then make sure that we don't have a unique permission
+			case DynPermType {
+				match(this.perm) {
+					case UniquePermission {
+						new None;
+					}
+					default {
+						// T => dyn/T
+						new Some{ val value = (p2, this); };
+					}
+				};
+			}
+			default {
+				// split the permission
+				val splitPermOpt = this.perm.split(otherPerm);
+				
+				match(splitPermOpt) {
+					case Some {
+						val splitPerm = splitPermOpt.getValue();
+						
+						// make sure that the other structural type is a subtype of this type
+						ifElse (otherType.isSubtypeOf(this.type)) {
+							new Some{ val value = (p2, new PermType{ val perm = splitPerm.second(); val type = this.type; }); };
+						}{
+							// the other type isn't a subtype of this type, so we can't split this permtype
 							new None;
-						}
-						default {
-							(p2, this)
-						}
-					};
-				}
-				default {
-					new None;
-				}
-			};
+						};
+					}
+					// the permission can't be split how we want, so we can't split this permtype
+					case None {
+						new None;
+					}
+				};
+			}
 		};
 	}
 	
@@ -95,5 +110,13 @@ state PermType {
 	 */
 	method isWritable() {
 		perm.isWritable();
+	}
+	
+	/**
+	 * Returns true if this permtype is a sub-permtype of the specified permtype
+	 * as defined by the Plaid typing specification.
+	 */
+	method isSubPermTypeOf(permType) {
+		// TODO: stub
 	}
 }
