@@ -2,33 +2,61 @@ package plaid.typechecker.AST.visitor;
 
 import plaid.typechecker.AST.*;
 
-// TODO: have two separate visitors, one for synthesis and one for analysis?
 state TypecheckerVisitor {
 	var returnedPermType;
 	val context;
 
-	method analyzeID(node) {
+	method analyzeID(node, type) {
 		// get the type of x from the context
+		val xType = context.get(node);
+		
 		// if x is dyn
-			// if T != None/Void/Unit whatever
-				// x remainds dyn in the context
-				// return true
-			// otherwise
-				// return false
-		// otherwise x is of type T1
-			// if T1 can be split into the target permtype and a third T3
-				// put x back in the context as T3
-				// return true
-			// otherwise
-				// return false
+		match(xType) {
+			case DynPermType {
+				// if T != None/Void/Unit whatever
+					// x remains dyn in the context
+					// return true
+				// otherwise
+					// return false
+			}
+			default {
+				// otherwise x is of type T1
+				val splitPermTypesOpt = xType.split(type);
+				
+				// if T1 can be split into the target permtype and a third T3
+				match(splitPermTypesOpt) {
+					case Some {
+						val splitPermTypes = splitPermTypesOpt.getValue();
+						// put x back in the context as T3
+						context.put(node, splitPermTypes.second());
+						true;
+					}
+					case None {
+						// otherwise
+						false;
+					}
+				};
+			}
+		}
 	}
 	
-	method analyzeExpr(node) {
+	method analyzeExpr(node, type) {
 		// synthesize the type (T1) of this node
-		// if T1 is dyn or if the desired permtype is a super-permtype of T1
-			// return true
-		// otherwise
-			// return false
+		node.accept(this);
+		
+		match(returnedPermType) {
+			// if T1 is dyn or if the desired permtype is a super-permtype of T1
+			case DynPermType {
+				true;
+			}
+			case default {
+				ifElse (returnedPermType.isSubPermTypeOf(type)) {
+					true;
+				}{
+					false;
+				};
+			}	
+		};
 	}
 
 	method visitUnannotatedLetBinding(node) {
@@ -188,7 +216,7 @@ state TypecheckerVisitor {
 		}
 	}
 	
-	method visitMethodApplication(node) {
+	method visitMethodInvocation(node) {
 		// if the receiver has type T1 = (p tau) in the context
 			// unfold tau into tau_prime
 			// check tau_prime for the method we're trying to call
@@ -275,10 +303,18 @@ state TypecheckerVisitor {
 	}
 	
 	method visitLamdba(node) {
-		// lookup the types of the variables declared as bound in the scope of the lambda
-		// lookup the starting type of the argument
-		// typecheck the body of the lambda with the new context
-		// check each bound variable to make sure that 
+		// lookup the types of the variables declared as bound in the scope of the lambda (make sure they match)
+		// lookup the starting types of the arguments (make sure they match)
+		// duplicate the current context
+		// typecheck the body of the lambda with the duplicated context
+		
+		// NOTE: the current rule makes the output context invariant in the types of the variables
+		// (i.e. it does not take subtyping into account)  This rule could be modified to make 
+		// lambda declarations more flexible.  This has been noted in the typing spec.
+		
+		// check each bound variable to make sure that the result in the context matches
+		// check each argument type to make sure that the result in the context matches
+		// restore the original context (since we didn't actually run the lambda yet)
 	}
 	
 	method visitMatch(node) {
@@ -343,7 +379,6 @@ state TypecheckerVisitor {
 	}
 	
 	method visitIntLiteral(node) {
-		// TODO: Return a unique permission, right?
 		// TODO: Get actual type of integers
 		this.returnedPermType = new PermType {
 			val perm = new UniquePermission;
