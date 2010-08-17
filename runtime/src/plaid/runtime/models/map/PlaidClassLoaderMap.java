@@ -143,6 +143,8 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 		if (topLevelValue != null) return topLevelValue; //found an actual declaration
 		
 		//otherwise, we need to return this lookup context
+		singletons.put(lookupAtTopLevel.toString(), lookup);
+		singletons.put(lookupInPackage.toString(), lookup);
 		return lookup;
 	}
 	
