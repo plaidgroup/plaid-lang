@@ -177,6 +177,7 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 				return createPlaidObjectFromClass(new QualifiedIdentifier(current), obj);
 			} catch (ClassNotFoundException e) {
 				// If there is no classfile then we need to keep searching
+				nonExistingClasses.add(current);
 			}
 		}
 		return null;
