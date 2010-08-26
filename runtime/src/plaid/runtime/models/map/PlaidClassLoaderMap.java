@@ -21,8 +21,10 @@ package plaid.runtime.models.map;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import plaid.runtime.PlaidClassLoader;
 import plaid.runtime.PlaidClassNotFoundException;
@@ -49,6 +51,7 @@ import plaid.runtime.utils.QualifiedIdentifier;
 public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	protected PlaidRuntimeMap runtime;
 	protected HashMap<String, PlaidObject> singletons = new HashMap<String, PlaidObject>();
+	protected Set<String> nonExistingClasses = new HashSet<String>();
 	public final PlaidObject unit;
 	// TODO: Change to singleton
 	
@@ -136,11 +139,17 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 		
 		//lookup the QID in the package scope
 		PlaidObject value = loadClass(lookupInPackage.toString());
-		if (value != null) return value; //found an actual declaration
+		if (value != null){
+			singletons.put(lookupInPackage.toString(), value);
+			return value; //found an actual declaration
+		}
 		
 		//lookup QID in the top level scope
 		PlaidObject topLevelValue = loadClass(lookupAtTopLevel.toString());
-		if (topLevelValue != null) return topLevelValue; //found an actual declaration
+		if (topLevelValue != null) {
+			singletons.put(lookupAtTopLevel.toString(), topLevelValue);
+			return topLevelValue; //found an actual declaration
+		}
 		
 		//otherwise, we need to return this lookup context
 		singletons.put(lookupAtTopLevel.toString(), lookup);
@@ -149,9 +158,14 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	}
 	
 	public PlaidObject loadClass(String name) throws PlaidClassNotFoundException {
-		if ( singletons.containsKey(name) )
+		if ( singletons.containsKey(name) ) {
 			return singletons.get(name);
+		}
 
+		if ( nonExistingClasses.contains(name) ) {
+			return null;
+		}
+		
 		// check if we can find the file 
 		ClassLoader cl = this.getClass().getClassLoader();
 	
