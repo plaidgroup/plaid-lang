@@ -106,18 +106,23 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 			// Workaround for Java's handling of reflection when accessing inner classes.
 			// See http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4071957 for details.
 			if (!invoked) {
-				// Check if the class implements the Iterator interface and if it does, use the interface
-				// to get the correct method handle.
-				Class<?> iteratorClass = Iterator.class;
-				tempHandle = this.getMethodHandle(this.name, iteratorClass, paramTypes);
-				if (tempHandle != null && !Util.requiresPrimitiveWidening(tempHandle, paramTypes)) {
-					try {
-						result = tempHandle.invoke(instance, params);
-						// if we make it here, we successfully called the method
-						invoked = true;
-					}
-					catch (IllegalAccessException e) {
-						throw new PlaidIllegalAccessException("Cannot call method : " + name);
+				// Check if the class implements the Iterator or the Iterable interface
+				// and if it does, try to use the interface to get the correct method handle.
+				Class<?>[] interfaceClasses = {
+					Iterator.class, Iterable.class
+				};
+				
+				for (Class<?> interfaceClass : interfaceClasses) {
+					tempHandle = this.getMethodHandle(this.name, interfaceClass, paramTypes);
+					if (tempHandle != null && !Util.requiresPrimitiveWidening(tempHandle, paramTypes)) {
+						try {
+							result = tempHandle.invoke(instance, params);
+							// if we make it here, we successfully called the method
+							invoked = true;
+						}
+						catch (IllegalAccessException e) {
+							throw new PlaidIllegalAccessException("Cannot call method : " + name);
+						}
 					}
 				}
 			}

@@ -65,6 +65,10 @@ public final class Lambda implements Expression {
 		return body;
 	}
 
+	public MethodTypeDecl getMethodType() {
+		return methodType;
+	}
+
 	@Override
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
