@@ -23,7 +23,7 @@ public class Permission implements ASTnode, JSONAware {
 	private final Token token;
 	private final String image;
 	
-	public Permission(Token token, String image) {
+	private Permission(Token token, String image) {
 		this.token = token;
 		this.image = image;
 	}
