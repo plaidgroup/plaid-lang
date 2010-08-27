@@ -1,0 +1,88 @@
+package plaid.typechecker.AST;
+
+import plaid.typechecker.AST.visitor.ASTVisitor;
+import plaid.typechecker.AST.FieldDecl;
+import plaid.typechecker.AST.MethodDecl;
+
+import java.lang.Thread;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import javax.swing.JFrame;
+import javax.swing.JTree;
+import javax.swing.JScrollPane;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.WindowConstants;
+
+
+state ASTViewer case of ASTVisitor {
+    var /* DefaultMutableTreeNode */ parent;
+
+    method draw(root) {
+        var jtree  = JTree.new(root);
+        jtree.setRootVisible(true);
+        var scroll = JScrollPane.new(jtree);
+        var jframe = JFrame.new("ASTViewer");
+        jframe.add(scroll); 
+        jframe.setMinimumSize(Dimension.new(500,500));
+        jframe.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        jframe.setVisible(true);
+    }
+    
+    method createNode(name) {
+        DefaultMutableTreeNode.new(name);
+    }
+    
+    method visitCompilationUnit(node) {
+        System.out.println("ASTVisitor");
+        var cu = createNode("CompilationUnit");
+        cu.add(createNode("Source File : " + node.sourceFile));
+        cu.add(createNode("Package     : " + node.packageName));
+        // get imports
+        var imports = createNode("Imports");
+        parent = imports;
+        node.imports.accept(this);
+        cu.add(imports);
+        // get decls
+        var fields = createNode("Fields");
+        cu.add(fields);
+        var methods = createNode("Methods");
+        cu.add(methods);
+        node.decls.map( fn (decl) => {
+            match (decl) {
+                case FieldDecl {
+                    parent = fields;
+                    decl.accept(this);
+                }
+                case MethodDecl {
+                    parent = methods;
+                    decl.accept(this);
+                }
+                default {
+                    System.out.println("Unsupported top level declaration.");
+                }
+            }
+        });
+        draw(cu);
+    }
+    
+    method visitImportList(node) {
+        System.out.println("ImportList");
+        var iter = node.imports.iterator();
+        while { iter.hasNext(); } {
+            var imp = createNode(iter.next());
+            parent.add(imp);
+        }
+    }
+    
+    method visitFieldDecl(node) {
+        var field = createNode(node.getName());
+        // TODO: add initializer and types 
+        parent.add(field);
+    }
+    
+    method visitMethodDecl(node) {
+        var meth = createNode(node.getName());
+        // TODO: add types, params  and body
+        parent.add(meth);
+    }
+}
