@@ -129,11 +129,22 @@ public class Util {
 					}
 				}
 			}
-		}
-		else if (params instanceof PlaidJavaObject) {
+		} else if (params instanceof PlaidJavaObject) {
 			objs.add(((PlaidJavaObject)params).getJavaObject());
-		}
-		else {
+		} else if ( params instanceof PlaidObject ) {
+			// check if the plaid object has a Java representation
+			for ( PlaidObject po : params.getStates() ) {
+				PlaidState ps = (PlaidState)po;
+				if ( ps.getPath().equals("plaid.lang.True")) {
+					objs.add(Boolean.TRUE);
+				} else if (ps.getPath().equals("plaid.lang.False")) {
+					objs.add(Boolean.FALSE);
+				}				
+			}
+			if ( objs.isEmpty() ) {
+				objs.add(params);
+			}
+		} else {
 			objs.add(params);
 		}
 
