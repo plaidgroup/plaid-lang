@@ -33,10 +33,10 @@ state ASTViewer case of ASTVisitor {
     }
     
     method visitCompilationUnit(node) {
-        System.out.println("Starting ASTVisitor ... ");
+        System.out.println("Starting ASTViewer ... ");
         var cu = createNode("CompilationUnit");
-        cu.add(createNode("Source File : " + node.sourceFile));
-        cu.add(createNode("Package     : " + node.packageName));
+        cu.add(createNode("Source File(" + node.sourceFile+")"));
+        cu.add(createNode("Package(" + node.packageName+")"));
         // get imports
         var imports = createNode("Imports");
         parent = imports;
@@ -112,12 +112,15 @@ state ASTViewer case of ASTVisitor {
     }
     
     method visitStateDecl(node) {
-        var sd = createNode(node.getName());
+        var sd = createNode("StateDecl("+node.getName()+")");
+        parent.add(sd); 
         if ( node.isCaseOf ) {
-            sd.add(createNode("CaseOf   : " + node.caseOf.toString()));
+            sd.add(createNode("CaseOf(" + node.caseOf.toString()+")"));
         };
+        parent = sd;
+        node.stateDef.accept(this);
         // TODO: add types, params  and body
-        parent.add(sd);    
+   
     }
     
     method visitLetBinding(node) {
@@ -182,9 +185,30 @@ state ASTViewer case of ASTVisitor {
     method visitDeclList(node){
         var dl = createNode("DeclList");
         parent.add(dl);
-        node.decls.map(fn (decl) => {
-            parent = dl;
-            decl.accept(this);
+        var fields = createNode("Fields");
+        dl.add(fields);
+        var methods = createNode("Methods");
+        dl.add(methods);
+        var states = createNode("States");
+        dl.add(states);
+        node.decls.map( fn (decl) => {
+            match (decl) {
+                case FieldDecl {
+                    parent = fields;
+                    decl.accept(this);
+                }
+                case MethodDecl {
+                    parent = methods;
+                    decl.accept(this);
+                }
+                case StateDecl {
+                    parent = states;
+                    decl.accept(this);
+                }
+                default {
+                    System.out.println("Unsupported top level declaration.");
+                }
+            }
         });
     }
     
