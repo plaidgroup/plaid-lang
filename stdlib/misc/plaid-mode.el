@@ -19,7 +19,7 @@
 ;; keywords 
 (defvar plaid-keywords  '("type" "method" "var" "val" "package" "import" "state" "match" "default" "override" "case"  "with" "of" "new" "fn"))
 (defvar plaid-vars      '("this"))
-(defvar plaid-types     '("unique" "immutable" "shared" "unit" "Int" "String"))
+(defvar plaid-types     '("unique" "immutable" "shared" "none" "unit" "Int" "String"))
 (defvar plaid-constants '("true" "false")) 
 (defvar plaid-keywords-regexp  (regexp-opt plaid-keywords  'words))
 (defvar plaid-vars-regexp      (regexp-opt plaid-vars      'words))
