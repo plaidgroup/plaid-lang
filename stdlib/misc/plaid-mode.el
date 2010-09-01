@@ -17,27 +17,29 @@
 
 
 ;; keywords 
-(defvar plaid-keywords  '("method" "var" "val" "package" "import" "state" "match" "default" "override" "case"  "with" "of" "new" "fn"))
+(defvar plaid-keywords  '("type" "method" "var" "val" "package" "import" "state" "match" "default" "override" "case"  "with" "of" "new" "fn"))
 (defvar plaid-vars      '("this"))
-(defvar plaid-types     '("unique" "immutable" "shared"))
+(defvar plaid-types     '("unique" "immutable" "shared" "unit" "Int" "String"))
 (defvar plaid-constants '("true" "false")) 
-(defvar plaid-keywords-regexp  (regexp-opt plaid-keywords 'words))
-(defvar plaid-vars-regexp      (regexp-opt plaid-vars 'words))
-(defvar plaid-types-regexp     (regexp-opt plaid-types 'words))
+(defvar plaid-keywords-regexp  (regexp-opt plaid-keywords  'words))
+(defvar plaid-vars-regexp      (regexp-opt plaid-vars      'words))
+(defvar plaid-types-regexp     (regexp-opt plaid-types     'words))
 (defvar plaid-constants-regexp (regexp-opt plaid-constants 'words))
 (defconst plaid-font-lock-keywords
   `(
-    (,plaid-keywords-regexp . font-lock-keyword-face)
-    (,plaid-vars-regexp  . font-lock-variable-name-face)
-    (,plaid-types-regexp  . font-lock-types-name-face)
-    (,plaid-constants-regexp . font-lock-constant-face))
+    (,plaid-vars-regexp      . font-lock-variable-name-face)
+    (,plaid-constants-regexp . font-lock-constant-face)
+    (,plaid-keywords-regexp  . font-lock-keyword-face)
+    (,plaid-types-regexp     . font-lock-type-face)
+    )
   "Additional Keywords to highlight in Plaid mode")
 
 
 (defvar plaid-mode-syntax-table
   (let ((st (make-syntax-table)))
-    ;; comments
+    ;; allow underscore in words 
     (modify-syntax-entry ?_ "w" st)
+    ;; comments
     (modify-syntax-entry ?/ ". 124b" st)
     (modify-syntax-entry ?* ". 23" st)
     (modify-syntax-entry ?\n "> b" st)
