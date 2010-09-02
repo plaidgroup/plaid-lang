@@ -5,66 +5,50 @@ import plaid.typechecker.AST.FieldDecl;
 import plaid.typechecker.AST.CompilationUnit;
 import plaid.typechecker.AST.MethodDecl;
 
+import java.utils.*;
 import java.io.*;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONArray;
 
 state ASTSerializer case of ASTVisitor {
-    val /* String */ TYPE  = "$type$";
-    val /* String */ VALUE = "$value$";
 	var /* String */ filename;
 	var /* JSONObject */ current;
-
-	method createJavaJSONObject(obj) {
-		val json = JSONObject.new();
-		json.put(TYPE, obj.getClass().toString());
-		json.put(VALUE, obj.toString());
-		json;
-	}
 
     override method visitCompilationUnit(node) {
     	System.out.println(filename);
     	val cu = JSONObject.new();
-		cu.put(TYPE, "state plaid.typechecker.AST.CompilationUnit");
-		cu.put("sourceFile", createJavaJSONObject(node.sourceFile));
-		
-		// visit children 
+        // source ile
+        cu.put("sourceFile", node.sourceFile.toURI().toASCIIString());
+        // package name
+        val packageName = JSONArray.new();      
+        node.packageName.map(fn (s) => {
+            packageName.add(s);
+        });
+        cu.put("packageName", packageName);     
+		// imports
 		val importList = JSONObject.new();
-		current = importList;
 		node.imports.accept(this);
-		cu.put("imports", importList);
-		
+		cu.put("imports", current);
+
 		var writer = FileWriter.new(filename);
 		writer.write(cu.toString());
 		writer.close();
     }
     
     override method visitImportList(node) {
-    	val importList = current;
-    	importList.put(TYPE, "state plaid.typechecker.AST.ImportList");
-    	val importsData = JSONArray.new();
+        val imports = JSONArray.new();
 		node.imports.map(fn (x) => {
-			val obj = JSONObject.new();
-			current = obj;
 			x.accept(this);
-			importsData.add(obj);
+            imports.add(current);
 		});
-    	val imports = JSONObject.new();
-    	imports.put(TYPE, "state plaid.lang.List");
-        imports.put(VALUE, importsData);
-    	importList.put("imports", imports);
+        current = imports;
     }
     
     override method visitQI(node) {
-    	val qi = current;
-    	qi.put(TYPE, "state plaid.typechecker.AST.QI");
-    	val data = JSONArray.new();
+        val qi = JSONArray.new();
     	node.qid.map( fn (x) => {
-    		val obj = JSONObject.new();
-    		obj.put(TYPE,  x.getClass().toString());
-    		obj.put(VALUE, x.toString());
-    		data.add(obj);
+            qi.add(x);
     	});
-    	qi.put(VALUE, data);
+        current = qi;
     }
 }
