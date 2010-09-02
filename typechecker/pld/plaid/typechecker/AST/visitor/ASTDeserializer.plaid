@@ -1,0 +1,204 @@
+package plaid.typechecker.AST.visitor;
+
+import java.io.*;
+import java.net.URI;
+import org.json.simple.JSONObject;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONValue;
+
+state ASTDeserializer {
+     var /* String */ TYPE = "plaidType$";
+     val /*  */ filename;
+     
+     method getAST() {
+        System.out.println("Deserialize : " + filename);
+        var root = JSONValue.parse(FileReader.new(filename));
+        convertJSONtoPlaid(root);
+     }
+     
+     method convertJSONtoPlaid(root) {
+         match(root) {
+             case JSONObject {
+                 System.out.println("JSONObject");
+                 createPlaidObjectFromJSONObject(root);
+             }
+             case JSONArray {
+                 System.out.println("JSONArray");
+                 createPlaidObjectFromJSONArray(root);
+             }
+             case java.lang.String {
+                 System.out.println("JSON String: " + root);
+                 root
+             }
+             case plaid.lang.False {
+                 System.out.println("JSON False");
+                 root
+             }
+             case plaid.lang.True {
+                 System.out.println("JSON True");
+                 root
+             }
+             case java.lang.Long {
+                 System.out.println("JSON Integer: " + root);
+                 root
+             }
+             default {
+                System.out.println("Found not supported JSON element" + root);
+                unit
+             }
+         }
+     }
+     
+     method createPlaidObjectFromJSONObject(json) {
+         var plaidType = json.get(TYPE);
+         var matched   = false;
+         var obj       = unit;
+         
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.CompilationUnit") ) {
+             System.out.println("Found CompilationUnit");
+             obj = new CompilationUnit with {
+                 val packageName = convertJSONtoPlaid(json.get("packageName"));
+                 val sourceFile  = File.new(URI.new(json.get("sourceFile")));
+                 var imports     = convertJSONtoPlaid(json.get("imports"));
+                 var decls       = convertJSONtoPlaid(json.get("decls"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.ImportList") ) {
+             System.out.println("Found ImportList");
+             obj = new ImportList with {
+                 val imports = convertJSONtoPlaid(json.get("imports"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.QI") ) {
+             System.out.println("Found QI");
+             obj = new QI with { 
+                 val qid = convertJSONtoPlaid(json.get("qid"));
+             };  
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.FieldDecl") ) {
+             System.out.println("Found FieldDecl");
+             obj = new FieldDecl with {
+                 val f              = convertJSONtoPlaid(json.get("f"));
+                 val abstractField  = convertJSONtoPlaid(json.get("abstractField")); 
+                 val immutableField = convertJSONtoPlaid(json.get("immutableField"));
+                 val e              = convertJSONtoPlaid(json.get("e"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.MethodDecl") ) {
+             System.out.println("Found MethodDecl");
+             obj = new MethodDecl with { 
+                 val name            = convertJSONtoPlaid(json.get("name"));
+                 val body            = convertJSONtoPlaid(json.get("body"));
+                 val arg             = convertJSONtoPlaid(json.get("arg"));
+                 val abstractMethod  = convertJSONtoPlaid(json.get("abstractMethod"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.StateDecl") ) {
+             System.out.println("Found StateDecl" );
+             obj = new StateDecl with {
+                 val name     = convertJSONtoPlaid(json.get("name"));
+                 val stateDef = convertJSONtoPlaid(json.get("stateDef"));
+                 val isCaseOf = convertJSONtoPlaid(json.get("isCaseOf"));
+                 val caseOf   = ifElse ( json.keySet().contains("caseOf") ) { 
+                         System.out.println("Has caseOf"); 
+                         convertJSONtoPlaid(json.get("caseOf")); 
+                     }{ 
+                         System.out.println("No caseOf"); 
+                         unit 
+                     };
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.ID") ) {
+             System.out.println("Found ID");
+             obj = new ID with {
+                 val name = convertJSONtoPlaid(json.get("name"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.DeclList") ) {
+             System.out.println("Found DeclList");
+             obj = new DeclList with {
+                 val decls = convertJSONtoPlaid(json.get("decls"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.With") ) {
+             System.out.println("Found With");
+             obj = new With with {
+                 val s1 = convertJSONtoPlaid(json.get("s1"));
+                 val s2 = convertJSONtoPlaid(json.get("s2"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.IntLiteral") ) {
+             System.out.println("Found IntLiteral");
+             obj = new IntLiteral with {
+                 val integer = convertJSONtoPlaid(json.get("integer"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.StringLiteral") ) {
+             System.out.println("Found StringLiteral");
+             obj = new StringLiteral with {
+                 val string = convertJSONtoPlaid(json.get("string"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.UnitLiteral") ) {
+             System.out.println("Found UnitLiteral");
+             obj = new UnitLiteral { };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.UnannotatedLetBinding") ) {
+             System.out.println("Found UnannotatedLetBinding");
+             obj = new UnannotatedLetBinding with {
+                 val x       = convertJSONtoPlaid(json.get("x"));
+                 val exp     = convertJSONtoPlaid(json.get("exp"));
+                 val body    = convertJSONtoPlaid(json.get("body"));
+                 val mutable = convertJSONtoPlaid(json.get("mutable"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.Application") ) {
+             System.out.println("Found Application");
+             obj = new Application with {
+                 val f   = convertJSONtoPlaid(json.get("f"));
+                 val arg = convertJSONtoPlaid(json.get("arg"));
+             };
+             matched = true;
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.Dereference") ) {
+             System.out.println("Found Dereference");
+             obj = new Dereference with {
+                 val left  = convertJSONtoPlaid(json.get("left"));
+                 val right = convertJSONtoPlaid(json.get("right"));
+             };
+             matched = true;  
+         };
+         if  ( !matched && plaidType.equals("state plaid.typechecker.AST.Lambda") ) {
+             System.out.println("Found Lambda");
+             obj = new Lambda with {
+                 val x    = convertJSONtoPlaid(json.get("x"));
+                 val body = convertJSONtoPlaid(json.get("body"));
+             };
+             matched = true;
+         };
+         obj;
+     }
+
+     method createPlaidObjectFromJSONArray(json) {
+         var list = new List with { var head = new Nil; };
+         var iter = json.iterator();
+         while { iter.hasNext(); } {
+             list.add(convertJSONtoPlaid(iter.next()));
+         };
+         list
+     }
+
+}
