@@ -124,8 +124,25 @@ public class Util {
 						elem = snd;
 					}
 					else {
-						objs.add(fst);
-						elem = snd;
+						boolean added = false;
+						if ( fst instanceof PlaidObject ) {
+							for ( PlaidObject po : fst.getStates() ) {
+								PlaidState ps = (PlaidState)po;
+								if ( ps.getPath().equals("plaid.lang.True")) {
+									objs.add(Boolean.TRUE);
+									added = true;
+									break;
+								} else if (ps.getPath().equals("plaid.lang.False")) {
+									objs.add(Boolean.FALSE);
+									added = true;
+									break;
+								}				
+							}
+						}
+						if ( !added ) {
+							objs.add(fst);
+						}
+						elem = snd;						
 					}
 				}
 			}
