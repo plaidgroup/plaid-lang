@@ -1,0 +1,278 @@
+package plaid.ast;
+
+import plaid.lang.*;
+
+state ASTTranslator {
+	// TODO: Refactor this into a Plaid List library
+	method map(f, list) {
+		val iter = list.iterator();
+		val newList = new plaid.lang.List { var head = new plaid.lang.Nil; };
+		while {iter.hasNext();} {
+			newList.add(f(iter.next()));
+		};
+		newList
+	}
+	
+	method translatePermission(root) {
+		// TODO: I'm not sure this is the correct way to translate this.
+		ifElse (root.equals(plaid.compilerjava.AST.Permission.FULL)) {
+			new FullPermission {
+				val /*Token*/ token = root.getToken();
+				val /*String*/ image = root.getImage();
+			};
+		} {
+			ifElse (root.equals(plaid.compilerjava.AST.Permission.IMMUTABLE)) {
+				new ImmutablePermission {
+					val /*Token*/ token = root.getToken();
+					val /*String*/ image = root.getImage();
+				};
+			} {
+				ifElse (root.equals(plaid.compilerjava.AST.Permission.PURE)) {
+					new PurePermission {
+						val /*Token*/ token = root.getToken();
+						val /*String*/ image = root.getImage();
+					};
+				} {
+					ifElse (root.equals(plaid.compilerjava.AST.Permission.UNIQUE)) {
+						new PurePermission {
+							val /*Token*/ token = root.getToken();
+							val /*String*/ image = root.getImage();
+						};
+					} {
+						if (root.equals(plaid.compilerjava.AST.Permission.SHARED)) {
+							new SharedPermission {
+								val /*Token*/ token = root.getToken();
+								val /*String*/ image = root.getImage();
+							};						
+						};
+					};
+				};
+			};
+		};
+	}
+
+	method translateAST(root) {
+		match(root) {
+			case plaid.compilerjava.AST.Application {
+				new Application {
+					val /*Token*/ token = root.getToken();
+					val /*Expression*/ f = this.translateAST(root.getFunction());
+					val /*Expression*/ arg = this.translateAST(root.getArg());
+				};
+			}
+			case plaid.compilerjava.AST.Assignment {
+				new Assignment {
+					var /*Token*/ token = root.getToken();
+					var /*Expression*/ target = ifElse (root.hasTarget()) {
+							this.translateAST(root.getTarget());
+						} {
+							new NullNode;
+						};
+					var /*ID*/ field = this.translateAST(root.getField());
+					var /*Expression*/ value = this.translateAST(root.getValue());
+				};
+			}
+			case plaid.compilerjava.AST.Case {
+				new Case {
+					val /*Token*/ token = root.getToken();
+					val /*QI*/ qi = ifElse (root.hasQi()) {
+							this.translateAST(root.getQi());
+						} {
+							new NullNode;
+						};
+					val /*ID*/ x = ifElse (root.hasX()) {
+							this.translateAST(root.getX());
+						} {
+							new NullNode;
+						};
+					val /*Expression*/ e = this.translateAST(root.getE());
+					val /*boolean*/ defaultCase = root.isDefaultCase();
+					val /*boolean*/ boundVar = root.isBoundVar();
+				};
+			}
+			case plaid.compilerjava.AST.ChangeState {
+				new ChangeState {
+					val /*Token*/ token = root.getToken();
+					val /*Expression*/ e = this.translateAST(root.getE());
+					val /*State*/ s = this.translateAST(root.getSt());
+				};
+			}
+			case plaid.compilerjava.AST.CompilationUnit {
+				new CompilationUnit {
+					val /*List<Decl>*/ decls = this.map(this.translateAST, root.getDecls());
+					val /*List<String>*/ packageName = this.map(fn (s) => {s}, root.getPackageName());
+					val /*ImportList*/ imports = this.translateAST(root.getImports());
+					val /*File*/ sourceFile = java.io.File.new(root.getSourceFile().getName());
+				};
+			}
+			case plaid.compilerjava.AST.DeclList {
+				new DeclList {
+					val /*Token*/ token = root.getToken();
+					val /*List<Decl>*/ decls = this.map(this.translateAST, root.getDecls());
+				};
+			}
+			case plaid.compilerjava.AST.Dereference {
+				new Dereference {
+					val /*Token*/ token = root.getToken();
+					val /*Expression*/ left = this.translateAST(root.getLeft());
+					val /*ID*/ right = this.translateAST(root.getRight());
+				};
+			}
+			case plaid.compilerjava.AST.DestructiveDereference {
+				new DestructiveDereference {
+					val /*Token*/ token = root.getToken();
+					val /*Expression*/ left = this.translateAST(root.getLeft());
+					val /*ID*/ right = this.translateAST(root.getRight());
+				}
+			}
+			case plaid.compilerjava.AST.FieldDecl {
+				new FieldDecl {
+					val /*Token*/ token = root.getToken();
+					val /*ID*/ f = this.translateAST(root.getF());
+					val /*Expression*/ e = this.translateAST(root.getE());
+					val /*boolean*/ abstractField = root.isAbstractField();
+					val /*boolean*/ immutableField = root.getImmutable();
+				};
+			}
+			case plaid.compilerjava.AST.ID {
+				new ID {
+					val /*Token*/ token = root.getToken();
+					val /*String*/ name = root.getName();
+				};
+			}
+			case plaid.compilerjava.AST.ImportList {
+				new ImportList {
+					val /*List<QualifiedID>*/ imports = this.map(this.translateAST, root.getImports());
+					val /*Token*/ token = root.getToken();
+				};
+			}
+			case plaid.compilerjava.AST.IntLiteral {
+				new IntLiteral {
+					val /*Token*/ token = root.getToken();
+					val /*int*/ integer = root.getValue();
+				};
+			}
+			case plaid.compilerjava.AST.Lambda {
+				new Lambda {
+					val /*Token*/ token = root.getToken();
+					val /*ID*/ x = this.translateAST(root.getVar());
+					val /*Expression*/ body = this.translateAST(root.getBody());
+					val /*MethodTypeDecl*/ methodType = this.translateAST(root.getMethodType());
+				};
+			}
+			case plaid.compilerjava.AST.LetBinding {
+				new UnannotatedLetBinding {
+					val /*Token*/ token = root.getToken();
+					val /*ID*/ x = this.translateAST(root.getX());
+					val /*Expression*/ exp = this.translateAST(root.getExp());
+					val /*Expression*/ body = this.translateAST(root.getBody());
+					val /*boolean*/ mutable = root.isMutable();
+				};
+			}
+			case plaid.compilerjava.AST.Match {
+				new Match {
+					val /*Token*/ token = root.getToken();
+					val /*Expression*/ e = this.translateAST(root.getE());
+					val /*List<Case>*/ caseList = this.map(this.translateAST, root.getCaseList());
+				};
+			}
+			case plaid.compilerjava.AST.MethodDecl {
+				new MethodDecl {
+					val /*Token*/ token = root.getToken();
+					val /*String*/ name = root.getName();
+					val /*Expression*/ body = this.translateAST(root.getBody());
+					val /*ID*/ arg = ifElse (root.hasArg()) {
+							this.translateAST(root.getArg());
+						} {
+							new NullNode;
+						};
+					val /*boolean*/ abstractMethod = root.isAbstractMethod();
+					val /*MethodTypeDecl*/ methodType = this.translateAST(root.getMethodType());
+				};
+			}
+			case plaid.compilerjava.AST.MethodTypeDecl {
+				new MethodTypeDecl {
+					val /*Token*/ token = root.getToken();
+					val /*ID*/ name = root.getName();
+					val /*PermType*/ retPermType = this.translateAST(root.getRetPermType());
+					val /*List<PermType>*/ argTypes = this.map(this.translateAST, root.getArgTypes());
+					val /*List<ID>*/ argNames = this.map(this.translateAST, root.getArgNames());
+				};
+			}
+			case plaid.compilerjava.AST.NewInstance {
+				new NewInstance {
+					val /*Token*/ token = root.getToken();
+					val /*State*/ st = this.translateAST(root.getSt());
+				};
+			}
+			case plaid.compilerjava.AST.Permission {
+				this.translatePermission(root);
+			}
+			case plaid.compilerjava.AST.PermType {
+				new PermType {
+					val /*Permission*/ perm = this.translateAST(root.getPermission());
+					val /*Type*/ type = this.translateAST(root.getType());
+				};
+			}
+			case plaid.compilerjava.AST.QI {
+				new QI {
+					val /*Token*/ token = root.getToken();
+					val /*List<String>*/ qid = this.map(fn (s) => {s}, root.getQid());
+				};
+			}
+			case plaid.compilerjava.AST.StateDecl {
+				new StateDecl {
+					val /*Token*/ token = root.getToken();
+					val /*ID*/ name = new ID { val name = root.getName(); };
+					val /*State*/ stateDef = this.translateAST(root.getStateDef());
+					val /*boolean*/ isCaseOf = root.getIsCaseOf();
+					val /*QI*/ caseOf = ifElse (root.getIsCaseOf()) {
+							this.translateAST(root.getCaseOf());
+						} {
+							new NullNode;
+						};
+				};
+			}
+			case plaid.compilerjava.AST.StringLiteral {
+				new StringLiteral {
+					val /*Token*/ token = root.getToken();
+					val /*String*/ string = root.toString();
+				};
+			}
+			case plaid.compilerjava.AST.Throws {
+				new Throws {
+					val /*Token*/ token = root.getToken();
+					val /*ID*/ throwableID = this.translateAST(root.getThrowableID());
+				};
+			}
+			case plaid.compilerjava.AST.Type {
+				new Type {
+					val /*Set<ID>*/ typeAbbrevs = root.getTypeAbbrevs();
+					val /*Set<TypeDecl>*/ typeDecls = root.getTypeDecls();
+				};
+			}
+			case plaid.compilerjava.AST.UnitLiteral {
+				new UnitLiteral {
+					val /*Token*/ token = root.getToken();
+				};
+			}
+			case plaid.compilerjava.AST.With {
+				new With {
+					val /*Token*/ token = root.getToken();
+					val /*State*/ s1 = this.translateAST(root.getR1());
+					val /*State*/ s2 = this.translateAST(root.getR2());
+				};
+			}
+			case plaid.compilerjava.util.QualifiedID {
+				new QI {
+					val /*Token*/ token = unit;
+					val /*List<String>*/ qid = this.map(fn (s) => {s},  root.getQidList());
+				};
+			}
+			default {
+				java.lang.System.out.print("Unknown AST node type: ");
+				java.lang.System.out.println((root.getClass()).getName());
+			}
+		}
+	}
+}

@@ -1,0 +1,126 @@
+package plaid.ast;
+
+state PermType {
+	val /*Permission*/ perm;
+	val /*Type*/ type;
+	
+	/**
+	 * Compares this PermType with the specified PermType for equality.  They 
+	 * are equal if and only if their Permissions and Types are equal.  The 
+	 * dynamic PermType is only equal to itself and no other PermType.
+	 */
+	 method ==(other) {
+	 	this.perm == other.perm && this.type == other.type;
+	 }
+	
+	/**
+	 *
+	 *
+	 * Creates a deep copy of  this PermType.
+	 */
+	method copy(){
+		new PermType{
+			val perm = this.perm;
+			val type = this.type;
+		};
+	}
+
+	/**
+	 * Merges the two permtypes together.  Merging takes the stronger of the 
+	 * two access permissions and the union of the two types.
+	 *
+	 * TODO: should this really be the union of the types?  What if the types
+	 * do not have the supertype/subtype relation?  Is this actually a problem?
+	 */
+	method merge(p2) {
+		new PermType{ val perm = this.perm.merge(p2.perm); 
+					  val type = this.type.merge(p2.type); };
+	}
+	
+	/**
+	 * Joins the two permtypes together.  Joining takes the weaker of the two 
+	 * access permissions and the intersection of the types.
+	 *
+	 * TODO: should this really be the intersection of the types?  What if the 
+	 * types do not have the supertype/subtype relation?  Is this actually a problem?
+	 */
+	method join() {
+		new PermType{ val perm = this.perm.join(p2.perm);
+					  val type = this.type.join(p2.type); };
+	}
+	
+	/**
+	 * Splits this permtype by calling the split methods on both its 
+	 * permission and its type.
+	 */
+	method split(PermType p2) {
+		val otherPerm = p2.perm;
+		val otherType = p2.type;
+		
+		match(p2) {
+			// if the target type is dyn, then make sure that we don't have a unique permission
+			case DynPermType {
+				match(this.perm) {
+					case UniquePermission {
+						new None;
+					}
+					default {
+						// T => dyn/T
+						new Some{ val value = (p2, this); };
+					}
+				};
+			}
+			default {
+				// split the permission
+				val splitPermOpt = this.perm.split(otherPerm);
+				
+				match(splitPermOpt) {
+					case Some {
+						val splitPerm = splitPermOpt.getValue();
+						
+						// make sure that the other structural type is a subtype of this type
+						ifElse (otherType.isSubtypeOf(this.type)) {
+							new Some{ val value = (p2, new PermType{ val perm = splitPerm.second(); val type = this.type; }); };
+						}{
+							// the other type isn't a subtype of this type, so we can't split this permtype
+							new None;
+						};
+					}
+					// the permission can't be split how we want, so we can't split this permtype
+					case None {
+						new None;
+					}
+				};
+			}
+		};
+	}
+	
+	/**
+	 * Returns the strongest permtype that can be split off from this permtype 
+	 * while maintaining the current permission of this permtype.
+	 */
+	method residue() {
+		this.split(this).second();
+	}
+	
+	/**
+	 * Returns true if the permission for this permtype allows a client with 
+	 * an alias of this permtype to initiate a state change on the object to 
+	 * which the alias refers.
+	 */
+	method isWritable() {
+		perm.isWritable();
+	}
+	
+	/**
+	 * Returns true if this permtype is a sub-permtype of the specified permtype
+	 * as defined by the Plaid typing specification.
+	 */
+	method isSubPermTypeOf(permType) {
+		// TODO: stub
+	}
+	
+	method accept(v) {
+		v.visitPermType(this);
+	}
+}
