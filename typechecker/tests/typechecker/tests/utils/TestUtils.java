@@ -29,22 +29,22 @@ import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.QualifiedIdentifier;
 import plaid.runtime.annotations.RepresentsState;
-import plaid.typechecker.AST.DynPermType;
-import plaid.typechecker.AST.FieldTypeDecl;
-import plaid.typechecker.AST.FullPermission;
-import plaid.typechecker.AST.ID;
-import plaid.typechecker.AST.ImmutablePermission;
-import plaid.typechecker.AST.IntLiteral;
-import plaid.typechecker.AST.MethodTypeDecl;
-import plaid.typechecker.AST.NonePermission;
-import plaid.typechecker.AST.PermType;
-import plaid.typechecker.AST.PurePermission;
-import plaid.typechecker.AST.SharedPermission;
-import plaid.typechecker.AST.Type;
-import plaid.typechecker.AST.UnannotatedLetBinding;
-import plaid.typechecker.AST.UniquePermission;
-import plaid.typechecker.AST.visitor.TypecheckerVisitor;
-import plaid.typechecker.AST.visitor.helper.Context;
+import plaid.ast.DynPermType;
+import plaid.ast.FieldTypeDecl;
+import plaid.ast.FullPermission;
+import plaid.ast.ID;
+import plaid.ast.ImmutablePermission;
+import plaid.ast.IntLiteral;
+import plaid.ast.MethodTypeDecl;
+import plaid.ast.NonePermission;
+import plaid.ast.PermType;
+import plaid.ast.PurePermission;
+import plaid.ast.SharedPermission;
+import plaid.ast.Type;
+import plaid.ast.UnannotatedLetBinding;
+import plaid.ast.UniquePermission;
+import plaid.typechecker.TypecheckerVisitor;
+import plaid.typechecker.Context;
 
 /**
  * TODO: We may want to merge all of these constructors into the actual Plaid 
