@@ -1,0 +1,472 @@
+package plaid.codegen;
+
+import plaid.ast.*;
+import plaid.ast.visitor.*;
+
+state CodeGenVisitor case of ASTVisitor {
+	val jCodeGen = plaid.compilerjava.util.CodeGen;
+	var /* CodeGen */ out = "";	// Java codegen helper object.
+	var /* IdGen */ idgen = ""; // Plaid ID generator.
+
+	// Additional fields for passing state around accept() calls.
+	// Invariant: Assigned before accept() call, and copied to local variables
+	// at the beginning of method call.
+	// TODO: Reimplement using state change once that's working properly?
+	var /* QualifiedID */ packageName = "";
+	var /* ImportList */ imports = "";
+	var /* ID */ y = "";
+	var /* Boolean */ top = false;
+
+
+	method visitApplication(node) {
+		//this.out.setLocation(token);
+		var /* ID */ x = this.idgen.getId();
+		var /* ID */ y = this.y;
+		var /* ID */ z = this.idgen.getId();
+		// public final PlaidObject x;
+		// public final PlaidObject z;
+		this.out.declareFinalVar(this.out.plaidObjectType, x.name);
+		this.out.declareFinalVar(this.out.plaidObjectType, z.name);
+		
+		this.y = x;
+		node.f.accept(this);
+		
+		this.y = z;
+		node.arg.accept(this);
+		
+		//this.out.setLocation(token);
+		// y = Util.call(x,z);
+		this.out.assignToCall(y.name, x.name, z.name);  
+	}
+	
+	method visitAssignment(node) {
+		val /* ID */ y = this.y;
+		//this.out.setLocation(node.token); TODO: Why does this break?
+		val /* ID */ assignTo = this.idgen.getId();
+		this.out.declareFinalVar(this.out.plaidObjectType, assignTo.name);
+		
+		this.y = assignTo;
+		node.value.accept(this);
+		
+		// Generates (e.g.):
+		// PlaidObject var$foo = local$c0pe.lookup('y')
+		// local$c0pe.update('x', var$foo)
+		ifElse (node.target.isNull()) {
+			// if we haven't seen it in this scope at all, then we must be 
+			// referencing an instance field with an implicit "this"
+			// need to make sure we've loaded it before
+			this.out.lookupInCurrentScope(node.field.name);
+			this.out.updateVarInScope(node.field.name, assignTo.name);
+			this.out.assignToID(y.name, assignTo.name);
+			
+			this.out.updateVarDebugInfo(assignTo.name);
+		} {
+			// we have a target, so we need to check if that particular 
+			// field of the target is mutable and if so assign the new value
+			// evaluate the target
+			val /* ID */ temp = this.idgen.getId();
+			this.out.declareFinalVar(this.out.plaidObjectType, temp.name);
+			this.y = temp;
+			node.target.accept(this);
+			this.out.updateMember(temp.name, node.field.name, assignTo.name);
+			this.out.assignToID(y.name, assignTo.name);
+	
+			this.out.updateVarDebugInfo(assignTo.name);
+		}
+	}
+	
+	method visitCase(node) {
+	
+	}
+	
+	method visitChangeState(node) {
+	
+	}
+	
+	method visitCompilationUnit(node) {
+		val packageString = node.getPackageString();
+		java.lang.System.out.println("Generating code for '" + packageString + "'...");
+		this.packageName = node.packageName;
+		this.imports = node.imports;
+		this.idgen = new IdGen;
+		val qid = new QI {val qid = node.packageName;};
+		this.imports.imports.add(qid.all());
+
+		node.decls.map(fn (d) => {
+			this.top = true;
+			d.accept(this);
+		});
+	}
+	
+	method visitDeclList(node) {
+	
+	}
+	
+	method visitDereference(node) {
+		val /* ID */ y = this.y;
+		//this.out.setLocation(token);
+		
+		//generate code for the object to lookup the right ID in
+		var /* ID */  x = this.idgen.getId();
+		this.out.declareFinalVar(this.out.plaidObjectType, x.name);
+
+		this.y = x;
+		node.left.accept(this);
+
+		//this.out.setLocation(left.token);
+		
+		//code for the lookup
+		//this.out.setLocation(right.token);
+		//this.out.setLocation(y.token);
+		this.out.assignToLookup(y.name, this.jCodeGen.convertOpNames(node.right.name), 
+			x.name);
+	}
+	
+	method handleTopLevelFieldDecl(node) {
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setDebugMode(false);
+		cc.setPrettyPrint(true);
+		cc.setOutputDir("testOutput/");
+		this.out = this.jCodeGen.new(cc);
+		var freshImports = this.idgen.getId();
+		
+		// package qid;
+		val qid = new QI {val qid = this.packageName;};
+		val thePackage = qid.toString();
+		this.out.declarePackage(thePackage);
+		
+		// @plaid.runtime.annotations (...)
+		this.out.topFieldAnnotation(node.getName(), thePackage);
+		
+		// public class c {
+		this.out.declarePublicClass(node.getName()); 
+		this.out.openBlock();
+		
+		// Get imports, define scopes
+		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
+		
+		this.y = freshImports;
+		this.imports.accept(this);
+		
+		this.out.declareGlobalScope(thePackage, freshImports.name);
+		
+		this.out.fieldAnnotation(node.getName());
+		this.out.declarePublicStaticVar(this.out.plaidObjectType, node.getName());
+		this.out.openStaticBlock(); //static {
+		this.out.declareLocalScope(this.out.globalScope);
+		
+		// Generate the expr
+		this.out.declareVar(this.out.plaidObjectType, node.getName());
+		this.y = node.f;
+		node.e.accept(this);
+		
+		this.out.insertIntoScope(this.out.globalScope, node.getName(), node.immutableField);
+		
+		this.out.closeBlock(); this.out.closeBlock(); //}}
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(node.getName(), 
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+	}
+	
+	method visitFieldDecl(node) {
+		if (this.top) {
+			this.top = false;
+			this.handleTopLevelFieldDecl(node);
+		};
+	}
+	
+	method visitID(node) {
+		//this.out.setLocation(node.token);
+		val /* String */ newName = this.jCodeGen.convertOpNames(node.name);
+		
+		// y = lookup(name, currentScope);
+		this.out.assignToLookup(this.y.name, newName, this.out.localScope);  
+	}
+	
+	method visitImportList(node) {
+		val y = this.y;
+	
+		this.out.openStaticBlock();  // static {
+		this.out.assignToNewJavaObject(y.name, 
+			"java.util.ArrayList<plaid.runtime.utils.Import>");
+		
+		node.imports.map(fn (qi) => {
+			var s = y.name;
+			s = s + ".add(new plaid.runtime.utils.Import(\\\"";
+			s = s + qi.toString();
+			s = s + "\\\"));"; 
+			this.out.append(s);
+		});
+
+		this.out.closeBlock();
+	}
+	
+	method visitIntLiteral(node) {
+		//this.out.setLocation(node.token);
+		this.out.assign(this.y.name);
+		this.out.plaidInt(node.integer);
+		this.out.append(";");
+		this.out.updateVarDebugInfo(this.y.name);
+	}
+	
+	method visitLambda(node) {
+		//this.out.setLocation(node.token);
+		val /* ID */ y = this.y;
+		
+		var /*ID*/ freshID = this.idgen.getId();
+		
+		this.out.assignToNewLambda(y.name, node.x.name);  //y = new lambda(...{ {
+		
+		this.out.declareVar(this.out.plaidObjectType, freshID.name);
+		this.y = freshID;
+		node.body.accept(this);
+		this.out.ret(freshID.name);
+		
+		this.out.closeAnonymousDeclaration(); //}});");
+	}
+	
+	method visitLetBinding(node) {
+		val /* ID */ y = this.y;
+	
+		//this.out.setLocation(node.token);
+		this.out.declareFinalVar(this.out.plaidObjectType, node.x.name);
+		
+		this.y = node.x;
+		node.exp.accept(this);
+
+		if (!node.x.name.contains("$plaid")) {
+			// set the immutability of the variable
+			this.out.insertIntoScope(this.out.localScope, node.x.name, 
+				(!node.mutable).jval);
+		};
+		
+		this.y = y;
+		node.body.accept(this);
+	}
+	
+	method visitMatch(node) {
+	
+	}
+	
+	method handleTopLevelMethodDecl(node) {
+		val newName = this.jCodeGen.convertOpNames(node.name);
+		java.lang.System.out.println("Generating code for method '" + newName + "'...");
+
+		val freshReturn = this.idgen.getId();
+		val freshImports = this.idgen.getId();
+		
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setPrettyPrint(true);
+		cc.setDebugMode(false);
+		cc.setOutputDir("testOutput/");
+		this.out = this.jCodeGen.new(cc);
+		
+		val qid = new QI {val qid = this.packageName;};
+		val thisMethod = newName + "_func";
+		val thePackage = qid.toString();
+		
+		//package and needed imports
+		this.out.declarePackage(thePackage);
+		
+		//annotation and class definition
+		this.out.topMethodAnnotation(newName, thePackage);
+		this.out.declarePublicClass(newName);
+		this.out.openBlock(); //public class newName {
+
+		//generate code to create the package scope with imports
+		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
+		
+		this.y = freshImports;
+		this.imports.accept(this);
+
+		this.out.declareGlobalScope(qid.toString(), freshImports.name);
+		
+		if (newName.equals("main") /*&& this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1*/) {
+			this.out.topLevelMain(newName + "_func");
+		};
+
+		this.out.methodAnnotation(newName);
+		this.out.declarePublicStaticFinalVar(this.out.plaidMethodType, thisMethod);
+		this.out.openStaticBlock(); // static {
+		// add local scope so that the lambda creation works properly
+		this.out.declareLocalScope(this.out.globalScope);
+		this.out.assignToNewLambda(thisMethod, node.arg.name);
+		
+		this.out.declareVar(this.out.plaidObjectType, freshReturn.name);
+		//top level functions lookup with unit
+		this.y = freshReturn;
+		node.body.accept(this);
+
+		this.out.ret(freshReturn.name);
+		this.out.closeAnonymousDeclaration(); // }});
+		
+		this.out.closeBlock(); // }  (for static block)
+		this.out.closeBlock(); // }  (for class declaration)
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(newName,
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+		//val result = this.out.formatFile();
+		//java.lang.System.out.println(result);
+		//java.lang.System.out.println("-------------------------------------------");
+	}
+	
+	method visitMethodDecl(node) {
+		if (this.top) {
+			this.top = false;
+			this.handleTopLevelMethodDecl(node);
+		}
+	}
+	
+	method visitNewInstance(node) {
+	
+	}
+	
+	method visitQI(node) {
+	
+	}
+	
+	method handleTopLevelStateDecl(node) {
+		var freshImports = this.idgen.getId();
+		var theState = this.idgen.getId();
+		var thePackage = qid.toString();
+		
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setPrettyPrint(true);
+		cc.setDebugMode(false);
+		cc.setOutputDir("testOutput/");
+		this.out = this.jCodeGen.new(cc);
+		
+		//package and needed imports
+		this.out.declarePackage(thePackage); //package qid;
+		
+		var members = StringBuilder.new();
+		
+		var memberString = members.toString();
+		if (memberString.length() > 0) {
+			memberString = memberString.substring(0, memberString.length() - 1);
+		};
+		
+		// state annotation and class definition
+		this.out.topStateAnnotation(root.getName(), thePackage, memberString);
+		this.out.declarePublicClass(root.getName()); 
+		this.out.openBlock();  // public class f {
+		
+		//generate code to create the package scope with imports
+		this.out.declarePublicStaticFinalVar(
+			"java.util.List<plaid.runtime.utils.Import>",
+			freshImports.name);
+		
+		this.freshImports = freshImports;
+		this.theState = theState;
+		imports.accept(this);
+		this.out.declareGlobalScope(qid.toString(), freshImports.name);
+
+		//annotation for the prototype object representing the state
+		this.out.stateAnnotation(node.getName());
+		this.out.declarePublicStaticFinalVar(this.out.plaidObjectType, 
+			node.getName());
+		
+		this.out.openStaticBlock(); //static {
+		this.out.declareLocalScope(this.out.globalScope);
+		this.out.declareFinalVar(this.out.plaidStateType, theState.name);
+
+		var idList = IDList.new(globals);
+		// "this" should be visible during field initializations
+		idList.add(ID.new(this.out.thisVar)); 
+		
+		// with caseOf State
+		ifElse  (!root.isCaseOf) {
+			// this is this declaration.  It will not have any members, but 
+			// at runtime can forward to its enclosing (instantiated) state
+			this.name = qid.toString() + "." + root.getName();
+			this.idList = idList;
+			root.stateDef.accept(this);
+			
+			this.out.assignToPrototype(root.getName(), theState.name);
+		}{
+			var caseOfState = this.idgen.getId();
+			var declaredState = this.idgen.getId();
+			this.out.declareFinalVar(this.out.plaidStateType, caseOfState.name);
+			this.name = this.out.anonymousDeclaration;
+			this.idList = idList;
+			root.caseOf.accept(this);
+			this.out.declareFinalVar(this.out.plaidStateType, declaredState.name);
+			
+			// this is this declaration.  It will not have any members, but
+			// at runtime can forward to its enclosing (instantiated) state
+			this.name = qid.toString() + "." + root.getName();
+			this.declaredState = declaredState;
+			stateDef.accept(this);
+			
+			//y = fresh1.with(fresh2); 
+			this.out.assignToWith(theState.name,caseOfState.name,
+				declaredState.name);  
+					
+			this.out.assignToPrototype(name.name, theState.name);
+			
+			// because of subtagging, we don't want the resulting object to 
+			// have the caseOf's state's tag
+			
+			// If the caseOf State has a tag
+			this.out.ifCondition(caseOfState.name + ".hasTag()"); 
+			// //remove it from the prototype
+			//this.out.append(root. name.name + ".removeTag(" + 
+			//	caseOfState.name + ".getTag());"); 
+		};
+		this.out.closeBlock(); // } (for static block to init prototype)
+
+		if (node.isCaseOf) { //if we have a tag	
+			//Declare variable to hold the tag
+			var tag = ID.new(name.name + "$Tag" + 
+				PlaidConstants.ID_SUFFIX);
+			var tagPath = qid.toString() + "." + node.getName();
+			this.out.tagAnnotation(tagPath);
+			this.out.declarePublicStaticFinalVar(this.out.plaidTagType, tag.name);
+			
+			this.out.openStaticBlock(); //static {	
+			var caseOfState = this.idgen.getId();
+			this.out.declareFinalVar(this.out.plaidStateType, caseOfState.name());
+			caseOf.accept(this);
+			this.idList = IDList.new();
+			this.theState = caseOfState;
+			this.declaredState = this.out.anonymousDeclaration;
+			caseOf.codegenState(this);
+			//tag = new PlaidTag(caseOfState)
+			this.out.assignToNewTag(tag.name, tagPath, caseOfState.name);
+			
+			this.out.closeBlock(); // } (for static block to init tag)
+		};
+		
+		this.out.closeBlock(); // } (for class Def)
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(node.getName(), 
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+	}
+	
+	method visitStateDecl(node) {
+		if (this.top) {
+			this.top = false;
+			this.handleTopLevelStateDecl(node);
+		}
+	}
+	
+	method visitStringLiteral(node) {
+		//this.out.setLocation(node.token);
+		this.out.assign(this.y.name);
+		this.out.plaidString(node.string);
+		this.out.append(";");  
+		this.out.updateVarDebugInfo(this.y.name);
+	}
+	
+	method visitUnitLiteral(node) {
+		//this.out.setLocation(node.token);
+		this.out.assign(this.y.name);
+		this.out.unit2(); // Identical to unit(), but that's a reserved word
+		this.out.append(";");
+		this.out.updateVarDebugInfo(this.y.name);
+	}
+	
+	method visitWith(node) {
+	
+	}
+}
