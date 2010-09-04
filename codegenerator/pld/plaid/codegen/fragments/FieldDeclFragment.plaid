@@ -1,0 +1,56 @@
+package plaid.codegen.fragments;
+
+state FieldDeclFragment {
+	method handleTopLevelFieldDecl(node) {
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setDebugMode(false);
+		cc.setPrettyPrint(true);
+		cc.setOutputDir("testOutput/");
+		this.out = this.jCodeGen.new(cc);
+		var freshImports = this.idgen.getId();
+		
+		// package qid;
+		val qid = new QI {val qid = this.packageName;};
+		val thePackage = qid.toString();
+		this.out.declarePackage(thePackage);
+		
+		// @plaid.runtime.annotations (...)
+		this.out.topFieldAnnotation(node.getName(), thePackage);
+		
+		// public class c {
+		this.out.declarePublicClass(node.getName()); 
+		this.out.openBlock();
+		
+		// Get imports, define scopes
+		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
+		
+		this.y = freshImports;
+		this.imports.accept(this);
+		
+		this.out.declareGlobalScope(thePackage, freshImports.name);
+		
+		this.out.fieldAnnotation(node.getName());
+		this.out.declarePublicStaticVar(this.out.plaidObjectType, node.getName());
+		this.out.openStaticBlock(); //static {
+		this.out.declareLocalScope(this.out.globalScope);
+		
+		// Generate the expr
+		this.out.declareVar(this.out.plaidObjectType, node.getName());
+		this.y = node.f;
+		node.e.accept(this);
+		
+		this.out.insertIntoScope(this.out.globalScope, node.getName(), node.immutableField);
+		
+		this.out.closeBlock(); this.out.closeBlock(); //}}
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(node.getName(), 
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+	}
+	
+	method visitFieldDecl(node) {
+		if (this.top) {
+			this.top = false;
+			this.handleTopLevelFieldDecl(node);
+		};
+	}
+}
