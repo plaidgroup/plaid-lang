@@ -30,6 +30,7 @@ import plaid.runtime.PlaidInvalidArgumentException;
 import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
+import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
 
 public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObject {
@@ -55,7 +56,11 @@ public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJav
 				Object obj;
 				try {
 					obj = f.get(value);
-					this.members.put(Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false), new PlaidJavaObjectMap(obj));
+					if ( obj != null ) {
+						this.members.put(Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false), new PlaidJavaObjectMap(obj));
+					} else {
+						this.members.put(Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false), PlaidRuntime.getRuntime().getClassLoader().unit());
+					}
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Wrong argument.");
 				} catch (IllegalAccessException e) {
@@ -102,6 +107,9 @@ public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJav
 	@SuppressWarnings("unchecked")
 	public void setJavaObject(Object value) {
 		this.value = value;
+		if ( value == null ) {
+			System.out.println("debug me");
+		}
 		this.valueClass = (Class<Object>) value.getClass();
 	}
 	
