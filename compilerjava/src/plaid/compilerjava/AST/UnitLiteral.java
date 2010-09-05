@@ -40,6 +40,11 @@ public class UnitLiteral implements Expression {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		out.assign(y.getName());

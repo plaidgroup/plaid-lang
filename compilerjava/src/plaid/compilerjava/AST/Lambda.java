@@ -57,6 +57,11 @@ public final class Lambda implements Expression {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public ID getVar() {
 		return var;
 	}

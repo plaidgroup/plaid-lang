@@ -74,6 +74,11 @@ public class Application implements Expression {
 	}
 	
 	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
+	@Override
 
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);

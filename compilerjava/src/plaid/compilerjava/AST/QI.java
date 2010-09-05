@@ -99,6 +99,11 @@ public class QI implements State {
 	public Token getToken() {
 		return token;
 	}
+	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
 
 	@Override
 	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {

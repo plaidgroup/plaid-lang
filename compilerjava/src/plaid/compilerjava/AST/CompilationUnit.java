@@ -65,6 +65,11 @@ public class CompilationUnit implements ASTnode {
 		return packageName; 
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return false;
+	}
+	
 	public String getPackageString() {
 		if (packageString == null){
 			String temp = "";

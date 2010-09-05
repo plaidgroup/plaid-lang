@@ -43,6 +43,11 @@ public class PermType implements ASTnode, JSONAware {
 	public Token getToken() {
 		return null;
 	}
+	
+	@Override
+	public boolean hasToken() {
+		return false;
+	}
 
 	public Permission getPermission() {
 		return this.perm;

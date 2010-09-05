@@ -52,6 +52,11 @@ public class ID implements Expression{
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public String getName() { return name; }
 	
 	@Override

@@ -50,6 +50,11 @@ public class ChangeState implements Expression {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public Expression getE() {
 		return e;
 	}

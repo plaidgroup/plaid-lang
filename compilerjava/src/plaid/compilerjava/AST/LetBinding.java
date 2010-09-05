@@ -52,6 +52,11 @@ public class LetBinding implements Expression {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public PermType getPermType() {
 		return permType;
 	}
