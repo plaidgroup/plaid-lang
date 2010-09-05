@@ -29,13 +29,6 @@ import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
 
 public final class PlaidRuntimeMap extends PlaidRuntime {
-	protected PlaidClassLoaderMap classLoader;
-	
-	public PlaidRuntimeMap() {
-		super();
-        classLoader = new PlaidClassLoaderMap(this);
-	}
-	
 	@Override
 	public PlaidObject call(PlaidObject func, PlaidObject args) {
 		PlaidObject this$plaid = null;
@@ -51,13 +44,13 @@ public final class PlaidRuntimeMap extends PlaidRuntime {
 			}
 		} else if ( func instanceof PlaidJavaMethodMap ) {
 			PlaidJavaMethodMap pjom = (PlaidJavaMethodMap)func;
-			this$plaid = classLoader.packJavaObject(pjom.instance);
+			this$plaid = PlaidClassLoaderMap.getClassLoader().packJavaObject(pjom.instance);
 			name = pjom.name;
 			enterCall(this$plaid, pjom.name);
 			
 		} else if ( func instanceof PlaidFunctionMap ) {
 			PlaidFunctionMap pfm = (PlaidFunctionMap)func;
-			this$plaid = classLoader.unit();
+			this$plaid = PlaidClassLoaderMap.getClassLoader().unit();
 			name = pfm.getName();
 			enterCall(this$plaid, name);
 		}
@@ -75,6 +68,6 @@ public final class PlaidRuntimeMap extends PlaidRuntime {
 
 	@Override
 	public PlaidClassLoader getClassLoader() {
-		return classLoader;
+		return PlaidClassLoaderMap.getClassLoader();
 	}
 }
