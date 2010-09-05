@@ -1,6 +1,7 @@
 package plaid.lang;
 
 import java.util.HashMap;
+import java.util.Set;
 import java.util.Map.Entry;
 
 import org.json.simple.JSONArray;
@@ -18,7 +19,7 @@ import plaid.runtime.PlaidState;
 
 public class Serialization {
 	protected static String TYPE = "type$";
-	protected static String JAVA_VALUE = "value";
+	protected static String DATA = "value";
 	
 	protected Serialization() {}
 	
@@ -35,23 +36,26 @@ public class Serialization {
 				 (jobj instanceof java.lang.String) ) {
 				JSONObject jsonObj = new JSONObject();
 				jsonObj.put(TYPE, jobj.getClass().getName());
-				jsonObj.put(JAVA_VALUE, jobj);
+				jsonObj.put(DATA, jobj);
 				return jsonObj;
-			} else if ( jobj instanceof Token || jobj instanceof HashMap ) {
+			} else if ( jobj instanceof Token || jobj instanceof HashMap || jobj instanceof Set ) {
 				JSONObject jsonObj = new JSONObject();
 				jsonObj.put(TYPE, jobj.getClass().getName());
-				jsonObj.put(JAVA_VALUE, "FIXME");
+				jsonObj.put(DATA, "FIXME");
 				return jsonObj;
 			}else {
 				throw new PlaidRuntimeException("Cannot serialize Java object of type: " + jobj.getClass().getName());
 			}
 		} else if ( isPlaidList(plaidObj) ) {
-			JSONArray jsonObj = new JSONArray();
+			JSONObject jsonObj = new JSONObject();
+			jsonObj.put(TYPE, "state plaid.lang.List");
+			JSONArray values = new JSONArray();
 			PlaidObject list = getField(plaidObj, "head");
 			while (!hasState(list, "plaid.lang.Nil")) {
-				jsonObj.add(convertPlaidObjectToJSONObject(getField(list, "value")));
+				values.add(convertPlaidObjectToJSONObject(getField(list, "value")));
 				list = getField(list, "next");
 			}
+			jsonObj.put(DATA, values);
 			return jsonObj;
 		} else {
 			JSONObject jsonObject = new JSONObject();
@@ -81,7 +85,6 @@ public class Serialization {
 		}
 		throw new PlaidRuntimeException("Cannot find '"+name+"' field in: " + plaidObj);
 	}
-
 
 	protected static boolean hasState(PlaidObject plaidObject, String state) {
 		if ( plaidObject != PlaidRuntime.getRuntime().getClassLoader().unit() ) {
