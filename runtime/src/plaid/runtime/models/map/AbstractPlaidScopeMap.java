@@ -1,7 +1,7 @@
 package plaid.runtime.models.map;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidScope;
@@ -18,8 +18,8 @@ public abstract class AbstractPlaidScopeMap implements PlaidScope {
 	protected final Map<String, PlaidObject> mutableScopeMap;
 	
 	public AbstractPlaidScopeMap() {
-		this.immutableScopeMap = new HashMap<String, PlaidObject>();
-		this.mutableScopeMap = new HashMap<String, PlaidObject>();
+		this.immutableScopeMap = new ConcurrentHashMap<String, PlaidObject>();
+		this.mutableScopeMap = new ConcurrentHashMap<String, PlaidObject>();
 	}
 
 	@Override

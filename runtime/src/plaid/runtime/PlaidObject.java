@@ -70,10 +70,6 @@ public interface PlaidObject {
 	 */
 	public PlaidObject changeState(PlaidObject update) throws PlaidException;
 
-	//public Map<String, PlaidObject> getImmutableMembers();
-	
-	//public Map<String, PlaidObject> getMutableMembers();
-	
 	public PlaidObject copy();
 }
 
