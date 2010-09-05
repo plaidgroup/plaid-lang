@@ -41,6 +41,11 @@ public class Permission implements ASTnode, JSONAware {
 	public Token getToken() {
 		return this.token;
 	}
+	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
 
 	@Override
 	public <T> void visitChildren(ASTVisitor<T> visitor) {

@@ -96,6 +96,11 @@ public class StateDecl implements Decl {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public QI getCaseOf() {
 		return caseOf;
 	}

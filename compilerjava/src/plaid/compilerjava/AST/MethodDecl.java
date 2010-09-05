@@ -202,7 +202,12 @@ public final class MethodDecl implements Decl {
 
 	@Override
 	public Token getToken() {
-		return null;
+		return token;
+	}
+	
+	@Override
+	public boolean hasToken() {
+		return token != null;
 	}
 
 //	@Override

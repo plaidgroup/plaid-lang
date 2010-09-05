@@ -31,6 +31,7 @@ import plaid.compilerjava.tools.ASTVisitor;
 public interface ASTnode {
 
 	public Token getToken();
+	public boolean hasToken();
 	
 	public <T> void visitChildren(ASTVisitor<T> visitor);
 	public <T> T accept(ASTVisitor<T> visitor);

@@ -24,6 +24,11 @@ public class FieldTypeDecl implements TypeDecl {
 		// TODO Auto-generated method stub
 		return null;
 	}
+	
+	@Override
+	public boolean hasToken() {
+		return false;
+	}
 
 	@Override
 	public <T> void visitChildren(ASTVisitor<T> visitor) {

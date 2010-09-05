@@ -53,6 +53,11 @@ public class Assignment implements Expression {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public Expression getTarget() {
 		return target;
 	}

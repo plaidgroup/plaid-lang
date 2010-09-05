@@ -76,6 +76,11 @@ public class Type implements ASTnode, JSONAware {
 		// TODO Auto-generated method stub
 		return null;
 	}
+	
+	@Override
+	public boolean hasToken() {
+		return false;
+	}
 
 	@Override
 	public <T> void visitChildren(ASTVisitor<T> visitor) {

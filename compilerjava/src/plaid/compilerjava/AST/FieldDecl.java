@@ -92,6 +92,11 @@ public class FieldDecl implements Decl{
 	}
 	
 	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
+	@Override
 	public String getName() {
 		return this.f.getName();
 	}

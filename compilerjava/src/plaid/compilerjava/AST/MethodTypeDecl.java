@@ -67,6 +67,11 @@ public class MethodTypeDecl implements TypeDecl {
 		return this.token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public ID getName() {
 		return this.name;
 	}

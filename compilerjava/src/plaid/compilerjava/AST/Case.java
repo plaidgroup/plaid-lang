@@ -115,6 +115,11 @@ public class Case implements ASTnode {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public void codegen(CodeGen out, ID y, ID toMatch, IDList localVars, Set<ID> stateVars) {
 		IDList newLocalVars = localVars;  //might have a bound variable
 		

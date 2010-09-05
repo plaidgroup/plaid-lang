@@ -33,6 +33,11 @@ public class Throws implements Expression {
 		return this.token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public ID getThrowableID() {
 		return this.throwableID;
 	}

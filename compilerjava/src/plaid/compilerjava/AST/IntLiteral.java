@@ -55,6 +55,11 @@ public class IntLiteral implements Expression {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public int getValue() {
 		return integer;
 	}

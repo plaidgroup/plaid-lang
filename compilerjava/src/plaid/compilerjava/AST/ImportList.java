@@ -59,6 +59,11 @@ public class ImportList implements ASTnode {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 	public List<QualifiedID> getImports() {
 		return imports;
 	}

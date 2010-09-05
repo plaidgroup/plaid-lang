@@ -64,6 +64,11 @@ public class DeclList implements State {
 		return token;
 	}
 	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
 //	// for top-level declarations
 //	@Override
 //	public void codegen(CodeGen out, ID y, IDList localVars) {

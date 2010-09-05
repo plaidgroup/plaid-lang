@@ -70,6 +70,11 @@ public class Dereference implements Expression {
 	public Token getToken() {
 		return token;
 	}
+	
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
 
 	@Override
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {

@@ -65,7 +65,11 @@ public class Match implements Expression {
 	public Token getToken() {
 		return token;
 	}
-	
+
+	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
 
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);

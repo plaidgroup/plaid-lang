@@ -74,6 +74,11 @@ public class With implements State {
 	}
 	
 	@Override
+	public boolean hasToken() {
+		return token != null;
+	}
+	
+	@Override
 	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
 
 		out.setLocation(token);
