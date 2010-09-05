@@ -17,7 +17,7 @@
  *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
  */
  
- package plaid.runtime;
+package plaid.runtime;
 
 import static plaid.runtime.PlaidRuntimeState.RUNTIME_STATE.STOPPED;
 
@@ -37,11 +37,11 @@ import plaid.runtime.models.map.PlaidRuntimeMap;
 
 public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeControl {
 	// static fields
-	private static PlaidRuntime runtime;
+	private static volatile PlaidRuntime runtime = null;
+	private static Object runtimeLock = new Object();
 
 	// instance fields
 	@SuppressWarnings("all")
-	private PlaidClassLoader classLoader; 
 	private ThreadLocal<String> currentFilename = new ThreadLocal<String> () {
 		@Override 
 		protected String initialValue() { return "<UNKNOWN>"; }
@@ -55,8 +55,9 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 		protected Integer initialValue() { return -1; }
 	};
 	private RUNTIME_STATE currentState = RUNTIME_STATE.UNINITIALIZED;
-	private Object currentStateLock = new Object();
+	private final Object currentStateLock = new Object();
 	private List<PlaidRuntimeEventListener> eventListeners = new ArrayList<PlaidRuntimeEventListener>();
+	private final Object eventLock = new Object();
 	private List<PlaidRuntimePlugin> plugins = new ArrayList<PlaidRuntimePlugin>();
 	
 	public PlaidRuntime() {
@@ -107,7 +108,7 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 		});
 	}
 
-	public PlaidRuntimePlugin loadPlugin(String name) {
+	private PlaidRuntimePlugin loadPlugin(String name) {
 		PlaidRuntimePlugin plugin = null;
 		
 		try {
@@ -127,78 +128,98 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 	}
 	
 	public void addRuntimeEventListener(PlaidRuntimeEventListener evl) {
-		if ( eventListeners.contains(evl) == false ) {
-			eventListeners.add(evl);
+		synchronized (eventLock) {
+			if ( !eventListeners.contains(evl) ) {
+				eventListeners.add(evl);
+			}
 		}
 	}
 
 	public void removeRuntimeEventListener(PlaidRuntimeEventListener evl) {
-		if ( eventListeners.contains(evl) == false ) {
-			eventListeners.remove(evl);
+		synchronized (eventLock) {
+			if ( !eventListeners.contains(evl) ) {
+				eventListeners.remove(evl);
+			}
 		}
 	}
 
 	private void triggerExceptionEvent(PlaidRuntimeExceptionEvent ev) {
-		if ( eventListeners.size() == 0 ) return;
-
-		for ( PlaidRuntimeEventListener evl : eventListeners ) {
-			evl.handleException(ev);
+		synchronized (eventLock) {
+			if ( eventListeners.size() == 0 ) return;
+	
+			for ( PlaidRuntimeEventListener evl : eventListeners ) {
+				evl.handleException(ev);
+			}
 		}
 	}
 	
 	private void triggerInitEvent(PlaidRuntimeInitEvent ev) {
-		if ( eventListeners.size() == 0 ) return;
-
-		for ( PlaidRuntimeEventListener evl : eventListeners ) {
-			evl.handleInit(ev);
+		synchronized (eventLock) {
+			if ( eventListeners.size() == 0 ) return;
+	
+			for ( PlaidRuntimeEventListener evl : eventListeners ) {
+				evl.handleInit(ev);
+			}
 		}
 	}
 	
 	private void triggerShutdownEvent(PlaidRuntimeShutdownEvent ev) {
-		if ( eventListeners.size() == 0 ) return;
-
-		for ( PlaidRuntimeEventListener evl : eventListeners ) {
-			evl.handleShutdown(ev);
+		synchronized (eventLock) {
+			if ( eventListeners.size() == 0 ) return;
+	
+			for ( PlaidRuntimeEventListener evl : eventListeners ) {
+				evl.handleShutdown(ev);
+			}
 		}
 	}
 	
 	private void triggerStateChangeEvent(PlaidRuntimeStateChangeEvent ev) {
-		if ( eventListeners.size() == 0 ) return;
-
-		for ( PlaidRuntimeEventListener evl : eventListeners ) {
-			evl.updateRuntimeStateChange(ev);
+		synchronized (eventLock) {
+			if ( eventListeners.size() == 0 ) return;
+	
+			for ( PlaidRuntimeEventListener evl : eventListeners ) {
+				evl.updateRuntimeStateChange(ev);
+			}
 		}
 	}
 
 	private void triggerLocationUpdateEvent(PlaidRuntimeLocationUpdateEvent ev) {
-		if ( eventListeners.size() == 0 ) return;
-
-		for ( PlaidRuntimeEventListener evl : eventListeners ) {
-			evl.updateRuntimeLocation(ev);
+		synchronized (eventLock) {
+			if ( eventListeners.size() == 0 ) return;
+	
+			for ( PlaidRuntimeEventListener evl : eventListeners ) {
+				evl.updateRuntimeLocation(ev);
+			}
 		}
 	}
 
 	private void triggerCallEnterEvent(PlaidRuntimeCallEnterEvent ev) {
-		if ( eventListeners.size() == 0 ) return;
-
-		for ( PlaidRuntimeEventListener evl : eventListeners ) {
-			evl.handleCallEnter(ev);
+		synchronized (eventLock) {
+			if ( eventListeners.size() == 0 ) return;
+	
+			for ( PlaidRuntimeEventListener evl : eventListeners ) {
+				evl.handleCallEnter(ev);
+			}
 		}
 	}
 	
 	private void triggerCallLeaveEvent(PlaidRuntimeCallLeaveEvent ev) {
-		if ( eventListeners.size() == 0 ) return;
-
-		for ( PlaidRuntimeEventListener evl : eventListeners ) {
-			evl.handleCallLeave(ev);
+		synchronized (eventLock) {
+			if ( eventListeners.size() == 0 ) return;
+	
+			for ( PlaidRuntimeEventListener evl : eventListeners ) {
+				evl.handleCallLeave(ev);
+			}
 		}
 	}
 
 	private void triggerVariableUpdate(PlaidRuntimeVariableUpdateEvent ev) {
-		if ( eventListeners.size() == 0 ) return;
-
-		for ( PlaidRuntimeEventListener evl : eventListeners ) {
-			evl.handleVariableUpdate(ev);
+		synchronized (eventLock) {
+			if ( eventListeners.size() == 0 ) return;
+	
+			for ( PlaidRuntimeEventListener evl : eventListeners ) {
+				evl.handleVariableUpdate(ev);
+			}
 		}
 	}
 
@@ -315,13 +336,18 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 				}
 			}
 		}
+		
 		triggerVariableUpdate(new PlaidRuntimeVariableUpdateEvent(this, name, o));
 		checkRuntimeState();
 	}
 
 	public static PlaidRuntime getRuntime() {
+		// Double-checked locking is safe because runtime is declared volatile
 		if (runtime == null) {
-			runtime = new PlaidRuntimeMap();
+			synchronized (runtimeLock) {
+				if (runtime == null)
+					runtime = new PlaidRuntimeMap();
+			}
 		}
 		return runtime;
 	}
@@ -329,5 +355,4 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 	public abstract PlaidClassLoader getClassLoader();
 
 	public abstract PlaidObject call(PlaidObject func, PlaidObject args);
-	
 }
