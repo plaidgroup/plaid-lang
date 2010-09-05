@@ -634,6 +634,12 @@ public class CodeGen {
 		}
 	}
 	
+	public final void setLocation(Token t, String filename) {
+		if (cc.isDebugMode() && t != null) {
+			output.append(rt + ".updateLocation("+ "\""+ filename + "\"" + "," + t.beginLine +","+ t.beginColumn + ");" );
+		}
+	}
+	
 	public final void updateVarDebugInfo(String var) {
 		updateVarDebugInfo(var, var);
 	}
