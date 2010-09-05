@@ -1,0 +1,72 @@
+package plaid.codegen.fragments;
+
+state MethodDeclFragment {
+	method handleTopLevelMethodDecl(node) {
+		val newName = this.jCodeGen.convertOpNames(node.name);
+		java.lang.System.out.println("Generating code for method '" + newName + "'...");
+
+		val freshReturn = this.idgen.getId();
+		val freshImports = this.idgen.getId();
+		
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setPrettyPrint(true);
+		cc.setDebugMode(true);
+		cc.setOutputDir("testOutput/");
+		this.out = this.jCodeGen.new(cc);
+		
+		val qid = new QI {val qid = this.packageName;};
+		val thisMethod = newName + "_func";
+		val thePackage = qid.toString();
+		
+		//package and needed imports
+		this.out.declarePackage(thePackage);
+		
+		//annotation and class definition
+		this.out.topMethodAnnotation(newName, thePackage);
+		this.out.declarePublicClass(newName);
+		this.out.openBlock(); //public class newName {
+
+		//generate code to create the package scope with imports
+		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
+		
+		this.y = freshImports;
+		this.imports.accept(this);
+
+		this.out.declareGlobalScope(qid.toString(), freshImports.name);
+		
+		if (newName.equals("main") /*&& this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1*/) {
+			this.out.topLevelMain(newName + "_func");
+		};
+
+		this.out.methodAnnotation(newName);
+		this.out.declarePublicStaticFinalVar(this.out.plaidMethodType, thisMethod);
+		this.out.openStaticBlock(); // static {
+		// add local scope so that the lambda creation works properly
+		this.out.declareLocalScope(this.out.globalScope);
+		this.out.assignToNewLambda(thisMethod, node.arg.name);
+		
+		this.out.declareVar(this.out.plaidObjectType, freshReturn.name);
+		//top level functions lookup with unit
+		this.y = freshReturn;
+		node.body.accept(this);
+
+		this.out.ret(freshReturn.name);
+		this.out.closeAnonymousDeclaration(); // }});
+		
+		this.out.closeBlock(); // }  (for static block)
+		this.out.closeBlock(); // }  (for class declaration)
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(newName,
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+		//val result = this.out.formatFile();
+		//java.lang.System.out.println(result);
+		//java.lang.System.out.println("-------------------------------------------");
+	}
+	
+	method visitMethodDecl(node) {
+		if (this.top) {
+			this.top = false;
+			this.handleTopLevelMethodDecl(node);
+		}
+	}
+}
