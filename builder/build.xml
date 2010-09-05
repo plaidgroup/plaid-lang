@@ -1,0 +1,134 @@
+<!--
+  Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+  
+  This file is part of Plaid Programming Language.
+ 
+  Plaid Programming Language is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+  
+   Plaid Programming Language is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+ 
+   You should have received a copy of the GNU General Public License
+   along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ -->
+
+
+
+<project name="Plaid Builder" default="build">
+  <property name="VERBOSE" value="false"/>
+  <property name="BUILD.DIR" value="plaid"/>
+  <property name="COMPILE.SRC" value="src"/>
+  <property name="COMPILE.BIN" value="bin"/>
+  <property name="PLAID.COMPILER.SRC" value="../compilerjava/src/"/>
+  <property name="PLAID.LIBRARY.SRC" value="../stdlib/src/"/>
+  <property name="PLAID.RUNTIME.SRC" value="../runtime/src/"/>
+  <property name="JAVACC.JAR" value="${basedir}/tools/javacc-5.0/bin/lib/javacc.jar"/>
+  <property name="JUNIT.JAR" value="${basedir}/tools/junit-4.8.1.jar"/>
+  <property name="PLAID.COMPILER.JAR" value="${BUILD.DIR}/lib/plaid/plaidc.jar"/>
+  <property name="PLAID.LIBRARY.JAR" value="${BUILD.DIR}/lib/plaid/plaidsl.jar"/>
+  <property name="PLAID.RUNTIME.JAR" value="${BUILD.DIR}/lib/plaid/plaidrt.jar"/>
+  <property name="PLAID.ZIP" value="plaid-lang.zip"/>
+  <property name="PLAID.TAR" value="plaid-lang.tar"/>
+  <property name="PLAID.TAR.GZ" value="plaid-lang.tar.gz"/>
+
+  <target name="init">
+    <tstamp/>
+  </target>
+
+  <target name="copy-template">
+    <copy todir="${BUILD.DIR}" verbose="${VERBOSE}">
+      <fileset dir="template"/>
+    </copy>    
+    <chmod perm="755" verbose="${VERBOSE}">
+      <fileset dir="${BUILD.DIR}/bin/"/>
+    </chmod>
+    <delete verbose="${VERBOSE}">
+      <fileset dir="${BUILD.DIR}">
+        <include name="**/.svn"/>
+      </fileset>
+    </delete>
+    <mkdir dir="${BUILD.DIR}/lib/plaid/"/>
+  </target>
+
+  <target name="compile-files">
+    <mkdir dir="${COMPILE.SRC}"/>
+    <mkdir dir="${COMPILE.BIN}"/>
+    <copy todir="${COMPILE.SRC}">
+      <fileset dir="${PLAID.COMPILER.SRC}">
+        <exclude name="coreOutput"/>
+      </fileset>
+    </copy>
+    <copy todir="${COMPILE.SRC}">
+      <fileset dir="${PLAID.LIBRARY.SRC}"/>
+    </copy>
+    <copy todir="${COMPILE.SRC}">
+      <fileset dir="${PLAID.RUNTIME.SRC}"/>
+    </copy>
+    <java classpath="${JAVACC.JAR}" classname="javacc" fork="true" dir="${COMPILE.SRC}/plaid/compilerjava/coreparser/">
+      <arg value="-STATIC=false" />
+      <arg value="PlaidCoreParser.jj" />
+    </java>
+    <javac srcdir="${COMPILE.SRC}" destdir="${COMPILE.BIN}">
+    	<classpath>
+    		<pathelement path="${JUNIT.JAR}"/>
+    		<pathelement location="../compilerjava/json_simple-1.1.jar"/>
+  		</classpath>
+  	</javac>
+  </target>
+
+  <target name="build-jars">
+    <jar destfile="${PLAID.COMPILER.JAR}">
+      <fileset dir="${COMPILE.BIN}">
+        <include name="plaid/compilerjava/**/*.class"/>
+      </fileset>
+    </jar>    
+    <jar destfile="${PLAID.LIBRARY.JAR}">
+      <fileset dir="${COMPILE.BIN}">
+        <include name="plaid/lang/**/*.class"/>
+      </fileset>
+    </jar>    
+    <jar destfile="${PLAID.RUNTIME.JAR}">
+      <fileset dir="${COMPILE.BIN}">
+        <include name="plaid/runtime/**/*.class"/>
+      </fileset>
+    </jar>    
+  </target>
+
+  <target name="build-archive">
+    <tar destfile="${PLAID.TAR}" >
+      <tarfileset dir="." filemode="755">
+        <include name="plaid/bin/*"/>
+      </tarfileset>
+      <fileset dir=".">
+        <include name="plaid/lib/**/*"/>
+        <include name="plaid/share/**/*"/>
+      </fileset>
+    </tar>
+    <gzip src="${PLAID.TAR}" destfile="${PLAID.TAR.GZ}"/>
+    <delete file="${PLAID.TAR}"  verbose="${VERBOSE}"/>
+  </target>
+
+  <target name="build" depends="dist-clean, 
+                                copy-template, 
+                                compile-files, 
+                                build-jars,
+                                build-archive,
+                                clean">
+  </target>
+
+  <target name="clean">
+    <delete dir="plaid" verbose="${VERBOSE}" />
+    <delete dir="src" verbose="${VERBOSE}" />
+    <delete dir="bin" verbose="${VERBOSE}" />
+  </target>
+
+  <target name="dist-clean" depends="clean">
+    <delete file="${PLAID.TAR.GZ}" verbose="${VERBOSE}"/>
+  </target>
+
+</project>
