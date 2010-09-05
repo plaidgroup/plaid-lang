@@ -19,7 +19,7 @@ import plaid.runtime.PlaidState;
 
 public class Serialization {
 	protected static String TYPE = "type$";
-	protected static String DATA = "value";
+	protected static String DATA = "data$";
 	
 	protected Serialization() {}
 	
