@@ -38,7 +38,7 @@ public class Serialization {
 				jsonObj.put(TYPE, jobj.getClass().getName());
 				jsonObj.put(DATA, jobj);
 				return jsonObj;
-			} else if ( jobj instanceof Token || jobj instanceof HashMap || jobj instanceof Set ) {
+			} else if ( jobj instanceof HashMap || jobj instanceof Set ) {
 				JSONObject jsonObj = new JSONObject();
 				jsonObj.put(TYPE, jobj.getClass().getName());
 				jsonObj.put(DATA, "FIXME");
