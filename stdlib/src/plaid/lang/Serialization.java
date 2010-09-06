@@ -1,5 +1,6 @@
 package plaid.lang;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
@@ -7,6 +8,7 @@ import java.util.Map.Entry;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
 
 import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidMemberDef;
@@ -15,6 +17,7 @@ import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.PlaidState;
+import plaid.runtime.Util;
 
 public class Serialization {
 	protected static final String TYPE      = "type$";
@@ -157,6 +160,98 @@ public class Serialization {
 	}
 
 	public static PlaidObject fromJSON(String json) {
-		return null;
+		Object obj = JSONValue.parse(json);
+		if ( obj instanceof JSONObject ) {
+			return convertJSONObjectToPlaidObject((JSONObject)obj);
+		} else {
+			throw new PlaidRuntimeException("Top-level JSON object is not a JSONObject but : " + obj.getClass().getName());
+		}
+	}
+	
+	protected static PlaidObject convertJSONObjectToPlaidObject(JSONObject jsonObj) {
+		final Object type = jsonObj.get(TYPE);
+		if ( type == null ) {
+			throw new PlaidRuntimeException("JSONObject has no type.");
+		}
+		if ( type instanceof String ) {
+			if ( ((String) type).startsWith("class") ) {
+				if ( ((String)type).equals("class java.lang.String")) {
+					return plaid.runtime.Util.string((String)jsonObj.get(DATA));
+				} else if ( ((String)type).equals("class java.lang.Integer") || 
+						    ((String)type).equals("class java.lang.Long") ) {
+					if ( jsonObj.get(DATA) instanceof Integer ) {
+						return plaid.runtime.Util.integer((Integer)jsonObj.get(DATA));
+					} else if ( jsonObj.get(DATA) instanceof Long ) {
+						return plaid.runtime.Util.integer(((Long)jsonObj.get(DATA)).intValue());
+					} else {
+						throw new PlaidRuntimeException("Invalid numerical value : " + jsonObj.get(DATA).getClass().toString());
+					}
+				} else if (  ((String)type).equals("class java.util.HashSet") ) {
+					final HashSet newHashSet = new HashSet();
+					JSONArray data = (JSONArray)jsonObj.get(DATA);
+					for ( Object obj : data ) {
+						newHashSet.add(convertJSONObjectToPlaidObject((JSONObject)obj));
+					}
+					return PlaidRuntime.getRuntime().getClassLoader().packJavaObject(newHashSet);
+				} else {
+					throw new PlaidRuntimeException("Cannot convert : " + type.getClass());
+				}
+			} else if (  ((String)type).startsWith("state") ) {
+				if ( ((String)type).equals("state plaid.lang.List")) {
+					final PlaidState listState = getPlaidState("plaid.lang.List");
+					final PlaidState consState = getPlaidState("plaid.lang.Cons");
+					final PlaidObject nil      = getPlaidState("plaid.lang.Nil").instantiate();
+					PlaidObject current = nil;
+					//for ( Object value : ((JSONArray)jsonObj.get(DATA)). ) {
+					JSONArray data = (JSONArray)jsonObj.get(DATA);
+					for ( int i = data.size(); 0 < i ; i-- ) {
+						final Object value = data.get(i-1);
+						final PlaidState values = plaid.runtime.Util.newState();
+						final PlaidObject elem = convertJSONObjectToPlaidObject((JSONObject)value);
+						values.addMember(Util.anonymousMemberDef("value", true, false), elem);
+						values.addMember(Util.anonymousMemberDef("next", true, false), current);
+						current = consState.initState(values).instantiate();
+					}
+					final PlaidState listValue = Util.newState();
+					listValue.addMember(Util.anonymousMemberDef("head", true, false), current);
+					return listState.initState(listValue).instantiate();
+				} else {
+					throw new PlaidRuntimeException("Cannot convert plaid state : " + type);
+				}
+			} else {
+				throw new PlaidRuntimeException("Unsupported type : " + type);
+			}
+		} else if ( type instanceof JSONArray ) {
+			final JSONArray typeArray = (JSONArray)type;
+			final String stateName = ((String)typeArray.get(typeArray.size()-1)).substring("state ".length());
+			final PlaidState typeState = getPlaidState(stateName);
+			
+			// populate fields
+			final PlaidState values = plaid.runtime.Util.newState();
+			for ( Entry<PlaidMemberDef, PlaidObject> member : (Set<Entry<PlaidMemberDef, PlaidObject>>)typeState.getMembers().entrySet() ) {
+				if ( !(member.getValue() instanceof PlaidMethod ) ) {
+					final PlaidMemberDef memDef = member.getKey();
+					//System.out.println("Look for field " + memDef.getMemberName() );
+					final JSONObject fieldValue = (JSONObject)jsonObj.get(memDef.getMemberName());
+					if ( fieldValue == null ) {
+						throw new PlaidRuntimeException("Cannot find field '"+memDef.getMemberName()+"' for " + stateName);
+					}
+					final PlaidMemberDef fieldMemDef = plaid.runtime.Util.anonymousMemberDef(memDef.getMemberName(), memDef.isMutable(), false);
+					PlaidObject result = convertJSONObjectToPlaidObject(fieldValue);
+					values.addMember(fieldMemDef, result);
+				}
+			}
+			
+			final PlaidObject instance = typeState.initState(values).instantiate();
+			return instance;
+		} else {
+			throw new PlaidRuntimeException("Unsupported type : " + type);
+		}
+	}
+	
+	protected static PlaidState getPlaidState(String stateName) {
+		//System.out.println("Instanciate: " + stateName );
+		final PlaidObject stateObj = plaid.runtime.Util.lookup(stateName, plaid.runtime.Util.unit());
+		return plaid.runtime.Util.toPlaidState(stateObj);
 	}
 }
