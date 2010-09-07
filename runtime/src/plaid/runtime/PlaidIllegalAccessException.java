@@ -21,6 +21,10 @@ package plaid.runtime;
 
 public class PlaidIllegalAccessException extends PlaidException {
 
+	public PlaidIllegalAccessException(String string, Throwable cause) {
+		super(string, cause);
+	}
+	
 	public PlaidIllegalAccessException(String string) {
 		super(string);
 	}

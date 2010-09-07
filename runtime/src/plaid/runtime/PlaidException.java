@@ -24,6 +24,13 @@ public class PlaidException extends RuntimeException {
 	private final int line;
 	private final int column;
 
+	public PlaidException(String string, Throwable cause) {
+		super(PlaidRuntime.getRuntime().getCurrentFilename() + "@" + PlaidRuntime.getRuntime().getCurrentLine() + ":"+ PlaidRuntime.getRuntime().getCurrentColumn()+ " => " + string, cause);
+		this.filename = PlaidRuntime.getRuntime().getCurrentFilename();
+		this.line     = PlaidRuntime.getRuntime().getCurrentLine();
+		this.column   = PlaidRuntime.getRuntime().getCurrentColumn();	
+	}
+	
 	public PlaidException(String string) {
 		super(PlaidRuntime.getRuntime().getCurrentFilename() + "@" + PlaidRuntime.getRuntime().getCurrentLine() + ":"+ PlaidRuntime.getRuntime().getCurrentColumn()+ " => " + string);
 		this.filename = PlaidRuntime.getRuntime().getCurrentFilename();
