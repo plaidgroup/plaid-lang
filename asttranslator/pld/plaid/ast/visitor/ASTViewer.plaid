@@ -105,38 +105,60 @@ state ASTViewer case of ASTVisitor {
         addToken(fd, node);        
         parent.add(fd);
         ifElse ( node.abstractField ) {
-            fd.add(createNode("Abstract  : True"));
+            fd.add(createNode("Abstract: True"));
         } {
-            fd.add(createNode("Abstract  : False"));
+            fd.add(createNode("Abstract: False"));
             var init = createNode("Initializer");
             fd.add(init);
             parent = init;
             node.e.accept(this);      
         };
         ifElse ( node.immutableField ) {
-            fd.add(createNode("Immutable : True"));
+            fd.add(createNode("Immutable: True"));
         } {
-            fd.add(createNode("Immutable : False"));
+            fd.add(createNode("Immutable: False"));
         };
         // TODO: add type
     }
     
     method visitMethodDecl(node) {
+    	val oldParent = parent;
+    	
         var md = createNode(node.getName());
         addToken(md, node);
-        // TODO: add types, params  and body
+
+		// display parameter types and return type
+		parent = md;
+		node.methodType.accept(this);
+
         // get body
         var body = createNode("Body");
-        parent.add(md);
+        oldParent.add(md);
         md.add(body);
         parent = body;
         ifElse ( node.abstractMethod ) {
-            md.add(createNode("Abstract : True"));
+            md.add(createNode("Abstract: True"));
         } {
-            md.add(createNode("Abstract : False"));
+            md.add(createNode("Abstract: False"));
         };
         node.body.accept(this);
-
+    }
+    
+    method visitMethodTypeDecl(node) {
+    	val oldParent = parent;
+    	
+    	val params = node.argNames.zip(node.argTypes);
+    	params.map(fn (p) => {
+    		var n = createNode("Parameter " + p.first().name);
+    		oldParent.add(n);
+    		parent = n;
+    		p.second().accept(this);
+    	});
+    	
+    	var ret = createNode("<Return Type>");
+    	oldParent.add(ret);
+    	parent = ret;
+    	node.retPermType.accept(this);
     }
     
     method visitStateDecl(node) {
@@ -165,7 +187,15 @@ state ASTViewer case of ASTVisitor {
     }
     
     method visitID(node) {
-        parent.add(createNode("ID(" + node.name + ")"));
+    	var id = createNode("ID(" + node.name + ")");
+    	parent.add(id);
+        parent = id;
+        match (node.type) {
+        	case Some {
+        		node.type.value.accept(this);
+        	}
+        	default {}
+        }
     }
     
     method visitApplication(node){
@@ -307,6 +337,28 @@ state ASTViewer case of ASTVisitor {
         parent.add(newi);
         parent = newi;
         node.s.accept(this);
+    }
+    
+    method visitPermType(node) {
+    	var s = "";
+    	match (node.perm) {
+    		case UniquePermission {
+    			s = s + "unique ";
+    		}
+    		case ImmutablePermission {
+    			s = s + "immutable ";
+    		}
+    	};
+    	
+    	// TODO: Find a reasonable way to output structural types
+    	val typeA = node.type.typeAbbrevs;
+    	ifElse (!typeA.isEmpty()) {
+    		s = s + typeA.iterator().next().name;
+    	} {
+    		s = s + "<type>";
+    	};
+    	
+    	parent.add(createNode(s));
     }
         
     method visitQI(node){
