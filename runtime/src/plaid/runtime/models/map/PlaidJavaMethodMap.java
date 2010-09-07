@@ -193,7 +193,7 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 			throw new PlaidInvalidArgumentException("Cannot call method : " + name);
 		} catch (InvocationTargetException e) {
 			if ( e.getCause() != null ) {
-				throw new PlaidIllegalAccessException("Method '" + name + "' threw an exception: " + e.getCause());
+				throw new PlaidIllegalAccessException("Method '" + name + "' threw an exception: " + e.getCause(), e.getCause());
 			} else {
 				throw new PlaidIllegalAccessException("Cannot call method : " + name);
 			}
