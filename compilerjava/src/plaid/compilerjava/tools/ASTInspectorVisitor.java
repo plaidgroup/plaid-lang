@@ -44,6 +44,7 @@ import plaid.compilerjava.AST.With;
  * the AST.
 */
 
+@SuppressWarnings("unchecked")
 public class ASTInspectorVisitor extends AbstractASTVisitor {
 	private DefaultMutableTreeNode root;
 	private DefaultMutableTreeNode curr;
