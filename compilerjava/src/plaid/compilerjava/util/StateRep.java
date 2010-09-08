@@ -6,11 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
-
-import plaid.runtime.PlaidObject;
 
 //TODO: re-purpose this as StateTypeDecl (similar to Method/FieldTypeDecl)?
 public class StateRep extends MemberRep {

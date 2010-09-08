@@ -7,8 +7,6 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
 import plaid.compilerjava.AST.MethodTypeDecl;
-import plaid.compilerjava.AST.PermType;
-import plaid.runtime.PlaidObject;
 
 // TODO: merge this with MethodTypeDecl?
 public class MethodRep extends MemberRep {
