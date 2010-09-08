@@ -572,7 +572,7 @@ public class CodeGen {
 	 * @return trailing @ sign to allow for correct indentation during pretty printing
 	 */
 	public final void topMethodAnnotation(String name, String thePackage) {
-
+		output.append("@SuppressWarnings(\"unused\")");if (cc.prettyPrint()) output.append("@");
 		output.append("@plaid.runtime.annotations.RepresentsMethod(name = \"" + name + "\", inPackage = \"" + thePackage + "\", toplevel = " + true + ")");
 		if (cc.prettyPrint()) output.append("@");
 	}
@@ -588,6 +588,7 @@ public class CodeGen {
 	 * @return trailing @ sign to allow for correct indentation during pretty printing
 	 */
 	public final void topFieldAnnotation(String name, String thePackage) {
+		output.append("@SuppressWarnings(\"unused\")");if (cc.prettyPrint()) output.append("@");
 		output.append("@plaid.runtime.annotations.RepresentsField(name = \"" + name + "\", inPackage = \"" + thePackage + "\", toplevel = " + true + ")");
 		if (cc.prettyPrint()) output.append("@");
 	}
@@ -604,6 +605,7 @@ public class CodeGen {
 	 * @return trailing @ sign to allow for correct indentation during pretty printing
 	 */
 	public final void topStateAnnotation(String name, String thePackage, String jsonRep) {
+		output.append("@SuppressWarnings(\"unused\")");if (cc.prettyPrint()) output.append("@");
 		output.append("@plaid.runtime.annotations.RepresentsState(name = \"" + name + "\", inPackage = \"" + thePackage + "\", toplevel = " + true + ", jsonRep = \"" + jsonRep + "\")");
 		if (cc.prettyPrint()) output.append("@");
 	}
