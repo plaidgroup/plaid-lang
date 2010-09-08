@@ -19,6 +19,7 @@ import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.PlaidState;
 import plaid.runtime.Util;
 
+@SuppressWarnings("unchecked")
 public class Serialization {
 	protected static final String TYPE      = "type$";
 	protected static final String DATA      = "data$";
@@ -250,7 +251,7 @@ public class Serialization {
 	}
 	
 	protected static PlaidState getPlaidState(String stateName) {
-		//System.out.println("Instanciate: " + stateName );
+		//System.out.println("Instantiate: " + stateName );
 		final PlaidObject stateObj = plaid.runtime.Util.lookup(stateName, plaid.runtime.Util.unit());
 		return plaid.runtime.Util.toPlaidState(stateObj);
 	}

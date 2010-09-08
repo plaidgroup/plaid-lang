@@ -1,13 +1,7 @@
 package plaid.compilerjava.util;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
-import org.json.simple.JSONValue;
-
-import plaid.runtime.PlaidObject;
 
 // TODO: Merge this with TypeDecl?
 public abstract class MemberRep implements JSONAware {

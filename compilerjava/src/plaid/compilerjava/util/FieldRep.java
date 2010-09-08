@@ -7,7 +7,6 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
 import plaid.compilerjava.AST.FieldTypeDecl;
-import plaid.runtime.PlaidObject;
 
 //TODO: merge this with FieldTypeDecl?
 public class FieldRep extends MemberRep {
