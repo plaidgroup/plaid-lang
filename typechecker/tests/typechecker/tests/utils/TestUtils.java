@@ -29,20 +29,20 @@ import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.QualifiedIdentifier;
 import plaid.runtime.annotations.RepresentsState;
-import plaid.ast.DynPermType;
 import plaid.ast.FieldTypeDecl;
-import plaid.ast.FullPermission;
+import plaid.ast.types.FullPermission;
 import plaid.ast.ID;
-import plaid.ast.ImmutablePermission;
+import plaid.ast.types.ImmutablePermission;
 import plaid.ast.IntLiteral;
 import plaid.ast.MethodTypeDecl;
-import plaid.ast.NonePermission;
-import plaid.ast.PermType;
-import plaid.ast.PurePermission;
-import plaid.ast.SharedPermission;
-import plaid.ast.Type;
+import plaid.ast.types.Dyn;
+import plaid.ast.types.NonePermission;
+import plaid.ast.types.PermType;
+import plaid.ast.types.PurePermission;
+import plaid.ast.types.SharedPermission;
+import plaid.ast.types.Type;
 import plaid.ast.UnannotatedLetBinding;
-import plaid.ast.UniquePermission;
+import plaid.ast.types.UniquePermission;
 import plaid.typechecker.TypecheckerVisitor;
 import plaid.typechecker.Context;
 
@@ -462,7 +462,7 @@ public class TestUtils {
 		PlaidState newState = Util.newState();
 		
 		// instantiate the new prototype
-		return initAndInstantiateState(DynPermType.DynPermType, newState);
+		return initAndInstantiateState(Dyn.Dyn, newState);
 	}
 	
 	private static PlaidObject javaPermTypeToPlaidPermType(plaid.compilerjava.AST.PermType permType) {
