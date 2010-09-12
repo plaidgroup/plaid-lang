@@ -110,6 +110,7 @@ public class CompilerCore {
 					baseDir = new File(absPath); //update the file to have the correct path without ".."'s
 				
 				}
+
 				if (!baseDir.isDirectory()) throw new RuntimeException("plaidpath entry " + base + " is not a directory");
 				else {
 					directoryWorklist.push(baseDir);
@@ -118,7 +119,13 @@ public class CompilerCore {
 					URLClassLoader defLoader = null;
 					while(!directoryWorklist.isEmpty()) {
 						currentDirectory = directoryWorklist.pop();
-						for (File file : currentDirectory.listFiles()) {
+						File[] listOfFiles = currentDirectory.listFiles();
+						// listOfFiles can be null, for example if the current user doesn't have enough permissions
+						// to access currentDirectory.  In that case, we just skip the directory.
+						if (listOfFiles == null)
+							continue;
+						
+						for (File file : listOfFiles) {
 							if (file.isFile()) {
 								if (file.getName().endsWith(".class")) { //load in the hopes that this is a compiled .plaid file
 									String filepath = file.getAbsolutePath();
