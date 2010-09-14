@@ -1,5 +1,6 @@
 package aeminium.tests;
 
+import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -84,7 +85,7 @@ class Variable {
 }
 
 abstract class Node {
-	private int num;
+	protected int num;
 	public Node(int num) {
 		this.num = num;
 	}
@@ -119,7 +120,7 @@ class Assignment extends Node {
 	
 	@Override
 	public String toString() {
-		return "Let " + this.to + " = " + this.from;
+		return this.num + ": Let " + this.to + " = " + this.from;
 	}
 }
 
@@ -157,7 +158,7 @@ class Call extends Node {
 		String out = "";
 		for (Variable v : this.args)
 			out += v + ", ";
-		return "Call(" + out.substring(0, out.length() - 2) + ")";
+		return this.num + ": Call(" + out.substring(0, out.length() - 2) + ")";
 	}
 }
 
@@ -184,22 +185,21 @@ class Split extends Node {
 
 	@Override
 	public String toString() {
-		return "Split " + this.in + " => " + this.out1 + "/" + this.out2;
+		return this.num + ": Split " + this.in + " => " + this.out1 + "/" + this.out2;
 	}
 }
 
 class Join extends Node {
-	public static final Pattern pattern = Pattern.compile("Join\\(([IUN]\\.\\w)/([IUN]\\.\\w)=>([IUN]\\.\\w)/([IUN]\\.\\w)\\)");
+	public static final Pattern pattern = Pattern.compile("Join\\(([IUN]\\.\\w)/([IUN]\\.\\w)=>([IUN]\\.\\w)\\)");
 	
 	private final Variable in1, in2;
-	private final Variable out1, out2;
+	private final Variable out;
 
-	public Join(int num, Variable in1, Variable in2, Variable out1, Variable out2) {
+	public Join(int num, Variable in1, Variable in2, Variable out) {
 		super(num);
 		this.in1 = in1;
 		this.in2 = in2;
-		this.out1 = out1;
-		this.out2 = out2;
+		this.out = out;
 	}
 	
 	public List<Variable> getReads() {
@@ -207,12 +207,12 @@ class Join extends Node {
 	}
 	
 	public List<Variable> getWrites() {
-		return Arrays.asList(in1, in2, out1, out2);
+		return Arrays.asList(in1, in2, out);
 	}
 
 	@Override
 	public String toString() {
-		return "Join " + this.in1 + "/" + this.in2 + " => " + this.out1 + "/" + this.out2;
+		return this.num + ": Join " + this.in1 + "/" + this.in2 + " => " + this.out;
 	}
 }
 
@@ -263,14 +263,14 @@ public class DependencyTest {
 		else if (s.startsWith("Join")) {
 			Matcher matcher = Join.pattern.matcher(s);
 			if (matcher.find())
-				return new Join(nodeCounter++, new Variable(matcher.group(1)), new Variable(matcher.group(2)), new Variable(matcher.group(3)), new Variable(matcher.group(4)));
+				return new Join(nodeCounter++, new Variable(matcher.group(1)), new Variable(matcher.group(2)), new Variable(matcher.group(3)));
 		}
 		else if (s.startsWith("Call")) {
 			Matcher matcher = Call.pattern.matcher(s);
 			if (matcher.find()) {
 				List<Variable> args = new ArrayList<Variable>();
 				args.add(new Variable(matcher.group(1)));
-				for (int i = 2; i <= matcher.groupCount(); ++i)
+				for (int i = 3; i <= matcher.groupCount(); ++i)
 					args.add(new Variable(matcher.group(i).substring(1)));
 				return new Call(nodeCounter++, args);
 			}
@@ -285,14 +285,7 @@ public class DependencyTest {
 		return null;
 	}
 	
-	public static List<Node> buildExample() {
-		final String example =
-				"Split(U.x => I.x/I.x);"
-			+	"Call(I.x,U.y);"
-			+	"Split(U.y => I.y/I.y);"
-			+	"Let(I.x=I.y);"
-			+	"Let(I.z=I.y);";
-		
+	public static List<Node> buildExample(final String example) {
 		List<Node> nodes = new ArrayList<Node>();
 		
 		for (String n : example.replace(" ", "").split(";")) {
@@ -304,10 +297,10 @@ public class DependencyTest {
 		return nodes;
 	}
 	
-	public static List<Dependency> extractDependencies(List<Node> program) {
+	public static Set<Dependency> extractDependencies(List<Node> program) {
 		Map<Variable, Set<Node>> readers = new HashMap<Variable, Set<Node>>();
 		Map<Variable, Node> writer = new HashMap<Variable, Node>();
-		List<Dependency> deps = new ArrayList<Dependency>();
+		Set<Dependency> deps = new HashSet<Dependency>();
 		
 		for (Node n : program) {
 			for (Variable readVar : n.getReads()) {
@@ -328,11 +321,12 @@ public class DependencyTest {
 				// Depend on previous readers (if there are any).
 				if (prevReaders != null) {
 					for (Node pr : prevReaders)
-						deps.add(new Dependency(n, pr, writeVar));
+						if (n != pr)
+							deps.add(new Dependency(n, pr, writeVar));
 				}
 				else {
 					Node prevWriter = writer.get(writeVar);
-					if (prevWriter != null)
+					if (prevWriter != null && n != prevWriter)
 						deps.add(new Dependency(n, prevWriter, writeVar));
 				}
 				
@@ -345,12 +339,95 @@ public class DependencyTest {
 		return deps;
 	}
 	
+	public static void dumpGraph(List<Node> nodes, Set<Dependency> deps, String outputFilename, boolean verbose) {
+		StringBuilder s = new StringBuilder();
+		s.append("digraph G {\n\trankdir=BT;\n\n");
+		
+		if (verbose)
+			for (Node n : nodes)
+				s.append("\t" + n.getNum() + " [label=\"" + n + "\"];\n");
+		
+		for (Dependency dep : deps) {
+			s.append("\t" + dep.getFrom().getNum() + " -> " + dep.getTo().getNum());
+			s.append(" [label=\"" + dep.getVariable() + "\"];\n");
+		}
+			
+		s.append("}\n");
+		try {
+			FileWriter f = new FileWriter("dep.dot");
+			f.write(s.toString());
+			f.close();
+			Runtime.getRuntime().exec("dot -Tpng -o " + outputFilename + " dep.dot").waitFor();
+		}
+		catch (Exception x) {
+			System.err.println(x.getMessage());
+		}
+	}
+	
+	public static String getExample1() {
+		return
+			"Split(U.x => I.x/I.x);"
+		+	"Call(I.x, U.y);"
+		+	"Split(U.y => I.y/I.y);"
+		+	"Let(I.x=I.y);"
+		+	"Let(I.z=I.y);";
+	}
+	
+	public static String getExample2() {
+		/* Plaid source:
+		 * 
+		 * method bar(immutable T x);
+		 * method baz(unique T x);
+		 * method foo(unique T x) {
+		 *  val immutable T a = x;
+		 *  val immutable T b = x;
+		 *  bar(a);
+		 *  bar(b);
+		 *  baz(x);
+		 * }
+		 */
+		return
+			"Split(U.x => I.a/I.x);"
+		+	"Split(I.x => I.b/I.x);"
+		+	"Call(I.a);"
+		+	"Call(I.b);"
+		+	"Join(I.b/I.x => I.x);"
+		+	"Join(I.a/I.x => U.x);"
+		+	"Call(U.x);";
+	}
+	
+	public static String getExample3() {
+		/* Plaid source:
+		 * 
+		 * method callee(immutable T x);
+		 * method caller(immutable T x) {
+		 *  callee(x);
+		 *  callee(x);
+		 *  callee(x);
+		 *  callee(x);
+		 * }
+		 */
+		return
+			"Split(I.x => I.x/I.x);"
+		+	"Call(I.x);"
+		+	"Split(I.x => I.x/I.x);"
+		+	"Call(I.x);"
+		+	"Split(I.x => I.x/I.x);"
+		+	"Call(I.x);"
+		+	"Split(I.x => I.x/I.x);"
+		+	"Call(I.x);";
+	}
+	
 	public static void main(String[] args) {
-		List<Node> example = buildExample();
+		List<Node> example = buildExample(getExample2());
 		System.out.println();
 		
-		for (Dependency dep : extractDependencies(example)) {
+		Set<Dependency> deps = extractDependencies(example);
+		for (Dependency dep : deps) {
 			System.out.println(dep.getFrom().getNum() + " -> " + dep.getTo().getNum() + " with " + dep.getVariable());
 		}
+		
+		dumpGraph(example, deps, "dep.png", false);
+		dumpGraph(example, deps, "depVerbose.png", true);
 	}
 }
