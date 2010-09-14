@@ -99,7 +99,7 @@ abstract class Node {
 }
 
 class Assignment extends Node {
-	public static final Pattern pattern = Pattern.compile("Let\\(([IUN]\\.\\w)=([IUN]\\.\\w)\\)");
+	public static final Pattern pattern = Pattern.compile("Let\\(([IUN]\\.\\w+)=([IUN]\\.\\w+)\\)");
 	
 	private final Variable to;
 	private final Variable from;
@@ -125,7 +125,7 @@ class Assignment extends Node {
 }
 
 class Call extends Node {
-	public static final Pattern pattern = Pattern.compile("Call\\(([IUN]\\.\\w)(,[IUN]\\.\\w)*\\)");
+	public static final Pattern pattern = Pattern.compile("Call\\(([IUN]\\.\\w+)(,[IUN]\\.\\w+)*\\)");
 	
 	private final List<Variable> args;
 	private final List<Variable> uniArgs;
@@ -163,7 +163,7 @@ class Call extends Node {
 }
 
 class Split extends Node {
-	public static final Pattern pattern = Pattern.compile("Split\\(([IUN]\\.\\w)=>([IUN]\\.\\w)/([IUN]\\.\\w)\\)");
+	public static final Pattern pattern = Pattern.compile("Split\\(([IUN]\\.\\w+)=>([IUN]\\.\\w+)/([IUN]\\.\\w+)\\)");
 	
 	private final Variable in;
 	private final Variable out1, out2;
@@ -190,7 +190,7 @@ class Split extends Node {
 }
 
 class Join extends Node {
-	public static final Pattern pattern = Pattern.compile("Join\\(([IUN]\\.\\w)/([IUN]\\.\\w)=>([IUN]\\.\\w)\\)");
+	public static final Pattern pattern = Pattern.compile("Join\\(([IUN]\\.\\w+)/([IUN]\\.\\w+)=>([IUN]\\.\\w+)\\)");
 	
 	private final Variable in1, in2;
 	private final Variable out;
@@ -270,8 +270,10 @@ public class DependencyTest {
 			if (matcher.find()) {
 				List<Variable> args = new ArrayList<Variable>();
 				args.add(new Variable(matcher.group(1)));
-				for (int i = 3; i <= matcher.groupCount(); ++i)
-					args.add(new Variable(matcher.group(i).substring(1)));
+				// Check if we have more than one argument.
+				if (matcher.group(2) != null)
+					for (int i = 2; i <= matcher.groupCount(); ++i)
+						args.add(new Variable(matcher.group(i).substring(1)));
 				return new Call(nodeCounter++, args);
 			}
 		}
@@ -403,23 +405,34 @@ public class DependencyTest {
 		 * method caller(immutable T x) {
 		 *  callee(x);
 		 *  callee(x);
-		 *  callee(x);
-		 *  callee(x);
 		 * }
 		 */
 		return
 			"Split(I.x => I.x/I.x);"
 		+	"Call(I.x);"
 		+	"Split(I.x => I.x/I.x);"
-		+	"Call(I.x);"
-		+	"Split(I.x => I.x/I.x);"
-		+	"Call(I.x);"
-		+	"Split(I.x => I.x/I.x);"
 		+	"Call(I.x);";
 	}
 	
+	public static String getExample4() {
+		/* Plaid source:
+		 * 
+		 * method withdraw(unique Account from, immutable Amount x);
+		 * method deposit(unique Account to, immutable Amount x);
+		 * method transfer(unique Account from, unique Account to, immutable Amount x) {
+		 *  withdraw(from, x);
+		 *  deposit(to, x);
+		 * }
+		 */
+		return
+			"Split(I.x => I.x/I.x);"
+		+	"Call(U.from, I.x);"
+		+	"Split(I.x => I.x/I.x);"
+		+	"Call(U.to, I.x);";
+	}
+	
 	public static void main(String[] args) {
-		List<Node> example = buildExample(getExample2());
+		List<Node> example = buildExample(getExample4());
 		System.out.println();
 		
 		Set<Dependency> deps = extractDependencies(example);
