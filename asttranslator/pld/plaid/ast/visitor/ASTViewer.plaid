@@ -1,0 +1,399 @@
+package plaid.ast.visitor;
+
+import plaid.ast.visitor.ASTVisitor;
+import plaid.ast.*;
+import plaid.ast.types.*;
+
+import java.lang.Thread;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import javax.swing.JFrame;
+import javax.swing.JTree;
+import javax.swing.JScrollPane;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.WindowConstants;
+
+
+
+state ASTViewer case of ASTVisitor {
+    var /* DefaultMutableTreeNode */ parent;
+
+    method draw(root) {
+        var jtree  = JTree.new(root);
+        jtree.setRootVisible(true);
+        var scroll = JScrollPane.new(jtree);
+        var jframe = JFrame.new("ASTViewer");
+        jframe.add(scroll); 
+        jframe.setMinimumSize(Dimension.new(500,500));
+        jframe.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        jframe.setVisible(true);
+    }
+    
+    method createNode(name) {
+        DefaultMutableTreeNode.new(name);
+    }
+
+    method addToken(jtreeNode, nodeAST) {
+        match (nodeAST.token) {
+            case Some {
+                var token = createNode("Token");
+                token.add(createNode("beginLine("+nodeAST.token.value.beginLine+")"));
+                token.add(createNode("beginColumn("+nodeAST.token.value.beginColumn+")"));
+                token.add(createNode("endLine("+nodeAST.token.value.endLine+")"));
+                token.add(createNode("endColumn("+nodeAST.token.value.endColumn+")"));
+                token.add(createNode("image("+nodeAST.token.value.image+")"));
+                jtreeNode.add(token);
+                token
+            }
+            default {}
+        };
+    }
+
+    method visitCompilationUnit(node) {
+        System.out.println("Starting ASTViewer ... ");
+        var cu = createNode("CompilationUnit");
+        // source file
+        cu.add(createNode("Source File(" + node.sourceFile+")"));
+        // packageName
+        var packageName = "";
+        node.packageName.map(fn (s) => {
+            packageName = packageName +"." + s;
+        });
+        packageName = packageName.substring(1, packageName.length());
+        cu.add(createNode("Package(" +packageName+")"));
+        // get imports
+        var imports = createNode("Imports");
+        parent = imports;
+        node.imports.accept(this);
+        cu.add(imports);
+        // get decls
+        var fields = createNode("Top-Level Fields");
+        cu.add(fields);
+        var methods = createNode("Top-Level Methods");
+        cu.add(methods);
+        var states = createNode("Top-Level States");
+        cu.add(states);
+        node.decls.map( fn (decl) => {
+            match (decl) {
+                case FieldDecl {
+                    parent = fields;
+                    decl.accept(this);
+                }
+                case MethodDecl {
+                    parent = methods;
+                    decl.accept(this);
+                }
+                case StateDecl {
+                    parent = states;
+                    decl.accept(this);
+                }
+                default {
+                    System.out.println("Unsupported top level declaration.");
+                }
+            }
+        });
+        draw(cu);
+    }
+
+    method visitImportList(node) {
+        node.imports.map( fn (x) => {
+			x.accept(this);
+        });
+    }
+    
+    method visitFieldDecl(node) {
+        var fd = createNode(node.getName());
+        addToken(fd, node);        
+        parent.add(fd);
+        ifElse ( node.abstractField ) {
+            fd.add(createNode("Abstract: True"));
+        } {
+            fd.add(createNode("Abstract: False"));
+            var init = createNode("Initializer");
+            fd.add(init);
+            parent = init;
+            node.e.accept(this);      
+        };
+        ifElse ( node.immutableField ) {
+            fd.add(createNode("Immutable: True"));
+        } {
+            fd.add(createNode("Immutable: False"));
+        };
+        // TODO: add type
+    }
+    
+    method visitMethodDecl(node) {
+    	val oldParent = parent;
+    	
+        var md = createNode(node.getName());
+        addToken(md, node);
+
+		// display parameter types and return type
+		parent = md;
+		node.methodType.accept(this);
+
+        // get body
+        var body = createNode("Body");
+        oldParent.add(md);
+        md.add(body);
+        parent = body;
+        ifElse ( node.abstractMethod ) {
+            md.add(createNode("Abstract: True"));
+        } {
+            md.add(createNode("Abstract: False"));
+        };
+        node.body.accept(this);
+    }
+    
+    method visitMethodTypeDecl(node) {
+    	val oldParent = parent;
+    	
+    	val params = node.argNames.zip(node.argTypes);
+    	params.map(fn (p) => {
+    		var n = createNode("Parameter " + p.first().name);
+    		oldParent.add(n);
+    		parent = n;
+    		p.second().accept(this);
+    	});
+    	
+    	var ret = createNode("<Return Type>");
+    	oldParent.add(ret);
+    	parent = ret;
+    	node.retPermType.accept(this);
+    }
+    
+    method visitStateDecl(node) {
+        var sd = createNode("StateDecl("+node.getName()+")");
+        addToken(sd, node);
+        parent.add(sd); 
+        if ( node.isCaseOf ) {
+            sd.add(createNode("CaseOf(" + node.caseOf.value.toString()+")"));
+        };
+        parent = sd;
+        node.stateDef.accept(this);
+        // TODO: add types, params  and body
+   
+    }
+    
+    method visitLetBinding(node) {
+        var let = createNode("let");
+        addToken(let, node);
+        parent.add(let);
+        let.add(createNode("ID(" + node.x.name +")"));
+        // TODO: get sub expressions
+        parent = let;
+        node.exp.accept(this);
+        parent = let;
+        node.body.accept(this);        
+    }
+    
+    method visitID(node) {
+    	var id = createNode("ID(" + node.name + ")");
+    	parent.add(id);
+        parent = id;
+        match (node.type) {
+        	case Some {
+        		node.type.value.accept(this);
+        	}
+        	default {}
+        }
+    }
+    
+    method visitApplication(node){
+        var app = createNode("Application");
+        addToken(app, node);
+        parent.add(app);
+        parent = app;
+        node.f.accept(this);
+        parent = app;
+        node.arg.accept(this);
+    }
+    
+    method visitAssignment(node){
+        var assign = createNode("Assignment");
+        addToken(assign, node);
+        parent.add(assign);
+        parent = assign;
+        match (target) {
+            case Some {
+                node.target.value.accept(this);
+            }
+            default {}
+        };
+        parent = assign;
+        node.field.accept(this);
+        parent = assign;
+        node.value.accept(this);
+    }
+    
+    method visitCase(node){
+        var c = createNode("Case");
+        addToken(c, node);
+        parent.add(c);
+        ifElse ( node.defaultCase ) {
+            c.add(createNode("DEFAULT"));
+        }{
+            parent = c;
+            node.qi.value.accept(this);
+        };
+        parent = c;
+        node.x.accept(this);
+        parent = c;
+        node.e.accept(this);
+    }
+    
+    method visitChangeState(node){
+        var cs = createNode("ChangeState");
+        parent.add(cs);
+        parent = cs;
+        node.s.accept(this);
+        parent = cs;
+        node.e.accept(this);
+    }
+    
+    method visitDeclList(node){
+        var dl = createNode("DeclList");
+        parent.add(dl);
+        var fields = createNode("Fields");
+        dl.add(fields);
+        var methods = createNode("Methods");
+        dl.add(methods);
+        var states = createNode("States");
+        dl.add(states);
+        node.decls.map( fn (decl) => {
+            match (decl) {
+                case FieldDecl {
+                    parent = fields;
+                    decl.accept(this);
+                }
+                case MethodDecl {
+                    parent = methods;
+                    decl.accept(this);
+                }
+                case StateDecl {
+                    parent = states;
+                    decl.accept(this);
+                }
+                default {
+                    System.out.println("Unsupported top level declaration.");
+                }
+            }
+        });
+    }
+    
+    method visitDereference(node){
+        var deref = createNode("Dereference");
+        addToken(deref, node);
+        parent.add(deref);
+        parent = deref;
+        node.left.accept(this);
+        parent = deref;
+        node.right.accept(this);
+    }
+    
+    method visitDestructiveDereference(node){
+        var deref = createNode("DestructiveDereference");
+        addToken(deref, node);
+        parent.add(deref);
+        parent = deref;
+        node.left.accept(this);
+        parent = deref;
+        node.right.accept(this);
+    }
+    
+    method visitIntLiteral(node){
+        parent.add(createNode("IntLiteral("+node.integer+")"));
+    }
+    
+    method visitLambda(node){
+        var lambda = createNode("Lambda");
+        addToken(lambda, node);
+        parent.add(lambda);
+        parent = lambda;
+        node.x.accept(this);
+        parent = lambda;
+        node.body.accept(this);
+    }
+    
+    method visitMatch(node){
+        var m = createNode("Match");
+        addToken(m, node);
+        parent.add(m);
+        parent = m;
+        node.e.accept(this);
+        parent = m;
+        node.caseList.accept(this);
+    }
+    
+    method visitMethodInvocation(node){
+        var mi = createNode("MethodInvocation");
+        addToken(mi, node);
+        parent.add(mi);
+        // ???
+    }
+    
+    method visitNewInstance(node){
+        var newi = createNode("NewInstance");
+        addToken(newi, node);
+        parent.add(newi);
+        parent = newi;
+        node.s.accept(this);
+    }
+    
+    method visitPermType(node) {
+    	var s = "";
+    	match (node.perm) {
+    		case UniquePermission {
+    			s = s + "unique ";
+    		}
+    		case ImmutablePermission {
+    			s = s + "immutable ";
+    		}
+    		case SharedPermission {
+    			s = s + "shared ";
+    		}
+    		case PurePermission {
+    			s = s + "pure ";
+    		}
+    		case FullPermission {
+    			s = s + "full ";
+    		}
+    		case NonePermission {
+    			s = s + "none ";
+    		}
+    	};
+    	
+    	// TODO: Find a reasonable way to output structural types
+    	val typeA = node.type.typeAbbrevs;
+    	ifElse (!typeA.isEmpty()) {
+    		s = s + typeA.iterator().next().name;
+    	} {
+    		s = s + "<type>";
+    	};
+    	
+    	parent.add(createNode(s));
+    }
+        
+    method visitQI(node){
+        parent.add(createNode("QI("+node.toString()+")"));
+    }
+    
+    
+    method visitStringLiteral(node){
+        parent.add(createNode("StringLiteral(" + node.string + ")"));
+    }
+    
+    method visitUnitLiteral(node){
+        parent.add(createNode("UnitLiteral"));
+    }
+    
+    method visitWith(node){
+        var w = createNode("With");
+        addToken(w, node);
+        parent.add(w);
+        parent = w;
+        node.s1.accept(this);
+        parent = w;
+        node.s2.accept(this);
+    }
+}
