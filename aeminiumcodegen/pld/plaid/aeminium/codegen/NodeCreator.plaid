@@ -1,0 +1,99 @@
+package plaid.aeminium.codegen;
+
+import plaid.ast.*;
+
+state NodeCreator {
+	var counter = 0;
+	
+	method getNodeNumber() {
+		this.counter = this.counter + 1;
+		this.counter;
+	}
+	
+	method makeAeminiumNode(astNode) {
+		new AeminiumNode {
+			val num = getNodeNumber();
+			val astRef = astNode;
+		};
+	}
+	
+	method createNodes(astNode) {
+		val nodeList = new List { var head = new Nil; };
+		
+		match (astNode) {
+			case MethodDecl {
+				val aemNode = makeAeminiumNode(astNode);
+				
+				match (astNode.arg) {
+					case Some {
+						aemNode.writes.add(astNode.arg.value);
+					}
+					case None {}
+				};
+				
+				nodeList.add(aemNode);
+				nodeList.append(createNodes(astNode.body));
+			}
+			
+			case Split {
+				val aemNode = makeAeminiumNode(astNode);
+				
+				// TODO: Fix this.
+				// We consider it a write iff the Split node changes the type of the variable.
+				aemNode.reads.add(astNode.in);
+				aemNode.reads.add(astNode.out1);
+				aemNode.reads.add(astNode.out2);
+				
+				nodeList.add(aemNode);
+				nodeList.append(createNodes(astNode.body));
+			}
+			
+			case Join {
+				val aemNode = makeAeminiumNode(astNode);
+				
+				// TODO: Handle join node correctly
+				aemNode.reads.add(astNode.in1);
+				aemNode.reads.add(astNode.in2);
+				aemNode.reads.add(astNode.out);
+				
+				nodeList.add(aemNode);
+				nodeList.append(createNodes(astNode.body));
+			}
+			
+			case UnannotatedLetBinding {
+				val aemNode = makeAeminiumNode(astNode);
+				
+				aemNode.writes.add(astNode.x);
+				
+				nodeList.add(aemNode);
+				nodeList.append(createNodes(astNode.body));
+			}
+			
+			case Application {
+				val aemNode = makeAeminiumNode(astNode);
+				
+				// TODO: Handle app node correctly
+				match (astNode.arg) {
+					case ID {
+						aemNode.reads.add(astNode.arg);
+					}
+					default {}
+				};
+				
+				nodeList.add(aemNode);
+			}
+			
+			case UnitLiteral {
+				val aemNode = makeAeminiumNode(astNode);
+				nodeList.add(aemNode);
+			}
+			
+			default {
+				java.lang.System.err.println("NodeCreator: Cannot handle node: ");
+				java.lang.System.err.println(astNode);
+			}
+		};
+		
+		nodeList;
+	}
+}
