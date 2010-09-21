@@ -6,8 +6,9 @@ state NodeCreator {
 	var counter = 0;
 	
 	method getNodeNumber() {
+		val c = this.counter;
 		this.counter = this.counter + 1;
-		this.counter;
+		c;
 	}
 	
 	method makeAeminiumNode(astNode) {
@@ -19,11 +20,10 @@ state NodeCreator {
 	
 	method createNodes(astNode) {
 		val nodeList = new List { var head = new Nil; };
+		val aemNode = makeAeminiumNode(astNode);
 		
 		match (astNode) {
 			case MethodDecl {
-				val aemNode = makeAeminiumNode(astNode);
-				
 				match (astNode.arg) {
 					case Some {
 						aemNode.writes.add(astNode.arg.value);
@@ -36,42 +36,92 @@ state NodeCreator {
 			}
 			
 			case Split {
-				val aemNode = makeAeminiumNode(astNode);
+				// We consider a split a write iff the permission of the split variable is changed.
 				
-				// TODO: Fix this.
-				// We consider it a write iff the Split node changes the type of the variable.
-				aemNode.reads.add(astNode.in);
-				aemNode.reads.add(astNode.out1);
-				aemNode.reads.add(astNode.out2);
+				val inPerm = astNode.in.type.value.perm;
+				val outPerm = astNode.out1.type.value.perm;
+				
+				ifElse (inPerm == outPerm) {
+					aemNode.reads.add(astNode.in);
+				} {
+					aemNode.writes.add(astNode.in);
+				};
 				
 				nodeList.add(aemNode);
 				nodeList.append(createNodes(astNode.body));
 			}
 			
 			case Join {
-				val aemNode = makeAeminiumNode(astNode);
+				// We consider a join a write to a variable v iff:
+				// 1) v goes out of scope (our equivalent of leaving v with a none permission).
+				//    This happens if in1 and in2 do not refer to the same variable.
+				// 2) The permission of v changes.
+				//
+				// Otherwise we consider the join a reader of variable v.
 				
-				// TODO: Handle join node correctly
-				aemNode.reads.add(astNode.in1);
-				aemNode.reads.add(astNode.in2);
-				aemNode.reads.add(astNode.out);
+				val in1Perm = astNode.in1.type.value.perm;
+				val in2Perm = astNode.in2.type.value.perm;
+				val outPerm = astNode.out.type.value.perm;
+				
+				// Check if a variable goes out of scope.
+				ifElse (astNode.in1.name.equals(astNode.in2.name) && astNode.in2.name.equals(astNode.out.name)) {
+					// No variable goes out of scope.
+					ifElse ((in1Perm == in2Perm) && (in2Perm == outPerm)) {
+						// v's permission does not change.
+						aemNode.reads.add(astNode.in1);
+					} {
+						// v's permission does change.
+						aemNode.writes.add(astNode.in1);
+					};
+				} {
+					// Either in1 or in2 goes out of scope.
+					ifElse (astNode.in1.name.equals(astNode.out.name)) {
+						// in2 goes out of scope.
+						aemNode.writes.add(astNode.in2);
+						
+						// Check if in1's permission changes.
+						ifElse (in1Perm == outPerm) {
+							aemNode.reads.add(astNode.in1);
+						} {
+							aemNode.writes.add(astNode.in1);
+						};
+					} {
+						// in1 goes out of scope.
+						aemNode.writes.add(astNode.in1);
+						
+						// Check if in2's permission changes.
+						ifElse (in2Perm == outPerm) {
+							aemNode.reads.add(astNode.in2);
+						} {
+							aemNode.writes.add(astNode.in2);
+						};
+					};
+				};
 				
 				nodeList.add(aemNode);
 				nodeList.append(createNodes(astNode.body));
 			}
 			
 			case UnannotatedLetBinding {
-				val aemNode = makeAeminiumNode(astNode);
-				
+				// TODO: Handle let binding correctly
 				aemNode.writes.add(astNode.x);
+				
+				// This must return a single Aeminium node.
+				val expNodes = createNodes(astNode.exp);
+				match (expNodes.head) {
+					case Cons {
+						this.counter = this.counter - 1;
+						aemNode.reads.addAll(expNodes.head.value.reads);
+						aemNode.writes.addAll(expNodes.head.value.writes);
+					}
+					default {}
+				};
 				
 				nodeList.add(aemNode);
 				nodeList.append(createNodes(astNode.body));
 			}
 			
 			case Application {
-				val aemNode = makeAeminiumNode(astNode);
-				
 				// TODO: Handle app node correctly
 				match (astNode.arg) {
 					case ID {
@@ -83,8 +133,12 @@ state NodeCreator {
 				nodeList.add(aemNode);
 			}
 			
+			case ID {
+				aemNode.reads.add(astNode);
+				nodeList.add(aemNode);
+			}
+			
 			case UnitLiteral {
-				val aemNode = makeAeminiumNode(astNode);
 				nodeList.add(aemNode);
 			}
 			
