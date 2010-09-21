@@ -53,11 +53,11 @@ state ASTViewer case of ASTVisitor {
         System.out.println("Starting ASTViewer ... ");
         var cu = createNode("CompilationUnit");
         // source file
-        cu.add(createNode("Source File(" + node.sourceFile+")"));
+        cu.add(createNode("Source File(" + node.sourceFile + ")"));
         // packageName
         var packageName = "";
         node.packageName.map(fn (s) => {
-            packageName = packageName +"." + s;
+            packageName = packageName + "." + s;
         });
         packageName = packageName.substring(1, packageName.length());
         cu.add(createNode("Package(" +packageName+")"));
@@ -190,9 +190,9 @@ state ASTViewer case of ASTVisitor {
     method visitID(node) {
     	var id = createNode("ID(" + node.name + ")");
     	parent.add(id);
-        parent = id;
         match (node.type) {
         	case Some {
+        		parent = id;
         		node.type.value.accept(this);
         	}
         	default {}
@@ -302,7 +302,15 @@ state ASTViewer case of ASTVisitor {
     }
     
     method visitIntLiteral(node){
-        parent.add(createNode("IntLiteral("+node.integer+")"));
+        var lit = createNode("IntLiteral(" + node.integer + ")");
+        parent.add(lit);
+        match (node.type) {
+        	case Some {
+        		parent = lit;
+        		node.type.value.accept(this);
+        	}
+        	case None {}
+        }
     }
     
     method visitLambda(node){
@@ -340,6 +348,7 @@ state ASTViewer case of ASTVisitor {
         node.s.accept(this);
     }
     
+    // TODO: It might be a better idea to give Permission an accept() method, too. 
     method visitPermType(node) {
     	var s = "";
     	match (node.perm) {
@@ -364,12 +373,7 @@ state ASTViewer case of ASTVisitor {
     	};
     	
     	// TODO: Find a reasonable way to output structural types
-    	val typeA = node.type.typeAbbrevs;
-    	ifElse (!typeA.isEmpty()) {
-    		s = s + typeA.iterator().next().name;
-    	} {
-    		s = s + "<type>";
-    	};
+   		s = s + "{ <structural-type> }";
     	
     	parent.add(createNode(s));
     }
@@ -395,5 +399,31 @@ state ASTViewer case of ASTVisitor {
         node.s1.accept(this);
         parent = w;
         node.s2.accept(this);
+    }
+    
+    method visitJoin(node) {
+    	var j = createNode("Join");
+    	this.parent.add(j);
+    	this.parent = j;
+    	node.in1.accept(this);
+    	this.parent = j;
+    	node.in2.accept(this);
+    	this.parent = j;
+    	node.out.accept(this);
+    	this.parent = j;
+    	node.body.accept(this);
+    }
+    
+    method visitSplit(node) {
+    	var s = createNode("Split");
+    	this.parent.add(s);
+    	this.parent = s;
+    	node.in.accept(this);
+    	this.parent = s;
+    	node.out1.accept(this);
+    	this.parent = s;
+    	node.out2.accept(this);
+    	this.parent = s;
+    	node.body.accept(this);
     }
 }
