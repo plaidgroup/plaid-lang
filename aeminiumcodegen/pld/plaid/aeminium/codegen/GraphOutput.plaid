@@ -1,0 +1,100 @@
+package plaid.aeminium.codegen;
+
+state GraphOutput {
+	method printDependencies() {
+		val it = this.deps.iterator();
+		
+		java.lang.System.out.println("Found dependencies:");
+		while { it.hasNext(); } {
+			val dep = it.next();
+			
+			java.lang.System.out.println("  " + dep.from.num + " -> " + dep.to.num + " with " + dep.variable.name);
+		};
+	}
+
+	method astToString(astNode) {
+		var ret = "";
+		
+		match (astNode) {
+			case MethodDecl {
+				ret = "method " + astNode.name + "(";
+				var args = "";
+				astNode.methodType.argNames.map(fn (id) => {
+					args = args + id.name + ", ";
+				});
+				
+				if (!args.isEmpty()) {
+					args = args.substring(0, args.length() - 2);
+					ret = ret + args + ")";
+				};
+			}
+			
+			case Split {
+				ret = "split " + astNode.in.name + " => " + astNode.out1.name + "/" + astNode.out2.name;
+			}
+			
+			case Join {
+				ret = "join " + astNode.in1.name + "/" + astNode.in2.name + " => " + astNode.out.name;
+			}
+			
+			case UnannotatedLetBinding {
+				ret = "let " + astNode.x.name + " = " + astToString(astNode.exp);
+			}
+			
+			case Application {
+				ret = astNode.f.name + "(" + astToString(astNode.arg) + ")";
+			}
+			
+			case ID {
+				ret = astNode.name;
+			}
+			
+			case IntLiteral {
+				ret = astNode.integer;
+			}
+			
+			case UnitLiteral {
+				ret = "nop";
+			}
+			
+			default {
+				ret = "something";
+			}
+		};
+		
+		ret;
+	}
+	
+	method createDependencyGraph() {
+		var methodName = "";
+		
+		match (this.nodeList.head) {
+			case Cons {
+				methodName = this.nodeList.head.value.name;
+			}
+			default {}
+		};
+	
+		val s = java.lang.StringBuilder.new();
+		s.append("digraph G {\n\trankdir=BT;\n\n");
+		
+		this.nodeList.map(fn (node) => {
+			s.append("\t" + node.num + " [label=\"" + astToString(node) + "\"];\n");
+		});
+		
+		val it = this.deps.iterator();
+		while { it.hasNext(); } {
+			val dep = it.next();
+			s.append("\t" + dep.from.num + " -> " + dep.to.num);
+			s.append("[label=\"" + dep.variable.name + "\"];\n");
+		};
+		s.append("}\n");
+		
+		val fw = java.io.FileWriter.new(methodName + ".dot");
+		fw.write(s.toString());
+		fw.close();
+		java.lang.Runtime.getRuntime().exec("dot -Tpng -o " + methodName + ".png " + methodName + ".dot").waitFor();
+		// Delete temp file
+		java.io.File.new(methodName + ".dot").delete();
+	}
+}
