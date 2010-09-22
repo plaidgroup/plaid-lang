@@ -4,7 +4,7 @@ import plaid.ast.*;
 import plaid.ast.types.*;
 import plaid.ast.visitor.*;
 
-state DependencyAnalysisVisitor case of ASTVisitor {
+state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with {
 	var writer = java.util.HashMap.new();
 	var readers = java.util.HashMap.new();
 	var deps = java.util.HashSet.new();
@@ -24,101 +24,6 @@ state DependencyAnalysisVisitor case of ASTVisitor {
 		c;
 	}
 
-	method printDependencies() {
-		val it = deps.iterator();
-		
-		java.lang.System.out.println("Found dependencies:");
-		while { it.hasNext(); } {
-			val dep = it.next();
-			
-			java.lang.System.out.println("  " + dep.from.num + " -> " + dep.to.num + " with " + dep.variable.name);
-		};
-	}
-
-	method astToString(astNode) {
-		var ret = "";
-		
-		match (astNode) {
-			case MethodDecl {
-				ret = "method " + astNode.name + "(";
-				var args = "";
-				astNode.methodType.argNames.map(fn (id) => {
-					args = args + id.name + ", ";
-				});
-				
-				if (!args.isEmpty()) {
-					args = args.substring(0, args.length() - 2);
-					ret = ret + args + ")";
-				};
-			}
-			
-			case Split {
-				ret = "split " + astNode.in.name + " => " + astNode.out1.name + "/" + astNode.out2.name;
-			}
-			
-			case Join {
-				ret = "join " + astNode.in1.name + "/" + astNode.in2.name + " => " + astNode.out.name;
-			}
-			
-			case UnannotatedLetBinding {
-				ret = "let " + astNode.x.name + " = " + astToString(astNode.exp);
-			}
-			
-			case Application {
-				ret = astNode.f.name + "(" + astToString(astNode.arg) + ")";
-			}
-			
-			case ID {
-				ret = astNode.name;
-			}
-			
-			case IntLiteral {
-				ret = astNode.integer;
-			}
-			
-			case UnitLiteral {
-				ret = "nop";
-			}
-			
-			default {
-				ret = "something";
-			}
-		};
-		
-		ret;
-	}
-	
-	method createDependencyGraph() {
-		var methodName = "";
-		
-		match (nodeList.head) {
-			case Cons {
-				methodName = nodeList.head.value.name;
-			}
-			default {}
-		};
-	
-		val s = java.lang.StringBuilder.new();
-		s.append("digraph G {\n\trankdir=BT;\n\n");
-		
-		nodeList.map(fn (node) => {
-			s.append("\t" + node.num + " [label=\"" + astToString(node) + "\"];\n");
-		});
-		
-		val it = deps.iterator();
-		while { it.hasNext(); } {
-			val dep = it.next();
-			s.append("\t" + dep.from.num + " -> " + dep.to.num);
-			s.append("[label=\"" + dep.variable.name + "\"];\n");
-		};
-		s.append("}\n");
-		
-		val fw = java.io.FileWriter.new(methodName + ".dot");
-		fw.write(s.toString());
-		fw.close();
-		java.lang.Runtime.getRuntime().exec("dot -Tpng -o " + methodName + ".png " + methodName + ".dot").waitFor();		
-	}
-
 	method makeDependency(f, t, v) {
 		new Dependency {
 			val from = f;
@@ -132,6 +37,7 @@ state DependencyAnalysisVisitor case of ASTVisitor {
 		this.savedWrites = writes;
 		
 		if (this.doUpdateDeps) {
+			val myDeps = java.util.HashSet.new();
 			this.nodeList.add(astNode);
 			
 			var it = reads.iterator();
@@ -141,7 +47,7 @@ state DependencyAnalysisVisitor case of ASTVisitor {
 				if (writer.containsKey(read.name)) {
 					val prevWriter = writer.get(read.name);
 					
-					deps.add(makeDependency(astNode, prevWriter, read));
+					myDeps.add(makeDependency(astNode, prevWriter, read));
 				};
 				
 				if (!readers.containsKey(read.name)) {
@@ -162,19 +68,22 @@ state DependencyAnalysisVisitor case of ASTVisitor {
 					while { readIt.hasNext(); } {
 						val prevReader = readIt.next();
 						// TODO: Add inequality check.
-						deps.add(makeDependency(astNode, prevReader, write));
+						myDeps.add(makeDependency(astNode, prevReader, write));
 					};
 				} {
 					if (writer.containsKey(write.name)) {
 						val prevWriter = writer.get(write.name);
 						// TODO: Add inequality check.
-						deps.add(makeDependency(astNode, prevWriter, write));
+						myDeps.add(makeDependency(astNode, prevWriter, write));
 					};
 				};
 				
 				writer.put(write.name, astNode);
 				readers.remove(write.name);
 			};
+			
+			this.deps.addAll(myDeps);
+			astNode.dependencies = new Some { val value = myDeps; };
 		};
 	}
 	
