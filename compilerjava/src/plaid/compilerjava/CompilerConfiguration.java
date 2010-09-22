@@ -38,6 +38,7 @@ public class CompilerConfiguration {
 	private boolean copyright = false;
 	private boolean printCompilerStackTrace = true;
 	private boolean prettyPrint = false;
+	private boolean aeminiumMode = false;
 	private CompilationUnit cu = null;
 	
 	public CompilerConfiguration() {}
@@ -53,6 +54,7 @@ public class CompilerConfiguration {
 		this.verbose = other.verbose;
 		this.copyright = other.copyright;
 		this.prettyPrint = other.prettyPrint;
+		this.aeminiumMode = other.aeminiumMode;
 		this.cu = cu;
 	}
 
@@ -150,5 +152,13 @@ public class CompilerConfiguration {
 	
 	public void setPrettyPrint(boolean prettyPrint) {
 		this.prettyPrint = prettyPrint;
+	}
+	
+	public boolean isAeminiumMode() {
+		return this.aeminiumMode;
+	}
+	
+	public void setAeminiumMode(boolean mode) {
+		this.aeminiumMode = mode;
 	}
 }
