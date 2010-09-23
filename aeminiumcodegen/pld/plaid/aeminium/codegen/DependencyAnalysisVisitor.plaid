@@ -4,7 +4,7 @@ import plaid.ast.*;
 import plaid.ast.types.*;
 import plaid.ast.visitor.*;
 
-state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with {
+state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinReduction with {
 	var writer = java.util.HashMap.new();
 	var readers = java.util.HashMap.new();
 	var deps = java.util.HashSet.new();
@@ -12,16 +12,20 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with {
 	
 	val methodTypes;
 	
-	var doUpdateDeps = true;
+	var separateTask = true;
 	var savedWrites;
 	var savedReads;
 	
 	var counter = 0;
 	
 	method getNodeNumber() {
-		val c = this.counter;
-		this.counter = this.counter + 1;
-		c;
+		ifElse (this.separateTask) {
+			val c = this.counter;
+			this.counter = this.counter + 1;
+			c;
+		} {
+			-1;
+		};
 	}
 
 	method makeDependency(f, t, v) {
@@ -36,7 +40,7 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with {
 		this.savedReads = reads;
 		this.savedWrites = writes;
 		
-		if (this.doUpdateDeps) {
+		if (this.separateTask) {
 			val myDeps = java.util.HashSet.new();
 			this.nodeList.add(astNode);
 			
@@ -84,6 +88,8 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with {
 			
 			this.deps.addAll(myDeps);
 			astNode.dependencies = new Some { val value = myDeps; };
+			
+			this.reduceDependencies(astNode);
 		};
 	}
 	
@@ -205,10 +211,10 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with {
 		// TODO: Solve this in a clean way.
 		// The problem is that we view the "Let x = E1" part of "Let x = E1 in E2"
 		// as belonging together, i.e. we don't want the AST node of E1 to depend
-		// on some other node but we want the let AST node to depend on that. 
-		this.doUpdateDeps = false;
+		// on some other node N but we want the let AST node itself to depend on N. 
+		this.separateTask = false;
 		astNode.exp.accept(this);
-		this.doUpdateDeps = true;
+		this.separateTask = true;
 		
 		reads.addAll(this.savedReads);
 		writes.addAll(this.savedWrites);
