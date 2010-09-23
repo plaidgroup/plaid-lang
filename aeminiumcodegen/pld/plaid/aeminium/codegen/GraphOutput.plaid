@@ -1,17 +1,21 @@
 package plaid.aeminium.codegen;
 
 state GraphOutput {
-	method printDependencies() {
-		val it = this.deps.iterator();
-		
-		java.lang.System.out.println("Found dependencies:");
-		while { it.hasNext(); } {
-			val dep = it.next();
-			
-			java.lang.System.out.println("  " + dep.from.num + " -> " + dep.to.num + " with " + dep.variable.name);
-		};
+	method printDependencies(nodeList) {
+		nodeList.map(fn (node) => {
+			match (node.dependencies) {
+				case Some {
+					val it = node.dependencies.value.iterator();
+					while { it.hasNext(); } {
+						val dep = it.next();
+						java.lang.System.out.println(node.num.toString() + " -> " + dep.to.num + " with " + dep.variable.name);
+					};
+				}
+				case None {}
+			};
+		});
 	}
-
+	
 	method astToString(astNode) {
 		var ret = "";
 			
@@ -68,12 +72,12 @@ state GraphOutput {
 		ret;
 	}
 	
-	method createDependencyGraph() {
+	method createDependencyGraph(suffix) {
 		var methodName = "";
 		
 		match (this.nodeList.head) {
 			case Cons {
-				methodName = this.nodeList.head.value.name;
+				methodName = this.nodeList.head.value.name + suffix;
 			}
 			default {}
 		};
@@ -83,14 +87,19 @@ state GraphOutput {
 		
 		this.nodeList.map(fn (node) => {
 			s.append("\t" + node.num + " [label=\"" + astToString(node) + "\"];\n");
+			match (node.dependencies) {
+				case Some {
+					val it = node.dependencies.value.iterator();
+					while { it.hasNext(); } {
+						val dep = it.next();
+						s.append("\t" + node.num + " -> " + dep.to.num);
+						s.append("[label=\"" + dep.variable.name + "\"];\n");
+					};
+				}
+				case None {}
+			};
 		});
 		
-		val it = this.deps.iterator();
-		while { it.hasNext(); } {
-			val dep = it.next();
-			s.append("\t" + dep.from.num + " -> " + dep.to.num);
-			s.append("[label=\"" + dep.variable.name + "\"];\n");
-		};
 		s.append("}\n");
 		
 		val fw = java.io.FileWriter.new(methodName + ".dot");

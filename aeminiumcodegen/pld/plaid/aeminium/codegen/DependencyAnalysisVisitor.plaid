@@ -28,9 +28,8 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		};
 	}
 
-	method makeDependency(f, t, v) {
+	method makeDependency(t, v) {
 		new Dependency {
-			val from = f;
 			val to = t;
 			val variable = v;
 		};
@@ -51,7 +50,7 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 				if (writer.containsKey(read.name)) {
 					val prevWriter = writer.get(read.name);
 					
-					myDeps.add(makeDependency(astNode, prevWriter, read));
+					myDeps.add(makeDependency(prevWriter, read));
 				};
 				
 				if (!readers.containsKey(read.name)) {
@@ -72,13 +71,13 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 					while { readIt.hasNext(); } {
 						val prevReader = readIt.next();
 						// TODO: Add inequality check.
-						myDeps.add(makeDependency(astNode, prevReader, write));
+						myDeps.add(makeDependency(prevReader, write));
 					};
 				} {
 					if (writer.containsKey(write.name)) {
 						val prevWriter = writer.get(write.name);
 						// TODO: Add inequality check.
-						myDeps.add(makeDependency(astNode, prevWriter, write));
+						myDeps.add(makeDependency(prevWriter, write));
 					};
 				};
 				
@@ -88,9 +87,23 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 			
 			this.deps.addAll(myDeps);
 			astNode.dependencies = new Some { val value = myDeps; };
-			
-			this.reduceDependencies(astNode);
 		};
+	}
+	
+	method reduceAllDependencies(nodeList) {
+		var newNodeList = new List { var head = new Nil; };
+		this.nodeList.map(fn (node) => {
+			this.reduceDependencies(node);
+			
+			match (node) {
+				case Split {}
+				case Join {}
+				default {
+					newNodeList.add(node);
+				}
+			};
+		});
+		this.nodeList = newNodeList;
 	}
 	
 	method visitCompilationUnit(node) {
@@ -123,8 +136,11 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		updateDependencies(astNode, reads, writes);
 		astNode.body.accept(this);
 		
-		printDependencies();
-		createDependencyGraph();
+		printDependencies(nodeList);
+		createDependencyGraph("");
+		
+		reduceAllDependencies(nodeList);
+		createDependencyGraph("_Reduced");
 	}
 	
 	method visitSplit(astNode) {
