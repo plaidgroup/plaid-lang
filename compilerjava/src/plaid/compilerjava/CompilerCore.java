@@ -29,11 +29,14 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Stack;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -66,115 +69,157 @@ public class CompilerCore {
 		this.cc = cc;
 	}
 	
+	private void handleClassInPlaidPath(Class<?> classRep, String className, PackageRep plaidpath) {
+		for (Annotation a : classRep.getAnnotations()) {
+			String thePackage = null;
+			MemberRep member = null;
+
+			if (a instanceof RepresentsField) {
+				RepresentsField f = (RepresentsField) a;
+				thePackage = f.inPackage();
+				member = new FieldRep(f.name());
+			} else if (a instanceof RepresentsMethod) {
+				RepresentsMethod m = (RepresentsMethod) a;
+				thePackage = m.inPackage();
+				member = new MethodRep(m.name());
+			} else if (a instanceof RepresentsState) {
+				RepresentsState s = (RepresentsState) a;
+				thePackage = s.inPackage();
+				JSONObject obj = (JSONObject) JSONValue.parse(s.jsonRep());
+				if (obj == null) {
+					System.out.println("break");
+				}
+				StateRep state = StateRep.parseJSONObject(obj);
+				member = state;
+			}
+			if (member != null) { //if this was a plaid generated java file
+				if (!className.startsWith(thePackage))
+					throw new RuntimeException("Package " + thePackage + "of member " + member.getName() + " does not match file path " + className + ".");
+
+				plaidpath.addMember(thePackage, member);
+			}
+		}		
+	}
+	
+	private void handleFileInJar(JarFile jarFile, JarEntry entry, PackageRep plaidpath) throws Exception {
+		if (!entry.getName().endsWith(".class"))
+			return;
+		
+		String entryName = entry.getName();
+		String className = entryName.substring(0, entryName.length() - 6).replace(System.getProperty("file.separator"), ".");
+		
+		URL[] loaderDir = {
+			new URL("jar:file://" + jarFile.getName() + "!/")
+		};
+//		System.out.println("Constructed class loader with \"" + loaderDir[0].toString() + "\".");
+		ClassLoader defLoader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
+		try {
+//			System.out.println("Trying to load \"" + className + "\".");
+			Class<?> classRep = defLoader.loadClass(className);
+			handleClassInPlaidPath(classRep, className, plaidpath);
+		}
+		catch (NoClassDefFoundError e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void handleFileInPlaidPath(File file, String absoluteBase, PackageRep plaidpath, ClassLoader defLoader) throws Exception {
+		if (!file.getName().endsWith(".class"))
+			return;
+		
+		//load in the hopes that this is a compiled .plaid file
+		String filepath = file.getAbsolutePath();
+		String className = filepath.substring(absoluteBase.length(), filepath.length() - 6).replace(System.getProperty("file.separator"), ".");
+		if (defLoader == null) {
+			URL[] loaderDir = { new URL("file://" + absoluteBase) };
+			defLoader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
+		}
+		try {
+			Class<?> classRep = defLoader.loadClass(className);
+			handleClassInPlaidPath(classRep, className, plaidpath);
+		}
+		catch (NoClassDefFoundError e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private void handlePlaidPathEntry(String base, PackageRep plaidpath, Stack<File> directoryWorklist) throws Exception {
+		File baseDir = new File(base);
+		if (baseDir.getAbsolutePath().contains("..")) { //relative paths need to be processed
+			String absPath = baseDir.getAbsolutePath();
+			while (absPath.contains("..")) {
+				int dotDotLoc = absPath.indexOf("..");
+				String prefix = absPath.substring(0,dotDotLoc-1);  //don't include previous separator
+				String suffix = absPath.substring(dotDotLoc + 2);
+				String sep = suffix.substring(0,1);
+				absPath = prefix.substring(0,prefix.lastIndexOf(sep)) + suffix;  //get rid of .. and previous dir  
+			}
+			
+			baseDir = new File(absPath); //update the file to have the correct path without ".."'s
+		}
+
+		if (!baseDir.isDirectory()) {
+			if (baseDir.isFile() && baseDir.getName().endsWith(".jar")) {
+				JarFile jarFile = new JarFile(baseDir.getAbsolutePath());
+				Enumeration<JarEntry> entries = jarFile.entries();
+				while (entries.hasMoreElements()) {
+					JarEntry entry = entries.nextElement();
+//					System.out.println("Found resource from a Jar in Plaidpath: " + entry.getName());
+					handleFileInJar(jarFile, entry, plaidpath);
+				}
+			}
+			else
+				throw new RuntimeException("plaidpath entry " + base + " is not a directory");
+		}
+		else {
+			directoryWorklist.push(baseDir);
+			String absoluteBase = baseDir.getAbsolutePath() + System.getProperty("file.separator");
+			File currentDirectory;
+			URLClassLoader defLoader = null;
+			while(!directoryWorklist.isEmpty()) {
+				currentDirectory = directoryWorklist.pop();
+				File[] listOfFiles = currentDirectory.listFiles();
+				// listOfFiles can be null, for example if the current user doesn't have enough permissions
+				// to access currentDirectory.  In that case, we just skip the directory.
+				if (listOfFiles == null)
+					continue;
+				
+				for (File file : listOfFiles) {
+					if (file.isFile())
+						handleFileInPlaidPath(file, absoluteBase, plaidpath, defLoader);
+					else if (file.isDirectory())
+						directoryWorklist.add(file);
+				}
+			}					
+		}		
+	}
+	
 	
 	public List<CompilationUnit> compile() throws FileNotFoundException {
 		try {
-			
-			if (cc.getInputFiles().size() > 0 && !cc.getInputDir().isEmpty()) {
+			if (cc.getInputFiles().size() > 0 && !cc.getInputDir().isEmpty())
 				throw new RuntimeException("Cannot compile a directory and input files"); //TODO: throw PlaidCompilerException
-			}
 			
-			if(!cc.getInputDir().isEmpty())
+			if (!cc.getInputDir().isEmpty())
 				ConvertInputDirToInputFiles(new File(cc.getInputDir()));
 			
-			System.out.println("compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir());
+			System.out.println("Compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir() + ".");
 			
 			// open the file(s)
 			List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
 			for (File f : cc.getInputFiles()) {
-				System.out.println("parsing " + f.getName() + "...");
+//				System.out.println("Parsing '" + f.getName() + "'.");
 				CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
 				cu.setSourceFile(f);
 				cus.add(cu);
-				
 				fileSystemChecks(cu, f.toString());
-				
 			}
 			
 			//Build up a representation of plaidpath
 			PackageRep plaidpath = new PackageRep("$TOPLEVEL$");
 			Stack<File> directoryWorklist = new Stack<File>();
-			for (String base : cc.getPlaidpath()) {
-
-				File baseDir = new File(base);
-				if (baseDir.getAbsolutePath().contains("..")) { //realtive paths need to be processed
-					String absPath = baseDir.getAbsolutePath();
-					while (absPath.contains("..")) {
-						int dotDotLoc = absPath.indexOf("..");
-						String prefix = absPath.substring(0,dotDotLoc-1);  //don't include previous separator
-						String suffix = absPath.substring(dotDotLoc + 2);
-						String sep = suffix.substring(0,1);
-						absPath = prefix.substring(0,prefix.lastIndexOf(sep)) + suffix;  //get rid of .. and previous dir  
-					}
-					
-					baseDir = new File(absPath); //update the file to have the correct path without ".."'s
-				
-				}
-
-				if (!baseDir.isDirectory()) throw new RuntimeException("plaidpath entry " + base + " is not a directory");
-				else {
-					directoryWorklist.push(baseDir);
-					String absoluteBase = baseDir.getAbsolutePath() + System.getProperty("file.separator");
-					File currentDirectory;
-					URLClassLoader defLoader = null;
-					while(!directoryWorklist.isEmpty()) {
-						currentDirectory = directoryWorklist.pop();
-						File[] listOfFiles = currentDirectory.listFiles();
-						// listOfFiles can be null, for example if the current user doesn't have enough permissions
-						// to access currentDirectory.  In that case, we just skip the directory.
-						if (listOfFiles == null)
-							continue;
-						
-						for (File file : listOfFiles) {
-							if (file.isFile()) {
-								if (file.getName().endsWith(".class")) { //load in the hopes that this is a compiled .plaid file
-									String filepath = file.getAbsolutePath();
-									String className = filepath.substring(absoluteBase.length(), filepath.length() - 6).replace(System.getProperty("file.separator"), ".");
-									if (defLoader == null) {
-										URL[] loaderDir = { new URL("file://" + absoluteBase) };
-										defLoader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
-									}
-									try {
-										Class<?> classRep = defLoader.loadClass(className);
-
-										for (Annotation a : classRep.getAnnotations()) {
-											String thePackage = null;
-											MemberRep member = null;
-											
-											if (a instanceof RepresentsField) {
-												RepresentsField f = (RepresentsField) a;
-												thePackage = f.inPackage();
-												member = new FieldRep(f.name());
-											} else if (a instanceof RepresentsMethod) {
-												RepresentsMethod m = (RepresentsMethod) a;
-												thePackage = m.inPackage();
-												member = new MethodRep(m.name());
-											} else if (a instanceof RepresentsState) {
-												RepresentsState s = (RepresentsState) a;
-												thePackage = s.inPackage();
-												JSONObject obj = (JSONObject) JSONValue.parse(s.jsonRep());
-												if (obj == null) {
-													System.out.println("break");
-												}
-												StateRep state = StateRep.parseJSONObject(obj);
-												member = state;
-											}
-											if (member != null) { //if this was a plaid generated java file
-												if (!className.startsWith(thePackage))
-													throw new RuntimeException("Package " + thePackage + "of member " + member.getName() + " does not match file path " + className + ".");
-											
-												plaidpath.addMember(thePackage, member);
-											}
-										}
-									} catch (NoClassDefFoundError e) {
-										e.printStackTrace();
-									}
-								}
-							} else if (file.isDirectory()) directoryWorklist.add(file);
-						}
-					}					
-				}
-			}
+			for (String base : cc.getPlaidpath())
+				handlePlaidPathEntry(base, plaidpath, directoryWorklist);
 			
 			//we want to remove the stuff we're trying to compile so that we don't make assumptions based on
 			//the previous form of the source files
@@ -244,22 +289,22 @@ public class CompilerCore {
 				List<File> allFiles = new ArrayList<File>();
 				for(CompilationUnit cu : cus) {
 					try {
-						System.out.println("generating code for:\n" + cu);
+//						System.out.println("Generating code for:\n" + cu);
 						List<File> fileList = cu.codegen(cc, plaidpath);
 						
-						if ( cc.isVerbose() ) {
-							for(File f : fileList) {
-								FileReader fr = new FileReader(f);
-								int charRead;
-								while((charRead = fr.read()) != -1) {
-									System.out.print((char)charRead);
-								}
-							}
-						}
+//						if ( cc.isVerbose() ) {
+//							for(File f : fileList) {
+//								FileReader fr = new FileReader(f);
+//								int charRead;
+//								while((charRead = fr.read()) != -1) {
+//									System.out.print((char)charRead);
+//								}
+//							}
+//						}
 						allFiles.addAll(fileList);
 					} catch (PlaidException p) {
-						System.out.println("Error while compiling " + cu.getSourceFile().toString() + ":");
-						System.out.println("");
+						System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
+						System.err.println("");
 						p.printStackTrace();
 					}
 				}
@@ -280,7 +325,7 @@ public class CompilerCore {
 					Boolean resultCode = task.call();
 					if (cc.isVerbose()) System.out.println("result = " + resultCode.toString());
 				}
-			} catch (IOException e) {
+			} catch (Exception e) {
 				e.printStackTrace();
 			} 
 			return cus;
@@ -444,10 +489,6 @@ public class CompilerCore {
 			else if (!declList.get(0).getName().equals(declname))
 				throw new RuntimeException("File '" + filename + "' contains mismatched declaration for '" + declList.get(0).getName() + "'." );
 		}
-		
-		
-		
-		
 	}
 	
 	public static void main(String args[]) {

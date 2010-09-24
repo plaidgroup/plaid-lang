@@ -50,7 +50,10 @@ public class BuildAllExamples {
 		cc.setPrettyPrint(true);
 		String sep = System.getProperty("file.separator");
 		cc.addToPlaidPath("bin" + sep);
+		
 		cc.addToPlaidPath(".." + sep + "stdlib" + sep + "bin" + sep);
+//		cc.addToPlaidPath(".." + sep + "stdlib" + sep + "plaidstdlib.jar");
+		
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();
 	}
