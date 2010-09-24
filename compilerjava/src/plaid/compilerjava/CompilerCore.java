@@ -23,7 +23,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -106,15 +105,15 @@ public class CompilerCore {
 			return;
 		
 		String entryName = entry.getName();
-		String className = entryName.substring(0, entryName.length() - 6).replace("/"/*System.getProperty("file.separator")*/, ".");
+		// Enumerating entries in a Jar seems to always return paths containing slashes, even on Windows.
+		// So do *not* use file.seperator here. TODO: Check that this is actually correct.
+		String className = entryName.substring(0, entryName.length() - 6).replace("/", ".");
 		
 		URL[] loaderDir = {
 			new URL("jar:file://" + jarFile.getName() + "!/")
 		};
-//		System.out.println("Constructed class loader with \"" + loaderDir[0].toString() + "\".");
 		ClassLoader defLoader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
 		try {
-//			System.out.println("Trying to load \"" + className + "\".");
 			Class<?> classRep = defLoader.loadClass(className);
 			handleClassInPlaidPath(classRep, className, plaidpath);
 		}
@@ -127,7 +126,7 @@ public class CompilerCore {
 		if (!file.getName().endsWith(".class"))
 			return;
 		
-		//load in the hopes that this is a compiled .plaid file
+		// Load in the hopes that this is a compiled .plaid file.
 		String filepath = file.getAbsolutePath();
 		String className = filepath.substring(absoluteBase.length(), filepath.length() - 6).replace(System.getProperty("file.separator"), ".");
 		if (defLoader == null) {
@@ -164,7 +163,6 @@ public class CompilerCore {
 				Enumeration<JarEntry> entries = jarFile.entries();
 				while (entries.hasMoreElements()) {
 					JarEntry entry = entries.nextElement();
-//					System.out.println("Found resource from a Jar in Plaidpath: " + entry.getName());
 					handleFileInJar(jarFile, entry, plaidpath);
 				}
 			}
@@ -194,6 +192,55 @@ public class CompilerCore {
 		}		
 	}
 	
+	private void generateCode(List<CompilationUnit> cus, PackageRep plaidpath) {
+		try {
+			if (cc.isVerbose())
+				System.out.println("Generating code.");
+			
+			List<File> allFiles = new ArrayList<File>();
+			for (CompilationUnit cu : cus) {
+				try {
+					if (cc.isVerbose())
+						System.out.println("Generating code for:\n" + cu);
+					List<File> fileList = cu.codegen(cc, plaidpath);
+					
+					if ( cc.isVerbose() ) {
+						for(File f : fileList) {
+							FileReader fr = new FileReader(f);
+							int charRead;
+							while((charRead = fr.read()) != -1) {
+								System.out.print((char)charRead);
+							}
+						}
+					}
+					allFiles.addAll(fileList);
+				} catch (PlaidException p) {
+					System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
+					System.err.println("");
+					p.printStackTrace();
+				}
+			}
+			
+			if ( !cc.isKeepTemporaryFiles() ) {
+				for( File f : allFiles ) {
+					f.deleteOnExit();
+				}
+			}
+			
+			if ( cc.isInvokeCompiler() ) {
+				JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+				StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
+				Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
+
+				// invoke the compiler
+				CompilationTask task = compiler.getTask(null, null, null, null, null, fileObjects);
+				Boolean resultCode = task.call();
+				if (cc.isVerbose()) System.out.println("result = " + resultCode.toString());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 	
 	public List<CompilationUnit> compile() throws FileNotFoundException {
 		try {
@@ -201,14 +248,17 @@ public class CompilerCore {
 				throw new RuntimeException("Cannot compile a directory and input files"); //TODO: throw PlaidCompilerException
 			
 			if (!cc.getInputDir().isEmpty())
-				ConvertInputDirToInputFiles(new File(cc.getInputDir()));
+				convertInputDirToInputFiles(new File(cc.getInputDir()));
 			
-			System.out.println("Compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir() + ".");
+			if (cc.isVerbose())
+				System.out.println("Compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir() + ".");
 			
 			// open the file(s)
 			List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
 			for (File f : cc.getInputFiles()) {
-//				System.out.println("Parsing '" + f.getName() + "'.");
+				if (cc.isVerbose())
+					System.out.println("Parsing '" + f.getName() + "'.");
+				
 				CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
 				cu.setSourceFile(f);
 				cus.add(cu);
@@ -283,51 +333,9 @@ public class CompilerCore {
 				if (s.hasNeeds()) dependants.add(s);
 			}
 			
-			// create the output file
-			try {
-				if (cc.isVerbose()) System.out.println("GENERATING CODE");
-				List<File> allFiles = new ArrayList<File>();
-				for(CompilationUnit cu : cus) {
-					try {
-//						System.out.println("Generating code for:\n" + cu);
-						List<File> fileList = cu.codegen(cc, plaidpath);
-						
-//						if ( cc.isVerbose() ) {
-//							for(File f : fileList) {
-//								FileReader fr = new FileReader(f);
-//								int charRead;
-//								while((charRead = fr.read()) != -1) {
-//									System.out.print((char)charRead);
-//								}
-//							}
-//						}
-						allFiles.addAll(fileList);
-					} catch (PlaidException p) {
-						System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
-						System.err.println("");
-						p.printStackTrace();
-					}
-				}
-				
-				if ( !cc.isKeepTemporaryFiles() ) {
-					for( File f : allFiles ) {
-						f.deleteOnExit();
-					}
-				}
-				
-				if ( cc.isInvokeCompiler() ) {
-					JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-					StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
-					Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
-	
-					// invoke the compiler
-					CompilationTask task = compiler.getTask(null, null, null, null, null, fileObjects);
-					Boolean resultCode = task.call();
-					if (cc.isVerbose()) System.out.println("result = " + resultCode.toString());
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			} 
+			// create the output files
+			generateCode(cus, plaidpath);
+			
 			return cus;
 		} catch (Exception e) {
 			if (cc.compilerStackTraceEnabled()) {
@@ -347,7 +355,7 @@ public class CompilerCore {
 	 * configuration input file list.
 	 * @param dir The directory containing plaid files.
 	 */
-	private void ConvertInputDirToInputFiles(File dir) {
+	private void convertInputDirToInputFiles(File dir) {
 		if (!dir.isDirectory()) {
 			throw new RuntimeException("Input directory " + dir.getName() + " is malformed."); 
 		}
@@ -355,7 +363,7 @@ public class CompilerCore {
 			if (file.isFile() && file.getName().endsWith(".plaid")) {
 				cc.addInputFile(file);
 			} else if (file.isDirectory()) {
-				ConvertInputDirToInputFiles(file);
+				convertInputDirToInputFiles(file);
 			}
 		}
 	}
@@ -412,7 +420,7 @@ public class CompilerCore {
 					cc.setDebugMode(true);
 				} else if ( value.equals("-V") || value.equals("--verbose")) {
 					cc.setVerbose(true);
-				} else if (value.equals("-n") || value.equals("-nocompile")) {
+				} else if (value.equals("-n") || value.equals("--nocompile")) {
 					cc.setInvokeCompiler(false);
 				} else if ( value.equals("-d") || value.equals("--directory")) {
 					if ( it.hasNext()) {
@@ -446,7 +454,8 @@ public class CompilerCore {
 			}
 		}
 		
-		if (cc.getPlaidpath().size() == 0) cc.addToPlaidPath(System.getProperty("user.dir")); //default plaidpath to user directory
+		if (cc.getPlaidpath().size() == 0)
+			cc.addToPlaidPath(System.getProperty("user.dir")); //default plaidpath to user directory
 		
 		return cc;
 	}
