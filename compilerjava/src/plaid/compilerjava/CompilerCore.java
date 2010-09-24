@@ -106,7 +106,7 @@ public class CompilerCore {
 			return;
 		
 		String entryName = entry.getName();
-		String className = entryName.substring(0, entryName.length() - 6).replace(System.getProperty("file.separator"), ".");
+		String className = entryName.substring(0, entryName.length() - 6).replace("/"/*System.getProperty("file.separator")*/, ".");
 		
 		URL[] loaderDir = {
 			new URL("jar:file://" + jarFile.getName() + "!/")
