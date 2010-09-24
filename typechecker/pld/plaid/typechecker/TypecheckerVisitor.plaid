@@ -1,0 +1,403 @@
+package plaid.typechecker;
+
+import plaid.ast.*;
+
+state TypecheckerVisitor {
+	var returnedPermType;
+	val context;
+
+	method analyzeID(node, type) {
+		// get the type of x from the context
+		val xType = context.get(node);
+		
+		// if x is dyn
+		match(xType) {
+			case DynPermType {
+				// if T != None/Void/Unit whatever
+					// x remains dyn in the context
+					// return true
+				// otherwise
+					// return false
+			}
+			default {
+				// otherwise x is of type T1
+				val splitPermTypesOpt = xType.split(type);
+				
+				// if T1 can be split into the target permtype and a third T3
+				match(splitPermTypesOpt) {
+					case Some {
+						val splitPermTypes = splitPermTypesOpt.getValue();
+						// put x back in the context as T3
+						context.put(node, splitPermTypes.second());
+						true;
+					}
+					case None {
+						// otherwise
+						false;
+					}
+				};
+			}
+		}
+	}
+	
+	method analyzeExpr(node, type) {
+		// synthesize the type (T1) of this node
+		node.accept(this);
+		
+		match(returnedPermType) {
+			// if T1 is dyn or if the desired permtype is a super-permtype of T1
+			case DynPermType {
+				true;
+			}
+			default {
+				ifElse (returnedPermType.isSubPermTypeOf(type)) {
+					true;
+				}{
+					false;
+				};
+			}	
+		};
+	}
+
+	method visitUnannotatedLetBinding(node) {
+		// Typecheck the bound expression
+		node.exp.accept(this);
+		val permType = this.returnedPermType;
+		
+		// Use the type found for x in the new context
+		context.put(node.x, permType);
+		
+		// Typecheck the body with the new context
+		node.body.accept(this);
+		
+		// Remove the binding for x from the returned context
+		context.remove(node.x);
+		
+		// Return the type of the body (we don't have to do anything b/c it's stored in the returnedPermType field already)
+	}
+	
+	method visitAnnotatedLetBinding(node) {
+		// If we can analyze the bound expression as the annotated type
+			// Use the annotated type for x in the new context
+		// Typecheck the body with the new context
+		// Return the type of the body
+	}
+	
+	method visitNewInstance(node) {
+		// typecheck S
+		node.s.accept(this);
+		
+		// if the state is dyn
+		ifElse (this.returnedPermType == PermType.DYN) {
+			this.returnedPermType = PermType.DYN;
+		}{
+			// get the structural type of the state (tau)
+			val structuralType = this.returnedPermType.type;
+			this.returnedPermType = new PermType{ val /*Permission*/ perm = Permission.UNIQUE; val /*Type*/ type = structuralType; };
+		};
+	}
+	
+	method visitChangeState(node) {
+		val xPermType = context.get(node.x);
+		// if x has writable permission
+		ifElse (isWritable(xPermType)) {
+			// typecheck S
+			node.s.accept(this);
+			
+			// if S is dyn
+			ifElse (this.returnedPermType == PermType.DYN) {
+				// demote everything else in the context
+				context.demote();
+				
+				// update x in the context with dyn
+				context.put(x, PermType.DYN);
+			}{
+				// demote everything else in context
+				context.demote();
+				
+				// update x in the context with unique tau
+				context.put(x, new PermType{ val /*Permission*/ perm = Permission.UNIQUE; val /*Type*/ type = this.returnedPermType.type; });
+			};
+		}{
+			ifElse (this.returnedPermType == PermType.DYN) {
+				// typecheck S and ignore result
+				node.s.accept(this);
+				
+				// demote everything else in context
+				context.demote();
+				
+				// x retains type dyn
+				context.put(x, PermType.DYN);
+			
+			}{
+				//throw new Exception{ val message = "Object does not have writable permission: " + node.x.getName(); };
+                System.out.println("Object does not have writable permission: " + node.x.getName());
+                System.exit(-1);
+			};
+		};
+		
+		// return void/none/unit whatever
+		this.returnedPermType = PermType.VOID;
+	}
+	
+	method visitLambdaApplication(node) {
+		// typecheck the lambda (f)
+		node.f.accept(this);
+		
+		// if f is dyn
+		ifElse (this.returnedPermType == PermType.DYN) {
+			// demote everything else
+			context.demote();
+			
+			// f has type dyn
+			context.put(node.f, PermType.DYN);
+			
+			// TODO: the arguments have type dyn
+			
+			// TODO: the bound variables have type dyn
+			
+			// return dyn
+			this.returnedPermType = PermType.DYN;
+		// otherwise
+		}{
+			// TODO: get T1, T1', T2, T2', T from the type of the lambda
+			// create a new context
+			val newContext = new Context;
+			
+			// typecheck the arguments
+			node.arg.accept(this);
+			newContext.put(node.arg, this.returnedPermType);
+			
+			// TODO: analyze y as type T_1 in the new context
+			
+			// get the type of y (T_y'') from the new context after analysis
+			val newArgPermType = newContext.get(node.arg);
+			
+			// merge T_1' with T_y'' to get T_y'
+			val mergedArgPermType = argPermType.mergeWith(newArgPermType);
+			
+			// for each variable z bound in the lambda
+			var i = 0;
+			val newBoundVarTypes = new List;
+			while { i < boundVars.size() } {
+				val z = boundVars.get(i);
+			
+				// create a new context
+				val newContext = new Context;
+				
+				// add z with type T_z to the new context
+				newContext.put(z, oldContext.get(z));
+				
+				// TODO: analyze z as type T_2 with the new context
+				
+				// get the type of z (T_z'') from the new context after analysis
+				val newBoundVarType = newContext.get(z);
+				
+				// merge T_2' with T_z'' to get T_z'
+				mergedBoundVarTypes.add(boundVarType.mergeWith(newBoundVarType));
+				
+				i = i + 1;
+			};
+			
+			// demote everything in the old context
+			context.demote();
+			
+			// y has type T_y' and each z has type T_z' in the old context
+			context.put(y, mergedArgPermType);
+			
+			i = 0;
+			while { i < boundVars.size() } {
+				val z = boundVars.get(i);
+				context.put(z, mergedBoundVarTypes.get(i));
+				
+				i = i + 1;
+			};
+			
+			// return T
+			//this.returnedPermType = ;
+		}
+	}
+	
+	method visitMethodInvocation(node) {
+		// if the receiver has type T1 = (p tau) in the context
+			// unfold tau into tau_prime
+			// check tau_prime for the method we're trying to call
+			// analyze the type of the receiver as the starting state of the receiver as specified by the method
+			// using the permtype we get back from the type analysis, merge it with the final type of the receiver as specified by the method into T1_prime
+			// analyze the type of the argument as the starting type of the argument specified by the method
+			// using the permtype we get back from the type analysis, merge it with the final type of the argument as specified by the method into T2_prime
+			// update the type of x1 to T1_prime in the context
+			// update the type of x2 to T2_prime in the context
+			// demote everything else in the context
+			// return the return type specified by the method
+		// otherwise if the receiver is of type dyn
+			// demote everything else
+			// the receiver retains type dyn
+			// demote the original type of the argument
+			// return dyn
+	}
+	
+	method visitDereference(node) {
+		// get the permtype of x
+		val recvPermType = context.get(node.left);
+		
+		// if the receiver is dynamic
+		ifElse (recvPermType == PermType.DYN) {
+			// x retains type dyn and the resulting expression has type dyn
+			this.returnedPermType = PermType.DYN;
+		}{
+			// get permission (p) and type (t) of receiver
+			val recvPerm = recvPermType.getPermission();
+			val recvType = recvPermType.getType();
+			
+			// tprime = unfold t
+			val unfoldedRecvType = recvType.unfold();
+			
+			// check tprime for field f of permtype T_f
+			ifElse (unfoldedRecvType.contains(node.right)) {
+				// x retains its original type
+				// return the permission residue (T) of T_f
+				this.returnedPermType = recvPermType.getPermResidue();
+			}{
+				//throw new Exception{ val message = "Object does not contain specified field: " + node.left.getName(); };
+                System.out.println("Object does not contain specified field: " + node.left.getName());
+                System.exit(-1);
+			}
+		}
+	}
+	
+	method visitDestructiveDereference(node) {
+		// get the type of x
+		val recvPermType = context.get(node.left);
+		
+		// if the receiver has writable permission
+		ifElse (recvPermType.getPermission().isWritable()) {
+			// unfold the type of the receiver
+			val unfoldedType = recvPermType.getType().unfold();
+			
+			// if the field is a member of the unfolded type
+			ifElse () {
+				// get the type of the field
+				val fieldPermType = unfoldedType.get(node.right);
+			
+				// get the type (tau) resulting from the removal of the field in question from the receiver's type
+				val resultRecvType = unfoldedType.remove(node.right);
+				
+				// demote everything else
+				context.demote();
+				
+				// update the permtype of x to whatever its original writable permission was + tau
+				context.put(node.left, new PermType{ val perm = recvPermType.getPermission(); val type = resultRecvType; });
+				
+				// return the type of the field
+				this.returnedPermType = fieldPermType;
+			}{
+				//throw new Exception{ val message = "Object does not contain specified field: " + node.left.getName(); };
+                System.out.println("Object does not contain specified field: " + node.left.getName());
+                System.exit(-1);
+			};
+		}{
+			// else if the receiver is dyn
+			ifElse () {
+				// x retains dyn in the context
+			// demote everything else
+			// return dyn
+			}{
+				//throw new Exception{ val message = "Object does not have writable permission: " + node.left.getName(); };
+                System.out.println("Object does not have writable permission: " + node.left.getName());
+                System.exit(-1);
+			};
+		};
+	}
+	
+	method visitLamdba(node) {
+		// lookup the types of the variables declared as bound in the scope of the lambda (make sure they match)
+		// lookup the starting types of the arguments (make sure they match)
+		// duplicate the current context
+		// typecheck the body of the lambda with the duplicated context
+		
+		// NOTE: the current rule makes the output context invariant in the types of the variables
+		// (i.e. it does not take subtyping into account)  This rule could be modified to make 
+		// lambda declarations more flexible.  This has been noted in the typing spec.
+		
+		// check each bound variable to make sure that the result in the context matches
+		// check each argument type to make sure that the result in the context matches
+		// restore the original context (since we didn't actually run the lambda yet)
+	}
+	
+	method visitMatch(node) {
+		// typecheck the thing being matched
+		val xPermType = context.get(node.x);
+		
+		val caseContexts = new List;
+		val caseTypes = new List;
+		
+		// if x is dyn
+		ifElse (xPermType == PermType.DYN) {
+			var i = 0;
+			// for all the cases
+			while { i < node.cases.size() } {
+				val contextCopy = context.copy();
+				
+				// typecheck the case expression with x : dyn in the context
+				contextCopy.put(x, PermType.DYN);
+				node.cases.get(i).accept(this);
+				
+				// add the resulting context to the list of contexts needing to be joined
+				caseContexts.add(contextCopy);
+				caseTypes.add(this.returnedPermType);
+			};
+			// join all of the resulting contexts
+			// join all of the resulting types
+			// return the result of the joining of the types
+		}{
+		// otherwise
+			// get the permission (p) and the type (tau) of x in the current context
+			// for all the cases
+				// typecheck the case expression assuming x has the permtype p (tau with t) (i.e. assume that x has the tag the expression is looking for)
+				// join all of the resulting contexts
+				// join all of the resulting types for the case expressions
+			// return the result of the joined resulting types
+		};
+	}
+	
+	method visitWith(node) {
+		// typecheck left
+		node.left.accept(this);
+		val leftPermType = this.returnedPermType;
+		
+		// typecheck right
+		node.right.accept(this);
+		val rightPermType = this.returnedPermType;
+		
+		// if left is dyn
+		ifElse (leftPermType == PermType.DYN) {
+			// return type of right
+			this.returnedPermType = rightPermType;
+		}{
+			// else if right is dyn
+			ifElse (rightPermType == PermType.DYN) {
+				// return type of left
+				this.returnedPermType = leftPermType;
+			// otherwise
+			}{
+				// TODO: what if they have two different permissions?
+			};
+		};
+	}
+	
+	method visitIntLiteral(node) {
+		// TODO: Get actual type of integers
+		this.returnedPermType = new PermType {
+			val perm = new UniquePermission;
+			val type = new Type {
+				val typeAbbrevs = java.util.HashSet.new();
+				val typeDecls = java.util.HashSet.new();
+			};
+		};
+	}
+	
+	method visitID(node) {
+		context.get(node);
+	}
+}
