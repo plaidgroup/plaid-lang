@@ -503,6 +503,11 @@ public class CompilerCore {
 	public static void main(String args[]) {
 		CompilerConfiguration cc = parseParameters(args);
 
+		if ( cc.getInputFiles().isEmpty() && (cc.getInputDir() == null || cc.getInputDir().equals(""))) {
+			usage();
+			return;
+		}
+		
 		CompilerCore c = new CompilerCore(cc);
 		try {
 			c.compile();
