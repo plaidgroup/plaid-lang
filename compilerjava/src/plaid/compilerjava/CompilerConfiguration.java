@@ -37,7 +37,7 @@ public class CompilerConfiguration {
 	private boolean verbose = false;
 	private boolean copyright = false;
 	private boolean printCompilerStackTrace = true;
-	private boolean prettyPrint = false;
+	private boolean prettyPrint = true;
 	private boolean aeminiumMode = false;
 	private CompilationUnit cu = null;
 	

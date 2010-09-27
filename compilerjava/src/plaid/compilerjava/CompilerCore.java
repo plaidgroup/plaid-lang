@@ -379,10 +379,11 @@ public class CompilerCore {
 		System.out.println("Options:");
 		System.out.println(" -h|--help            This message.");
 		System.out.println(" -v|--version         This message.");
-		System.out.println(" -o|--output          The direct to put generated files.");
-		System.out.println(" -k|--keepTempFiles   Do not delete temporary created files.");
-		System.out.println(" -n|--nocompile       Do not compile generated java source.");
+		System.out.println(" -o|--output          The directory to put generated files.");
+		System.out.println(" -k|--keepTempFiles   Do not delete temporary files.");
+		System.out.println(" -n|--nocompile       Do not compile generated Java source.");
 		System.out.println(" -g|--debug           Generate debugging information.");
+		System.out.println(" -r|--readable        Format generated Java source.");
 		System.out.println(" -V|--verbose         Verbose compiler output");
 		System.out.println(" -d|--directory       Input directory");
 		System.out.println(" -p|--plaidpath       ';' separated list of locations to search for other plaid resources.");
