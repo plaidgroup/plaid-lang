@@ -17,6 +17,7 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 	var savedReads;
 	
 	var counter = 0;
+	var lambdaCounter = 0;
 	
 	method getNodeNumber() {
 		ifElse (this.separateTask) {
@@ -117,7 +118,6 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		});
 	}
 	
-	
 	method visitMethodDecl(astNode) {
 		java.lang.System.out.println("Visiting " + astNode.name + ".");
 		this.counter = 0;
@@ -146,6 +146,53 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		
 		reduceAllDependencies(nodeList);
 		createDependencyGraph("_Reduced");
+	}
+	
+	method visitLambda(astNode) {
+		ifElse (counter == 0) {
+			java.lang.System.out.println("Visiting Lambda (new analysis).");
+			astNode.num = getNodeNumber();
+			
+			
+			val reads = java.util.HashSet.new();
+			val writes = java.util.HashSet.new();
+	
+			// TODO: Adapt to Option type.		
+			writes.add(astNode.x);			
+			updateDependencies(astNode, reads, writes);
+			
+			astNode.body.accept(this);
+			
+			printDependencies(nodeList);
+			createDependencyGraph(this.lambdaCounter);
+			
+			reduceAllDependencies(nodeList);
+			createDependencyGraph("" + this.lambdaCounter + "_Reduced");
+			
+			java.lang.System.out.println("Leaving Lambda (new analysis).");
+		} {
+			// As soon as we encounter a lambda, we have to start a new dependency analysis.
+			java.lang.System.out.println("Lambda: Starting new analysis.");
+		
+			val newAnalysisVisitor = new DependencyAnalysisVisitor {
+				val methodTypes = this.methodTypes;
+			};
+			
+			newAnalysisVisitor.counter = 0;
+			newAnalysisVisitor.writer = java.util.HashMap.new();
+			newAnalysisVisitor.readers = java.util.HashMap.new();
+			newAnalysisVisitor.deps = java.util.HashSet.new();
+			newAnalysisVisitor.nodeList = new List { var head = new Nil; };
+			newAnalysisVisitor.lambdaCounter = this.lambdaCounter;
+			this.lambdaCounter = this.lambdaCounter + 1;
+			
+			newAnalysisVisitor.visitLambda(astNode);
+			
+			this.savedReads = java.util.HashSet.new();
+			this.savedWrites = java.util.HashSet.new();
+			
+			java.lang.System.out.println("Lambda: Analysis finished.");
+		};
 	}
 	
 	method visitSplit(astNode) {
@@ -255,24 +302,31 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 			case ID {
 				// Look up the method type in question.
 				java.lang.System.out.println("Looking up " + astNode.f.name);
-				val methodType = this.methodTypes.get(astNode.f.name);
-				val argTypes = methodType.argTypes;
-				java.lang.System.out.println("Matching.");
-				match (argTypes.head) {
-					case Cons {
-						val argType = argTypes.head.value;
-						
-						match (argType.perm) {
-							case UniquePermission {
-								writes.add(astNode.arg);
-							}
+				
+				ifElse (this.methodTypes.containsKey(astNode.f.name)) {
+					val methodType = this.methodTypes.get(astNode.f.name);
+					val argTypes = methodType.argTypes;
+					java.lang.System.out.println("Matching.");
+					match (argTypes.head) {
+						case Cons {
+							val argType = argTypes.head.value;
 							
-							case ImmutablePermission {
-								reads.add(astNode.arg);
+							match (argType.perm) {
+								case UniquePermission {
+									writes.add(astNode.arg);
+								}
+								
+								case ImmutablePermission {
+									reads.add(astNode.arg);
+								}
 							}
 						}
 					}
-				}
+				} {
+					// TODO: Fix this.
+					reads.add(astNode.f);
+					reads.add(astNode.arg);
+				};
 			}
 			default {}
 		};
@@ -293,5 +347,36 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		astNode.num = getNodeNumber();
 		
 		updateDependencies(astNode, java.util.HashSet.new(), java.util.HashSet.new());
+	}
+	
+	method visitIntLiteral(astNode) {
+		astNode.num = getNodeNumber();
+		
+		updateDependencies(astNode, java.util.HashSet.new(), java.util.HashSet.new());
+	}
+	
+	method visitMethodInvocation(astNode) {
+		astNode.num = getNodeNumber();
+		val reads = java.util.HashSet.new();
+		val writes = java.util.HashSet.new();
+		
+		// TODO: Do this right.
+		match (astNode.obj) {
+			case ID {
+				reads.add(astNode.obj);
+			}
+			default {}
+		};
+		
+		// TODO: Do this right.
+		match (astNode.arg) {
+			case ID {
+				// Assume need for immutable permissions.
+				reads.add(astNode.arg);
+			}
+			default {}
+		};
+		
+		updateDependencies(astNode, reads, writes);		
 	}
 }
