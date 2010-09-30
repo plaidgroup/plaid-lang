@@ -305,17 +305,15 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		val writes = java.util.HashSet.new();
 		
 		// TODO: How to handle methods with multiple arguments?
-		// arg could be an ID or a literal.  We only care about the IDs.
-		match (astNode.arg) {
-			case ID {
-				// Look up the method type in question.
-				java.lang.System.out.println("Looking up " + astNode.f.name);
-				
-				// Check if we have a global method of that name
-				ifElse (this.methodTypes.containsKey(astNode.f.name)) {
-					val methodType = this.methodTypes.get(astNode.f.name);
+		// Check if we have a global method of that name
+		ifElse (this.methodTypes.containsKey(astNode.f.name)) {
+			var methodType = this.methodTypes.get(astNode.f.name);
+			
+			// arg could be an ID or a literal.  We only care about the IDs.
+			match (astNode.arg) {
+				case ID {
 					val argTypes = methodType.argTypes;
-					java.lang.System.out.println("Matching.");
+	
 					match (argTypes.head) {
 						case Cons {
 							val argType = argTypes.head.value;
@@ -331,15 +329,44 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 							}
 						}
 					}
-				} {
-					// No global method found, it has to be a lambda with an associated lambda type.
-					
-					// TODO: Fix this and use the associated lambda type to figure out reads and writes.
-					reads.add(astNode.f);
+				}
+				default {}
+			};
+		} {
+			// No global method found, it has to be a lambda with an associated lambda type.
+			// TODO: Fix this and use the associated lambda type to figure out reads and writes.
+			reads.add(astNode.f);
+			
+			match (astNode.f.type) {
+				case Some {
+					val lambdaType = astNode.f.type.value;
+					lambdaType.sideEffects.map(fn (effect) => {
+						ifElse (effect.from.perm == effect.to.perm) {
+							match (effect.from.perm) {
+								case ImmutablePermission {
+									reads.add(effect.variable);
+								}
+								case UniquePermission {
+									writes.add(effect.variable);
+								}
+							};
+						} {
+							writes.add(effect.variable);
+						};
+					});
+				}
+				case None {
+					java.lang.System.err.println("Warning: Lambda has no associated type.");
+				}
+			};
+			
+			match (astNode.arg) {
+				case ID {
 					reads.add(astNode.arg);
-				};
-			}
-			default {}
+				}
+				
+				default {}
+			};
 		};
 		
 		updateDependencies(astNode, reads, writes);
