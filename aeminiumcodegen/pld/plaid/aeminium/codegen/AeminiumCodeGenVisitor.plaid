@@ -3,12 +3,17 @@ package plaid.aeminium.codegen;
 import plaid.codegen.CodeGenVisitor;
 
 state AeminiumCodeGenVisitor case of CodeGenVisitor {
+	val aemRt = "aeminium.runtime.implementations.Factory.getRuntime()";
+	
 	var lastNodeNum = -1;
 	var currentMethodName = "";
 	
 	method emitAeminiumBodyHeader(name, astNode) {
 		match (astNode.dependencies) {
 			case Some {
+				// TODO: Correct position?
+				this.lastNodeNum = astNode.num;
+				
 				this.out.append("aeminium.runtime.Body b" + name + " = new aeminium.runtime.Body() {");
 				this.out.append("public String toString() {");
 				ifElse (name.toString().equals(this.currentMethodName)) {
@@ -18,6 +23,9 @@ state AeminiumCodeGenVisitor case of CodeGenVisitor {
 				};
 				this.out.append("}");
 				this.out.append("public void execute(aeminium.runtime.Runtime rt, aeminium.runtime.Task current) {");
+				
+				this.y = this.idgen.getId();
+				this.out.declareFinalVar(this.out.plaidObjectType, this.y.name);
 			}
 			case None {
 			}
@@ -27,24 +35,26 @@ state AeminiumCodeGenVisitor case of CodeGenVisitor {
 	method emitAeminiumBodyFooter(name, astNode) {
 		match (astNode.dependencies) {
 			case Some {
+				this.out.append("current.setResult(" + this.y.name + ");");
 				this.out.closeBlock();
 				this.out.append("};");
-				this.out.append("final aeminium.runtime.Task t" + name + " = aeminium.runtime.implementations.Factory.getRuntime().");
+				this.out.append("final aeminium.runtime.Task t" + name + " = " + this.aemRt + ".");
 				this.out.append("createNonBlockingTask(b" + name + ", aeminium.runtime.Runtime.NO_HINTS);");
 				
 				val depIt = astNode.dependencies.value.iterator();
 				ifElse (!depIt.hasNext()) {
-					this.out.append("aeminium.runtime.implementations.Factory.getRuntime().schedule(t" + astNode.num + ", current, aeminium.runtime.Runtime.NO_DEPS);");
+					this.out.append(this.aemRt + ".schedule(t" + astNode.num + ", current, aeminium.runtime.Runtime.NO_DEPS);");
 				} {
 					this.out.append("java.util.Collection<aeminium.runtime.Task> deps" + astNode.num + " = new java.util.ArrayList<aeminium.runtime.Task>();");
 					while { depIt.hasNext(); } {
 						// TODO: Fix this.
+						// Problem: Node 0 is always a MethodDecl/Lambda node which does not correspond to an Aeminium task.
 						val dep = depIt.next();
 						if (dep.to.num != 0) {
 							this.out.append("deps" + astNode.num + ".add(t" + dep.to.num + ");");
 						};
 					};
-					this.out.append("aeminium.runtime.implementations.Factory.getRuntime().schedule(t" + astNode.num + ", current, deps" + astNode.num + ");");
+					this.out.append(this.aemRt + ".schedule(t" + astNode.num + ", current, deps" + astNode.num + ");");
 				};
 			}
 			case None {
@@ -52,40 +62,29 @@ state AeminiumCodeGenVisitor case of CodeGenVisitor {
 		};
 	}
 
-
 	method visitSplit(node) {
-//		this.emitAeminiumBodyHeader(node.num, node);
-//		this.lastNodeNum = node.num;
-//		this.emitAeminiumBodyFooter(node.num, node);
-		
 		node.body.accept(this);
 	}
 	
 	method visitJoin(node) {
-//		this.emitAeminiumBodyHeader(node.num, node);
-//		this.lastNodeNum = node.num;
-//		this.emitAeminiumBodyFooter(node.num, node);
-		
 		node.body.accept(this);
 	}
 	
 	override method visitUnitLiteral(node) {
 		this.emitAeminiumBodyHeader(node.num, node);
-		this.lastNodeNum = node.num;
 
-		// TODO: Fix this.
-		this.out.append("current.setResult(");
+		this.setLocation(node.token);
+		this.out.assign(this.y.name);
 		this.out.unit2(); // Identical to unit(), but that's a reserved word
-		this.out.append(");");
+		this.out.append(";");
 		
 		this.emitAeminiumBodyFooter(node.num, node);
 	}
 	
 	override method visitLetBinding(node) {
 		this.emitAeminiumBodyHeader(node.num, node);
-		this.lastNodeNum = node.num;
 		
-		val /* ID */ y = this.y;
+		val /*ID*/ y = this.y;
 	
 		this.setLocation(node.token);
 		this.out.declareFinalVar(this.out.plaidObjectType, node.x.name);
@@ -99,24 +98,21 @@ state AeminiumCodeGenVisitor case of CodeGenVisitor {
 		};
 		
 		this.emitAeminiumBodyFooter(node.num, node);
-		
+
+		this.y = y;		
 		node.body.accept(this);
 	}
 	
 	override method visitApplication(node) {
 		this.emitAeminiumBodyHeader(node.num, node);
-		this.lastNodeNum = node.num;
 		
-		val oldY = this.y;
 		this.setLocation(node.token);
-		var /* ID */ x = this.idgen.getId();
-		var /* ID */ y = this.idgen.getId();
-		var /* ID */ z = this.idgen.getId();
-		var t = this.idgen.getId();
+		val /*ID*/ y = this.y;
+		var /*ID*/ x = this.idgen.getId();
+		var /*ID*/ z = this.idgen.getId();
+
 		this.out.declareFinalVar(this.out.plaidObjectType, x.name);
-		this.out.declareFinalVar(this.out.plaidObjectType, y.name);
 		this.out.declareFinalVar(this.out.plaidObjectType, z.name);
-		this.out.declareFinalVar(this.out.plaidObjectType, t.name);
 		
 		this.y = x;
 		node.f.accept(this);
@@ -125,25 +121,20 @@ state AeminiumCodeGenVisitor case of CodeGenVisitor {
 		node.arg.accept(this);
 		
 		this.setLocation(node.token);
-		this.out.assignToCall(t.name, x.name, z.name);
+		this.out.assignToCall(y.name, x.name, z.name);
 		
-		this.out.append("if ((" + t.name + " instanceof plaid.runtime.models.map.PlaidJavaObjectMap) && ");
-		this.out.append("(((plaid.runtime.models.map.PlaidJavaObjectMap) " + t.name + ").getJavaObject() instanceof aeminium.runtime.Task)) {");
-		this.out.append("aeminium.runtime.Task retTask = (aeminium.runtime.Task) (((plaid.runtime.models.map.PlaidJavaObjectMap) " + t.name + ").getJavaObject());");
+		val /*ID*/ w = this.idgen.getId();
+		this.out.declareFinalVar(this.out.plaidObjectType, w.name);
+		this.out.append("if ((" + y.name + " instanceof plaid.runtime.models.map.PlaidJavaObjectMap) && ");
+		this.out.append("(((plaid.runtime.models.map.PlaidJavaObjectMap) " + y.name + ").getJavaObject() instanceof aeminium.runtime.Task)) {");
+		this.out.append("aeminium.runtime.Task retTask = (aeminium.runtime.Task) (((plaid.runtime.models.map.PlaidJavaObjectMap) " + y.name + ").getJavaObject());");
 		this.out.append("aeminium.runtime.implementations.Factory.getRuntime().schedule(retTask, current, aeminium.runtime.Runtime.NO_DEPS);");
-		this.out.append(y.name + " = (plaid.runtime.PlaidObject) retTask.getResult();");
+		this.out.append(w.name + " = (plaid.runtime.PlaidObject) retTask.getResult();");
 		this.out.append("} else {");
-		this.out.append(y.name + " = " + t.name + ";}");
-		
-		match (node.dependencies) {
-			case Some {
-				this.out.append("current.setResult(" + y.name + ");");
-			}
-			case None {
-				this.out.append(oldY.name + " = " + y.name + ";");
-			}
-		};
-		
+		this.out.append(w.name + " = " + y.name + ";");
+		this.out.append("}");
+
+		this.y = w;
 		this.emitAeminiumBodyFooter(node.num, node);
 	}
 
@@ -190,12 +181,13 @@ state AeminiumCodeGenVisitor case of CodeGenVisitor {
 		this.out.openStaticBlock(); // static {
 		// add local scope so that the lambda creation works properly
 		this.out.declareLocalScope(this.out.globalScope);
+		
 		match (node.arg) {
 			case Some {
 				this.out.assignToNewLambda(thisMethod, node.arg.value.name);
 			}
 			case None {
-				this.out.assignToNewLambda(thisMethod, "NONE"); // FIXME
+				this.out.assignToNewLambda(thisMethod, "_"); // FIXME
 			}
 		};
 		
