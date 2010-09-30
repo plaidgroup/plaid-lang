@@ -118,7 +118,7 @@ public class CompilerCore {
 			handleClassInPlaidPath(classRep, className, plaidpath);
 		}
 		catch (NoClassDefFoundError e) {
-			e.printStackTrace();
+			System.err.println("Warning: Loading class \"" + className + "\" failed.");
 		}
 	}
 	
@@ -138,7 +138,7 @@ public class CompilerCore {
 			handleClassInPlaidPath(classRep, className, plaidpath);
 		}
 		catch (NoClassDefFoundError e) {
-			e.printStackTrace();
+			System.err.println("Warning: Loading class \"" + className + "\" failed.");
 		}
 	}
 	
