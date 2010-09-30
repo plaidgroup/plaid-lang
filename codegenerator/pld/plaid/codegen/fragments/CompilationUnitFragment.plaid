@@ -4,15 +4,8 @@ import plaid.ast.QI;
 import plaid.codegen.IdGen;
 
 state CompilationUnitFragment {
-	method visitCompilationUnit(node) {
-		val packageString = node.getPackageString();
-		java.lang.System.out.println("Generating code for '" + packageString + "'...");
-		this.packageName = node.packageName;
-		this.idgen = new IdGen;
-		this.currentCU = node;
-		
-
-		// TODO: This is a workaround.  Remove as soon as imports are implemented correctly.
+	// TODO: This is a workaround.  Remove as soon as imports are implemented correctly in the Plaid codegen.
+	method fixImports(node) {
 		node.decls.map(fn (d) => {
 			val importName = new List { var head = new Nil; };
 			importName.append(this.packageName);
@@ -24,6 +17,36 @@ state CompilationUnitFragment {
 			};
 			node.imports.imports.add(qi);
 		});
+		
+		val plaidLangGlobals = new List { var head = new Nil; };
+		plaidLangGlobals.add("if");
+		plaidLangGlobals.add("ifElse");
+		plaidLangGlobals.add("while");
+		plaidLangGlobals.add("true");
+		plaidLangGlobals.add("false");
+		
+		plaidLangGlobals.map(fn (sym) => {
+			val importName = new List { var head = new Nil; };
+			importName.add("plaid");
+			importName.add("lang");
+			importName.add("globals");
+			importName.add(sym);
+			node.imports.imports.add(new QI {
+				val token = new None;
+				val qid = importName;
+			});
+		});
+	}
+
+	method visitCompilationUnit(node) {
+		val packageString = node.getPackageString();
+		java.lang.System.out.println("Generating code for '" + packageString + "'...");
+		this.packageName = node.packageName;
+		this.idgen = new IdGen;
+		this.currentCU = node;
+		
+		this.fixImports(node);
+		
 		this.imports = node.imports;
 
 		node.decls.map(fn (d) => {
