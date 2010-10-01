@@ -37,6 +37,7 @@ import java.util.Stack;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import javax.print.attribute.standard.PrinterResolution;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
@@ -45,6 +46,8 @@ import javax.tools.JavaCompiler.CompilationTask;
 
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
+
+import coreExamples.functionalStyle.print;
 
 import plaid.compilerjava.AST.CompilationUnit;
 import plaid.compilerjava.AST.Decl;
@@ -66,6 +69,17 @@ public class CompilerCore {
 	
 	public CompilerCore(CompilerConfiguration cc) {
 		this.cc = cc;
+	}
+	
+	public static void printExceptionInformation(CompilerConfiguration cc, Exception e) {
+		if (cc.compilerStackTraceEnabled())
+			e.printStackTrace();
+		else
+			System.err.println(e.getMessage());
+	}
+	
+	private void printExceptionInformation(Exception e) {
+		printExceptionInformation(cc, e);
 	}
 	
 	private void handleClassInPlaidPath(Class<?> classRep, String className, PackageRep plaidpath) {
@@ -217,7 +231,7 @@ public class CompilerCore {
 				} catch (PlaidException p) {
 					System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
 					System.err.println("");
-					p.printStackTrace();
+					printExceptionInformation(p);
 				}
 			}
 			
@@ -238,7 +252,7 @@ public class CompilerCore {
 				if (cc.isVerbose()) System.out.println("result = " + resultCode.toString());
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			printExceptionInformation(e);
 		}
 	}
 	
@@ -338,15 +352,8 @@ public class CompilerCore {
 			
 			return cus;
 		} catch (Exception e) {
-			if (cc.compilerStackTraceEnabled()) {
-				e.printStackTrace();
-				throw new RuntimeException(e);
-			}
-			else {
-				System.err.println(e.getMessage());
-				System.err.println("Enable stack trace for more information.");
-				throw new RuntimeException("Enable the compiler stack trace to get more information.");
-			}
+			printExceptionInformation(e);
+			return null;
 		}
     }
 
@@ -513,7 +520,7 @@ public class CompilerCore {
 		try {
 			c.compile();
 		} catch (FileNotFoundException e) {
-			e.printStackTrace();
+			printExceptionInformation(cc, e);
 		}
 	}
 }

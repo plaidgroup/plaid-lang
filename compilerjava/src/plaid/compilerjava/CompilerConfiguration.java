@@ -36,7 +36,7 @@ public class CompilerConfiguration {
 	private boolean keepTemporaryFiles = false;
 	private boolean verbose = false;
 	private boolean copyright = false;
-	private boolean printCompilerStackTrace = true;
+	private boolean printCompilerStackTrace = false;
 	private boolean prettyPrint = true;
 	private boolean aeminiumMode = false;
 	private CompilationUnit cu = null;
