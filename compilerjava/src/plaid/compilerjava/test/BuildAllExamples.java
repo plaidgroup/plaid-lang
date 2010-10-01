@@ -39,7 +39,7 @@ public class BuildAllExamples {
 //	}
 	
 	@Test
-	public void compile() throws FileNotFoundException {
+	public void compile() throws Exception {
 		CompilerConfiguration cc = new CompilerConfiguration();
 		cc.setOutputDir("coreOutput");
 		for (File f : inputFiles())
@@ -51,8 +51,9 @@ public class BuildAllExamples {
 		String sep = System.getProperty("file.separator");
 		cc.addToPlaidPath("bin" + sep);
 		
+		// TODO: In the long run it's a better idea to provide a pre-compiled stdlib.jar
+		//       and include it here.
 		cc.addToPlaidPath(".." + sep + "stdlib" + sep + "bin" + sep);
-//		cc.addToPlaidPath(".." + sep + "stdlib" + sep + "plaidstdlib.jar");
 		
 		CompilerCore compiler = new CompilerCore(cc);
 		compiler.compile();
