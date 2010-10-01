@@ -21,7 +21,6 @@ package plaid.compilerjava;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.lang.annotation.Annotation;
 import java.net.URL;
@@ -37,7 +36,6 @@ import java.util.Stack;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import javax.print.attribute.standard.PrinterResolution;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
@@ -46,8 +44,6 @@ import javax.tools.JavaCompiler.CompilationTask;
 
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
-
-import coreExamples.functionalStyle.print;
 
 import plaid.compilerjava.AST.CompilationUnit;
 import plaid.compilerjava.AST.Decl;
@@ -126,9 +122,10 @@ public class CompilerCore {
 		URL[] loaderDir = {
 			new URL("jar:file://" + jarFile.getName() + "!/")
 		};
-		ClassLoader defLoader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
+		ClassLoader loader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
+		
 		try {
-			Class<?> classRep = defLoader.loadClass(className);
+			Class<?> classRep = loader.loadClass(className);
 			handleClassInPlaidPath(classRep, className, plaidpath);
 		}
 		catch (NoClassDefFoundError e) {
@@ -136,19 +133,19 @@ public class CompilerCore {
 		}
 	}
 	
-	private void handleFileInPlaidPath(File file, String absoluteBase, PackageRep plaidpath, ClassLoader defLoader) throws Exception {
+	private void handleFileInPlaidPath(File file, String absoluteBase, PackageRep plaidpath) throws Exception {
 		if (!file.getName().endsWith(".class"))
 			return;
 		
 		// Load in the hopes that this is a compiled .plaid file.
 		String filepath = file.getAbsolutePath();
 		String className = filepath.substring(absoluteBase.length(), filepath.length() - 6).replace(System.getProperty("file.separator"), ".");
-		if (defLoader == null) {
-			URL[] loaderDir = { new URL("file://" + absoluteBase) };
-			defLoader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
-		}
+		
+		URL[] loaderDir = { new URL("file://" + absoluteBase) };
+		ClassLoader loader = new URLClassLoader(loaderDir, Thread.currentThread().getContextClassLoader());
+
 		try {
-			Class<?> classRep = defLoader.loadClass(className);
+			Class<?> classRep = loader.loadClass(className);
 			handleClassInPlaidPath(classRep, className, plaidpath);
 		}
 		catch (NoClassDefFoundError e) {
@@ -187,7 +184,7 @@ public class CompilerCore {
 			directoryWorklist.push(baseDir);
 			String absoluteBase = baseDir.getAbsolutePath() + System.getProperty("file.separator");
 			File currentDirectory;
-			URLClassLoader defLoader = null;
+
 			while(!directoryWorklist.isEmpty()) {
 				currentDirectory = directoryWorklist.pop();
 				File[] listOfFiles = currentDirectory.listFiles();
@@ -198,7 +195,7 @@ public class CompilerCore {
 				
 				for (File file : listOfFiles) {
 					if (file.isFile())
-						handleFileInPlaidPath(file, absoluteBase, plaidpath, defLoader);
+						handleFileInPlaidPath(file, absoluteBase, plaidpath);
 					else if (file.isDirectory())
 						directoryWorklist.add(file);
 				}
@@ -206,156 +203,147 @@ public class CompilerCore {
 		}		
 	}
 	
-	private void generateCode(List<CompilationUnit> cus, PackageRep plaidpath) {
-		try {
-			if (cc.isVerbose())
-				System.out.println("Generating code.");
-			
-			List<File> allFiles = new ArrayList<File>();
-			for (CompilationUnit cu : cus) {
-				try {
-					if (cc.isVerbose())
-						System.out.println("Generating code for:\n" + cu);
-					List<File> fileList = cu.codegen(cc, plaidpath);
-					
-					if ( cc.isVerbose() ) {
-						for(File f : fileList) {
-							FileReader fr = new FileReader(f);
-							int charRead;
-							while((charRead = fr.read()) != -1) {
-								System.out.print((char)charRead);
-							}
+	private void generateCode(List<CompilationUnit> cus, PackageRep plaidpath) throws Exception {
+		if (cc.isVerbose())
+			System.out.println("Generating code.");
+
+		List<File> allFiles = new ArrayList<File>();
+		for (CompilationUnit cu : cus) {
+			try {
+				if (cc.isVerbose())
+					System.out.println("Generating code for:\n" + cu);
+				List<File> fileList = cu.codegen(cc, plaidpath);
+
+				if ( cc.isVerbose() ) {
+					for(File f : fileList) {
+						FileReader fr = new FileReader(f);
+						int charRead;
+						while((charRead = fr.read()) != -1) {
+							System.out.print((char)charRead);
 						}
 					}
-					allFiles.addAll(fileList);
-				} catch (PlaidException p) {
-					System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
-					System.err.println("");
-					printExceptionInformation(p);
 				}
+				allFiles.addAll(fileList);
+			} catch (PlaidException p) {
+				System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
+				System.err.println("");
+				printExceptionInformation(p);
 			}
-			
-			if ( !cc.isKeepTemporaryFiles() ) {
-				for( File f : allFiles ) {
-					f.deleteOnExit();
-				}
-			}
-			
-			if ( cc.isInvokeCompiler() ) {
-				JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-				StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
-				Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
+		}
 
-				// invoke the compiler
-				CompilationTask task = compiler.getTask(null, null, null, null, null, fileObjects);
-				Boolean resultCode = task.call();
-				if (cc.isVerbose()) System.out.println("result = " + resultCode.toString());
+		if ( !cc.isKeepTemporaryFiles() ) {
+			for( File f : allFiles ) {
+				f.deleteOnExit();
 			}
-		} catch (Exception e) {
-			printExceptionInformation(e);
+		}
+
+		if ( cc.isInvokeCompiler() ) {
+			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+			StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
+			Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
+
+			// invoke the compiler
+			CompilationTask task = compiler.getTask(null, null, null, null, null, fileObjects);
+			Boolean resultCode = task.call();
+			if (cc.isVerbose()) System.out.println("result = " + resultCode.toString());
 		}
 	}
 	
-	public List<CompilationUnit> compile() throws FileNotFoundException {
-		try {
-			if (cc.getInputFiles().size() > 0 && !cc.getInputDir().isEmpty())
-				throw new RuntimeException("Cannot compile a directory and input files"); //TODO: throw PlaidCompilerException
-			
-			if (!cc.getInputDir().isEmpty())
-				convertInputDirToInputFiles(new File(cc.getInputDir()));
-			
+	public List<CompilationUnit> compile() throws Exception {
+		if (cc.getInputFiles().size() > 0 && !cc.getInputDir().isEmpty())
+			throw new RuntimeException("Cannot compile a directory and input files"); //TODO: throw PlaidCompilerException
+
+		if (!cc.getInputDir().isEmpty())
+			convertInputDirToInputFiles(new File(cc.getInputDir()));
+
+		if (cc.isVerbose())
+			System.out.println("Compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir() + ".");
+
+		// open the file(s)
+		List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
+		for (File f : cc.getInputFiles()) {
 			if (cc.isVerbose())
-				System.out.println("Compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir() + ".");
-			
-			// open the file(s)
-			List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
-			for (File f : cc.getInputFiles()) {
-				if (cc.isVerbose())
-					System.out.println("Parsing '" + f.getName() + "'.");
-				
-				CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
-				cu.setSourceFile(f);
-				cus.add(cu);
-				fileSystemChecks(cu, f.toString());
-			}
-			
-			//Build up a representation of plaidpath
-			PackageRep plaidpath = new PackageRep("$TOPLEVEL$");
-			Stack<File> directoryWorklist = new Stack<File>();
-			for (String base : cc.getPlaidpath())
-				handlePlaidPathEntry(base, plaidpath, directoryWorklist);
-			
-			//we want to remove the stuff we're trying to compile so that we don't make assumptions based on
-			//the previous form of the source files
-			//but also want a complete picture for resolving imports and thence QIs
-			for (CompilationUnit c : cus) {
-				String cPackage = c.getPackageString();
-				for (Decl d : c.getDecls()) {
-					String memberName = d.getName();
-					if (plaidpath.memberExists(cPackage, memberName)) {  //indicate that this is outdated and will be updated soon
-						plaidpath.lookupMember(cPackage, memberName).startRecompilation(); 
-					} else { //add shell for use in import resolution
-						MemberRep newMem = null;
-						if (d instanceof FieldDecl) newMem = new FieldRep(memberName);
-						else if (d instanceof MethodDecl) newMem = new MethodRep(memberName);
-						else if (d instanceof StateDecl) newMem = new StateRep(memberName);
-						else throw new RuntimeException("New type of MemberRep not accounted for");
-						
-						//will be replaced later
-						newMem.startRecompilation();
-						plaidpath.addMember(cPackage, newMem);
-					}
-					
-				}	
-			}
-			
-			Queue<StateRep> dependants = new LinkedList<StateRep>();
-			for (CompilationUnit c : cus) {
-				String cPackage = c.getPackageString();
-				
-				//expand imports
-				List<String> declaredMembers = new ArrayList<String>(); //right now declared members are just those in the file, not the whole package
-				for (Decl d : c.getDecls()) declaredMembers.add(d.getName());
-				c.getImports().checkAndExpandImports(plaidpath, declaredMembers, cPackage);
-				
-				//fill out plaidpath with declared members (shell info only)
-				for (Decl d : c.getDecls()) {
-					MemberRep rep = d.generateHeader(plaidpath, c.getImports(), cPackage);
-					if (rep instanceof StateRep && ((StateRep) rep).hasNeeds()) {
-						dependants.add((StateRep) rep);  //keep track of ones we need to return to
-					}
-					plaidpath.addMember(cPackage, rep);
-				}
-			}
-			
-			while (!dependants.isEmpty()) {
-				StateRep s = dependants.remove();
-				List<String> newNeeds = new ArrayList<String>();
-				for (String path : s.getNeeds()) {
-					if (plaidpath.memberExists(path)) {
-						MemberRep r = plaidpath.lookupMember(path);
-						if (r instanceof StateRep) {
-							StateRep depState = (StateRep) r;
-							s.addMembers(depState.getMembers()); //TODO : make sure this still works after changing to list of MemberReps
-							newNeeds.addAll(depState.getNeeds());
-						} else throw new RuntimeException("Something went wrong with dependencies.");
-					} else {
-						throw new RuntimeException("Required Dependency " + path + " not found.");
-					}
-				}
-				s.setNeeds(newNeeds);  //replace old needs with the new needs
-				if (s.hasNeeds()) dependants.add(s);
-			}
-			
-			// create the output files
-			generateCode(cus, plaidpath);
-			
-			return cus;
-		} catch (Exception e) {
-			printExceptionInformation(e);
-			return null;
+				System.out.println("Parsing '" + f.getName() + "'.");
+
+			CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
+			cu.setSourceFile(f);
+			cus.add(cu);
+			fileSystemChecks(cu, f.toString());
 		}
-    }
+
+		//Build up a representation of plaidpath
+		PackageRep plaidpath = new PackageRep("$TOPLEVEL$");
+		Stack<File> directoryWorklist = new Stack<File>();
+		for (String base : cc.getPlaidpath())
+			handlePlaidPathEntry(base, plaidpath, directoryWorklist);
+
+		//we want to remove the stuff we're trying to compile so that we don't make assumptions based on
+		//the previous form of the source files
+		//but also want a complete picture for resolving imports and thence QIs
+		for (CompilationUnit c : cus) {
+			String cPackage = c.getPackageString();
+			for (Decl d : c.getDecls()) {
+				String memberName = d.getName();
+				if (plaidpath.memberExists(cPackage, memberName)) {  //indicate that this is outdated and will be updated soon
+					plaidpath.lookupMember(cPackage, memberName).startRecompilation(); 
+				} else { //add shell for use in import resolution
+					MemberRep newMem = null;
+					if (d instanceof FieldDecl) newMem = new FieldRep(memberName);
+					else if (d instanceof MethodDecl) newMem = new MethodRep(memberName);
+					else if (d instanceof StateDecl) newMem = new StateRep(memberName);
+					else throw new RuntimeException("New type of MemberRep not accounted for");
+
+					//will be replaced later
+					newMem.startRecompilation();
+					plaidpath.addMember(cPackage, newMem);
+				}
+
+			}	
+		}
+
+		Queue<StateRep> dependants = new LinkedList<StateRep>();
+		for (CompilationUnit c : cus) {
+			String cPackage = c.getPackageString();
+
+			//expand imports
+			List<String> declaredMembers = new ArrayList<String>(); //right now declared members are just those in the file, not the whole package
+			for (Decl d : c.getDecls()) declaredMembers.add(d.getName());
+			c.getImports().checkAndExpandImports(plaidpath, declaredMembers, cPackage);
+
+			//fill out plaidpath with declared members (shell info only)
+			for (Decl d : c.getDecls()) {
+				MemberRep rep = d.generateHeader(plaidpath, c.getImports(), cPackage);
+				if (rep instanceof StateRep && ((StateRep) rep).hasNeeds()) {
+					dependants.add((StateRep) rep);  //keep track of ones we need to return to
+				}
+				plaidpath.addMember(cPackage, rep);
+			}
+		}
+
+		while (!dependants.isEmpty()) {
+			StateRep s = dependants.remove();
+			List<String> newNeeds = new ArrayList<String>();
+			for (String path : s.getNeeds()) {
+				if (plaidpath.memberExists(path)) {
+					MemberRep r = plaidpath.lookupMember(path);
+					if (r instanceof StateRep) {
+						StateRep depState = (StateRep) r;
+						s.addMembers(depState.getMembers()); //TODO : make sure this still works after changing to list of MemberReps
+						newNeeds.addAll(depState.getNeeds());
+					} else throw new RuntimeException("Something went wrong with dependencies.");
+				} else {
+					throw new RuntimeException("Required Dependency " + path + " not found.");
+				}
+			}
+			s.setNeeds(newNeeds);  //replace old needs with the new needs
+			if (s.hasNeeds()) dependants.add(s);
+		}
+
+		// create the output files
+		generateCode(cus, plaidpath);
+
+		return cus;
+	}
 
 	/**
 	 * Adds plaid files in this directory and its sub-directories to the compiler
@@ -519,8 +507,11 @@ public class CompilerCore {
 		CompilerCore c = new CompilerCore(cc);
 		try {
 			c.compile();
-		} catch (FileNotFoundException e) {
+		} catch (Exception e) {
 			printExceptionInformation(cc, e);
+			System.exit(1);
 		}
+		
+		System.exit(0);
 	}
 }
