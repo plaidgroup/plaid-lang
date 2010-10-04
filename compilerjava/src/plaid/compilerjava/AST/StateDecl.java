@@ -134,7 +134,7 @@ public class StateDecl implements Decl {
 					if (plaidpath.memberExists(qid))
 						toRet.addNeed(qid);
 					else
-						throw new RuntimeException("Cannot resolve name " + qid + ".");
+						throw new RuntimeException("Cannot resolve name '" + qid + "'.");
 				} else { //lookup first in package, then using imports
 					String need = checkPath(qid, plaidpath, imports, inPackage);
 					if (need != null) toRet.addNeed(need);
@@ -175,11 +175,11 @@ public class StateDecl implements Decl {
 					if (plaidpath.memberExists(potentialNeed)) {
 						return potentialNeed;
 					} else
-						throw new RuntimeException("Name " + qid + "not found in the plaidpath.");
+						throw new RuntimeException("Name '" + qid + "' not found in the plaidpath.");
 				}
 			}
 		}
-		throw new RuntimeException("Name " + qid + " not declared or imported");
+		throw new RuntimeException("Name '" + qid + "' not declared or imported");
 	}
 	
 	@Override
@@ -199,14 +199,14 @@ public class StateDecl implements Decl {
 		if (plaidpath.memberExists(thePackage, name.getName())) {
 			MemberRep stateRep = plaidpath.lookupMember(thePackage, name.getName());
 			if (!(stateRep instanceof StateRep)) {
-				throw new RuntimeException(thePackage + "." + name.getName() + " is not a state.");
+				throw new RuntimeException("'" + thePackage + "." + name.getName() + "' is not a state.");
 			}
 			repString = MemberRep.escapeJSONString(stateRep.toJSONString());
 			for (MemberRep member : ((StateRep)stateRep).getMembers()) {
 				stateVars.add(new ID(member.getName()));
 			}
 		} else {
-			throw new RuntimeException("Cannot find state " + thePackage + "." + name.getName());
+			throw new RuntimeException("Cannot find state '" + thePackage + "." + name.getName() + "'");
 		}
 //		Set<ID> stateVars = new StateDeclHelper().genStateVars(qid, imports.getImports(), stateDef, caseOf);
 //		
