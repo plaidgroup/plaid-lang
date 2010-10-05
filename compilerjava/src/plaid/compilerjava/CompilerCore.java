@@ -184,7 +184,7 @@ public class CompilerCore {
 			directoryWorklist.push(baseDir);
 			String absoluteBase = baseDir.getAbsolutePath() + System.getProperty("file.separator");
 			File currentDirectory;
-
+			
 			while(!directoryWorklist.isEmpty()) {
 				currentDirectory = directoryWorklist.pop();
 				File[] listOfFiles = currentDirectory.listFiles();
@@ -242,10 +242,18 @@ public class CompilerCore {
 			StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
 			Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
 
-			// invoke the compiler
-			CompilationTask task = compiler.getTask(null, null, null, null, null, fileObjects);
+			List<String> optionList = new ArrayList<String>();
+			// Set compiler's classpath to be same as the runtime's
+			optionList.addAll(Arrays.asList("-classpath", System.getProperty("java.class.path")));
+			// TODO: Add a separate compiler flag for this.
+			optionList.addAll(Arrays.asList("-d", cc.getOutputDir() + "/../bin"));
+//			optionList.add("-verbose");
+			
+			// Invoke the compiler
+			CompilationTask task = compiler.getTask(null, null, null, optionList, null, fileObjects);
 			Boolean resultCode = task.call();
-			if (cc.isVerbose()) System.out.println("result = " + resultCode.toString());
+			if (!resultCode.booleanValue())
+				throw new RuntimeException("Error while compiling generated Java files.");
 		}
 	}
 	
