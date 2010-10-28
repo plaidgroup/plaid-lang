@@ -46,11 +46,13 @@ state Fibonacci case of TestCase {
 	
 	
 	// $elseLambda:
+	//   Split (n : immutable Integer => n : immutable Integer / n : immutable Integer) in
 	//   Let u0 = invoke(n, -, 1) in
 	//   Let u1 = apply(fibonacci, u0) in
 	//   Let u2 = invoke(n, -, 2) in
 	//   Let u3 = apply(fibonacci, u2) in
-	//       invoke(u1, +, u3)
+	//   Join (n : immutable Integer / n : immutable Integer => n : immutable Integer) in
+	//            invoke(u1, +, u3)
 	
 	method makeElseLambda() {
 		val invoke2 = new MethodInvocation {
@@ -58,6 +60,13 @@ state Fibonacci case of TestCase {
 			val obj = makeID("u1");
 			val function = makeID("+");
 			val arg = makeID("u3");
+		};
+		
+		val join0 = new Join {
+			val in1 = makeIDWithType("n", getImmutableIntegerPermType());
+			val in2 = makeIDWithType("n", getImmutableIntegerPermType());
+			val out = makeIDWithType("n", getImmutableIntegerPermType());
+			val body = invoke2;
 		};
 		
 		val let3 = new UnannotatedLetBinding {
@@ -68,7 +77,7 @@ state Fibonacci case of TestCase {
 				val f = makeID("fibonacci");
 				val arg = makeID("u2");
 			};
-			val body = invoke2;
+			val body = join0;
 			val mutable = false;
 		};
 		
@@ -116,6 +125,13 @@ state Fibonacci case of TestCase {
 			val mutable = false;
 		};
 		
+		val split0 = new Split {
+			val in = makeIDWithType("n", getImmutableIntegerPermType());
+			val out1 = makeIDWithType("n", getImmutableIntegerPermType());
+			val out2 = makeIDWithType("n", getImmutableIntegerPermType());
+			val body = let0;
+		};
+		
 		val argTypes = new List { var head = new Nil; };
 		val argNames = new List { var head = new Nil; };
 		
@@ -130,7 +146,7 @@ state Fibonacci case of TestCase {
 		val elseLambda = new Lambda {
 			val token = new None;
 			val x = makeID("unusedElseLambdaArgument");
-			val body = let0;
+			val body = split0;
 			val methodType = elseMethodType;
 		};
 		
@@ -147,14 +163,49 @@ state Fibonacci case of TestCase {
 	//       apply(t4, t5)
 	// }
 	
+	method makeLambdaType(argType, retType) {
+		val sideEffects = new List { var head = new Nil; };
+		
+		new LambdaType {
+			val returnType = retType;
+			val argType = argType;
+			val sideEffects = sideEffects;
+		};
+	}
+	
+	method makePermTypeChange(variable, from, to) {
+		new PermTypeChange {
+			val variable = variable;
+			val from = from;
+			val to = to;
+		};
+	}
+	
+	method makeLambdaTypeWithSideEffects(argType, retType, variable, inPermType, outPermType) {
+		val sideEffects = new List { var head = new Nil; };
+		sideEffects.add(makePermTypeChange(makeID(variable), inPermType, outPermType));
+		
+		new LambdaType {
+			val returnType = retType;
+			val argType = argType;
+			val sideEffects = sideEffects;
+		};
+	}
+	
 	method makeFibonacci() {
+		// The return type is actually a highly complex generic lambda type...  but for now we ignore it.
+		val ifElseLambdaType = makeLambdaType(getImmutableBooleanPermType(), new Void);
+		val t2LambdaType = makeLambdaType(makeLambdaType(new Void, getImmutableIntegerPermType()), new Void); 
+		val t4LambdaType = makeLambdaTypeWithSideEffects(makeLambdaType(new Void, getImmutableIntegerPermType()),
+		    getImmutableIntegerPermType(), "n", getImmutableIntegerPermType(), getImmutableIntegerPermType());
+		
 		val let5 = new UnannotatedLetBinding {
 			val token = new None;
 			val x = makeID("t5");
 			val exp = makeElseLambda();
 			val body = new Application {
 				val token = new None;
-				val f = makeID("t4");
+				val f = makeIDWithType("t4", t4LambdaType);
 				val arg = makeID("t5");
 			};
 			val mutable = false;
@@ -165,7 +216,7 @@ state Fibonacci case of TestCase {
 			val x = makeID("t4");
 			val exp = new Application {
 				val token = new None;
-				val f = makeID("t2");
+				val f = makeIDWithType("t2", t2LambdaType);
 				val arg = makeID("t3");
 			};
 			val body = let5;
@@ -185,7 +236,7 @@ state Fibonacci case of TestCase {
 			val x = makeID("t2");
 			val exp = new Application {
 				val token = new None;
-				val f = makeID("t0");
+				val f = makeIDWithType("t0", ifElseLambdaType);
 				val arg = makeID("t1");
 			};
 			val body = let3;
