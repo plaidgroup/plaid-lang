@@ -105,6 +105,14 @@ public class QI implements State {
 		return token != null;
 	}
 
+	public boolean hasInit() {
+		return this.hasInit;
+	}
+
+	public DeclList getInitState() {
+		return initState;
+	}
+
 	@Override
 	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
 
