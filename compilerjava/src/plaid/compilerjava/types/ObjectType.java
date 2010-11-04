@@ -1,10 +1,12 @@
-package plaid.compilerjava.AST;
+package plaid.compilerjava.types;
 
 import java.util.*;
 
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 
+import plaid.compilerjava.AST.ASTnode;
+import plaid.compilerjava.AST.ID;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 
@@ -14,37 +16,49 @@ import plaid.compilerjava.tools.ASTVisitor;
  * using the "with" keyword, we currently union the sets of type abbreviations 
  * and type declarations together.  Not sure if this is the correct way to do it.
  * 
+ * KBN 2010-11-4 added nominal component instead of type abbreviations
+ * quick hack until we come back to structural types...
+ * 
  * @author mhahnenberg
  *
  */
-public class Type implements ASTnode, JSONAware {
-	public static final Type DYN = new Type(new ID("dyn"));
-	public static final Type UNIT = new Type(new ID("unit"));
+public class ObjectType implements Type, /*ASTnode,*/ JSONAware {
+	public static final ObjectType DYN = new ObjectType(new ID("dyn"));
+	public static final ObjectType UNIT = new ObjectType(new ID("unit"));
 	// This is a marker to indicate that the type of the receiver should remain unchanged
-	public static final Type RECEIVER = new Type(new ID("receiver"));
+	//public static final ObjectType RECEIVER = new ObjectType(new ID("receiver"));
 	
 	/**
 	 * Set of type abbreviations contained in this type.
 	 */
 	private final Set<ID> typeAbbrevs;
 	private final Set<TypeDecl> typeDecls;
+	private final ID nominalType;
+	private final boolean isNominal;
 	
-	public Type() {
+	public ObjectType() {
 		this.typeAbbrevs = new HashSet<ID>();
 		this.typeDecls = new HashSet<TypeDecl>();
+		this.nominalType = null;
+		this.isNominal = false;
 	}
 	
-	public Type(ID typeAbbrev) {
-		this();
-		this.typeAbbrevs.add(typeAbbrev);
+	public ObjectType(ID typeAbbrev) {
+		//this();
+		this.typeAbbrevs = null;
+		this.typeDecls = null;
+		this.nominalType = typeAbbrev;
+		this.isNominal = true;
+		
+		
 	}
 	
-	public Type(Collection<TypeDecl> typeDecls) {
+	public ObjectType(Collection<TypeDecl> typeDecls) {
 		this();
 		this.typeDecls.addAll(typeDecls);
 	}
 	
-	private Type(Type t1, Type t2) {
+	private ObjectType(ObjectType t1, ObjectType t2) {
 		this();
 		this.typeAbbrevs.addAll(t1.getTypeAbbrevs());
 		this.typeAbbrevs.addAll(t2.getTypeAbbrevs());
@@ -60,39 +74,41 @@ public class Type implements ASTnode, JSONAware {
 		return Collections.unmodifiableSet(typeDecls);
 	}
 
-	public Type compose(Type other) {
+	public ObjectType compose(ObjectType other) {
 		if (other == null)
 			return this;
-		return new Type(this, other);
+		return new ObjectType(this, other);
 	}
 
-	@Override
-	public <T> T accept(ASTVisitor<T> visitor) {
-		return visitor.visitNode(this);
-	}
-
-	@Override
-	public Token getToken() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return false;
-	}
-
-	@Override
-	public <T> void visitChildren(ASTVisitor<T> visitor) {
-		for (ID id : this.typeAbbrevs) {
-			id.accept(visitor);
-		}
-		for (TypeDecl td : this.typeDecls) {
-			td.accept(visitor);
-		}
-	}
+//	@Override
+//	public <T> T accept(ASTVisitor<T> visitor) {
+//		return visitor.visitNode(this);
+//	}
+//
+//	@Override
+//	public Token getToken() {
+//		// TODO Auto-generated method stub
+//		return null;
+//	}
+//	
+//	@Override
+//	public boolean hasToken() {
+//		return false;
+//	}
+//
+//	@Override
+//	public <T> void visitChildren(ASTVisitor<T> visitor) {
+//		for (ID id : this.typeAbbrevs) {
+//			id.accept(visitor);
+//		}
+//		for (TypeDecl td : this.typeDecls) {
+//			td.accept(visitor);
+//		}
+//	}
 	
 	public String toString() {
+		if (isNominal) return "N(" + nominalType.getName() + ")";
+		
 		StringBuilder sb = new StringBuilder("Structural Type: {");
 		if (this.typeAbbrevs.size() > 0) {
 			sb.append("Type abbrevs: " + this.typeAbbrevs.toString());
@@ -105,6 +121,7 @@ public class Type implements ASTnode, JSONAware {
 		}
 		sb.append("}");
 		return sb.toString();
+	
 	}
 
 	@Override

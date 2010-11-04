@@ -1,16 +1,18 @@
-package plaid.compilerjava.AST;
+package plaid.compilerjava.types;
 
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 
+import plaid.compilerjava.AST.ASTnode;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 
-public class PermType implements ASTnode, JSONAware {
+public class PermType implements /*ASTnode,*/ JSONAware {
 	public static final PermType UNIT = new PermType(Permission.IMMUTABLE, Type.UNIT);
 	public static final PermType DYN = new PermType(Permission.DYN, Type.DYN);
+	public static final PermType VOID = new PermType(Permission.NONE, Type.UNIT);  //VOID = none unit
 	// This is a marker to indicate that the permission and type of the receiver should remain unchanged
-	public static final PermType RECEIVER = new PermType(Permission.RECEIVER, Type.RECEIVER);
+	//public static final PermType RECEIVER = new PermType(Permission.RECEIVER, Type.RECEIVER);
 	
 	private final Permission perm;
 	private final Type type;
@@ -23,31 +25,31 @@ public class PermType implements ASTnode, JSONAware {
 		this.type = type;
 	}
 
-	@Override
-	public <T> T accept(ASTVisitor<T> visitor) {
-		return visitor.visitNode(this);
-	}
-
-	@Override
-	public <T> void visitChildren(ASTVisitor<T> visitor) {
-		this.perm.accept(visitor);
-		this.type.accept(visitor);
-	}
-	
-	public String toString() {
-		System.out.println(this.perm.toString());
-		return this.perm.toString() + " " + this.type.toString();
-	}
-
-	@Override
-	public Token getToken() {
-		return null;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return false;
-	}
+//	@Override
+//	public <T> T accept(ASTVisitor<T> visitor) {
+//		return visitor.visitNode(this);
+//	}
+//
+//	@Override
+//	public <T> void visitChildren(ASTVisitor<T> visitor) {
+//		this.perm.accept(visitor);
+//		this.type.accept(visitor);
+//	}
+//	
+//	public String toString() {
+//		//System.out.println(this.perm.toString());
+//		return this.perm.toString() + " " + this.type.toString();
+//	}
+//
+//	@Override
+//	public Token getToken() {
+//		return null;
+//	}
+//	
+//	@Override
+//	public boolean hasToken() {
+//		return false;
+//	}
 
 	public Permission getPermission() {
 		return this.perm;
