@@ -27,6 +27,8 @@ import java.util.Set;
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
+import plaid.compilerjava.types.MethodType;
+import plaid.compilerjava.types.PermType;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
 import plaid.compilerjava.util.IDList;
@@ -44,10 +46,10 @@ public final class MethodDecl implements Decl {
 	private final Expression body;
 	private final ID arg;
 	private final boolean abstractMethod;
-	private final MethodTypeDecl methodType;
+	private final MethodType methodType;
 	private final boolean overrides;
 	
-	public MethodDecl(Token token, String name, Expression body, ID arg, boolean abstractMethod, MethodTypeDecl methodType, boolean overrides) {
+	public MethodDecl(Token token, String name, Expression body, ID arg, boolean abstractMethod, MethodType methodType, boolean overrides) {
 		this.token = token;
 		if (Util.isKeyword(name))
 			this.name = name + PlaidConstants.ID_SUFFIX;
@@ -72,7 +74,7 @@ public final class MethodDecl implements Decl {
 		return abstractMethod;
 	}
 	
-	public MethodTypeDecl getMethodType() {
+	public MethodType getMethodType() {
 		return this.methodType;
 	}
 	
@@ -118,7 +120,7 @@ public final class MethodDecl implements Decl {
 		imports.codegen(out, freshImports);
 		out.declareGlobalScope(qid.toString(),freshImports.getName());
 		
-		if (newName.equals("main") && this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1) {
+		if (newName.equals("main") && this.methodType.getArgTypes().get(0).getInput() == PermType.UNIT && this.methodType.getArgTypes().size() == 1) {
 			out.topLevelMain(newName + "_func");
 		} else {
 			localVars = localVars.add(arg);
@@ -192,7 +194,7 @@ public final class MethodDecl implements Decl {
 	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		this.body.accept(visitor);
 		this.arg.accept(visitor);
-		this.methodType.accept(visitor);
+		//this.methodType.accept(visitor);  //TODO : visit types not as separate AST nodes
 	}
 	
 	@Override

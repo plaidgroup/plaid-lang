@@ -1,6 +1,12 @@
 package plaid.compilerjava.tools;
 
 import plaid.compilerjava.AST.*;
+import plaid.compilerjava.types.FieldType;
+import plaid.compilerjava.types.MethodType;
+import plaid.compilerjava.types.PermType;
+import plaid.compilerjava.types.Permission;
+import plaid.compilerjava.types.ObjectType;
+import plaid.compilerjava.types.TypeDecl;
 
 /**
  * ASTVisitor consists of 3 main functions:
@@ -31,7 +37,7 @@ public interface ASTVisitor<T> {
 	public T visitNode(Dereference node);
 	public T visitNode(Expression node);
 	public T visitNode(FieldDecl node);
-	public T visitNode(FieldTypeDecl node);
+	//public T visitNode(FieldType node);
 	public T visitNode(ID node);
 	public T visitNode(ImportList node);
 	public T visitNode(IntLiteral node);
@@ -39,16 +45,16 @@ public interface ASTVisitor<T> {
 	public T visitNode(LetBinding node);
 	public T visitNode(Match node);
 	public T visitNode(MethodDecl node);
-	public T visitNode(MethodTypeDecl node);
+	//public T visitNode(MethodType node);
 	public T visitNode(NewInstance node);
-	public T visitNode(Permission node);
-	public T visitNode(PermType node);
+	//public T visitNode(Permission node);
+	//public T visitNode(PermType node);
 	public T visitNode(QI node);
 	public T visitNode(State node);
 	public T visitNode(StateDecl node);
 	public T visitNode(StringLiteral node);
-	public T visitNode(Type node);
-	public T visitNode(TypeDecl node);
+	//public T visitNode(ObjectType node);
+	//public T visitNode(TypeDecl node);
 	public T visitNode(UnitLiteral node);
 	public T visitNode(With node);
 }

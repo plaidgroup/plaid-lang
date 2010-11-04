@@ -6,17 +6,17 @@ import java.util.Map;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
-import plaid.compilerjava.AST.MethodTypeDecl;
+import plaid.compilerjava.types.MethodType;
 
 // TODO: merge this with MethodTypeDecl?
 public class MethodRep extends MemberRep {
-	private final MethodTypeDecl type;
+	private final MethodType type;
 	
 	public MethodRep(String name) {
 		this(name, null);
 	}
 	
-	public MethodRep(String name, MethodTypeDecl type) {
+	public MethodRep(String name, MethodType type) {
 		super(name);
 		this.type = type;
 	}
@@ -50,7 +50,7 @@ public class MethodRep extends MemberRep {
 		return JSONValue.toJSONString(obj);
 	}
 	
-	public MethodTypeDecl getType() {
+	public MethodType getType() {
 		return this.type;
 	}
 
