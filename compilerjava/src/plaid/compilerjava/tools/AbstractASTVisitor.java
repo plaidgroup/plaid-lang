@@ -1,6 +1,12 @@
 package plaid.compilerjava.tools;
 
 import plaid.compilerjava.AST.*;
+import plaid.compilerjava.types.FieldType;
+import plaid.compilerjava.types.MethodType;
+import plaid.compilerjava.types.PermType;
+import plaid.compilerjava.types.Permission;
+import plaid.compilerjava.types.ObjectType;
+import plaid.compilerjava.types.TypeDecl;
 
 /**
  * AbstractASTVisitor is an abstract implementation of ASTVisitor that simply 
@@ -81,10 +87,10 @@ public abstract class AbstractASTVisitor implements ASTVisitor<ASTnode> {
 		return visitHelper(node);
 	}
 	
-	@Override
-	public ASTnode visitNode(FieldTypeDecl node) {
-		return visitHelper(node);
-	}
+//	@Override
+//	public ASTnode visitNode(FieldType node) {
+//		return visitHelper(node);
+//	}
 	
 	@Override
 	public ASTnode visitNode(ID node) {
@@ -121,25 +127,25 @@ public abstract class AbstractASTVisitor implements ASTVisitor<ASTnode> {
 		return visitHelper(node);
 	}
 	
-	@Override
-	public ASTnode visitNode(MethodTypeDecl node) {
-		return visitHelper(node);
-	}
+//	@Override
+//	public ASTnode visitNode(MethodType node) {
+//		return visitHelper(node);
+//	}
 	
 	@Override
 	public ASTnode visitNode(NewInstance node) {
 		return visitHelper(node);
 	}
 	
-	@Override
-	public ASTnode visitNode(Permission node) {
-		return visitHelper(node);
-	}
+//	@Override
+//	public ASTnode visitNode(Permission node) {
+//		return visitHelper(node);
+//	}
 	
-	@Override
-	public ASTnode visitNode(PermType node) {
-		return visitHelper(node);
-	}
+//	@Override
+//	public ASTnode visitNode(PermType node) {
+//		return visitHelper(node);
+//	}
 	
 	@Override
 	public ASTnode visitNode(QI node) {
@@ -161,15 +167,16 @@ public abstract class AbstractASTVisitor implements ASTVisitor<ASTnode> {
 		return visitHelper(node);
 	}
 	
-	@Override
-	public ASTnode visitNode(Type node) {
-		return visitHelper(node);
-	}
-	
-	@Override
-	public ASTnode visitNode(TypeDecl node) {
-		return visitHelper(node);
-	}
+//	@Override
+//	public ASTnode visitNode(ObjectType node) {
+//		return visitHelper(node);
+//		
+//	}
+//	
+//	@Override
+//	public ASTnode visitNode(TypeDecl node) {
+//		return visitHelper(node);
+//	}
 	
 	@Override
 	public ASTnode visitNode(UnitLiteral node) {

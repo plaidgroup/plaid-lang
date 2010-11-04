@@ -23,6 +23,7 @@ import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
+import plaid.compilerjava.types.PermType;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 

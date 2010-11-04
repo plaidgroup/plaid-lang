@@ -28,6 +28,7 @@ import java.util.Stack;
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
+import plaid.compilerjava.types.Permission;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FieldRep;
 import plaid.compilerjava.util.FileGen;

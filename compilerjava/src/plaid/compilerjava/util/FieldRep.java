@@ -6,17 +6,17 @@ import java.util.Map;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
-import plaid.compilerjava.AST.FieldTypeDecl;
+import plaid.compilerjava.types.FieldType;
 
 //TODO: merge this with FieldTypeDecl?
 public class FieldRep extends MemberRep {
-	private final FieldTypeDecl type;
+	private final FieldType type;
 	
 	public FieldRep(String name) {
 		this(name, null);
 	}
 	
-	public FieldRep(String name, FieldTypeDecl type) {
+	public FieldRep(String name, FieldType type) {
 		super(name);
 		this.type = type;
 	}
@@ -49,7 +49,7 @@ public class FieldRep extends MemberRep {
 		return JSONValue.toJSONString(obj);
 	}
 	
-	public FieldTypeDecl getType() {
+	public FieldType getType() {
 		return this.type;
 	}
 

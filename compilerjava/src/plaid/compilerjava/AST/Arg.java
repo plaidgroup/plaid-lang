@@ -1,5 +1,7 @@
 package plaid.compilerjava.AST;
 
+import plaid.compilerjava.types.PermType;
+
 /**
  * This is just a convenience class for moving type/arg pairs around
  * in the parser.

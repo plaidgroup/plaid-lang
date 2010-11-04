@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import plaid.compilerjava.ParserCore;
 import plaid.compilerjava.AST.*;
 import plaid.compilerjava.coreparser.ParseException;
+import plaid.compilerjava.types.FieldType;
 import plaid.runtime.PlaidException;
 
 public class ASTPrintVisitor extends AbstractASTVisitor {
