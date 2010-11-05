@@ -44,6 +44,7 @@ public interface ASTVisitor<T> {
 	public T visitNode(Lambda node);
 	public T visitNode(LetBinding node);
 	public T visitNode(Match node);
+	public T visitNode(MethodCall node);
 	public T visitNode(MethodDecl node);
 	//public T visitNode(MethodType node);
 	public T visitNode(NewInstance node);

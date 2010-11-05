@@ -26,4 +26,10 @@ public class ChangeType {
 	public boolean borrows() {
 		return borrow;
 	}
+	
+	@Override 
+	public String toString() {
+		return input.toString() + " >> " + output.toString();
+		
+	}
 }

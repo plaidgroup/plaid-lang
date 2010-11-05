@@ -81,7 +81,7 @@ public class MethodType implements TypeDecl {
 		for (ChangeType argType : this.argTypes) {
 			sb.append(argType.toString() + ", "); //TODO : remove trailing comma
 		}
-		sb.append("[" + receiverType.toString());
+		sb.append(")[" + receiverType.toString());
 		for (ID eVar : environmentTypes.keySet()) {
 			sb.append(", " + environmentTypes.get(eVar).toString() + " " + eVar.getName());
 		}

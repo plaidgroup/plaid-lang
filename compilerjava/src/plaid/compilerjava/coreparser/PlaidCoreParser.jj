@@ -1277,6 +1277,7 @@ Expression SimpleExp() :
 		State s;
 		List < Token > dotName;
 		List < Expression > curriedArgs = new ArrayList < Expression > ();
+		List<Expression> methodArgs = new ArrayList<Expression>();
 }
 {
 		e = BlockExpression(true)
@@ -1307,22 +1308,37 @@ Expression SimpleExp() :
 			curriedArgs = new ArrayList < Expression > ();		  
 		}
 		(
-		  	(dotToken = <DOT> | dotToken = <BANG>) (t = < ID > | t = < NEW >)
-			{
-			  	if (dotToken.image.equals(".")) {					e = new Dereference(t, e, new ID(t.image));
-			  	}
-			  	else {
-			  	  	e = new DestructiveDereference(t, e, new ID(t.image));			  	}
+		    (dotToken = <DOT> | dotToken = <BANG> ) (t = <ID> | t = <NEW> )
+		    {
+		    	if (dotToken.image.equals(".")) {
+		    		e = new Dereference(t, e, new ID(t,t.image));
+		    	} else {
+		    		e = new DestructiveDereference(t, e, new ID(t,t.image));
+		    	}
+		    }
+			(LOOKAHEAD(<LPAREN>) //If we have an expr list in parens next, assume method call
+				<LPAREN>
+		  			[ arg = Exp() { methodArgs.add(arg); }
+		  				( <COMMA> arg = Exp() { methodArgs.add(arg); } )*
+		  			]
+		  		<RPAREN> 
+		  			{ 
+		  				e = new MethodCall(dotToken, e, methodArgs); 
+		  				methodArgs = new ArrayList<Expression>();
+		  			}
+		  		//followed with arbitrary applications			
+				( arg = ArgExp() { curriedArgs.add(arg); })*
 				
-			}
-			(
-				arg = ArgExp()
-				{					curriedArgs.add(arg);
-				}
-			)*
+				| //otherwise, just arbitrary applications
+				
+				(
+					arg = ArgExp() { curriedArgs.add(arg); }
+				)*
+			)
 			{
-				e = foldCurriedArgs(e, curriedArgs);
-				curriedArgs = new ArrayList < Expression > ();			}
+					e = foldCurriedArgs(e, curriedArgs);
+					curriedArgs = new ArrayList < Expression > ();
+			}
 		)*
 		{
 				return foldCurriedArgs(e, curriedArgs);

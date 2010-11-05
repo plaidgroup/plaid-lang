@@ -34,98 +34,105 @@ public class CoreParserTests {
 		cc.setOutputDir(outputDir);
 		cc.addInputFile(new File(fileLoc));
 		cc.addToPlaidPath("bin/");
+		cc.setVerbose(true);
 		CompilerCore compiler = new CompilerCore(cc);
 		return compiler;
 	}
 	
-	@Test
-	public void helloTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/hello.plaid","coreOutput/");
-		compiler.compile();
-	}
+//	@Test
+//	public void helloTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/hello.plaid","coreOutput/");
+//		compiler.compile();
+//	}
+//	
+//	@Test
+//	public void printIntTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/printInt.plaid","coreOutput/");
+//		compiler.compile();
+//	}
+//
+//	@Test
+//	public void addFiveTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/addFive.plaid","coreOutput/");
+//		compiler.compile();
+//	}
+//	
+//	@Test
+//	public void addFiveStateTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/addFiveState.plaid","coreOutput/");
+//		compiler.compile();
+//	}
+//
+//	@Test
+//	public void pairTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/pair.plaid","coreOutput/");
+//		compiler.compile();
+//	}
+//	
+//	@Test
+//	public void addXTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/addX.plaid","coreOutput/");
+//		compiler.compile();
+//	}	
+//
+//	@Test
+//	public void matchTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/simpleMatch.plaid","coreOutput/");
+//		compiler.compile();
+//	}	
+//	
+//	@Test
+//	public void matcherTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/matcher.plaid","coreOutput/");
+//		compiler.compile();
+//	}	
+//	
+//	
+//	@Test
+//	public void addIntsTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/addInts.plaid","coreOutput/");
+//		compiler.compile();
+//	}	
+//
+//	@Test
+//	public void localVarTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/localVarTest.plaid","coreOutput/");
+//		compiler.compile();
+//	}	
+//	
+//	@Test
+//	public void functionTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/helloFunction.plaid","coreOutput/");
+//		compiler.compile();
+//	}
+//
+//	@Test
+//	public void simpleListTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/simpleList.plaid","coreOutput/");
+//		compiler.compile();
+//	}
+//	
+//	@Test
+//	public void ifTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/ifTest.plaid","coreOutput/");
+//		compiler.compile();
+//	}
+//	
+//	@Test
+//	public void importsTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/imports.plaid","coreOutput/");
+//		compiler.compile();
+//	}
+//	
+//	@Test
+//	public void switchTest() throws Throwable {
+//		CompilerCore compiler = compileFile("coreExamples/switchTest.plaid","coreOutput/");
+//		compiler.compile();
+//	}
 	
 	@Test
-	public void printIntTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/printInt.plaid","coreOutput/");
-		compiler.compile();
-	}
-
-	@Test
-	public void addFiveTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/addFive.plaid","coreOutput/");
-		compiler.compile();
-	}
-	
-	@Test
-	public void addFiveStateTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/addFiveState.plaid","coreOutput/");
-		compiler.compile();
-	}
-
-	@Test
-	public void pairTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/pair.plaid","coreOutput/");
-		compiler.compile();
-	}
-	
-	@Test
-	public void addXTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/addX.plaid","coreOutput/");
-		compiler.compile();
-	}	
-
-	@Test
-	public void matchTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/simpleMatch.plaid","coreOutput/");
-		compiler.compile();
-	}	
-	
-	@Test
-	public void matcherTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/matcher.plaid","coreOutput/");
-		compiler.compile();
-	}	
-	
-	
-	@Test
-	public void addIntsTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/addInts.plaid","coreOutput/");
-		compiler.compile();
-	}	
-
-	@Test
-	public void localVarTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/localVarTest.plaid","coreOutput/");
-		compiler.compile();
-	}	
-	
-	@Test
-	public void functionTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/helloFunction.plaid","coreOutput/");
-		compiler.compile();
-	}
-
-	@Test
-	public void simpleListTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/simpleList.plaid","coreOutput/");
-		compiler.compile();
-	}
-	
-	@Test
-	public void ifTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/ifTest.plaid","coreOutput/");
-		compiler.compile();
-	}
-	
-	@Test
-	public void importsTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/imports.plaid","coreOutput/");
-		compiler.compile();
-	}
-	
-	@Test
-	public void switchTest() throws Throwable {
-		CompilerCore compiler = compileFile("coreExamples/switchTest.plaid","coreOutput/");
+	public void typeTest() throws Throwable {
+		CompilerCore compiler = compileFile("coreExamples/typeTests/package.plaid","coreOutput/");
 		compiler.compile();
 	}
 //NEED TO WRITE A REALISTIC LIST EXAMPLE USING PLAID CORE SYNTAX

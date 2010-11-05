@@ -123,6 +123,11 @@ public abstract class AbstractASTVisitor implements ASTVisitor<ASTnode> {
 	}
 	
 	@Override
+	public ASTnode visitNode(MethodCall node) {
+		return visitHelper(node);
+	}
+	
+	@Override
 	public ASTnode visitNode(MethodDecl node) {
 		return visitHelper(node);
 	}
