@@ -21,6 +21,7 @@ import plaid.compilerjava.AST.IntLiteral;
 import plaid.compilerjava.AST.Lambda;
 import plaid.compilerjava.AST.LetBinding;
 import plaid.compilerjava.AST.Match;
+import plaid.compilerjava.AST.MethodCall;
 import plaid.compilerjava.AST.MethodDecl;
 import plaid.compilerjava.AST.NewInstance;
 import plaid.compilerjava.AST.QI;
@@ -239,8 +240,11 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	@Override
 	public ASTnode visitNode(Lambda node) {
 		ASTVisitor visitor = this.enter(node);
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Lambda");
+		newNode.add(new DefaultMutableTreeNode("Type: " + node.gettype().toString()));
 		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("Lambda"));
+		addNodeVisitChildren(node, newNode);
+		
 	    // leave
 	    return this.leave(node, node, visitor);
 	}
@@ -271,6 +275,16 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	    return this.leave(node, node, visitor);
 	}
 
+	@Override
+	public ASTnode visitNode(MethodCall node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("MethodCall");
+		addNodeVisitChildren(node, newNode);
+	    // leave
+	    return this.leave(node, node, visitor);
+	}
+	
 	@Override
 	public ASTnode visitNode(MethodDecl node) {
 		ASTVisitor visitor = this.enter(node);

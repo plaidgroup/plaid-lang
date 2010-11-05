@@ -67,4 +67,11 @@ public class PermType implements /*ASTnode,*/ JSONAware {
 		obj.put("type", this.type);
 		return obj.toJSONString();
 	}
+	
+	@Override
+	public String toString() {
+		return perm.toString() + " " + type.toString();
+		
+		
+	}
 }

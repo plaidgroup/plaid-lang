@@ -47,5 +47,19 @@ public class FieldType implements TypeDecl {
 	public boolean isImmutable() {
 		return immutable;
 	}
+	
+	@Override
+	public String toString() {
+		StringBuilder s = new StringBuilder();
+		if (immutable) s.append("val ");
+		else s.append("var ");
+		
+		s.append(permType.toString() + " ");
+		
+		s.append(name.getName());
+		
+		return s.toString();
+		
+	}
 
 }
