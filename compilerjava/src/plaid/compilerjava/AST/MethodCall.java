@@ -11,12 +11,14 @@ import plaid.compilerjava.util.IDList;
 public class MethodCall implements Expression {
 
 	private final Token callSite;
-	private List<Expression> arguments;
-	private Expression method;
+	private final List<Expression> arguments;
+	private final Expression receiver;
+	private final ID method;
 	
-	public MethodCall(Token callSite, Expression method, List<Expression> arguments) {
+	public MethodCall(Token callSite, Expression receiver, ID method, List<Expression> arguments) {
 		this.callSite = callSite;
 		this.arguments = arguments;
+		this.receiver = receiver;
 		this.method = method;
 	}
 
@@ -24,7 +26,11 @@ public class MethodCall implements Expression {
 		return arguments;
 	}
 
-	public Expression getMethod() {
+	public Expression getReceiver() {
+		return receiver;
+	}
+	
+	public ID getMethod() {
 		return method;
 	}
 
@@ -52,6 +58,7 @@ public class MethodCall implements Expression {
 
 	@Override
 	public <T> void visitChildren(ASTVisitor<T> visitor) {
+		receiver.accept(visitor);
 		method.accept(visitor);
 		for (Expression e : arguments) e.accept(visitor);
 
