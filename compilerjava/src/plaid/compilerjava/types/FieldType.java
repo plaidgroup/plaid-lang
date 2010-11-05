@@ -1,14 +1,14 @@
 package plaid.compilerjava.types;
 
 import plaid.compilerjava.AST.ID;
-import plaid.compilerjava.coreparser.Token;
-import plaid.compilerjava.tools.ASTVisitor;
 
 public class FieldType implements TypeDecl {
 	private final PermType permType;
 	private final ID name;
+	private final boolean immutable;
 	
-	public FieldType(ID name, PermType permType) {
+	public FieldType(ID name, PermType permType, boolean immutable) {
+		this.immutable = immutable;
 		this.name = name;
 		if (permType == null)
 			throw new RuntimeException("permType cannot be null");
@@ -42,6 +42,10 @@ public class FieldType implements TypeDecl {
 	
 	public ID getName() {
 		return this.name;
+	}
+	
+	public boolean isImmutable() {
+		return immutable;
 	}
 
 }
