@@ -1,11 +1,10 @@
 package plaid.compilerjava.types;
 
-import java.util.*;
-import java.util.Map.Entry;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import plaid.compilerjava.AST.ID;
-import plaid.compilerjava.coreparser.Token;
-import plaid.compilerjava.tools.ASTVisitor;
 
 public class MethodType implements TypeDecl {
 	//private final Token token;
@@ -13,7 +12,7 @@ public class MethodType implements TypeDecl {
 	private final PermType returnType;
 	private final List<ChangeType> argTypes; //Order matters
 	private final ChangeType receiverType;
-	private final Map<ID, List<ChangeType>> environmentTypes;
+	private final Map<ID,ChangeType> environmentTypes;
 	
 	//TODO: do we need this, or is there another way to signal this?
 	// This boolean is necessary to prevent nulls in the Plaid AST
@@ -25,7 +24,7 @@ public class MethodType implements TypeDecl {
 	//private final boolean needTypeTransInference;
 	
 	public MethodType(ID name, PermType returnType, List<ChangeType> argTypes, 
-						ChangeType receiverType, Map<ID, List<ChangeType>> environmentTypes) {
+						ChangeType receiverType, Map<ID,ChangeType> environmentTypes) {
 		this.name = name;
 		this.returnType = returnType;
 		this.argTypes = argTypes;
@@ -73,7 +72,7 @@ public class MethodType implements TypeDecl {
 		return receiverType;
 	}
 
-	public Map<ID, List<ChangeType>> getEnvironmentTypes() {
+	public Map<ID, ChangeType> getEnvironmentTypes() {
 		return Collections.unmodifiableMap(environmentTypes);
 	}
 

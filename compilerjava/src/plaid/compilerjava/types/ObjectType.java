@@ -60,10 +60,16 @@ public class ObjectType implements Type, /*ASTnode,*/ JSONAware {
 	
 	private ObjectType(ObjectType t1, ObjectType t2) {
 		this();
-		this.typeAbbrevs.addAll(t1.getTypeAbbrevs());
-		this.typeAbbrevs.addAll(t2.getTypeAbbrevs());
-		this.typeDecls.addAll(t1.getTypeDecls());
-		this.typeDecls.addAll(t2.getTypeDecls());
+		if (t1.isNominal()) this.typeAbbrevs.add(t1.getNominalType());
+		else {
+			this.typeAbbrevs.addAll(t1.getTypeAbbrevs());
+			this.typeDecls.addAll(t1.getTypeDecls());
+
+		}
+		if (!t2.isNominal()) {
+			this.typeAbbrevs.addAll(t2.getTypeAbbrevs());
+			this.typeDecls.addAll(t2.getTypeDecls());
+		}
 	}
 	
 	public Set<ID> getTypeAbbrevs() {
@@ -72,6 +78,14 @@ public class ObjectType implements Type, /*ASTnode,*/ JSONAware {
 
 	public Set<TypeDecl> getTypeDecls() {
 		return Collections.unmodifiableSet(typeDecls);
+	}
+
+	public ID getNominalType() {
+		return nominalType;
+	}
+
+	public boolean isNominal() {
+		return isNominal;
 	}
 
 	public ObjectType compose(ObjectType other) {

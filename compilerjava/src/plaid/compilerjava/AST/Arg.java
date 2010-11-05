@@ -1,6 +1,6 @@
 package plaid.compilerjava.AST;
 
-import plaid.compilerjava.types.PermType;
+import plaid.compilerjava.types.ChangeType;
 
 /**
  * This is just a convenience class for moving type/arg pairs around
@@ -10,16 +10,16 @@ import plaid.compilerjava.types.PermType;
  *
  */
 public class Arg {
-	private final PermType permType;
+	private final ChangeType changeType;
 	private final ID arg;
 	
-	public Arg(PermType permType, ID arg) {
-		this.permType = permType;
+	public Arg(ChangeType changeType, ID arg) {
+		this.changeType = changeType;
 		this.arg = arg;
 	}
 
-	public PermType getPermType() {
-		return permType;
+	public ChangeType getChangeType() {
+		return changeType;
 	}
 
 	public ID getArg() {
