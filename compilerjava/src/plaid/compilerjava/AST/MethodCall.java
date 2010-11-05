@@ -1,5 +1,6 @@
 package plaid.compilerjava.AST;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -18,6 +19,14 @@ public class MethodCall implements Expression {
 	public MethodCall(Token callSite, Expression receiver, ID method, List<Expression> arguments) {
 		this.callSite = callSite;
 		this.arguments = arguments;
+		this.receiver = receiver;
+		this.method = method;
+	}
+	
+	public MethodCall(Token callSite, Expression receiver, ID method, Expression argument) {
+		this.callSite = callSite;
+		this.arguments = new ArrayList<Expression>();
+		this.arguments.add(argument);
 		this.receiver = receiver;
 		this.method = method;
 	}
