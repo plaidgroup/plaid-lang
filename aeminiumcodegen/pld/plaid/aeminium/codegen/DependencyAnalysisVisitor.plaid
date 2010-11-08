@@ -298,13 +298,14 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		updateDependencies(astNode, reads, writes);
 		astNode.body.accept(this);		
 	}
-	
+
+	// TODO: How to handle methods with multiple arguments?
+	// TODO: This does not respect environments of methods yet.	
 	method visitApplication(astNode) {
 		astNode.num = getNodeNumber();
 		val reads = java.util.HashSet.new();
 		val writes = java.util.HashSet.new();
 		
-		// TODO: How to handle methods with multiple arguments?
 		// Check if we have a global method of that name
 		ifElse (this.methodTypes.containsKey(astNode.f.name)) {
 			var methodType = this.methodTypes.get(astNode.f.name);
@@ -354,18 +355,21 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 							writes.add(effect.variable);
 						};
 					});
+					
+					val /*PermTypeChange*/ argType = lambdaType.argType;
+					match (argType.from.perm) {
+						case UniquePermission {
+							writes.add(astNode.arg);
+						}
+						
+						case ImmutablePermission {
+							reads.add(astNode.arg);
+						}
+					};
 				}
 				case None {
 					java.lang.System.err.println("Warning: Lambda has no associated type.");
 				}
-			};
-			
-			match (astNode.arg) {
-				case ID {
-					reads.add(astNode.arg);
-				}
-				
-				default {}
 			};
 		};
 		
@@ -416,5 +420,8 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		};
 		
 		updateDependencies(astNode, reads, writes);		
+	}
+	
+	method visitMatch(astNode) {
 	}
 }
