@@ -1,0 +1,128 @@
+package plaid.codegen.fragments;
+
+state StateDeclFragment {
+	method handleTopLevelStateDecl(node) {
+		var freshImports = this.idgen.getId();
+		var theState = this.idgen.getId();
+		var thePackage = qid.toString();
+		
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setPrettyPrint(true);
+		cc.setDebugMode(false);
+		cc.setOutputDir("testOutput/");
+		this.out = this.jCodeGen.new(cc);
+		
+		//package and needed imports
+		this.out.declarePackage(thePackage); //package qid;
+		
+		var members = StringBuilder.new();
+		
+		var memberString = members.toString();
+		if (memberString.length() > 0) {
+			memberString = memberString.substring(0, memberString.length() - 1);
+		};
+		
+		// state annotation and class definition
+		this.out.topStateAnnotation(root.getName(), thePackage, memberString);
+		this.out.declarePublicClass(root.getName()); 
+		this.out.openBlock();  // public class f {
+		
+		//generate code to create the package scope with imports
+		this.out.declarePublicStaticFinalVar(
+			"java.util.List<plaid.runtime.utils.Import>",
+			freshImports.name);
+		
+		this.freshImports = freshImports;
+		this.theState = theState;
+		imports.accept(this);
+		this.out.declareGlobalScope(qid.toString(), freshImports.name);
+
+		//annotation for the prototype object representing the state
+		this.out.stateAnnotation(node.getName());
+		this.out.declarePublicStaticFinalVar(this.out.plaidObjectType, 
+			node.getName());
+		
+		this.out.openStaticBlock(); //static {
+		this.out.declareLocalScope(this.out.globalScope);
+		this.out.declareFinalVar(this.out.plaidStateType, theState.name);
+
+		var idList = IDList.new(globals);
+		// "this" should be visible during field initializations
+		idList.add(ID.new(this.out.thisVar)); 
+		
+		// with caseOf State
+		ifElse  (!root.isCaseOf) {
+			// this is this declaration.  It will not have any members, but 
+			// at runtime can forward to its enclosing (instantiated) state
+			this.name = qid.toString() + "." + root.getName();
+			this.idList = idList;
+			root.stateDef.accept(this);
+			
+			this.out.assignToPrototype(root.getName(), theState.name);
+		}{
+			var caseOfState = this.idgen.getId();
+			var declaredState = this.idgen.getId();
+			this.out.declareFinalVar(this.out.plaidStateType, caseOfState.name);
+			this.name = this.out.anonymousDeclaration;
+			this.idList = idList;
+			root.caseOf.accept(this);
+			this.out.declareFinalVar(this.out.plaidStateType, declaredState.name);
+			
+			// this is this declaration.  It will not have any members, but
+			// at runtime can forward to its enclosing (instantiated) state
+			this.name = qid.toString() + "." + root.getName();
+			this.declaredState = declaredState;
+			stateDef.accept(this);
+			
+			//y = fresh1.with(fresh2); 
+			this.out.assignToWith(theState.name,caseOfState.name,
+				declaredState.name);  
+					
+			this.out.assignToPrototype(name.name, theState.name);
+			
+			// because of subtagging, we don't want the resulting object to 
+			// have the caseOf's state's tag
+			
+			// If the caseOf State has a tag
+			this.out.ifCondition(caseOfState.name + ".hasTag()"); 
+			// //remove it from the prototype
+			//this.out.append(root. name.name + ".removeTag(" + 
+			//	caseOfState.name + ".getTag());"); 
+		};
+		this.out.closeBlock(); // } (for static block to init prototype)
+
+		if (node.isCaseOf) { //if we have a tag	
+			//Declare variable to hold the tag
+			var tag = ID.new(name.name + "$Tag" + 
+				PlaidConstants.ID_SUFFIX);
+			var tagPath = qid.toString() + "." + node.getName();
+			this.out.tagAnnotation(tagPath);
+			this.out.declarePublicStaticFinalVar(this.out.plaidTagType, tag.name);
+			
+			this.out.openStaticBlock(); //static {	
+			var caseOfState = this.idgen.getId();
+			this.out.declareFinalVar(this.out.plaidStateType, caseOfState.name());
+			caseOf.accept(this);
+			this.idList = IDList.new();
+			this.theState = caseOfState;
+			this.declaredState = this.out.anonymousDeclaration;
+			caseOf.codegenState(this);
+			//tag = new PlaidTag(caseOfState)
+			this.out.assignToNewTag(tag.name, tagPath, caseOfState.name);
+			
+			this.out.closeBlock(); // } (for static block to init tag)
+		};
+		
+		this.out.closeBlock(); // } (for class Def)
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(node.getName(), 
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+	}
+	
+	method visitStateDecl(node) {
+		if (this.top) {
+			this.top = false;
+			this.handleTopLevelStateDecl(node);
+		}
+	}
+}
