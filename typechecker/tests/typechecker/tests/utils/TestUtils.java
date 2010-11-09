@@ -4,12 +4,27 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Map.Entry;
 
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
+import plaid.ast.FieldTypeDecl;
+import plaid.ast.ID;
+import plaid.ast.IntLiteral;
+import plaid.ast.MethodTypeDecl;
+import plaid.ast.UnannotatedLetBinding;
+import plaid.ast.types.ChangeType;
+import plaid.ast.types.Dyn;
+import plaid.ast.types.FullPermission;
+import plaid.ast.types.ImmutablePermission;
+import plaid.ast.types.NonePermission;
+import plaid.ast.types.PermType;
+import plaid.ast.types.PurePermission;
+import plaid.ast.types.SharedPermission;
+import plaid.ast.types.Type;
+import plaid.ast.types.UniquePermission;
 import plaid.compilerjava.types.Permission;
 import plaid.compilerjava.types.TypeDecl;
 import plaid.compilerjava.util.FieldRep;
@@ -24,27 +39,12 @@ import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidState;
 import plaid.runtime.Util;
+import plaid.runtime.annotations.RepresentsState;
 import plaid.runtime.models.map.PlaidJavaObjectMap;
 import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
-import plaid.runtime.utils.QualifiedIdentifier;
-import plaid.runtime.annotations.RepresentsState;
-import plaid.ast.FieldTypeDecl;
-import plaid.ast.types.FullPermission;
-import plaid.ast.ID;
-import plaid.ast.types.ImmutablePermission;
-import plaid.ast.IntLiteral;
-import plaid.ast.MethodTypeDecl;
-import plaid.ast.types.Dyn;
-import plaid.ast.types.NonePermission;
-import plaid.ast.types.PermType;
-import plaid.ast.types.PurePermission;
-import plaid.ast.types.SharedPermission;
-import plaid.ast.types.Type;
-import plaid.ast.UnannotatedLetBinding;
-import plaid.ast.types.UniquePermission;
-import plaid.typechecker.TypecheckerVisitor;
 import plaid.typechecker.Context;
+import plaid.typechecker.TypecheckerVisitor;
 
 /**
  * TODO: We may want to merge all of these constructors into the actual Plaid 
@@ -465,6 +465,26 @@ public class TestUtils {
 		return initAndInstantiateState(Dyn.Dyn, newState);
 	}
 	
+	private static PlaidObject javaChangeTypeToPlaidChangeType(plaid.compilerjava.types.ChangeType changeType) {
+		// create a new blank prototype
+		PlaidState newState = Util.newState();
+		
+		PlaidObject input = TestUtils.javaPermTypeToPlaidPermType(changeType.getInput());
+		PlaidObject output = TestUtils.javaPermTypeToPlaidPermType(changeType.getOutput());
+		PlaidObject borrow; //TODO: how to translate booleans
+		
+		// add the necessary members to the new prototype
+		newState.addMember(Util.anonymousMemberDef("input", false, false), 
+				protoField(input));
+		newState.addMember(Util.anonymousMemberDef("output", false, false), 
+				protoField(output));
+		
+		// instantiate the new prototype
+		return initAndInstantiateState(ChangeType.ChangeType, newState);
+		
+		
+	}
+	
 	private static PlaidObject javaPermTypeToPlaidPermType(plaid.compilerjava.types.PermType permType) {
 		// create a new blank prototype
 		PlaidState newState = Util.newState();
@@ -507,42 +527,50 @@ public class TestUtils {
 		}
 	}
 	
-	private static PlaidObject type(plaid.compilerjava.types.ObjectType structType) {
-		Set<plaid.compilerjava.AST.ID> abbrevs = structType.getTypeAbbrevs();
-		Set<TypeDecl> typeDecls = structType.getTypeDecls();
+	private static PlaidObject type(plaid.compilerjava.types.Type type) {
+		if (type instanceof plaid.compilerjava.types.ObjectType) {
+			plaid.compilerjava.types.ObjectType structType = (plaid.compilerjava.types.ObjectType) type;
+			Set<plaid.compilerjava.AST.ID> abbrevs = structType.getTypeAbbrevs();
+			Set<TypeDecl> typeDecls = structType.getTypeDecls();
+			
+			// convert the abbrevs and add them
+			Set<PlaidObject> plaidAbbrevs = new HashSet<PlaidObject>();
+			for (plaid.compilerjava.AST.ID abbrev : abbrevs) {
+				plaidAbbrevs.add(TestUtils.id(abbrev.getName()));
+			}
+			
+			// convert the decls and add them
+			Set<PlaidObject> plaidTypeDecls = new HashSet<PlaidObject>();
+			for (TypeDecl typeDecl : typeDecls) {
+				if (typeDecl instanceof MethodTypeDecl) {
+					plaidTypeDecls.add(TestUtils.methodType((plaid.compilerjava.types.MethodType)typeDecl));
+				}
+				else if (typeDecl instanceof FieldTypeDecl) {
+					plaidTypeDecls.add(TestUtils.fieldType((plaid.compilerjava.types.FieldType)typeDecl));
+				}
+				else {
+					throw new RuntimeException("Unhandled type decl.");
+				}
+			}
+			
+			return TestUtils.type((PlaidObject[])plaidAbbrevs.toArray(), 
+								  (PlaidObject[])plaidTypeDecls.toArray());
 		
-		// convert the abbrevs and add them
-		Set<PlaidObject> plaidAbbrevs = new HashSet<PlaidObject>();
-		for (plaid.compilerjava.AST.ID abbrev : abbrevs) {
-			plaidAbbrevs.add(TestUtils.id(abbrev.getName()));
+		} else {
+			throw new RuntimeException("Unhandled type");
 		}
 		
-		// convert the decls and add them
-		Set<PlaidObject> plaidTypeDecls = new HashSet<PlaidObject>();
-		for (TypeDecl typeDecl : typeDecls) {
-			if (typeDecl instanceof MethodTypeDecl) {
-				plaidTypeDecls.add(TestUtils.methodType((plaid.compilerjava.types.MethodType)typeDecl));
-			}
-			else if (typeDecl instanceof FieldTypeDecl) {
-				plaidTypeDecls.add(TestUtils.fieldType((plaid.compilerjava.types.FieldType)typeDecl));
-			}
-			else {
-				throw new RuntimeException("Unhandled type decl.");
-			}
-		}
 		
-		return TestUtils.type((PlaidObject[])plaidAbbrevs.toArray(), 
-							  (PlaidObject[])plaidTypeDecls.toArray());
 	}
 	
 	private static PlaidObject methodType(plaid.compilerjava.types.MethodType decl) {
 		String name = decl.getName().getName();
-		plaid.compilerjava.types.PermType retType = decl.getRetPermType();
-		List<plaid.compilerjava.types.PermType> argTypes = decl.getArgTypes();
+		plaid.compilerjava.types.PermType retType = decl.getReturnType();
+		List<plaid.compilerjava.types.ChangeType> argTypes = decl.getArgTypes();
 		
 		List<PlaidObject> plaidPermTypes = new ArrayList<PlaidObject>();
-		for (plaid.compilerjava.types.PermType argType : argTypes) {
-			plaidPermTypes.add(TestUtils.javaPermTypeToPlaidPermType(argType));
+		for (plaid.compilerjava.types.ChangeType argType : argTypes) {
+			plaidPermTypes.add(TestUtils.javaChangeTypeToPlaidChangeType(argType));
 		}
 		
 		return TestUtils.methodType(TestUtils.id(name), 
@@ -563,11 +591,11 @@ public class TestUtils {
 			MethodRep methodRep = (MethodRep)rep;
 			
 			plaid.compilerjava.types.MethodType typeDecl = methodRep.getType();
-			plaid.compilerjava.types.PermType retType = typeDecl.getRetPermType();
-			List<plaid.compilerjava.types.PermType> argTypes = typeDecl.getArgTypes();
+			plaid.compilerjava.types.PermType retType = typeDecl.getReturnType();
+			List<plaid.compilerjava.types.ChangeType> argTypes = typeDecl.getArgTypes();
 			List<PlaidObject> plaidArgTypes = new ArrayList<PlaidObject>();
-			for (plaid.compilerjava.types.PermType argType : argTypes) {
-				plaidArgTypes.add(TestUtils.javaPermTypeToPlaidPermType(argType));
+			for (plaid.compilerjava.types.ChangeType argType : argTypes) {
+				plaidArgTypes.add(TestUtils.javaChangeTypeToPlaidChangeType(argType));
 			}
 			
 			return TestUtils.methodType(TestUtils.id(methodRep.getName()), 
