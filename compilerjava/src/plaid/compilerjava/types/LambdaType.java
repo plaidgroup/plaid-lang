@@ -16,7 +16,7 @@ public class LambdaType implements Type {
 	
 	private final Token t;
 	private final List<ChangeType> argTypes;
-	private final Map<ID,ChangeType> sideEffects;
+	private final Map<ID,ChangeType> environmentTypes;
 	private final PermType returnType;
 	
 	public LambdaType(Token t, List<ChangeType> argTypes, Map<ID,ChangeType> sideEffects,
@@ -24,7 +24,7 @@ public class LambdaType implements Type {
 		super();
 		this.t = t;
 		this.argTypes = argTypes;
-		this.sideEffects = sideEffects;
+		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
 	}
 	
@@ -32,17 +32,17 @@ public class LambdaType implements Type {
 		this.t = t;
 		this.argTypes = new ArrayList<ChangeType>();
 		argTypes.add(argType);
-		this.sideEffects = sideEffects;
+		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
 		
 	}
 
-	public List<ChangeType> getArgType() {
+	public List<ChangeType> getArgTypes() {
 		return Collections.unmodifiableList(argTypes);
 	}
 
-	public Map<ID,ChangeType> getSideEffects() {
-		return sideEffects;
+	public Map<ID,ChangeType> getEnvironmentTypes() {
+		return environmentTypes;
 	}
 
 	public PermType getReturnType() {
@@ -53,7 +53,7 @@ public class LambdaType implements Type {
 		StringBuilder s = new StringBuilder("(");
 		for ( ChangeType c : argTypes) s.append(c.toString() + ", "); //TODO: remove trailing comma
 		s.append(")[");
-		for (ID eVar : sideEffects.keySet()) s.append(sideEffects.get(eVar).toString() + " " + eVar.getName() + ","); //TODO: remove ending comma
+		for (ID eVar : environmentTypes.keySet()) s.append(environmentTypes.get(eVar).toString() + " " + eVar.getName() + ","); //TODO: remove ending comma
 		
 		s.append("] -> " + returnType.toString());
 		

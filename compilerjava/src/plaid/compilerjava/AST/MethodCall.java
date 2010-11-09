@@ -1,7 +1,5 @@
 package plaid.compilerjava.AST;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
