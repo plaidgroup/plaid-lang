@@ -15,24 +15,27 @@ import plaid.compilerjava.AST.DeclList;
 import plaid.compilerjava.AST.Dereference;
 import plaid.compilerjava.AST.Expression;
 import plaid.compilerjava.AST.FieldDecl;
-import plaid.compilerjava.AST.FieldTypeDecl;
 import plaid.compilerjava.AST.ID;
 import plaid.compilerjava.AST.ImportList;
 import plaid.compilerjava.AST.IntLiteral;
 import plaid.compilerjava.AST.Lambda;
 import plaid.compilerjava.AST.LetBinding;
 import plaid.compilerjava.AST.Match;
+import plaid.compilerjava.AST.MethodCall;
 import plaid.compilerjava.AST.MethodDecl;
 import plaid.compilerjava.AST.NewInstance;
-import plaid.compilerjava.AST.PermType;
-import plaid.compilerjava.AST.Permission;
 import plaid.compilerjava.AST.QI;
 import plaid.compilerjava.AST.State;
 import plaid.compilerjava.AST.StateDecl;
 import plaid.compilerjava.AST.StringLiteral;
-import plaid.compilerjava.AST.Type;
 import plaid.compilerjava.AST.UnitLiteral;
 import plaid.compilerjava.AST.With;
+import plaid.compilerjava.types.FieldType;
+import plaid.compilerjava.types.MethodType;
+import plaid.compilerjava.types.PermType;
+import plaid.compilerjava.types.Permission;
+import plaid.compilerjava.types.ObjectType;
+import plaid.compilerjava.types.TypeDecl;
 
 /* TODO: Refactor this code so that we don't have to have knowledge of the 
  * implicit structure of each AST node.  One way to do this could be to have
@@ -190,19 +193,22 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	    		break;
 	    	}
 	    }
+		//TODO: visit Field Type
+		newNode.add(new DefaultMutableTreeNode("Type: " + node.getFieldType().toString()));
+		
 		// leave
 	    return this.leave(node, node, visitor);
 	}
 	
-	@Override
-	public ASTnode visitNode(FieldTypeDecl node) {
-		ASTVisitor visitor = this.enter(node);
-		// create the new tree node and add it to the tree
-		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("FieldTypeDecl");
-		addNodeVisitChildren(node, newNode);
-		// leave
-	    return this.leave(node, node, visitor);
-	}
+//	@Override
+//	public ASTnode visitNode(FieldType node) {
+//		ASTVisitor visitor = this.enter(node);
+//		// create the new tree node and add it to the tree
+//		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("FieldTypeDecl");
+//		addNodeVisitChildren(node, newNode);
+//		// leave
+//	    return this.leave(node, node, visitor);
+//	}
 
 	@Override
 	public ASTnode visitNode(ID node) {
@@ -234,8 +240,11 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	@Override
 	public ASTnode visitNode(Lambda node) {
 		ASTVisitor visitor = this.enter(node);
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Lambda");
+		newNode.add(new DefaultMutableTreeNode("Type: " + node.gettype().toString()));
 		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode("Lambda"));
+		addNodeVisitChildren(node, newNode);
+		
 	    // leave
 	    return this.leave(node, node, visitor);
 	}
@@ -267,12 +276,23 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	}
 
 	@Override
+	public ASTnode visitNode(MethodCall node) {
+		ASTVisitor visitor = this.enter(node);
+		// create the new tree node and add it to the tree
+		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("MethodCall");
+		addNodeVisitChildren(node, newNode);
+	    // leave
+	    return this.leave(node, node, visitor);
+	}
+	
+	@Override
 	public ASTnode visitNode(MethodDecl node) {
 		ASTVisitor visitor = this.enter(node);
 		// create the new tree node and add it to the tree
 		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode(node.getName() + " (MethodDecl)");
 		addNodeVisitChildren(node, newNode);
 	    // leave
+		newNode.add( new DefaultMutableTreeNode("Type: " + node.getMethodType().toString()));
 	    return this.leave(node, node, visitor);
 	}
 	
@@ -299,14 +319,14 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	    return this.leave(node, node, visitor);
 	}
 	
-	@Override
-	public ASTnode visitNode(Permission node) {
-		ASTVisitor visitor = this.enter(node);
-		// create the new tree node and add it to the tree
-		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.toString()));
-	    // leave
-	    return this.leave(node, node, visitor);
-	}
+//	@Override
+//	public ASTnode visitNode(Permission node) {
+//		ASTVisitor visitor = this.enter(node);
+//		// create the new tree node and add it to the tree
+//		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.toString()));
+//	    // leave
+//	    return this.leave(node, node, visitor);
+//	}
 
 	@Override
 	public ASTnode visitNode(QI node) {
@@ -349,12 +369,12 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	    return this.leave(node, node, visitor);
 	}
 	
-	@Override
-	public ASTnode visitNode(Type node) {
-		ASTVisitor visitor = this.enter(node);
-		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.toString()));
-		return this.leave(node, node, visitor);
-	}
+//	@Override
+//	public ASTnode visitNode(ObjectType node) {
+//		ASTVisitor visitor = this.enter(node);
+//		addNodeVisitChildren(node, new DefaultMutableTreeNode(node.toString()));
+//		return this.leave(node, node, visitor);
+//	}
 
 	@Override
 	public ASTnode visitNode(UnitLiteral node) {

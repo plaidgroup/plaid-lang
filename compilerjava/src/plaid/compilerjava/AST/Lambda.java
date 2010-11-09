@@ -23,22 +23,26 @@ import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
+import plaid.compilerjava.types.LambdaType;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
 public final class Lambda implements Expression {
+	
 	private final Token token;
 	private final ID var;
 	private final Expression body;
-	private final MethodTypeDecl methodType;
+	private final LambdaType type;
+	
+	
 	
 	// TODO: I'm not sure that this is a very good constructor...
 //	public Lambda(ID var, Expression body) {
 //		this(null, var, body, new MethodTypeDecl(null, null, null, null, null));
 //	}
 
-	public Lambda(Token token, ID var, Expression body, MethodTypeDecl methodType) {
+	public Lambda(Token token, ID var, Expression body, LambdaType type) {
 		super();
 		
 		this.token = token;
@@ -50,7 +54,7 @@ public final class Lambda implements Expression {
 			this.var = var;
 		
 		this.body = body;
-		this.methodType = methodType;
+		this.type = type;
 	}
 
 	public Token getToken() {
@@ -70,8 +74,8 @@ public final class Lambda implements Expression {
 		return body;
 	}
 
-	public MethodTypeDecl getMethodType() {
-		return methodType;
+	public LambdaType gettype() {
+		return type;
 	}
 
 	@Override

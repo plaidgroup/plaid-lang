@@ -23,6 +23,7 @@ package plaid.compilerjava.coreparser;
 import java.util.*;
 import plaid.compilerjava.util.*;
 import plaid.compilerjava.AST.*;
+import plaid.compilerjava.types.*;
 import plaid.runtime.PlaidConstants;
 
 public class PlaidCoreParser
@@ -108,10 +109,10 @@ public class PlaidCoreParser
 				return stringList;
 		}
 
-		private Expression opMethodCall(Token t, Expression e, Expression arg)
-		{
-				return new Application(t, new Dereference(t, e, new ID(t, t.image)), arg);
-		}
+		//private Expression opMethodCall(Token t, Expression e, Expression arg)
+		//{
+		//		return new Application(t, new Dereference(t, e, new ID(t, t.image)), arg);
+		//}
 }
 
 PARSER_END(PlaidCoreParser)
@@ -171,13 +172,13 @@ TOKEN /*[IGNORE_CASE]*/:
 |	< STATE : "state" >
 |	< THIS : "this" >
 |	< VAL : "val" >
-|	< VAR : "var" >
-|	< NONE : "none" >	
+|	< VAR : "var" >	
 |	< WITH : "with" >
 | 	< AS : "as" >
 |	< REQUIRES : "requires" >
 |	< OVERRIDE : "override" >
 | 	< UNIT : "unit" >
+|	< VOID : "void" >
 
 /* Permission kinds */
 |	< DYN : "dyn">
@@ -187,6 +188,7 @@ TOKEN /*[IGNORE_CASE]*/:
 |	< UNIQUE : "unique" >
 | 	< FULL : "full" >
 | 	< PURE : "pure" >
+|	< NONE : "none" >
 }
 
 /* Literals */
@@ -323,20 +325,28 @@ List < Token > Package() :
 /*****************************************************************************/
 
 PermType PermType() :
-{
-  	PermType permType = null;	Type type = null;
-	Permission perm = Permission.DEFAULT;
+{	Type type = null;
+	Permission perm = null;
+	LambdaType l = null;
 }
-{	(
-	// TODO: what's dyn's deal?	<DYN>
+{	(	<DYN>
 	{
 	  	return PermType.DYN;	}
-	// TODO: Should unit be a permission/type combo?
 | 	<UNIT>
 	{
 	  	return PermType.UNIT;	}
+|	<VOID>
+	{
+		return PermType.VOID;
+	}
+	//TODO: should this be moved up higher so you cannot write fn >> fn?
+|	l = LambdaType()
+	{
+		return new PermType(Permission.IMMUTABLE, l);
+	}
 	// TODO: Default permission?
-| 	[perm = Permission()] type = StructuralType()
+	// KBN - 2010-11-4 permission no longer optional - currently causes parser conflict
+| 	perm = Permission() type = StructuralType()
 	{		return new PermType(perm, type);
 	}
 	)
@@ -358,24 +368,107 @@ Permission Permission() :
 | 	<UNIQUE>
 	{
 	  	return Permission.UNIQUE;	}  
+|	<NONE>
+	{
+		return Permission.NONE;
+	}
 	)
 }
 
-Type StructuralType() :
+List<ChangeType> ChangeTypeList() :
 {
-  	Token typeAbbrevTok;	Type right = null;
+	List<ChangeType> cl = new ArrayList<ChangeType>();
+	ChangeType c;
+
+}
+{
+	c = ChangeType() { cl.add(c); }
+	( <COMMA> c = ChangeType() { cl.add(c); } )*
+	{
+	return cl;
+	}
+}
+
+ChangeType ChangeType() :
+{
+	PermType input;
+	PermType output = null;
+	boolean borrow = false;
+}
+{
+	input = PermType() [ <MARROW> output = PermType() ]
+	{
+		if (output == null) {
+			output = input;
+			borrow = true;
+		}
+		
+		return new ChangeType(input,output, borrow);
+	}
+}
+
+ObjectType StructuralType() :
+{
+  	Token typeAbbrevTok;	ObjectType right = null;
 	List<TypeDecl> typeDecls;
 }
 {
   	(
   	// type abbreviation	typeAbbrevTok = <ID> [<WITH> right = StructuralType()]
-	{		return (new Type(new ID(typeAbbrevTok.image))).compose(right);
+	{
+		return (new ObjectType(new ID(typeAbbrevTok.image))).compose(right);
 	}
 	// type declarations
 | 	typeDecls = TypeDecls() [<WITH> right = StructuralType()]
 	{
-	  	return (new Type(typeDecls)).compose(right);	}
+	  	return (new ObjectType(typeDecls)).compose(right);	}
 	)
+}
+
+Map<ID,ChangeType> Environment() :
+{
+	Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
+	ChangeType c = null;
+	Token var = null;
+}
+{
+// T x [, T x]* where E = pT or pT >> pT
+ ( c = ChangeType() var = <ID> 
+ 	{ 		
+ 		env.put(new ID(var, var.image),c);
+ 	}
+ )
+
+ ( <COMMA> c = ChangeType() var = <ID> 
+ 	{
+ 		env.put(new ID(var, var.image),c);
+ 	}
+ 
+ )*
+
+{
+	return env;
+}
+
+}
+
+LambdaType LambdaType() :
+{
+	Token t;
+	Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
+	PermType returnType;
+	List<ChangeType> argTypes = new ArrayList<ChangeType>();
+}
+{
+	// ( c )[E] -> pT
+	t = <LPAREN> [ argTypes = ChangeTypeList() ] <RPAREN> [ <LBRACK> [ env = Environment() ] <RBRACK> ]
+		<RARROW> returnType = PermType()
+	{
+		if (argTypes.size() == 0) argTypes.add(ChangeType.DEFAULTPARAM); //do we need this default - I think so
+		return new LambdaType(t, argTypes, env, returnType); 
+	
+	}
+
 }
 
 List<TypeDecl> TypeDecls() :{	List<TypeDecl> decls = new ArrayList<TypeDecl>();
@@ -388,76 +481,67 @@ List<TypeDecl> TypeDecls() :{	List<TypeDecl> decls = new ArrayList<TypeDecl>()
 TypeDecl TypeDecl() :{	TypeDecl decl;
 }
 {
-  	decl = MethodTypeDecl() <SEMICOLON> { return decl; }
-| 	decl = FieldTypeDecl() { return decl; }}
+  	decl = MethodType() <SEMICOLON> { return decl; }
+| 	decl = FieldType() { return decl; }}
 
-MethodTypeDecl MethodTypeDecl() :
+MethodType MethodType() :
 {
-	Token t;
-  	List<Arg> argList = new ArrayList<Arg>();
-	List<PermType> argPermTypeList = new ArrayList<PermType>();
-	List<ID> argNameList = new ArrayList<ID>();
-	PermType retPermType = PermType.DYN;
-
-	PermType recvState1 = PermType.RECEIVER;
-	PermType recvState2 = PermType.RECEIVER;
-	
-	PermType tempState1 = null;
-	PermType tempState2 = null;
-
-	ID methodName;
-	Token boundVarToken;
-
-	Map<ID, List<PermType>> boundVarTypeTrans = null;
-}{
-  	// method T m(T x)[T >> T, T1 >> T2 x, T3 >> T3 y]
-  	t = <METHOD>
-  	(LOOKAHEAD(PermType() IdOrOperator()) retPermType = PermType() methodName = IdOrOperator() | methodName = IdOrOperator())
-  	<LPAREN> [argList = DeclArgs()] <RPAREN>
-	// as it's written now, empty brackets are legal.  I figured it might be desirable to explicitly state that
-	// nothing changes state in the method.
-  	[<LBRACK>  	{
-  	  	// initialize the type transition map so we know that they put an annotation in, even if it's empty
-  	  	boundVarTypeTrans = new HashMap<ID, List<PermType>>();  	}
-  	[(LOOKAHEAD(PermType() <MARROW> PermType() [<THIS>]) recvState1 = PermType() <MARROW> recvState2 = PermType() [<THIS>]
-	| 	tempState1 = PermType() <MARROW> tempState2 = PermType() boundVarToken = <ID>
-  	{
-  	  	// for each extra annotation for the variables changed in the method add it to the map
-  	  	List<PermType> typeTrans = new ArrayList<PermType>();
-  	  	typeTrans.add(tempState1);
-  	  	typeTrans.add(tempState2);
-  	  	boundVarTypeTrans.put(new ID(boundVarToken.image), typeTrans);
-	})
-	(<COMMA> tempState1 = PermType() <MARROW> tempState2 = PermType() boundVarToken = <ID>
-  	{
-  	  	// for each extra annotation for the variables changed in the method add it to the map
-  	  	List<PermType> typeTrans = new ArrayList<PermType>();
-  	  	typeTrans.add(tempState1);
-  	  	typeTrans.add(tempState2);
-  	  	boundVarTypeTrans.put(new ID(boundVarToken.image), typeTrans);
-	})*] <RBRACK>]	{
-	  	if (argList.size() == 0) {
-	  	  	argNameList.add(IdGen.getId());
-			argPermTypeList.add(PermType.UNIT);
-	  	}
-	  	else { 
-	  		for (Arg arg : argList) {
-	  	  		argPermTypeList.add(arg.getPermType());
-	  	  		argNameList.add(arg.getArg());	  		}
-	 	}
+		Token m;
+		ID methodName;
+		PermType returnType = PermType.DYN; //default return is dyn
+		List<ChangeType> argTypes = new ArrayList<ChangeType>();
+		ChangeType receiverType = ChangeType.DYN; //default receiver types are Dyn >> Dyn
+		Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
+		ChangeType envType;
+		Token envVar;
+}
+{
+		//method [T] m([T>>T])[T >> T, E ] 
+			m = <METHOD>
+			( LOOKAHEAD(PermType() IdOrOperator())    
+				returnType = PermType() methodName = IdOrOperator() // optional Return type
+				| methodName = IdOrOperator()  //only method name
+			)
+			<LPAREN> [ argTypes = ChangeTypeList() ] <RPAREN>	//optional arguments with optional types
+			[ //optional environment - if you put brakets you have to have at least one entry
+				<LBRACK>
+				(LOOKAHEAD(ChangeType() [<THIS>] (<COMMA> | <RBRACK> )) //'this' must be first, either w/o var or with <this>
+					receiverType = ChangeType() [<THIS>]
+					| envType = ChangeType() envVar = <ID>
+						{
+					 		env.put(new ID(envVar,envVar.image), envType);
+					 	}
+				)
+				( //some number of environments
+					<COMMA> envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
+				)*
+				<RBRACK>
+			]
+		{	
+			if (argTypes.size() == 0) {
+				argTypes.add(ChangeType.DEFAULTPARAM); //fake argument (NEED?)
+			}
 			
-	  	return new MethodTypeDecl(t, methodName, retPermType, argNameList, argPermTypeList, recvState1, recvState2, boundVarTypeTrans);	}
+			return new MethodType(methodName, returnType, argTypes, receiverType, env);
+		}
+
 }
 
-FieldTypeDecl FieldTypeDecl() :{
+
+
+FieldType FieldType() :{
   	// there could be no type annotation
-  	PermType fieldPermType = null;
+  	PermType fieldPermType = PermType.DYN; //default is dyn
   	Token fieldNameToken;
+  	boolean immutable = true;
 }{
   	// val T f;
-  	<VAL> fieldPermType = PermType() fieldNameToken = <ID> <SEMICOLON>
+  	( <VAL> | <VAR> { immutable = false; } )  
+  	(LOOKAHEAD(PermType()) fieldPermType = PermType() fieldNameToken = <ID> | fieldNameToken = <ID> )
+  	<SEMICOLON>
   	{
-  	  	return new FieldTypeDecl(new ID(fieldNameToken.image), fieldPermType);  	}}
+  	  	return new FieldType(new ID(fieldNameToken, fieldNameToken.image), fieldPermType, immutable);  	}}
+
 
 /*****************************************************************************/
 /*							END OF TYPING RULES								 */
@@ -528,12 +612,13 @@ Decl DeclState() :
 Decl DeclField() :
 {
 		Token idToken;
-		PermType permType = null;
+		PermType permType = PermType.DYN;
 		Expression e;
 		FieldDecl d;
 		ID name;
 		boolean immutable = true;
 		boolean overrides = false;
+		FieldType type;
 }
 {
 		[
@@ -546,18 +631,17 @@ Decl DeclField() :
 		(LOOKAHEAD(PermType() <ID>) permType = PermType() idToken = <ID> | idToken = <ID>)
 		{
 		  	// TODO: Add inference (probably not here, but maybe add an indicator that inference should be done later)
-		  	if (permType == null) {
-		  	  	permType = PermType.DYN;		  	}
 			name = new ID(idToken, idToken.image);
+			type = new FieldType(name, permType, immutable);
 		}
 		(
 			<EQUALS> e = Exp() <SEMICOLON>
 			{
-				d = new FieldDecl(idToken, name, e, false, immutable, new FieldTypeDecl(new ID(idToken.image), permType), overrides);
+				d = new FieldDecl(idToken, name, e, false, immutable, type, overrides);
 			}
 		|	<SEMICOLON>
 			{
-				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, new FieldTypeDecl(new ID(idToken.image), permType), overrides);
+				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, type, overrides);
 			}
 		)
 		{
@@ -569,35 +653,74 @@ Decl DeclField() :
 
 Decl DeclMethod() :
 {
-		//may not be any arguments
+		Token m;
+		boolean override = false;
+		ID methodName;
+		PermType returnType = PermType.DYN; //default return is dyn
+		List<Arg> argList = new ArrayList<Arg>();
+		List<ChangeType> argTypes = new ArrayList<ChangeType>();
+		List<ID> argNames = new ArrayList<ID>();
+		ChangeType receiverType = ChangeType.DYN; //default receiver types are Dyn >> Dyn
+		Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
+		ChangeType envType;
+		Token envVar;
+		MethodType mType;
 		ID argID = null;
 		Expression e = null;
-		List<Arg> argTypeList = new ArrayList<Arg>();
-		List<PermType> argPermTypeList = new ArrayList<PermType>();
-		List<ID> argList = new ArrayList<ID>();
 		MethodDecl d;
-		PermType retPermType = null;
-		MethodTypeDecl methodType;
-		boolean override = false;
+
+		
 }
 {
-		[<OVERRIDE>{ override = true; }] methodType = MethodTypeDecl() (e = BlockExpression(false) | <SEMICOLON>)
+		//[override] method [T] m([T>>T x])[T >> T, E ] ( {e} | ; )
+		[<OVERRIDE>{ override = true; }] /*methodType = MethodTypeDecl()*/
+			m = <METHOD>
+			( LOOKAHEAD(PermType() IdOrOperator())    
+				returnType = PermType() methodName = IdOrOperator() // optional Return type
+				| methodName = IdOrOperator()  //only method name
+			)
+			<LPAREN> [ argList = DeclArgs() ] <RPAREN>	//optional arguments with optional types
+			[ //optional environment - if you put brakets you have to have at least one entry
+				<LBRACK>
+				(LOOKAHEAD(ChangeType() [<THIS>] (<COMMA> | <RBRACK> )) //'this' must be first, either w/o var or with <this>
+					receiverType = ChangeType() [<THIS>]
+					| envType = ChangeType() envVar = <ID>
+						{
+					 		env.put(new ID(envVar,envVar.image), envType);
+					 	}
+				)
+				( //some number of environments
+					<COMMA> envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
+				)*
+				<RBRACK>
+			]
+		 	(e = BlockExpression(false) | <SEMICOLON>)
 		{	
+			if (argList.size() == 0) {
+				argTypes.add(ChangeType.DEFAULTPARAM);
+				argNames.add(IdGen.getId());  //fake argument
+			} else {
+				//transform ArgList into a list of ChangeTypes and a list of Names
+				for (Arg a : argList) {
+					argTypes.add(a.getChangeType());
+					argNames.add(a.getArg());
+				}
+			}
+			mType = new MethodType(methodName, returnType, argTypes, receiverType, env);
+			
+			
+			argID = argNames.get(0); //default to first argument
+			
 			if (e == null) {
 				//default method body is unit
-				d = new MethodDecl(methodType.getToken(), methodType.getName().getName(), new UnitLiteral(), argID, true, methodType, override);
+				d = new MethodDecl(m, methodName.getName(), new UnitLiteral(), argID, true, mType, override);
 			}
 			else {
-			  	argList = methodType.getArgNames();
-				if (argList.size() == 1) {
-					argID = argList.get(0);
-				}
-				else if (argList.size() > 1) {
+				if (argNames.size() > 1) {
 					argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
-					e = getBodyWithPairExtractions(argList, argID, 1, e);
+					e = getBodyWithPairExtractions(argNames, argID, 1, e);
 				}
-
-				d = new MethodDecl(methodType.getToken(), methodType.getName().getName(), e, argID, false, methodType, override);
+				d = new MethodDecl(m, methodName.getName(), e, argID, false, mType, override);
 			}
 		}
 		{
@@ -629,16 +752,16 @@ List<Arg> DeclArgs() :
 
 Arg Arg() :
 {
-	PermType permType = null;
+	ChangeType c = null;
 	Token argToken = null;
 }
 {
-  	(LOOKAHEAD(PermType() <ID>) permType = PermType() argToken = <ID> | argToken = <ID>) 
+  	(LOOKAHEAD(ChangeType() <ID>) c = ChangeType() argToken = <ID> | argToken = <ID>) 
 	{
-	  	// TODO: Should dyn be the default?
-	  	if (permType == null) {			permType = PermType.DYN;
+	  	// TODO: Should dyn be the default? - for now yes (Actually Dyn >> Dyn)
+	  	if (c == null) {			c = ChangeType.DYN;
 	  	}
-		return new Arg(permType, new ID(argToken, argToken.image));
+		return new Arg(c, new ID(argToken, argToken.image));
 	}
 }
 
@@ -724,8 +847,8 @@ Expression BlockExpression(boolean isExp) :
 					ID varID = IdGen.getId();
 					List<ID> argNames = new ArrayList<ID>();
 					argNames.add(varID);
-					// TODO: Use something other than RECEIVER to indicate a default/place we need to do inference
-					return new Lambda(e.getToken(), varID, e, new MethodTypeDecl(e.getToken(), IdGen.getId(), PermType.RECEIVER, argNames, permTypes, PermType.RECEIVER, PermType.RECEIVER, null));
+					// TODO: better signal of inference needed
+					return new Lambda(e.getToken(), varID, e, LambdaType.DEFAULTLAMBDATYPE); 
 				}
 				else {					return e;
 				}
@@ -798,7 +921,7 @@ Expression InfixExp() :
 				(t = < ID > | t = < OP >)
 				arg = SimpleExp()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t,e, new ID(t,t.image), arg); //TODO: what if multiple arguments infix method?
 				}
 		)*
 		{
@@ -819,8 +942,8 @@ Expression ConditionalExpression() :
 		(
 				t = "?" arg = Exp() t2 =  ":" arg2 = ConditionalExpression()
 				{
-						e = opMethodCall(t, e, arg);
-						e = opMethodCall(t2, e, arg2);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+						e = new MethodCall(t2, e, new ID(t,t.image), arg2);
 				}
 		)?
 		{
@@ -839,7 +962,7 @@ Expression ConditionalOrExpression() :
 		(
 				t = "||" arg = ConditionalAndExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -858,7 +981,7 @@ Expression ConditionalAndExpression() :
 		(
 				t = "&&" arg = InclusiveOrExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -877,7 +1000,7 @@ Expression InclusiveOrExpression() :
 		(
 				t = "|" arg = ExclusiveOrExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -896,7 +1019,7 @@ Expression ExclusiveOrExpression() :
 		(
 				t = "^" arg = AndExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -915,7 +1038,7 @@ Expression AndExpression() :
 		(
 				t = "&" arg = EqualityExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -939,7 +1062,7 @@ Expression EqualityExpression() :
 				)
 				arg = RelationalExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -964,7 +1087,7 @@ Expression RelationalExpression() :
 				)
 				arg = ShiftExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -988,7 +1111,7 @@ Expression ShiftExpression() :
 				)
 				arg = AdditiveExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -1011,7 +1134,7 @@ Expression AdditiveExpression() :
 				)
 				arg = MultiplicativeExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -1035,7 +1158,7 @@ Expression MultiplicativeExpression() :
 				)
 				arg = UnaryExpression()
 				{
-						e = opMethodCall(t, e, arg);
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
 		)*
 		{
@@ -1058,7 +1181,7 @@ Expression UnaryExpression() :
 				)
 				e = InfixExp()
 				{
-						e = opMethodCall(t, e, new UnitLiteral());
+						e = new MethodCall(t, e, new ID(t,t.image), new UnitLiteral());
 				}
 		|		e = InfixExp()
 		)
@@ -1071,26 +1194,22 @@ Expression UnaryExpression() :
 Expression LocalVarDecl() :
 {
 		Token t = null;
+		Token id;
 		Arg var;
-		boolean mutable = false;
+		boolean mutable = false; //TODO - this should be the same as for fields, or mutable turned into objects with fields, actually
 		Expression e;
-		ID name;
-		PermType permType;
+		PermType permType = PermType.DYN;
 }
 {
 		(
 				t = <VAR> {mutable = true;}
 		|		t = <VAL>
 		)
-		var = Arg()
-		{
-			permType = var.getPermType();
-			name = var.getArg();
-		}
+		( LOOKAHEAD( PermType() ) permType = PermType() id = <ID> | id = <ID> ) 
 		<EQUALS> e = Exp() //local var declarations must be initialized
 		{
 			// Why is the body set to unit here?
-			return new LetBinding(t, name, e, new UnitLiteral(), mutable, permType);
+			return new LetBinding(t, new ID(id, id.image), e, new UnitLiteral(), mutable, permType);
 		}
 }
 
@@ -1158,6 +1277,7 @@ Expression SimpleExp() :
 		State s;
 		List < Token > dotName;
 		List < Expression > curriedArgs = new ArrayList < Expression > ();
+		Expression methodArg = new UnitLiteral();
 }
 {
 		e = BlockExpression(true)
@@ -1188,22 +1308,35 @@ Expression SimpleExp() :
 			curriedArgs = new ArrayList < Expression > ();		  
 		}
 		(
-		  	(dotToken = <DOT> | dotToken = <BANG>) (t = < ID > | t = < NEW >)
-			{
-			  	if (dotToken.image.equals(".")) {					e = new Dereference(t, e, new ID(t.image));
-			  	}
-			  	else {
-			  	  	e = new DestructiveDereference(t, e, new ID(t.image));			  	}
+		    (dotToken = <DOT> | dotToken = <BANG> ) (t = <ID> | t = <NEW> )
+		    {
+		    	if (dotToken.image.equals(".")) {
+		    		e = new Dereference(t, e, new ID(t,t.image));
+		    	} else {
+		    		e = new DestructiveDereference(t, e, new ID(t,t.image));
+		    	}
+		    }
+			(LOOKAHEAD(<LPAREN>) //If we have an expr list in parens next, assume method call
+				<LPAREN>
+		  			[ methodArg = ExpList() ]
+		  		<RPAREN> 
+		  			{ 
+		  				e = new MethodCall(dotToken, ((Dereference)e).getLeft(), ((Dereference)e).getRight(), methodArg); 
+		  				methodArg = new UnitLiteral();
+		  			}
+		  		//followed with arbitrary applications			
+				( arg = ArgExp() { curriedArgs.add(arg); })*
 				
-			}
-			(
-				arg = ArgExp()
-				{					curriedArgs.add(arg);
-				}
-			)*
+				| //otherwise, just arbitrary applications
+				
+				(
+					arg = ArgExp() { curriedArgs.add(arg); }
+				)*
+			)
 			{
-				e = foldCurriedArgs(e, curriedArgs);
-				curriedArgs = new ArrayList < Expression > ();			}
+					e = foldCurriedArgs(e, curriedArgs);
+					curriedArgs = new ArrayList < Expression > ();
+			}
 		)*
 		{
 				return foldCurriedArgs(e, curriedArgs);
@@ -1253,7 +1386,7 @@ Expression ExpList() :
 			QI pairWith;
 			for (int i = size - 1; i >= 0; i--)
 			{
-				fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldTypeDecl(new ID("fst"), PermType.RECEIVER), false);
+				fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldType(new ID("fst"), PermType.DYN, true), false);
 				snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
 				pairFields = new ArrayList < Decl > ();
 				pairFields.add(fst);
@@ -1336,52 +1469,29 @@ ID Operator() :
 Expression Function() :
 {
 		Token t;
-		List<Arg> argTypeList = new ArrayList<Arg>();
-		List<PermType> permTypeList = new ArrayList<PermType>();
-		List<ID> argList = new ArrayList<ID>();
+		List<Arg> argList = new ArrayList<Arg>();
+		List<ChangeType> argTypes = new ArrayList<ChangeType>();
+		List<ID> argNames = new ArrayList<ID>();
+		Token envVar;
+		ChangeType envType;
 		Expression body;
 		// might not have any args, so unit would be the arg
-		ID var = null;
+		ID argID = null;
 
-		Map<ID, List<PermType>> boundVarTypeTrans = new HashMap<ID, List<PermType>>();
-
-		List<PermType> typeTrans = null;
-
-		Token idTok;
-		ID boundVarID;
-
-		PermType tempPermType1;
-		PermType tempPermType2;
+		Map<ID, ChangeType> env = new HashMap<ID, ChangeType>();
+		LambdaType lType;
 }
 {
 		// Lookahead problem because Exp() could be a blockExpression, but 
 		// always want it to match BlockExpression() here because it shouldn't 
 		// be treated as a lambda
-		t = <FN> <LPAREN> [argTypeList = DeclArgs()] <RPAREN>
-		[<LBRACK>
-		{
-  	  		// initialize the type transition map so we know that they put an annotation in, even if it's empty
-  	  		boundVarTypeTrans = new HashMap<ID, List<PermType>>();
-  		}
-		[tempPermType1 = PermType() <MARROW> tempPermType2 = PermType() idTok = <ID>
-		{
-		  	boundVarID = new ID(idTok.image);
-		  	if (boundVarTypeTrans.containsKey(boundVarID)) {				throw new RuntimeException("Duplicate bound variable state change annotations.");
-		  	}
-		  	typeTrans = new ArrayList<PermType>();
-		  	typeTrans.add(tempPermType1);
-		  	typeTrans.add(tempPermType2);
-		  	boundVarTypeTrans.put(boundVarID, typeTrans);		}
-		(<COMMA> tempPermType1 = PermType() <MARROW> tempPermType2 = PermType() idTok = <ID>		{
-		  	boundVarID = new ID(idTok.image);
-		  	if (boundVarTypeTrans.containsKey(boundVarID)) {
-				throw new RuntimeException("Duplicate bound variable state change annotations.");
-		  	}
-		  	typeTrans = new ArrayList<PermType>();
-		  	typeTrans.add(tempPermType1);
-		  	typeTrans.add(tempPermType2);
-		  	boundVarTypeTrans.put(boundVarID, typeTrans);		}
-		)*] <RBRACK>]
+		t = <FN> <LPAREN> [argList = DeclArgs()] <RPAREN>
+		[<LBRACK> 
+			envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
+			( //some number of environments
+			<COMMA> envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
+			)*
+		<RBRACK>]
 		<DARROW>
 		(
 				LOOKAHEAD("{")
@@ -1389,29 +1499,30 @@ Expression Function() :
 		|		body = Exp()
 		)
 		{
-			for (Arg arg : argTypeList) {
-				permTypeList.add(arg.getPermType());
-				argList.add(arg.getArg());
+			if (argList.size() == 0) {
+				argTypes.add(ChangeType.DEFAULTPARAM);
+				argNames.add(IdGen.getId());  //fake argument
+			} else {
+				//transform ArgList into a list of ChangeTypes and a list of Names
+				for (Arg a : argList) {
+					argTypes.add(a.getChangeType());
+					argNames.add(a.getArg());
+				}
 			}
-			if (argList.size() == 1) {
-				var = argList.get(0);
-			}
-			else if (argList.size() > 1) {
-				var = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
-				body = getBodyWithPairExtractions(argList, var, 1, body);
-			}
-			else {
-			  // generate a bogus ID and put unit in the arg list and permtype list
-			  var = IdGen.getId();
-			  permTypeList.add(PermType.UNIT);			}
-
-			// TODO: Use something other than RECEIVER to indicate that we need to do inference
-			List<ID > argNameList = new ArrayList<ID >();
-			argNameList.add(var);
-			MethodTypeDecl methodType = new MethodTypeDecl(t, IdGen.getId(), PermType.RECEIVER, argNameList, permTypeList, PermType.RECEIVER, PermType.RECEIVER, boundVarTypeTrans);
 			
+			lType = new LambdaType(t, argTypes, env, PermType.DYN); //Default to Dyn as return TODO: better inference handling
+			
+			
+			if (argNames.size() == 1) {
+				argID = argNames.get(0);
+			}
+			else if (argNames.size() > 1) {
+				argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
+				body = getBodyWithPairExtractions(argNames, argID, 1, body);
+			}
+
 			// TODO: where should the return type annotation go?
-			return new Lambda(t, var, body, methodType);
+			return new Lambda(t, argID, body, lType);
 		}
 }
 

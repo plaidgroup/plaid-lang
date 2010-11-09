@@ -26,6 +26,8 @@ import java.util.Set;
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
+import plaid.compilerjava.types.FieldType;
+import plaid.compilerjava.types.PermType;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FieldRep;
 import plaid.compilerjava.util.FileGen;
@@ -43,14 +45,14 @@ public class FieldDecl implements Decl{
 	private Expression e;
 	private final boolean abstractField;
 	private final boolean immutable;
-	private final FieldTypeDecl fieldType;
+	private final FieldType fieldType;
 	private final boolean overrides;
 	
 	public boolean isAbstractField() {
 		return abstractField;
 	}
 
-	public FieldDecl(Token t, ID f, Expression e, boolean abstractField, boolean immutable, FieldTypeDecl fieldType, boolean overrides) {
+	public FieldDecl(Token t, ID f, Expression e, boolean abstractField, boolean immutable, FieldType fieldType, boolean overrides) {
 		super();
 		this.token = t;
 		this.setF(f);
@@ -62,14 +64,14 @@ public class FieldDecl implements Decl{
 	}
 
 	public FieldDecl(ID f, Expression e) {
-		this(null, f, e, false, true, new FieldTypeDecl(f, PermType.RECEIVER), false);
+		this(null, f, e, false, true, new FieldType(f, PermType.DYN, true), false);
 	}
 	
 	public ID getF() {
 		return f;
 	}
 	
-	public FieldTypeDecl getFieldType() {
+	public FieldType getFieldType() {
 		return this.fieldType;
 	}
 
@@ -185,7 +187,7 @@ public class FieldDecl implements Decl{
 	@Override
 	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		this.f.accept(visitor);
-		this.fieldType.accept(visitor);
+		//this.fieldType.accept(visitor); //visit type as part of this node
 		this.e.accept(visitor);
 	}
 

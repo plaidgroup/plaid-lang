@@ -1,8 +1,9 @@
-package plaid.compilerjava.AST;
+package plaid.compilerjava.types;
 
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 
+import plaid.compilerjava.AST.ASTnode;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 
@@ -13,12 +14,13 @@ public class Permission implements ASTnode, JSONAware {
 	public static final Permission DYN = new Permission(null, "dyn");
 	public static final Permission UNIQUE = new Permission(null, "unique");
 	public static final Permission SHARED = new Permission(null, "shared");
+	public static final Permission NONE = new Permission(null, "none");
 	
 	// This is a marker to indicate that the permission of the receiver should remain unchanged
-	public static final Permission RECEIVER = new Permission(null, "receiver");
+	//public static final Permission RECEIVER = new Permission(null, "receiver");
 	
 	// This is a marker to indicate that the permission of the object should be the default of the state declaration
-	public static final Permission DEFAULT = new Permission(null, "default");
+	//public static final Permission DEFAULT = new Permission(null, "default");
 
 	private final Token token;
 	private final String image;
@@ -53,7 +55,8 @@ public class Permission implements ASTnode, JSONAware {
 	}
 
 	public String toString() {
-		return "Permission: " + this.image;
+		//return "Permission: " + this.image;
+		return this.image;
 	}
 
 	@SuppressWarnings("unchecked")

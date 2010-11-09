@@ -22,7 +22,6 @@ package plaid.compilerjava.test;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +47,7 @@ public class BuildAllExamples {
 		cc.setInvokeCompiler(false);
 		cc.setDebugMode(false);
 		cc.setPrettyPrint(true);
+		//cc.setVerbose(true);
 		String sep = System.getProperty("file.separator");
 		cc.addToPlaidPath("bin" + sep);
 		
