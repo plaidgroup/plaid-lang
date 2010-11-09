@@ -74,7 +74,7 @@ public final class Lambda implements Expression {
 		return body;
 	}
 
-	public LambdaType gettype() {
+	public LambdaType getType() {
 		return type;
 	}
 
