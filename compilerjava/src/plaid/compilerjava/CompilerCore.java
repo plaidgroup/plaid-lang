@@ -214,15 +214,6 @@ public class CompilerCore {
 					System.out.println("Generating code for:\n" + cu);
 				List<File> fileList = cu.codegen(cc, plaidpath);
 
-				if ( cc.isVerbose() ) {
-					for(File f : fileList) {
-						FileReader fr = new FileReader(f);
-						int charRead;
-						while((charRead = fr.read()) != -1) {
-							System.out.print((char)charRead);
-						}
-					}
-				}
 				allFiles.addAll(fileList);
 			} catch (PlaidException p) {
 				System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
