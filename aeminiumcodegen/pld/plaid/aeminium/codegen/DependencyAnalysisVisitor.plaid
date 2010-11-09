@@ -58,7 +58,9 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 				if (writer.containsKey(read.name)) {
 					val prevWriter = writer.get(read.name);
 					
-					myDeps.add(makeDependency(prevWriter, read));
+					if (astNode.num != prevWriter.num) {
+						myDeps.add(makeDependency(prevWriter, read));
+					};
 				};
 				
 				if (!readers.containsKey(read.name)) {
@@ -78,14 +80,18 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 					
 					while { readIt.hasNext(); } {
 						val prevReader = readIt.next();
-						// TODO: Add inequality check.
-						myDeps.add(makeDependency(prevReader, write));
+						
+						if (astNode.num != prevReader.num) {
+							myDeps.add(makeDependency(prevReader, write));
+						};
 					};
 				} {
 					if (writer.containsKey(write.name)) {
 						val prevWriter = writer.get(write.name);
-						// TODO: Add inequality check.
-						myDeps.add(makeDependency(prevWriter, write));
+						
+						if (astNode.num != prevWriter.num) { 
+							myDeps.add(makeDependency(prevWriter, write));
+						};
 					};
 				};
 				
@@ -298,13 +304,14 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		updateDependencies(astNode, reads, writes);
 		astNode.body.accept(this);		
 	}
-	
+
+	// TODO: How to handle methods with multiple arguments?
+	// TODO: This does not respect environments of methods yet.	
 	method visitApplication(astNode) {
 		astNode.num = getNodeNumber();
 		val reads = java.util.HashSet.new();
 		val writes = java.util.HashSet.new();
 		
-		// TODO: How to handle methods with multiple arguments?
 		// Check if we have a global method of that name
 		ifElse (this.methodTypes.containsKey(astNode.f.name)) {
 			var methodType = this.methodTypes.get(astNode.f.name);
@@ -354,18 +361,21 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 							writes.add(effect.variable);
 						};
 					});
+					
+					val /*PermTypeChange*/ argType = lambdaType.argType;
+					match (argType.from.perm) {
+						case UniquePermission {
+							writes.add(astNode.arg);
+						}
+						
+						case ImmutablePermission {
+							reads.add(astNode.arg);
+						}
+					};
 				}
 				case None {
 					java.lang.System.err.println("Warning: Lambda has no associated type.");
 				}
-			};
-			
-			match (astNode.arg) {
-				case ID {
-					reads.add(astNode.arg);
-				}
-				
-				default {}
 			};
 		};
 		
@@ -414,6 +424,52 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 			}
 			default {}
 		};
+		
+		updateDependencies(astNode, reads, writes);		
+	}
+	
+	// TODO: This can cause problems with visibility of local variables:
+	// let t0 = ...
+	// ...
+	// match (...) {
+	//   case A {
+	//     let t0 = ...
+	//
+	// For now, we just assume that a distinct set of identifiers
+	// is used inside the case block.
+	method visitMatch(astNode) {
+		astNode.num = getNodeNumber();
+		val reads = java.util.HashSet.new();
+		val writes = java.util.HashSet.new();
+		
+		reads.add(astNode.e);
+		
+		astNode.caseList.map(fn (c) => {
+			val oldWriter = this.writer;
+			val oldReaders = this.readers;
+			this.writer = java.util.HashMap.new();
+			this.readers = java.util.HashMap.new();
+			
+			c.e.accept(this);
+
+			// java.lang.System.out.println("Case:");
+			// java.lang.System.out.println("  Writes:");
+			var it = this.writer.keySet().iterator();
+			while { it.hasNext(); } {
+				writes.add(new ID { val token = new None; val name = it.next(); });
+				// java.lang.System.out.println("    " + it.next());
+			};
+			
+			// java.lang.System.out.println("  Reads:");
+			it = this.readers.keySet().iterator();
+			while { it.hasNext(); } {
+				reads.add(new ID { val token = new None; val name = it.next(); });
+				// java.lang.System.out.println("    " + it.next());
+			};
+			
+			this.writer = oldWriter;
+			this.readers = oldReaders;
+		});
 		
 		updateDependencies(astNode, reads, writes);		
 	}
