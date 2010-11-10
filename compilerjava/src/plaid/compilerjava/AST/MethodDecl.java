@@ -58,7 +58,7 @@ public final class MethodDecl implements Decl {
 		this.body = body;
 		if (arg == null) {
 			// fresh ID for arg which will always be unit and never used
-			this.arg = IdGen.getId();
+			this.arg = ID.DEFAULTPARAMID;
 		}
 		else {
 			this.arg = arg;
@@ -83,7 +83,7 @@ public final class MethodDecl implements Decl {
 	}
 	
 	public boolean hasArg() {
-		return arg != null;
+		return arg != ID.DEFAULTPARAMID;
 	}
 
 	public ID getArg() {
@@ -120,7 +120,7 @@ public final class MethodDecl implements Decl {
 		imports.codegen(out, freshImports);
 		out.declareGlobalScope(qid.toString(),freshImports.getName());
 		
-		if (newName.equals("main") && this.methodType.getArgTypes().get(0).getInput() == PermType.UNIT && this.methodType.getArgTypes().size() == 1) {
+		if (newName.equals("main") && !hasArg()) {
 			out.topLevelMain(newName + "_func");
 		} else {
 			localVars = localVars.add(arg);

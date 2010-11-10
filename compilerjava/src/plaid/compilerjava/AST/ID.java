@@ -30,9 +30,11 @@ import plaid.runtime.PlaidConstants;
 import plaid.runtime.Util;
 
 public class ID implements Expression{
+	public static final ID DEFAULTPARAMID = new ID("_");
+	
 	private Token token;
 	private String name;
-	
+
 	public ID(String name) {
 		this.name = convertKeyword(name);
 	}

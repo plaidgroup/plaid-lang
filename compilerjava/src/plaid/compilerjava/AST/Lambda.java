@@ -49,7 +49,7 @@ public final class Lambda implements Expression {
 		
 		// if var is unit, generate a fresh ID that won't get used in the body
 		if (var == null)
-			this.var = IdGen.getId();
+			this.var = new ID("_");
 		else
 			this.var = var;
 		
@@ -64,6 +64,10 @@ public final class Lambda implements Expression {
 	@Override
 	public boolean hasToken() {
 		return token != null;
+	}
+	
+	public boolean hasArg() {
+		return var != ID.DEFAULTPARAMID;
 	}
 	
 	public ID getVar() {
