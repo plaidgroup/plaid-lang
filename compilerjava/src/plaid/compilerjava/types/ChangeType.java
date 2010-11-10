@@ -2,7 +2,7 @@ package plaid.compilerjava.types;
 
 public class ChangeType {
 
-	public static final ChangeType DEFAULTPARAM = new ChangeType(PermType.UNIT, PermType.UNIT, false);
+	public static final ChangeType DEFAULTPARAMTYPE = new ChangeType(PermType.VOID, PermType.VOID, true);
 	public static final ChangeType DYN = new ChangeType(PermType.DYN, PermType.DYN, false);
 	
 	private final PermType input;
