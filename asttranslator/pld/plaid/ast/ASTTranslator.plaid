@@ -14,6 +14,31 @@ state ASTTranslator {
 		newList
 	}
 	
+	method translateSet(fVal, set) {
+        val newSet = HashSet.new();
+        val iter = set.iterator();
+        while { iter.hasNext(); }{
+            newSet.add(fVal (iter.next()));
+        };
+        newSet;
+    }
+    
+    method translateMap(fKey, fVal, map) {
+    	val newMap = HashMap.new();
+    	val iter = map.keySet().iterator();
+    	var key = unit;
+    	while { iter.hasNext(); }{
+    		key = iter.next();
+    		newMap.put(fKey (key), fVal (map.get(key)));
+    	};
+    }
+	
+	method translateBoolean(bool) {
+		ifelse (bool.toString().equals("true")) 
+		{ true }
+		{ false }
+	}
+	
 	method getToken(root) {
 		ifElse (root.hasToken()) {
 			new Some { val value = this.translateAST(root.getToken()); };
@@ -24,51 +49,54 @@ state ASTTranslator {
 	
 	method translatePermission(root) {
 		// TODO: I'm not sure this is the correct way to translate this.
-		ifElse (root.equals(plaid.compilerjava.AST.Permission.FULL)) {
+		ifElse (root.equals(plaid.compilerjava.types.Permission.FULL)) {
 			new FullPermission {
 				val /*Token*/ token = this.getToken(root);
 				val /*String*/ image = root.getImage();
 			};
 		} {
-			ifElse (root.equals(plaid.compilerjava.AST.Permission.IMMUTABLE)) {
+			ifElse (root.equals(plaid.compilerjava.types.Permission.IMMUTABLE)) {
 				new ImmutablePermission {
 					val /*Token*/ token = this.getToken(root);
 					val /*String*/ image = root.getImage();
 				};
 			} {
-				ifElse (root.equals(plaid.compilerjava.AST.Permission.PURE)) {
+				ifElse (root.equals(plaid.compilerjava.types.Permission.PURE)) {
 					new PurePermission {
 						val /*Token*/ token = this.getToken(root);
 						val /*String*/ image = root.getImage();
 					};
 				} {
-					ifElse (root.equals(plaid.compilerjava.AST.Permission.UNIQUE)) {
+					ifElse (root.equals(plaid.compilerjava.types.Permission.UNIQUE)) {
 						new UniquePermission {
 							val /*Token*/ token = this.getToken(root);
 							val /*String*/ image = root.getImage();
 						};
 					} {
-					    if (root.equals(plaid.compilerjava.AST.Permission.SHARED)) {
+					    ifElse (root.equals(plaid.compilerjava.types.Permission.SHARED)) {
 					        new SharedPermission {
                                 val /*Token*/ token = this.getToken(root);
                                 val /*String*/ image = root.getImage();
-                            };              
-					    };
-					};
+                            };
+                        } {
+                        	ifElse (root.equals(plaid.compilerjava.types.Permission.DYN)) {
+                        		new DynPermission {
+                        			val /*Token*/ token = this.getToken(root);
+                                	val /*String*/ image = root.getImage();
+                        		}
+                        	
+                        	} {
+                            	java.lang.System.out.println("Unknown Permission: ");
+								java.lang.System.out.println((root.getClass()).getName());
+								new Void;
+							};
+                        };              
+				    };
 				};
 			};
 		};
 	}
-
-    method translateSet(set) {
-        val newSet = HashSet.new();
-        val iter = set.iterator();
-        while { iter.hasNext(); }{
-            newSet.add(this.translateAST(iter.next()));
-        };
-        newSet;
-    }
-
+	
 	method translateAST(root) {
 		match(root) {
 			case plaid.compilerjava.AST.Application {
@@ -150,6 +178,7 @@ state ASTTranslator {
 					val /*Expression*/ e = this.translateAST(root.getE());
 					val /*boolean*/ abstractField = root.isAbstractField();
 					val /*boolean*/ immutableField = root.getImmutable();
+					val /*FieldType*/ fieldType = this.translateType(root.getFieldType());
 				};
 			}
 			case plaid.compilerjava.AST.ID {
@@ -175,7 +204,7 @@ state ASTTranslator {
 					val /*Token*/ token = this.getToken(root);
 					val /*ID*/ x = this.translateAST(root.getVar());
 					val /*Expression*/ body = this.translateAST(root.getBody());
-					val /*MethodTypeDecl*/ methodType = this.translateAST(root.getMethodType());
+					val /*LambdaType*/ type = this.translateAST(root.getType());
 				};
 			}
 			case plaid.compilerjava.AST.LetBinding {
@@ -194,6 +223,14 @@ state ASTTranslator {
 					val /*List<Case>*/ caseList = this.map(this.translateAST, root.getCaseList());
 				};
 			}
+			case plaid.compilerjava.AST.MethodCall {
+				new MethodCall {
+					val /*Expression*/ receiver = this.translateAST(root.getReceiver());
+					val /*ID*/ methodName = this.translateAST(root.getMethod());
+					val /*Expression*/ argument = this.translateAST(root.getArgument());
+					val /*Token*/ callSite = this.translateAST(root.getToken());
+				}
+			}
 			case plaid.compilerjava.AST.MethodDecl {
 				new MethodDecl {
 					val /*Token*/ token = this.getToken(root);
@@ -205,46 +242,46 @@ state ASTTranslator {
 							new None;
 						};
 					val /*boolean*/ abstractMethod = root.isAbstractMethod();
-					val /*MethodTypeDecl*/ methodType = this.translateAST(root.getMethodType());
+					val /*MethodTypeDecl*/ methodType = this.translateType(root.getMethodType());
 				};
 			}
-			case plaid.compilerjava.AST.MethodTypeDecl {
-				new MethodTypeDecl {
-					val /*Token*/ token = this.getToken(root);
-					val /*ID*/ name = this.translateAST(root.getName());
-					val /*PermType*/ retPermType = this.translateAST(root.getRetPermType());
-					val /*List<PermType>*/ argTypes = this.map(this.translateAST, root.getArgTypes());
-					val /*List<ID>*/ argNames = this.map(this.translateAST, root.getArgNames());
-				};
-			}
+//			case plaid.compilerjava.AST.MethodTypeDecl {
+//				new MethodTypeDecl {
+//					val /*Token*/ token = this.getToken(root);
+//					val /*ID*/ name = this.translateAST(root.getName());
+//					val /*PermType*/ retPermType = this.translateAST(root.getRetPermType());
+//					val /*List<PermType>*/ argTypes = this.map(this.translateAST, root.getArgTypes());
+//					val /*List<ID>*/ argNames = this.map(this.translateAST, root.getArgNames());
+//				};
+//			}
 			case plaid.compilerjava.AST.NewInstance {
 				new NewInstance {
 					val /*Token*/ token = this.getToken(root);
 					val /*State*/ s = this.translateAST(root.getSt());
 				};
 			}
-			case plaid.compilerjava.AST.Permission {
-				this.translatePermission(root);
-			}
-			case plaid.compilerjava.AST.PermType {
-				val t = root.getType();
-				var ret = new Void;
-				
-				ifElse (t.equals(plaid.compilerjava.AST.Type.UNIT)) {
-					ret = new Void;
-				} {
-					ifElse (t.equals(plaid.compilerjava.AST.Type.DYN)) {
-						ret = new Dyn;
-					} {
-						ret = new PermType {
-						          val /*Permission*/ perm = this.translateAST(root.getPermission());
-						          val /*StructuralType*/ type = this.translateAST(root.getType());
-							  };
-					}
-				};
-				
-				ret;
-			}
+			//case plaid.compilerjava.AST.Permission {
+			//	this.translatePermission(root);
+			//}
+			//case plaid.compilerjava.AST.PermType {
+			//	val t = root.getType();
+			//	var ret = new Void;
+			//	
+			//	ifElse (t.equals(plaid.compilerjava.AST.Type.UNIT)) {
+			//		ret = new Void;
+			//	} {
+			//		ifElse (t.equals(plaid.compilerjava.AST.Type.DYN)) {
+			//			ret = new Dyn;
+			//		} {
+			//			ret = new PermType {
+			//			          val /*Permission*/ perm = this.translateAST(root.getPermission());
+			//			          val /*StructuralType*/ type = this.translateAST(root.getType());
+			//				  };
+			//		}
+			//	};
+			//	
+			//	ret;
+			//}
 			case plaid.compilerjava.AST.QI {
 				new QI {
 					val /*Token*/ token = this.getToken(root);
@@ -273,12 +310,6 @@ state ASTTranslator {
 				new StringLiteral {
 					val /*Token*/ token = this.getToken(root);
 					val /*String*/ string = root.toString();
-				};
-			}
-			case plaid.compilerjava.AST.Type {
-				new StructuralType {
-					val /*Set<ID>*/ typeAbbrevs = this.translateSet(root.getTypeAbbrevs());
-					val /*Set<TypeDecl>*/ typeDecls = this.translateSet(root.getTypeDecls());
 				};
 			}
 			case plaid.compilerjava.AST.UnitLiteral {
@@ -313,5 +344,63 @@ state ASTTranslator {
 				java.lang.System.out.println((root.getClass()).getName());
 			}
 		}
+	}
+	
+	method translateType(type) {
+		match (type) {
+			case plaid.compilerjava.types.ChangeType {
+				new ChangeType {
+					val /*PermType*/ input = this.translateType(type.getInput());
+					val /*PermType*/ output = this.translateType(type.getOutput());
+					val /*Boolean*/ borrow = type.borrows(); //this.translateBoolean(type.borrows());
+				}
+			}
+			case plaid.compilerjava.types.FieldType {
+				new FieldType {
+					val /*PermType*/ permType = this.translateType(type.getPermType());
+					val /*ID*/ name = this.translateAST(type.getName());
+					val /*boolean*/ isImmutable = this.translateBoolean(type.isImmutable());
+				}
+			}
+			case plaid.compilerjava.types.LambdaType {
+				new LambdaType {
+					val /*PermType*/ returnType = this.translateType(type.getReturnType());
+					val /*List<ChangeType>*/ argTypes = this.map(this.translateType, type.getArgTypes());
+					val /*Map<ID,ChangeType>*/ environmentTypes = this.translateMap(this.translateAST, this.translateType, type.getEnvironmentTypes());
+				}
+			}
+			case plaid.compilerjava.types.MethodType {
+				new MethodType {
+					val /*ID*/ name = this.translateAST(type.getName());
+					val /*PermType*/ returnType = this.translateType(type.getReturnType());
+					val /*List<ChangeType>*/ argTypes = this.map(this.translateType, type.getArgTypes());
+					val /*ChangeType*/ receiverType = this.translateType(type.getReceiverType());
+					val /*Map<ID,ChangeType>*/ environmentTypes = this.translateMap(this.translateAST, this.translateType, type.getEnvironmentTypes());
+				}
+			}
+			case plaid.compilerjava.types.ObjectType {
+				ifElse (type.isNominal()) {
+					new NominalType {
+						val /*ID*/ typeName = this.translateAST(type.getNominalType());
+					}
+				}/* else */ {
+					new StructuralType {
+						val /*Set<ID>*/ typeAbbrevs = this.translateSet(this.translateAST, root.getTypeAbbrevs());
+						val /*Set<TypeDecl>*/ typeDecls = this.translateSet(this.translateAST, root.getTypeDecls());
+					};
+				}
+			}
+			case plaid.compilerjava.types.PermType {
+				new PermType {
+					val /*Permission*/ perm = this.translatePermission(type.getPermission());
+					val /*Type*/ type = this.translateType(type.getType());
+				}
+			}
+			default {
+				java.lang.System.out.print("Unknown Type node type: ");
+				java.lang.System.out.println((root.getClass()).getName());
+			}
+		}
+	
 	}
 }

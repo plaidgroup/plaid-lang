@@ -5,10 +5,10 @@ import plaid.compilerjava.AST.ID;
 public class FieldType implements TypeDecl {
 	private final PermType permType;
 	private final ID name;
-	private final boolean immutable;
+	private final boolean isImmutable;
 	
 	public FieldType(ID name, PermType permType, boolean immutable) {
-		this.immutable = immutable;
+		this.isImmutable = immutable;
 		this.name = name;
 		if (permType == null)
 			throw new RuntimeException("permType cannot be null");
@@ -45,13 +45,13 @@ public class FieldType implements TypeDecl {
 	}
 	
 	public boolean isImmutable() {
-		return immutable;
+		return isImmutable;
 	}
 	
 	@Override
 	public String toString() {
 		StringBuilder s = new StringBuilder();
-		if (immutable) s.append("val ");
+		if (isImmutable) s.append("val ");
 		else s.append("var ");
 		
 		s.append(permType.toString() + " ");
