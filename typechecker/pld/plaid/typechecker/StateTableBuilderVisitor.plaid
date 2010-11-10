@@ -1,0 +1,58 @@
+package plaid.typechecker;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.typechecker.ast.*;
+import plaid.ast.visitor.LeafVisitor;
+
+state StateTableBuilderVisitor case of LeafVisitor {
+	
+	var /*List<StateType>*/ stateTable = new StateTable;
+	var /*StateType*/ currentState = new None;
+	
+	//method visitImportList(node); //TODO: override and handle imports
+	/*
+	*	save
+	*/
+	override method visitStateDecl(node) {
+		val sType = new StateType {
+			val /*Option StateType*/ superType = new None; //TODO: superstates
+			val /*ID*/ name = node.name;
+		};
+		stateTable.put(node.name, sType);
+		currentState = new Some { val value = sType; };
+		node.stateDef.accept(this);  //Visit declarations in this state
+		currentState = new None;	//leave this state context
+	}
+	
+	/*
+	*	if in a current state, add to list of 
+	*/
+	override method visitMethodDecl(node) {
+		match(this.currentState) {
+			case Some {
+				val theState = currentState.value;
+				val methodType = node.methodType;
+				if (!node.abstractMethod) 
+					{ theState.providedTypes.add(methodType) };
+				theState.declaredTypes.add(methodType);
+			}
+			default { }
+		}
+	}
+	
+	override method visitFieldDecl(node) {
+		match(this.currentState) {
+			case Some {
+				val theState = currentState.value;
+				val fieldType = node.fieldType;
+				if (!node.abstractField) 
+					{ theState.providedTypes.add(fieldType) };
+				theState.declaredTypes.add(fieldType);
+			}
+			default { }
+		}
+	}
+	
+	
+}

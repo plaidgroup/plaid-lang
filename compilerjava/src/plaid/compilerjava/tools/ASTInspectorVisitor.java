@@ -241,7 +241,7 @@ public class ASTInspectorVisitor extends AbstractASTVisitor {
 	public ASTnode visitNode(Lambda node) {
 		ASTVisitor visitor = this.enter(node);
 		DefaultMutableTreeNode newNode = new DefaultMutableTreeNode("Lambda");
-		newNode.add(new DefaultMutableTreeNode("Type: " + node.gettype().toString()));
+		newNode.add(new DefaultMutableTreeNode("Type: " + node.getType().toString()));
 		// create the new tree node and add it to the tree
 		addNodeVisitChildren(node, newNode);
 		
