@@ -25,7 +25,39 @@ state InitialTypechecker case of LeafVisitor {
 	}
 	
 	override method visitFieldDecl(node) {
-		//TODO: implement
+		// field declarations should be typed in an empty context
+		//so type using a new empty context and then check
+		//for consistency with the declared type
+		java.lang.System.out.println("typechecking field " + node.f.name);
+		val ftype = node.fieldType;
+		val fST = this.stateTable;
+		ifElse (node.abstractField) 
+			{ typedAs = new Some { val value = ftype; } } //abstact fields get declared type
+			{
+				val fieldChecker = new InitialTypechecker {
+					val context = new Context;
+					val stateTable = fST; //TODO: do we need to copy this - will it be updated (not now I don't think)
+				};
+			
+				node.e.accept(fieldChecker); //typecheck the field initialization
+				
+				match (fieldChecker.typedAs) {
+					case Some {
+						ifElse (fieldChecker.typedAs.value == ftype.permType )
+							{ 
+								this.typedAs = new Some { val value = ftype; }; 
+								java.lang.System.out.println("field " + node.f.name + " typechecked!");
+							}
+							{ 
+								this.typedAs = new None; 
+								java.lang.System.out.println("initializer type wrong");
+							};
+					}
+					case None {
+						java.lang.System.out.println("typecheck of initializer failed");
+					}	
+				}
+			};		
 	}
 	
 	override method visitMethodDecl(node) {
@@ -110,11 +142,88 @@ state InitialTypechecker case of LeafVisitor {
 		}
 	}
 	
+	//****** Expressions *******
+	
+	override method visitLambda(node) {
+	//similar to methods
+		val lContext = new Context;
+		val ltype = node.lambdaType;
+		
+		java.lang.System.out.println("typechecking lambda");
+		
+		//add arg if exists
+		match (node.x) {
+			case Some {
+				lContext.put(node.x.value, 
+							 this.getContextType(ltype.argTypes.head.value));
+			}
+			default { }
+		};
+		
+		//TODO: add environment variables
+		
+		//new typechecker for the method body
+		val lST = this.stateTable;
+		val lambdaChecker = new InitialTypechecker { 
+								val context = lContext;
+								val stateTable = lST; //TODO: do we need to copy this - will it be updated (not now I don't think)
+							};
+		node.body.accept(lambdaChecker);
+		
+		//use return type to set actual return type of the lambda (no way to specify in syntax, so always dyn)
+		var /*Boolean*/ retCheck = false;
+		match (lambdaChecker.typedAs) {
+			case Some {
+				retCheck = true;
+				ltype.returnType = lambdaChecker.typedAs.value; //inference of return type
+			}
+			case None {
+				java.lang.System.out.println("typecheck of body failed");
+			}
+		};
+		
+		
+		//check that arg output type matches - equivalent to typed in the context
+		//resulted by the method typing, with receiver pulled out
+		var /*Boolean*/ argCheck = false;
+		match(node.x) {
+			case Some {
+				node.x.value.accept(lambdaChecker);
+				match(lambdaChecker.typedAs) {
+					case Some {
+						argCheck = lambdaChecker.typedAs.value == ltype.argTypes.head.value.output;
+						if (!argCheck) { java.lang.System.out.println("arg Output type wrong"); }
+					}
+					case None {
+						java.lang.System.out.println("type check of arg output failed");
+					}
+				}
+			}
+			case None { argCheck = true; }
+		};
+		
+		if(retCheck && argCheck) {
+			typedAs = new Some { 
+				val value = new PermType {
+					val perm = new ImmutablePermission;
+					val type = ltype;
+				};  
+			};
+			java.lang.System.out.println("lambda typechecked!");
+		}
+	
+	}
+	
 	override method visitID(node) {
 		val /*List<ContextType>*/ varType = context.get(node);
 		match(varType.head) {
 			case Cons {
 				typedAs = new Some {val value = varType.head.value.type; };
+				varType.head = varType.head.next; //remove the permission for now
+				match (varType.head) {
+					case Nil { context.remove(node); } //if no more permissions, remove from context
+					case Cons { } //do nothing
+				}
 			}
 			case Nil {
 				typedAs = new None;
@@ -131,6 +240,7 @@ state InitialTypechecker case of LeafVisitor {
 		};
 	}
 	
+	//add to the context differently if borrowed or not
 	val getContextType = fn (/*ChangeType*/ ct) => {
 		ifElse (ct.borrow) 
 			{ new ContextBorrowType { val type = ct.input; } }
