@@ -1,37 +1,134 @@
 package plaid.typechecker;
 
-import plaid.ast.visitor.ASTVisitor;
+import plaid.ast.visitor.LeafVisitor;
 
 //will not have the full set of features that will be implemented eventually
 
-state InitialTypechecker case of ASTVisitor{
+state InitialTypechecker case of LeafVisitor {
 	
 	val /*StateTable*/ stateTable; // need to know about nominal types during typechecking
 	val /*Context*/ context; //need to keep track of variables and types
 	var /*Option PermType*/ typedAs = new None;
 	
-	method visitCompilationUnit(node) {
+	override method visitCompilationUnit(node) {
 		//Typechecking a compilation unit involves
 		//verifying that each declaration is well formed
 		//this includes states, fields, and (top level) methods (TODO: get rid of top level methods)
 		node.decls.map(fn (decl) => decl.accept(this));
 	}
 	
-	method visitStateDecl(node) {
+	override method visitStateDecl(node) {
 		//our initial implementation is going to ignore the typing of states
 		//and assume that our state table captures them correctly
+		//we will type check the declarations in the state, though
+		node.stateDef.accept(this);
 	}
 	
-	method visitMethodDecl(node) {
+	override method visitFieldDecl(node) {
+		//TODO: implement
+	}
+	
+	override method visitMethodDecl(node) {
 		//for method Decls we need to verify that the body meets the specification
 		//of the method type.  To do this, we create a new Typechecker instance with
 		//a new context
 		val mContext = new Context;
 		val mtype = node.methodType;
-		mContext.add(this.getContextType(mtype.receiverType)); //add receiver
-		mtype.argTypes.map(fn (at) => mContext.add(this.getContextType(at))); //add args
-		//mtype.environmentTypes.map(); //TODO: add environments	
 		
+		java.lang.System.out.println("typechecking method " + node.name);
+		
+		//add receiver
+		mContext.put(new ID { val name = "this"; }, this.getContextType(mtype.receiverType)); 
+		
+		//add arg if exists
+		match (node.arg) {
+			case Some {
+				mContext.put(node.arg.value, 
+							 this.getContextType(mtype.argTypes.head.value));
+			}
+			default { }
+		};
+		
+		//TODO: add environment variables
+		
+		//new typechecker for the method body
+		val mST = this.stateTable;
+		val methodChecker = new InitialTypechecker { 
+								val context = mContext;
+								val stateTable = mST; //TODO: do we need to copy this - will it be updated (not now I don't think)
+							};
+		node.body.accept(methodChecker);
+		
+		//check that return type matches
+		var /*Boolean*/ retCheck = false;
+		match (methodChecker.typedAs) {
+			case Some {
+				retCheck = methodChecker.typedAs.value == mtype.returnType;
+				if (!retCheck) { java.lang.System.out.println("return !=  body"); }
+			}
+			case None {
+				java.lang.System.out.println("typecheck of body failed");
+			}
+		};
+		
+		//check that receiver output type matches - equivalent to typed in the context
+		//resulted by the method typing
+		var /*Boolean*/ thisCheck = false;
+		(new ID { val name = "this"; }).accept(methodChecker);
+		match (methodChecker.typedAs) {
+			case Some {
+				thisCheck = methodChecker.typedAs.value == mtype.receiverType.output;
+				if (!thisCheck) { java.lang.System.out.println("receiver output wrong"); }
+			}
+			case None {
+				java.lang.System.out.println("type check of receiver failed");
+			}
+		};
+		
+		//check that arg output type matches - equivalent to typed in the context
+		//resulted by the method typing, with receiver pulled out
+		var /*Boolean*/ argCheck = false;
+		match(node.arg) {
+			case Some {
+				node.arg.value.accept(methodChecker);
+				match(methodChecker.typedAs) {
+					case Some {
+						argCheck = methodChecker.typedAs.value == mtype.argTypes.head.value.output;
+						if (!argCheck) { java.lang.System.out.println("arg Output type wrong"); }
+					}
+					case None {
+						java.lang.System.out.println("type check of arg output failed");
+					}
+				}
+			}
+			case None { argCheck = true; }
+		};
+		
+		if(retCheck && thisCheck && argCheck) {
+			typedAs = new Some { val value = mtype; };
+			java.lang.System.out.println("Method " + node.name + " typechecked!");
+		}
+	}
+	
+	override method visitID(node) {
+		val /*List<ContextType>*/ varType = context.get(node);
+		match(varType.head) {
+			case Cons {
+				typedAs = new Some {val value = varType.head.value.type; };
+			}
+			case Nil {
+				typedAs = new None;
+			}
+		}
+	}
+	
+	override method visitUnitLiteral(node) {
+		this.typedAs = new Some { 
+			val value = new PermType {
+							val perm = new NonePermission;
+							val type = new NominalType { val typeName = new ID { val name = "unit";}; };
+						};
+		};
 	}
 	
 	val getContextType = fn (/*ChangeType*/ ct) => {
