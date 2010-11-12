@@ -3,6 +3,7 @@ package plaid.ast.types;
 state PermType case of Type {
 	val /*Permission*/ perm;
 	val /*Type*/ type;
+	val /*Boolean*/ borrowed;
 	
 	/**
 	 * Compares this PermType with the specified PermType for equality.  They 
@@ -26,10 +27,20 @@ state PermType case of Type {
 	 * Creates a deep copy of  this PermType.
 	 */
 	method copy(){
-		new PermType{
+		new PermType {
 			val perm = this.perm;
 			val type = this.type;
+			val borrowed = this.borrowed;
 		};
+	}
+	
+	//creates a copy of this perm type, but borrowed
+	method copyAsBorrowed() {
+		new PermType {
+			val perm = this.perm;
+			val type = this.type;
+			val borrowed = true;
+		}
 	}
 
 	/**
@@ -38,10 +49,14 @@ state PermType case of Type {
 	 *
 	 * TODO: should this really be the union of the types?  What if the types
 	 * do not have the supertype/subtype relation?  Is this actually a problem?
+	 *
+	 * TODO: how to set borrowed?
 	 */
 	method merge(p2) {
 		new PermType{ val perm = this.perm.merge(p2.perm); 
-					  val type = this.type.merge(p2.type); };
+					  val type = this.type.merge(p2.type);
+					  val borrowed = this.borrowed || p2.borrowed;
+		};
 	}
 	
 	/**
@@ -50,56 +65,92 @@ state PermType case of Type {
 	 *
 	 * TODO: should this really be the intersection of the types?  What if the 
 	 * types do not have the supertype/subtype relation?  Is this actually a problem?
+	 *
+	 * TODO: how to set borrowed
 	 */
-	method join() {
+	method /*PermType*/ join(p2) {
 		new PermType{ val perm = this.perm.join(p2.perm);
-					  val type = this.type.join(p2.type); };
+					  val type = this.type.join(p2.type); 
+					  val borrowed = this.borrowed && p2.borrowed; //have to both be borrowed to stay borrowed
+		};
+	}
+	
+	method /*Option PermType*/ joinTo(residue, target) {
+		var ret = new Some;
+		
+		//get the new permission
+		var /*Permission*/ newPerm = unit; 
+		ifElse(residue.borrowed && this.borrowed)
+			{ newPerm = this.perm.joinTo(residue.perm, target.perm) } //if both borrowed, assume could join the target if potentially allowed
+			{ newPerm = new Some {val value = this.perm.join(residue.perm); } }; //otherwise, just join normally and see what comes out;
+		match (newPerm) {
+			case Some {
+				if ( !newPerm.value.asStrongAs(target.perm) ) {
+					java.lang.System.out.println("cannot join to necessary permission");
+					ret = new None;
+				}
+			}
+			case None {
+				java.lang.System.out.println("cannot join to necessary permission");
+				ret = new None;
+			}
+		};
+		//get the new type if permission succeeded
+		match (ret) {
+			case Some {
+				val newType = this.type.join(residue.type);
+				ifElse (newType == target.type) 
+					{ ret = new Some { val value = target; } }
+					{ 
+						java.lang.System.out.println("joined type not equal to target type");
+						ret = new None;
+					}
+			}
+			case None {/*already done*/ }
+		};
+		ret
 	}
 	
 	/**
-	 * Splits this permtype by calling the split methods on both its 
-	 * permission and its type.
+	 * Splits this permType into the permType p2 and
+	 * the residue left over.  returns the residue
+	 * permType if splitting is possible.  After
+	 * splitting this permtype is no longer valid 
+	 * TODO: should that mean we give a none permission back?
 	 */
-	method split(/*PermType*/ p2) {
+	method /*option PermType*/ split(/*PermType*/ p2) {
 		val otherPerm = p2.perm;
 		val otherType = p2.type;
 		
-		match(p2) {
-			// if the target type is dyn, then make sure that we don't have a unique permission
-			case DynPermType {
-				match(this.perm) {
-					case UniquePermission {
-						new None;
-					}
-					default {
-						// T => dyn/T
-						new Some{ val value = (p2, this); };
-					}
-				};
-			}
-			default {
-				// split the permission
-				val splitPermOpt = this.perm.split(otherPerm);
-				
-				match(splitPermOpt) {
+		//must return same types for now //TODO: subtyping
+		ifElse ( p2.type == this.type) { 
+			ifElse (this.borrowed --> p2.borrowed) {
+			
+				val /*Option Permission*/ newPerm = this.perm.split(otherPerm); //
+				match (newPerm) {
 					case Some {
-						val splitPerm = splitPermOpt.getValue();
-						
-						// make sure that the other structural type is a subtype of this type
-						ifElse (otherType.isSubtypeOf(this.type)) {
-							new Some{ val value = (p2, new PermType{ val perm = splitPerm.second(); val type = this.type; }); };
-						}{
-							// the other type isn't a subtype of this type, so we can't split this permtype
-							new None;
-						};
+						new Some { 
+							value = new PermType {
+								val perm = newPerm.value;
+								val type = this.type;
+								val borrowed = this.borrowed;
+							};
+						}
 					}
-					// the permission can't be split how we want, so we can't split this permtype
 					case None {
+						//permission splitting failed
 						new None;
 					}
-				};
+				}
+			} {
+				java.lang.System.out.println("cannot split a borrwed type into an unborrowed type");
+				new None;
 			}
-		};
+		
+		} {
+			java.lang.System.out.println("cannot split to different types");
+			new None;	
+		} 
 	}
 	
 	/**

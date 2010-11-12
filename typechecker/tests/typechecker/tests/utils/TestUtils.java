@@ -43,7 +43,7 @@ import plaid.runtime.annotations.RepresentsState;
 import plaid.runtime.models.map.PlaidJavaObjectMap;
 import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
-import plaid.typechecker.Context;
+import plaid.typechecker.context.Context;
 import plaid.typechecker.TypecheckerVisitor;
 
 /**
