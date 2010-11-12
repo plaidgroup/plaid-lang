@@ -310,7 +310,8 @@ state InitialTypechecker case of LeafVisitor {
 													
 													// create the letbinding as the start
 													val t = new ID { val name = "blatantTemp$plaid"; };
-													var /* { val Expression body }*/ callBody = new UnannotatedLetBinding { //Note structural type!
+													var bodyAppend = new None; //need a variable to hold a handle to where to add nodes after method call
+													var /* Expression */ callBody = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
 														val /*Token*/ token = NONE;
 														val /*ID*/ x = t;
 														val /*Expression*/ exp = new MethodCall { //will need to state change this later
@@ -320,7 +321,7 @@ state InitialTypechecker case of LeafVisitor {
 															val /*Token*/ callSite = node.callSite;	
 														};	
 														val /*boolean*/ mutable = false;
-														val /*Expression*/ body = new None; //To be filled in //cannot be static version since will change its state
+														val /*Expression*/ body = bodyAppend; //To be filled in //cannot be static version since will change its state
 													};
 
 													//pull out type for receiver
@@ -331,72 +332,81 @@ state InitialTypechecker case of LeafVisitor {
 													match (tTypeResidue) {
 														case Some { 
 															//java.lang.System.out.println("residue: " + tTypeResidue.value.toString()); 
-															this.context.put(theReceiver, tTypeResidue); //put residue back in context in case needed for typing arg, if mulit set, need to be more careful
+															this.context.put(theReceiver, tTypeResidue.value); //put residue back in context in case needed for typing arg, if mulit set, need to be more careful
 															
 															//TODO: multiple args, env
 															var /*boolean*/ argOk = true;
 															if (declType.value.hasArg()) { //surround callBody with split/join for args
-																val /*ID*/ argID = declType.value.arg.value;
-																val /*PermType*/ aTypeStart = this.context.remove(argID);
-																val /*PermType*/ aTypeNeeded = declType.value.argType.head.value.input;
-																val /*Option PermType*/ aTypeResidue = aTypeStart.split(aTypeNeeded);
+																val /*ID*/ argID = node.argument; //let normal form - this will be an ID
+																ifElse (this.context.containsKey(argID)) {
+																	val /*PermType*/ aTypeStart = this.context.remove(argID);
+																	val /*PermType*/ aTypeNeeded = declType.value.argTypes.head.value.input;
+																	val /*Option PermType*/ aTypeResidue = aTypeStart.split(aTypeNeeded);
 																
-																match (aTypeResidue) {
-																	case Some{ //split succeeded
-																		this.context.put(argID, aTypeResidue); //not really necessary now, but will be when more args/env
-																		
-																		//join arg
-																		val /*PermType*/ aTypeOutput = declType.value.argType.head.value.output;
-																		var /*Option PermType*/ aTypeEnd = NONE;
-																		ifElse (aTypeStart.borrowed) {
-																			//must be able to join residue and output to original type
-																			aTypeEnd = aTypeOutput.joinTo(aTypeResidue.value, aTypeStart); //joinTo returns Option Permtype
-																		} {
-																			aTypeEnd = createSome(aTypeOutput.join(aTypeResidue.value)); //join returns PermType
-																		};
-																		match (aTypeEnd) {
-																			case Some{ //arg success - update the callBody
-																				//put final arg type in the context
-																				this.context.remove(argID);
-																				this.context.put(argID,aTypeEnd.value);
-																				
-																				// put join at end of callBody
-																				callBody.body <- Join {
-																					val /*ID*/ theVar = argID;
-																					val /*PermType*/ toJoin1 = aTypeResidue.value;
-																					val /*PermType*/ toJoin2 = aTypeOutput;
-																					val /*PermType*/ result = aTypeEnd.value;
-																					val /*Expression*/ body = new None; //cannot use static version since want to state change it
-																				};
-																				// put split in front of callBody
-																				callBody = new Split {
-																					val /*ID*/ theVar = argID;
-																					val /*PermType*/ initialType = aTypeStart;
-																					val /*PermType*/ neededType = aTypeNeeded;
-																					val /*PermType*/ residue = aTypeResidue.value;
-																					val /*Expression*/ body = callBody;
+																	match (aTypeResidue) {
+																		case Some{ //split succeeded
+																			this.context.put(argID, aTypeResidue.value); //not really necessary now, but will be when more args/env
+																			
+																			//join arg
+																			val /*PermType*/ aTypeOutput = declType.value.argTypes.head.value.output;
+																			var /*Option PermType*/ aTypeEnd = NONE;
+																			ifElse (aTypeStart.borrowed) {
+																				//must be able to join residue and output to original type
+																				aTypeEnd = aTypeOutput.joinTo(aTypeResidue.value, aTypeStart); //joinTo returns Option Permtype
+																			} {
+																				aTypeEnd = createSome(aTypeOutput.join(aTypeResidue.value)); //join returns PermType
+																			};
+																			match (aTypeEnd) {
+																				case Some{ //arg success - update the callBody
+																					//put final arg type in the context
+																					this.context.remove(argID);
+																					this.context.put(argID,aTypeEnd.value);
+																					
+																					// put join at end of callBody
+																					bodyAppend <- Join {
+																						val /*ID*/ theVar = argID;
+																						val /*PermType*/ toJoin1 = aTypeResidue.value;
+																						val /*PermType*/ toJoin2 = aTypeOutput;
+																						val /*PermType*/ result = aTypeEnd.value;
+																						val /*Expression*/ body = new None; //cannot use static version since want to state change it
+																					};
+																					bodyAppend = bodyAppend.body; //update append pointer
+																					// put split in front of callBody
+																					callBody = new Split {
+																						val /*ID*/ theVar = argID;
+																						val /*PermType*/ initialType = aTypeStart;
+																						val /*PermType*/ neededType = aTypeNeeded;
+																						val /*PermType*/ residue = aTypeResidue.value;
+																						val /*Expression*/ body = callBody;
+																					}
+																					
 																				}
-																				
-																			}
-																			case None {
-																				java.lang.System.out.println("TYPECHECK FAILED: Could not join back to borrowed Permission");
-																				argOk = false;
-																				this.typedAs = NONE;
+																				case None {
+																					java.lang.System.out.println("TYPECHECK FAILED: Could not join back to borrowed Permission");
+																					argOk = false;
+																					this.typedAs = NONE;
+																				}
 																			}
 																		}
+																		case None {
+																			java.lang.System.out.println("TYPECHECK FAILED: Could not split needed permission for arg"); 
+																			argOk = false;
+																			this.typedAs = NONE;
+																		}
 																	}
-																	case None {
-																		java.lang.System.out.println("TYPECHECK FAILED: Could not split needed permission for arg"); 
-																		argOk = false;
-																		this.typedAs = NONE;
-																	}
+																	
+																} {
+																	java.lang.System.out.println("TYPECHECK FAILED: no permission for ID " + argID.name + " in context");
+																	argOk = false;
+																	this.typedAs = NONE;
 																}
+																
 															};
 															
 															if (argOk) {
 																//join receiver
 																val /*PermType*/ tTypeOutput = declType.value.receiverType.output;
-																var /*Option PermType*/ tTypeEnd = NONE;
+																var /*Option PermType*/ tTypeEnd = unit;
 																ifElse (tTypeStart.borrowed) {
 																	//must be able to join residue and output to original type
 																	tTypeEnd = tTypeOutput.joinTo(tTypeResidue.value, tTypeStart); //joinTo returns Option PermType
@@ -413,7 +423,7 @@ state InitialTypechecker case of LeafVisitor {
 																		this.context.put(theReceiver,tTypeEnd.value);
 																		
 																		//put join at end of callBody and have body be the temporary variable holding method call value
-																		callBody.body <- Join {
+																		bodyAppend <- Join {
 																			val /*ID*/ theVar = theReceiver;
 																			val /*PermType*/ toJoin1 = tTypeResidue.value;
 																			val /*PermType*/ toJoin2 = tTypeOutput;
