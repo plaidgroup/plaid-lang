@@ -9,11 +9,11 @@ state PurePermission case of Permission {
 		match(p2) {
 			// pure => pure/pure
 			case PurePermission {
-				new Some{ val value = (p2, this); };
+				new Some{ val value = this; };
 			}
 			// pure => none/pure
 			case NonePermission {
-				new Some{ val value = (p2, this); };
+				new Some{ val value = this; };
 			}
 			default {
 				new None;
@@ -32,12 +32,36 @@ state PurePermission case of Permission {
 		};
 	}
 	
-	method merge(p2) {
-		ifElse (p2 == NONE) {
-			this;
-		}{
-			p2;
-		};
+	method join(p2) {
+		match (p2) {
+			case NonePermission { this }
+			default { p2 }
+		}
+	}
+	
+	method joinTo(p2, target) {
+		match(target) {
+			case UniquePermission {  //pure + full = unique
+				match (p2) {
+					case FullPermission { createSome(target) }
+					default { NONE; }
+				}
+			}
+			default { //normal join and check relative strength
+				val joined = this.join(p2);
+				ifElse (joined.asStrongAs(target))
+					{ createSome(target); }
+					{ NONE; };
+			}
+		}
+	}
+	
+	method asStrongAs(p2) {
+		match (p2) {
+			case NonePermission { true }
+			case PurePermission { true }
+			default { false }
+		}
 	}
 	
 	method toString() {

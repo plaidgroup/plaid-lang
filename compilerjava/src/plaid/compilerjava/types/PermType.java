@@ -3,10 +3,6 @@ package plaid.compilerjava.types;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 
-import plaid.compilerjava.AST.ASTnode;
-import plaid.compilerjava.coreparser.Token;
-import plaid.compilerjava.tools.ASTVisitor;
-
 public class PermType implements /*ASTnode,*/ JSONAware {
 	public static final PermType UNIT = new PermType(Permission.IMMUTABLE, Type.UNIT);
 	public static final PermType DYN = new PermType(Permission.DYN, Type.DYN);
@@ -16,6 +12,7 @@ public class PermType implements /*ASTnode,*/ JSONAware {
 	
 	private final Permission perm;
 	private final Type type;
+	private boolean borrowed = false;
 	
 	public PermType(Permission perm, Type type) {
 		if (perm == null || type == null) {
@@ -59,6 +56,14 @@ public class PermType implements /*ASTnode,*/ JSONAware {
 		return this.type;
 	}
 
+	public boolean isBorrowed() {
+		return borrowed;
+	}
+	
+	public void setBorrowed(boolean borrowed) {
+		this.borrowed = borrowed;
+	}
+	
 	@SuppressWarnings("unchecked")
 	@Override
 	public String toJSONString() {

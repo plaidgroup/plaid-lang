@@ -1,6 +1,7 @@
 package plaid.typechecker;
 
 import plaid.ast.visitor.LeafVisitor;
+import plaid.typechecker.context.*;
 
 //will not have the full set of features that will be implemented eventually
 
@@ -70,13 +71,12 @@ state InitialTypechecker case of LeafVisitor {
 		java.lang.System.out.println("typechecking method " + node.name);
 		
 		//add receiver
-		mContext.put(new ID { val name = "this"; }, this.getContextType(mtype.receiverType)); 
+		mContext.put(new ID { val name = "this"; }, getContextType(mtype.receiverType)); 
 		
 		//add arg if exists
 		match (node.arg) {
 			case Some {
-				mContext.put(node.arg.value, 
-							 this.getContextType(mtype.argTypes.head.value));
+				mContext.put(node.arg.value, getContextType(mtype.argTypes.head.value));
 			}
 			default { }
 		};
@@ -90,7 +90,6 @@ state InitialTypechecker case of LeafVisitor {
 								val stateTable = mST; //TODO: do we need to copy this - will it be updated (not now I don't think)
 							};
 		node.body.accept(methodChecker);
-		
 		//check that return type matches
 		var /*Boolean*/ retCheck = false;
 		match (methodChecker.typedAs) {
@@ -154,8 +153,7 @@ state InitialTypechecker case of LeafVisitor {
 		//add arg if exists
 		match (node.x) {
 			case Some {
-				lContext.put(node.x.value, 
-							 this.getContextType(ltype.argTypes.head.value));
+				lContext.put(node.x.value, getContextType(ltype.argTypes.head.value));
 			}
 			default { }
 		};
@@ -207,6 +205,7 @@ state InitialTypechecker case of LeafVisitor {
 				val value = new PermType {
 					val perm = new ImmutablePermission;
 					val type = ltype;
+					val borrowed = false;
 				};  
 			};
 			java.lang.System.out.println("lambda typechecked!");
@@ -215,19 +214,10 @@ state InitialTypechecker case of LeafVisitor {
 	}
 	
 	override method visitID(node) {
-		val /*List<ContextType>*/ varType = context.get(node);
-		match(varType.head) {
-			case Cons {
-				typedAs = new Some {val value = varType.head.value.type; };
-				varType.head = varType.head.next; //remove the permission for now
-				match (varType.head) {
-					case Nil { context.remove(node); } //if no more permissions, remove from context
-					case Cons { } //do nothing
-				}
-			}
-			case Nil {
-				typedAs = new None;
-			}
+		ifElse (context.containsKey(node)) {
+			typedAs = createSome(context.remove(node)); //TODO: need type directed ID
+		} {
+			typedAs = NONE;
 		}
 	}
 	
@@ -236,14 +226,165 @@ state InitialTypechecker case of LeafVisitor {
 			val value = new PermType {
 							val perm = new NonePermission;
 							val type = new NominalType { val typeName = new ID { val name = "unit";}; };
+							val borrowed = false;
 						};
 		};
 	}
 	
-	//add to the context differently if borrowed or not
-	val getContextType = fn (/*ChangeType*/ ct) => {
-		ifElse (ct.borrow) 
-			{ new ContextBorrowType { val type = ct.input; } }
-			{ new ContextHasType { val type = ct.input; } }
-	};
+	override method visitNewInstance(node) {
+		match (node.s) {
+			case QI {
+				val stateID = new ID {val name = node.s.toString(); }; //TODO: fix
+				val theState = this.stateTable.get(stateID);
+				match (theState) {
+					case Some {
+						typedAs = new Some { 
+							val value = new PermType {
+								val perm = new UniquePermission;
+								val type = new NominalType { val typeName = stateID; };
+								val borrowed = false;
+							};
+						}
+					}
+					case None {
+						typedAs = new None;
+						java.lang.System.out.println("state " + node.s.name + " not defined");
+					}
+				}
+			}
+			default {
+				java.lang.System.out.println("unsupported state in new expression");
+			}
+		}
+	}
+	
+	override method visitMethodCall(node) {
+		//steps:
+		//1) find type of receiver in context (in let normal form, receiver will be an ID
+		//2) find type of method on receiver
+		//3) verify that receiver's type in context allows method call (initial type)
+		//	a) add split and join nodes
+		//4) verify that arg's type in context allows method call (if arg needed)
+		//	a) add split and join nodes
+		//5) update context
+		
+		match (node.receiver) {
+			case ID { //TODO: do I need a contains check for node.receiver?
+				ifElse ( this.context.containsKey(node.receiver)) {
+					val tTypeStart = this.context.remove(node.receiver); //TODO: need multi set?
+					match ( tTypeStart.type ) {
+						case NominalType {
+							val stType = this.stateTable.get(tTypeStart.type.typeName);
+							match(stType) {
+								case Some {
+									val declType = stType.value.declaredTypeOf(node.methodName.name);
+									match (declType) {
+										case Some {
+											match (declType.value) {
+												case MethodType {
+
+													//pull out type for receiver
+													val tTypeNeeded = declType.value.receiverType.input;
+													val tTypeResidue = tTypeStart.split(tTypeNeeded);
+													//java.lang.System.out.println("start: " + tTypeStart.toString()); 
+													//java.lang.System.out.println("needed: " + tTypeNeeded.toString()); 
+													match (tTypeResidue) {
+														case Some { 
+															//java.lang.System.out.println("residue: " + tTypeResidue.value.toString()); 
+															this.context.put(node.receiver, tTypeResidue); //put residue back in context in case needed for typing arg, if mulit set, need to be more careful
+															
+															//TODO: args, env
+														
+															//join receiver
+															val tTypeOutput = declType.value.receiverType.output;
+															var tTypeEnd = NONE;
+															ifElse (tTypeStart.borrowed) {
+																//must be able to join residue and output to original type
+																tTypeEnd = tTypeOutput.joinTo(tTypeResidue.value, tTypeStart);
+															} {
+																//if not borrowed, just join the types
+																tTypeEnd = createSome(tTypeOutput.join(tTypeResidue.value));
+															};
+															match (tTypeEnd) {
+																case Some {
+																	//typecheck suceeded (I think....)
+																	typedAs = createSome(declType.value.returnType); //return type is the actual type
+																	this.context.remove(node.receiver); //update context with final type for the receiver
+																	this.context.put(node.receiver,tTypeEnd.value);
+																	
+																	//translate AST with explicit split and join nodes
+																	val t = new ID { val name = "blatantTemp$plaid"; };
+																	val mcCopy = new MethodCall { //will need to state change this later
+																		val /*Expression*/ receiver = node.receiver;
+																		val /*ID*/ methodName = node.methodName;
+																		val /*Expression*/ argument = node.argument;
+																		val /*Token*/ callSite = node.callSite;	
+																	};	
+																	node <- Split {
+																		val /*ID*/ theVar = mcCopy.receiver;
+																		val /*PermType*/ initialType = tTypeStart;
+																		val /*PermType*/ neededType = tTypeNeeded;
+																		val /*PermType*/ residue = tTypeResidue.value;
+																		val /*Expression*/ body = new UnannotatedLetBinding {
+																			val /*Token*/ token = NONE;
+																			val /*ID*/ x = t;
+																			val /*Expression*/ exp = mcCopy;
+																			val /*boolean*/ mutable = false;
+																			val /*Expression*/ body = new Join {
+																				val /*ID*/ theVar = mcCopy.receiver;
+																				val /*PermType*/ toJoin1 = tTypeResidue.value;
+																				val /*PermType*/ toJoin2 = tTypeOutput;
+																				val /*PermType*/ result = tTypeEnd.value;
+																				val /*Expression*/ body = t;
+																			};
+																		};
+																	};
+																}
+																case None {
+																	java.lang.System.out.println("could not regain borrowed permission");
+																	typedAs = NONE;
+																}
+															}
+														}
+														case None { 
+															java.lang.System.out.println("not enough permission to receiver to call method " + node.methodName.name);
+															typedAs = NONE;
+														}												
+													}
+												}
+												default {
+													java.lang.System.out.println("Unsupported decl type for method");
+													typedAs = NONE;
+												}
+											}
+										}
+										case None {
+											java.lang.System.out.println("Method " + node.methodName.name + 
+																		" not defined in state " + stType.name.name);
+											typedAs = NONE;
+										}
+									}
+								}
+								case None {
+									java.lang.System.out.println("State " + tType.type.typeName.name + "not defined");
+									typedAs = NONE;
+								}
+							}
+						}
+						default {
+							java.lang.System.out.println("unsupported receiver type");
+							typedAs = NONE;
+						}
+					}
+				} {
+							java.lang.System.out.println("No type for receiver " + node.receiver.name);
+							typedAs = NONE;
+				}
+			}
+			default { 
+				java.lang.System.out.println("Method Call not in let normal form");
+				typedAs = NONE;
+			}
+		}
+	}
 }
