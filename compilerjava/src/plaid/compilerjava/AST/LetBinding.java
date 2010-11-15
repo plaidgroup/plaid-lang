@@ -34,15 +34,28 @@ public class LetBinding implements Expression {
 	private Expression exp, body;
 	private boolean mutable;
 	private final PermType permType;
+	private final boolean annotated;
 
-	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable, PermType permType) {
+	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable) {
 		super();
 		this.token = t;
-		this.setX(x);
-		this.permType = permType;
+		this.x = x;
 		this.exp = e1;
 		this.body = e2;
 		this.mutable = mutable;
+		this.permType = PermType.DYN;
+		this.annotated = false;
+	}
+	
+	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable, PermType permType) {
+		super();
+		this.token = t;
+		this.x = x;
+		this.exp = e1;
+		this.body = e2;
+		this.mutable = mutable;
+		this.permType = permType;
+		this.annotated = true;
 	}
 
 	public boolean isMutable() {
@@ -56,6 +69,10 @@ public class LetBinding implements Expression {
 	@Override
 	public boolean hasToken() {
 		return token != null;
+	}
+	
+	public boolean isAnnotated() {
+			return annotated;
 	}
 	
 	public PermType getPermType() {
