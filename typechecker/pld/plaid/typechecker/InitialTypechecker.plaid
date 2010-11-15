@@ -7,6 +7,17 @@ import plaid.typechecker.context.*;
 
 state InitialTypechecker case of LeafVisitor {
 	
+	var counter = 0;
+
+	method generateID(tok) {
+		this.counter = this.counter + 1;
+		val n = "TCHKR$vAr" + this.counter + "$plaid";
+		new ID with {
+			val /*Token*/ token = tok;
+			val /*String*/ name = n;
+		};
+	}
+	
 	val /*StateTable*/ stateTable; // need to know about nominal types during typechecking
 	val /*Context*/ context; //need to keep track of variables and types
 	var /*Option PermType*/ typedAs = new None;
@@ -71,7 +82,7 @@ state InitialTypechecker case of LeafVisitor {
 		java.lang.System.out.println("--typechecking method " + node.name);
 		
 		//add receiver
-		mContext.put(new ID { val name = "this"; }, getContextType(mtype.receiverType)); 
+		mContext.put(new ID { val name = "this$plaid"; }, getContextType(mtype.receiverType)); 
 		
 		//add arg if exists
 		match (node.arg) {
@@ -309,10 +320,10 @@ state InitialTypechecker case of LeafVisitor {
 													// receiver split
 													
 													// create the letbinding as the start
-													val t = new ID { val name = "blatantTemp$plaid"; };
+													val t = this.generateID(node.token); 
 													var bodyAppend = new None; //need a variable to hold a handle to where to add nodes after method call
 													var /* Expression */ callBody = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
-														val /*Token*/ token = NONE;
+														val /*Token*/ token = node.token;
 														val /*ID*/ x = t;
 														val /*Expression*/ exp = new MethodCall { //will need to state change this later
 															val /*Expression*/ receiver = theReceiver;
@@ -453,6 +464,36 @@ state InitialTypechecker case of LeafVisitor {
 														}												
 													}
 												}
+												case FieldType {
+													//a field type must be a lambda, in which case, we need to turn it into an application node
+													java.lang.System.out.println("**MC -> App**");
+													match (declType.value.permType.type) { // just care about the type itself
+														case LambdaType { //need to turn this into a application node instead of a method call and typecheck that instead						
+															val /*ID*/ functionID = this.generateID(node.token);
+															node <- AnnotatedLetBinding {
+																val /*Token*/ token = node.token;
+																val /*ID*/ x = functionID;
+																val /*Expression*/ exp = new Dereference { //receiver.methodName (since this is actually a field)
+																	val /*Token*/ token = node.token;
+																	val /*Expression*/ left = node.receiver;
+																	val /*ID*/ right = node.methodName;
+																};
+																val /*Expression*/ body = new Application {
+																	val /*Token*/ token = node.token;
+																	val /*Expression*/ f = functionID;
+																	val /*Expression*/ arg = node.argument;
+																};
+																val /*boolean*/ mutable = false;
+																val /*PermType*/ annotation = declType.value.permType;
+															};
+															node.accept(this);
+														}
+														default {
+															java.lang.System.out.println("TYPECHECK FAILED: left hand of application not a lambda");
+															typedAs = NONE;
+														}
+													}
+												}
 												default {
 													java.lang.System.out.println("TYPECHECK FAILED: Unsupported decl type for method");
 													typedAs = NONE;
@@ -490,7 +531,147 @@ state InitialTypechecker case of LeafVisitor {
 	}
 	
 	override method visitApplication(node) {
-	
-	
+			//steps:
+		//1) get type of function from context
+		//2) verify that arg's type in context allows application (if arg needed)
+		//	a) add split and join nodes
+		//3) update context based on signature
+		
+		match (node.f) {
+			case ID { 
+				val /*ID*/ theFunction = node.f;
+				ifElse ( this.context.containsKey(theFunction)) {
+					val /*PermType*/ functionType = this.context.remove(theFunction); //TODO: need multi set?
+					match ( functionType.type ) {
+						case LambdaType {
+							
+							//applications go through a smaller transformation than method calls because no receiver is bound
+							//Overall:
+							// MethodCall becomes:
+							//
+							// [Split(args)] in
+							// let temp = MethodCall in
+							// [Join(args)] in
+							// temp
+							//
+							// We start with the let binding, surround it with
+							// the split/join for the args if needed,
+							// and then transition the original method call
+							// to the split for the receiver and set the body
+							// of the let (or join if there are args) to the
+							// receiver split
+							
+							//need to add split/joins for argument if needed //TODO: multiple args, environment
+							//pull out type for receiver
+							val lType = functionType.type;
+							
+							//will only be used if there is a arg or environment variable to bind
+							
+							var bodyAppend = new None; //need a variable to hold a handle to where to add nodes after method call
+							var /* Expression */ callBody = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
+								val /*Token*/ token = NONE;
+								val /*ID*/ x = t;
+								val /*Expression*/ exp = new Application { //will need to state change this later
+									val /*Expression*/ f;
+									val /*Expression*/ argument = node.argument;
+									val /*Token*/ token = node.token;	
+								};	
+								val /*boolean*/ mutable = false;
+								val /*Expression*/ body = bodyAppend; //To be filled in //cannot be static version since will change its state
+							};
+													
+							//arg handling if needed						
+							var /*boolean*/ argOk = true;
+							if (lType.hasArg()) { //surround callBody with split/join for args
+								val /*ID*/ argID = node.arg; //let normal form - this will be an ID
+								ifElse (this.context.containsKey(argID)) {
+									val /*PermType*/ aTypeStart = this.context.remove(argID);
+									val /*PermType*/ aTypeNeeded = declType.value.argTypes.head.value.input;
+									val /*Option PermType*/ aTypeResidue = aTypeStart.split(aTypeNeeded);
+			
+									match (aTypeResidue) {
+										case Some{ //split succeeded
+											this.context.put(argID, aTypeResidue.value); //not really necessary now, but will be when more args/env
+						
+											//join arg
+											val /*PermType*/ aTypeOutput = declType.value.argTypes.head.value.output;
+											var /*Option PermType*/ aTypeEnd = NONE;
+											ifElse (aTypeStart.borrowed) {
+												//must be able to join residue and output to original type
+												aTypeEnd = aTypeOutput.joinTo(aTypeResidue.value, aTypeStart); //joinTo returns Option Permtype
+											} {
+												aTypeEnd = createSome(aTypeOutput.join(aTypeResidue.value)); //join returns PermType
+											};
+											match (aTypeEnd) {
+												case Some{ //arg success - update the callBody
+													//put final arg type in the context
+													this.context.remove(argID);
+													this.context.put(argID,aTypeEnd.value);
+													
+													val t = this.generateID(node.token);
+													node <- Split {
+														val /*ID*/ theVar = argID;
+														val /*PermType*/ initialType = aTypeStart;
+														val /*PermType*/ neededType = aTypeNeeded;
+														val /*PermType*/ residue = aTypeResidue.value;
+														val /*Expression*/ body = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
+															val /*Token*/ token = NONE;
+															val /*ID*/ x = t;
+															val /*Expression*/ exp = new Application { //will need to state change this later
+																val /*Expression*/ f;
+																val /*Expression*/ argument = node.argument;
+																val /*Token*/ token = node.token;	
+															};	
+															val /*boolean*/ mutable = false;
+															val /*Expression*/ body = new Join {
+																val /*ID*/ theVar = argID;
+																val /*PermType*/ toJoin1 = aTypeResidue.value;
+																val /*PermType*/ toJoin2 = aTypeOutput;
+																val /*PermType*/ result = aTypeEnd.value;
+																val /*Expression*/ body = t;
+															};
+														};
+													};
+												}
+												case None {
+													java.lang.System.out.println("TYPECHECK FAILED: Could not join back to borrowed Permission");
+													argOk = false;
+													this.typedAs = NONE;
+												}
+											}
+										}
+										case None {
+											java.lang.System.out.println("TYPECHECK FAILED: Could not split needed permission for arg"); 
+											argOk = false;
+											this.typedAs = NONE;
+										}
+									}	
+								} {
+									java.lang.System.out.println("TYPECHECK FAILED: no permission for ID " + argID.name + " in context");
+									argOk = false;
+									this.typedAs = NONE;
+								}
+							};
+							
+							if (argOk) { //arg checked out ok, or no arg
+								java.lang.System.out.println("Method Call typechecked!");
+								this.typedAs = createSome(lType.returnType); //return type is the actual type
+							};	
+						}	
+						default {
+							java.lang.System.out.println("TYPECHECK FAILED: function does not have a function type");
+							typedAs = NONE;
+						}
+					}
+				} {
+					java.lang.System.out.println("TYPECHECK FAILED: function not in context");
+					typedAs = NONE;
+				}
+			}
+			default { 
+				java.lang.System.out.println("TYPECHECK FAILED: Application not in let normal form");
+				typedAs = NONE;
+			}
+		}	
 	}
 }
