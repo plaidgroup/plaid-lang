@@ -10,13 +10,13 @@ import plaid.compilerjava.util.IdGen;
 
 public class MethodCall implements Expression {
 
-	private final Token callSite;
+	private final Token token;
 	private final Expression argument;
 	private final Expression receiver;
 	private final ID method;
 	
-	public MethodCall(Token callSite, Expression receiver, ID method, Expression argument) {
-		this.callSite = callSite;
+	public MethodCall(Token token, Expression receiver, ID method, Expression argument) {
+		this.token = token;
 		this.argument = argument;
 		this.receiver = receiver;
 		this.method = method;
@@ -44,7 +44,7 @@ public class MethodCall implements Expression {
 
 	@Override
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
-		out.setLocation(callSite);
+		out.setLocation(token);
 		
 		// Evaluate the receiver.
 		ID o = IdGen.getId();
@@ -69,7 +69,7 @@ public class MethodCall implements Expression {
 
 	@Override
 	public Token getToken() {
-		return callSite;
+		return token;
 	}
 
 	@Override
@@ -79,7 +79,7 @@ public class MethodCall implements Expression {
 
 	@Override
 	public boolean hasToken() {
-		return callSite != null;
+		return token != null;
 	}
 
 	@Override
