@@ -229,4 +229,93 @@ state LetNormalFormVisitor case of LeafVisitor {
 			}
 		}
 	}
+	
+	override method visitMethodCall(node) {
+		node.receiver.accept(this);
+		node.argument.accept(this);
+		
+		val receiver = node.receiver;
+		val argument = node.argument;
+		val tok = node.token;
+		
+		match (receiver) {
+			case ID {
+				match (argument) {
+					// Already LNF
+					case ID {
+					}
+					// Argument is more complex => insert let binding
+					default {
+						val id = this.generateID(tok);
+						node <- UnannotatedLetBinding {
+							override val /*Token*/ token = tok;
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = argument;
+							val /*Expression*/ body = new MethodCall {
+								val /*ID*/ receiver = receiver;
+								val /*ID*/ methodName = node.methodName;
+								val /*ID*/ argument = id;
+								val /*Token*/ token = tok;
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
+				}
+			}
+			// The function is some more complicated expression
+			default {
+				match (argument) {
+					// Function is complex expression but argument is simple ID => add one let binding
+					case ID {
+						val id = this.generateID(tok);
+						node <- UnannotatedLetBinding {
+							override val /*Token*/ token = tok;
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = function;
+							val /*Expression*/ body = new MethodCall {
+								val /*ID*/ receiver = id;
+								val /*ID*/ methodName = node.methodName;
+								val /*ID*/ argument = argument;
+								val /*Token*/ token = tok;
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
+					// Both argument and function are complex expression => add two let bindings
+					default {
+						val idr = this.generateID(tok);
+						val idarg = this.generateID(tok);
+						node <- UnannotatedLetBinding {
+							override val /*Token*/ token = tok;
+							val /*ID*/ x = idr;
+							val /*Expression*/ exp = receiver;
+							val /*Expression*/ body = new UnannotatedLetBinding {
+								val /*Token*/ token = tok;
+								val /*ID*/ x = idarg;
+								val /*Expression*/ exp = argument;
+								val /*Expression*/ body = new MethodCall {
+									val /*ID*/ receiver = idr;
+									val /*ID*/ methodName = node.methodName;
+									val /*ID*/ argument = idarg;
+									val /*Token*/ token = tok;
+								};
+								val /*boolean*/ mutable = false;
+							};
+							val /*boolean*/ mutable = false;
+						};
+					}
+				}
+			}
+		}
+	}
+	
+	method /*boolean*/ isValNotID(/*ASTnode*/ node) {
+		match (node) {
+			case IntLiteral { true }
+			case StringLiteral { true }
+			case Lambda { true }
+			case UnitLiteral { true }
+			default { false }
+		}
+	}
 }
