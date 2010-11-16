@@ -10,12 +10,12 @@ import java.util.Map.Entry;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 
-import plaid.ast.FieldTypeDecl;
 import plaid.ast.ID;
 import plaid.ast.IntLiteral;
 import plaid.ast.UnannotatedLetBinding;
 import plaid.ast.types.ChangeType;
 import plaid.ast.types.Dyn;
+import plaid.ast.types.FieldType;
 import plaid.ast.types.FullPermission;
 import plaid.ast.types.ImmutablePermission;
 import plaid.ast.types.MethodType;
@@ -244,7 +244,7 @@ public class TestUtils {
 				protoField(permType));
 		
 		// instantiate the new prototype
-		return initAndInstantiateState(FieldTypeDecl.FieldTypeDecl, newState);
+		return initAndInstantiateState(FieldType.FieldType, newState);
 	}
 	
 	/**
@@ -545,7 +545,7 @@ public class TestUtils {
 				if (typeDecl instanceof MethodType) {
 					plaidTypeDecls.add(TestUtils.methodType((plaid.compilerjava.types.MethodType)typeDecl));
 				}
-				else if (typeDecl instanceof FieldTypeDecl) {
+				else if (typeDecl instanceof FieldType) {
 					plaidTypeDecls.add(TestUtils.fieldType((plaid.compilerjava.types.FieldType)typeDecl));
 				}
 				else {
