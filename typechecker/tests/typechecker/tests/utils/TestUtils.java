@@ -13,12 +13,12 @@ import org.json.simple.JSONValue;
 import plaid.ast.FieldTypeDecl;
 import plaid.ast.ID;
 import plaid.ast.IntLiteral;
-import plaid.ast.MethodTypeDecl;
 import plaid.ast.UnannotatedLetBinding;
 import plaid.ast.types.ChangeType;
 import plaid.ast.types.Dyn;
 import plaid.ast.types.FullPermission;
 import plaid.ast.types.ImmutablePermission;
+import plaid.ast.types.MethodType;
 import plaid.ast.types.NonePermission;
 import plaid.ast.types.PermType;
 import plaid.ast.types.PurePermission;
@@ -43,8 +43,8 @@ import plaid.runtime.annotations.RepresentsState;
 import plaid.runtime.models.map.PlaidJavaObjectMap;
 import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
-import plaid.typechecker.context.Context;
 import plaid.typechecker.TypecheckerVisitor;
+import plaid.typechecker.context.Context;
 
 /**
  * TODO: We may want to merge all of these constructors into the actual Plaid 
@@ -224,7 +224,7 @@ public class TestUtils {
 				protoField(argTypes));
 		
 		// instantiate the new prototype
-		return initAndInstantiateState(MethodTypeDecl.MethodTypeDecl, newState);
+		return initAndInstantiateState(MethodType.MethodType, newState); //TODO: fix me
 	}
 	
 	/**
@@ -542,7 +542,7 @@ public class TestUtils {
 			// convert the decls and add them
 			Set<PlaidObject> plaidTypeDecls = new HashSet<PlaidObject>();
 			for (TypeDecl typeDecl : typeDecls) {
-				if (typeDecl instanceof MethodTypeDecl) {
+				if (typeDecl instanceof MethodType) {
 					plaidTypeDecls.add(TestUtils.methodType((plaid.compilerjava.types.MethodType)typeDecl));
 				}
 				else if (typeDecl instanceof FieldTypeDecl) {
