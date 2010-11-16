@@ -946,7 +946,7 @@ state InitialTypechecker case of LeafVisitor {
 							val /*Option StateType*/ matchedST = stateTable.get(matchedType.typeName);
 							match (matchedST) {
 								case Some {
-									node.caseList.map(fn (theCase) => { //create a list of Pain<Context, returnType>
+									val /*List<Option Pair<PermType,Context>>*/ cases = node.caseList.map(fn (theCase) => { //create a list of Pain<Context, returnType>
 										var /*Option Context*/ caseContext = NONE;
 										//get new context - different for default case
 										ifElse (theCase.defaultCase) {
@@ -989,7 +989,7 @@ state InitialTypechecker case of LeafVisitor {
 												theCase.e.accept(caseChecker);
 												match (caseChecker.typedAs) {
 													case Some {
-														caseReturn = createSome(caseChecker.typedAs);
+														caseReturn = createSome(caseChecker.typedAs.value);
 													}
 													case None {
 														ifElse (theCase.defaultCase) 
@@ -1005,8 +1005,9 @@ state InitialTypechecker case of LeafVisitor {
 										
 										match (caseReturn) { //return a pair of context and return type wrapped up in an option if succeeded 
 											case Some {
-												createSome(makePair(caseContext.value,caseReturn.value));
 												java.lang.System.out.println("context and return Type ok");
+												caseContext.value.remove(node.e); //remove matched var - will be different
+												createSome(makePair(caseContext.value,caseReturn.value));
 											}
 											case None {
 												NONE
@@ -1014,7 +1015,49 @@ state InitialTypechecker case of LeafVisitor {
 										};
 									});
 									
+									//Need to harmonize the return types and contexts
+									//for now everything has to be the same
+									val /*Option Pair<context, PermType>*/ endInfo = cases.foldr(fn (/*Option Pair<Context,PermType>*/ i,/*Option Pair<Context,PermType>*/ z) => {
+										match (z) {
+											case Some {
+												match (i) {
+													case Some {
+														//first check the contexts
+														ifElse (z.value.fst == i.value.fst) {
+															ifElse (z.value.snd == i.value.snd) {
+																z
+															} {
+																java.lang.System.out.println("return types not equal");
+																
+																NONE
+															}
+														} {
+															java.lang.System.out.println("contexts not equal");
+															NONE
+														}
+													}
+													case None { NONE }
+												}
+											}
+											case None { NONE }
+										}
 									
+									}, cases.head.value); //start for now with first value
+									
+									match (endInfo) {
+										case Some {
+											//this <- { override val context = endInfo.value.fst; }; //update context
+											this.context.reset(); //Hackish context update
+											this.context.addAll(endInfo.value.fst);
+											this.context.put(node. e,matchedPermType); //restore type of matched variable
+											this.typedAs = createSome(endInfo.value.snd); //set return type;
+											java.lang.System.out.println("match typed");
+										}
+										case None {
+											java.lang.System.out.println("Case clauses not compatible");
+											this.typedAs = NONE;
+										}
+									}
 									
 								}
 								case None {
