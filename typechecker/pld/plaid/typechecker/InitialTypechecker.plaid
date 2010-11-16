@@ -635,11 +635,11 @@ state InitialTypechecker case of LeafVisitor {
 													
 							//arg handling if needed						
 							var /*boolean*/ argOk = true;
-							if (lType.hasArg()) { //surround callBody with split/join for args
+							ifElse (lType.hasArg()) { //surround callBody with split/join for args
 								val /*ID*/ argID = node.arg; //let normal form - this will be an ID
 								ifElse (this.context.containsKey(argID)) {
 									val /*PermType*/ aTypeStart = this.context.remove(argID);
-									val /*PermType*/ aTypeNeeded = declType.value.argTypes.head.value.input;
+									val /*PermType*/ aTypeNeeded = lType.argTypes.head.value.input;
 									val /*Option PermType*/ aTypeResidue = aTypeStart.split(aTypeNeeded);
 			
 									match (aTypeResidue) {
@@ -647,7 +647,7 @@ state InitialTypechecker case of LeafVisitor {
 											this.context.put(argID, aTypeResidue.value); //not really necessary now, but will be when more args/env
 						
 											//join arg
-											val /*PermType*/ aTypeOutput = declType.value.argTypes.head.value.output;
+											val /*PermType*/ aTypeOutput = lType.argTypes.head.value.output;
 											var /*Option PermType*/ aTypeEnd = NONE;
 											ifElse (aTypeStart.borrowed) {
 												//must be able to join residue and output to original type
@@ -671,6 +671,18 @@ state InitialTypechecker case of LeafVisitor {
 														val type = lType.returnType.type;
 														val borrowed = lType.returnType.borrowed;
 													};
+													val fIDapp = node.f.copy(); //add type to ID node for function
+													fIDapp.type <- PermType {
+														val perm = functionType.perm;
+														val type = lType;
+														val borrowed = functionType.borrowed;
+													};
+													val argIDapp = node.arg.copy();
+													argIDapp.type <- PermType {
+														val perm = aTypeNeeded.perm;
+														val type = aTypeNeeded.type;
+														val borrowed = aTypeNeeded.borrowed;
+													};
 													node <- Split {
 														val /*ID*/ theVar = argID.copy();
 														val /*PermType*/ initialType = aTypeStart;
@@ -681,8 +693,8 @@ state InitialTypechecker case of LeafVisitor {
 															val /*Token*/ token = NONE;
 															val /*ID*/ x = t;
 															val /*Expression*/ exp = new Application { //will need to state change this later
-																val /*Expression*/ f;
-																val /*Expression*/ argument = node.argument;
+																val /*Expression*/ f = fIDapp;
+																val /*Expression*/ arg = argIDapp;
 																val /*Token*/ token = node.token;	
 																override val /*PermType*/ type = lType.returnType;
 															};	
@@ -717,12 +729,23 @@ state InitialTypechecker case of LeafVisitor {
 									argOk = false;
 									this.typedAs = NONE;
 								}
+							} { //else just add function type to application's function ID node
+								node.f.type <- PermType {
+									val perm = functionType.perm;
+									val type = lType;
+									val borrowed = functionType.borrowed;
+								};
+								node.arg.type <- PermType {
+									val perm = NONEP;
+									val type = new NominalType { val typeName = new ID { val name = "unit"; }; };
+									val borrowed = false;
+								};
 							};
 							
 							if (argOk) { //arg checked out ok, or no arg
 								java.lang.System.out.println("Application typechecked!");
 								this.typedAs = createSome(lType.returnType); //return type is the actual type
-								node.type <- {
+								node.type <- PermType {
 									val perm = lType.returnType.perm;
 									val type = lType.returnType.type;
 									val borrowed = lType.returnType.borrowed;
@@ -857,6 +880,17 @@ state InitialTypechecker case of LeafVisitor {
 														val type = typedAs.value.type;
 														val borrowed = typedAs.value.borrowed;
 													};
+													node.left.type <- PermType { //type of left object
+														val perm = leftType.perm;
+														val type = leftType.type;
+														val borrowed = leftType.borrowed;
+													};
+													node.right.type <- FieldType { //type of right deref in left object
+														val /*ID*/ name = declType.value.name.copy();
+														val /*PermType*/ permType = declType.value.permType;
+														val /*Boolean*/ isImmutable = declType.value.isImmutable	;
+													};
+													
 													
 													this.context.put(node.left,leftType); //non-destructive means put the left object back as is
 												}
