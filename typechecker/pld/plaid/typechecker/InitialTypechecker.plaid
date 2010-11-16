@@ -240,7 +240,7 @@ state InitialTypechecker case of LeafVisitor {
 				val /*Type*/ type = idType.type;
 				val /*boolean*/ borrowed = idType.borrowed;
 			};
-			java.lang.System.out.println("ID: " + node.name + " pulled from context");
+			//java.lang.System.out.println("ID: " + node.name + " pulled from context");
 		} {
 			java.lang.System.out.println(node.name + " not found in the context");
 			typedAs = NONE;
@@ -355,14 +355,24 @@ state InitialTypechecker case of LeafVisitor {
 													
 													// create the letbinding as the start
 													val t = this.generateID(node.token); 
+													val mNameAndType = node.methodName.copy(); //put types in method call
+													mNameAndType.type <- MethodType { //TODO: fix type of Expression.type or make IDs vs other nodes different?
+														val /*ID*/ name = declType.value.name.copy();
+														val /*PermType*/ returnType = declType.value.returnType; //TODO: need to deep copy?
+														val /*List<ChangeType>*/ argTypes = declType.value.argTypes;
+														val /*ChangeType*/ receiverType = declType.value.receiverType;
+														val /*Map<ID,ChangeType>*/ environmentTypes = declType.value.environmentTypes;
+													};
+													val receiverIDmc = theReceiver.copy();
+													val argIDmc = node.argument.copy(); //handle for adding type when we know it
 													var bodyAppend = new None; //need a variable to hold a handle to where to add nodes after method call
 													var /* Expression */ callBody = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
 														val /*Token*/ token = node.token;
 														val /*ID*/ x = t.copy();
 														val /*Expression*/ exp = new MethodCall { //will need to state change this later
-															val /*Expression*/ receiver = theReceiver.copy();
-															val /*ID*/ methodName = node.methodName;
-															val /*Expression*/ argument = node.argument;
+															val /*Expression*/ receiver = receiverIDmc;
+															val /*ID*/ methodName = mNameAndType;
+															val /*Expression*/ argument = argIDmc;
 															val /*Token*/ token = node.token;	
 															override val /*PermType*/ type = declType.value.returnType;
 														};	
@@ -373,6 +383,11 @@ state InitialTypechecker case of LeafVisitor {
 
 													//pull out type for receiver
 													val /*PermType*/ tTypeNeeded = declType.value.receiverType.input;
+													receiverIDmc.type <- PermType { //add type to receiver node in method call node
+														val perm = tTypeNeeded.perm;
+														val type = tTypeNeeded.type;
+														val borrowed = tTypeNeeded.borrowed;
+													};
 													val /*Option PermType*/ tTypeResidue = tTypeStart.split(tTypeNeeded);
 													//java.lang.System.out.println("start: " + tTypeStart.toString()); 
 													//java.lang.System.out.println("needed: " + tTypeNeeded.toString()); 
@@ -388,6 +403,11 @@ state InitialTypechecker case of LeafVisitor {
 																ifElse (this.context.containsKey(argID)) {
 																	val /*PermType*/ aTypeStart = this.context.remove(argID);
 																	val /*PermType*/ aTypeNeeded = declType.value.argTypes.head.value.input;
+																	argIDmc.type <- PermType { //add type information to argument ID for MethodCall node
+																		val perm = aTypeNeeded.perm;
+																		val type = aTypeNeeded.type;
+																		val borrowed = aTypeNeeded.borrowed;
+																	};
 																	val /*Option PermType*/ aTypeResidue = aTypeStart.split(aTypeNeeded);
 																
 																	match (aTypeResidue) {
@@ -837,6 +857,8 @@ state InitialTypechecker case of LeafVisitor {
 														val type = typedAs.value.type;
 														val borrowed = typedAs.value.borrowed;
 													};
+													
+													this.context.put(node.left,leftType); //non-destructive means put the left object back as is
 												}
 												default {
 													java.lang.System.out.println("TYPECHECK FAILED: " + node.right.name + " not a field in " + leftType.type.typeName.name);
