@@ -116,7 +116,7 @@ state InitialTypechecker case of LeafVisitor {
 		//check that receiver output type matches - equivalent to typed in the context
 		//resulted by the method typing
 		var /*Boolean*/ thisCheck = false;
-		(new ID { val name = "this"; }).accept(methodChecker);
+		(new ID { val name = "this$plaid"; }).accept(methodChecker);
 		match (methodChecker.typedAs) {
 			case Some {
 				thisCheck = methodChecker.typedAs.value == mtype.receiverType.output;
@@ -234,6 +234,7 @@ state InitialTypechecker case of LeafVisitor {
 		ifElse (context.containsKey(node)) {
 			typedAs = createSome(context.remove(node)); //TODO: need type directed ID
 		} {
+			java.lang.System.out.println(node.name + " not found in the context");
 			typedAs = NONE;
 		}
 	}
@@ -246,6 +247,16 @@ state InitialTypechecker case of LeafVisitor {
 							val borrowed = false;
 						};
 		};
+	}
+	
+	override method visitIntLiteral(node) {
+		this.typedAs = new Some {
+			val value = new PermType {
+				val perm = IMM;
+				val type = new NominalType { val typeName = new ID { val name = "Integer"; }; };
+				val borrowed = false;
+			};
+		}
 	}
 	
 	override method visitNewInstance(node) {
@@ -324,9 +335,9 @@ state InitialTypechecker case of LeafVisitor {
 													var bodyAppend = new None; //need a variable to hold a handle to where to add nodes after method call
 													var /* Expression */ callBody = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
 														val /*Token*/ token = node.token;
-														val /*ID*/ x = t;
+														val /*ID*/ x = t.copy();
 														val /*Expression*/ exp = new MethodCall { //will need to state change this later
-															val /*Expression*/ receiver = theReceiver;
+															val /*Expression*/ receiver = theReceiver.copy();
 															val /*ID*/ methodName = node.methodName;
 															val /*Expression*/ argument = node.argument;
 															val /*Token*/ token = node.token;	
@@ -375,7 +386,7 @@ state InitialTypechecker case of LeafVisitor {
 																					
 																					// put join at end of callBody
 																					bodyAppend <- Join {
-																						val /*ID*/ theVar = argID;
+																						val /*ID*/ theVar = argID.copy();
 																						val /*PermType*/ toJoin1 = aTypeResidue.value;
 																						val /*PermType*/ toJoin2 = aTypeOutput;
 																						val /*PermType*/ result = aTypeEnd.value;
@@ -384,7 +395,7 @@ state InitialTypechecker case of LeafVisitor {
 																					bodyAppend = bodyAppend.body; //update append pointer
 																					// put split in front of callBody
 																					callBody = new Split {
-																						val /*ID*/ theVar = argID;
+																						val /*ID*/ theVar = argID.copy();
 																						val /*PermType*/ initialType = aTypeStart;
 																						val /*PermType*/ neededType = aTypeNeeded;
 																						val /*PermType*/ residue = aTypeResidue.value;
@@ -435,16 +446,16 @@ state InitialTypechecker case of LeafVisitor {
 																		
 																		//put join at end of callBody and have body be the temporary variable holding method call value
 																		bodyAppend <- Join {
-																			val /*ID*/ theVar = theReceiver;
+																			val /*ID*/ theVar = theReceiver.copy();
 																			val /*PermType*/ toJoin1 = tTypeResidue.value;
 																			val /*PermType*/ toJoin2 = tTypeOutput;
 																			val /*PermType*/ result = tTypeEnd.value;
-																			val /*Expression*/ body = t;
+																			val /*Expression*/ body = t.copy();
 																		};
 																		
 																		//transition the node to a Split with callBody as the body
 																		node <- Split {
-																			val /*ID*/ theVar = theReceiver;
+																			val /*ID*/ theVar = theReceiver.copy();
 																			val /*PermType*/ initialType = tTypeStart;
 																			val /*PermType*/ neededType = tTypeNeeded;
 																			val /*PermType*/ residue = tTypeResidue.value;
@@ -480,7 +491,7 @@ state InitialTypechecker case of LeafVisitor {
 																};
 																val /*Expression*/ body = new Application {
 																	val /*Token*/ token = node.token;
-																	val /*Expression*/ f = functionID;
+																	val /*Expression*/ f = functionID.copy();
 																	val /*Expression*/ arg = node.argument;
 																};
 																val /*boolean*/ mutable = false;
@@ -502,7 +513,7 @@ state InitialTypechecker case of LeafVisitor {
 										}
 										case None {
 											java.lang.System.out.println("TYPECHECK FAILED: Method " + node.methodName.name + 
-																		" not defined in state " + stType.name.name);
+																		" not defined in state " + stType.value.name.name);
 											typedAs = NONE;
 										}
 									}
@@ -564,21 +575,6 @@ state InitialTypechecker case of LeafVisitor {
 							//need to add split/joins for argument if needed //TODO: multiple args, environment
 							//pull out type for receiver
 							val lType = functionType.type;
-							
-							//will only be used if there is a arg or environment variable to bind
-							
-							var bodyAppend = new None; //need a variable to hold a handle to where to add nodes after method call
-							var /* Expression */ callBody = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
-								val /*Token*/ token = NONE;
-								val /*ID*/ x = t;
-								val /*Expression*/ exp = new Application { //will need to state change this later
-									val /*Expression*/ f;
-									val /*Expression*/ argument = node.argument;
-									val /*Token*/ token = node.token;	
-								};	
-								val /*boolean*/ mutable = false;
-								val /*Expression*/ body = bodyAppend; //To be filled in //cannot be static version since will change its state
-							};
 													
 							//arg handling if needed						
 							var /*boolean*/ argOk = true;
@@ -610,7 +606,7 @@ state InitialTypechecker case of LeafVisitor {
 													
 													val t = this.generateID(node.token);
 													node <- Split {
-														val /*ID*/ theVar = argID;
+														val /*ID*/ theVar = argID.copy();
 														val /*PermType*/ initialType = aTypeStart;
 														val /*PermType*/ neededType = aTypeNeeded;
 														val /*PermType*/ residue = aTypeResidue.value;
@@ -624,11 +620,11 @@ state InitialTypechecker case of LeafVisitor {
 															};	
 															val /*boolean*/ mutable = false;
 															val /*Expression*/ body = new Join {
-																val /*ID*/ theVar = argID;
+																val /*ID*/ theVar = argID.copy();
 																val /*PermType*/ toJoin1 = aTypeResidue.value;
 																val /*PermType*/ toJoin2 = aTypeOutput;
 																val /*PermType*/ result = aTypeEnd.value;
-																val /*Expression*/ body = t;
+																val /*Expression*/ body = t.copy();
 															};
 														};
 													};
@@ -673,5 +669,134 @@ state InitialTypechecker case of LeafVisitor {
 				typedAs = NONE;
 			}
 		}	
+	}
+	
+	//TODO: need bidirectional type system
+	override method visitLetBinding(node) {
+		java.lang.System.out.println("Checking Let");
+		//typecheck the bound expression
+		node.exp.accept(this);
+		
+		match (typedAs) {
+			case Some {
+				//update context with newly bound variable (careful of shadowing)
+				val /*Option PermType */ oldIDPermType = context.getOption(node.x);
+				context.put(node.x,typedAs.value);
+				
+				//type the body in the updated context
+				node.body.accept(this);
+				match(typedAs) {
+					case Some {
+						//restore context
+						match (oldIDPermType) {
+							case Some { context.put(node.x,oldIDPermType.value) }
+							case None { context.remove(node.x) }
+						}
+					}
+					case None {
+						//typechecking failed elsewhere
+					}
+				}
+			}
+			case None {
+				//typechecking failed elsewhere
+			}
+		}
+	}
+	
+	//TODO: need bidirectional type system
+	override method visitAnnotatedLetBinding(node) {
+		java.lang.System.out.println("Checking Annotated Let");
+		//typecheck the bound expression
+		node.exp.accept(this);
+		
+		match (typedAs) {
+			case Some {
+				//check that that actual type is a subtype of the annotated type //TODO: bidirectional instead
+				//typedAs.value.subtypeOf(  
+				
+				//update context with newly bound variable (careful of shadowing)
+				val /*Option PermType */ oldIDPermType = context.getOption(node.x);
+				context.put(node.x,typedAs.value);
+				
+				//type the body in the updated context
+				node.body.accept(this);
+				match(typedAs) {
+					case Some {
+						//restore context
+						match (oldIDPermType) {
+							case Some { context.put(node.x,oldIDPermType.value) }
+							case None { context.remove(node.x) }
+						}
+					}
+					case None {
+						//typechecking failed elsewhere
+					}
+				}
+			}
+			case None {
+				//typechecking failed elsewhere
+			}
+		}
+	}
+	
+	override method visitDereference(node) {
+		java.lang.System.out.println("Checking Deref");
+		match (node.left) {
+			case ID {
+				ifElse(this.context.containsKey(node.left)) {
+					val /*PermType*/ leftType = this.context.remove(node.left);
+					match (leftType.type) {
+						case NominalType {
+							val /*Option stateType*/ members = this.stateTable.get(leftType.type.typeName);
+							match (members) {
+								case Some {
+									val /*Option DeclType*/ declType = members.value.declaredTypeOf(node.right);
+									match (declType) {
+										case Some {
+											match (declType.value) {
+												case FieldType {
+													val /*FieldType*/ fType = declType.value.permType;
+													val /*Permission*/ readPerm = fieldReadPermission(leftType.perm, fType.perm);
+													typeAs = new PermType {
+														val /*Permission*/ perm = readPerm;
+														val /*Type*/ type = fieldType.type;
+														val /*boolean*/ borrowed = false;  //TODO: borrowing in the context of a deref
+													}
+												}
+												default {
+													java.lang.System.out.println("TYPECHECK FAILED: " + node.right.name + " not a field in " + leftType.type.typeName.name);
+													typedAs = NONE;
+												}
+											}									
+										} 
+										default {
+											java.lang.System.out.println("TYPECHECK FAILED: field " + node.right.name + " not declared in type " + leftType.type.typeName.name);
+											typedAs = NONE;
+										}
+									}
+								}
+								case None {
+									java.lang.System.out.println("TYPECHECK FAILED: Type " + leftType.type.typeName.name + " no defined");
+									typedAs = NONE;
+								}
+							}
+						}
+						default {
+							java.lang.System.out.println("TYPECHECK FAILED: Deref target has unsupported object type");
+							typedAs = NONE;
+						}
+					}
+				} {
+					java.lang.System.out.println("TYPECHECK FAILED: " + node.left.name + " not found in the context");
+					typedAs = NONE;
+				}
+			}
+			default {
+				java.lang.System.out.println("TYPECHECK FAILED: Deref Not in let normal form");
+				typedAs = NONE;
+			
+			}
+		}
 	}
 }
