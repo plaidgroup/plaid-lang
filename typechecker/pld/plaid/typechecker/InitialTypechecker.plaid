@@ -47,7 +47,7 @@ state InitialTypechecker case of LeafVisitor {
 			{ typedAs = new Some { val value = ftype; } } //abstact fields get declared type
 			{
 				val fieldChecker = new InitialTypechecker {
-					val context = new Context;
+					val context = this.context.copy();
 					val stateTable = fST; //TODO: do we need to copy this - will it be updated (not now I don't think)
 				};
 			
@@ -76,7 +76,7 @@ state InitialTypechecker case of LeafVisitor {
 		//for method Decls we need to verify that the body meets the specification
 		//of the method type.  To do this, we create a new Typechecker instance with
 		//a new context
-		val mContext = new Context;
+		val mContext = this.context.copy();
 		val mtype = node.methodType;
 		
 		java.lang.System.out.println("--typechecking method " + node.name);
@@ -157,7 +157,7 @@ state InitialTypechecker case of LeafVisitor {
 	
 	override method visitLambda(node) {
 	//similar to methods
-		val lContext = new Context;
+		val lContext = this.context.copy(); //TODO: only take environment variables
 		val ltype = node.lambdaType;
 		
 		java.lang.System.out.println("typechecking lambda");
@@ -172,8 +172,9 @@ state InitialTypechecker case of LeafVisitor {
 		
 		//TODO: add environment variables
 		
-		//new typechecker for the method body
+		//new typechecker for the lambda body
 		val lST = this.stateTable;
+		lContext.printContext();
 		val lambdaChecker = new InitialTypechecker { 
 								val context = lContext;
 								val stateTable = lST; //TODO: do we need to copy this - will it be updated (not now I don't think)
@@ -609,7 +610,7 @@ state InitialTypechecker case of LeafVisitor {
 			case ID { 
 				val /*ID*/ theFunction = node.f;
 				ifElse ( this.context.containsKey(theFunction)) {
-					val /*PermType*/ functionType = this.context.remove(theFunction); //TODO: need multi set?
+					val /*PermType*/ functionType = this.context.get(theFunction); //  just get the function type without removing it TODO: need multi set?
 					match ( functionType.type ) {
 						case LambdaType {
 							
@@ -758,7 +759,8 @@ state InitialTypechecker case of LeafVisitor {
 						}
 					}
 				} {
-					java.lang.System.out.println("TYPECHECK FAILED: function not in context");
+					java.lang.System.out.println("TYPECHECK FAILED: function " + theFunction.name + " not in context");
+					this.context.printContext();
 					typedAs = NONE;
 				}
 			}
@@ -772,8 +774,10 @@ state InitialTypechecker case of LeafVisitor {
 	//TODO: need bidirectional type system
 	override method visitLetBinding(node) {
 		java.lang.System.out.println("Checking Let");
+		
 		//typecheck the bound expression
 		node.exp.accept(this);
+		
 		
 		match (typedAs) {
 			case Some {
@@ -926,6 +930,112 @@ state InitialTypechecker case of LeafVisitor {
 				java.lang.System.out.println("TYPECHECK FAILED: Deref Not in let normal form");
 				typedAs = NONE;
 			
+			}
+		}
+	}
+	
+	override method visitMatch(node) {
+		this.context.printContext();
+		match (node.e) {
+			case ID {
+				ifElse ( context.containsKey(node.e) ) {
+					val /*PermType*/ matchedPermType = context.remove(node.e);
+					val /*NominalType*/ matchedType = matchedPermType.type;
+					match (matchedType) {
+						case NominalType {
+							val /*Option StateType*/ matchedST = stateTable.get(matchedType.typeName);
+							match (matchedST) {
+								case Some {
+									node.caseList.map(fn (theCase) => { //create a list of Pain<Context, returnType>
+										var /*Option Context*/ caseContext = NONE;
+										//get new context - different for default case
+										ifElse (theCase.defaultCase) {
+											//for default, just add the original type for the matched ID back to the copied context
+											val /*context*/ copiedContext = this.context.copy();
+											copiedContext.put(node.e, matchedPermType);
+											caseContext = createSome(copiedContext);
+										} {
+											// for non-defaults, first check that the case is valid
+											val qID = new ID { val name = theCase.qi.value.toString(); };
+											val /*Option StateType*/ caseST = stateTable.get(qID); //TODO: robust handling of QIs
+											match (caseST) {
+												case Some {
+													ifElse (caseST.value.subtypeOf(matchedST.value)) {
+														val /*context*/ copiedContext = this.context.copy();
+														val /*PermType*/ newEType = new PermType {
+															val perm = matchedPermType.perm;
+															val type = new NominalType { val typeName = qID.copy(); };
+															val borrowed = matchedPermType.borrowed;
+														}; 
+														copiedContext.put(node.e, newEType);
+														caseContext = createSome(copiedContext);
+													} {
+														java.lang.System.out.println("TYPECHECK FAILED: " + caseST.value.name.name + " not a subtype of " + matchedST.value.name.name);
+													}
+												}
+												case None {
+													java.lang.System.out.println("TYPECHECK FAILED: type " + theCase.qi.value.toString() + " not defined");
+												}
+											}
+										};
+										
+										var /*Option PermType*/ caseReturn = NONE;
+										match (caseContext) { //if we got a context, then use it to typecheck the body of the case
+											case Some {
+												val caseChecker = new InitialTypechecker {
+													val /*StateTable*/ stateTable = this.stateTable;
+													val /*Context*/ context = caseContext.value;
+												};
+												theCase.e.accept(caseChecker);
+												match (caseChecker.typedAs) {
+													case Some {
+														caseReturn = createSome(caseChecker.typedAs);
+													}
+													case None {
+														ifElse (theCase.defaultCase) 
+															{ java.lang.System.out.println("TYPECHECK FAILED: default case did not typecheck")}
+															{ java.lang.System.out.println("TYPECHECK FAILED: case " + theCase.qi.value.toString() + " did not typecheck")}
+													}
+												}
+											}
+											case None {
+												//error printed elsewhere
+											}
+										};
+										
+										match (caseReturn) { //return a pair of context and return type wrapped up in an option if succeeded 
+											case Some {
+												createSome(makePair(caseContext.value,caseReturn.value));
+												java.lang.System.out.println("context and return Type ok");
+											}
+											case None {
+												NONE
+											}
+										};
+									});
+									
+									
+									
+								}
+								case None {
+									java.lang.System.out.println("TYPECHECK FAILED: type " + matchedType.typeName + " not defined");
+									typedAs = NONE;
+								}
+							}
+						}
+						default {
+							java.lang.System.out.println("TYPECHECK FAILED: much match on object with Nominal Type");
+							typedAs = NONE;
+						}
+					}
+				} {
+					java.lang.System.out.println("TYPECHECK FAILED: " + node.e.name + " not in context");
+					typedAs = NONE;
+				};
+			}
+			default {
+				java.lang.System.out.println("TYPECHECK FAILED: Match not in let normal form");
+				typedAs = NONE;
 			}
 		}
 	}
