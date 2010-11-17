@@ -1,24 +1,36 @@
 package plaid.aeminium.codegen;
 
 import plaid.ast.visitor.ASTViewer;
-import plaid.aeminium.codegen.testcases.ParallelCalls;
-import plaid.aeminium.codegen.testcases.SplitJoin;
-import plaid.aeminium.codegen.testcases.Fibonacci;
-import plaid.aeminium.codegen.testcases.LambdaTest;
-import plaid.aeminium.codegen.testcases.Histogram;
-import plaid.aeminium.codegen.testcases.FibonacciMatch;
+import plaid.ast.*;
+import plaid.typechecker.*;
 
 method main() {
-	val testCase = new FibonacciMatch;
+	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("../typechecker/testInputs/fibonacci/package.plaid")));
+	val translator = new ASTTranslator;
+	val plaidAST = translator.translateAST(javaAST);
+	val stTranslator = new StateTableBuilderVisitor;
+	plaidAST.accept(stTranslator);
+	stTranslator.stateTable.printTable();
+	stTranslator.initialContext.printContext();
 	
-	val myAST = testCase.getAST();
-	val myMethodTypes = testCase.getMethodTypes();
+	// Bring AST to let normal form.
+	plaidAST.accept(new LetNormalFormVisitor);
 	
-	// myAST.accept(new ASTViewer);
+	//plaidAST.accept(new ASTViewer);
 	
-	val depAnalysis = new DependencyAnalysisVisitor { val methodTypes = myMethodTypes; };
-	myAST.accept(depAnalysis);
+	// Run the type checking visitor.
+	plaidAST.accept(new InitialTypechecker {
+		val context = stTranslator.initialContext;
+		val stateTable = stTranslator.stateTable;
+	});
+	// plaidAST.accept(new ASTViewer);
 	
+	
+	val depAnalysis = new DependencyAnalysisVisitor;
+	plaidAST.accept(depAnalysis);
+	
+	/*
 	val codeGen = new AeminiumCodeGenVisitor;
 	myAST.accept(codeGen);
+	*/
 }

@@ -4,16 +4,12 @@ import plaid.ast.*;
 import plaid.ast.types.*;
 import plaid.ast.visitor.*;
 
-state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinReduction with TransitiveReduction with MergeOptimization with {
-	var writer = java.util.HashMap.new();
-	var readers = java.util.HashMap.new();
+state DependencyAnalysisVisitor = ASTVisitor with GraphOutput /*with SplitJoinReduction with TransitiveReduction with MergeOptimization*/ with {
+	var /*Map<String, ASTNode>*/ writer = java.util.HashMap.new();
+	var /*Map<String, ASTNode>*/ readers = java.util.HashMap.new();
 	var nodeList = new List { var head = new Nil; };
 	
-	val methodTypes;
-	
-	var separateTask = true;
-	var savedWrites;
-	var savedReads;
+	var topLevel;
 	
 	var counter = 0;
 	var lambdaCounter = 0;
@@ -23,17 +19,14 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		this.writer = java.util.HashMap.new();
 		this.readers = java.util.HashMap.new();
 		this.nodeList = new List { var head = new Nil; };
+		this.topLevel = true;
 	}
 	
 	
 	method getNodeNumber() {
-		ifElse (this.separateTask) {
-			val c = this.counter;
-			this.counter = this.counter + 1;
-			c;
-		} {
-			-1;
-		};
+		val c = this.counter;
+		this.counter = this.counter + 1;
+		c;
 	}
 
 	method makeDependency(t, v) {
@@ -44,63 +37,58 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 	}
 	
 	method updateDependencies(astNode, reads, writes) {
-		this.savedReads = reads;
-		this.savedWrites = writes;
+		val myDeps = java.util.HashSet.new();
+		this.nodeList.add(astNode);
 		
-		if (this.separateTask) {
-			val myDeps = java.util.HashSet.new();
-			this.nodeList.add(astNode);
+		var it = reads.iterator();
+		while { it.hasNext(); } {
+			val read = it.next();
 			
-			var it = reads.iterator();
-			while { it.hasNext(); } {
-				val read = it.next();
+			if (writer.containsKey(read.name)) {
+				val prevWriter = writer.get(read.name);
 				
-				if (writer.containsKey(read.name)) {
-					val prevWriter = writer.get(read.name);
-					
-					if (astNode.num != prevWriter.num) {
-						myDeps.add(makeDependency(prevWriter, read));
-					};
+				if (astNode.num != prevWriter.num) {
+					myDeps.add(makeDependency(prevWriter, read));
 				};
-				
-				if (!readers.containsKey(read.name)) {
-					readers.put(read.name, java.util.HashSet.new());
-				};
-				
-				readers.get(read.name).add(astNode);
 			};
 			
-			it = writes.iterator();
-			while { it.hasNext(); } {
-				val write = it.next();
-				
-				ifElse (readers.containsKey(write.name)) {
-					val prevReaders = readers.get(write.name);
-					val readIt = prevReaders.iterator();
-					
-					while { readIt.hasNext(); } {
-						val prevReader = readIt.next();
-						
-						if (astNode.num != prevReader.num) {
-							myDeps.add(makeDependency(prevReader, write));
-						};
-					};
-				} {
-					if (writer.containsKey(write.name)) {
-						val prevWriter = writer.get(write.name);
-						
-						if (astNode.num != prevWriter.num) { 
-							myDeps.add(makeDependency(prevWriter, write));
-						};
-					};
-				};
-				
-				writer.put(write.name, astNode);
-				readers.remove(write.name);
+			if (!readers.containsKey(read.name)) {
+				readers.put(read.name, java.util.HashSet.new());
 			};
 			
-			astNode.dependencies = new Some { val value = myDeps; };
+			readers.get(read.name).add(astNode);
 		};
+		
+		it = writes.iterator();
+		while { it.hasNext(); } {
+			val write = it.next();
+			
+			ifElse (readers.containsKey(write.name)) {
+				val prevReaders = readers.get(write.name);
+				val readIt = prevReaders.iterator();
+				
+				while { readIt.hasNext(); } {
+					val prevReader = readIt.next();
+					
+					if (astNode.num != prevReader.num) {
+						myDeps.add(makeDependency(prevReader, write));
+					};
+				};
+			} {
+				if (writer.containsKey(write.name)) {
+					val prevWriter = writer.get(write.name);
+					
+					if (astNode.num != prevWriter.num) { 
+						myDeps.add(makeDependency(prevWriter, write));
+					};
+				};
+			};
+			
+			writer.put(write.name, astNode);
+			readers.remove(write.name);
+		};
+		
+		astNode.dependencies = new Some { val value = myDeps; };
 	}
 	
 	method reduceAllDependencies(nodeList) {
@@ -130,25 +118,41 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 	
 	method visitCompilationUnit(node) {
 		node.decls.map(fn (decl) => {
-			decl.accept(this)
+			decl.accept(this);
 		});
 	}
 	
+	// TODO: Fix this.
 	method visitMethodDecl(astNode) {
-		java.lang.System.out.println("Visiting " + astNode.name + ".");
+	}
+	
+	method visitFieldDecl(astNode) {
+		java.lang.System.out.println("Visiting " + astNode.f.name + ".");
+		java.lang.System.out.println(astNode.fieldType.permType);
+		
+		match (astNode.fieldType.permType.type) {
+			case LambdaType {
+				this.topLevel = true;
+				astNode.e.accept(this);
+			}
+			
+			default {
+			}
+		};
+	}
+	
+	method handleTopLevelLambda(astNode) {
 		this.counter = 0;
 		astNode.num = getNodeNumber();
-		this.writer = java.util.HashMap.new();
-		this.readers = java.util.HashMap.new();
-		this.nodeList = new List { var head = new Nil; };
-
+		
+		this.initialize();
 
 		val reads = java.util.HashSet.new();
 		val writes = java.util.HashSet.new();
 		
-		match (astNode.arg) {
+		match (astNode.x) {
 			case Some {
-				writes.add(astNode.arg.value);
+				writes.add(astNode.x.value);
 			}
 			case None {}
 		};
@@ -156,21 +160,21 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		updateDependencies(astNode, reads, writes);
 		astNode.body.accept(this);
 		
+		
 		printDependencies(nodeList);
 		createDependencyGraph("");
 		
-		reduceAllDependencies(nodeList);
-		createDependencyGraph("_Reduced");
+//		reduceAllDependencies(nodeList);
+//		createDependencyGraph("_Reduced");
 		
 //		mergeNodes(nodeList);
 //		createDependencyGraph("_Merged");
 	}
 	
-	method visitLambda(astNode) {
+	method handleInlineLambda(astNode) {
 		ifElse (counter == 0) {
 			java.lang.System.out.println("Visiting Lambda (new analysis).");
 			astNode.num = getNodeNumber();
-			
 			
 			val reads = java.util.HashSet.new();
 			val writes = java.util.HashSet.new();
@@ -212,7 +216,17 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		};
 	}
 	
+	method visitLambda(astNode) {
+		ifElse (this.topLevel) {
+			this.topLevel = false;
+			this.handleTopLevelLambda(astNode);
+		} {
+			this.handleInlineLambda(astNode);
+		};
+	}
+	
 	method visitSplit(astNode) {
+		/*
 		astNode.num = getNodeNumber();
 		val reads = java.util.HashSet.new();
 		val writes = java.util.HashSet.new();
@@ -228,10 +242,12 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		};
 		
 		updateDependencies(astNode, reads, writes);
+		*/
 		astNode.body.accept(this);
 	}
 	
 	method visitJoin(astNode) {
+		/*
 		astNode.num = getNodeNumber();
 		val reads = java.util.HashSet.new();
 		val writes = java.util.HashSet.new();
@@ -283,6 +299,7 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		};
 		
 		updateDependencies(astNode, reads, writes);
+		*/
 		astNode.body.accept(this);
 	}
 	
@@ -291,82 +308,36 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		val reads = java.util.HashSet.new();
 		val writes = java.util.HashSet.new();
 		
-		writes.add(astNode.x);
+		val oldReaders = this.readers;
+		val oldWriter = this.writer;
 		
-		// TODO: Solve this in a clean way.
-		// The problem is that we view the "Let x = E1" part of "Let x = E1 in E2"
-		// as belonging together, i.e. we don't want the AST node of E1 to depend
-		// on some other node N but we want the let AST node itself to depend on N. 
-		this.separateTask = false;
 		astNode.exp.accept(this);
-		this.separateTask = true;
-		
-		reads.addAll(this.savedReads);
-		writes.addAll(this.savedWrites);
-		
+
+		writes.add(astNode.x);
 		updateDependencies(astNode, reads, writes);
+		
+		// We always depend on exp.   TODO: Is this correct?
+		astNode.dependencies.value.add(makeDependency(astNode.exp, new ID { val token = new None; val name = "<let-init>"; }));
+		
 		astNode.body.accept(this);		
 	}
 
 	// TODO: How to handle methods with multiple arguments?
-	// TODO: This does not respect environments of methods yet.	
+	// TODO: This does not respect environments yet.	
 	method visitApplication(astNode) {
 		astNode.num = getNodeNumber();
 		val reads = java.util.HashSet.new();
 		val writes = java.util.HashSet.new();
 		
-		// Check if we have a global method of that name
-		ifElse (this.methodTypes.containsKey(astNode.f.name)) {
-			var methodType = this.methodTypes.get(astNode.f.name);
+		reads.add(astNode.f);
 			
-			// arg could be an ID or a literal.  We only care about the IDs.
-			match (astNode.arg) {
-				case ID {
-					val argTypes = methodType.argTypes;
-	
-					match (argTypes.head) {
-						case Cons {
-							val argType = argTypes.head.value;
-							
-							match (argType.perm) {
-								case UniquePermission {
-									writes.add(astNode.arg);
-								}
-								
-								case ImmutablePermission {
-									reads.add(astNode.arg);
-								}
-							}
-						}
-					}
-				}
-				default {}
-			};
-		} {
-			// No global method found, it has to be a lambda with an associated lambda type.
-			// TODO: Fix this and use the associated lambda type to figure out reads and writes.
-			reads.add(astNode.f);
-			
-			match (astNode.f.type) {
-				case Some {
-					val lambdaType = astNode.f.type.value;
-					lambdaType.sideEffects.map(fn (effect) => {
-						ifElse (effect.from.perm == effect.to.perm) {
-							match (effect.from.perm) {
-								case ImmutablePermission {
-									reads.add(effect.variable);
-								}
-								case UniquePermission {
-									writes.add(effect.variable);
-								}
-							};
-						} {
-							writes.add(effect.variable);
-						};
-					});
-					
-					val /*PermTypeChange*/ argType = lambdaType.argType;
-					match (argType.from.perm) {
+		match (astNode.f.type.type) {
+			case LambdaType {
+				val lambdaType = astNode.f.type.type;
+				
+				val /*ChangeType*/ argTypes = lambdaType.argTypes;
+				argTypes.map(fn (argType) => {
+					match (argType.input.perm) {
 						case UniquePermission {
 							writes.add(astNode.arg);
 						}
@@ -375,11 +346,13 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 							reads.add(astNode.arg);
 						}
 					};
-				}
-				case None {
-					java.lang.System.err.println("Warning: Lambda has no associated type.");
-				}
-			};
+				});
+				
+				// TODO: Add environment handling.
+			}
+			
+			default {
+			}
 		};
 		
 		updateDependencies(astNode, reads, writes);
@@ -406,30 +379,44 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with SplitJoinRedu
 		updateDependencies(astNode, java.util.HashSet.new(), java.util.HashSet.new());
 	}
 	
-	// TODO:  Get the correct method type to set up the dependencies.
-	method visitMethodInvocation(astNode) {
+	method visitMethodCall(astNode) {
 		astNode.num = getNodeNumber();
 		val reads = java.util.HashSet.new();
 		val writes = java.util.HashSet.new();
 		
-		// TODO: Do this right.
-		match (astNode.obj) {
-			case ID {
-				reads.add(astNode.obj);
+		match (astNode.receiver.type) {
+			case PermType {
+				match (astNode.receiver.type.perm) {
+					case UniquePermission {
+						writes.add(astNode.receiver);
+					}
+					
+					case ImmutablePermission {
+						reads.add(astNode.receiver);
+					}
+				};
 			}
-			default {}
+			default {
+			}
 		};
 		
-		// TODO: Do this right.
-		match (astNode.arg) {
-			case ID {
-				// Assume need for immutable permissions.
-				reads.add(astNode.arg);
+		match (astNode.argument.type) {
+			case PermType {
+				match (astNode.argument.type.perm) {
+					case UniquePermission {
+						writes.add(astNode.argument);
+					}
+					
+					case ImmutablePermission {
+						reads.add(astNode.argument);
+					}
+				};
 			}
-			default {}
+			default {
+			}
 		};
 		
-		updateDependencies(astNode, reads, writes);		
+		updateDependencies(astNode, reads, writes);
 	}
 	
 	// TODO: This can cause problems with visibility of local variables:
