@@ -1,0 +1,195 @@
+package plaid.ast.types;
+
+/**
+ * General form of all Types in Plaid.  Made up of:
+ *	- a Permission : DynP, Unique, Full, Immutable, Shared, Pure, None
+ *	- a Type : Nominal, Structural, Lambda, Dyn
+ *	- whether or not the type is borrowed (primitive form of fractional permissions)
+ */
+state PermType case of PlaidType {
+	val /*Permission*/ perm;
+	val /*Type*/ type;
+	val /*Boolean*/ borrowed;
+	
+	/**
+	 * Compares this PermType with the specified PermType for equality.  They 
+	 * are equal if and only if their Permissions and Types are equal.  The 
+	 * dynamic PermType is only equal to itself and no other PermType.
+	 */
+	 method ==(other) {
+	 	match (other) {
+	 		case PermType {
+	 			this.perm == other.perm && this.type == other.type;
+	 		}
+	 		default {
+	 			false;
+	 		}
+	 	};
+	 }
+	
+	/**
+	 *
+	 *
+	 * Creates a deep copy of  this PermType.
+	 */
+	method copy(){
+		new PermType {
+			val perm = this.perm;
+			val type = this.type;
+			val borrowed = this.borrowed;
+		};
+	}
+	
+	//creates a copy of this perm type, but borrowed
+	method copyAsBorrowed() {
+		new PermType {
+			val perm = this.perm;
+			val type = this.type;
+			val borrowed = true;
+		}
+	}
+
+	/**
+	 * Merges the two permtypes together.  Merging takes the stronger of the 
+	 * two access permissions and the union of the two types.
+	 *
+	 * TODO: should this really be the union of the types?  What if the types
+	 * do not have the supertype/subtype relation?  Is this actually a problem?
+	 *
+	 * TODO: how to set borrowed?
+	 */
+	method merge(p2) {
+		new PermType{ val perm = this.perm.merge(p2.perm); 
+					  val type = this.type.merge(p2.type);
+					  val borrowed = this.borrowed || p2.borrowed;
+		};
+	}
+	
+	/**
+	 * Joins the two permtypes together.  Joining takes the weaker of the two 
+	 * access permissions and the intersection of the types.
+	 *
+	 * TODO: should this really be the intersection of the types?  What if the 
+	 * types do not have the supertype/subtype relation?  Is this actually a problem?
+	 *
+	 * TODO: how to set borrowed
+	 */
+	method /*PermType*/ join(p2) {
+		new PermType{ val perm = this.perm.join(p2.perm);
+					  val type = this.type.join(p2.type); 
+					  val borrowed = this.borrowed && p2.borrowed; //have to both be borrowed to stay borrowed
+		};
+	}
+	
+	method /*Option PermType*/ joinTo(residue, target) {
+		var ret = new Some;
+		
+		//get the new permission
+		var /*Permission*/ newPerm = unit; 
+		ifElse(residue.borrowed && this.borrowed)
+			{ newPerm = this.perm.joinTo(residue.perm, target.perm) } //if both borrowed, assume could join the target if potentially allowed
+			{ newPerm = new Some {val value = this.perm.join(residue.perm); } }; //otherwise, just join normally and see what comes out;
+		match (newPerm) {
+			case Some {
+				if ( !(newPerm.value.asStrongAs(target.perm)) ) {
+					java.lang.System.out.println("cannot join to necessary permission");
+					ret = new None;
+				}
+			}
+			case None {
+				java.lang.System.out.println("cannot join to necessary permission");
+				ret = new None;
+			}
+		};
+		//get the new type if permission succeeded
+		match (ret) {
+			case Some {
+				val newType = this.type.join(residue.type);
+				ifElse (newType == target.type) 
+					{ ret = new Some { val value = target; } }
+					{ 
+						java.lang.System.out.println("joined type not equal to target type");
+						ret = new None;
+					}
+			}
+			case None {/*already done*/ }
+		};
+		ret
+	}
+	
+	/**
+	 * Splits this permType into the permType p2 and
+	 * the residue left over.  returns the residue
+	 * permType if splitting is possible.  After
+	 * splitting this permtype is no longer valid 
+	 * TODO: should that mean we give a none permission back?
+	 */
+	method /*option PermType*/ split(/*PermType*/ p2) {
+		val otherPerm = p2.perm;
+		val otherType = p2.type;
+		
+		//must return same types for now //TODO: subtyping
+		ifElse ( p2.type == this.type) { 
+			ifElse (this.borrowed --> p2.borrowed) {
+			
+				val /*Option Permission*/ newPerm = this.perm.split(otherPerm); //
+				match (newPerm) {
+					case Some {
+						new Some { 
+							value = new PermType {
+								val perm = newPerm.value;
+								val type = this.type;
+								val borrowed = this.borrowed;
+							};
+						}
+					}
+					case None {
+						//permission splitting failed
+						new None;
+					}
+				}
+			} {
+				java.lang.System.out.println("cannot split a borrowed type into an unborrowed type");
+				new None;
+			}
+		
+		} {
+			java.lang.System.out.println("cannot split to different types");
+			new None;	
+		} 
+	}
+	
+	/**
+	 * Returns the strongest permtype that can be split off from this permtype 
+	 * while maintaining the current permission of this permtype.
+	 */
+	method residue() {
+		this.split(this).second();
+	}
+	
+	/**
+	 * Returns true if the permission for this permtype allows a client with 
+	 * an alias of this permtype to initiate a state change on the object to 
+	 * which the alias refers.
+	 */
+	method isWritable() {
+		perm.isWritable();
+	}
+	
+	/**
+	 * Returns true if this permtype is a sub-permtype of the specified permtype
+	 * as defined by the Plaid typing specification.
+	 */
+	method isSubPermTypeOf(permType) {
+		// TODO: stub
+	}
+	
+	//override method accept(/*ASTVisitor*/ visitor) {
+	//	visitor.visitPermType(this);
+	//}
+	
+	method toString() {
+		this.perm.toString() + " " 
+			+ this.type.toString()
+	}
+}

@@ -1,0 +1,116 @@
+package plaid.typechecker.context;
+
+import java.util.HashMap;
+
+state Context{
+	
+	val /*Map<String,PermType>*/ contextMap = java.util.HashMap.new();
+	
+	method /*boolean*/ ==(/*Context*/ other) {
+		var /*boolean*/ eq = true;
+		val iter = contextMap.keySet().iterator();
+		while{eq && iter.hasNext()}{
+			var x = iter.next();
+			ifElse (other.containsKey(x)) {
+				ifElse ( other.get(x) == contextMap.get(x)) {
+					eq = true;
+				} {
+					eq = false
+				}
+			} {
+				eq = false;
+			}
+		};
+		eq;
+	}
+	
+	/**
+	 * Returns associated list of PermTypes associated with this variable.
+	 */
+	method /*PermType*/ get(x){
+		contextMap.get(x);
+	}
+	
+	method /*Option PermType*/ getOption(x) {
+		ifElse ( contextMap.containsKey(x))
+			{ createSome(contextMap.get(x)) }
+			{ NONE }
+	}
+	
+	method /*boolean*/ containsKey(x) {
+		contextMap.containsKey(x);
+	}
+	
+	/**
+	 * Puts a PermType in context
+	 * Adds to existing list or creates a new one
+	 */
+	method put(x, permType){
+		ifElse (contextMap.containsKey(x)) 
+			{ java.lang.System.out.println("Duplicate permType for " + x.name); }
+			{ contextMap.put(x, permType); }
+	//use for multi set if end up needing - for now go back to single set - handle duplicates in typechecking
+	//	ifElse( contextMap.containsKey(x)) 
+	//		{ contextMap.get(x).append(permType) }
+	//		{ contextMap.put(x,new List { var head  = new Cons { var value = permType; var next = new Nil;}; }); }
+	}
+	
+	/**
+	 * Removes the type information from all PURE and SHARED references.
+	 */
+	method demote(){
+		while{this.contextMap.keySet().iterator().hasNext()}{
+			var x = this.contextMap.keySet().next();
+			var permType = this.contextMap.get(x);
+			var perm = permType.perm;
+			var type = permType.type;
+			//If PermTyps is PURE or SHARED or NONE remove all TypeInformations
+			ifElse (perm == Permission.PURE || perm == Permission.SHARED || perm == Permission.NONE){
+				type.clearTypeInformation();
+			} 
+		}
+	}
+	
+	/**
+	 * Creates a copy of the context.
+	 */
+	method copy(){
+		var copyContext = new Context;
+		val iter = contextMap.keySet().iterator();
+		while { iter.hasNext() } {
+			var x = iter.next();
+			var permType = contextMap.get(x);
+			copyContext.put(x.copy(), permType.copy());
+			//for multiset
+			//copyContext.put(x.copy(), permTypeList.map(fn (value) => value.copy()));
+		};
+		copyContext;
+	}
+	
+	/**
+	 * Removes a permType from context
+	 */
+	method remove(x){
+		contextMap.remove(x);
+	}
+	
+	method reset() {
+		contextMap.clear();
+	}
+	
+	method addAll(other) {
+		val iter = other.contextMap.keySet().iterator();
+		while{iter.hasNext()}{
+			var x = iter.next();
+			contextMap.put(x,other.contextMap.get(x));
+		}
+	}
+	
+	method /*void*/ printContext() {
+		val iter = contextMap.keySet().iterator();
+		while{iter.hasNext()}{
+			var x = iter.next();
+			java.lang.System.out.println(x.name + " : " + this.contextMap.get(x).toString());
+		}
+	}
+}
