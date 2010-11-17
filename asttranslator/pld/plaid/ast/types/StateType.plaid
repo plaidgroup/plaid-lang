@@ -107,6 +107,64 @@ state StateType case of DeclType {
 		}
 	}
 	
+	method /*boolean*/ isWellFormed(/*Option StateType*/ initializer, /*StateTable*/ stateTable) {
+		var /*StateType*/ toCheck = this;
+		match (initializer) {
+			case Some { //create a new StateType with the combined types listed
+				toCheck = this.withST(initializer.value);
+			}
+			case None { 
+				//use this alone
+			}
+		};
+		
+		//all declared types must also be provided and the provided types must be subtypes
+		val declaredIter = toCheck.declaredTypes.keySet().iterator();
+		var /*Boolean*/ wellFormed = true;
+		while { declaredIter.hasNext() && wellFormed} {
+			val /*ID*/ declaredID = declaredIter.next();
+			val /*DeclType*/ declaredType = toCheck.declaredTypes.get(declaredID); //we know it is there
+			val /*Option DeclType*/ providedTypeOpt = toCheck.providedTypeOf(declaredID); //might not be there
+			match (providedTypeOpt) {
+				case Some {
+					wellFormed = providedTypeOpt.value.declSubTypeOf(declaredType, stateTable);
+					if (!wellFormed) {java.lang.System.out.println("OBJECT CREATION FAILED: provided type of " + declaredID.name + 
+										" is not a subtype of declared type in state " + this.name.name);};
+				}
+				case None {
+					wellFormed = false;
+					java.lang.System.out.println("OBJECT CREATION FAILED: abstract member " + declaredID.name + " not provided for state " + this.name.name);
+				}
+			}
+		};
+		wellFormed;
+	}
+	
+	method /*unique StateType*/ withST(/*immutable StateType*/ other) {
+		//for now, other is a anonymous statetype with just provided types -TODO: clean up state types
+		val /*unique StateType*/ withType = new StateType {
+			val /*ID*/ name = new ID { val name = "<ANONYMOUS>"; };
+			val /*Option StateType*/ superType = NONE;
+		};
+		withType.declaredTypes.putAll(this.declaredTypes);
+		withType.providedTypes.putAll(this.providedTypes);
+		val initializerIter = other.providedTypes.keySet().iterator();
+		while { initializerIter.hasNext() } {
+			val /*ID*/ declName = initializerIter.next();
+			val /*Option DeclType*/ declaredOpt = this.declaredTypeOf(declName);
+			
+			match (declaredOpt) {
+				case Some {
+					withType.providedTypes.put(declName, other.providedTypes.get(declName));
+				}
+				case None {
+					java.lang.System.out.println("INITIALIZATION FAILED: cannot add new members (" + declName.name + ") in initialier (for now)");
+				}
+			}
+		};
+		withType;
+	}
+	
 	method toString() {
 		val pfn = fn (dType) => ret = ret + "\n\t\t" + dType.toString();
 		var ret = "state " + this.name.name;
