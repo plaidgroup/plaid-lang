@@ -4,7 +4,7 @@ import plaid.ast.*;
 import plaid.ast.types.*;
 import plaid.ast.visitor.*;
 
-state DependencyAnalysisVisitor = ASTVisitor with GraphOutput /*with SplitJoinReduction with TransitiveReduction with MergeOptimization*/ with {
+state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with TransitiveReduction /*with SplitJoinReduction with MergeOptimization*/ with {
 	var /*Map<String, ASTNode>*/ writer = java.util.HashMap.new();
 	var /*Map<String, ASTNode>*/ readers = java.util.HashMap.new();
 	var nodeList = new List { var head = new Nil; };
@@ -13,6 +13,7 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput /*with SplitJoinRe
 	
 	var counter = 0;
 	var lambdaCounter = 0;
+	var lastNode = "";
 	
 	
 	method initialize() {
@@ -39,6 +40,7 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput /*with SplitJoinRe
 	method updateDependencies(astNode, reads, writes) {
 		val myDeps = java.util.HashSet.new();
 		this.nodeList.add(astNode);
+		this.lastNode = astNode;
 		
 		var it = reads.iterator();
 		while { it.hasNext(); } {
@@ -91,7 +93,8 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput /*with SplitJoinRe
 		astNode.dependencies = new Some { val value = myDeps; };
 	}
 	
-	method reduceAllDependencies(nodeList) {
+	method reduceAllDependencies() {
+		/*
 		var newNodeList = new List { var head = new Nil; };
 		this.nodeList.map(fn (node) => {
 			this.reduceDependencies(node);
@@ -104,12 +107,11 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput /*with SplitJoinRe
 				}
 			};
 		});
+		*/
 		
-		newNodeList.map(fn (node) => {
+		this.nodeList.map(fn (node) => {
 			this.removeTransitiveDependencies(node);
 		});
-				
-		this.nodeList = newNodeList;
 	}
 	
 	
@@ -164,8 +166,8 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput /*with SplitJoinRe
 		printDependencies(nodeList);
 		createDependencyGraph("");
 		
-//		reduceAllDependencies(nodeList);
-//		createDependencyGraph("_Reduced");
+		reduceAllDependencies();
+		createDependencyGraph("_Reduced");
 		
 //		mergeNodes(nodeList);
 //		createDependencyGraph("_Merged");
@@ -308,16 +310,15 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput /*with SplitJoinRe
 		val reads = java.util.HashSet.new();
 		val writes = java.util.HashSet.new();
 		
-		val oldReaders = this.readers;
-		val oldWriter = this.writer;
-		
 		astNode.exp.accept(this);
-
+		
+		val myLastNode = this.lastNode;
 		writes.add(astNode.x);
+		
 		updateDependencies(astNode, reads, writes);
 		
 		// We always depend on exp.   TODO: Is this correct?
-		astNode.dependencies.value.add(makeDependency(astNode.exp, new ID { val token = new None; val name = "<let-init>"; }));
+		astNode.dependencies.value.add(makeDependency(myLastNode, new ID { val token = new None; val name = "<let-init>"; }));
 		
 		astNode.body.accept(this);		
 	}
