@@ -34,122 +34,165 @@ state InitialTypechecker case of LeafVisitor {
 		//and assume that our state table captures them correctly
 		//we will type check the declarations in the state, though
 		node.stateDef.accept(this);
+		match (node.caseOf) {
+			case Some { //check that the subtyping relationship is nominally valid
+				val /*Option StateType*/ st = this.stateTable.get(node.name);
+				val /*ID*/ qID = new ID { val name = node.caseOf.value.toString(); }; //TODO: robust handling of QIs
+				val /*Option StateType*/ superST = this.stateTable.get(qID);
+				match (st) {
+					case Some {
+						match (superST) {
+							case Some {
+								ifElse (st.value.checkCaseOf(superST, this.stateTable)) {
+									
+								} {
+									java.lang.System.out.println("TYPECHECK FAILED: state " + node.name.name + " not a subtype of " + qID.name);
+								}
+							}
+							case None {
+								java.lang.System.out.println("TYPECHECK FAILED: " + qID.name + " not declared");
+							}
+						}
+					}
+					case None {
+						java.lang.System.out.println("TYPECHECK FAILED: " + node.name.name + " not declared");
+					}
+				}
+			}
+			case None {
+				//nothing to do
+			}
+		}
+		
+		
 	}
 	
 	override method visitFieldDecl(node) {
-		// field declarations should be typed in an empty context
-		//so type using a new empty context and then check
-		//for consistency with the declared type
 		java.lang.System.out.println("--typechecking field " + node.f.name);
-		val ftype = node.fieldType;
-		val fST = this.stateTable;
-		ifElse (node.abstractField) 
-			{ typedAs = new Some { val value = ftype; } } //abstact fields get declared type
-			{
-				val fieldChecker = new InitialTypechecker {
-					val context = this.context.copy();
-					val stateTable = fST; //TODO: do we need to copy this - will it be updated (not now I don't think)
-				};
+		ifElse(node.abstractField) {
+			this.typedAs = new Some { val value = node.fieldType; }; 
+			java.lang.System.out.println("Abstract field " + node.f.name + " typechecked!");
+		} {
+			// field declarations should be typed in an empty context
+			//so type using a new empty context and then check
+			//for consistency with the declared type
 			
-				node.e.accept(fieldChecker); //typecheck the field initialization
+			val ftype = node.fieldType;
+			val fST = this.stateTable;
+			ifElse (node.abstractField) 
+				{ typedAs = new Some { val value = ftype; } } //abstact fields get declared type
+				{
+					val fieldChecker = new InitialTypechecker {
+						val context = this.context.copy();
+						val stateTable = fST; //TODO: do we need to copy this - will it be updated (not now I don't think)
+					};
 				
-				match (fieldChecker.typedAs) {
-					case Some {
-						ifElse (fieldChecker.typedAs.value == ftype.permType )
-							{ 
-								this.typedAs = new Some { val value = ftype; }; 
-								java.lang.System.out.println("field " + node.f.name + " typechecked!");
-							}
-							{ 
-								this.typedAs = new None; 
-								java.lang.System.out.println("TYPECHECK FAILED: initializer type wrong");
-							};
+					node.e.accept(fieldChecker); //typecheck the field initialization
+				
+					match (fieldChecker.typedAs) {
+						case Some {
+							ifElse (fieldChecker.typedAs.value == ftype.permType )
+								{ 
+									this.typedAs = new Some { val value = ftype; }; 
+									java.lang.System.out.println("field " + node.f.name + " typechecked!");
+								}
+								{ 
+									this.typedAs = new None; 
+									java.lang.System.out.println("TYPECHECK FAILED: initializer type wrong");
+								};
+						}
+						case None {
+							//java.lang.System.out.println("TYPECHECK FAILED: typecheck of initializer failed");
+						}	
 					}
-					case None {
-						//java.lang.System.out.println("TYPECHECK FAILED: typecheck of initializer failed");
-					}	
-				}
-			};		
+				};	
+			}	
 	}
 	
 	override method visitMethodDecl(node) {
-		//for method Decls we need to verify that the body meets the specification
-		//of the method type.  To do this, we create a new Typechecker instance with
-		//a new context
-		val mContext = this.context.copy();
-		val mtype = node.methodType;
-		
 		java.lang.System.out.println("--typechecking method " + node.name);
 		
-		//add receiver
-		mContext.put(new ID { val name = "this$plaid"; }, getContextType(mtype.receiverType)); 
+		ifElse(node.abstractMethod) {
+			//don't need to do anything
+			typedAs = new Some { val value = node.methodType; };
+			java.lang.System.out.println("Abstract Method " + node.name + " typechecked!");
+			
+		} {
+			//for method Decls we need to verify that the body meets the specification
+			//of the method type.  To do this, we create a new Typechecker instance with
+			//a new context
+			val mContext = this.context.copy();
+			val mtype = node.methodType;
+
+			//add receiver
+			mContext.put(new ID { val name = "this$plaid"; }, getContextType(mtype.receiverType)); 
 		
-		//add arg if exists
-		match (node.arg) {
-			case Some {
-				mContext.put(node.arg.value, getContextType(mtype.argTypes.head.value));
-			}
-			default { }
-		};
+			//add arg if exists
+			match (node.arg) {
+				case Some {
+					mContext.put(node.arg.value, getContextType(mtype.argTypes.head.value));
+				}
+				default { }
+			};
 		
-		//TODO: add environment variables
+			//TODO: add environment variables
 		
-		//new typechecker for the method body
-		val mST = this.stateTable;
-		val methodChecker = new InitialTypechecker { 
-								val context = mContext;
-								val stateTable = mST; //TODO: do we need to copy this - will it be updated (not now I don't think)
-							};
-		node.body.accept(methodChecker);
-		//java.lang.System.out.println("later checked failed");
-		//check that return type matches
-		var /*Boolean*/ retCheck = false;
-		match (methodChecker.typedAs) {
-			case Some {
-				retCheck = methodChecker.typedAs.value == mtype.returnType;
-				if (!retCheck) { java.lang.System.out.println("return !=  body"); }
-			}
-			case None {
-				//java.lang.System.out.println("TYPECHECK FAILED: typecheck of body failed");
-			}
-		};
+			//new typechecker for the method body
+			val mST = this.stateTable;
+			val methodChecker = new InitialTypechecker { 
+									val context = mContext;
+									val stateTable = mST; //TODO: do we need to copy this - will it be updated (not now I don't think)
+								};
+			node.body.accept(methodChecker);
+			//java.lang.System.out.println("later checked failed");
+			//check that return type matches
+			var /*Boolean*/ retCheck = false;
+			match (methodChecker.typedAs) {
+				case Some {
+					retCheck = methodChecker.typedAs.value.isSubPermTypeOf(mtype.returnType, this.stateTable);
+				}
+				case None {
+					//java.lang.System.out.println("TYPECHECK FAILED: typecheck of body failed");
+				}
+			};
 		
-		//check that receiver output type matches - equivalent to typed in the context
-		//resulted by the method typing
-		var /*Boolean*/ thisCheck = false;
-		(new ID { val name = "this$plaid"; }).accept(methodChecker);
-		match (methodChecker.typedAs) {
-			case Some {
-				thisCheck = methodChecker.typedAs.value == mtype.receiverType.output;
-				if (!thisCheck) { java.lang.System.out.println("TYPECHECK FAILED: receiver output wrong"); }
-			}
-			case None {
-				//java.lang.System.out.println("TYPECHECK FAILED: type check of receiver failed");
-			}
-		};
+			//check that receiver output type matches - equivalent to typed in the context
+			//resulted by the method typing
+			var /*Boolean*/ thisCheck = false;
+			(new ID { val name = "this$plaid"; }).accept(methodChecker);
+			match (methodChecker.typedAs) {
+				case Some {
+					thisCheck = methodChecker.typedAs.value == mtype.receiverType.output;
+					if (!thisCheck) { java.lang.System.out.println("TYPECHECK FAILED: receiver output wrong"); }
+				}
+				case None {
+					//java.lang.System.out.println("TYPECHECK FAILED: type check of receiver failed");
+				}
+			};
 		
-		//check that arg output type matches - equivalent to typed in the context
-		//resulted by the method typing, with receiver pulled out
-		var /*Boolean*/ argCheck = false;
-		match(node.arg) {
-			case Some {
-				node.arg.value.accept(methodChecker);
-				match(methodChecker.typedAs) {
-					case Some {
-						argCheck = methodChecker.typedAs.value == mtype.argTypes.head.value.output;
-						if (!argCheck) { java.lang.System.out.println("TYPECHECK FAILED: arg Output type wrong"); }
-					}
-					case None {
-						//java.lang.System.out.println("TYPECHECK FAILED: type check of arg output failed");
+			//check that arg output type matches - equivalent to typed in the context
+			//resulted by the method typing, with receiver pulled out
+			var /*Boolean*/ argCheck = false;
+			match(node.arg) {
+				case Some {
+					node.arg.value.accept(methodChecker);
+					match(methodChecker.typedAs) {
+						case Some {
+							argCheck = methodChecker.typedAs.value == mtype.argTypes.head.value.output;
+							if (!argCheck) { java.lang.System.out.println("TYPECHECK FAILED: arg Output type wrong"); }
+						}
+						case None {
+							//java.lang.System.out.println("TYPECHECK FAILED: type check of arg output failed");
+						}
 					}
 				}
-			}
-			case None { argCheck = true; }
-		};
+				case None { argCheck = true; }
+			};
 		
-		if(retCheck && thisCheck && argCheck) {
-			typedAs = new Some { val value = mtype; };
-			java.lang.System.out.println("Method " + node.name + " typechecked!");
+			if(retCheck && thisCheck && argCheck) {
+				typedAs = new Some { val value = mtype; };
+				java.lang.System.out.println("Method " + node.name + " typechecked!");
+			}
 		}
 	}
 	
@@ -935,7 +978,7 @@ state InitialTypechecker case of LeafVisitor {
 	}
 	
 	override method visitMatch(node) {
-		this.context.printContext();
+		//this.context.printContext();
 		match (node.e) {
 			case ID {
 				ifElse ( context.containsKey(node.e) ) {
@@ -960,7 +1003,7 @@ state InitialTypechecker case of LeafVisitor {
 											val /*Option StateType*/ caseST = stateTable.get(qID); //TODO: robust handling of QIs
 											match (caseST) {
 												case Some {
-													ifElse (caseST.value.subtypeOf(matchedST.value)) {
+													ifElse (caseST.value.subtypeOf(matchedST.value, this.stateTable)) {
 														val /*context*/ copiedContext = this.context.copy();
 														val /*PermType*/ newEType = new PermType {
 															val perm = matchedPermType.perm;
@@ -1005,7 +1048,7 @@ state InitialTypechecker case of LeafVisitor {
 										
 										match (caseReturn) { //return a pair of context and return type wrapped up in an option if succeeded 
 											case Some {
-												java.lang.System.out.println("context and return Type ok");
+												//java.lang.System.out.println("context and return Type ok");
 												caseContext.value.remove(node.e); //remove matched var - will be different
 												createSome(makePair(caseContext.value,caseReturn.value));
 											}
