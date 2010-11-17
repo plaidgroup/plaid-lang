@@ -124,12 +124,12 @@ state PermType case of PlaidType {
 	 * splitting this permtype is no longer valid 
 	 * TODO: should that mean we give a none permission back?
 	 */
-	method /*option PermType*/ split(/*PermType*/ p2) {
+	method /*option PermType*/ split(/*PermType*/ p2, /*StateTable*/ stateTable) {
 		val otherPerm = p2.perm;
 		val otherType = p2.type;
 		
 		//must return same types for now //TODO: subtyping
-		ifElse ( p2.type == this.type) { 
+		ifElse ( this.type.subtypeOf(p2.type,stateTable)) { 
 			ifElse (this.borrowed --> p2.borrowed) {
 			
 				val /*Option Permission*/ newPerm = this.perm.split(otherPerm); //
@@ -162,10 +162,11 @@ state PermType case of PlaidType {
 	/**
 	 * Returns the strongest permtype that can be split off from this permtype 
 	 * while maintaining the current permission of this permtype.
+	 * DEPRECATED FOR NOW - just use Split - return type is the residue
 	 */
-	method residue() {
-		this.split(this).second();
-	}
+	//method residue(/*StateTable*/ stateTable) {
+	//	this.split(this, stateTable).second();
+	//}
 	
 	/**
 	 * Returns true if the permission for this permtype allows a client with 
@@ -180,8 +181,21 @@ state PermType case of PlaidType {
 	 * Returns true if this permtype is a sub-permtype of the specified permtype
 	 * as defined by the Plaid typing specification.
 	 */
-	method isSubPermTypeOf(permType) {
-		// TODO: stub
+	method /*Boolean*/ isSubPermTypeOf(/*PermType*/ other, /*StateTable*/ stateTable) {
+		//requirements:
+		//0) if other is borrowed, so must this
+		val /*Boolean*/ borrowOk = other.borrowed --> this.borrowed;
+		if (!borrowOk) { java.lang.System.out.println("TYPECHECK FAILED: if superPermType is borrowed, so must subPermType") };
+		
+		//1) this perm must be as strong as the other perm
+		val /*Boolean*/ permOk = this.perm.asStrongAs(other.perm);
+		if (!permOk) { java.lang.System.out.println("TYPECHECK FAILED: " + this.perm.toString() + " not as strong as " + other.perm.toString()) };
+		
+		//2) subtypes
+		val /*Boolean*/ typeOk = this.type.subtypeOf(other.type, stateTable); //error elsewhere
+		
+		borrowOk && permOk && typeOk;
+		
 	}
 	
 	//override method accept(/*ASTVisitor*/ visitor) {
