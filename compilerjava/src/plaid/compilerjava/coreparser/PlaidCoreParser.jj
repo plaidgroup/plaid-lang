@@ -108,6 +108,30 @@ public class PlaidCoreParser
 				for (Token t : tokenList) stringList.add(t.image);
 				return stringList;
 		}
+		
+		public static Expression foldToPairs(List<Expression> expList) {
+			if (expList.size() == 1) return expList.get(0);
+			else { 	//translate to pairs:  (a,b,...,n) => (a,(b,(...(n,unit)...)))
+				int size = expList.size();
+				Expression second = new UnitLiteral();
+				//QI pair = new QI("plaid.lang.Pair");
+				List < Decl > pairFields;
+				FieldDecl fst, snd;
+				QI pairWith;
+				
+				for (int i = size - 1; i >= 0; i--){
+					fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldType(new ID("fst"), PermType.DYN, true), false);
+					snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
+					pairFields = new ArrayList < Decl > ();
+					pairFields.add(fst);
+					pairFields.add(snd);
+					pairWith = new QI("plaid.lang.Pair", new DeclList(pairFields));
+					second = new NewInstance(expList.get(i).getToken(), pairWith);
+				}
+				
+				return second; //TODO: write utility function for this like for ExpListSemi
+			}
+		}
 
 		//private Expression opMethodCall(Token t, Expression e, Expression arg)
 		//{
@@ -1280,7 +1304,9 @@ Expression SimpleExp() :
 		State s;
 		List < Token > dotName;
 		List < Expression > curriedArgs = new ArrayList < Expression > ();
-		Expression methodArg = new UnitLiteral();
+		List<Expression> eList = null;
+		List<Expression> argList = null;
+		//Expression methodArg = new UnitLiteral();
 }
 {
 		e = BlockExpression(true)
@@ -1297,19 +1323,16 @@ Expression SimpleExp() :
 				{
 						e = new ID(t, t.image);
 				}
-		|		t = < LPAREN > e = ExpList() < RPAREN >
+		|		t = < LPAREN > eList = ExpList() < RPAREN > { e = foldToPairs(eList); }
 		|		e = Literal()
 		)
 		(
-				arg = ArgExp()
-				{
-						curriedArgs.add(arg);
-				}
+				(
+					arg = BlockExpression(true) { e = new Application(arg.getToken(), e, arg); }
+				|
+					t = <LPAREN> [ eList = ExpList() { e = new Application(t, e, eList); } ] <RPAREN> 
+				)
 		)*
-		{
-			e = foldCurriedArgs(e, curriedArgs);
-			curriedArgs = new ArrayList < Expression > ();		  
-		}
 		(
 		    (dotToken = <DOT> | dotToken = <BANG> ) (t = <ID> | t = <NEW> )
 		    {
@@ -1321,47 +1344,42 @@ Expression SimpleExp() :
 		    }
 			(LOOKAHEAD(<LPAREN>) //If we have an expr list in parens next, assume method call
 				<LPAREN>
-		  			[ methodArg = ExpList() ]
+		  			[ argList = ExpList() ]
 		  		<RPAREN> 
 		  			{ 
-		  				e = new MethodCall(dotToken, ((Dereference)e).getLeft(), ((Dereference)e).getRight(), methodArg); 
-		  				methodArg = new UnitLiteral();
+		  				if (argList == null ) { 
+		  					argList = new ArrayList<Expression>();
+		  					argList.add(new UnitLiteral());
+		  				}
+		  				e = new MethodCall(dotToken, ((Dereference)e).getLeft(), ((Dereference)e).getRight(), argList); 
+		  				argList = null;
 		  			}
 		  		//followed with arbitrary applications			
-				( arg = ArgExp() { curriedArgs.add(arg); })*
+				( 
+					(
+						arg = BlockExpression(true) { e = new Application(arg.getToken(), e, arg); }
+					|
+						t = <LPAREN> [ eList = ExpList() { e = new Application(t, e, eList); } ] <RPAREN> 
+					)
+				)*
 				
 				| //otherwise, just arbitrary applications
 				
 				(
-					arg = ArgExp() { curriedArgs.add(arg); }
+					(
+						arg = BlockExpression(true) { e = new Application(arg.getToken(), e, arg); }
+					|
+						t = <LPAREN> [ eList = ExpList() { e = new Application(t, e, eList); } ] <RPAREN> 
+					)
 				)*
 			)
-			{
-					e = foldCurriedArgs(e, curriedArgs);
-					curriedArgs = new ArrayList < Expression > ();
-			}
 		)*
 		{
-				return foldCurriedArgs(e, curriedArgs);
+			return e;
 		} // will return e if no arguments in curriedArgs
 }
 
-Expression ArgExp() :
-{
-		Expression e = new UnitLiteral();
-}
-{
-		e = BlockExpression(true)
-		{
-				return e;
-		}
-|		< LPAREN > [ e = ExpList() ] < RPAREN >
-		{
-				return e;
-		}
-}
-
-Expression ExpList() :
+List<Expression> ExpList() :
 {
 		Expression e, nextExp;
 		List < Expression > expList = new ArrayList < Expression > ();
@@ -1378,27 +1396,7 @@ Expression ExpList() :
 		}
 	)*
 	{
-		if (expList.size() == 1) return e;
-		else
-		{ 	//translate to pairs:  (a,b,...,n) => (a,(b,(...(n,unit)...)))
-			int size = expList.size();
-			Expression second = new UnitLiteral();
-			//QI pair = new QI("plaid.lang.Pair");
-			List < Decl > pairFields;
-			FieldDecl fst, snd;
-			QI pairWith;
-			for (int i = size - 1; i >= 0; i--)
-			{
-				fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldType(new ID("fst"), PermType.DYN, true), false);
-				snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
-				pairFields = new ArrayList < Decl > ();
-				pairFields.add(fst);
-				pairFields.add(snd);
-				pairWith = new QI("plaid.lang.Pair", new DeclList(pairFields));
-				second = new NewInstance(expList.get(i).getToken(), pairWith);
-			}
-			return second; //TODO: write utility function for this like for ExpListSemi
-		}
+		return expList; //foldToPairs(expList);
 	}
 }
 
