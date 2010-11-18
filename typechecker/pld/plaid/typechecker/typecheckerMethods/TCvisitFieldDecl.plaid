@@ -1,0 +1,50 @@
+package plaid.typechecker.typecheckerMethods;
+
+import plaid.typechecker.context.*;
+import plaid.ast.types.*;
+import plaid.ast.*;
+
+state TCvisitFieldDecl {
+	
+	override val /*StateTable*/ stateTable; // need to know about nominal types during typechecking
+	override val /*Context*/ context; //need to keep track of variables and types
+	override var /*Option PermType*/ typedAs;
+	
+	override method visitFieldDecl(node) {
+		java.lang.System.out.println("--typechecking field " + node.f.name);
+		ifElse(node.abstractField) {
+			this.typedAs = new Some { val value = node.fieldType; }; 
+			java.lang.System.out.println("Abstract field " + node.f.name + " typechecked!");
+		} {
+			// field declarations should be typed in an empty context
+			//so type using a new empty context and then check
+			//for consistency with the declared type
+			
+			val ftype = node.fieldType;
+			val fST = this.stateTable;
+			ifElse (node.abstractField) {
+				typedAs = new Some { val value = ftype; }  //abstact fields get declared type
+			} {
+				val fieldChecker = typecheckerFactory(this.context.copy(), fST); 
+				
+				node.e.accept(fieldChecker); //typecheck the field initialization
+				
+				match (fieldChecker.typedAs) {
+					case Some {
+						ifElse (fieldChecker.typedAs.value.isSubPermTypeOf(ftype.permType, this.stateTable) ) { 
+							this.typedAs = new Some { val value = ftype; }; 
+							java.lang.System.out.println("field " + node.f.name + " typechecked!");
+						} { 
+							this.typedAs = new None; 
+							java.lang.System.out.println("TYPECHECK FAILED: initializer type wrong");
+						};
+					}
+					case None {
+						//java.lang.System.out.println("TYPECHECK FAILED: typecheck of initializer failed");
+					}	
+				}
+			};	
+		}	
+	}
+
+}
