@@ -1,0 +1,89 @@
+package plaid.ast.types;
+
+/**
+ *	represents a lambda type as an object type
+ *	this could also be represented as a PlaidType, but instead for
+ *	consistency and flexibility it is an object Type.  Currently,
+ *	all LambdaType objects are considered to have an Immutable 
+ *	permission, but later we could allow other permissions under
+ *	this structure.
+ */
+state LambdaType case of Type {
+
+	var /*PermType*/ returnType; //TODO: change back to val when have restricted update state change working for PermType <- PermType
+	val /*List<ChangeType>*/ argTypes;
+	val /*Map<ID,ChangeType>*/ environmentTypes;
+	
+	method ==(other) {
+		match (other) {
+			case LambdaType {
+				this.returnType == other.returnType
+				&& this.argTypes.zip(other.argTypes)
+				                   .map(fn (p) => { p.first() == p.second(); })
+				                   .foldr(fn (x, y) => { x && y; }, true);
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	method /*boolean*/ hasArg() {
+		match (argTypes.head) {
+			case Nil { false }
+			case Cons { true }
+		}
+	}
+	
+	method toString() { //TODO: env types
+		ifElse (this.hasArg()) {
+			val args = this.argTypes.foldr(fn (a,r) => ", " + a.toString() + r, "");
+			"(" + args.substring(1) + ") -> " + this.returnType.toString();
+		} {
+			"() -> " + this.returnType.toString();
+		}
+	}
+	
+	method /*Boolean*/ subtypeOf(/*Type*/ other, /*StateTable*/ stateTable) {
+		match (other) {
+			case LambdaType {
+				//requirements:
+				
+				//1) this.returnType <: other.returnType
+				val /*Boolean*/ retTypeOk = this.returnType.isSubPermTypeOf(other.returnType, stateTable); //error message elsewhere
+				
+				var /*Boolean*/ aInputOk = true;
+				var /*Boolean*/ aOutputOk = true;
+				ifElse (this.hasArg()) {
+					ifElse (other.hasArg()) {
+						//2) other.argTypes[i].input <: this.argTypes[i].input //TODO: multiple args
+						aInputOk = this.argTypes.head.value.input.isSubPermTypeOf(other.argTypes.head.value.input, stateTable); //error message elsewhere
+				
+						//3) this.argTypes[i].output <: other.argTypes[i].output
+						aOutputOk = this.argTypes.head.value.output.isSubPermTypeOf(other.argTypes.head.value.output, stateTable); //error message elsewhere
+					} {
+						aInputOk = false;
+						aOutputOk = false;
+						java.lang.System.out.println("SUBTYPE FAILED: subtype of lambda" + 
+							" has an argument but the supertype does not");
+					}
+				} {
+					if (other.hasArg()) {
+						aInputOk = false;
+						aOutputOk = false;
+						java.lang.System.out.println("SUBTYPE FAILED: supertype of lambda" +
+							" has an argument but the subtype does not");
+					}
+				};
+				
+				//4) //TODO: environment Types
+				
+				retTypeOk && aInputOk && aOutputOk;
+			}
+			default { 
+				java.lang.System.out.println("TYPECHECK FAILED: lambda must subtype another lambda");
+				false 
+			}
+		}
+	}
+}

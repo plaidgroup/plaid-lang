@@ -1,0 +1,97 @@
+package plaid.ast.types;
+
+/**
+ *	Represents the declaration of a method's type
+ */
+state MethodType case of DeclType {
+	val /*ID*/ name;
+	val /*PermType*/ returnType;
+	val /*List<ChangeType>*/ argTypes;
+	val /*ChangeType*/ receiverType;
+	val /*Map<ID,ChangeType>*/ environmentTypes;
+
+	method ==(other) {
+		match (other) {
+			case MethodType {
+				this.name.getName() == other.name.getName()
+				&& this.returnType == other.returnType
+				&& this.argTypes == other.argTypes
+				&& this.receiver == other.receiver
+				&& this.environmentTypes == other.environmentTypes;
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	method toString() { //TODO: multiple args and env types
+		var ret = "method " + this.returnType.toString() + " " + this.name.name + "(";
+		if ( this.hasArg() ) {
+			val args = this.argTypes.foldr(fn (a,r) => ", " + a.toString() + r, "");
+			ret = ret + args.substring(1);
+		};
+		ret = ret + ")[" + this.receiverType.toString() + "]";
+		ret 
+	}
+	
+	method /*boolean*/ hasArg() {
+		match (argTypes.head) {
+			case Nil { false }
+			case Cons { true }
+		}
+	}
+	
+	method /*boolean*/ declSubTypeOf(/*DeclType*/ other, /*StateTable*/ stateTable) {
+		match (other) {
+			case MethodType {
+				//requirements:
+				//0) same names
+				val /*boolean*/ nameOk = this.name == other.name;
+				if (!nameOk) { java.lang.System.out.println("TYPECHECK FAILED: trying to subtype methods with different names - " + 
+																this.name.name + " <: " + other.name.name) };
+				
+				//1) this.returnType <: other.returnType
+				val /*Boolean*/ retTypeOk = this.returnType.isSubPermTypeOf(other.returnType, stateTable); //error message elsewhere
+				
+				//2) this.receiverType.input <: other.receiverType.input ***TODO: different for structural types
+				val /*Boolean*/ tInputOk = this.receiverType.input.isSubPermTypeOf(other.receiverType.input, stateTable); //error message elsewhere
+				
+				//3) this.receiverType.output <: other.receiverType.output
+				val /*Boolean*/ tOutputOk = this.receiverType.output.isSubPermTypeOf(other.receiverType.output, stateTable); //error message elsewhere
+				
+				var /*Boolean*/ aInputOk = true;
+				var /*Boolean*/ aOutputOk = true;
+				ifElse (this.hasArg()) {
+					ifElse (other.hasArg()) {
+						//4) other.argTypes[i].input <: this.argTypes[i].input //TODO: multiple args
+						aInputOk = this.argTypes.head.value.input.isSubPermTypeOf(other.argTypes.head.value.input, stateTable); //error message elsewhere
+				
+						//5) this.argTypes[i].output <: other.argTypes[i].output
+						aOutputOk = this.argTypes.head.value.output.isSubPermTypeOf(other.argTypes.head.value.output, stateTable); //error message elsewhere
+					} {
+						aInputOk = false;
+						aOutputOk = false;
+						java.lang.System.out.println("SUBTYPE FAILED: subtype of method " + this.name.name + 
+							" has an argument but the supertype does not");
+					}
+				} {
+					if (other.hasArg()) {
+						aInputOk = false;
+						aOutputOk = false;
+						java.lang.System.out.println("SUBTYPE FAILED: supertype of method " + this.name.name + 
+							" has an argument but the subtype does not");
+					}
+				};
+				//6) //TODO: environment Types
+				
+				nameOk && retTypeOk && tInputOk && tOutputOk && aInputOk && aOutputOk;
+				
+			}
+			default { 
+				java.lang.System.out.println("TYPECHECK FAILED: method must subtype another method");
+				false 
+			}
+		}
+	}
+}

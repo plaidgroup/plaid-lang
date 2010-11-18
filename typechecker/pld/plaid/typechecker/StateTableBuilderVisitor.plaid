@@ -1,0 +1,85 @@
+package plaid.typechecker;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.typechecker.ast.*;
+import plaid.ast.visitor.LeafVisitor;
+import plaid.typechecker.context.*;
+
+state StateTableBuilderVisitor case of LeafVisitor {
+	
+	var /*List<StateType>*/ stateTable = new StateTable;
+	var /*Context*/ initialContext = new Context;
+	var /*StateType*/ currentState = new None;
+	
+	//method visitImportList(node); //TODO: override and handle imports
+	/*
+	*	save
+	*/
+	override method visitStateDecl(node) {
+		var /*Option StateType*/ superST = NONE;
+		match (node.caseOf) {
+			case Some {
+				val /*ID*/ qID = new ID { val name = node.caseOf.value.toString(); };
+				superST = stateTable.get(qID); //TODO: robust handling of QIs
+				match (superST) {
+					case None {
+						java.lang.System.out.println("TYPECHECK FAILED: type " + qID.name + " not declared");
+					}
+					case Some {
+						//Typechecker checks that the case of relationship is valid
+					}
+				}
+			}
+			case None {
+				//do nothing
+			}
+		};
+		
+		val sType = new StateType {
+			val /*Option StateType*/ superType = superST;
+			val /*ID*/ name = node.name;
+		};
+		stateTable.put(node.name, sType);
+		currentState = new Some { val value = sType; };
+		node.stateDef.accept(this);  //Visit declarations in this state
+		currentState = new None;	//leave this state context
+	}
+	
+	/*
+	*	if in a current state, add to list of 
+	*/
+	override method visitMethodDecl(node) {
+		match(this.currentState) {
+			case Some {
+				val theState = currentState.value;
+				val methodType = node.methodType;
+				
+				if (!node.abstractMethod) 
+					{ theState.providedTypes.put(methodType.name, methodType) };
+				
+				theState.declaredTypes.put(methodType.name, methodType);
+			}
+			default {//add to initial Context
+				//initialContext.put(node.methodType.name, node.methodType);
+			}
+		}
+	}
+	
+	override method visitFieldDecl(node) {
+		match(this.currentState) {
+			case Some { //add to current state
+				val theState = currentState.value;
+				val fieldType = node.fieldType;
+				if (!node.abstractField) 
+					{ theState.providedTypes.put(fieldType.name, fieldType) };
+				theState.declaredTypes.put(fieldType.name, fieldType);
+			}
+			default { //add to initial Context
+				initialContext.put(node.fieldType.name, node.fieldType.permType);
+			}
+		}
+	}
+	
+	
+}
