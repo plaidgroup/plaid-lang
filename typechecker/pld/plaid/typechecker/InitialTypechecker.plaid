@@ -162,13 +162,9 @@ state InitialTypechecker case of LeafVisitor {
 			//add receiver
 			mContext.put(new ID { val name = "this$plaid"; }, getContextType(mtype.receiverType)); 
 		
-			//add arg if exists
-			match (node.arg) {
-				case Some {
-					mContext.put(node.arg.value, getContextType(mtype.argTypes.head.value));
-				}
-				default { }
-			};
+			//add args
+			val /*List<Pair<ID,ChangeType>>*/ argIDtypes = node.arguments.zip(mtype.argTypes); //zip to match IDs and types
+			argIDtypes.map(fn (p) => mContext.put(p.fst, getContextType(p.snd)));
 		
 			//TODO: add environment variables
 		
@@ -198,7 +194,7 @@ state InitialTypechecker case of LeafVisitor {
 			(new ID { val name = "this$plaid"; }).accept(methodChecker);
 			match (methodChecker.typedAs) {
 				case Some {
-					thisCheck = methodChecker.typedAs.value == mtype.receiverType.output;
+					thisCheck = methodChecker.typedAs.value.isSubPermTypeOf(mtype.receiverType.output, this.stateTable);
 					if (!thisCheck) { java.lang.System.out.println("TYPECHECK FAILED: receiver output wrong"); }
 				}
 				case None {
@@ -206,24 +202,24 @@ state InitialTypechecker case of LeafVisitor {
 				}
 			};
 		
-			//check that arg output type matches - equivalent to typed in the context
+			//check that arg output types match - equivalent to typed in the context
 			//resulted by the method typing, with receiver pulled out
-			var /*Boolean*/ argCheck = false;
-			match(node.arg) {
-				case Some {
-					node.arg.value.accept(methodChecker);
-					match(methodChecker.typedAs) {
-						case Some {
-							argCheck = methodChecker.typedAs.value == mtype.argTypes.head.value.output;
-							if (!argCheck) { java.lang.System.out.println("TYPECHECK FAILED: arg Output type wrong"); }
-						}
-						case None {
-							java.lang.System.out.println("TYPECHECK FAILED: type check of arg output failed");
-						}
+			var /*Boolean*/ argCheck = argIDtypes.foldr(fn (p,v) => {
+				p.fst.accept(methodChecker);
+				match ( methodChecker.typedAs) {
+					case Some {
+						val /*Boolean*/ newArg = methodChecker.typedAs.value.isSubPermTypeOf(p.snd.output, this.stateTable);
+						if (!newArg) { java.lang.System.out.println("TYPECHECK FAILED: arg Output type wrong"); }; //TODO: where to log this?
+						ifElse (v) 
+							{ newArg }
+							{ false };
+					}
+					case None {
+						//error elsewhere
+						false;
 					}
 				}
-				case None { argCheck = true; }
-			};
+			}, true);
 		
 			if(retCheck && thisCheck && argCheck) {
 				typedAs = new Some { val value = mtype; };
@@ -239,13 +235,9 @@ state InitialTypechecker case of LeafVisitor {
 		val lContext = this.context.copy(); //TODO: only take environment variables
 		val ltype = node.lambdaType;
 		
-		//add arg if exists
-		match (node.x) {
-			case Some {
-				lContext.put(node.x.value, getContextType(ltype.argTypes.head.value));
-			}
-			default { }
-		};
+		val /*List<Pair<ID,ChangeType>>*/ argIDtypes = node.arguments.zip(ltype.argTypes); //zip to match IDs and types
+		argIDtypes.map(fn (p) => lContext.put(p.fst, getContextType(p.snd)));
+		
 		
 		//TODO: add environment variables
 		
@@ -275,32 +267,28 @@ state InitialTypechecker case of LeafVisitor {
 			}
 		};
 		
-		
-		//check that arg output type matches - equivalent to typed in the context
+		//check that arg output types match - equivalent to typed in the context
 		//resulted by the method typing, with receiver pulled out
-		var /*Boolean*/ argCheck = false;
-		match(node.x) {
-			case Some {
-				node.x.value.accept(lambdaChecker);
-				match(lambdaChecker.typedAs) {
-					case Some {
-						argCheck = lambdaChecker.typedAs.value.isSubPermTypeOf(ltype.argTypes.head.value.output, this.stateTable);
-						if (!argCheck) { 
-							val msg = "arg Output type wrong";
-							typeError(node, msg, true);
-							java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
-						}
-					}
-					case None {
-						//java.lang.System.out.println("TYPECHECK FAILED: type check of arg output failed");
-					}
-					default {
-						java.lang.System.out.println(lambdaChecker.typedAs);
-					}
-				} 
+		var /*Boolean*/ argCheck = argIDtypes.foldr(fn (p,v) => {
+			p.fst.accept(lambdaChecker);
+			match ( lambdaChecker.typedAs) {
+				case Some {
+					val /*Boolean*/ newArg = lambdaChecker.typedAs.value.isSubPermTypeOf(p.snd.output, this.stateTable);
+					if (!newArg) { 
+						val msg = "arg Output type wrong";
+						typeError(node, msg, true);
+						java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+					};
+					ifElse (v) 
+						{ newArg }
+						{ false };
+				}
+				case None {
+					//error elsewhere
+					false;
+				}
 			}
-			case None { argCheck = true; }
-		};
+		}, true);
 		
 		if(retCheck && argCheck) {
 			typedAs = new Some { 
@@ -310,7 +298,6 @@ state InitialTypechecker case of LeafVisitor {
 					val borrowed = false;
 				};  
 			};
-			//java.lang.System.out.println("lambda typechecked!");
 		}
 	
 	}
@@ -481,41 +468,10 @@ state InitialTypechecker case of LeafVisitor {
 													// of the let (or join if there are args) to the
 													// receiver split
 													
-													// create the letbinding as the start
-													val t = this.generateID(node.token); 
-													val mNameAndType = node.methodName.copy(); //put types in method call
-													mNameAndType.type <- MethodType { //TODO: fix type of Expression.type or make IDs vs other nodes different?
-														val /*ID*/ name = declType.value.name.copy();
-														val /*PermType*/ returnType = declType.value.returnType; //TODO: need to deep copy?
-														val /*List<ChangeType>*/ argTypes = declType.value.argTypes;
-														val /*ChangeType*/ receiverType = declType.value.receiverType;
-														val /*Map<ID,ChangeType>*/ environmentTypes = declType.value.environmentTypes;
-													};
-													val receiverIDmc = theReceiver.copy();
-													val argIDmc = node.argument.copy(); //handle for adding type when we know it
-													var bodyAppend = new None; //need a variable to hold a handle to where to add nodes after method call
-													var /* Expression */ callBody = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
-														val /*Option Token*/ token = node.token;
-														val /*ID*/ x = t.copy();
-														val /*Expression*/ exp = new MethodCall { //will need to state change this later
-															val /*Expression*/ receiver = receiverIDmc;
-															val /*ID*/ methodName = mNameAndType;
-															val /*Expression*/ argument = argIDmc;
-															val /*Option Token*/ token = node.token;	
-															override val /*PermType*/ type = declType.value.returnType;
-														};	
-														val /*boolean*/ mutable = false;
-														val /*Expression*/ body = bodyAppend; //To be filled in //cannot be static version since will change its state
-														override val /*PermType*/ type = declType.value.returnType;
-													};
+													
 
 													//pull out type for receiver
 													val /*PermType*/ tTypeNeeded = declType.value.receiverType.input;
-													receiverIDmc.type <- PermType { //add type to receiver node in method call node
-														val perm = tTypeNeeded.perm;
-														val type = tTypeNeeded.type;
-														val borrowed = tTypeNeeded.borrowed;
-													};
 													val /*Option PermType*/ tTypeResidue = tTypeStart.split(tTypeNeeded, this.stateTable);
 													//java.lang.System.out.println("start: " + tTypeStart.toString()); 
 													//java.lang.System.out.println("needed: " + tTypeNeeded.toString()); 
@@ -524,141 +480,258 @@ state InitialTypechecker case of LeafVisitor {
 															//java.lang.System.out.println("residue: " + tTypeResidue.value.toString()); 
 															this.context.put(theReceiver, tTypeResidue.value); //put residue back in context in case needed for typing arg, if mulit set, need to be more careful
 															
-															//TODO: multiple args, env
-															var /*boolean*/ argOk = true;
-															if (declType.value.hasArg()) { //surround callBody with split/join for args
-																val /*ID*/ argID = node.argument; //let normal form - this will be an ID
-																ifElse (this.context.containsKey(argID)) {
-																	val /*PermType*/ aTypeStart = this.context.remove(argID);
-																	val /*PermType*/ aTypeNeeded = declType.value.argTypes.head.value.input;
-																	argIDmc.type <- PermType { //add type information to argument ID for MethodCall node
-																		val perm = aTypeNeeded.perm;
-																		val type = aTypeNeeded.type;
-																		val borrowed = aTypeNeeded.borrowed;
-																	};
-																	val /*Option PermType*/ aTypeResidue = aTypeStart.split(aTypeNeeded, this.stateTable);
-																
-																	match (aTypeResidue) {
-																		case Some{ //split succeeded
-																			this.context.put(argID, aTypeResidue.value); //not really necessary now, but will be when more args/env
-																			
-																			//join arg
-																			val /*PermType*/ aTypeOutput = declType.value.argTypes.head.value.output;
-																			var /*Option PermType*/ aTypeEnd = NONE;
-																			ifElse (aTypeStart.borrowed) {
-																				//must be able to join residue and output to original type
-																				aTypeEnd = aTypeOutput.joinTo(aTypeResidue.value, aTypeStart); //joinTo returns Option Permtype
-																			} {
-																				aTypeEnd = createSome(aTypeOutput.join(aTypeResidue.value)); //join returns PermType
-																			};
-																			match (aTypeEnd) {
-																				case Some{ //arg success - update the callBody
-																					//put final arg type in the context
-																					this.context.remove(argID);
-																					this.context.put(argID,aTypeEnd.value);
-																					
-																					// put join at end of callBody
-																					bodyAppend <- Join {
-																						val /*ID*/ theVar = argID.copy();
-																						val /*PermType*/ toJoin1 = aTypeResidue.value;
-																						val /*PermType*/ toJoin2 = aTypeOutput;
-																						val /*PermType*/ result = aTypeEnd.value;
-																						val /*Expression*/ body = new None; //cannot use static version since want to state change it
-																						override val /*PermType*/ type = declType.value.returnType;
-																					};
-																					bodyAppend = bodyAppend.body; //update append pointer
-																					// put split in front of callBody
-																					callBody = new Split {
-																						val /*ID*/ theVar = argID.copy();
-																						val /*PermType*/ initialType = aTypeStart;
-																						val /*PermType*/ neededType = aTypeNeeded;
-																						val /*PermType*/ residue = aTypeResidue.value;
-																						val /*Expression*/ body = callBody;
-																						override val /*PermType*/ type = declType.value.returnType;
-																					}
-																					
-																				}
-																				case None {
-																					val msg = "Could not join back to borrowed Permission for arg";
-																					typeError(node, msg, true);
-																					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
-																					argOk = false;
-																					this.typedAs = NONE;
-																				}
-																			}
-																		}
-																		case None {
-																			val msg = "Could not split needed permission for arg";
-																			typeError(node, msg, true);
-																			java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
-																			argOk = false;
-																			this.typedAs = NONE;
-																		}
-																	}
-																	
-																} {
-																	val msg = "no permission for ID " + argID.name + " in context";
-																	typeError(node, msg, true);
-																	java.lang.System.out.println("TYPECHECK FAILED: " + msg);
-																	argOk = false;
-																	this.typedAs = NONE;
-																}
-																
-															};
+															//check arguments
+															val /*List<ID>*/ arguments = node.arguments.map(fn (a) => a.copy()); //list of argument IDs - use later as handle for adding types
+															val /*List<ChangeType>*/ argTypes = declType.value.argTypes;
 															
-															if (argOk) {
-																//join receiver
-																val /*PermType*/ tTypeOutput = declType.value.receiverType.output;
-																var /*Option PermType*/ tTypeEnd = unit;
-																ifElse (tTypeStart.borrowed) {
-																	//must be able to join residue and output to original type
-																	tTypeEnd = tTypeOutput.joinTo(tTypeResidue.value, tTypeStart); //joinTo returns Option PermType
-																} {
-																	//if not borrowed, just join the types
-																	tTypeEnd = createSome(tTypeOutput.join(tTypeResidue.value)); //join returns PermType
-																};
-																match (tTypeEnd) {
-																	case Some {
-																		//typecheck suceeded (I think....)
-																		java.lang.System.out.println("Method Call typechecked!");
-																		this.typedAs = createSome(declType.value.returnType); //return type is the actual type
+															var /*boolean*/ argsOk = arguments.length() == argTypes.length();
+															ifElse (argsOk) {
+																
+																//zip up IDs and their typing information
+																val /*List<ID,ChangeType>*/ argIDtypes = arguments.zip(argTypes);
+																
+																//first check the initial types are available
+																val /*List<Pair<PermType,PermType>>*/ startAndResidues = argIDtypes.map(fn (p) => {
+																	val argID = p.fst;
+																	ifElse(this.context.containsKey(argID)) {
+																		val /*PermType*/ aTypeStart = this.context.remove(argID);
+																		val /*PermType*/ aTypeNeeded = p.snd.input;
 																		
-																		this.context.remove(theReceiver); //update context with final type for the receiver
-																		this.context.put(theReceiver,tTypeEnd.value);
+																		//try to pull out necessary type
+																		val /*Option PermType*/ aTypeResidue = aTypeStart.split(aTypeNeeded, this.stateTable);
 																		
-																		//put join at end of callBody and have body be the temporary variable holding method call value
-																		val /*ID*/ finalID = t.copy();
-																		finalID.type <- PermType {
-																			val perm = declType.value.returnType.perm;
-																			val type = declType.value.returnType.type;
-																			val borrowed = declType.value.returnType.borrowed;
-																		};
-																		bodyAppend <- Join {
-																			val /*ID*/ theVar = theReceiver.copy();
-																			val /*PermType*/ toJoin1 = tTypeResidue.value;
-																			val /*PermType*/ toJoin2 = tTypeOutput;
-																			val /*PermType*/ result = tTypeEnd.value;
-																			val /*Expression*/ body = finalID;
-																			override val /*PermType*/ type = declType.value.returnType;
-																		};
-																		
-																		//transition the node to a Split with callBody as the body
-																		node <- Split {
-																			val /*ID*/ theVar = theReceiver.copy();
-																			val /*PermType*/ initialType = tTypeStart;
-																			val /*PermType*/ neededType = tTypeNeeded;
-																			val /*PermType*/ residue = tTypeResidue.value;
-																			val /*Expression*/ body = callBody;
-																			override val /*PermType*/ type = declType.value.returnType;
-																		};
-																	}
-																	case None {
-																		val msg = "could not regain borrowed permission";
+																		match (aTypeResidue) {
+																			case Some{ //split succeeded
+																				this.context.put(argID, aTypeResidue.value);
+																				makePair(aTypeStart,aTypeResidue.value);
+																			}
+																			case None {
+																				val msg = "Could not split needed permission for arg " + argID.name; //TODO: this could be a typechecker argID - do a better job of error reporting
+																				typeError(node, msg, true);
+																				java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
+																				argsOk = false;
+																				this.typedAs = NONE;
+																				NONE
+																			}	
+																		}
+																	} {
+																		val msg = "no permission for ID " + argID.name + " in context";
 																		typeError(node, msg, true);
 																		java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+																		argsOk = false;
 																		this.typedAs = NONE;
+																		NONE
 																	}
+																
+																});
+																
+																ifElse(argsOk) {
+																	//next check that we can use the output and residue to join back to the required type
+																	val /*list<PermType>*/ endTypes = argIDtypes.map(fn (p) => {
+																		
+																		//collect arg information
+																		val /*ID*/ argID = p.fst;
+																		val /*PermType*/ aTypeStart = p.snd.input;
+																		val /*PermType*/ aTypeOutput = p.snd.output;
+																		val /*PermType*/ aTypeResidue = this.context.remove(argID); //guaranteed since already found it
+																		
+																		//attempt to join back the arg
+																		var /*Option PermType*/ aTypeEnd = NONE;
+																		ifElse (aTypeStart.borrowed) {
+																			//must be able to join residue and output to original type
+																			aTypeEnd = aTypeOutput.joinTo(aTypeResidue, aTypeStart); //joinTo returns Option Permtype
+																		} {
+																			aTypeEnd = createSome(aTypeOutput.join(aTypeResidue)); //join returns PermType
+																		};
+																		match (aTypeEnd) {
+																			case Some {
+																				this.context.put(argID,aTypeEnd.value); //put joined type into the context for use afterwards
+																				aTypeEnd.value;
+																				
+																			}
+																			case None {
+																				val msg = "Could not join back to borrowed Permission for arg " + argID.name;
+																				typeError(node, msg, true);
+																				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+																				argOk = false;
+																				this.typedAs = NONE;
+																				NONE;
+																			}
+																		}
+																	});
+																	
+																	ifElse(argsOk) { //args checkout fully, try to join back the receiver
+																		//join receiver
+																		val /*PermType*/ tTypeOutput = declType.value.receiverType.output;
+																		var /*Option PermType*/ tTypeEnd = unit;
+																		ifElse (tTypeStart.borrowed) {
+																			//must be able to join residue and output to original type
+																			tTypeEnd = tTypeOutput.joinTo(tTypeResidue.value, tTypeStart); //joinTo returns Option PermType
+																		} {
+																			//if not borrowed, just join the types
+																			tTypeEnd = createSome(tTypeOutput.join(tTypeResidue.value)); //join returns PermType
+																		};
+																		match (tTypeEnd) {
+																			case Some {
+																				//success - now to construct split/join nodes to surround method call
+																				java.lang.System.out.println("MethodCall typechecked!");
+																				
+																				
+																				//0) clean up context and typechecker return value
+																				val /*PermType*/ returnType = declType.value.returnType;
+																				this.typedAs = createSome(returnType); //return type is the actual type
+																				this.context.remove(theReceiver); //update context with final type for the receiver
+																				this.context.put(theReceiver,tTypeEnd.value);
+																				
+																				//1) create string of split and a string of join nodes for arguments
+																				
+																				//1a) zip up info gathered about arguments
+																				val /*List<Pair<Pair<PermType,PermType>,PermType>>*/ sre = startAndResidues.zip(endTypes);
+																				val /*List<Pair<Pair<ID,ChangeType>,Pair<Pair<PermType,PermType>,PermType>>>*/ argTypeInfo = argIDtypes.zip(sre);
+																				//strcuture of argTypeInfo is as follows:
+																				//	List<
+																				//		Pair
+																				//			f: Pair
+																				//				f: ID - arg name
+																				//				s: ChangeType - argument type annotations for the called method
+																				//					input: PermType - needed type for this arg
+																				//					output: PermType - output type for this arg
+																				//			s: Pair
+																				//				f: Pair
+																				//					f: PermType - start type for this argument from context
+																				//					s: PermType - residue after splitting needed type from start type
+																				//				s: PermType - end type after method call and joining
+																				//  >
+																				// to access the different fields given an element of this list, a:
+																				//		ID = a.fst.fst;
+																				//  	startType = a.snd.fst.fst;
+																				//		neededType = a.fst.snd.input;
+																				//		residueType = a.snd.fst.snd;
+																				//		outputType = a.fst.snd.output;
+																				//		endType = a.snd.snd; 
+																				var splitHead = new None;
+																				var splitTail = splitHead;
+																				var joinHead = new None;
+																				var joinTail = joinHead;
+																				
+																				//1b) create split/join nodes for arguments
+																				argTypeInfo.map(fn(argInfo) => {
+																					//create split
+																					splitTail <- Split {
+																						val /*ID*/ theVar = argInfo.fst.fst.copy();
+																						val /*PermType*/ initialType = argInfo.snd.fst.fst;
+																						val /*PermType*/ neededType = argInfo.fst.snd.input;
+																						val /*PermType*/ residue = argInfo.snd.fst.snd;
+																						val /*Expression*/ body = new None;
+																						override val /*PermType*/ type = returnType;
+																					};
+																					splitTail = splitTail.body;
+																					
+																					//create join
+																					joinHead = new Join {
+																						val /*ID*/ theVar = argInfo.fst.fst.copy();
+																						val /*PermType*/ toJoin1 = argInfo.snd.fst.snd;
+																						val /*PermType*/ toJoin2 = argInfo.fst.snd.output;
+																						val /*PermType*/ result = argInfo.snd.snd;
+																						val /*Expression*/ body = joinHead;
+																						override val /*PermType*/ type = returnType;
+																					};
+																					
+																					//add needed type to argument ID
+																					argInfo.fst.fst.type <- PermType {
+																						val perm = argInfo.fst.snd.input.perm;
+																						val type = argInfo.fst.snd.input.type;
+																						val borrowed = argInfo.fst.snd.input.borrowed;
+																					}
+																				}); 
+																				
+																				//2) create the letbinding of method call at end of the list of splits
+																				// and have the body be the list of joins
+																				
+																				//2a) gather info and types for new method call node
+																				val t = this.generateID(node.token); //ID bound by let
+																				val mNameAndType = node.methodName.copy(); //method name with type
+																				mNameAndType.type <- MethodType { //TODO: fix type of Expression.type or make IDs vs other nodes different?
+																					val /*ID*/ name = declType.value.name.copy();
+																					val /*PermType*/ returnType = declType.value.returnType; //TODO: need to deep copy?
+																					val /*List<ChangeType>*/ argTypes = declType.value.argTypes;
+																					val /*ChangeType*/ receiverType = declType.value.receiverType;
+																					val /*Map<ID,ChangeType>*/ environmentTypes = declType.value.environmentTypes;
+																				}; 
+																				val receiverIDmc = theReceiver.copy(); //ID for the reveiver
+																				receiverIDmc.type <- PermType { //add type to receiver node in method call node
+																					val perm = tTypeNeeded.perm;
+																					val type = tTypeNeeded.type;
+																					val borrowed = tTypeNeeded.borrowed;
+																				};
+																				//already have a copy of the argument ids with types added
+																				
+																				//2b) transition splitTail to let binding
+																				splitTail <- UnannotatedLetBinding {
+																					val /*Option Token*/ token = node.token;
+																					val /*ID*/ x = t.copy();
+																					val /*Expression*/ exp = new MethodCall { //will need to state change this later
+																						val /*Expression*/ receiver = receiverIDmc;
+																						val /*ID*/ methodName = mNameAndType;
+																						val /*List<Expression>*/ arguments = arguments;
+																						val /*Option Token*/ token = node.token;	
+																						override val /*PermType*/ type = returnType;
+																					};	
+																					val /*boolean*/ mutable = false;
+																					val /*Expression*/ body = joinHead;
+																					override val /*PermType*/ type = returnType;
+																				};
+																				
+																				//3) finish by surrounding with split/join for receiver
+																				
+																				//3a) transition node to a split with the splitHead as the body
+																				node <- Split {
+																					val /*ID*/ theVar = theReceiver.copy();
+																					val /*PermType*/ initialType = tTypeStart;
+																					val /*PermType*/ neededType = tTypeNeeded;
+																					val /*PermType*/ residue = tTypeResidue.value;
+																					val /*Expression*/ body = splitHead;
+																					override val /*PermType*/ type = returnType;
+																				};
+																				
+																				//3b) put return type of method call on the variable bound to it for use as body
+																				val /*ID*/ finalID = t.copy();
+																				finalID.type <- PermType {
+																					val perm = returnType.perm;
+																					val type = returnType.type;
+																					val borrowed = returnType.borrowed;
+																				};
+																				
+																				//3c) transition joinTail to the final join with the bound variable as the body
+																				joinTail <- Join {
+																					val /*ID*/ theVar = theReceiver.copy();
+																					val /*PermType*/ toJoin1 = tTypeResidue.value;
+																					val /*PermType*/ toJoin2 = tTypeOutput;
+																					val /*PermType*/ result = tTypeEnd.value;
+																					val /*Expression*/ body = finalID;
+																					override val /*PermType*/ type = returnType;
+																				};
+																			}
+																			case None {
+																				val msg = "could not regain borrowed permission";
+																				typeError(node, msg, true);
+																				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+																				this.typedAs = NONE;
+																			}
+																		}
+																	} {
+																		//arg typechecking failed - error elsewhere
+																		java.lang.System.out.println("TYPECHECK FAILED: failed Here?");
+																	}
+																} {
+																	//arg typechecking failed - error elsewhere
+																	java.lang.System.out.println("TYPECHECK FAILED: failed Here?");
 																}
+															} {
+																val msg = "methodCall does not have the right nubmer of parameters";
+																typeError(node, msg, true);
+																java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+																this.typedAs = NONE;
 															}
 														}
 														case None { 
