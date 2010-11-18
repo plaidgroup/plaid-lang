@@ -1,0 +1,87 @@
+package plaid.typechecker.typecheckerMethods;
+
+import plaid.typechecker.context.*;
+import plaid.ast.types.*;
+import plaid.ast.*;
+
+state TCvisitNewInstance {
+	
+	override val /*StateTable*/ stateTable; // need to know about nominal types during typechecking
+	override val /*Context*/ context; //need to keep track of variables and types
+	override var /*Option PermType*/ typedAs;
+	
+	override method visitNewInstance(node) {
+		match (node.s) {
+			case QI {
+				val stateID = new ID {val name = node.s.toString(); }; //TODO: robust handling of QIs
+				val theState = this.stateTable.get(stateID);
+				match (theState) {
+					case Some {
+						//need to check that the state is well formed
+						var /*Boolean*/ isWellFormed = false;
+						match ( node.s.initState) {
+							case Some {
+								// need to typecheck the declList
+								node.s.initState.value.accept(this); //typecheck using this context
+								match (this.typedAs) {
+									case Some {
+										isWellFormed = theState.value.isWellFormed(createSome(this.typedAs.value), this.stateTable);
+										if (!isWellFormed) {
+											val msg = "instantiation of state " + stateID.name + " is not well formed";
+											typeError(node, msg, true);
+										}
+										//error elsewhere
+									}
+									case None {
+										//error elsewhere - declList did not typecheck
+										isWellFormed = false;
+										val msg = "the initialization of state " + stateID.name + " did not typecheck";
+										typeError(node, msg, false);
+									}
+								}
+								
+							}
+							case None { //no initializer - check that the state is well formed without initialization
+								isWellFormed = theState.value.isWellFormed(NONE, this.stateTable);
+								if (!isWellFormed) {
+									val msg = "instantiation of state " + stateID.name + " is not well formed";
+									typeError(node, msg, true);
+								};
+								//error elsewhere
+							}
+						};
+						ifElse (isWellFormed) {
+							//java.lang.System.out.println("success - object created");
+							typedAs = new Some { 
+								val value = new PermType {
+									val perm = new UniquePermission;
+									val type = new NominalType { val typeName = stateID.copy(); };
+									val borrowed = false;
+								};
+							};
+							node.type <- PermType {
+								val perm = new UniquePermission;
+								val type = new NominalType { val typeName = stateID.copy(); };
+								val borrowed = false;
+							};
+						} {
+							typedAs = NONE;
+						}
+					}
+					case None {
+						val msg = "state " + node.s.name + " not defined";
+						typeError(node, msg, true);
+						typedAs = NONE;
+						java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+					}
+				}
+			}
+			default {
+				val msg = "unsupported state in new expression";
+				typeError(node, msg, true);
+				typedAs = NONE;
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+			}
+		}
+	}
+}
