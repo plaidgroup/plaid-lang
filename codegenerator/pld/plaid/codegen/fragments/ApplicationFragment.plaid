@@ -1,6 +1,59 @@
 package plaid.codegen.fragments;
 
 state ApplicationFragment {
+	method foldToPairs(/*List<Expression>*/ expList) {
+		val len = expList.length();
+		
+		val createFieldDecl = fn (f, e) => {
+			new FieldDecl {
+				val token = new None;
+				val f = f;
+				val e = e;
+				val abstractField = false;
+				val immutableField = true;
+				val fieldType = new UncheckedType;
+			};
+		};
+		
+		ifElse (len == 1) {
+			expList.head.value;
+		} {
+			// FIXME:  This code is untested!
+			
+			var second = new UnitLiteral { val token = new None; };
+			var fst = 0;
+			var snd = 0;
+			
+			val reversedList = new List { var head = new Nil; };
+			expList.map(fn (x) => reversedList.prepend(x));
+
+			reversedList.map(fn (e) => {
+				fst = createFieldDecl(new ID { val token = new None; val name = "fst"; }, e);
+				snd = createFieldDecl(new ID { val token = new None; val name = "snd"; }, second);
+				val pairFields = new List { var head = new Nil; };
+				pairFields.add(fst);
+				pairFields.add(snd);
+				
+				val pairName = new List { var head = new Nil; };
+				pairName.add("plaid");
+				pairName.add("lang");
+				pairName.add("Pair");
+				
+				val pairWith = new QI {
+					val token = new None;
+					val qid = pairName;
+					val initState = new DeclList { val token = new None; val decls = pairFields; };
+				};
+				second = new NewInstance {
+					val token = e.token;
+					val s = pairWith;
+				};
+			});
+			
+			second;
+		};
+	}
+
 	method visitApplication(node) {
 		this.setLocation(node.token);
 		var /* ID */ x = this.idgen.getId();
@@ -15,7 +68,7 @@ state ApplicationFragment {
 		node.f.accept(this);
 		
 		this.y = z;
-		node.arg.accept(this);
+		this.foldToPairs(node.arguments).accept(this);
 		
 		this.setLocation(node.token);
 		// y = Util.call(x,z);
