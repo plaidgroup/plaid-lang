@@ -4,7 +4,7 @@ import plaid.ast.*;
 import plaid.ast.types.*;
 import plaid.ast.visitor.*;
 
-state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with TransitiveReduction /*with SplitJoinReduction with MergeOptimization*/ with {
+state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with TransitiveReduction with MergeOptimization with {
 	var /*Map<String, ASTNode>*/ writer = java.util.HashMap.new();
 	var /*Map<String, ASTNode>*/ readers = java.util.HashMap.new();
 	var nodeList = new List { var head = new Nil; };
@@ -94,21 +94,6 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with TransitiveRed
 	}
 	
 	method reduceAllDependencies() {
-		/*
-		var newNodeList = new List { var head = new Nil; };
-		this.nodeList.map(fn (node) => {
-			this.reduceDependencies(node);
-			
-			match (node) {
-				case Split {}
-				case Join {}
-				default {
-					newNodeList.add(node);
-				}
-			};
-		});
-		*/
-		
 		this.nodeList.map(fn (node) => {
 			this.removeTransitiveDependencies(node);
 		});
@@ -126,6 +111,30 @@ state DependencyAnalysisVisitor = ASTVisitor with GraphOutput with TransitiveRed
 	
 	// TODO: Fix this.
 	method visitMethodDecl(astNode) {
+		this.counter = 0;
+		astNode.num = getNodeNumber();
+		
+		this.initialize();
+
+		val reads = java.util.HashSet.new();
+		val writes = java.util.HashSet.new();
+		
+		match (astNode.arg) {
+			case Some {
+				writes.add(astNode.arg.value);
+			}
+			case None {}
+		};
+		
+		updateDependencies(astNode, reads, writes);
+		astNode.body.accept(this);
+		
+		
+		printDependencies(nodeList);
+		createDependencyGraph("");
+		
+		reduceAllDependencies();
+		createDependencyGraph("_Reduced");
 	}
 	
 	method visitFieldDecl(astNode) {
