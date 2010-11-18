@@ -19,6 +19,9 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
@@ -27,12 +30,14 @@ import plaid.compilerjava.types.LambdaType;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
+import plaid.runtime.PlaidConstants;
 
 public final class Lambda implements Expression {
 	
 	private final Token token;
-	private final ID var;
-	private final Expression body;
+	private final List<ID> arguments = new ArrayList<ID>();
+	private final boolean hasArgs;
+	private Expression body;
 	private final LambdaType type;
 	
 	
@@ -42,6 +47,16 @@ public final class Lambda implements Expression {
 //		this(null, var, body, new MethodTypeDecl(null, null, null, null, null));
 //	}
 
+	public Lambda(Token token, Expression body, LambdaType type) {
+		super();
+		
+		this.token = token;
+		this.body = body;
+		this.type = type;
+		this.hasArgs = false;
+	
+	}
+	
 	public Lambda(Token token, ID var, Expression body, LambdaType type) {
 		super();
 		
@@ -49,12 +64,28 @@ public final class Lambda implements Expression {
 		
 		// if var is unit, generate a fresh ID that won't get used in the body
 		if (var == null)
-			this.var = new ID("_");
-		else
-			this.var = var;
+			this.hasArgs = false;
+		else {
+			this.hasArgs = true;
+			this.arguments.add(var);
+		
+		}
 		
 		this.body = body;
 		this.type = type;
+	}
+	
+	public Lambda(Token token, List<ID> boundVars, Expression body, LambdaType type) {
+		super();
+		
+		this.token = token;
+		
+		this.arguments.addAll(boundVars);
+		this.hasArgs = boundVars.size() > 0;
+		
+		this.body = body;
+		this.type = type;
+		
 	}
 
 	public Token getToken() {
@@ -67,11 +98,11 @@ public final class Lambda implements Expression {
 	}
 	
 	public boolean hasArg() {
-		return var != ID.DEFAULTPARAMID;
+		return this.hasArgs;
 	}
 	
-	public ID getVar() {
-		return var;
+	public List<ID> getArguments() {
+		return Collections.unmodifiableList(arguments);
 	}
 
 	public Expression getBody() {
@@ -88,10 +119,20 @@ public final class Lambda implements Expression {
 		
 		ID freshID = IdGen.getId();
 		
-		out.assignToNewLambda(y.getName(),var.getName());  //y = new lambda(...{ {
+		ID argID;
+		if (!this.hasArgs) { 
+			argID = ID.DEFAULTPARAMID;
+		} else if (arguments.size() == 1) {
+			argID = arguments.get(0);
+		} else {
+			argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
+			body = plaid.compilerjava.coreparser.PlaidCoreParser.getBodyWithPairExtractions(arguments, argID, 1, body);
+		}
+		
+		out.assignToNewLambda(y.getName(),argID.getName());  //y = new lambda(...{ {
 		
 		out.declareVar(CodeGen.plaidObjectType,freshID.getName());
-		IDList newLocalVars = localVars.add(var);
+		IDList newLocalVars = localVars.add(argID);
 		body.codegenExpr(out, freshID, newLocalVars, stateVars);  //lambda body
 		out.ret(freshID.getName());
 		
@@ -100,7 +141,7 @@ public final class Lambda implements Expression {
 
 	@Override
 	public <T> void visitChildren(ASTVisitor<T> visitor) {
-		var.accept(visitor);
+		for (Expression var: arguments) var.accept(visitor);
 		body.accept(visitor);
 	}
 
