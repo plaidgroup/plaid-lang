@@ -1,5 +1,8 @@
 package plaid.compilerjava.AST;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
@@ -11,27 +14,26 @@ import plaid.compilerjava.util.IdGen;
 public class MethodCall implements Expression {
 
 	private final Token token;
-	private final Expression argument;
+	private final List<Expression> arguments = new ArrayList<Expression>();
 	private final Expression receiver;
 	private final ID method;
 	
 	public MethodCall(Token token, Expression receiver, ID method, Expression argument) {
 		this.token = token;
-		this.argument = argument;
+		this.arguments.add(argument);
 		this.receiver = receiver;
 		this.method = method;
 	}
 	
-//	public MethodCall(Token callSite, Expression receiver, ID method, Expression argument) {
-//		this.callSite = callSite;
-//		this.arguments = new ArrayList<Expression>();
-//		this.arguments.add(argument);
-//		this.receiver = receiver;
-//		this.method = method;
-//	}
+	public MethodCall(Token token, Expression receiver, ID method, List<Expression> arguments) {
+		this.token = token;
+		this.arguments.addAll(arguments);
+		this.receiver = receiver;
+		this.method = method;
+	}
 
-	public Expression getArgument() {
-		return argument;
+	public List<Expression> getArguments() {
+		return Collections.unmodifiableList(arguments);
 	}
 
 	public Expression getReceiver() {
@@ -59,6 +61,7 @@ public class MethodCall implements Expression {
 		// Evaluate the argument.
 		ID a = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, a.getName());
+		Expression argument = plaid.compilerjava.coreparser.PlaidCoreParser.foldToPairs(arguments);
 		argument.codegenExpr(out, a, localVars, stateVars);
 		
 		// Call the method.
@@ -86,6 +89,7 @@ public class MethodCall implements Expression {
 	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		receiver.accept(visitor);
 		method.accept(visitor);
-		argument.accept(visitor);
+		for (Expression argument : arguments)
+			argument.accept(visitor);
 	}
 }

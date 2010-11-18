@@ -19,6 +19,9 @@
  
 package plaid.compilerjava.AST;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
@@ -28,45 +31,30 @@ import plaid.compilerjava.util.IDList;
 import plaid.compilerjava.util.IdGen;
 
 public class Application implements Expression {
-	private Token token;
-	private Expression f;
-	private Expression arg;
-	
-	public Application(Expression function, Expression argument) {
-		super();
-		this.f = function;
-		this.arg = argument;
-	}
-
-	public Application() {
-	}
+	private final Token token;
+	private final Expression f;
+	private final List<Expression> arguments = new ArrayList<Expression>();
 
 	public Application(Token t, Expression function, Expression argument) {
 		super();
 		this.token = t;
 		this.f = function;
-		this.arg = argument;
+		this.arguments.add(argument);
 	}
-
-	public Application(Token t) {
+	
+	public Application(Token t, Expression function, List<Expression> arguments) {
+		super();
 		this.token = t;
+		this.f = function;
+		this.arguments.addAll(arguments);	
 	}
-
 	
 	public Expression getFunction() {
 		return f;
 	}
 
-	public void setFunction(Expression function) {
-		this.f = function;
-	}
-
-	public Expression getArg() {
-		return arg;
-	}
-
-	public void setArgument(Expression argument) {
-		this.arg = argument;
+	public List<Expression> getArguments() {
+		return Collections.unmodifiableList(arguments);
 	}
 	
 	public Token getToken() {
@@ -87,23 +75,9 @@ public class Application implements Expression {
 		out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //public PlaidObject x
 		out.declareFinalVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
 
-		// if f is an ID and that ID isn't in the local vars then we need to try to find it in "this"
-//		if (f instanceof ID) {
-//			System.out.println("Generating code for method application: " + ((ID)f).getName());
-//			if (((ID)f).getName().equals("foldrHelper")) {
-//				System.out.println("local vars contains f: " + localVars.contains((ID)f));
-//				System.out.println("state vars: " + stateVars);
-//			}
-//		}
-//		if (f instanceof ID && !localVars.contains((ID)f) && stateVars.contains((ID)f)) {
-//			System.out.println("inserting 'this': " + ((ID)f).getName());
-//			f = new Dereference(new ID("this$plaid"), (ID)f);
-//		}
 		f.codegenExpr(out, x, localVars, stateVars);
-		// if we're being applied to an ID and that ID isn't in the local vars then we need to try to find it in "this"
-//		if (arg instanceof ID && !localVars.contains((ID)arg) && stateVars.contains((ID)arg)) {
-//			arg = new Dereference(new ID("this$plaid"), (ID)arg);
-//		}
+	
+		Expression arg = plaid.compilerjava.coreparser.PlaidCoreParser.foldToPairs(arguments);
 		arg.codegenExpr(out, z, localVars, stateVars);
 
 		out.setLocation(token);
@@ -113,7 +87,8 @@ public class Application implements Expression {
 	@Override
 	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		f.accept(visitor);
-		arg.accept(visitor);
+		for (Expression arg : arguments)
+			arg.accept(visitor);
 	}
 	
 	@Override
