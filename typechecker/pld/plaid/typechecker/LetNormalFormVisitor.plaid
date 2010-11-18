@@ -18,77 +18,54 @@ state LetNormalFormVisitor case of LeafVisitor {
 	
 	override method visitApplication(node) {
 		node.f.accept(this);
-		node.arg.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
 		
 		val function = node.f;
-		val argument = node.arg;
+		val arguments = node.arguments;
 		val tok = node.token;
+		var addLocation = node;  //keep track of where to add further let bindings
 		
-		match (function) {
-			case ID {
-				match (argument) {
-					// Already LNF
-					case ID {
-					}
-					// Argument is more complex => insert let binding
-					default {
-						val id = this.generateID(tok);
-						node <- UnannotatedLetBinding {
-							override val /*Token*/ token = tok;
-							val /*ID*/ x = id;
-							val /*Expression*/ exp = argument;
-							val /*Expression*/ body = new LNFApplication {
-								val /*Token*/ token = tok;
-								val /*ID*/ f = function;
-								val /*ID*/ arg = id;
-							};
-							val /*boolean*/ mutable = false;
-						};
-					}
-				}
-			}
-			// The function is some more complicated expression
+		//add let binding for function if needed
+		val functionID = match (function) {
+			case ID { function.copy() /*LNF*/ }
 			default {
-				match (argument) {
-					// Function is complex expression but argument is simple ID => add one let binding
-					case ID {
-						val id = this.generateID(tok);
-						node <- UnannotatedLetBinding {
-							override val /*Token*/ token = tok;
-							val /*ID*/ x = id;
-							val /*Expression*/ exp = function;
-							val /*Expression*/ body = new LNFApplication {
-								val /*Token*/ token = tok;
-								val /*ID*/ f = id;
-								val /*ID*/ arg = argument;
-							};
-							val /*boolean*/ mutable = false;
-						};
-					}
-					// Both argument and function are complex expression => add two let bindings
-					default {
-						val id1 = this.generateID(tok);
-						val id2 = this.generateID(tok);
-						node <- UnannotatedLetBinding {
-							override val /*Token*/ token = tok;
-							val /*ID*/ x = id1;
-							val /*Expression*/ exp = function;
-							val /*Expression*/ body = new UnannotatedLetBinding {
-								val /*Token*/ token = tok;
-								val /*ID*/ x = id2;
-								val /*Expression*/ exp = argument;
-								val /*Expression*/ body = new LNFApplication {
-									val /*Token*/ token = tok;
-									val /*ID*/ f = id1;
-									val /*ID*/ arg = id2;
-								};
-								val /*boolean*/ mutable = false;
-							};
-							val /*boolean*/ mutable = false;
-						};
-					}
+				val id = this.generateID(tok);
+				addLocation <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*boolean*/ mutable = false;
+					val /*Expression*/ exp = function;
+					val /*Expression*/ body = new None;
+				};
+				addLocation = addLocation.body;
+				id.copy();
+			}
+		};
+		
+		//add let bindings for any arguments
+		val /*List<ID>*/ argIDs = arguments.map(fn (a) => {
+			match (a) {
+				case ID { a.copy() /*LNF - take a copy of the ID*/ }
+				default { //add letBinding
+					val id = this.generateID(tok);
+					addLocation <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*boolean*/ mutable = false;
+					val /*Expression*/ exp = a;
+					val /*Expression*/ body = new None;
+				};
+				addLocation = addLocation.body;
+				id.copy();
 				}
 			}
+		});
+		
+		//put LNFApplication at the addLocation
+		addLocation <- LNFApplication {
+			override val /*Token*/ token = tok;
+			override val /*ID*/ f = functionID;
+			override val /*List<ID>*/ arguments = argIDs;
 		}
 	}
 	
@@ -232,80 +209,56 @@ state LetNormalFormVisitor case of LeafVisitor {
 	
 	override method visitMethodCall(node) {
 		node.receiver.accept(this);
-		node.argument.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
 		
 		val receiver = node.receiver;
-		val argument = node.argument;
 		val tok = node.token;
+		val arguments = node.arguments;
+		val mName = node.methodName;
+		var addLocation = node;  //keep track of where to add further let bindings
 		
-		match (receiver) {
-			case ID {
-				match (argument) {
-					// Already LNF
-					case ID {
-					}
-					// Argument is more complex => insert let binding
-					default {
-						val id = this.generateID(tok);
-						node <- UnannotatedLetBinding {
-							override val /*Token*/ token = tok;
-							val /*ID*/ x = id;
-							val /*Expression*/ exp = argument;
-							val /*Expression*/ body = new MethodCall {
-								val /*ID*/ receiver = receiver;
-								val /*ID*/ methodName = node.methodName;
-								val /*ID*/ argument = id;
-								val /*Token*/ token = tok;
-							};
-							val /*boolean*/ mutable = false;
-						};
-					}
-				}
-			}
-			// The function is some more complicated expression
+		//add let binding for function if needed
+		val receiverID = match (receiver) {
+			case ID { receiver.copy() /*LNF*/ }
 			default {
-				match (argument) {
-					// Function is complex expression but argument is simple ID => add one let binding
-					case ID {
-						val id = this.generateID(tok);
-						node <- UnannotatedLetBinding {
-							override val /*Token*/ token = tok;
-							val /*ID*/ x = id;
-							val /*Expression*/ exp = receiver;
-							val /*Expression*/ body = new MethodCall {
-								val /*ID*/ receiver = id;
-								val /*ID*/ methodName = node.methodName;
-								val /*ID*/ argument = argument;
-								val /*Token*/ token = tok;
-							};
-							val /*boolean*/ mutable = false;
-						};
-					}
-					// Both argument and function are complex expression => add two let bindings
-					default {
-						val idr = this.generateID(tok);
-						val idarg = this.generateID(tok);
-						node <- UnannotatedLetBinding {
-							override val /*Token*/ token = tok;
-							val /*ID*/ x = idr;
-							val /*Expression*/ exp = receiver;
-							val /*Expression*/ body = new UnannotatedLetBinding {
-								val /*Token*/ token = tok;
-								val /*ID*/ x = idarg;
-								val /*Expression*/ exp = argument;
-								val /*Expression*/ body = new MethodCall {
-									val /*ID*/ receiver = idr;
-									val /*ID*/ methodName = node.methodName;
-									val /*ID*/ argument = idarg;
-									val /*Token*/ token = tok;
-								};
-								val /*boolean*/ mutable = false;
-							};
-							val /*boolean*/ mutable = false;
-						};
-					}
+				val id = this.generateID(tok);
+				addLocation <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*boolean*/ mutable = false;
+					val /*Expression*/ exp = receiver;
+					val /*Expression*/ body = new None;
+				};
+				addLocation = addLocation.body;
+				id.copy();
+			}
+		};
+		
+		//add let bindings for any arguments
+		val /*List<ID>*/ argIDs = arguments.map(fn (a) => {
+			match (a) {
+				case ID { a.copy() /*LNF - take a copy of the ID*/ }
+				default { //add letBinding
+					val id = this.generateID(tok);
+					addLocation <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*boolean*/ mutable = false;
+					val /*Expression*/ exp = a;
+					val /*Expression*/ body = new None;
+				};
+				addLocation = addLocation.body;
+				id.copy();
 				}
 			}
+		});
+		
+		//put LNFApplication at the addLocation
+		addLocation <- MethodCall {
+			override val /*Token*/ token = tok;
+			override val /*ID*/ receiver = receiverID;
+			override val /*List<ID>*/ arguments = argIDs;
+			override val /*ID*/ methodName = mName;
 		}
 	}
 	
