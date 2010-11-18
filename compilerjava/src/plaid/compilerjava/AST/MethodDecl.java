@@ -21,14 +21,16 @@ package plaid.compilerjava.AST;
 
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
 import plaid.compilerjava.types.MethodType;
-import plaid.compilerjava.types.PermType;
 import plaid.compilerjava.util.CodeGen;
 import plaid.compilerjava.util.FileGen;
 import plaid.compilerjava.util.IDList;
@@ -43,8 +45,9 @@ import plaid.runtime.Util;
 public final class MethodDecl implements Decl {
 	private final Token token;
 	private final String name;
-	private final Expression body;
-	private final ID arg;
+	private Expression body;
+	private final List<ID> arguments = new ArrayList<ID>();
+	private final boolean hasArgs;
 	private final boolean abstractMethod;
 	private final MethodType methodType;
 	private final boolean overrides;
@@ -57,12 +60,30 @@ public final class MethodDecl implements Decl {
 			this.name = name;
 		this.body = body;
 		if (arg == null) {
-			// fresh ID for arg which will always be unit and never used
-			this.arg = ID.DEFAULTPARAMID;
+			this.hasArgs = false;
+		} else {
+			this.arguments.add(arg);
+			this.hasArgs = true;
 		}
-		else {
-			this.arg = arg;
-		}
+
+		if (methodType == null)
+			throw new RuntimeException("Method type is not allowed to be null.");
+		this.methodType = methodType;
+		this.abstractMethod = abstractMethod;
+		this.overrides = overrides;
+	}
+	
+	public MethodDecl(Token token, String name, Expression body, List<ID> args, boolean abstractMethod, MethodType methodType, boolean overrides) {
+		this.token = token;
+		if (Util.isKeyword(name))
+			this.name = name + PlaidConstants.ID_SUFFIX;
+		else
+			this.name = name;
+		this.body = body;
+		
+		this.arguments.addAll(args);
+		this.hasArgs = this.arguments.size() > 0;
+
 		if (methodType == null)
 			throw new RuntimeException("Method type is not allowed to be null.");
 		this.methodType = methodType;
@@ -83,11 +104,11 @@ public final class MethodDecl implements Decl {
 	}
 	
 	public boolean hasArg() {
-		return arg != ID.DEFAULTPARAMID;
+		return hasArgs;
 	}
 
-	public ID getArg() {
-		return arg;
+	public List<ID> getArguments() {
+		return Collections.unmodifiableList(this.arguments);
 	}
 
 	public Expression getBody() {
@@ -120,10 +141,20 @@ public final class MethodDecl implements Decl {
 		imports.codegen(out, freshImports);
 		out.declareGlobalScope(qid.toString(),freshImports.getName());
 		
+		ID argID;
+		if (!this.hasArgs) { 
+			argID = ID.DEFAULTPARAMID;
+		} else if (arguments.size() == 1) {
+			argID = arguments.get(0);
+		} else {
+			argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
+			if (!abstractMethod) body = plaid.compilerjava.coreparser.PlaidCoreParser.getBodyWithPairExtractions(arguments, argID, 1, body);
+		}
+		
 		if (newName.equals("main") && !hasArg()) {
 			out.topLevelMain(newName + "_func");
 		} else {
-			localVars = localVars.add(arg);
+			localVars = localVars.add(argID);
 		}
 		
 		out.methodAnnotation(newName);
@@ -132,7 +163,7 @@ public final class MethodDecl implements Decl {
 		// add local scope so that the lambda creation works properly
 		//out.append("final " + CodeGen.plaidScopeType + " local$c0pe = new plaid.runtime.PlaidLocalScope(" + CodeGen.globalScope + ");");
 		out.declareLocalScope(CodeGen.globalScope);
-		out.assignToNewLambda(thisMethod.getName(),arg.getName());
+		out.assignToNewLambda(thisMethod.getName(),argID.getName());
 		
 		out.declareVar(CodeGen.plaidObjectType,freshReturn.getName());
 		//top level functions lookup with unit
@@ -155,7 +186,18 @@ public final class MethodDecl implements Decl {
 		out.setLocation(token);
 		ID freshMethName = IdGen.getId();
 		ID freshID = IdGen.getId();
-		IDList newLocalVars = localVars.add(arg);
+		
+		ID argID;
+		if (!this.hasArgs) { 
+			argID = ID.DEFAULTPARAMID;
+		} else if (arguments.size() == 1) {
+			argID = arguments.get(0);
+		} else {
+			argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
+			if (!abstractMethod) body = plaid.compilerjava.coreparser.PlaidCoreParser.getBodyWithPairExtractions(arguments, argID, 1, body);
+		}
+		
+		IDList newLocalVars = localVars.add(argID);
 		
 		out.methodAnnotation(newName); //@representsMethod(... toplevel = false)
 		out.declareFinalVar(CodeGen.plaidObjectType,freshMethName.getName());
@@ -163,14 +205,14 @@ public final class MethodDecl implements Decl {
 		if (abstractMethod) { //if abstract it will just be unit - won't be added to initialized object
 			body.codegenExpr(out, freshMethName, newLocalVars, stateVars);
 		} else { //otherwise create a protomethod
-			out.assignToProtoMethod(freshMethName.getName(), arg.getName(), stateContext + "." + name);  //freshMethName = new protofield( ... { {
+			out.assignToProtoMethod(freshMethName.getName(), argID.getName(), stateContext + "." + name);  //freshMethName = new protofield( ... { {
 			
 			//body of the protomethod
 			//out.declareLambdaScope();
 			out.declareVar(CodeGen.plaidObjectType,freshID.getName());
 			
 			// update var for the debugger
-			out.updateVarDebugInfo(arg.getName());
+			out.updateVarDebugInfo(argID.getName());
 			
 			body.codegenExpr(out, freshID, newLocalVars, stateVars);
 			out.ret(freshID.getName() );  //return freshID;
@@ -193,7 +235,7 @@ public final class MethodDecl implements Decl {
 	@Override
 	public <T> void visitChildren(ASTVisitor<T> visitor) {
 		this.body.accept(visitor);
-		this.arg.accept(visitor);
+		for (Expression arg : arguments) arg.accept(visitor);
 		//this.methodType.accept(visitor);  //TODO : visit types not as separate AST nodes
 	}
 	
