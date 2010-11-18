@@ -2,6 +2,7 @@ package plaid.typechecker;
 
 import plaid.ast.visitor.LeafVisitor;
 import plaid.typechecker.context.*;
+import plaid.ast.types.typeError;
 
 //will not have the full set of features that will be implemented eventually
 
@@ -13,7 +14,7 @@ state InitialTypechecker case of LeafVisitor {
 		counter = counter + 1;
 		val n = "TCHKR$vAr" + counter + "$plaid";
 		new ID with {
-			val /*Token*/ token = tok;
+			val /*Option Token*/ token = tok;
 			val /*String*/ name = n;
 		};
 	}
@@ -238,8 +239,6 @@ state InitialTypechecker case of LeafVisitor {
 		val lContext = this.context.copy(); //TODO: only take environment variables
 		val ltype = node.lambdaType;
 		
-		//java.lang.System.out.println("typechecking lambda");
-		
 		//add arg if exists
 		match (node.x) {
 			case Some {
@@ -268,6 +267,8 @@ state InitialTypechecker case of LeafVisitor {
 			}
 			case None {
 				//java.lang.System.out.println("TYPECHECK FAILED: typecheck of body failed");
+				val msg = "lambda body did not typecheck";
+				typeError(node, msg, false);
 			}
 			default {
 				java.lang.System.out.println(lambdaChecker.typedAs);
@@ -283,8 +284,12 @@ state InitialTypechecker case of LeafVisitor {
 				node.x.value.accept(lambdaChecker);
 				match(lambdaChecker.typedAs) {
 					case Some {
-						argCheck = lambdaChecker.typedAs.value == ltype.argTypes.head.value.output;
-						if (!argCheck) { java.lang.System.out.println("TYPECHECK FAILED: arg Output type wrong"); }
+						argCheck = lambdaChecker.typedAs.value.isSubPermTypeOf(ltype.argTypes.head.value.output, this.stateTable);
+						if (!argCheck) { 
+							val msg = "arg Output type wrong";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
+						}
 					}
 					case None {
 						//java.lang.System.out.println("TYPECHECK FAILED: type check of arg output failed");
@@ -292,7 +297,7 @@ state InitialTypechecker case of LeafVisitor {
 					default {
 						java.lang.System.out.println(lambdaChecker.typedAs);
 					}
-				}
+				} 
 			}
 			case None { argCheck = true; }
 		};
@@ -305,7 +310,7 @@ state InitialTypechecker case of LeafVisitor {
 					val borrowed = false;
 				};  
 			};
-			java.lang.System.out.println("lambda typechecked!");
+			//java.lang.System.out.println("lambda typechecked!");
 		}
 	
 	}
@@ -321,7 +326,9 @@ state InitialTypechecker case of LeafVisitor {
 			};
 			//java.lang.System.out.println("ID: " + node.name + " pulled from context");
 		} {
-			java.lang.System.out.println(node.name + " not found in the context");
+			val msg = node.name + " not found in the context";
+			typeError(node, msg, true);
+			java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 			typedAs = NONE;
 		}
 	}
@@ -371,22 +378,32 @@ state InitialTypechecker case of LeafVisitor {
 								match (this.typedAs) {
 									case Some {
 										isWellFormed = theState.value.isWellFormed(createSome(this.typedAs.value), this.stateTable);
+										if (!isWellFormed) {
+											val msg = "instantiation of state " + stateID.name + " is not well formed";
+											typeError(node, msg, true);
+										}
 										//error elsewhere
 									}
 									case None {
 										//error elsewhere - declList did not typecheck
 										isWellFormed = false;
+										val msg = "the initialization of state " + stateID.name + " did not typecheck";
+										typeError(node, msg, false);
 									}
 								}
 								
 							}
 							case None { //no initializer - check that the state is well formed without initialization
 								isWellFormed = theState.value.isWellFormed(NONE, this.stateTable);
+								if (!isWellFormed) {
+									val msg = "instantiation of state " + stateID.name + " is not well formed";
+									typeError(node, msg, true);
+								};
 								//error elsewhere
 							}
 						};
 						ifElse (isWellFormed) {
-							java.lang.System.out.println("success - object created");
+							//java.lang.System.out.println("success - object created");
 							typedAs = new Some { 
 								val value = new PermType {
 									val perm = new UniquePermission;
@@ -404,14 +421,18 @@ state InitialTypechecker case of LeafVisitor {
 						}
 					}
 					case None {
+						val msg = "state " + node.s.name + " not defined";
+						typeError(node, msg, true);
 						typedAs = NONE;
-						java.lang.System.out.println("TYPECHECK FAILED: state " + node.s.name + " not defined");
+						java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 					}
 				}
 			}
 			default {
+				val msg = "unsupported state in new expression";
+				typeError(node, msg, true);
 				typedAs = NONE;
-				java.lang.System.out.println("TYPECHECK FAILED: unsupported state in new expression");
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 			}
 		}
 	}
@@ -474,13 +495,13 @@ state InitialTypechecker case of LeafVisitor {
 													val argIDmc = node.argument.copy(); //handle for adding type when we know it
 													var bodyAppend = new None; //need a variable to hold a handle to where to add nodes after method call
 													var /* Expression */ callBody = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
-														val /*Token*/ token = node.token;
+														val /*Option Token*/ token = node.token;
 														val /*ID*/ x = t.copy();
 														val /*Expression*/ exp = new MethodCall { //will need to state change this later
 															val /*Expression*/ receiver = receiverIDmc;
 															val /*ID*/ methodName = mNameAndType;
 															val /*Expression*/ argument = argIDmc;
-															val /*Token*/ token = node.token;	
+															val /*Option Token*/ token = node.token;	
 															override val /*PermType*/ type = declType.value.returnType;
 														};	
 														val /*boolean*/ mutable = false;
@@ -558,21 +579,27 @@ state InitialTypechecker case of LeafVisitor {
 																					
 																				}
 																				case None {
-																					java.lang.System.out.println("TYPECHECK FAILED: Could not join back to borrowed Permission");
+																					val msg = "Could not join back to borrowed Permission for arg";
+																					typeError(node, msg, true);
+																					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 																					argOk = false;
 																					this.typedAs = NONE;
 																				}
 																			}
 																		}
 																		case None {
-																			java.lang.System.out.println("TYPECHECK FAILED: Could not split needed permission for arg"); 
+																			val msg = "Could not split needed permission for arg";
+																			typeError(node, msg, true);
+																			java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
 																			argOk = false;
 																			this.typedAs = NONE;
 																		}
 																	}
 																	
 																} {
-																	java.lang.System.out.println("TYPECHECK FAILED: no permission for ID " + argID.name + " in context");
+																	val msg = "no permission for ID " + argID.name + " in context";
+																	typeError(node, msg, true);
+																	java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 																	argOk = false;
 																	this.typedAs = NONE;
 																}
@@ -626,14 +653,18 @@ state InitialTypechecker case of LeafVisitor {
 																		};
 																	}
 																	case None {
-																		java.lang.System.out.println("TYPECHECK FAILED: could not regain borrowed permission");
+																		val msg = "could not regain borrowed permission";
+																		typeError(node, msg, true);
+																		java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 																		this.typedAs = NONE;
 																	}
 																}
 															}
 														}
 														case None { 
-															java.lang.System.out.println("TYPECHECK FAILED: not enough permission to receiver to call method " + node.methodName.name);
+															val msg = "not enough permission to receiver to call method " + node.methodName.name;
+															typeError(node, msg, true);
+															java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 															this.typedAs = NONE;
 														}												
 													}
@@ -645,15 +676,15 @@ state InitialTypechecker case of LeafVisitor {
 														case LambdaType { //need to turn this into a application node instead of a method call and typecheck that instead						
 															val /*ID*/ functionID = this.generateID(node.token);
 															node <- AnnotatedLetBinding {
-																val /*Token*/ token = node.token;
+																val /*Option Token*/ token = node.token;
 																val /*ID*/ x = functionID;
 																val /*Expression*/ exp = new Dereference { //receiver.methodName (since this is actually a field)
-																	val /*Token*/ token = node.token;
+																	val /*Option Token*/ token = node.token;
 																	val /*Expression*/ left = node.receiver;
 																	val /*ID*/ right = node.methodName; 
 																};
 																val /*Expression*/ body = new Application {
-																	val /*Token*/ token = node.token;
+																	val /*Option Token*/ token = node.token;
 																	val /*Expression*/ f = functionID.copy();
 																	val /*Expression*/ arg = node.argument;
 																};
@@ -664,42 +695,56 @@ state InitialTypechecker case of LeafVisitor {
 															node.accept(this);
 														}
 														default {
-															java.lang.System.out.println("TYPECHECK FAILED: left hand of application not a lambda");
+															val msg = "method call refers to a field that is not a lambda";
+															typeError(node, msg, true);
+															java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 															typedAs = NONE;
 														}
 													}
 												}
 												default {
-													java.lang.System.out.println("TYPECHECK FAILED: Unsupported decl type for method");
+													val msg = "Unsupported decl type for method call";
+													typeError(node, msg, true);
+													java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 													typedAs = NONE;
 												}
 											}
 										}
 										case None {
-											java.lang.System.out.println("TYPECHECK FAILED: Method " + node.methodName.name + 
-																		" not defined in state " + stType.value.name.name);
+											val msg = "Method " + node.methodName.name + 
+																		" not defined in state " + stType.value.name.name;
+											typeError(node, msg, true);
+											java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 											typedAs = NONE;
 										}
 									}
 								}
 								case None {
-									java.lang.System.out.println("TYPECHECK FAILED: State " + tType.type.typeName.name + "not defined");
+									val msg = "State " + tType.type.typeName.name + "not defined";
+									typeError(node, msg, true);
+									java.lang.System.out.println("TYPECHECK FAILED: ");
 									typedAs = NONE;
 								}
 							}
 						}
 						default {
-							java.lang.System.out.println("TYPECHECK FAILED: unsupported receiver type");
+							val msg = "unsupported receiver type";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 							typedAs = NONE;
 						}
 					}
 				} {
-					java.lang.System.out.println("TYPECHECK FAILED: No type for receiver " + node.receiver.name);
+					val msg = "No type for receiver " + node.receiver.name;
+					typeError(node, msg, true);
+					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 					typedAs = NONE;
 				}
 			}
 			default { 
-				java.lang.System.out.println("TYPECHECK FAILED: Method Call not in let normal form");
+				val msg = "Method Call not in let normal form";
+				typeError(node, msg, true);
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 				typedAs = NONE;
 			}
 		}
@@ -797,12 +842,12 @@ state InitialTypechecker case of LeafVisitor {
 														val /*PermType*/ residue = aTypeResidue.value;
 														override val /*PermType*/ type = lType.returnType;
 														val /*Expression*/ body = new UnannotatedLetBinding { //varaible to hold the eventual tree for the method call with split/joins
-															val /*Token*/ token = NONE;
+															val /*Option Token*/ token = node.token;
 															val /*ID*/ x = t;
 															val /*Expression*/ exp = new Application { //will need to state change this later
 																val /*Expression*/ f = fIDapp;
 																val /*Expression*/ arg = argIDapp;
-																val /*Token*/ token = node.token;	
+																val /*Option Token*/ token = node.token;	
 																override val /*PermType*/ type = lType.returnType;
 															};	
 															val /*boolean*/ mutable = false;
@@ -819,20 +864,26 @@ state InitialTypechecker case of LeafVisitor {
 													};
 												}
 												case None {
-													java.lang.System.out.println("TYPECHECK FAILED: Could not join back to borrowed Permission");
+													val msg = "Could not join back to borrowed Permission";
+													typeError(node, msg, true);
+													java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 													argOk = false;
 													this.typedAs = NONE;
 												}
 											}
 										}
 										case None {
-											java.lang.System.out.println("TYPECHECK FAILED: Could not split needed permission for arg"); 
+											val msg = "Could not split needed permission for arg";
+											typeError(node, msg, true);
+											java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
 											argOk = false;
 											this.typedAs = NONE;
 										}
 									}	
 								} {
-									java.lang.System.out.println("TYPECHECK FAILED: no permission for ID " + argID.name + " in context");
+									val msg = "no permission for ID " + argID.name + " in context";
+									typeError(node, msg, true);
+									java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 									argOk = false;
 									this.typedAs = NONE;
 								}
@@ -860,18 +911,24 @@ state InitialTypechecker case of LeafVisitor {
 							};	
 						}	
 						default {
-							java.lang.System.out.println("TYPECHECK FAILED: function does not have a function type");
+							val msg = "variable " + theFunction.name + " does not have a function type";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 							typedAs = NONE;
 						}
 					}
 				} {
-					java.lang.System.out.println("TYPECHECK FAILED: function " + theFunction.name + " not in context");
-					this.context.printContext();
+					val msg = "function " + theFunction.name + " not in context";
+					typeError(node, msg, true);
+					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+					//this.context.printContext();
 					typedAs = NONE;
 				}
 			}
 			default { 
-				java.lang.System.out.println("TYPECHECK FAILED: Application not in let normal form");
+				val msg = "Application not in let normal form";
+				typeError(node, msg, true);
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 				typedAs = NONE;
 			}
 		}	
@@ -909,10 +966,14 @@ state InitialTypechecker case of LeafVisitor {
 					}
 					case None {
 						//typechecking failed elsewhere
+						val msg = "let body did not typecheck";
+						typeError(node, msg, false);
 					}
 				}
 			}
 			case None {
+				val msg = "bound variable expression did not typecheck";
+				typeError(node, msg, false);
 				//typechecking failed elsewhere
 			}
 		}
@@ -950,11 +1011,15 @@ state InitialTypechecker case of LeafVisitor {
 						};
 					}
 					case None {
+						val msg = "let body did not typecheck";
+						typeError(node, msg, false);
 						//typechecking failed elsewhere
 					}
 				}
 			}
 			case None {
+				val msg = "bound variable expression did not typecheck";
+				typeError(node, msg, false);
 				//typechecking failed elsewhere
 			}
 		}
@@ -1005,35 +1070,47 @@ state InitialTypechecker case of LeafVisitor {
 													this.context.put(node.left,leftType); //non-destructive means put the left object back as is
 												}
 												default {
-													java.lang.System.out.println("TYPECHECK FAILED: " + node.right.name + " not a field in " + leftType.type.typeName.name);
+													val msg = node.right.name + " not a field in " + leftType.type.typeName.name;
+													typeError(node, msg, true);
+													java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 													typedAs = NONE;
 												}
 											}									
 										} 
 										default {
-											java.lang.System.out.println("TYPECHECK FAILED: field " + node.right.name + " not declared in type " + leftType.type.typeName.name);
+											val msg = "field " + node.right.name + " not declared in type " + leftType.type.typeName.name;
+											typeError(node, msg, true);
+											java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 											typedAs = NONE;
 										}
 									}
 								}
 								case None {
-									java.lang.System.out.println("TYPECHECK FAILED: Type " + leftType.type.typeName.name + " no defined");
+									val msg = "Type " + leftType.type.typeName.name + " not defined";
+									typeError(node, msg, true);
+									java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 									typedAs = NONE;
 								}
 							}
 						}
 						default {
-							java.lang.System.out.println("TYPECHECK FAILED: Deref target has unsupported object type");
+							val msg = "Deref target has unsupported object type";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 							typedAs = NONE;
 						}
 					}
 				} {
-					java.lang.System.out.println("TYPECHECK FAILED: " + node.left.name + " not found in the context");
+					val msg = node.left.name + " not found in the context";
+					typeError(node, msg, true);
+					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 					typedAs = NONE;
 				}
 			}
 			default {
-				java.lang.System.out.println("TYPECHECK FAILED: Deref Not in let normal form");
+				val msg = "Deref Not in let normal form";
+				typeError(node, msg, true);
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 				typedAs = NONE;
 			
 			}
@@ -1076,11 +1153,15 @@ state InitialTypechecker case of LeafVisitor {
 														copiedContext.put(node.e, newEType);
 														caseContext = createSome(copiedContext);
 													} {
-														java.lang.System.out.println("TYPECHECK FAILED: " + caseST.value.name.name + " not a subtype of " + matchedST.value.name.name);
+														val msg =  caseST.value.name.name + " not a subtype of " + matchedST.value.name.name;
+														typeError(theCase, msg, true);
+														java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 													}
 												}
 												case None {
-													java.lang.System.out.println("TYPECHECK FAILED: type " + theCase.qi.value.toString() + " not defined");
+													val msg =  "type " + theCase.qi.value.toString() + " not defined";
+													typeError(theCase, msg, true);
+													java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 												}
 											}
 										};
@@ -1099,8 +1180,15 @@ state InitialTypechecker case of LeafVisitor {
 													}
 													case None {
 														ifElse (theCase.defaultCase) 
-															{ java.lang.System.out.println("TYPECHECK FAILED: default case did not typecheck")}
-															{ java.lang.System.out.println("TYPECHECK FAILED: case " + theCase.qi.value.toString() + " did not typecheck")}
+															{ 
+																val msg = "default case did not typecheck";
+																typeError(theCase, msg, false);
+																java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+															} { 
+																val msg =  "case " + theCase.qi.value.toString() + " did not typecheck";
+																typeError(theCase, msg, false);
+																java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+															}
 													}
 												}
 											}
@@ -1113,6 +1201,11 @@ state InitialTypechecker case of LeafVisitor {
 											case Some {
 												//java.lang.System.out.println("context and return Type ok");
 												caseContext.value.remove(node.e); //remove matched var - will be different
+												theCase.type <- PermType { //update type of case statement
+													val /*Permission*/ perm = caseReturn.value.perm;
+													val /*Type*/ type = caseReturn.value.type;
+													val /*boolean*/ borrowed = caseReturn.value.borrowed;
+												};
 												createSome(makePair(caseContext.value,caseReturn.value));
 											}
 											case None {
@@ -1140,13 +1233,16 @@ state InitialTypechecker case of LeafVisitor {
 																ifElse ( retTwo.isSubPermTypeOf(retOne, this.stateTable)) {
 																	z // z -> retOne is the most general
 																} {
-																
-																	java.lang.System.out.println("return types not compatible");
+																	val msg = "return types not compatible";
+																	typeError(node, msg, true);
+																	java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 																	NONE
 																}	
 															}
 														} {
-															java.lang.System.out.println("contexts not equal");
+															val msg = "contexts not equal";
+															typeError(node, msg, true);
+															java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 															NONE
 														}
 													}
@@ -1166,32 +1262,46 @@ state InitialTypechecker case of LeafVisitor {
 											this.context.put(node. e,matchedPermType); //restore type of matched variable
 											this.typedAs = createSome(endInfo.value.snd); //set return type;
 											java.lang.System.out.println("match typed");
+											node.type <- PermType {
+												val /*Permission*/ perm = endInfo.value.snd.perm;
+												val /*Type*/ type = endInfo.value.snd.type;
+												val /*Boolean*/ borrowed = endInfo.value.snd.borrowed;
+											};
 										}
 										case None {
-											java.lang.System.out.println("Case clauses not compatible");
+											val msg = "Case clauses not compatible";
+											//typeError(node, msg, false);
+											java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 											this.typedAs = NONE;
 										}
 									}
-									
 								}
 								case None {
-									java.lang.System.out.println("TYPECHECK FAILED: type " + matchedType.typeName + " not defined");
+									val msg = "type " + matchedType.typeName + " not defined";
+									typeError(node, msg, true);
+									java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 									typedAs = NONE;
 								}
 							}
 						}
 						default {
-							java.lang.System.out.println("TYPECHECK FAILED: much match on object with Nominal Type");
+							val msg = "much match on object with Nominal Type";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 							typedAs = NONE;
 						}
 					}
 				} {
-					java.lang.System.out.println("TYPECHECK FAILED: " + node.e.name + " not in context");
+					val msg = node.e.name + " not in context";
+					typeError(node, msg, true);
+					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 					typedAs = NONE;
 				};
 			}
 			default {
-				java.lang.System.out.println("TYPECHECK FAILED: Match not in let normal form");
+				val msg = "Match not in let normal form";
+				typeError(node, msg, true);
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 				typedAs = NONE;
 			}
 		}
