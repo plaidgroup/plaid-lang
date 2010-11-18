@@ -1,0 +1,48 @@
+package plaid.typechecker.typecheckerMethods;
+
+import plaid.typechecker.context.*;
+import plaid.ast.types.*;
+import plaid.ast.*;
+
+state TCvisitDeclList {
+	
+	override val /*StateTable*/ stateTable; // need to know about nominal types during typechecking
+	override val /*Context*/ context; //need to keep track of variables and types
+	override var /*Option PermType*/ typedAs;
+	
+	override method visitDeclList(node) {
+		//create an anonymous state type from the declList
+		val /*StateType*/ anonState = new StateType {
+			val /*ID*/ name = new ID { val name = "<ANONYMOUS>"; };
+			val /*Option StateType*/ superType = NONE;
+		};
+		var /*Boolean*/ declsOk = true;
+		node.decls.map(fn (d) => {
+			d.accept(this);
+			match (this.typedAs) {
+				case Some {
+					val /*DeclType*/ dt = this.typedAs.value;
+					match (dt) {
+						case MethodType {
+							anonState.providedTypes.put(dt.name, dt);	
+						}
+						case FieldType {
+							anonState.providedTypes.put(dt.name, dt);	
+						}
+						default {
+							java.lang.System.out.println("****TODO: Decl did not return a declType****");
+						}
+					};
+				}
+				case None {
+					declsOk = false;
+				}
+			};
+			
+		});
+		ifElse (declsOk) 
+			{ typedAs = createSome(anonState); }
+			{ typedAs = NONE; };
+		
+	}
+}
