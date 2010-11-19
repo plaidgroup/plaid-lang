@@ -36,7 +36,7 @@ public class MethodCall implements Expression {
 		this.arguments.addAll(arguments);
 		if (arguments.size() == 1 && arguments.get(0) instanceof UnitLiteral) {
 			this.hasArgs = false;
-			arguments.clear();
+			this.arguments.clear();
 		} else {
 			this.hasArgs = true;
 		}
