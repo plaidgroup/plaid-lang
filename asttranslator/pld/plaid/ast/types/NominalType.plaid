@@ -21,16 +21,50 @@ state NominalType case of Type {
 	
 	}
 	
-	method join(other) {
+	method join(other, stateTable) {
 		match (other) {
-			case NominalType {
-				ifElse (other.typeName == this.typeName)
-					{ this }
-					{ new NominalType { val typeName = new ID { val name = "unit"; }; } } //TODO: better handling of join
+			case NominalType { //least upper bound
+				val /*Option StateType*/ thisST = stateTable.get(this.typeName);
+				val /*Option StateType*/ otherST = stateTable.get(other.typeName);
+				match (thisST) {
+					case Some {
+						match(otherST) {
+							case Some {
+								val /*Option StateType*/ lub = thisST.value.leastUpperBound(otherST.value);
+								match (lub) {
+									case Some {
+										//java.lang.System.out.println("***JOIN SUCCEEDED: " + this.toString() + " + " + other.toString() + " = " + lub.value.name.name);
+										new NominalType { val typeName = lub.value.name.copy(); }
+									}
+									case None {
+										java.lang.System.out.println("cannot join " + this.toString() + " and " + other.toString());
+										new NominalType { val typeName = new ID { val name = "unit"; }; };
+									
+									}
+								}
+							}
+							case None {
+								java.lang.System.out.println("state " + other.typeName.name + " not declared");
+								new NominalType { val typeName = new ID { val name = "unit"; }; };	
+							}
+						}
+					}
+					case None {
+						//where to log an error?
+						java.lang.System.out.println("state " + this.typeName.name + " not declared");
+						new NominalType { val typeName = new ID { val name = "unit"; }; };	
+					}
+				}	
 			}
-			default { new NominalType { val typeName = new ID { val name = "unit"; }; } } //TODO: better handling of join
+			default { 
+				java.lang.System.out.println("cannot join " + this.toString() + " with a non-NominalType");
+				new NominalType { val typeName = new ID { val name = "unit"; }; };
+			} 
 		}
-	
+	}
+
+	method merge(other, stateTable) {
+		java.lang.System.out.println("Implement merging in NominalType");
 	}
 	
 	method toString() {
