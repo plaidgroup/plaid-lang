@@ -34,19 +34,31 @@ public class Application implements Expression {
 	private final Token token;
 	private final Expression f;
 	private final List<Expression> arguments = new ArrayList<Expression>();
+	private final boolean hasArgs;
 
 	public Application(Token t, Expression function, Expression argument) {
 		super();
 		this.token = t;
 		this.f = function;
-		this.arguments.add(argument);
+		if (argument instanceof UnitLiteral) {
+			hasArgs = false;
+		} else {
+			this.arguments.add(argument);
+			hasArgs = true;
+		}
 	}
 	
 	public Application(Token t, Expression function, List<Expression> arguments) {
 		super();
 		this.token = t;
 		this.f = function;
-		this.arguments.addAll(arguments);	
+		this.arguments.addAll(arguments);
+		if (this.arguments.size() == 1 && this.arguments.get(0) instanceof UnitLiteral) {
+			this.hasArgs = false;
+			this.arguments.clear();
+		} else {
+			this.hasArgs = true;
+		}
 	}
 	
 	public Expression getFunction() {
@@ -55,6 +67,10 @@ public class Application implements Expression {
 
 	public List<Expression> getArguments() {
 		return Collections.unmodifiableList(arguments);
+	}
+	
+	public boolean hasArgs() {
+		return this.hasArgs;
 	}
 	
 	public Token getToken() {
@@ -76,8 +92,12 @@ public class Application implements Expression {
 		out.declareFinalVar(CodeGen.plaidObjectType, z.getName()); //public PlaidObject z
 
 		f.codegenExpr(out, x, localVars, stateVars);
-	
-		Expression arg = plaid.compilerjava.coreparser.PlaidCoreParser.foldToPairs(arguments);
+		Expression arg;
+		if (hasArgs) {
+			arg = plaid.compilerjava.coreparser.PlaidCoreParser.foldToPairs(arguments);
+		} else {
+			arg = new UnitLiteral();
+		}
 		arg.codegenExpr(out, z, localVars, stateVars);
 
 		out.setLocation(token);
