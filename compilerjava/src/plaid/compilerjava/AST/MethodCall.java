@@ -15,12 +15,18 @@ public class MethodCall implements Expression {
 
 	private final Token token;
 	private final List<Expression> arguments = new ArrayList<Expression>();
+	private final boolean hasArgs;
 	private final Expression receiver;
 	private final ID method;
 	
 	public MethodCall(Token token, Expression receiver, ID method, Expression argument) {
 		this.token = token;
-		this.arguments.add(argument);
+		if (argument instanceof UnitLiteral) {
+			hasArgs = false;
+		} else {
+			this.arguments.add(argument);
+			hasArgs = true;
+		}
 		this.receiver = receiver;
 		this.method = method;
 	}
@@ -28,8 +34,15 @@ public class MethodCall implements Expression {
 	public MethodCall(Token token, Expression receiver, ID method, List<Expression> arguments) {
 		this.token = token;
 		this.arguments.addAll(arguments);
+		if (arguments.size() == 1 && arguments.get(0) instanceof UnitLiteral) {
+			this.hasArgs = false;
+			arguments.clear();
+		} else {
+			this.hasArgs = true;
+		}
 		this.receiver = receiver;
 		this.method = method;
+		
 	}
 
 	public List<Expression> getArguments() {
@@ -61,7 +74,13 @@ public class MethodCall implements Expression {
 		// Evaluate the argument.
 		ID a = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, a.getName());
-		Expression argument = plaid.compilerjava.coreparser.PlaidCoreParser.foldToPairs(arguments);
+		
+		Expression argument; 
+		if (this.hasArgs) {
+			argument = plaid.compilerjava.coreparser.PlaidCoreParser.foldToPairs(arguments);
+		} else {
+			argument = new UnitLiteral();
+		}
 		argument.codegenExpr(out, a, localVars, stateVars);
 		
 		// Call the method.
