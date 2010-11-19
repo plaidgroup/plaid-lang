@@ -88,7 +88,7 @@ state TCvisitMethodCall {
 																		
 																		match (aTypeResidue) {
 																			case Some{ //split succeeded
-																				this.context.put(argID, aTypeResidue.value);
+																				//this.context.put(argID, aTypeResidue.value); pass around in list instead
 																				makePair(aTypeStart,aTypeResidue.value);
 																			}
 																			case None {
@@ -113,13 +113,30 @@ state TCvisitMethodCall {
 																
 																ifElse(argsOk) {
 																	//next check that we can use the output and residue to join back to the required type
-																	val /*list<PermType>*/ endTypes = argIDtypes.map(fn (p) => {
+																	//		Pair
+																	//			f: Pair
+																	//				f: ID - arg name
+																	//				s: ChangeType - argument type annotations for the called method
+																	//					input: PermType - needed type for this arg
+																	//					output: PermType - output type for this arg
+																	//			s: Pair
+																	//				f: PermType - start type for this argument from context
+																	//				s: PermType - residue after splitting needed type from start type
+																	//  >
+																	// to access the different fields given an element of this list, a:
+																	//		ID = a.fst.fst;
+																	//  	startType = a.snd.fst;
+																	//		neededType = a.fst.snd.input;
+																	//		residueType = a.snd.snd;
+																	//		outputType = a.fst.snd.output;
+																	val /*List<Pair<Pair<ID,ChangeType>>,Pair<PermType,PermType>>>*/ preCall = argIDtypes.zip(startAndResidues);
+																	val /*list<PermType>*/ endTypes = preCall.map(fn (p) => {
 																		
 																		//collect arg information
-																		val /*ID*/ argID = p.fst;
-																		val /*PermType*/ aTypeStart = p.snd.input;
-																		val /*PermType*/ aTypeOutput = p.snd.output;
-																		val /*PermType*/ aTypeResidue = this.context.remove(argID); //guaranteed since already found it
+																		val /*ID*/ argID = p.fst.fst;
+																		val /*PermType*/ aTypeStart = p.snd.fst;
+																		val /*PermType*/ aTypeOutput = p.fst.snd.output;
+																		val /*PermType*/ aTypeResidue = p.snd.snd; //this.context.remove(argID); //guaranteed since already found it
 																		
 																		//attempt to join back the arg
 																		var /*Option PermType*/ aTypeEnd = NONE;

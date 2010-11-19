@@ -12,19 +12,53 @@ state TCvisitID {
 
 	override method visitID(node) {
 		ifElse (this.context.containsKey(node)) {
-			val /*PermType*/ idType = this.context.remove(node);
-			this.typedAs = createSome(idType); //TODO: need type directed ID
+			var /*PermType*/ idType = this.context.remove(node);
+			var /*Option PermType*/ residue = NONE;
+			match (this.synthesizeType) {
+				case Some {
+					residue = idType.split(synthesizeType.value, this.stateTable);
+					match (residue) {
+						case Some {
+							//success
+							idType = synthesizeType.value; //take the required type as the type
+							if (node.isTemp) { residue = NONE } //if a temp var, drop residue on the floor
+						}
+						case None {
+							val /*String*/ msg = "could not split " + node.name + " to required type";
+							typeError(node,msg,true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+						}
+					}
+				}
+				case None { 
+					if (!(node.isTemp)) { //if this is not a temporary variable, put a residue back (temp variables will always be used only once)
+						residue = createSome(idType.residue(this.stateTable));
+					};
+				}
+			};
+			
+			//if there is a residue to put back in the context, do so
+			match(residue) {
+				case Some { //put residue back in the context
+					this.context.put(node, residue.value);
+				}
+				case None {
+					//do nothing - 
+				}	
+			};
+			
+			this.typedAs = createSome(idType);
 			node.type <- PermType {
 				val /*Permission*/ perm = idType.perm;
 				val /*Type*/ type = idType.type;
 				val /*boolean*/ borrowed = idType.borrowed;
 			};
-			//java.lang.System.out.println("ID: " + node.name + " pulled from context");
 		} {
 			val msg = node.name + " not found in the context";
 			typeError(node, msg, true);
 			java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 			this.typedAs = NONE;
-		}
+		}	
+		
 	}
 }
