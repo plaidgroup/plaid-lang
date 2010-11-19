@@ -33,10 +33,12 @@ public class Assignment implements Expression {
 	private Expression target;
 	private ID field;
 	private Expression value;
+	private final boolean hasTarget;
 	
 	public Assignment(Expression target, ID field, Expression value) {
 		super();
 		this.target = target;
+		this.hasTarget = target != null;
 		this.field = field;
 		this.value = value;
 	}
@@ -45,6 +47,7 @@ public class Assignment implements Expression {
 		super();
 		this.token = t;
 		this.target = target;
+		this.hasTarget = target != null;
 		this.field = field;
 		this.value = value;
 	}
@@ -67,7 +70,7 @@ public class Assignment implements Expression {
 	}
 	
 	public boolean hasTarget() {
-		return this.target != null;
+		return this.hasTarget;
 	}
 
 	public ID getField() {
