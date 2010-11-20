@@ -70,6 +70,68 @@ state LetNormalFormVisitor case of LeafVisitor {
 		}
 	}
 	
+	override method visitAssignment(node) {
+		match (node.target) {
+			case Some {
+				node.target.value.accept(this);
+			}
+			case None { }
+		};
+		node.value.accept(this);
+		
+		val /*Token*/ tok = node.token;
+		var /*Option Expression*/ target = node.target;
+		val /*ID*/ field = node.field;
+		var /*Expression*/ value = node.value;
+		var /*expression*/ toUpdate = node;
+		
+		//let bind target if needed
+		match (target) {
+			case Some {
+				match (target.value) {
+					case ID { }
+					default {
+						val id = this.generateID(tok);
+						toUpdate <- UnannotatedLetBinding {
+							override val /*Token*/ token = tok;
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = target.value;
+							val /*Expression*/ body = new None;
+							val /*boolean*/ mutable = false;
+						};
+						toUpdate = toUpdate.body;
+						target = createSome(id);
+					}
+				}
+			}
+			case None { }
+		};
+		
+		match (value) {
+			case ID { }
+			default {
+				val id = this.generateID(tok);
+				toUpdate <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = value;
+					val /*Expression*/ body = new None;
+					val /*boolean*/ mutable = false;
+				};
+				toUpdate = toUpdate.body;
+				value = id;
+			}
+		};
+		
+		//update to an LNFAssignment
+		toUpdate <- LNFAssignment {
+			var /*Token*/ token = tok;
+			var /*Option ID*/ target = target;
+			var /*ID*/ field = field;
+			var /*ID*/ value = value;
+		};
+	}
+	
 	override method visitChangeState(node) {
 		node.e.accept(this);
 		node.s.accept(this);
@@ -149,7 +211,7 @@ state LetNormalFormVisitor case of LeafVisitor {
 		match (l) {
 			// Already LNF
 			case ID {
-				node <- LNFDereference {
+				node <- LNFDestructiveDereference {
 					override val /*Token*/ token = tok;
 					override val /*ID*/ left = l;
 					override val /*ID*/ right = node.right;
