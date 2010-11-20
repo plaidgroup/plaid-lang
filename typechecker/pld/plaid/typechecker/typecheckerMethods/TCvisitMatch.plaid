@@ -96,7 +96,7 @@ state TCvisitMatch {
 											match (caseReturn) { //return a pair of context and return type wrapped up in an option if succeeded 
 												case Some {
 													//java.lang.System.out.println("context and return Type ok");
-													caseContext.value.remove(node.e); //remove matched var - will be different
+													//caseContext.value.remove(node.e); //remove matched var - will be different
 													theCase.type <- PermType { //update type of case statement
 														val /*Permission*/ perm = caseReturn.value.perm;
 														val /*Type*/ type = caseReturn.value.type;
@@ -118,16 +118,17 @@ state TCvisitMatch {
 													match (i) {
 														case Some {
 															//first check the contexts
-															ifElse (z.value.fst == i.value.fst) {
+															val /*Context*/ newContext = new Context;
+															ifElse (z.value.fst.leastUpperBound(i.value.fst, newContext, this.stateTable)) {
 																//check return types - take the most general of the two
 																val /*PermType*/ retOne = z.value.snd;
 																val /*PermType*/ retTwo = i.value.snd;
 																
 																ifElse (retOne.isSubPermTypeOf(retTwo, this.stateTable)) {
-																	i // i -> retTwo is the most general
+																	createSome(makePair(newContext,retTwo)); // i -> retTwo is the most general
 																} {
 																	ifElse ( retTwo.isSubPermTypeOf(retOne, this.stateTable)) {
-																		z // z -> retOne is the most general
+																		createSome(makePair(newContext,retOne)); // z -> retOne is the most general
 																	} {
 																		val msg = "return types not compatible";
 																		typeError(node, msg, true);
@@ -136,14 +137,14 @@ state TCvisitMatch {
 																	}	
 																}
 															} {
-																val msg = "contexts not equal";
+																val msg = "contexts not compatible (could not compute least upper bound)";
 																
 																typeError(node, msg, true);
 																
 																java.lang.System.out.println("TYPECHECK FAILED: " + msg);
-																//z.value.fst.printContext();
-																//java.lang.System.out.println("-----");
-																//i.value.fst.printContext();
+																z.value.fst.printContext();
+																java.lang.System.out.println("-----");
+																i.value.fst.printContext();
 																NONE
 															}
 														}
@@ -160,7 +161,7 @@ state TCvisitMatch {
 												//this <- { override val context = endInfo.value.fst; }; //update context
 												this.context.reset(); //Hackish context update
 												this.context.addAll(endInfo.value.fst);
-												this.context.put(node. e,matchedPermType); //restore type of matched variable
+												//this.context.put(node. e,matchedPermType); //restore type of matched variable
 												this.typedAs = createSome(endInfo.value.snd); //set return type;
 												java.lang.System.out.println("match typed");
 												node.type <- PermType {
@@ -172,7 +173,7 @@ state TCvisitMatch {
 											case None {
 												val msg = "Case clauses not compatible";
 												typeError(node, msg, false);
-												java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+												//java.lang.System.out.println("TYPECHECK FAILED: " + msg);
 												this.typedAs = NONE;
 											}
 										}

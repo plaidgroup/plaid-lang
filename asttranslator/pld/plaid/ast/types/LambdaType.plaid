@@ -52,33 +52,34 @@ state LambdaType case of Type {
 				//1) this.returnType <: other.returnType
 				val /*Boolean*/ retTypeOk = this.returnType.isSubPermTypeOf(other.returnType, stateTable); //error message elsewhere
 				
-				var /*Boolean*/ aInputOk = true;
-				var /*Boolean*/ aOutputOk = true;
-				ifElse (this.hasArg()) {
-					ifElse (other.hasArg()) {
-						//2) other.argTypes[i].input <: this.argTypes[i].input //TODO: multiple args
-						aInputOk = this.argTypes.head.value.input.isSubPermTypeOf(other.argTypes.head.value.input, stateTable); //error message elsewhere
-				
-						//3) this.argTypes[i].output <: other.argTypes[i].output
-						aOutputOk = this.argTypes.head.value.output.isSubPermTypeOf(other.argTypes.head.value.output, stateTable); //error message elsewhere
-					} {
-						aInputOk = false;
-						aOutputOk = false;
-						java.lang.System.out.println("SUBTYPE FAILED: subtype of lambda" + 
-							" has an argument but the supertype does not");
-					}
+				//2) same number and compatible arg types
+				var /*Boolean*/ argsOk = this.argTypes.length() == other.argTypes.length();
+				ifElse (argsOk) {
+					val /*List<Pair<ChangeType,ChangeType>>*/ pairedArgs = this.argTypes.zip(other.argTypes);
+					argsOk = pairedArgs.foldr(fn (p,z) => {
+					
+						var inputOk = false;
+						//2a) other.argTypes[i].input <: this.argTypes[i].input //TODO: multiple args
+						if ( p.snd.input.isSubPermTypeOf(p.fst.input, stateTable)) {
+							inputOk = true; 
+						};
+						
+						var outputOk = false;
+						//2b) this.argTypes[i].output <: other.argTypes[i].output
+						if ( p.fst.output.isSubPermTypeOf(p.snd.output, stateTable)) {
+							outputOk = true;
+						};
+					
+						inputOk && outputOk && z;
+					
+					}, true);
 				} {
-					if (other.hasArg()) {
-						aInputOk = false;
-						aOutputOk = false;
-						java.lang.System.out.println("SUBTYPE FAILED: supertype of lambda" +
-							" has an argument but the subtype does not");
-					}
+					java.lang.System.out.println("SUBTYPING FAILED : mismatched number of args");
 				};
 				
 				//4) //TODO: environment Types
 				
-				retTypeOk && aInputOk && aOutputOk;
+				retTypeOk && argsOk;
 			}
 			default { 
 				java.lang.System.out.println("TYPECHECK FAILED: lambda must subtype another lambda");

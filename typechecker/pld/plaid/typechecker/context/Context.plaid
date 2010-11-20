@@ -1,6 +1,7 @@
 package plaid.typechecker.context;
 
 import java.util.HashMap;
+import plaid.ast.types.*;
 
 state Context{
 	
@@ -22,6 +23,104 @@ state Context{
 			}
 		};
 		eq;
+	}
+	
+	method /*Boolean*/ leastUpperBound(/*Context*/ other, /*Context*/ newContext, /*StateTable*/ stateTable) {
+		var /*Boolean*/ contextOk = true;
+		
+		val iter = this.contextMap.keySet().iterator();
+		
+		while { contextOk && iter.hasNext() } {
+			val /*ID*/ aVar = iter.next();
+			if (other.contextMap.containsKey(aVar)) {
+				val /*PermType*/ thisPT = this.contextMap.get(aVar);
+				val /*PermType*/ otherPT = other.contextMap.get(aVar);
+				
+				//merge permissions
+				val /*Permission*/ newPerm = thisPT.perm.merge(otherPT.perm);
+				
+				//merge types
+				var /*Option Type*/ newTypeOpt = NONE;
+				match( thisPT.type) {
+					case NominalType {
+						match (otherPT.type) {
+							case NominalType {
+								val /*Option StateType*/ thisSTopt = stateTable.get(thisPT.type.typeName);
+								val /*Option StateType*/ otherSTopt = stateTable.get(otherPT.type.typeName);
+								match (thisSTopt) {
+									case Some {
+										match (otherSTopt) {
+											case Some {
+												val /*Option StateType*/ newSTopt = thisSTopt.value.leastUpperBound(otherSTopt.value);
+												match (newSTopt) {
+													case Some {
+														newTypeOpt = createSome(new NominalType {
+															val /*ID*/ typeName = newSTopt.value.name.copy();
+														});
+													}
+													case None {
+														java.lang.System.out.println("least upper bound of states " + otherPT.type.typeName.name + " and " + thisPT.type.typeName.name + " not defined");
+													}
+												}
+											}
+											case None {
+												java.lang.System.out.println("state " + otherPT.type.typeName.name + " not defined");
+											}
+										}	
+									}
+									case None {
+										java.lang.System.out.println("state " + thisPT.type.typeName.name + " not defined");
+									}
+								}
+							}
+							default {
+								java.lang.System.out.println("if one merging type is nominal, both must be");
+							}
+						}
+					}
+					case LambdaType {
+						match (otherPT.type) {
+							case LambdaType {
+								//TODO: least upper bound for lambdas - for now one has to be a subtype of the other and we take the more general one
+								ifElse (thisPT.type.subtypeOf(otherPT.type, stateTable)) {
+									newTypeOpt = createSome(otherPT.type);
+								} {
+									if (otherPT.type.subtypeOf(thisPT.type, stateTable)) {
+										newTypeOpt = createSome(thisPT.type);
+									}
+								}
+							}
+							default {
+								java.lang.System.out.println("both merged types must be lambdas if one is");
+							}
+						}
+					}
+					default {
+						java.lang.System.out.println("only nominal and lambda object types supported");
+					}
+				};
+				
+				var /*Boolean*/ newBorrowed = false;
+				if(thisPT.borrowed || otherPT.borrowed) {
+					newBorrowed = true;
+				};
+				
+				match(newTypeOpt) {
+					case Some {
+						val /*PermType*/ toPut = new PermType {
+							val /*Permission*/ perm = newPerm;
+							val /*Type*/ type = newTypeOpt.value;
+							val /*Boolean*/ borrowed = newBorrowed;
+						};
+						newContext.put(aVar,toPut);
+					}
+					case None {
+						contextOk = false;
+					}
+				}
+			}
+		};
+		contextOk;
 	}
 	
 	/**
