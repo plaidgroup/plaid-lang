@@ -6,6 +6,7 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 	val aemRt = "aeminium.runtime.implementations.Factory.getRuntime()";
 	
 	var lastNodeNum = -1;
+	var lastNode = "";
 	var currentMethodName = "";
 	var lambdaCounter = 0;
 	
@@ -14,6 +15,7 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 			case Some {
 				// TODO: Correct position?
 				this.lastNodeNum = astNode.num;
+				this.lastNode = astNode;
 				
 				this.out.append("aeminium.runtime.Body b" + name + " = new aeminium.runtime.Body() {");
 				this.out.append("public String toString() {");
@@ -63,16 +65,7 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 		};
 	}
 
-	method visitSplit(node) {
-		node.body.accept(this);
-	}
-	
-	method visitJoin(node) {
-		node.body.accept(this);
-	}
-	
 	override method visitUnitLiteral(node) {
-		val /*ID*/ oldY = this.y;
 		this.emitAeminiumBodyHeader(node.num, node);
 
 		//this.setLocation(node.token);
@@ -82,11 +75,9 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 		//this.out.updateVarDebugInfo(this.y.name);
 		
 		this.emitAeminiumBodyFooter(node.num, node);
-		this.y = oldY;
 	}
 	
 	override method visitIntLiteral(node) {
-		val /*ID*/ oldY = this.y;
 		this.emitAeminiumBodyHeader(node.num, node);
 		
 		//this.setLocation(node.token);
@@ -96,11 +87,9 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 		//this.out.updateVarDebugInfo(this.y.name);
 		
 		this.emitAeminiumBodyFooter(node.num, node);
-		this.y = oldY;
 	}
 	
 	override method visitID(node) {
-		val /*ID*/ oldY = this.y;
 		this.emitAeminiumBodyHeader(node.num, node);
 		
 		//this.setLocation(node.token);
@@ -108,32 +97,48 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 		this.out.assignToLookup(this.y.name, newName, this.out.localScope);
 		
 		this.emitAeminiumBodyFooter(node.num, node);
-		this.y = oldY;
 	}
 	
 	override method visitLetBinding(node) {
-		val /*ID*/ oldY = this.y;
 		this.emitAeminiumBodyHeader(node.num, node);
 		
-		// this.setLocation(node.token);
-		val /*ID*/ y = this.y;
 		node.exp.accept(this);
 
 		this.out.declareFinalVar(this.out.plaidObjectType, node.x.name);
-		this.out.append(node.x.name + " = " + y.name + ";"); 
-
-		// set the immutability of the variable
+		this.out.append(node.x.name + " = " + this.y.name + ";");
 		this.out.insertIntoScope(this.out.localScope, node.x.name, !node.mutable);
-
-		this.y = y;		
-		this.emitAeminiumBodyFooter(node.num, node);
+		
+		match (node.body.dependencies) {
+			case Some {
+				this.y = node.x;
+				this.emitAeminiumBodyFooter(this.lastNodeNum, this.lastNode);
+			}
+			
+			case None {
+				this.y = this.idgen.getId();
+				this.out.declareFinalVar(this.out.plaidObjectType, this.y.name);
+			}
+		};
 		
 		node.body.accept(this);
-		this.y = oldY;
+		
+		match (node.body) {
+			case UnannotatedLetBinding {}
+			case AnnotatedLetBinding {}
+			case Split {}
+			case Join {}
+			default {
+				match (node.body.dependencies) {
+					case Some {}
+					case None {
+						this.emitAeminiumBodyFooter(this.lastNodeNum, this.lastNode);
+					}
+				};
+			}
+		};
 	}
 	
 	override method visitApplication(node) {
-		val /*ID*/ oldY = this.y;
 		this.emitAeminiumBodyHeader(node.num, node);
 		
 		//this.setLocation(node.token);
@@ -167,11 +172,9 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 
 		this.y = y;
 		this.emitAeminiumBodyFooter(node.num, node);
-		this.y = oldY;
 	}
 	
 	override method visitMethodCall(node) {
-		val /*ID*/ oldY = this.y;
 		this.emitAeminiumBodyHeader(node.num, node);
 		
 		//this.setLocation(node.token);
@@ -209,14 +212,9 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 		
 		this.y = y;
 		this.emitAeminiumBodyFooter(node.num, node);
-		this.y = oldY;
 	}
 	
 	override method visitLambda(node) {
-		//this.setLocation(node.token);
-		val /*ID*/ y = this.y;
-		
-		
 		this.out.assignToNewLambda(y.name, node.arguments.head.value.name);
 		
 		val lambdaNo = this.lambdaCounter;
@@ -241,7 +239,6 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 	}
 	
 	override method visitMatch(node) {
-		val /*ID*/ oldY = this.y;
 		this.emitAeminiumBodyHeader(node.num, node);
 		val y = this.y;
 		
@@ -255,6 +252,7 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 		this.y = y;
 		
 		val oldLastNodeNum = this.lastNodeNum;
+		val oldLastNode = this.lastNode;
 		
 		node.caseList.map(fn (c) => {
 			this.toMatch = toMatch;
@@ -270,15 +268,14 @@ state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
 			this.out.closeBlock();
 		});
 		
-		this.lastNodeNum = oldLastNodeNum;		
+		this.lastNodeNum = oldLastNodeNum;
+		this.lastNode = oldLastNode;
 		this.y = y;
 		this.emitAeminiumBodyFooter(node.num, node);
-		this.y = oldY;
 	}
 	
 	override method visitCase(node) {
 		val oldY = this.y;
-		//this.setLocation(node.token);
 		
 		// if this is the default case
 		ifElse (node.defaultCase) {
