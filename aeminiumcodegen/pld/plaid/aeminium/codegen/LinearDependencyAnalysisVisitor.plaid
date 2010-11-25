@@ -183,6 +183,7 @@ state LinearDependencyAnalysisVisitor = ASTVisitor with GraphOutput with Transit
 		createDependencyGraph("_Merged");
 	}
 	
+	// Repair this.
 	method handleInlineLambda(astNode) {
 		ifElse (counter == 0) {
 			java.lang.System.out.println("Visiting Lambda (new analysis).");
@@ -208,21 +209,13 @@ state LinearDependencyAnalysisVisitor = ASTVisitor with GraphOutput with Transit
 			// As soon as we encounter a lambda, we have to start a new dependency analysis.
 			java.lang.System.out.println("Lambda: Starting new analysis.");
 		
-			val newAnalysisVisitor = new DependencyAnalysisVisitor {
-				val methodTypes = this.methodTypes;
-			};
-			
-			newAnalysisVisitor.counter = 0;
-			newAnalysisVisitor.writer = java.util.HashMap.new();
-			newAnalysisVisitor.readers = java.util.HashMap.new();
-			newAnalysisVisitor.nodeList = new List { var head = new Nil; };
+			val newAnalysisVisitor = new LinearDependencyAnalysisVisitor;
+			newAnalysisVisitor.initialize();
+			newAnalysisVisitor.topLevel = false;
 			newAnalysisVisitor.lambdaCounter = this.lambdaCounter;
 			this.lambdaCounter = this.lambdaCounter + 1;
 			
 			newAnalysisVisitor.visitLambda(astNode);
-			
-			this.savedReads = java.util.HashSet.new();
-			this.savedWrites = java.util.HashSet.new();
 			
 			java.lang.System.out.println("Lambda: Analysis finished.");
 		};
@@ -232,87 +225,10 @@ state LinearDependencyAnalysisVisitor = ASTVisitor with GraphOutput with Transit
 		ifElse (this.topLevel) {
 			this.topLevel = false;
 			this.handleTopLevelLambda(astNode);
+			this.topLevel = true;
 		} {
 			this.handleInlineLambda(astNode);
 		};
-	}
-	
-	method visitSplit(astNode) {
-		/*
-		astNode.num = getNodeNumber();
-		val reads = java.util.HashSet.new();
-		val writes = java.util.HashSet.new();
-		
-		// We consider a split a write iff the permission of the split variable is changed.
-		val inPerm = astNode.in.type.value.perm;
-		val outPerm = astNode.out1.type.value.perm;
-		
-		ifElse (inPerm == outPerm) {
-			reads.add(astNode.in);
-		} {
-			writes.add(astNode.in);
-		};
-		
-		updateDependencies(astNode, reads, writes);
-		*/
-		astNode.body.accept(this);
-	}
-	
-	method visitJoin(astNode) {
-		/*
-		astNode.num = getNodeNumber();
-		val reads = java.util.HashSet.new();
-		val writes = java.util.HashSet.new();
-		
-		// We consider a join a write to a variable v iff:
-		// 1) v goes out of scope (our equivalent of leaving v with a none permission).
-		//    This happens if in1 and in2 do not refer to the same variable.
-		// 2) The permission of v changes.
-		//
-		// Otherwise we consider the join a reader of variable v.
-		
-		val in1Perm = astNode.in1.type.value.perm;
-		val in2Perm = astNode.in2.type.value.perm;
-		val outPerm = astNode.out.type.value.perm;
-		
-		// Check if a variable goes out of scope.
-		ifElse (astNode.in1.name.equals(astNode.in2.name) && astNode.in2.name.equals(astNode.out.name)) {
-			// No variable goes out of scope.
-			ifElse ((in1Perm == in2Perm) && (in2Perm == outPerm)) {
-				// v's permission does not change.
-				reads.add(astNode.in1);
-			} {
-				// v's permission does change.
-				writes.add(astNode.in1);
-			};
-		} {
-			// Either in1 or in2 goes out of scope.
-			ifElse (astNode.in1.name.equals(astNode.out.name)) {
-				// in2 goes out of scope.
-				writes.add(astNode.in2);
-				
-				// Check if in1's permission changes.
-				ifElse (in1Perm == outPerm) {
-					reads.add(astNode.in1);
-				} {
-					writes.add(astNode.in1);
-				};
-			} {
-				// in1 goes out of scope.
-				writes.add(astNode.in1);
-				
-				// Check if in2's permission changes.
-				ifElse (in2Perm == outPerm) {
-					reads.add(astNode.in2);
-				} {
-					writes.add(astNode.in2);
-				};
-			};
-		};
-		
-		updateDependencies(astNode, reads, writes);
-		*/
-		astNode.body.accept(this);
 	}
 	
 	method visitLetBinding(astNode) {
@@ -348,8 +264,11 @@ state LinearDependencyAnalysisVisitor = ASTVisitor with GraphOutput with Transit
 		
 		astNode.body.accept(this);
 	}
+	
+	method visitAnnotatedLetBinding(node) {
+		this.visitLetBinding(node);
+	}
 
-	// TODO: This does not respect environments yet.	
 	method visitApplication(astNode) {
 		astNode.num = getNodeNumber();
 		val reads = java.util.HashSet.new();
@@ -369,7 +288,26 @@ state LinearDependencyAnalysisVisitor = ASTVisitor with GraphOutput with Transit
 			};
 		});
 		
-		// TODO: Add environment handling.
+		val lambdaType = astNode.f.type;
+		java.lang.System.out.println(lambdaType);
+		
+		val it = lambdaType.environmentTypes.entrySet().iterator();
+		while { it.hasNext(); } {
+			val p = it.next();
+			
+			val id = p.getKey();
+			val change = p.getValue();
+			
+			match (change.input.perm) {
+				case UniquePermission {
+					writes.add(id);
+				}
+				
+				case ImmutablePermission {
+					reads.add(id);
+				}
+			};
+		};
 		
 		updateDependencies(astNode, reads, writes);
 	}
@@ -433,6 +371,8 @@ state LinearDependencyAnalysisVisitor = ASTVisitor with GraphOutput with Transit
 				}
 			};
 		});
+
+		// TODO:  Handle environment.
 
 		updateDependencies(astNode, reads, writes);
 	}
