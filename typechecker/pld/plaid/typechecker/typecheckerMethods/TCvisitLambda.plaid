@@ -11,72 +11,138 @@ state TCvisitLambda {
 	//override var /*Option PermType*/ typedAs;
 	
 	override method visitLambda(node) {
-	//similar to methods
-		val lContext = this.context.copy(); //TODO: only take environment variables
+		//similar to methods
+		//val lContext = this.context.copy(); //TODO: only take environment variables
+		val lContext = new Context;
 		val ltype = node.lambdaType;
 		
+		// add argument types to the context
 		val /*List<ID>*/ args = node.arguments.map(fn (a) => a.copy());
 		val /*List<Pair<ID,ChangeType>>*/ argIDtypes = args.zip(ltype.argTypes); //zip to match IDs and types
 		argIDtypes.map(fn (p) => lContext.put(p.fst, getContextType(p.snd)));
 		
-		
-		//TODO: add environment variables
-		
-		//new typechecker for the lambda body
-		val lST = this.stateTable;
-		//lContext.printContext();
-		val lambdaChecker = typecheckerFactory(lContext, lST);
-		node.body.accept(lambdaChecker);
-		
-		//use return type to set actual return type of the lambda (no way to specify in syntax, so always dyn)
-		var /*Boolean*/ retCheck = false;
-		match (lambdaChecker.typedAs) {
-			case Some {
-				retCheck = true;
-				ltype.returnType = lambdaChecker.typedAs.value; //TODO: state change not working?
-			}
-			case None {
-				//java.lang.System.out.println("TYPECHECK FAILED: typecheck of body failed");
-				val msg = "lambda body did not typecheck";
-				typeError(node, msg, false);
-			}
-			default {
-				java.lang.System.out.println(lambdaChecker.typedAs);
+		// add environment variable types to the context
+		// also verify that they are present //TODO: what is the necessary condition for this?
+		val envVarTypes = ltype.environmentTypes;
+		val envVarIter = envVarTypes.keySet().iterator();
+		val /*boolean*/ envVarsOk = true;
+		while { envVarsOk && envVarIter.hasNext() } {
+			val /*ID*/ envVar = envVarIter.next().copy();
+			ifElse (this.context.containsKey(envVar)) { //for now just need it to be there
+				lContext.put(envVar, envVarTypes.get(envVar).input);
+			} {  //if not, error
+				envVarsOk = false;
+				val msg = "bound variable " + envVar.name + " not in scope";
+				typeError(node, msg, true);
 			}
 		};
 		
-		//check that arg output types match - equivalent to typed in the context
-		//resulted by the method typing, with receiver pulled out
-		var /*Boolean*/ argCheck = argIDtypes.foldr(fn (p,v) => {
-			p.fst.accept(lambdaChecker);
-			match ( lambdaChecker.typedAs) {
-				case Some {
-					val /*Boolean*/ newArg = lambdaChecker.typedAs.value.isSubPermTypeOf(p.snd.output, this.stateTable);
-					if (!newArg) { 
-						val msg = "arg Output type wrong";
+		//add recursive name for function if it exists
+		val /*Boolean*/ recName = true;
+		match(node.recursiveName) {
+			case Some {
+				val /*Option PermType*/ recursiveType = this.context.getOption(node.recursiveName.value);
+				match (recursiveType) {
+					case Some {
+						lContext.put(node.recursiveName.value, recursiveType.value)
+					}
+					case None {
+						val msg = "recursive function ID " + node.recursiveName.value.name + " not found in the context";
 						typeError(node, msg, true);
-						java.lang.System.out.println("TYPECHECK FAILED: " + msg);
-					};
-					ifElse (v) 
-						{ newArg }
-						{ false };
-				}
-				case None {
-					//error elsewhere
-					false;
+						recName = false;
+					}
 				}
 			}
-		}, true);
+			case None { }
+		};
 		
-		ifElse (retCheck && argCheck) {
-			this.typedAs = createSome(new PermType {
-					val perm = new ImmutablePermission;
-					val type = ltype;
-					val borrowed = false;
-				} 
-			);
+		ifElse (envVarsOk && recName) {
+			//new typechecker for the lambda body
+			val lST = this.stateTable;
+			//lContext.printContext();
+			val lambdaChecker = typecheckerFactory(lContext, lST);
+			lContext.printContext();
+			
+			node.body.accept(lambdaChecker);
+			
+			//use return type to set actual return type of the lambda (no way to specify in syntax, so always dyn)
+			var /*Boolean*/ retCheck = false;
+			match (lambdaChecker.typedAs) {
+				case Some {
+					retCheck = true;
+					ltype.returnType = lambdaChecker.typedAs.value; //TODO: state change not working?
+				}
+				case None {
+					//java.lang.System.out.println("TYPECHECK FAILED: typecheck of body failed");
+					val msg = "lambda body did not typecheck";
+					typeError(node, msg, false);
+				}
+				default {
+					java.lang.System.out.println(lambdaChecker.typedAs);
+				}
+			};
+			
+			//check that arg output types match - equivalent to typed in the context
+			//resulted by the method typing, with receiver pulled out
+			var /*Boolean*/ argCheck = argIDtypes.foldr(fn (p,v) => {
+				p.fst.accept(lambdaChecker);
+				match ( lambdaChecker.typedAs) {
+					case Some {
+						val /*Boolean*/ newArg = lambdaChecker.typedAs.value.isSubPermTypeOf(p.snd.output, this.stateTable);
+						if (!newArg) { 
+							val msg = "arg " + p.fst.name + " Output type wrong";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+						};
+						ifElse (v) 
+							{ newArg }
+							{ false };
+					}
+					case None {
+						val msg = "argument " + p.fst.name + " did not typecheck after the lambda body";
+						typeError(node, msg, false);
+						false;
+					}
+				}
+			}, true);
+			
+			var /*Boolean*/ envVarCheck = true;
+			val envVarEndIterator = envVarTypes.keySet().iterator();
+			while { envVarCheck && envVarEndIterator.hasNext() } {
+				val /*ID*/ envVar = envVarEndIterator.next().copy();
+				envVar.accept(lambdaChecker);
+				match (lambdaChecker.typedAs) {
+					case Some {
+						val /*Boolean*/ newEVtype = lambdaChecker.typedAs.value.isSubPermTypeOf(envVarTypes.get(envVar).output, this.stateTable);
+						if (!newEVtype) { 
+							envVarCheck = false;
+							val msg = "envVar " + envVar.name + " Output type wrong";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+						};
+					}
+					case None {
+						envVarCheck = false;
+						val msg = "envVar " + envVar.name + " did not typecheck after the lambda body";
+						typeError(node, msg, false);
+						
+					}
+				}
+			};
+			
+			ifElse (retCheck && argCheck && envVarCheck) {
+				this.typedAs = createSome(new PermType {
+						val perm = new ImmutablePermission;
+						val type = ltype;
+						val borrowed = false;
+					} 
+				);
+			} {
+				this.typedAs = NONE;
+			}
 		} {
-			this.typedAs = NONE;
-		}
+			this.typedAs = None;
+		};
+		
 	}
 }
