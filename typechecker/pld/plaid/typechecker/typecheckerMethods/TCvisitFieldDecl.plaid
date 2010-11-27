@@ -16,43 +16,39 @@ state TCvisitFieldDecl {
 			this.typedAs = new Some { val value = node.fieldType; }; 
 			java.lang.System.out.println("Abstract field " + node.f.name + " typechecked!");
 		} {
-			// field declarations should be typed in an empty context
-			//so type using a new empty context and then check
-			//for consistency with the declared type
+			//for lambdas, allow recursive references
+			match (node.e) {
+				case Lambda {
+					node.e.recursiveName = createSome(node.f.copy())
+				}
+				default { }
+			};
 			
+			// field declarations should be typed in the incoming context
 			val ftype = node.fieldType;
 			val fST = this.stateTable;
-			ifElse (node.abstractField) {
-				this.typedAs = new Some { val value = ftype; }  //abstact fields get declared type
-			} {
-				//val fieldChecker = typecheckerFactory(this.context.copy(), fST);  //TODO: This is wrong - when in a new instance, we should use the old context...
-				
-				//node.e.accept(fieldChecker); //typecheck the field initialization
-				node.e.accept(this);
-				
-				//match (fieldChecker.typedAs) {
-				match (this.typedAs) {
-					case Some {
-						//ifElse (fieldChecker.typedAs.value.isSubPermTypeOf(ftype.permType, this.stateTable) ) { 
-						ifElse (this.typedAs.value.isSubPermTypeOf(ftype.permType, this.stateTable) ) { 
-							this.typedAs = createSome(ftype); 
-							java.lang.System.out.println("field " + node.f.name + " typechecked!");
-						} { 
-							val msg = "initializer type wrong";
-							typeError(node,msg,true);
-							this.typedAs = NONE; 
-							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
-							
-						};
-					}
-					case None {
-						val msg = "typecheck of initializer failed";
-						typeError(node,msg,false);
-						this.typedAs = NONE;
-						//java.lang.System.out.println("TYPECHECK FAILED: ");
-					}	
+			node.e.accept(this);
+			
+			match (this.typedAs) {
+				case Some { 
+					ifElse (this.typedAs.value.isSubPermTypeOf(ftype.permType, this.stateTable) ) { 
+						this.typedAs = createSome(ftype); 
+						java.lang.System.out.println("field " + node.f.name + " typechecked!");
+					} { 
+						val msg = "initializer type wrong";
+						typeError(node,msg,true);
+						this.typedAs = NONE; 
+						java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+						
+					};
 				}
-			};	
+				case None {
+					val msg = "typecheck of initializer failed";
+					typeError(node,msg,false);
+					this.typedAs = NONE;
+					//java.lang.System.out.println("TYPECHECK FAILED: ");
+				}	
+			}
 		}	
 	}
 
