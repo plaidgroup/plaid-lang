@@ -64,7 +64,7 @@ public class FieldDecl implements Decl{
 	}
 
 	public FieldDecl(ID f, Expression e) {
-		this(null, f, e, false, true, new FieldType(f, PermType.DYN, true), false);
+		this(null, f, e, false, true, new FieldType(f, PermType.getDynPT(), true), false);
 	}
 	
 	public ID getF() {

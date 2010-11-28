@@ -43,7 +43,7 @@ public class LetBinding implements Expression {
 		this.exp = e1;
 		this.body = e2;
 		this.mutable = mutable;
-		this.permType = PermType.DYN;
+		this.permType = PermType.getDynPT();
 		this.annotated = false;
 	}
 	
