@@ -4,9 +4,22 @@ import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 
 public class PermType implements /*ASTnode,*/ JSONAware {
-	public static final PermType UNIT = new PermType(Permission.IMMUTABLE, Type.UNIT);
-	public static final PermType DYN = new PermType(Permission.DYN, Type.DYN);
-	public static final PermType VOID = new PermType(Permission.NONE, Type.UNIT);  //VOID = none unit
+	//public static final PermType UNIT = new PermType(Permission.IMMUTABLE, Type.UNIT);
+	public static PermType getUnitPT() {
+		return new PermType(Permission.IMMUTABLE, Type.UNIT);
+	}
+	
+	
+	//public static final PermType DYN = new PermType(Permission.DYN, Type.DYN);
+	public static PermType getDynPT() {
+		return new PermType(Permission.DYN, Type.DYN);
+	}
+	
+	//public static final PermType VOID = new PermType(Permission.NONE, Type.UNIT);  //VOID = none unit
+	public static PermType getVoidPT() {
+		return new PermType(Permission.NONE, Type.UNIT);
+	}
+	
 	// This is a marker to indicate that the permission and type of the receiver should remain unchanged
 	//public static final PermType RECEIVER = new PermType(Permission.RECEIVER, Type.RECEIVER);
 	
@@ -75,7 +88,8 @@ public class PermType implements /*ASTnode,*/ JSONAware {
 	
 	@Override
 	public String toString() {
-		return perm.toString() + " " + type.toString();
+		String b = borrowed ? " (b)" : "";
+		return perm.toString() + " " + type.toString() + b;
 		
 		
 	}

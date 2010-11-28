@@ -120,7 +120,7 @@ public class PlaidCoreParser
 				QI pairWith;
 				
 				for (int i = size - 1; i >= 0; i--){
-					fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldType(new ID("fst"), PermType.DYN, true), false);
+					fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldType(new ID("fst"), PermType.getDynPT(), true), false);
 					snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
 					pairFields = new ArrayList < Decl > ();
 					pairFields.add(fst);
@@ -355,13 +355,13 @@ PermType PermType() :
 }
 {	(	<DYN>
 	{
-	  	return PermType.DYN;	}
+	  	return PermType.getDynPT();	}
 | 	<UNIT>
 	{
-	  	return PermType.UNIT;	}
+	  	return PermType.getUnitPT();	}
 |	<VOID>
 	{
-		return PermType.VOID;
+		return PermType.getVoidPT();
 	}
 	//TODO: should this be moved up higher so you cannot write fn >> fn?
 |	l = LambdaType()
@@ -513,7 +513,7 @@ MethodType MethodType() :
 {
 		Token m;
 		ID methodName;
-		PermType returnType = PermType.DYN; //default return is dyn
+		PermType returnType = PermType.getDynPT(); //default return is dyn
 		List<ChangeType> argTypes = new ArrayList<ChangeType>();
 		ChangeType receiverType = ChangeType.DYN; //default receiver types are Dyn >> Dyn
 		Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
@@ -556,7 +556,7 @@ MethodType MethodType() :
 
 FieldType FieldType() :{
   	// there could be no type annotation
-  	PermType fieldPermType = PermType.DYN; //default is dyn
+  	PermType fieldPermType = PermType.getDynPT(); //default is dyn
   	Token fieldNameToken;
   	boolean immutable = true;
 }{
@@ -637,7 +637,7 @@ Decl DeclState() :
 Decl DeclField() :
 {
 		Token idToken;
-		PermType permType = PermType.DYN;
+		PermType permType = PermType.getDynPT();
 		Expression e;
 		FieldDecl d;
 		ID name;
@@ -681,7 +681,7 @@ Decl DeclMethod() :
 		Token m;
 		boolean override = false;
 		ID methodName;
-		PermType returnType = PermType.DYN; //default return is dyn
+		PermType returnType = PermType.getDynPT(); //default return is dyn
 		List<Arg> argList = new ArrayList<Arg>();
 		List<ChangeType> argTypes = new ArrayList<ChangeType>();
 		List<ID> argNames = new ArrayList<ID>();
@@ -691,6 +691,7 @@ Decl DeclMethod() :
 		Token envVar;
 		MethodType mType;
 		ID argID = null;
+		ID envID = null;
 		Expression e = null;
 		MethodDecl d;
 		
@@ -709,9 +710,14 @@ Decl DeclMethod() :
 				(LOOKAHEAD(ChangeType() [<THIS>] (<COMMA> | <RBRACK> )) //'this' must be first, either w/o var or with <this>
 					receiverType = ChangeType() [<THIS>]
 					| envType = ChangeType() envVar = <ID>
-						{
-					 		env.put(new ID(envVar,envVar.image), envType);
-					 	}
+						{ 
+							envID = new ID(envVar, envVar.image);
+							if (env.containsKey(envID)) {
+								throw new ParseException("duplicate environment variable " + envID.getName());
+							} else {
+								env.put(envID, envType);
+							} 
+						}
 				)
 				( //some number of environments
 					<COMMA> envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
@@ -724,7 +730,15 @@ Decl DeclMethod() :
 				//transform ArgList into a list of ChangeTypes and a list of Names
 				for (Arg a : argList) {
 					argTypes.add(a.getChangeType());
-					argNames.add(a.getArg());
+					
+					argID = a.getArg();
+					if (argNames.contains(argID)) {
+						throw new ParseException("duplicate arg name " + argID.getName() + " in method " + methodName.getName());
+					} else if (env.containsKey(argID)) {
+						throw new ParseException("arg and environment variable share the name " + argID.getName() + " in method " + methodName.getName());
+					} else {
+						argNames.add(a.getArg());
+					}
 				}
 			}
 			mType = new MethodType(methodName, returnType, argTypes, receiverType, env);
@@ -856,7 +870,7 @@ Expression BlockExpression(boolean isExp) :
 		<LBRACE> [ e = StmtListSemi() ] <RBRACE>
 		{
 				if (isExp) {					List<PermType> permTypes = new ArrayList<PermType>();
-					permTypes.add(PermType.UNIT);
+					permTypes.add(PermType.getUnitPT());
 					ID varID = IdGen.getId();
 					List<ID> argNames = new ArrayList<ID>();
 					argNames.add(varID);
@@ -1211,7 +1225,7 @@ Expression LocalVarDecl() :
 		Arg var;
 		boolean mutable = false; //TODO - this should be the same as for fields, or mutable turned into objects with fields, actually
 		Expression e;
-		PermType permType = PermType.DYN; //declarations are always implicitly annotated with DYN
+		PermType permType = PermType.getDynPT(); //declarations are always implicitly annotated with DYN
 }
 {
 		(
@@ -1487,6 +1501,7 @@ Expression Function() :
 		Expression body;
 		// might not have any args, so unit would be the arg
 		ID argID = null;
+		ID envID = null;
 
 		Map<ID, ChangeType> env = new HashMap<ID, ChangeType>();
 		LambdaType lType;
@@ -1499,7 +1514,15 @@ Expression Function() :
 		[<LBRACK> 
 			envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
 			( //some number of environments
-			<COMMA> envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
+			<COMMA> envType = ChangeType() envVar = <ID> 
+				{ 
+					envID = new ID(envVar, envVar.image);
+					if (env.containsKey(envID)) {
+						throw new ParseException("duplicate environment variable " + envID.getName());
+					} else {
+						env.put(envID, envType);
+					} 
+				}
 			)*
 		<RBRACK>]
 		<DARROW>
@@ -1513,11 +1536,19 @@ Expression Function() :
 				//transform ArgList into a list of ChangeTypes and a list of Names
 				for (Arg a : argList) {
 					argTypes.add(a.getChangeType());
-					argNames.add(a.getArg());
+					
+					argID = a.getArg();
+					if (argNames.contains(argID)) {
+						throw new ParseException("duplicate arg name " + argID.getName() + " in function");
+					} else if (env.containsKey(argID)) {
+						throw new ParseException("arg and environment variable share the name " + argID.getName() + " in function");
+					} else {
+						argNames.add(a.getArg());
+					}
 				}
 			}
 			
-			lType = new LambdaType(t, argTypes, env, PermType.DYN); //Default to Dyn as return TODO: better inference handling
+			lType = new LambdaType(t, argTypes, env, PermType.getDynPT()); //Default to Dyn as return TODO: better inference handling
 			
 			
 //			if (argNames.size() == 1) {

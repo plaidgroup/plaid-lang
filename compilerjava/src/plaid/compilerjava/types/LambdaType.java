@@ -12,7 +12,7 @@ import plaid.compilerjava.coreparser.Token;
 public class LambdaType implements Type {
 	
 	public static final LambdaType DEFAULTLAMBDATYPE = 
-		new LambdaType(null, ChangeType.DYN, new HashMap<ID,ChangeType>(), PermType.DYN);
+		new LambdaType(null, ChangeType.DYN, new HashMap<ID,ChangeType>(), PermType.getDynPT());
 	
 	private final Token t;
 	private final List<ChangeType> argTypes;
