@@ -1,0 +1,83 @@
+package plaid.typechecker;
+
+import plaid.ast.ASTTranslator;
+import plaid.ast.types.*;
+
+state PackageRepTranslator {
+	val stateTable;
+	val astTranslator = new ASTTranslator;
+	
+	method translateState(rep) {
+		match (rep) {
+			case plaid.compilerjava.util.FieldRep {
+				val type = rep.getType();
+				
+				new FieldType {
+					val /*ID*/ name = rep.getName();
+					val /*PermType*/ permType = astTranslator.translateType(type.getPermType());
+					val /*Boolean*/ isImmutable = type.isImmutable();
+				};
+			}
+
+			case plaid.compilerjava.util.MethodRep {
+				val type = rep.getType();
+				
+				new MethodType {
+					val /*ID*/ name = rep.getName();
+					val /*PermType*/ returnType = astTranslator.translateType(type.getReturnType());
+					val /*List<ChangeType>*/ argTypes = astTranslator.map(astTranslator.translateType, type.getArgTypes());
+					val /*ChangeType*/ receiverType = astTranslator.translateType(type.getReceiverType());
+					val /*Map<ID,ChangeType>*/ environmentTypes = astTranslator.translateMap(astTranslator.translateAST, astTranslator.translateType, type.getEnvironmentTypes());
+				};
+			}
+
+			case plaid.compilerjava.util.StateRep {
+				val stateType = new StateType {
+					val /*Option StateType*/ superType = new None; // TODO:  How to fill this in?  rep.needs is a list of strings?!
+					val /*ID*/ name = rep.getName();
+				};
+				
+				val it = rep.getMembers().iterator();
+				while { it.hasNext(); } {
+					val declType = this.translateState(it.next());
+					// TODO:  This needs to account for abstract fields.
+					stateType.declaredTypes.put(declType.getName(), declType);
+					stateType.providedTypes.put(declType.getName(), declType); 
+				};
+				
+				this.stateTable.put(rep.getName(), stateType);
+				
+				stateType;
+			}
+
+			default {
+				java.lang.System.err.println("Error while translating StateRep to state table entry.");
+			}
+		};
+	}
+	
+	method translate(rep) {
+		match (rep) {
+			case plaid.compilerjava.util.FieldRep {
+				// Global variable, ignore. 
+			}
+
+			case plaid.compilerjava.util.MethodRep {
+				// Global method, ignore.
+			}
+
+			case plaid.compilerjava.util.StateRep {
+				this.translateState(rep);
+			}
+
+			case plaid.compilerjava.util.PackageRep {
+				val it = rep.getPackageMembers().iterator();
+				while { it.hasNext(); } {
+					this.translate(it.next());
+				};
+
+				// TODO:  Also get nested packages?
+			}
+		};
+	}
+}
