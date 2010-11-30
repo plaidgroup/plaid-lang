@@ -31,6 +31,10 @@ public class PackageRep {
 		return Collections.unmodifiableList(packageMembers);
 	}
 	
+	public List<PackageRep> getNestedPackages() {
+		return Collections.unmodifiableList(nestedPackages);
+	}
+	
 	public boolean packageExists(String path) {
 		PackageRep p = findPackage(path);
 		if (p == null) return false;
