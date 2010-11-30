@@ -53,6 +53,10 @@ public class MethodRep extends MemberRep {
 	public MethodType getType() {
 		return this.type;
 	}
+	
+	public boolean hasType() {
+		return this.type != null;
+	}
 
 	public static MethodRep parseJSONObject(JSONObject obj) {
 		if (!obj.get("member_type").equals("method")) {

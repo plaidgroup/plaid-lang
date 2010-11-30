@@ -52,6 +52,10 @@ public class FieldRep extends MemberRep {
 	public FieldType getType() {
 		return this.type;
 	}
+	
+	public boolean hasType() {
+		return this.type != null;
+	}
 
 	public static FieldRep parseJSONObject(JSONObject obj) {
 		if (!obj.get("member_type").equals("field")) {

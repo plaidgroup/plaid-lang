@@ -248,28 +248,7 @@ public class CompilerCore {
 		}
 	}
 	
-	public List<CompilationUnit> compile() throws Exception {
-		if (cc.getInputFiles().size() > 0 && !cc.getInputDir().isEmpty())
-			throw new RuntimeException("Cannot compile a directory and input files"); //TODO: throw PlaidCompilerException
-
-		if (!cc.getInputDir().isEmpty())
-			convertInputDirToInputFiles(new File(cc.getInputDir()));
-
-		if (cc.isVerbose())
-			System.out.println("Compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir() + ".");
-
-		// open the file(s)
-		List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
-		for (File f : cc.getInputFiles()) {
-			if (cc.isVerbose())
-				System.out.println("Parsing '" + f.getName() + "'.");
-
-			CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
-			cu.setSourceFile(f);
-			cus.add(cu);
-			fileSystemChecks(cu, f.toString());
-		}
-
+	public PackageRep buildPlaidPath(List<CompilationUnit> cus) throws Exception {
 		//Build up a representation of plaidpath
 		PackageRep plaidpath = new PackageRep("$TOPLEVEL$");
 		Stack<File> directoryWorklist = new Stack<File>();
@@ -337,6 +316,33 @@ public class CompilerCore {
 			s.setNeeds(newNeeds);  //replace old needs with the new needs
 			if (s.hasNeeds()) dependants.add(s);
 		}
+		
+		return plaidpath;
+	}
+	
+	public List<CompilationUnit> compile() throws Exception {
+		if (cc.getInputFiles().size() > 0 && !cc.getInputDir().isEmpty())
+			throw new RuntimeException("Cannot compile a directory and input files"); //TODO: throw PlaidCompilerException
+
+		if (!cc.getInputDir().isEmpty())
+			convertInputDirToInputFiles(new File(cc.getInputDir()));
+
+		if (cc.isVerbose())
+			System.out.println("Compiling " + cc.getInputFiles().size() + " files to " + cc.getOutputDir() + ".");
+
+		// open the file(s)
+		List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
+		for (File f : cc.getInputFiles()) {
+			if (cc.isVerbose())
+				System.out.println("Parsing '" + f.getName() + "'.");
+
+			CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
+			cu.setSourceFile(f);
+			cus.add(cu);
+			fileSystemChecks(cu, f.toString());
+		}
+
+		PackageRep plaidpath = buildPlaidPath(cus);
 
 		// create the output files
 		generateCode(cus, plaidpath);
