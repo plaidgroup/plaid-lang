@@ -1,0 +1,118 @@
+package plaid.typechecker.typecheckerMethods;
+
+state TCvisitAssignment {
+	override method visitAssignment(node) {
+		match (node.target) {
+			case Some {
+				match (node.target.value) {
+					case ID {
+						val /*Option PermType*/ targetTypeOpt = this.context.getOption(node.target.value);
+						match (targetTypeOpt) {
+							case Some {
+								ifElse (targetTypeOpt.value.perm.isWritable()) {
+									val /*Type*/ targetObjType = targetTypeOpt.value.type;
+									match (targetObjType) {
+										case NominalType {
+											val /*Option StateType*/ targetSTopt = this.stateTable.get(targetObjType.typeName);
+											match(targetSTopt) {
+												case Some {
+													val /*Option TypeDecl*/ fieldTypeOpt = targetSTopt.value.declaredTypeOf(node.field);
+													match (fieldTypeOpt) {
+														case Some{
+															match (fieldTypeOpt.value) {
+																case FieldType {
+																	val neededType = fieldTypeOpt.value.permType;
+																	ifElse (targetObjType.missing.containsKey(node.field)) {
+																		//unpacked and assigning to this field - try to pack afterwards
+																		this.synthesizeType = createSome(neededType);
+																		node.value.accept(this); //type the value trying to get the needed type
+																		this.synthesizeType = NONE;
+																		match (this.typedAs) {
+																			case Some {
+																				//success - try to repack object and return void
+																				targetObjType.return(node.field, neededType, this.stateTable);
+																				ifElse(targetObjType.unpacked) {
+																					java.lang.System.out.println("field write success " + node.target.value.name + " is still unpacked ");
+																				} {
+																					java.lang.System.out.println("field write success " + node.target.value.name + " is now packed");
+																				};
+																				this.typedAs = createSome(VOID);
+																			}
+																			case None {
+																				val msg = "mismatched type for field assigment";
+																				typeError(node,msg,false);
+																				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+																				this.typedAs = NONE;
+																			}
+																		}	
+																	} {
+																		val msg = "implement field writes to packed objects!";
+																		typeError(node,msg,true);
+																		java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+																		this.typedAs = NONE;
+																	}
+																}
+																default {
+																	val msg = node.field.name + " is not a field in type " + targetObjType.typeName.name;
+																	typeError(node,msg, true);
+																	java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+																	this.typedAs = NONE;
+																}
+															}	
+														}
+														case None {
+															val msg = "type " + targetObjType.typeName.name + " does not have field " + node.field.name;
+															typeError(node,msg, true);
+															java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+															this.typedAs = NONE;
+														}
+													}
+												}
+												case None {
+													val msg = "type " + targetObjType.typeName.name + " not defined";
+													typeError(node,msg, true);
+													java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+													this.typedAs = NONE;
+												}
+											}
+										}
+										default {
+											val msg = "only nominal types supported";
+											typeError(node,msg, true);
+											java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+											this.typedAs = NONE;
+										}
+									}
+								} {
+									val msg = targetTypeOpt.value.perm.toString() + " does not allow assignment to fields";
+									typeError(node,msg, true);
+									java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+									this.typedAs = NONE;
+								}
+							}
+							case None {
+								val msg = "target not in context";
+								typeError(node,msg, true);
+								java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+								this.typedAs = NONE;
+							}
+						}
+					}
+					default {
+						val msg = "assignment not in let normal form";
+						typeError(node,msg, true);
+						java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+						this.typedAs = NONE;
+					}
+				}
+			}
+			case None {
+				val msg = "implement assignment to local variables!";
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+				this.typedAs = NONE;
+			}
+		}
+		
+		
+	}
+}
