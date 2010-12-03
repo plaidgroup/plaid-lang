@@ -1,13 +1,16 @@
 package plaid.codegen;
 
+import plaid.ast.visitor.ASTViewer;
 import plaid.ast.*;
 import plaid.typechecker.*;
+import plaid.typechecker.typecheckerMethods.*;
 
 method main() {
-	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/stateTest/package.plaid")));
+	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/simplePermClash/package.plaid")));
 	val translator = new ASTTranslator;
 	val plaidAST = translator.translateAST(javaAST);
-
+	val stTranslator = new StateTableBuilderVisitor;
+	plaidAST.accept(stTranslator);
 	val stateTable = new StateTable {
 		override val states = java.util.HashMap.new();
 	};
@@ -25,23 +28,20 @@ method main() {
 	cus.add(javaAST);
 	val packageRep = core.buildPlaidPath(cus);
 	
+	//plaidAST.accept(new ASTViewer);
 	tr.translate(packageRep);
+	java.lang.System.out.println("Printing state table:");
+	stateTable.printTable();
 	
-//	java.lang.System.out.println("Printing state table:");
-//	stateTable.printTable();
-
-/*
-	val x = stateTable.get("Integer");
-	match (x) {
-		case Some {
-			java.lang.System.out.println("Got some");
-			java.lang.System.out.println(x.value.name.name);
-		}
-		
-		case None {
-			java.lang.System.out.println("Got none");
-		}
-	};
-*/	
+    // Bring AST to let normal form.
+	plaidAST.accept(new LetNormalFormVisitor);
+	
+	// Run the type checking visitor.
+	plaidAST.accept(typecheckerFactory(stTranslator.initialContext, stateTable));
+	
+	java.lang.System.out.println("----------------");
+	java.lang.System.out.println();
+	plaidAST.accept(new TypecheckOutputVisitor);
+	
 	plaidAST.accept(new CodeGenVisitor { val stateTable = stateTable; });
 }
