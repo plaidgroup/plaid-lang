@@ -1,0 +1,47 @@
+package plaid.codegen;
+
+import plaid.ast.*;
+import plaid.typechecker.*;
+
+method main() {
+	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/stateTest/package.plaid")));
+	val translator = new ASTTranslator;
+	val plaidAST = translator.translateAST(javaAST);
+
+	val stateTable = new StateTable {
+		override val states = java.util.HashMap.new();
+	};
+	val tr = new PackageRepTranslator {
+		val stateTable = stateTable;
+	};
+	
+	val userDir = java.lang.System.getProperty("user.dir");
+
+	val cc = plaid.compilerjava.CompilerConfiguration.new();
+	cc.addToPlaidPath(userDir + "/bin/");
+	cc.addToPlaidPath(userDir + "/../stdlib/bin/");
+	val core = plaid.compilerjava.CompilerCore.new(cc);
+	val cus = java.util.ArrayList.new();
+	cus.add(javaAST);
+	val packageRep = core.buildPlaidPath(cus);
+	
+	tr.translate(packageRep);
+	
+//	java.lang.System.out.println("Printing state table:");
+//	stateTable.printTable();
+
+/*
+	val x = stateTable.get("Integer");
+	match (x) {
+		case Some {
+			java.lang.System.out.println("Got some");
+			java.lang.System.out.println(x.value.name.name);
+		}
+		
+		case None {
+			java.lang.System.out.println("Got none");
+		}
+	};
+*/	
+	plaidAST.accept(new CodeGenVisitor { val stateTable = stateTable; });
+}
