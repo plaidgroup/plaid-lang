@@ -148,7 +148,7 @@ public final class MethodDecl implements Decl {
 			argID = arguments.get(0);
 		} else {
 			argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
-			if (!abstractMethod) body = plaid.compilerjava.coreparser.PlaidCoreParser.getBodyWithPairExtractions(arguments, argID, 1, body);
+			if (!abstractMethod) body = RewriteUtil.getBodyWithPairExtractions(arguments, argID, 1, body);
 		}
 		
 		if (newName.equals("main") && !hasArg()) {
@@ -194,7 +194,7 @@ public final class MethodDecl implements Decl {
 			argID = arguments.get(0);
 		} else {
 			argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
-			if (!abstractMethod) body = plaid.compilerjava.coreparser.PlaidCoreParser.getBodyWithPairExtractions(arguments, argID, 1, body);
+			if (!abstractMethod) body = RewriteUtil.getBodyWithPairExtractions(arguments, argID, 1, body);
 		}
 		
 		IDList newLocalVars = localVars.add(argID);

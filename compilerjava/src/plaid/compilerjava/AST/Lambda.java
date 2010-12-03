@@ -126,7 +126,7 @@ public final class Lambda implements Expression {
 			argID = arguments.get(0);
 		} else {
 			argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
-			body = plaid.compilerjava.coreparser.PlaidCoreParser.getBodyWithPairExtractions(arguments, argID, 1, body);
+			body = RewriteUtil.getBodyWithPairExtractions(arguments, argID, 1, body);
 		}
 		
 		out.assignToNewLambda(y.getName(),argID.getName());  //y = new lambda(...{ {
