@@ -1,5 +1,7 @@
 package plaid.codegen.fragments;
 
+import plaid.ast.types.*;
+
 state StateDeclFragment {
 	method handleTopLevelStateDecl(node) {
 		var freshImports = this.idgen.getId();
@@ -21,13 +23,39 @@ state StateDeclFragment {
 		val obj = java.util.HashMap.new();
 		obj.put("member_type", "state");
 		obj.put("name", node.name.name);
-		val /*Option StateType*/ stateType = this.stateTable.get(node.name);
+		val /*Option StateType*/ stateType = this.stateTable.get(node.name.name);
 		match (stateType) {
 			case Some {
-				val it = stateType.value.declaredMembers.keySet().iterator();
+				val it = stateType.value.declaredTypes.entrySet().iterator();
+				val memberList = java.util.ArrayList.new();
+				
 				while { it.hasNext(); } {
-					obj.put("members", it.next().name);
+					val entry = it.next();
+					
+					// TODO: Move this toJsonString conversion to FieldType/MethodType eventually.
+					match (entry.getValue()) {
+						case FieldType {
+							val f = java.util.HashMap.new();
+							f.put("member_type", "field");
+							f.put("name", entry.getKey());
+							
+							memberList.add(f);
+						}
+						
+						case MethodType {
+							val m = java.util.HashMap.new();
+							m.put("member_type", "method");
+							m.put("name", entry.getKey());
+							
+							memberList.add(m);
+						}
+						
+						default {
+						}
+					};
 				};
+				
+				obj.put("members", memberList);
 			}
 			
 			case None {
