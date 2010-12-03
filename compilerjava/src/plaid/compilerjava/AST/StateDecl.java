@@ -284,19 +284,13 @@ public class StateDecl implements Decl {
 		
 	}
 
-	//TODO : when will this codegen be called?
+	/**
+	 * This is called for nested state declarations which are mentioned in the
+	 * language spec but currently not supported.
+	 */
 	@Override
 	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
-
-		out.setLocation(token);
-		
-		ID fresh = IdGen.getId();
-		out.stateAnnotation(name.getName()); //TODO : figure out how nested states work
-		out.declareFinalVar(CodeGen.plaidObjectType, fresh.getName());
-		stateDef.codegenState(out, fresh, localVars, stateVars, stateContext + "." + name.getName());  //TODO : stateContext here may not be right...
-
-		// TODO: State decls are immutable by default
-		out.addMember(y.getName(), name.getName(), fresh.getName()); //y.addMember(s,fresh)
+		throw new RuntimeException("Nested states are not supported yet.");
 	}
 
 	@Override

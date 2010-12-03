@@ -46,10 +46,57 @@ state FieldDeclFragment {
 			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
 	}
 	
+	method handleNestedFieldDecl(node) {
+		java.lang.System.out.println("Handling nested field decl");
+
+		this.setLocation(node.token);
+		
+		val /*ID*/ fresh1 = this.idgen.getId();
+		val /*ID*/ freshFieldName = this.idgen.getId();
+		val /*ID*/ x = this.idgen.getId();
+		
+		// @representsField(... toplevel = false)
+		this.out.fieldAnnotation(node.f.name);
+		this.out.declareFinalVar(this.jCodeGen.plaidObjectType, freshFieldName.name);
+		
+		val /*ID*/ y = this.y;
+		
+		ifElse (node.abstractField) {
+			this.y = freshFieldName;
+			node.e.accept(this);
+		} {
+			// freshFieldName = new protoField... {
+			this.out.assignToProtoField(freshFieldName.name, x.name);
+			
+			// protofield body
+			this.out.declareFinalVar(this.jCodeGen.plaidObjectType, fresh1.name);
+			this.y = fresh1;
+			// field initializer code
+			node.e.accept(this);
+			this.out.ret(fresh1.name);
+			this.out.closeAnonymousDeclaration();
+		};
+		
+		this.y = y;
+		
+		// define the PlaidMemberDef
+		val /*ID*/ memberDef = this.idgen.getId();
+		this.out.declareFinalVar(this.jCodeGen.plaidMemberDefType, memberDef.name);
+		
+		// TODO:  Do this right.
+		var stateContext = this.packageName.foldr(fn (x, y) => x + "." + y, "");
+		stateContext = stateContext.substring(0, stateContext.length() - 1);
+		
+		this.out.assignToNewMemberDef(memberDef.name, node.f.name, stateContext, !node.immutableField, false);
+		this.out.addMember(this.y.name, memberDef.name, freshFieldName.name);
+	}
+		
 	method visitFieldDecl(node) {
-		if (this.top) {
+		ifElse (this.top) {
 			this.top = false;
 			this.handleTopLevelFieldDecl(node);
+		} {
+			this.handleNestedFieldDecl(node);
 		};
 	}
 }

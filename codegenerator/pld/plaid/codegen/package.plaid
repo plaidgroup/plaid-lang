@@ -6,36 +6,42 @@ import plaid.typechecker.*;
 import plaid.typechecker.typecheckerMethods.*;
 
 method main() {
-	java.lang.System.out.println("1");
 	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/simplePermClash/package.plaid")));
-	java.lang.System.out.println("2");
 	val translator = new ASTTranslator;
-	java.lang.System.out.println("3");
 	val plaidAST = translator.translateAST(javaAST);
-	java.lang.System.out.println("4");
 	val stTranslator = new StateTableBuilderVisitor;
-	java.lang.System.out.println("5");
 	plaidAST.accept(stTranslator);
-	java.lang.System.out.println("6");
-	stTranslator.stateTable.printTable();
-	java.lang.System.out.println("7");
-	stTranslator.initialContext.printContext();
-	java.lang.System.out.println("8");
+	val stateTable = new StateTable {
+		override val states = java.util.HashMap.new();
+	};
+	val tr = new PackageRepTranslator {
+		val stateTable = stateTable;
+	};
 	
-	// Bring AST to let normal form.
-	plaidAST.accept(new LetNormalFormVisitor);
-	java.lang.System.out.println("9");
+	val userDir = java.lang.System.getProperty("user.dir");
+
+	val cc = plaid.compilerjava.CompilerConfiguration.new();
+	cc.addToPlaidPath(userDir + "/bin/");
+	cc.addToPlaidPath(userDir + "/../stdlib/bin/");
+	val core = plaid.compilerjava.CompilerCore.new(cc);
+	val cus = java.util.ArrayList.new();
+	cus.add(javaAST);
+	val packageRep = core.buildPlaidPath(cus);
 	
 	//plaidAST.accept(new ASTViewer);
-	java.lang.System.out.println("10");
+	tr.translate(packageRep);
+	java.lang.System.out.println("Printing state table:");
+	stateTable.printTable();
+	
+    // Bring AST to let normal form.
+	plaidAST.accept(new LetNormalFormVisitor);
 	
 	// Run the type checking visitor.
-	plaidAST.accept(typecheckerFactory(stTranslator.initialContext, stTranslator.stateTable));
-	java.lang.System.out.println("11");
+	plaidAST.accept(typecheckerFactory(stTranslator.initialContext, stateTable));
 	
 	java.lang.System.out.println("----------------");
 	java.lang.System.out.println();
 	plaidAST.accept(new TypecheckOutputVisitor);
 	
-	plaidAST.accept(new CodeGenVisitor);
+	plaidAST.accept(new CodeGenVisitor { val stateTable = stateTable; });
 }
