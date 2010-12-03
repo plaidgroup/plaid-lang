@@ -340,7 +340,7 @@ public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeCon
 		triggerVariableUpdate(new PlaidRuntimeVariableUpdateEvent(this, name, o));
 		checkRuntimeState();
 	}
-
+		
 	public static PlaidRuntime getRuntime() {
 		// Double-checked locking is safe because runtime is declared volatile
 		if (runtime == null) {

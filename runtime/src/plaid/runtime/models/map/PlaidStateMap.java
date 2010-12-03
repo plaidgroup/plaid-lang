@@ -38,6 +38,8 @@ import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsState;
 import plaid.runtime.annotations.RepresentsTag;
+import plaid.runtime.types.PlaidPermission;
+import plaid.runtime.types.PlaidUniquePermission;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
@@ -228,12 +230,12 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 
 	@Override
- 	public PlaidObject instantiate(PlaidObject ...args) throws PlaidException {
+ 	public PlaidObject instantiate(PlaidPermission initPerm, PlaidObject ...args) throws PlaidException {
 		if (args.length != 0) {
 			throw new PlaidInvalidArgumentException("Cannot instantiate PlaidState with arguments");
 		}
 		if (psa != null && psa.javaobject()) {
-			return initialize(new PlaidJavaObjectMap());
+			return initialize(new PlaidJavaObjectMap(initPerm, null));
 		} 
 		if (psa != null && psa.stateobject()) {
 			PlaidStateMap psm = (PlaidStateMap) initialize(new PlaidStateMap());
@@ -244,8 +246,13 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 			return psm;
 		} 
 		else {
-			return initialize(new PlaidObjectMap());
+			return initialize(new PlaidObjectMap(initPerm));
 		}
+	}
+	
+	@Override
+ 	public PlaidObject instantiate(PlaidObject ...args) throws PlaidException {
+		return this.instantiate(PlaidUniquePermission.unique(), args);
 	}
 
 	protected PlaidObject initialize(PlaidObjectMap pom) {

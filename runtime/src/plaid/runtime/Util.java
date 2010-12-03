@@ -25,6 +25,7 @@ import java.util.List;
 
 import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.models.map.PlaidStateMap;
+import plaid.runtime.types.PlaidImmutablePermission;
 import plaid.runtime.utils.Delegate;
 
 public class Util {
@@ -51,7 +52,7 @@ public class Util {
 
 	public static PlaidObject integer(Integer i) throws PlaidException {
 		PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
-		PlaidJavaObject value = (PlaidJavaObject)intState.instantiate();
+		PlaidJavaObject value = (PlaidJavaObject)intState.instantiate(PlaidImmutablePermission.immutable());
 		value.setJavaObject(i);
 		return value;
 	}
