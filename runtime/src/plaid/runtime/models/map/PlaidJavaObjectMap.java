@@ -32,6 +32,7 @@ import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
+import plaid.runtime.types.PlaidPermission;
 
 public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObject {
 	private Object value;
@@ -41,6 +42,19 @@ public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJav
 	public PlaidJavaObjectMap(Object value) {
 		super();
 		setJavaObject(value);
+	}
+	
+	public PlaidJavaObjectMap(PlaidPermission initPerm, Object value) {
+		super(initPerm);
+		// We have to pass null if we want to be able to tell the difference between 
+		// passing an initPerm and using the initPerm as the object we want to wrap.
+		// This is done, for example, when constructing integer literals.
+		if (value == null) {
+			this.value = null;
+		}
+		else {
+			setJavaObject(value);
+		}
 	}
 	
 	public PlaidJavaObjectMap() {

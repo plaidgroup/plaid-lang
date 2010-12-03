@@ -19,6 +19,8 @@
 
 package plaid.runtime;
 
+import plaid.runtime.types.PlaidPermission;
+
 public interface PlaidState extends PlaidObject {
 	/**
 	 * Generate a new instance of this plaid object.
@@ -27,6 +29,14 @@ public interface PlaidState extends PlaidObject {
 	 * @throws PlaidException
 	 */
 	public PlaidObject instantiate(PlaidObject ...args) throws PlaidException;
+	
+	/**
+	 * Generate a new instance of this plaid object with the specified permission.
+	 * 
+	 * @return
+	 * @throws PlaidException
+	 */
+	public PlaidObject instantiate(PlaidPermission initPerm, PlaidObject ...args) throws PlaidException;
 	
 	/**
 	 * Combines the current plaid object with the plaid objects

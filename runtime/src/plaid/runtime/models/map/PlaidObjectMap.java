@@ -35,8 +35,14 @@ import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
+import plaid.runtime.types.PlaidPermissionTable;
+import plaid.runtime.types.PlaidPermissionTableMap;
+import plaid.runtime.types.PlaidPermission;
+import plaid.runtime.types.PlaidPermType;
+import plaid.runtime.types.PlaidUniquePermission;
 
 public class PlaidObjectMap implements PlaidObject {
+	protected PlaidPermissionTable permTable;
 	protected Collection<PlaidObject> states;
 	protected Map<PlaidMemberDef, PlaidObject> members;
 	protected Collection<PlaidTag> tags;
@@ -44,9 +50,31 @@ public class PlaidObjectMap implements PlaidObject {
 	protected boolean readonly = false;
 	
 	public PlaidObjectMap() {
-		states = new ArrayList<PlaidObject>();
-		members = new HashMap<PlaidMemberDef, PlaidObject>();
-		tags = new ArrayList<PlaidTag>();
+		this(new ArrayList<PlaidObject>(),
+			 new HashMap<PlaidMemberDef, PlaidObject>(),
+			 new ArrayList<PlaidTag>(),
+			 new PlaidPermissionTableMap(),
+			 PlaidUniquePermission.unique());
+	}
+	
+	public PlaidObjectMap(PlaidPermission initPerm) {
+		this(new ArrayList<PlaidObject>(),
+				 new HashMap<PlaidMemberDef, PlaidObject>(),
+				 new ArrayList<PlaidTag>(),
+				 new PlaidPermissionTableMap(),
+				 initPerm);
+	}
+	
+	private PlaidObjectMap(ArrayList<PlaidObject> states, 
+			HashMap<PlaidMemberDef, PlaidObject> members,
+			ArrayList<PlaidTag> tags,
+			PlaidPermissionTable permTable, 
+			PlaidPermission initPerm) {
+		this.states = states;
+		this.members = members;
+		this.tags = tags;
+		this.permTable = permTable;
+		initPerm.addPermission(this.permTable);
 	}
 
 	public void setReadOnly(boolean ro) {
@@ -451,5 +479,31 @@ public class PlaidObjectMap implements PlaidObject {
 		
 		// We need to find out if retval is a (Plaid) true
 		return retval.matchesTag("plaid.lang.True");
+	}
+
+	@Override
+	public void cast(PlaidPermType oldType, PlaidPermType newType) {
+		// TODO: lambda/method types
+		// TODO: make sure the actual type part is compatible
+		// make sure permission being cast to is compatible with all other existing aliases
+		PlaidPermission oldPerm = oldType.getPermission();
+		PlaidPermission newPerm = newType.getPermission();
+		permTable.execPermCast(oldPerm, newPerm);
+	}
+
+	@Override
+	public void split(PlaidPermType initialType, PlaidPermType neededType, PlaidPermType residueType) {
+		PlaidPermission initialPerm = initialType.getPermission();
+		PlaidPermission neededPerm = neededType.getPermission();
+		PlaidPermission residuePerm = residueType.getPermission();
+		permTable.execPermSplit(initialPerm, neededPerm, residuePerm);
+	}
+
+	@Override
+	public void join(PlaidPermType toJoinType1, PlaidPermType toJoinType2, PlaidPermType resultType) {
+		PlaidPermission toJoinPerm1 = toJoinType1.getPermission();
+		PlaidPermission toJoinPerm2 = toJoinType2.getPermission();
+		PlaidPermission resultPerm = resultType.getPermission();
+		permTable.execPermSplit(toJoinPerm1, toJoinPerm2, resultPerm);
 	}
 }

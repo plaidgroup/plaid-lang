@@ -22,6 +22,8 @@ package plaid.runtime;
 import java.util.Collection;
 import java.util.Map;
 
+import plaid.runtime.types.PlaidPermType;
+
 /**
  * The PlaidObject interface is n
  */
@@ -71,5 +73,30 @@ public interface PlaidObject {
 	public PlaidObject changeState(PlaidObject update) throws PlaidException;
 
 	public PlaidObject copy();
+	
+	/**
+	 * Implementation of dynamic cast.
+	 * 
+	 * @param type
+	 */
+	public void cast(PlaidPermType oldType, PlaidPermType newType);
+	
+	/**
+	 * Implementation of runtime permission splitting for use, e.g., before method calls.
+	 * 
+	 * @param t1
+	 * @param t2
+	 * @param t3
+	 */
+	public void split(PlaidPermType initialType, PlaidPermType neededType, PlaidPermType residue);
+	
+	/**
+	 * Implementation of runtime permission joining for use, e.g., after method calls.
+	 * 
+	 * @param t1
+	 * @param t2
+	 * @param t3
+	 */
+	public void join(PlaidPermType toJoin1, PlaidPermType toJoin2, PlaidPermType result);
 }
 
