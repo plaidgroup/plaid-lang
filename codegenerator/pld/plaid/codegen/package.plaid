@@ -1,0 +1,52 @@
+package plaid.codegen;
+
+import plaid.ast.visitor.ASTViewer;
+import plaid.ast.*;
+import plaid.typechecker.*;
+import plaid.typechecker.typecheckerMethods.*;
+
+method main() {
+	/**
+	 *  The problem is that the set of programs that typecheck doesn't
+	 *  completely match the set of programs that we can compile -- for
+	 *  example anything using Java classes will not typecheck but
+	 *  should compile just fine.
+	 */
+	val runTypechecker = true;
+
+
+	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/fibonacci/package.plaid")));
+	val translator = new ASTTranslator;
+	val plaidAST = translator.translateAST(javaAST);
+	val stTranslator = new StateTableBuilderVisitor;
+	plaidAST.accept(stTranslator);
+	val stateTable = new StateTable {
+		override val states = java.util.HashMap.new();
+	};
+	val tr = new PackageRepTranslator {
+		val stateTable = stateTable;
+	};
+	
+	val userDir = java.lang.System.getProperty("user.dir");
+	val plaidPath = makeEmptyList();
+	plaidPath.add(userDir + "/bin/");
+	plaidPath.add(userDir + "/../stdlib/bin/");
+	val packageRep = tr.buildPackageRep(javaAST, plaidPath);
+	tr.translate(packageRep);
+	java.lang.System.out.println("Printing state table:");
+	stateTable.printTable();
+	
+	if (runTypechecker) {
+		// Bring AST to let normal form.
+		plaidAST.accept(new LetNormalFormVisitor);
+	
+		// Run the type checking visitor.
+		plaidAST.accept(typecheckerFactory(stTranslator.initialContext, stTranslator.stateTable));
+	
+		java.lang.System.out.println("----------------");
+		java.lang.System.out.println();
+		plaidAST.accept(new TypecheckOutputVisitor);
+	};
+	
+	plaidAST.accept(new CodeGenVisitor { val stateTable = stateTable; });
+}
