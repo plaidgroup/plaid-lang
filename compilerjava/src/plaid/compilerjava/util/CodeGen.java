@@ -555,7 +555,12 @@ public class CodeGen {
 			String name = functionName.substring(0, functionName.length()-"_func".length());
 			append(rt + ".enterCall(" + classLoader + ".unit(),\"" + name +"\");");
 		}
-		append(functionName + ".invoke(" + classLoader + ".unit());");
+		
+		//append(functionName + ".invoke(" + classLoader + ".unit());");
+		
+		call(functionName, classLoader + ".unit()");	//replace by fuyao, reason is to execute last tail call
+		append(";");
+		
 		if ( cc.isDebugMode() ) { 
 			String name = functionName.substring(0, functionName.length()-"_func".length());
 			append(rt + ".leaveCall(" + classLoader + ".unit(),\"" + name +"\");");
@@ -766,5 +771,13 @@ public class CodeGen {
 		System.out.print(test.formatFile());
 	}
 
-
+	/*
+	 * Following are functions generated optimized codes
+	 * 
+	 */
+	
+	public final void assignToTailCall(String retVal, String method, String arg) {
+		assign(retVal);
+		output.append("new " + runtimePackage + ".PlaidTailCall" + "(" +  method + ", " + arg + ");");
+	}
 }
