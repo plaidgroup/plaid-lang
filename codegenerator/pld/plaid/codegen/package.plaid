@@ -6,7 +6,16 @@ import plaid.typechecker.*;
 import plaid.typechecker.typecheckerMethods.*;
 
 method main() {
-	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/stateTest/package.plaid")));
+	/**
+	 *  The problem is that the set of programs that typecheck doesn't
+	 *  completely match the set of programs that we can compile -- for
+	 *  example anything using Java classes will not typecheck but
+	 *  should compile just fine.
+	 */
+	val runTypechecker = true;
+
+
+	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/fibonacci/package.plaid")));
 	val translator = new ASTTranslator;
 	val plaidAST = translator.translateAST(javaAST);
 	val stTranslator = new StateTableBuilderVisitor;
@@ -19,29 +28,25 @@ method main() {
 	};
 	
 	val userDir = java.lang.System.getProperty("user.dir");
-
-	val cc = plaid.compilerjava.CompilerConfiguration.new();
-	cc.addToPlaidPath(userDir + "/bin/");
-	cc.addToPlaidPath(userDir + "/../stdlib/bin/");
-	val core = plaid.compilerjava.CompilerCore.new(cc);
-	val cus = java.util.ArrayList.new();
-	cus.add(javaAST);
-	val packageRep = core.buildPlaidPath(cus);
-	
-	//plaidAST.accept(new ASTViewer);
+	val plaidPath = makeEmptyList();
+	plaidPath.add(userDir + "/bin/");
+	plaidPath.add(userDir + "/../stdlib/bin/");
+	val packageRep = tr.buildPackageRep(javaAST, plaidPath);
 	tr.translate(packageRep);
 	java.lang.System.out.println("Printing state table:");
 	stateTable.printTable();
 	
-    // Bring AST to let normal form.
-	// plaidAST.accept(new LetNormalFormVisitor);
+	if (runTypechecker) {
+		// Bring AST to let normal form.
+		plaidAST.accept(new LetNormalFormVisitor);
 	
-	// Run the type checking visitor.
-	// plaidAST.accept(typecheckerFactory(stTranslator.initialContext, stateTable));
+		// Run the type checking visitor.
+		plaidAST.accept(typecheckerFactory(stTranslator.initialContext, stTranslator.stateTable));
 	
-	// java.lang.System.out.println("----------------");
-	// java.lang.System.out.println();
-	// plaidAST.accept(new TypecheckOutputVisitor);
+		java.lang.System.out.println("----------------");
+		java.lang.System.out.println();
+		plaidAST.accept(new TypecheckOutputVisitor);
+	};
 	
 	plaidAST.accept(new CodeGenVisitor { val stateTable = stateTable; });
 }
