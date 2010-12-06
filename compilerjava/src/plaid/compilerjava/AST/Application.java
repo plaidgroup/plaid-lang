@@ -35,6 +35,8 @@ public class Application implements Expression {
 	private final Expression f;
 	private final List<Expression> arguments = new ArrayList<Expression>();
 	private final boolean hasArgs;
+	
+	private boolean isTailCall = false;
 
 	public Application(Token t, Expression function, Expression argument) {
 		super();
@@ -101,7 +103,10 @@ public class Application implements Expression {
 		arg.codegenExpr(out, z, localVars, stateVars);
 
 		out.setLocation(token);
-		out.assignToCall(y.getName(),x.getName(), z.getName());  // y = Util.call(x,z);
+		if (isTailCall)
+			out.assignToTailCall(y.getName(),x.getName(), z.getName());
+		else 
+			out.assignToCall(y.getName(),x.getName(), z.getName());  // y = Util.call(x,z);
 	}
 
 	@Override
@@ -116,4 +121,11 @@ public class Application implements Expression {
 		return visitor.visitNode(this);
 	}
 
+	public void setTailCall(boolean isTailCall) {
+		this.isTailCall = isTailCall;
+	}
+
+	public boolean isTailCall() {
+		return isTailCall;
+	}
 }

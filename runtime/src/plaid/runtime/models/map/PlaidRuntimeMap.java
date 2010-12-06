@@ -26,6 +26,7 @@ import plaid.runtime.PlaidInvalidArgumentException;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
+import plaid.runtime.PlaidTailCall;
 import plaid.runtime.Util;
 import plaid.runtime.types.PlaidPermType;
 
@@ -60,6 +61,12 @@ public final class PlaidRuntimeMap extends PlaidRuntime {
 		PlaidObject result;
 		try {
 			result = Util.toPlaidMethod(func).invoke(args);
+			
+			//deal with tail calls
+			while (result instanceof PlaidTailCall) {
+				PlaidTailCall tc = (PlaidTailCall) result;
+				result = (tc.getMethod()).invoke(tc.getArgs());
+			}
 		} catch (ClassCastException exn) {
 			throw new PlaidInvalidArgumentException("Attempt to call " + this$plaid + "." + name + "() on " + args + " failed.");
 		}
