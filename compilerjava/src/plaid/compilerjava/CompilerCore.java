@@ -357,7 +357,9 @@ public class CompilerCore {
 	 * Get Optimization information (such as tail call) for all CompilationUnit
 	 */
 	private void getOptimizationInformation(List<CompilationUnit> cus) {
-		// TODO: add flag
+		// TODO: add more flags
+		if (cc.isDebugMode())
+			return;
 		for (CompilationUnit cu : cus) {
 			cu.accept(new OptimizerASTVisitor());
 		}
