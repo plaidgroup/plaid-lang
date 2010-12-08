@@ -50,6 +50,7 @@ import plaid.compilerjava.AST.FieldDecl;
 import plaid.compilerjava.AST.MethodDecl;
 import plaid.compilerjava.AST.StateDecl;
 import plaid.compilerjava.coreparser.ParseException;
+import plaid.compilerjava.optimization.OptimizerASTVisitor;
 import plaid.compilerjava.util.FieldRep;
 import plaid.compilerjava.util.MemberRep;
 import plaid.compilerjava.util.MethodRep;
@@ -350,10 +351,24 @@ public class CompilerCore {
 
 		PackageRep plaidpath = buildPlaidPath(cus);
 
+		getOptimizationInformation(cus);
+		
 		// create the output files
 		generateCode(cus, plaidpath);
 
 		return cus;
+	}
+	
+	/**
+	 * Get Optimization information (such as tail call) for all CompilationUnit
+	 */
+	private void getOptimizationInformation(List<CompilationUnit> cus) {
+		// TODO: add more flags
+		if (cc.isDebugMode())
+			return;
+		for (CompilationUnit cu : cus) {
+			cu.accept(new OptimizerASTVisitor());
+		}
 	}
 
 	/**

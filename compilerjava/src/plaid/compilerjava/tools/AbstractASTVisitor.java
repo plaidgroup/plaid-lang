@@ -26,7 +26,7 @@ public abstract class AbstractASTVisitor implements ASTVisitor<ASTnode> {
 		return node;
 	}
 	
-	private <T extends ASTnode> ASTnode visitHelper(T node) {
+	protected <T extends ASTnode> ASTnode visitHelper(T node) {
 		ASTVisitor<ASTnode> visitor = this.enter(node);
 	    node.visitChildren(this);
 	    return this.leave(node, node, visitor);

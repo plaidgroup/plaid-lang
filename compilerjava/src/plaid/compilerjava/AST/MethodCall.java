@@ -19,6 +19,8 @@ public class MethodCall implements Expression {
 	private final Expression receiver;
 	private final ID method;
 	
+	private boolean isTailCall = false;
+	
 	public MethodCall(Token token, Expression receiver, ID method, Expression argument) {
 		this.token = token;
 		if (argument instanceof UnitLiteral) {
@@ -86,7 +88,11 @@ public class MethodCall implements Expression {
 		// Call the method.
 		ID p = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidObjectType, p.getName());
-		out.assignToCall(y.getName(), m.getName(), a.getName());
+		
+		if (isTailCall)
+			out.assignToTailCall(y.getName(), m.getName(), a.getName());
+		else
+			out.assignToCall(y.getName(), m.getName(), a.getName());
 	}
 
 	@Override
@@ -110,5 +116,13 @@ public class MethodCall implements Expression {
 		method.accept(visitor);
 		for (Expression argument : arguments)
 			argument.accept(visitor);
+	}
+
+	public void setTailCall(boolean isTailCall) {
+		this.isTailCall = isTailCall;
+	}
+
+	public boolean isTailCall() {
+		return isTailCall;
 	}
 }
