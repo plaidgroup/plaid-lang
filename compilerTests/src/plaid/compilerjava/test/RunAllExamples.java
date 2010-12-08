@@ -32,9 +32,9 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameters;
 
 import plaid.runtime.PlaidRuntime;
-//import uk.ac.lkl.common.util.testing.LabelledParameterized;
+import uk.ac.lkl.common.util.testing.LabelledParameterized;
 
-//@RunWith(LabelledParameterized.class)
+@RunWith(LabelledParameterized.class)
 public class RunAllExamples {
 	
 	private Method method;
