@@ -21,7 +21,6 @@ package plaid.compilerjava;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.lang.annotation.Annotation;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -50,6 +49,7 @@ import plaid.compilerjava.AST.Decl;
 import plaid.compilerjava.AST.FieldDecl;
 import plaid.compilerjava.AST.MethodDecl;
 import plaid.compilerjava.AST.StateDecl;
+import plaid.compilerjava.coreparser.ParseException;
 import plaid.compilerjava.util.FieldRep;
 import plaid.compilerjava.util.MemberRep;
 import plaid.compilerjava.util.MethodRep;
@@ -335,8 +335,14 @@ public class CompilerCore {
 		for (File f : cc.getInputFiles()) {
 			if (cc.isVerbose())
 				System.out.println("Parsing '" + f.getName() + "'.");
-
-			CompilationUnit cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
+			
+			CompilationUnit cu;
+			try {
+				cu = plaid.compilerjava.ParserCore.parse(new FileInputStream(f));
+			} catch (ParseException e) {
+				System.out.println("Error Parsing file: " + f.getCanonicalPath());
+				throw e;
+			}
 			cu.setSourceFile(f);
 			cus.add(cu);
 			fileSystemChecks(cu, f.toString());
