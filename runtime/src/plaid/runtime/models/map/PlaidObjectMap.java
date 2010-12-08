@@ -441,8 +441,9 @@ public class PlaidObjectMap implements PlaidObject {
 			return super.hashCode();
 		
 		PlaidMethodMap hashmeth = (PlaidMethodMap) hashmethobj;
-		PlaidObject retval = hashmeth.invoke(Util.unit());
-		
+		//PlaidObject retval = hashmeth.invoke(Util.unit());
+		PlaidObject retval = plaid.runtime.Util.call(hashmeth, Util.unit()); //for tco
+
 		// We need to find out if retval is a (Plaid) integer and return its value
 		// TODO: This is a hack!
 		if (!(retval instanceof PlaidJavaObject))
@@ -475,8 +476,9 @@ public class PlaidObjectMap implements PlaidObject {
 			return false;
 		
 		PlaidMethodMap eqmeth = (PlaidMethodMap) eqmethobj;
-		PlaidObject retval = eqmeth.invoke(po);
-		
+		//PlaidObject retval = eqmeth.invoke(po);
+		PlaidObject retval = plaid.runtime.Util.call(eqmeth, po);	//for tco
+
 		// We need to find out if retval is a (Plaid) true
 		return retval.matchesTag("plaid.lang.True");
 	}
