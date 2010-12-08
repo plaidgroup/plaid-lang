@@ -345,6 +345,9 @@ public class Util {
 		else if (c.equals(Boolean.class)) {
 			return boolean.class;
 		}
+		else if (c.equals(Long.class)) {
+			return long.class;
+		}
 		return c;
 	}
 	
