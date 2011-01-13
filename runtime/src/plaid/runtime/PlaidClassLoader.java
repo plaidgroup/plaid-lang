@@ -90,6 +90,15 @@ public interface PlaidClassLoader {
 	public PlaidMethod protoField(Delegate fn) throws PlaidException;
 	
 	/**
+	 *  Creates a new tail call for the specified method parameter pair.
+	 *  
+	 *  @param method The method to be called.
+	 *  @param args   The parameters
+	 *  @throws PlaidException 
+	 */
+	public PlaidTailCall tailCall(PlaidObject method, PlaidObject args) throws PlaidException;
+	
+	/**
 	 * Method to return unit object.
 	 * 
 	 * @return

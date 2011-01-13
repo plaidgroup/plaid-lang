@@ -778,6 +778,7 @@ public class CodeGen {
 	
 	public final void assignToTailCall(String retVal, String method, String arg) {
 		assign(retVal);
-		output.append("new " + runtimePackage + ".PlaidTailCall" + "(" +  method + ", " + arg + ");");
+		//output.append("new " + runtimePackage + ".PlaidTailCall" + "(" +  method + ", " + arg + ");");
+		output.append( utilClass + ".tailCall(" + method +"," + arg + ");");
 	}
 }
