@@ -40,6 +40,7 @@ import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.PlaidScope;
 import plaid.runtime.PlaidState;
 import plaid.runtime.PlaidTag;
+import plaid.runtime.PlaidTailCall;
 import plaid.runtime.annotations.RepresentsField;
 import plaid.runtime.annotations.RepresentsMethod;
 import plaid.runtime.annotations.RepresentsState;
@@ -224,7 +225,10 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 		return new PlaidTagMap(tagName, caseOf);
 	}
 
-
+	public PlaidTailCall tailCall(PlaidObject method, PlaidObject args) {
+		return new PlaidTailCallMap(method, args);
+	}
+	
 	/***************************************************************************
 	 * 
 	 *  INTERNAL methods 

@@ -77,6 +77,10 @@ public class Util {
 		return rt.call(func, args);
 	}
 	
+	public static PlaidTailCall tailCall(PlaidObject method, PlaidObject args) {
+		return cl.tailCall(method, args);
+	}
+	
 	public static PlaidMethod protoField(Delegate dlg) {
 		return cl.protoField(dlg);
 	}
