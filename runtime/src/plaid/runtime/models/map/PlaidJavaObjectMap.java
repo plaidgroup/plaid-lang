@@ -22,6 +22,7 @@ package plaid.runtime.models.map;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,9 +39,10 @@ import plaid.runtime.types.PlaidPermission;
 
 public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObject {
 	@SuppressWarnings("unchecked")
-	private final static Map<Class, Field[]>  fieldMap  = new ConcurrentHashMap<Class, Field[]>();
+	private final static Map<Class, Field[]>  fieldMap     = new ConcurrentHashMap<Class, Field[]>();
 	@SuppressWarnings("unchecked")
-	private final static Map<Class, Method[]> methodMap = new ConcurrentHashMap<Class, Method[]>();
+	private final static Map<Class, Method[]> methodMap    = new ConcurrentHashMap<Class, Method[]>();
+	private final Map<String, PlaidMemberDef> fieldMembers = new HashMap<String, PlaidMemberDef>();
 	private Object value;
 	private Class<Object> valueClass;
 	private boolean reflected  = false;
@@ -95,15 +97,10 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 				try {
 					obj = f.get(value);
 					// find existing entry
-					PlaidMemberDef entry = null;
-					for (PlaidMemberDef mdef : members.keySet() ) {
-						if (mdef.getMemberName().equals(f.getName())) {
-							entry = mdef;
-							break;
-						}
-					}
+					PlaidMemberDef entry = fieldMembers.get(f.getName());
 					if ( entry == null ) {
 						entry = Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false);
+						fieldMembers.put(f.getName(), entry);
 					}
 					if ( obj != null ) {
 						this.members.put(entry, new PlaidJavaObjectMap(obj));
@@ -159,16 +156,18 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 	@Override
 	public void updateMember(String name, PlaidObject obj) {
 		// if we update a field we also have to update the corresponding java object
-		for ( Field f : getFields(valueClass)) {
-			if (f.getName().equals(name)) {
-				if ( obj instanceof PlaidJavaObject ) {
-					try {
-						f.set(value, ((PlaidJavaObject) obj).getJavaObject());
-					} catch (Exception e) {
-						throw new PlaidRuntimeException("Cannot update Java object field.");
+		if ( fieldMembers.containsKey(name) ) {
+			for ( Field f : getFields(valueClass)) {
+				if (f.getName().equals(name)) {
+					if ( obj instanceof PlaidJavaObject ) {
+						try {
+							f.set(value, ((PlaidJavaObject) obj).getJavaObject());
+						} catch (Exception e) {
+							throw new PlaidRuntimeException("Cannot update Java object field.");
+						}
+					} else {
+						throw new PlaidRuntimeException("Cannot store PlaidObject in Java Field.");
 					}
-				} else {
-					throw new PlaidRuntimeException("Cannot store PlaidObject in Java Field.");
 				}
 			}
 		}
