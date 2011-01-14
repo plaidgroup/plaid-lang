@@ -23,6 +23,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,10 +37,10 @@ import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
+import plaid.runtime.types.PlaidPermType;
+import plaid.runtime.types.PlaidPermission;
 import plaid.runtime.types.PlaidPermissionTable;
 import plaid.runtime.types.PlaidPermissionTableMap;
-import plaid.runtime.types.PlaidPermission;
-import plaid.runtime.types.PlaidPermType;
 import plaid.runtime.types.PlaidUniquePermission;
 
 public class PlaidObjectMap implements PlaidObject {
@@ -50,26 +52,26 @@ public class PlaidObjectMap implements PlaidObject {
 	protected boolean readonly = false;
 	
 	public PlaidObjectMap() {
-		this(new ArrayList<PlaidObject>(),
+		this(new LinkedList<PlaidObject>(),
 			 new HashMap<PlaidMemberDef, PlaidObject>(),
-			 new ArrayList<PlaidTag>(),
-			 new PlaidPermissionTableMap(),
+			 new LinkedList<PlaidTag>(),
+		     new PlaidPermissionTableMap(),
 			 PlaidUniquePermission.unique());
 	}
 	
 	public PlaidObjectMap(PlaidPermission initPerm) {
-		this(new ArrayList<PlaidObject>(),
-				 new HashMap<PlaidMemberDef, PlaidObject>(),
-				 new ArrayList<PlaidTag>(),
-				 new PlaidPermissionTableMap(),
-				 initPerm);
+		this(new LinkedList<PlaidObject>(),
+			 new HashMap<PlaidMemberDef, PlaidObject>(),
+			 new LinkedList<PlaidTag>(),
+			 new PlaidPermissionTableMap(),
+			 initPerm);
 	}
 	
-	private PlaidObjectMap(ArrayList<PlaidObject> states, 
-			HashMap<PlaidMemberDef, PlaidObject> members,
-			ArrayList<PlaidTag> tags,
-			PlaidPermissionTable permTable, 
-			PlaidPermission initPerm) {
+	private PlaidObjectMap(List<PlaidObject> states, 
+			               Map<PlaidMemberDef, PlaidObject> members,
+			               List<PlaidTag> tags,
+			               PlaidPermissionTable permTable, 
+			               PlaidPermission initPerm) {
 		this.states = states;
 		this.members = members;
 		this.tags = tags;
