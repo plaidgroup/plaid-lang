@@ -20,6 +20,7 @@
 package plaid.runtime.utils;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public final class QualifiedIdentifier {
@@ -30,6 +31,10 @@ public final class QualifiedIdentifier {
 		for ( String f : qi.split("\\.") ) {
 			fragments.add(f);
 		}
+	}
+	
+	public QualifiedIdentifier(QualifiedIdentifier other) {
+		fragments = new ArrayList<String>(other.fragments);
 	}
 	
 	protected QualifiedIdentifier(List<String> fragments) {
