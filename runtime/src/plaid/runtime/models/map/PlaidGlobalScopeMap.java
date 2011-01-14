@@ -61,7 +61,7 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	}
 	
 	protected <S,T> Map<S, T> createMap() {
-		return new ConcurrentHashMap<S, T>(16, 10, Runtime.getRuntime().availableProcessors());
+		return new ConcurrentHashMap<S, T>(16, (float)0.75, Runtime.getRuntime().availableProcessors());
 	}
 	
 	public PlaidObject lookup(String name) {
