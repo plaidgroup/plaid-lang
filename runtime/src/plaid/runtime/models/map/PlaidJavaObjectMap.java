@@ -103,9 +103,9 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 						fieldMembers.put(f.getName(), entry);
 					}
 					if ( obj != null ) {
-						this.members.put(entry, new PlaidJavaObjectMap(obj));
+						this.members().put(entry, new PlaidJavaObjectMap(obj));
 					} else {
-						this.members.put(entry, PlaidRuntime.getRuntime().getClassLoader().unit());
+						this.members().put(entry, PlaidRuntime.getRuntime().getClassLoader().unit());
 					}
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Wrong argument.");
@@ -115,12 +115,12 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 			}
 			if ( reflected == false) {
 				for (Method m : getMethods(valueClass)) {
-					this.members.put(Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+					this.members().put(Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
 				}
 				reflected = true;
 			}
 		}
-		return Collections.unmodifiableMap(members);
+		return Collections.unmodifiableMap(members());
 	}
 	
 	

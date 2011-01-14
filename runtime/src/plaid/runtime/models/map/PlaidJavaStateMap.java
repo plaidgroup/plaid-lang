@@ -84,7 +84,7 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 				Object obj;
 				try {
 					obj = f.get(value);
-					this.members.put(Util.memberDef(f.getName(), valueClass.getName(), true, false), new PlaidJavaObjectMap(obj));
+					this.members().put(Util.memberDef(f.getName(), valueClass.getName(), true, false), new PlaidJavaObjectMap(obj));
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Wrong argument.");
 				} catch (IllegalAccessException e) {
@@ -92,11 +92,11 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 				}				
 			}
 			for (Method m : valueClass.getMethods()) {
-				this.members.put(Util.memberDef(m.getName(), valueClass.getName(), false, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+				this.members().put(Util.memberDef(m.getName(), valueClass.getName(), false, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
 			}
 			reflected = true; //TODO: Tell Sven we did this // lol wtf?
 		}
-		return Collections.unmodifiableMap(members);
+		return Collections.unmodifiableMap(members());
 	}
 	
 //	@Override

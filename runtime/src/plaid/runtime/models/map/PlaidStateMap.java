@@ -132,7 +132,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	@Override
 	public Collection<PlaidObject> getStates() {
 		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
-		result.addAll(states);
+		result.addAll(states());
 		result.addAll(prototype.getStates());
 		return Collections.unmodifiableCollection(result);
 	}
