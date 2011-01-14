@@ -23,6 +23,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
@@ -34,7 +36,9 @@ import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
 import plaid.runtime.types.PlaidPermission;
 
-public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObject {
+public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObject {
+	private static Map<Class, Field[]>  fieldMap  = new ConcurrentHashMap<Class, Field[]>();
+	private static Map<Class, Method[]> methodMap = new ConcurrentHashMap<Class, Method[]>();
 	private Object value;
 	private Class<Object> valueClass;
 	private boolean reflected = false;
@@ -61,12 +65,30 @@ public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJav
 		super();
 		this.value = null;
 	}
-
+	
+	public static Field[] getFields(Class<?> klazz) {
+		Field[] fields = fieldMap.get(klazz);
+		if ( fields == null ) {
+			fields = klazz.getFields();
+			fieldMap.put(klazz, fields);
+		}
+		return fields;
+	}
+	
+	public static Method[] getMethods(Class<?> klazz) {
+		Method[] method = methodMap.get(klazz);
+		if ( method == null ) {
+			method = klazz.getMethods();
+			methodMap.put(klazz, method);
+		}
+		return method;
+	}
+	
 	@Override
 	public Map<PlaidMemberDef, PlaidObject> getMembers() {
 		// TODO: Not sure if the use of mutability for all fields and immutability for all methods here is correct
 		if (reflected == false  && valueClass != null) {
-			for (Field f : valueClass.getFields()) {
+			for (Field f : getFields(valueClass)) {
 				Object obj;
 				try {
 					obj = f.get(value);
@@ -81,7 +103,7 @@ public final class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJav
 					throw new PlaidIllegalAccessException("Cannot get field value");
 				}				
 			}
-			for (Method m : valueClass.getMethods()) {
+			for (Method m : getMethods(valueClass)) {
 				this.members.put(Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
 			}
 			reflected = true; //TODO: Tell Sven we did this // lol wtf?
