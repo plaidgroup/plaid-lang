@@ -23,7 +23,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import plaid.runtime.PlaidException;
@@ -33,15 +32,18 @@ import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
+import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.Util;
 import plaid.runtime.types.PlaidPermission;
 
 public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObject {
-	private static Map<Class, Field[]>  fieldMap  = new ConcurrentHashMap<Class, Field[]>();
-	private static Map<Class, Method[]> methodMap = new ConcurrentHashMap<Class, Method[]>();
+	@SuppressWarnings("unchecked")
+	private final static Map<Class, Field[]>  fieldMap  = new ConcurrentHashMap<Class, Field[]>();
+	@SuppressWarnings("unchecked")
+	private final static Map<Class, Method[]> methodMap = new ConcurrentHashMap<Class, Method[]>();
 	private Object value;
 	private Class<Object> valueClass;
-	private boolean reflected = false;
+	private boolean reflected  = false;
 	
 	public PlaidJavaObjectMap(Object value) {
 		super();
@@ -66,7 +68,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 		this.value = null;
 	}
 	
-	public static Field[] getFields(Class<?> klazz) {
+	public final static Field[] getFields(Class<?> klazz) {
 		Field[] fields = fieldMap.get(klazz);
 		if ( fields == null ) {
 			fields = klazz.getFields();
@@ -75,7 +77,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 		return fields;
 	}
 	
-	public static Method[] getMethods(Class<?> klazz) {
+	public final static Method[] getMethods(Class<?> klazz) {
 		Method[] method = methodMap.get(klazz);
 		if ( method == null ) {
 			method = klazz.getMethods();
@@ -85,17 +87,28 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 	}
 	
 	@Override
-	public Map<PlaidMemberDef, PlaidObject> getMembers() {
+	public final Map<PlaidMemberDef, PlaidObject> getMembers() {
 		// TODO: Not sure if the use of mutability for all fields and immutability for all methods here is correct
-		if (reflected == false  && valueClass != null) {
+		if (valueClass != null) {
 			for (Field f : getFields(valueClass)) {
 				Object obj;
 				try {
 					obj = f.get(value);
+					// find existing entry
+					PlaidMemberDef entry = null;
+					for (PlaidMemberDef mdef : members.keySet() ) {
+						if (mdef.getMemberName().equals(f.getName())) {
+							entry = mdef;
+							break;
+						}
+					}
+					if ( entry == null ) {
+						entry = Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false);
+					}
 					if ( obj != null ) {
-						this.members.put(Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false), new PlaidJavaObjectMap(obj));
+						this.members.put(entry, new PlaidJavaObjectMap(obj));
 					} else {
-						this.members.put(Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false), PlaidRuntime.getRuntime().getClassLoader().unit());
+						this.members.put(entry, PlaidRuntime.getRuntime().getClassLoader().unit());
 					}
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Wrong argument.");
@@ -103,13 +116,17 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 					throw new PlaidIllegalAccessException("Cannot get field value");
 				}				
 			}
-			for (Method m : getMethods(valueClass)) {
-				this.members.put(Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+			if ( reflected == false) {
+				for (Method m : getMethods(valueClass)) {
+					this.members.put(Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+				}
+				reflected = true;
 			}
-			reflected = true; //TODO: Tell Sven we did this // lol wtf?
 		}
 		return Collections.unmodifiableMap(members);
 	}
+	
+	
 	
 //	@Override
 //	public Map<String, PlaidObject> getMutableMembers() {
@@ -139,6 +156,25 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 //		return Collections.unmodifiableMap(this.immutableMembers);
 //	}
 	
+	@Override
+	public void updateMember(String name, PlaidObject obj) {
+		// if we update a field we also have to update the corresponding java object
+		for ( Field f : getFields(valueClass)) {
+			if (f.getName().equals(name)) {
+				if ( obj instanceof PlaidJavaObject ) {
+					try {
+						f.set(value, ((PlaidJavaObject) obj).getJavaObject());
+					} catch (Exception e) {
+						throw new PlaidRuntimeException("Cannot update Java object field.");
+					}
+				} else {
+					throw new PlaidRuntimeException("Cannot store PlaidObject in Java Field.");
+				}
+			}
+		}
+		super.updateMember(name, obj);
+	}
+
 	@Override
 	@SuppressWarnings("unchecked")
 	public void setJavaObject(Object value) {
