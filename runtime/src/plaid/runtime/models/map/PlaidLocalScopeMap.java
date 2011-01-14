@@ -2,8 +2,9 @@ package plaid.runtime.models.map;
 
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntimeException;
@@ -24,7 +25,13 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	public PlaidLocalScopeMap(PlaidScope parentScope) {
 		super();
 		this.parentScope = parentScope;
-		this.stateMembers = Collections.newSetFromMap(new ConcurrentHashMap<String, Boolean>());
+		Map<String, Boolean> backend = createMap();
+		this.stateMembers = Collections.synchronizedSet(Collections.newSetFromMap(backend));
+	}
+	
+	@Override
+	protected  <S,T> Map<S, T> createMap() {
+		return Collections.synchronizedMap(new LinkedHashMap<S, T>());
 	}
 	
 	@Override
