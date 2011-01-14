@@ -70,7 +70,7 @@ public class PlaidObjectMap implements PlaidObject {
 		if ( states == null ) {
 			synchronized (this) {
 				if ( states == null ) {
-					states = new LinkedList<PlaidObject>();
+					states = new ArrayList<PlaidObject>();
 				}
 			}
 		}
@@ -81,7 +81,7 @@ public class PlaidObjectMap implements PlaidObject {
 		if ( tags == null ) {
 			synchronized (this) {
 				if ( tags == null ) {
-					tags = new LinkedList<PlaidTag>();
+					tags = new ArrayList<PlaidTag>();
 				}
 			}
 		}
