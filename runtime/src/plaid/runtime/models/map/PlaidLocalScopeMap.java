@@ -2,7 +2,7 @@ package plaid.runtime.models.map;
 
 
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -42,7 +42,7 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	
 	@Override
 	protected  <S,T> Map<S, T> createMap() {
-		return Collections.synchronizedMap(new LinkedHashMap<S, T>());
+		return Collections.synchronizedMap(new HashMap<S, T>());
 	}
 	
 	@Override
