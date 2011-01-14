@@ -1,6 +1,7 @@
 package plaid.runtime.models.map;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 import plaid.runtime.PlaidClassLoader;
 import plaid.runtime.PlaidClassNotFoundException;
@@ -57,6 +58,10 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 			for (Import imp : imports)
 				this.addImport(imp);
 		}
+	}
+	
+	protected <S,T> Map<S, T> createMap() {
+		return new ConcurrentHashMap<S, T>(16, 10, Runtime.getRuntime().availableProcessors());
 	}
 	
 	public PlaidObject lookup(String name) {
