@@ -153,7 +153,7 @@ public class PlaidObjectMap implements PlaidObject {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
-		PlaidMemberDef existingDef = findExisting(name, members.keySet());
+		PlaidMemberDef existingDef = findExisting(name, getMembers().keySet());
 		if (existingDef == null) { //Cannot update a member that is not present
 			throw new PlaidRuntimeException("Member \"" + name + "\" is undefined.");
 		} else {
