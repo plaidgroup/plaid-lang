@@ -20,13 +20,24 @@ import plaid.runtime.PlaidUnboundVariableException;
  */
 public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	private final PlaidScope parentScope;
-	private final Set<String> stateMembers;
+	private Set<String> stateMembers;
 	
 	public PlaidLocalScopeMap(PlaidScope parentScope) {
 		super();
 		this.parentScope = parentScope;
-		Map<String, Boolean> backend = createMap();
-		this.stateMembers = Collections.synchronizedSet(Collections.newSetFromMap(backend));
+
+	}
+	
+	protected final Set<String> stateMembers() {
+		if ( stateMembers == null ) {
+			synchronized (this) {
+				if ( stateMembers == null ) {
+					Map<String, Boolean> backend = createMap();
+					this.stateMembers = Collections.synchronizedSet(Collections.newSetFromMap(backend));
+				}
+			}
+		}
+		return stateMembers;
 	}
 	
 	@Override
@@ -48,9 +59,9 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	@Override
 	public void insert(String name, PlaidObject plaidObj, boolean immutable) {
 		// if there is an existing state member, we want to shadow it
-		if (this.stateMembers.contains(name)) {
+		if (this.stateMembers().contains(name)) {
 			// need to make sure we can't shadow the same name multiple times 
-			this.stateMembers.remove(name);
+			this.stateMembers().remove(name);
 		}
 		else if (this.immutableScopeMap.containsKey(name) || 
 				this.mutableScopeMap.containsKey(name)) {
@@ -75,7 +86,7 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 		else if (this.mutableScopeMap.containsKey(name)) {
 			// if this is a state member, we have to update the actual state 
 			// ("this") as well as the binding in the current scope
-			if (this.stateMembers.contains(name)) {
+			if (this.stateMembers().contains(name)) {
 				// get the object bound to "this" in the current scope
 				PlaidObject thisObj = this.lookup("this$plaid");
 				// update it's member bound to "name" in it
@@ -113,6 +124,6 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 			throw new PlaidUnboundVariableException("Variable does not exist in " +
 					"current scope.");
 		}
-		this.stateMembers.remove(name);
+		this.stateMembers().remove(name);
 	}
 }
