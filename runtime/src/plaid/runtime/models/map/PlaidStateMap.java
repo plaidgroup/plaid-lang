@@ -58,6 +58,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 			psa = f.getAnnotation(RepresentsState.class);
 			if (psa != null) {
 				try {
+					f.setAccessible(true);
 					theState = (PlaidStateMap)f.get(templateClass);
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Cannot get value from field : " + f.getName());
@@ -190,7 +191,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 					
 					//check that mutability lines up // TODO: other checks?
 					boolean mutable = existing.isMutable();
-					String originalDef = existing.definedIn();
+					//String originalDef = existing.definedIn();
 					if (mutable != member.isMutable())
 						throw new PlaidRuntimeException("Overriding member " + memberName + " must be " +
 								(mutable ? "mutable" : "immutable")  + " like the original definition in.");
