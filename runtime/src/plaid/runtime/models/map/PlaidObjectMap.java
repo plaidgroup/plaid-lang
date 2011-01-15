@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,6 +45,8 @@ public class PlaidObjectMap implements PlaidObject {
 	protected PlaidPermissionTable permTable;
 	protected Collection<PlaidObject> states;
 	protected Map<PlaidMemberDef, PlaidObject> members;
+	protected Map<PlaidMemberDef, PlaidObject> membersFixed;
+	protected boolean membersChanged = true;
 	protected Collection<PlaidTag> tags;
 	// map from scopes to sets of bound variable names for this object
 	protected boolean readonly = false;
@@ -66,6 +67,13 @@ public class PlaidObjectMap implements PlaidObject {
 		initPerm.addPermission(this.permTable);
 	}
 
+	protected final Map<PlaidMemberDef, PlaidObject> membersFixed() {
+		if ( membersChanged ) {
+			membersFixed = Collections.unmodifiableMap(members());
+		}
+		return membersFixed;
+	}
+	
 	protected final Collection<PlaidObject> states() {
 		if ( states == null ) {
 			synchronized (this) {
@@ -165,8 +173,8 @@ public class PlaidObjectMap implements PlaidObject {
 			}
 		} else { // new member - just add it
 			members().put(memberDef, obj);
-			
 		}
+		membersChanged = true;
 	}
 	
 	@Override
@@ -196,11 +204,12 @@ public class PlaidObjectMap implements PlaidObject {
 		PlaidMemberDef existingDef = findExisting(name, members().keySet());
 		if (existingDef != null) members().remove(existingDef);
 		else throw new PlaidRuntimeException("Cannot remove undefined member \"" + name + "\".");
+		membersChanged = true;
 	}
 
 	@Override
 	public Map<PlaidMemberDef, PlaidObject> getMembers() {
-		return Collections.unmodifiableMap(this.members());
+		return membersFixed();
 	}
 	
 	@Override
@@ -394,6 +403,8 @@ public class PlaidObjectMap implements PlaidObject {
 		// add other states
 		states().addAll(update.getStates());
 		tags().addAll(update.getTags());
+		
+		membersChanged = true;
 	}
 	
 	@Override

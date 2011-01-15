@@ -111,7 +111,11 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 						fieldMembers.put(f.getName(), entry);
 					}
 					if ( obj != null ) {
-						this.members().put(entry, new PlaidJavaObjectMap(obj));
+						Object value = members().get(entry);
+						if ( value == null  || obj != ((PlaidJavaObjectMap)value).getJavaObject() ) {
+							// only update if the value changed
+							this.members().put(entry, new PlaidJavaObjectMap(obj));
+						}
 					} else {
 						this.members().put(entry, PlaidRuntime.getRuntime().getClassLoader().unit());
 					}
@@ -128,7 +132,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 				reflected = true;
 			}
 		}
-		return Collections.unmodifiableMap(members());
+		return membersFixed();
 	}
 	
 	
@@ -162,7 +166,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 //	}
 	
 	@Override
-	public void updateMember(String name, PlaidObject obj) {
+	public final void updateMember(String name, PlaidObject obj) {
 		// if we update a field we also have to update the corresponding java object
 		if ( !reflected ) getMembers(); // take care that fieldMembers is initialized
 		if ( fieldMembers.containsKey(name) ) {
@@ -185,7 +189,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public void setJavaObject(Object value) {
+	public final void setJavaObject(Object value) {
 		this.value = value;
 		if ( value == null ) {
 			System.out.println("debug me");
@@ -194,12 +198,12 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 	}
 	
 	@Override
-	public Object getJavaObject() throws PlaidException {
+	public final Object getJavaObject() throws PlaidException {
 		return value;
 	}
 	
 	@Override
-	public String toString() {
+	public final String toString() {
 		return "PlaidJavaObject(" + value + ")";
 	}
 }
