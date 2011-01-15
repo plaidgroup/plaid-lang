@@ -21,6 +21,7 @@ package plaid.runtime.models.map;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -75,17 +76,23 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 		if ( fields == null ) {
 			fields = klazz.getFields();
 			fieldMap.put(klazz, fields);
+			for ( Field f : fields ) {
+				f.setAccessible(true); // bypass runtime check and rely on compiler
+			}
 		}
 		return fields;
 	}
 	
 	public final static Method[] getMethods(Class<?> klazz) {
-		Method[] method = methodMap.get(klazz);
-		if ( method == null ) {
-			method = klazz.getMethods();
-			methodMap.put(klazz, method);
+		Method[] methods = methodMap.get(klazz);
+		if ( methods == null ) {
+			methods = klazz.getMethods();
+			methodMap.put(klazz, methods);
+			for ( Method m : methods ) {
+				m.setAccessible(true); // bypass runtime check and rely on compiler
+			}
 		}
-		return method;
+		return methods;
 	}
 	
 	@Override
@@ -93,6 +100,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 		// TODO: Not sure if the use of mutability for all fields and immutability for all methods here is correct
 		if (valueClass != null) {
 			for (Field f : getFields(valueClass)) {
+				if ( reflected && Modifier.isFinal(f.getModifiers())) continue; // read final fields only once
 				Object obj;
 				try {
 					obj = f.get(value);
@@ -156,7 +164,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 	@Override
 	public void updateMember(String name, PlaidObject obj) {
 		// if we update a field we also have to update the corresponding java object
-		if ( !reflected ) getMembers();
+		if ( !reflected ) getMembers(); // take care that fieldMembers is initialized
 		if ( fieldMembers.containsKey(name) ) {
 			for ( Field f : getFields(valueClass)) {
 				if (f.getName().equals(name)) {
