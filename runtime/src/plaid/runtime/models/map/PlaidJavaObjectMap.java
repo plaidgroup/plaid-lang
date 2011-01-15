@@ -156,6 +156,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 	@Override
 	public void updateMember(String name, PlaidObject obj) {
 		// if we update a field we also have to update the corresponding java object
+		if ( !reflected ) getMembers();
 		if ( fieldMembers.containsKey(name) ) {
 			for ( Field f : getFields(valueClass)) {
 				if (f.getName().equals(name)) {
