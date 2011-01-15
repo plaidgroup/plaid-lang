@@ -28,7 +28,6 @@ import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidTailCall;
 import plaid.runtime.Util;
-import plaid.runtime.types.PlaidPermType;
 
 public final class PlaidRuntimeMap extends PlaidRuntime {
 	
