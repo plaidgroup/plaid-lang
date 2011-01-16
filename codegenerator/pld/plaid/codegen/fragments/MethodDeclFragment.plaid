@@ -1,0 +1,143 @@
+package plaid.codegen.fragments;
+
+import plaid.ast.ID;
+
+state MethodDeclFragment {
+	method handleTopLevelMethodDecl(node) {
+		val newName = this.jCodeGen.convertOpNames(node.name);
+		java.lang.System.out.println("Generating code for method '" + newName + "'...");
+
+		val freshReturn = this.idgen.getId();
+		val freshImports = this.idgen.getId();
+		
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setPrettyPrint(true);
+		cc.setDebugMode(true);
+		cc.setOutputDir("testOutput/");
+		this.out = this.jCodeGen.new(cc);
+		
+		val qid = new QI {val qid = this.packageName;};
+		val thisMethod = newName + "_func";
+		val thePackage = qid.toString();
+		
+		//package and needed imports
+		this.out.declarePackage(thePackage);
+		
+		//annotation and class definition
+		this.out.topMethodAnnotation(newName, thePackage);
+		this.out.declarePublicClass(newName);
+		this.out.openBlock(); //public class newName {
+
+		//generate code to create the package scope with imports
+		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
+		
+		this.y = freshImports;
+		this.imports.accept(this);
+
+		this.out.declareGlobalScope(qid.toString(), freshImports.name);
+		
+		if (newName.equals("main") /*&& this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1*/) {
+			this.out.topLevelMain(newName + "_func");
+		};
+
+		this.out.methodAnnotation(newName);
+		this.out.declarePublicStaticFinalVar(this.out.plaidMethodType, thisMethod);
+		this.out.openStaticBlock(); // static {
+		// add local scope so that the lambda creation works properly
+		this.out.declareLocalScope(this.out.globalScope);
+		
+		var argName = "";
+		val numberOfArgs = node.arguments.length();
+		ifElse (numberOfArgs <= 0) {
+			argName = "_";
+		} {
+			ifElse (numberOfArgs == 1) {
+				argName = node.arguments.head.value.name;
+			} {
+				argName = "pA1R$plaid";
+				// TODO:  Add AST rewriting to extract values from nested pairs.
+			};
+		};
+		
+		this.out.assignToNewLambda(thisMethod, argName);
+		
+		this.out.declareVar(this.out.plaidObjectType, freshReturn.name);
+		//top level functions lookup with unit
+		this.y = freshReturn;
+		node.body.accept(this);
+
+		this.out.ret(freshReturn.name);
+		this.out.closeAnonymousDeclaration(); // }});
+		
+		this.out.closeBlock(); // }  (for static block)
+		this.out.closeBlock(); // }  (for class declaration)
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(newName,
+			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+	}
+	
+	method handleNestedMethodDecl(node) {
+		val /*String*/ newName = this.jCodeGen.convertOpNames(node.name);
+		this.setLocation(node.token);
+		val /*ID*/ freshMethName = this.idgen.getId();
+		val /*ID*/ freshID = this.idgen.getId();
+		val /*ID*/ y = this.y;
+		
+		val /*Integer*/ numArgs = node.arguments.length();
+		val /*ID*/ argID = ifElse (numArgs == 0) {
+			new ID { val name = "_"; };
+		} {
+			ifElse (numArgs == 1) {
+				new ID { val name = node.arguments.head.value; };
+			} {
+				// TODO:  Handle methods with more than one argument.
+				new ID { val name = "pA1R$plaid"; };
+			};
+		};
+				
+		this.out.methodAnnotation(newName);
+		this.out.declareFinalVar(this.jCodeGen.plaidObjectType, freshMethName.name);
+		
+		// TODO:  Handle stateContext correctly.
+		var stateContext = this.packageName.foldr(fn (x, y) => x + "." + y, "");
+		stateContext = stateContext.substring(0, stateContext.length() - 1);
+		
+		ifElse (node.abstractMethod) {
+			this.y = freshMethName;
+			node.body.accept(this);
+		} {
+			this.out.assignToProtoMethod(freshMethName.name, argID.name, stateContext + "." + node.name);
+			this.out.declareVar(this.jCodeGen.plaidObjectType, freshID.name);
+			
+			this.out.updateVarDebugInfo(argID.name);
+			
+			this.y = freshID;
+			node.body.accept(this);
+			
+			this.out.ret(freshID.name);
+			this.out.closeAnonymousDeclaration();
+		};
+		
+		val /*ID*/ memberDef = this.idgen.getId();
+		this.out.declareFinalVar(this.jCodeGen.plaidMemberDefType, memberDef.name);
+
+//		if (stateContext.equals(CodeGen.anonymousDeclaration))
+//			out.assignToAnonymousMemberDef(memberDef.getName(), newName, false, overrides);
+//		else
+//			out.assignToNewMemberDef(memberDef.getName(), newName, stateContext, false, overrides);
+		
+		// TODO:  Where to get overrides information from?
+		this.out.assignToNewMemberDef(memberDef.name, newName, stateContext, false, false);
+		
+		this.out.addMember(y.name, memberDef.name, freshMethName.name);
+	}
+	
+	method visitMethodDecl(node) {
+		ifElse (this.top) {
+			this.top = false;
+			this.handleTopLevelMethodDecl(node);
+		} {
+			this.handleNestedMethodDecl(node);
+		};
+	}
+}
