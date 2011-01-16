@@ -32,7 +32,7 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 		if ( stateMembers == null ) {
 			synchronized (this) {
 				if ( stateMembers == null ) {
-					Map<String, Boolean> backend = createMap();
+					Map<String, Boolean> backend = new HashMap<String, Boolean>();
 					this.stateMembers = Collections.synchronizedSet(Collections.newSetFromMap(backend));
 				}
 			}
