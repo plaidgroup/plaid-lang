@@ -42,7 +42,7 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	
 	@Override
 	protected  <S,T> Map<S, T> createMap() {
-		return Collections.synchronizedMap(new HashMap<S, T>());
+		return new HashMap<S, T>();
 	}
 	
 	@Override
