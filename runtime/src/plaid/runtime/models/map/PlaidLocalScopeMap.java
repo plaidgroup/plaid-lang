@@ -3,6 +3,8 @@ package plaid.runtime.models.map;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -32,8 +34,9 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 		if ( stateMembers == null ) {
 			synchronized (this) {
 				if ( stateMembers == null ) {
-					Map<String, Boolean> backend = new HashMap<String, Boolean>();
-					this.stateMembers = Collections.synchronizedSet(Collections.newSetFromMap(backend));
+					//Map<String, Boolean> backend = new IdentityHashMap<String, Boolean>();
+					//this.stateMembers = Collections.synchronizedSet(Collections.newSetFromMap(backend));
+					this.stateMembers = Collections.synchronizedSet(new HashSet<String>());
 				}
 			}
 		}
