@@ -1,6 +1,16 @@
 package plaid.codegen.fragments;
 
 import plaid.ast.ID;
+import plaid.ast.Dereference;
+import plaid.ast.Application;
+import plaid.ast.AnnotatedLetBinding;
+import plaid.ast.UnannotatedLetBinding;
+import plaid.ast.types.Dyn;
+import plaid.ast.types.DynPermission;
+import plaid.ast.types.Permission;
+import plaid.ast.types.PermType;
+import plaid.ast.MethodDecl;
+
 
 state MethodDeclFragment {
 	method handleTopLevelMethodDecl(node) {
@@ -64,8 +74,9 @@ state MethodDeclFragment {
 		this.out.declareVar(this.out.plaidObjectType, freshReturn.name);
 		//top level functions lookup with unit
 		this.y = freshReturn;
+		
 		node.body.accept(this);
-
+		
 		this.out.ret(freshReturn.name);
 		this.out.closeAnonymousDeclaration(); // }});
 		
@@ -74,27 +85,45 @@ state MethodDeclFragment {
 		
 		plaid.compilerjava.util.FileGen.createOutputFile(newName,
 			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+		
 	}
 	
 	method handleNestedMethodDecl(node) {
 		val /*String*/ newName = this.jCodeGen.convertOpNames(node.name);
+		java.lang.System.out.println("Generating code for method '" + newName + "'...");
+		
 		this.setLocation(node.token);
 		val /*ID*/ freshMethName = this.idgen.getId();
 		val /*ID*/ freshID = this.idgen.getId();
 		val /*ID*/ y = this.y;
 		
+		
 		val /*Integer*/ numArgs = node.arguments.length();
 		val /*ID*/ argID = ifElse (numArgs == 0) {
 			new ID { val name = "_"; };
-		} {
+		} 
+		{
 			ifElse (numArgs == 1) {
-				new ID { val name = node.arguments.head.value; };
-			} {
-				// TODO:  Handle methods with more than one argument.
-				new ID { val name = "pA1R$plaid"; };
+				new ID { val name = node.arguments.head.value.name; };
+			} 
+			{
+				new ID { val name = "pA1R$plaid"; val token = new None;};
 			};
 		};
-				
+		var nodeBody = new UnitLiteral;
+		if(numArgs > 1 && !node.abstractMethod){
+			
+			nodeBody = this.getBodyWithPairExtractions(node.arguments, argID, 1, node.body);
+			
+			node <- MethodDecl with{
+  				override val token = node.token;
+  				override val name  = node.name;
+  				override val body = nodeBody;
+  				override val arguments  = node.arguments;
+  				override val abstractMethod  = node.abstractMethod;
+  				override val methodType  = node.methodType;
+			};
+		};
 		this.out.methodAnnotation(newName);
 		this.out.declareFinalVar(this.jCodeGen.plaidObjectType, freshMethName.name);
 		
@@ -102,17 +131,23 @@ state MethodDeclFragment {
 		var stateContext = this.packageName.foldr(fn (x, y) => x + "." + y, "");
 		stateContext = stateContext.substring(0, stateContext.length() - 1);
 		
+		
+		
 		ifElse (node.abstractMethod) {
 			this.y = freshMethName;
 			node.body.accept(this);
 		} {
-			this.out.assignToProtoMethod(freshMethName.name, argID.name, stateContext + "." + node.name);
+			this.out.assignToProtoMethod(freshMethName.name, argID.name, stateContext + "." + newName);
 			this.out.declareVar(this.jCodeGen.plaidObjectType, freshID.name);
 			
 			this.out.updateVarDebugInfo(argID.name);
 			
 			this.y = freshID;
+			
 			node.body.accept(this);
+			
+			this.y = y;
+			
 			
 			this.out.ret(freshID.name);
 			this.out.closeAnonymousDeclaration();
@@ -138,6 +173,60 @@ state MethodDeclFragment {
 			this.handleTopLevelMethodDecl(node);
 		} {
 			this.handleNestedMethodDecl(node);
+		};
+	}
+	
+	method getBodyWithPairExtractions(/*List<*/ arguments, argID, count, body){
+	    ifElse(arguments.length() > 0){
+		    var letBinding = new UnannotatedLetBinding{
+				val token = arguments.head.value.token;
+				val x = arguments.head.value;
+				val exp = this.getArg(argID, count);
+				val body =  getBodyWithPairExtractions(arguments.subList(1, arguments.length()), argID, count + 1, body);
+				val mutable = false;
+			};
+			letBinding;
+		}{
+			body;
+		
+		};
+	}
+	
+	method 	getArg(pairID,count){
+		
+		var application = new Application{
+			val token = pairID.token;
+			val f = new Dereference {
+				val left = this.getArg2(pairID, count);
+				val right = new ID { 
+					val name = "first";
+					val token = new None; 
+				};
+				val token = new None;
+			};
+			val arguments = new List { var head = new plaid.lang.Nil;};
+		};
+		application;
+	}
+	
+	method getArg2(pairID, count){
+		ifElse(count == 1){
+			pairID;
+		}
+		{
+			var application = new Application{
+				val token = pairID.getToken();
+				val f = new Dereference {
+					val left = this.getArg2(pairID, count - 1);
+					val right = new ID { 
+						val name = "second"; 
+						val token = new None;
+					};
+					val token = new None;
+				};
+				val arguments = new List { var head = new plaid.lang.Nil;};
+			};
+			application;
 		};
 	}
 }
