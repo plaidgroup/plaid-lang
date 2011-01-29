@@ -52,6 +52,10 @@ public final class MethodDecl implements Decl {
 	private final MethodType methodType;
 	private final boolean overrides;
 	
+	public boolean isOverrides() {
+		return overrides;
+	}
+
 	public MethodDecl(Token token, String name, Expression body, ID arg, boolean abstractMethod, MethodType methodType, boolean overrides) {
 		this.token = token;
 		if (Util.isKeyword(name))

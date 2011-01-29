@@ -48,6 +48,10 @@ public class FieldDecl implements Decl{
 	private final FieldType fieldType;
 	private final boolean overrides;
 	
+	public boolean isOverrides() {
+		return overrides;
+	}
+
 	public boolean isAbstractField() {
 		return abstractField;
 	}

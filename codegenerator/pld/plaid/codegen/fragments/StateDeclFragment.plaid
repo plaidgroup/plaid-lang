@@ -85,13 +85,52 @@ state StateDeclFragment {
 		this.out.openStaticBlock(); //static {
 		this.out.declareLocalScope(this.jCodeGen.globalScope);
 		this.out.declareFinalVar(this.jCodeGen.plaidStateType, theState.name);
-
 		this.y = theState;
-		node.stateDef.accept(this);
-		
-		this.out.assignToPrototype(node.name.name, theState.name);
+		// with caseOf State
+		ifElse(!node.isCaseOf) {
+			node.stateDef.accept(this);
+			this.out.assignToPrototype(node.name.name, theState.name);
+		} {
+			var caseOfState = this.idgen.getId();
+			var declaredState = this.idgen.getId();
+			this.out.declareFinalVar(this.jCodeGen.plaidStateType, caseOfState.name);
+			this.y = caseOfState;
+			//this.debugToConsole("inside subcase gen"+node.caseOf);
+			node.caseOf.value.accept(this);
+			this.out.declareFinalVar(this.jCodeGen.plaidStateType, declaredState.name);
+			this.y = declaredState;
+			node.stateDef.accept(this);
+			//
+			this.out.assignToWith(theState.name,caseOfState.name,declaredState.name);  //y = fresh1.with(fresh2);
+			this.out.assignToPrototype(node.name.name, theState.name);
+			
+			// because of subtagging, we don't want the resulting object to have the caseOf's state's tag
+			this.out.ifCondition(caseOfState.name + ".hasTag()"); //If the caseOf State has a tag
+			this.out.append(node.name.name + ".removeTag(" + caseOfState.name + ".getTag());"); //remove it from the prototype
+		};
 
 		this.out.closeBlock(); // } (for static block to init prototype)
+		
+		if (node.isCaseOf) { //if we have a tag	
+			//Tag
+			//Declare variable to hold the tag
+			var tag = new ID{
+				val name = node.name.name + "$Tag" + "$plaid"; 
+				val token = new None;
+			};
+			var tagPath = qid.toString() + "." + node.name.name;
+			this.out.tagAnnotation(tagPath);
+			this.out.declarePublicStaticFinalVar(this.jCodeGen.plaidTagType, tag.name);
+			this.out.openStaticBlock(); //static {	
+			var caseOfState = this.idgen.getId();
+			this.out.declareFinalVar(this.jCodeGen.plaidStateType, caseOfState.name);
+			this.y = caseOfState;
+			node.caseOf.value.accept(this);
+			this.out.assignToNewTag(tag.name, tagPath,  caseOfState.name);  
+			this.out.append(node.name.name + ".addTag(" + node.name.name + "$Tag" + "$plaid"+");");
+			this.out.updateVarDebugInfo(node.name.name);
+			this.out.closeBlock(); // } (for static block to init tag)
+		};
 		this.out.closeBlock(); // } (for class Def)
 		
 		plaid.compilerjava.util.FileGen.createOutputFile(node.name.name, 
