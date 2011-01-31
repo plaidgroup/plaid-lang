@@ -20,11 +20,8 @@ state MethodDeclFragment {
 		val freshReturn = this.idgen.getId();
 		val freshImports = this.idgen.getId();
 		
-		val cc = plaid.compilerjava.CompilerConfiguration.new();
-		cc.setPrettyPrint(true);
-		cc.setDebugMode(true);
-		cc.setOutputDir("testOutput/");
-		this.out = this.jCodeGen.new(cc);
+
+		this.out = this.jCodeGen.new(this.cc);
 		
 		val qid = new QI {val qid = this.packageName;};
 		val thisMethod = newName + "_func";
@@ -46,30 +43,44 @@ state MethodDeclFragment {
 
 		this.out.declareGlobalScope(qid.toString(), freshImports.name);
 		
-		if (newName.equals("main") /*&& this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1*/) {
+		if(newName.equals("main") /*&& this.methodType.getArgTypes().get(0) == PermType.UNIT && this.methodType.getArgTypes().size() == 1*/) {
 			this.out.topLevelMain(newName + "_func");
 		};
-
+		val numberOfArgs = node.arguments.length();
+		val /*ID*/ argID = ifElse (numberOfArgs == 0) {
+			new ID { val name = "_"; };
+		} 
+		{
+			ifElse (numberOfArgs == 1) {
+				new ID { val name = node.arguments.head.value.name; };
+			} 
+			{
+				new ID { val name = "pA1R$plaid"; val token = new None;};
+			};
+		};
+		var nodeBody = new UnitLiteral;
+		if(numberOfArgs > 1 && !node.abstractMethod){
+			
+			nodeBody = this.getBodyWithPairExtractions(node.arguments, argID, 1, node.body);
+			
+			node <- MethodDecl with{
+  				override val token = node.token;
+  				override val name  = node.name;
+  				override val body = nodeBody;
+  				override val arguments  = node.arguments;
+  				override val abstractMethod  = node.abstractMethod;
+  				override val methodType  = node.methodType;
+			};
+		};
 		this.out.methodAnnotation(newName);
 		this.out.declarePublicStaticFinalVar(this.out.plaidMethodType, thisMethod);
 		this.out.openStaticBlock(); // static {
 		// add local scope so that the lambda creation works properly
 		this.out.declareLocalScope(this.out.globalScope);
 		
-		var argName = "";
-		val numberOfArgs = node.arguments.length();
-		ifElse (numberOfArgs <= 0) {
-			argName = "_";
-		} {
-			ifElse (numberOfArgs == 1) {
-				argName = node.arguments.head.value.name;
-			} {
-				argName = "pA1R$plaid";
-				// TODO:  Add AST rewriting to extract values from nested pairs.
-			};
-		};
 		
-		this.out.assignToNewLambda(thisMethod, argName);
+		
+		this.out.assignToNewLambda(thisMethod, argID.name);
 		
 		this.out.declareVar(this.out.plaidObjectType, freshReturn.name);
 		//top level functions lookup with unit
@@ -84,7 +95,7 @@ state MethodDeclFragment {
 		this.out.closeBlock(); // }  (for class declaration)
 		
 		plaid.compilerjava.util.FileGen.createOutputFile(newName,
-			cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+			this.cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
 		
 	}
 	
