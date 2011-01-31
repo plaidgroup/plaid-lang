@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import org.junit.Test;
@@ -36,6 +37,37 @@ public class BuildAllExamples {
 //	public BuildAllExamples(File f) {
 //		this.f = f;
 //	}
+	
+	private static HashSet<String> skipList = new HashSet<String>();
+	
+	static{
+		skipList.add("addFive"); //Implicit this dereferences are not supported.
+		skipList.add("argumentAccess"); //Implicit this dereferences are not supported.
+		skipList.add("codeGenTest"); //Implicit this dereferences are not supported.
+		skipList.add("deeplyNestedLambdaTest"); //Implicit this dereferences are not supported.
+		skipList.add("destructiveRead"); //Exception at runtime - something to do with destructive read construct
+		skipList.add("functionalStyle"); //java.lang.RuntimeException: Pattern match exhausted.
+		skipList.add("globalAccess"); //Implicit this dereferences are not supported.
+		skipList.add("imperativeMergeSort");//java.lang.RuntimeException: Pattern match exhausted.
+		skipList.add("localVarTest");//java.lang.RuntimeException: Pattern match exhausted.
+		skipList.add("MASPEGHIstream");//Implicit this dereferences are not supported.
+		skipList.add("nestedAssignments");//java.lang.RuntimeException: Pattern match exhausted. AssignmentFragment
+		skipList.add("operators");//Implicit this dereferences are not supported.
+		skipList.add("parameterShadowing");//Implicit this dereferences are not supported.
+		skipList.add("reader");//MethodDeclFragment
+		skipList.add("referenceStateField");//Implicit this dereferences are not supported.
+		skipList.add("stateVarsTest");//Implicit this dereferences are not supported.
+		skipList.add("tailCallTest");//Implicit this dereferences are not supported.
+		skipList.add("tree");//java.lang.RuntimeException: Pattern match exhausted. AssignmentFragment
+		skipList.add("treeTest");//java.lang.RuntimeException: Pattern match exhausted. AssignmentFragment
+		skipList.add("turing");//Implicit this dereferences are not supported.
+		skipList.add("typeTests");//Method 'root.getTypeDecls' not found in package 'plaid.ast'.
+		skipList.add("varAccess");// Implicit this dereferences are not supported.
+		skipList.add("whileTest");// Implicit this dereferences are not supported.
+		skipList.add("writeToVal");// Implicit this dereferences are not supported.
+		
+		
+	}
 	
 	@Test
 	public void compile() throws Exception {
@@ -59,7 +91,11 @@ public class BuildAllExamples {
 		compiler.compile();
 	}
 
-	private static List<File> inputFiles() {
+	public static List<File> inputFiles() {
+		return inputFiles(false);
+	}
+	
+	public static List<File> inputFiles(boolean canSkip) {
 		List<File> results = new ArrayList<File>();
 	    String currentdir = System.getProperty("user.dir") + System.getProperty("file.separator"); // should be work space by default
 	    File cur = new File(currentdir);
@@ -67,7 +103,7 @@ public class BuildAllExamples {
 	    for (File f : cur.listFiles()) {
 			if ( f.getName().equals("coreExamples")) {
 				List<File> files = new ArrayList<File>();
-				findPlaidFile(f, files);
+				findPlaidFile(f, files, canSkip);
 				for (File file : files) {
 					File f1 = new File(file.getAbsolutePath().substring(currentdir.length()));
 					results.add(f1);
@@ -97,15 +133,22 @@ public class BuildAllExamples {
 //	}
 //	
 	
-	private static void findPlaidFile(File f, List<File> files) {
+	private static void findPlaidFile(File f, List<File> files, boolean canSkip) {
 		if ( f.isFile() ) {
 			if ( f.getName().endsWith(".plaid")) {
 				files.add(f);
 			}
-		} else if ( f.isDirectory() ) {		
+		} else if ( f.isDirectory() ) {
+			if(canSkip && skipList.contains(f.getName())){
+				return;
+			}
 			for (File file : f.listFiles()) {
-				findPlaidFile(file, files);
+				findPlaidFile(file, files,canSkip);
 			}
 		}
+	}
+	
+	private static void findPlaidFile(File f, List<File> files) {
+		findPlaidFile(f,files,false);
 	}
 }
