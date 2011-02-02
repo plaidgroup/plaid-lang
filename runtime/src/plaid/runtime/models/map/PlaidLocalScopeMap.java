@@ -21,12 +21,12 @@ import plaid.runtime.PlaidUnboundVariableException;
  */
 public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	private final PlaidScope parentScope;
-	private Set<String> stateMembers;
+	private volatile Set<String> stateMembers;
 	
+
 	public PlaidLocalScopeMap(PlaidScope parentScope) {
 		super();
 		this.parentScope = parentScope;
-
 	}
 	
 	protected final Set<String> stateMembers() {
@@ -34,12 +34,20 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 			synchronized (this) {
 				if ( stateMembers == null ) {
 					//Map<String, Boolean> backend = new IdentityHashMap<String, Boolean>();
-					//this.stateMembers = Collections.synchronizedSet(Collections.newSetFromMap(backend));
-					this.stateMembers = Collections.synchronizedSet(new HashSet<String>());
+					//stateMembers = Collections.synchronizedSet(Collections.newSetFromMap(backend));
+					stateMembers = Collections.synchronizedSet(new HashSet<String>());
 				}
 			}
 		}
 		return stateMembers;
+	}
+	
+	protected final boolean stateMembersContains(String name) {
+		if ( stateMembers == null  ) {
+			return false;
+		} else {
+			return stateMembers().contains(name);
+		}
 	}
 	
 	@Override
@@ -51,63 +59,63 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	public PlaidObject lookup(String name) {
 		// Search in mutable scope map first so that (mutable) method parameters
 		// properly shadow (immutable) methods.
-		if (this.mutableScopeMap.containsKey(name))
-			return this.mutableScopeMap.get(name);
-		else if (this.immutableScopeMap.containsKey(name))
-			return this.immutableScopeMap.get(name);
-		return this.parentScope.lookup(name);
+		if (mutableScopeMapContainsKey(name))
+			return mutableScopeMap().get(name);
+		else if (immutableScopeMapContainsKey(name))
+			return immutableScopeMap().get(name);
+		return parentScope.lookup(name);
 	}
 	
 	@Override
 	public void insert(String name, PlaidObject plaidObj, boolean immutable) {
 		// if there is an existing state member, we want to shadow it
-		if (this.stateMembers().contains(name)) {
+		if (stateMembersContains(name)) {
 			// need to make sure we can't shadow the same name multiple times 
-			this.stateMembers().remove(name);
+			stateMembers().remove(name);
 		}
-		else if (this.immutableScopeMap.containsKey(name) || 
-				this.mutableScopeMap.containsKey(name)) {
+		else if (immutableScopeMapContainsKey(name) || 
+				mutableScopeMapContainsKey(name)) {
 			throw new PlaidRuntimeException("Cannot insert '" + name + 
 					"': already defined in current scope.");
 		}
 		
 		if (immutable) {
-			this.immutableScopeMap.put(name, plaidObj);
+			immutableScopeMap().put(name, plaidObj);
 		}
 		else {
-			this.mutableScopeMap.put(name, plaidObj);
+			mutableScopeMap().put(name, plaidObj);
 		}
 	}
 	
 	@Override
 	public void update(String name, PlaidObject plaidObj) {
-		if (this.immutableScopeMap.containsKey(name)) {
+		if (immutableScopeMapContainsKey(name)) {
 			throw new PlaidRuntimeException("Cannot assign to variables " +
 					"declared with \"val\".");
 		}
-		else if (this.mutableScopeMap.containsKey(name)) {
+		else if (mutableScopeMapContainsKey(name)) {
 			// if this is a state member, we have to update the actual state 
 			// ("this") as well as the binding in the current scope
-			if (this.stateMembers().contains(name)) {
+			if (stateMembersContains(name)) {
 				// get the object bound to "this" in the current scope
-				PlaidObject thisObj = this.lookup("this$plaid");
+				PlaidObject thisObj = lookup("this$plaid");
 				// update it's member bound to "name" in it
 				thisObj.updateMember(name, plaidObj);
 			}
-			this.mutableScopeMap.put(name, plaidObj);
+			mutableScopeMap().put(name, plaidObj);
 		}
 		else {
-			this.parentScope.update(name, plaidObj);
+			parentScope.update(name, plaidObj);
 		}
 	}
 	
 	@Override
 	public PlaidObject shallowLookup(String name) {
-		if (this.mutableScopeMap.containsKey(name)) {
-			return this.mutableScopeMap.get(name);
+		if (mutableScopeMapContainsKey(name)) {
+			return mutableScopeMap().get(name);
 		}
-		else if (this.immutableScopeMap.containsKey(name)) {
-			return this.immutableScopeMap.get(name);
+		else if (immutableScopeMapContainsKey(name)) {
+			return immutableScopeMap().get(name);
 		}
 		else {
 			return null;
@@ -116,16 +124,16 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	
 	@Override
 	public void remove(String name) {
-		if (this.immutableScopeMap.containsKey(name)) {
-			this.immutableScopeMap.remove(name);
+		if (immutableScopeMapContainsKey(name)) {
+			immutableScopeMap().remove(name);
 		}
-		else if (this.mutableScopeMap.containsKey(name)) {
-			this.mutableScopeMap.remove(name);
+		else if (mutableScopeMapContainsKey(name)) {
+			mutableScopeMap().remove(name);
 		}
 		else {
 			throw new PlaidUnboundVariableException("Variable does not exist in " +
 					"current scope.");
 		}
-		this.stateMembers().remove(name);
+		stateMembers().remove(name);
 	}
 }
