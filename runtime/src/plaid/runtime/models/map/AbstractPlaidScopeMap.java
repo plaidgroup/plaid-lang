@@ -1,5 +1,6 @@
 package plaid.runtime.models.map;
 
+import java.util.Collections;
 import java.util.Map;
 
 import plaid.runtime.PlaidObject;
@@ -13,16 +14,54 @@ import plaid.runtime.PlaidScope;
  *
  */
 public abstract class AbstractPlaidScopeMap implements PlaidScope {
-	protected final Map<String, PlaidObject> immutableScopeMap;
-	protected final Map<String, PlaidObject> mutableScopeMap;
+	protected volatile Map<String, PlaidObject> immutableScopeMap;
+	protected volatile Map<String, PlaidObject> mutableScopeMap;	
 	
 	public AbstractPlaidScopeMap() {
-		this.immutableScopeMap = createMap();
-		this.mutableScopeMap   = createMap();
 	}
 	
 	protected abstract <S,T> Map<S, T> createMap();
 	
+	protected final Map<String, PlaidObject> immutableScopeMap() {
+		if ( immutableScopeMap == null ) {
+			synchronized (this) {
+				if ( immutableScopeMap == null ) {
+					Map<String, PlaidObject> map = createMap();
+					immutableScopeMap =  Collections.synchronizedMap(map);
+				}
+			}
+		}
+		return immutableScopeMap;
+	}
+	
+	protected final Map<String, PlaidObject> mutableScopeMap() {
+		if ( mutableScopeMap == null ) {
+			synchronized (this) {
+				if ( mutableScopeMap == null ) {
+					Map<String, PlaidObject> map = createMap();
+					mutableScopeMap =  Collections.synchronizedMap(map);
+				}
+			}
+		}
+		return mutableScopeMap;
+	}
+	
+	protected final boolean immutableScopeMapContainsKey(String name) {
+		if ( immutableScopeMap == null ) {
+			return false;
+		} else {
+			return immutableScopeMap().containsKey(name);
+		}
+	}
+	
+	protected final boolean mutableScopeMapContainsKey(String name) {
+		if ( mutableScopeMap == null ) {
+			return false;
+		} else {
+			return mutableScopeMap().containsKey(name);
+		}
+	}
+
 	@Override
 	public void insert(String name, PlaidObject plaidObj) {
 		this.insert(name, plaidObj, true);

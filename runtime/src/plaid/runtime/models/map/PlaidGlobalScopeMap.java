@@ -66,10 +66,10 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	
 	public PlaidObject lookup(String name) {
 		// check scope map
-		if (this.mutableScopeMap.containsKey(name))
-			return this.mutableScopeMap.get(name);
-		else if (this.immutableScopeMap.containsKey(name))
-			return this.immutableScopeMap.get(name);
+		if (this.mutableScopeMapContainsKey(name))
+			return this.mutableScopeMap().get(name);
+		else if (this.immutableScopeMapContainsKey(name))
+			return this.immutableScopeMap().get(name);
 		
 		synchronized (importsLock) {
 			// TODO: Check if that's correct.
@@ -117,37 +117,37 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	@Override
 	public PlaidObject shallowLookup(String name) {
 		// check scope map
-		if (this.mutableScopeMap.containsKey(name))
-			return this.mutableScopeMap.get(name);
-		else if (this.immutableScopeMap.containsKey(name))
-			return this.immutableScopeMap.get(name);
+		if (this.mutableScopeMapContainsKey(name))
+			return this.mutableScopeMap().get(name);
+		else if (this.immutableScopeMapContainsKey(name))
+			return this.immutableScopeMap().get(name);
 		else
 			return null;
 	}
 	
 	@Override
 	public void insert(String name, PlaidObject plaidObj, boolean immutable) {
-		if (this.immutableScopeMap.containsKey(name) || 
-			this.mutableScopeMap.containsKey(name)) {
+		if (this.immutableScopeMapContainsKey(name) || 
+			this.mutableScopeMap().containsKey(name)) {
 			throw new PlaidRuntimeException("Cannot insert '" + name + 
 					"': already defined in current scope.");
 		}
 		
 		if (immutable) {
-			this.immutableScopeMap.put(name, plaidObj);
+			this.immutableScopeMap().put(name, plaidObj);
 		}
 		else {
-			this.mutableScopeMap.put(name, plaidObj);
+			this.mutableScopeMap().put(name, plaidObj);
 		}
 	}
 	
 	public void update(String name, PlaidObject plaidObj) {
-		if (this.immutableScopeMap.containsKey(name)) {
+		if (this.immutableScopeMapContainsKey(name)) {
 			throw new PlaidRuntimeException("Cannot assign to variables " +
 											"declared with \"val\".");
 		}
-		else if (this.mutableScopeMap.containsKey(name)) {		
-			this.mutableScopeMap.put(name, plaidObj);
+		else if (this.mutableScopeMapContainsKey(name)) {		
+			this.mutableScopeMap().put(name, plaidObj);
 		}
 	}
 	
@@ -181,11 +181,11 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	
 	@Override
 	public void remove(String name) {
-		if (this.immutableScopeMap.containsKey(name)) {
-			this.immutableScopeMap.remove(name);
+		if (this.immutableScopeMapContainsKey(name)) {
+			this.immutableScopeMap().remove(name);
 		}
-		else if (this.mutableScopeMap.containsKey(name)) {
-			this.mutableScopeMap.remove(name);
+		else if (this.mutableScopeMapContainsKey(name)) {
+			this.mutableScopeMap().remove(name);
 		}
 		else {
 			throw new PlaidUnboundVariableException("Variable does not " +
