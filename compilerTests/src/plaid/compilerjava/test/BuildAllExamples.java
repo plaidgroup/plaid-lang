@@ -41,30 +41,13 @@ public class BuildAllExamples {
 	private static HashSet<String> skipList = new HashSet<String>();
 	
 	static{
-		skipList.add("addFive"); //Implicit this dereferences are not supported.
-		skipList.add("argumentAccess"); //Implicit this dereferences are not supported.
-		skipList.add("codeGenTest"); //Implicit this dereferences are not supported.
-		skipList.add("deeplyNestedLambdaTest"); //Implicit this dereferences are not supported.
 		skipList.add("destructiveRead"); //Exception at runtime - something to do with destructive read construct
-		skipList.add("functionalStyle"); //java.lang.RuntimeException: Pattern match exhausted.
-		skipList.add("globalAccess"); //Implicit this dereferences are not supported.
-		skipList.add("imperativeMergeSort");//java.lang.RuntimeException: Pattern match exhausted.
-		skipList.add("localVarTest");//java.lang.RuntimeException: Pattern match exhausted.
-		skipList.add("MASPEGHIstream");//Implicit this dereferences are not supported.
-		skipList.add("nestedAssignments");//java.lang.RuntimeException: Pattern match exhausted. AssignmentFragment
-		skipList.add("operators");//Implicit this dereferences are not supported.
-		skipList.add("parameterShadowing");//Implicit this dereferences are not supported.
 		skipList.add("reader");//MethodDeclFragment
-		skipList.add("referenceStateField");//Implicit this dereferences are not supported.
 		skipList.add("stateVarsTest");//Implicit this dereferences are not supported.
-		skipList.add("tailCallTest");//Implicit this dereferences are not supported.
 		skipList.add("tree");//java.lang.RuntimeException: Pattern match exhausted. AssignmentFragment
 		skipList.add("treeTest");//java.lang.RuntimeException: Pattern match exhausted. AssignmentFragment
 		skipList.add("turing");//Implicit this dereferences are not supported.
 		skipList.add("typeTests");//Method 'root.getTypeDecls' not found in package 'plaid.ast'.
-		skipList.add("varAccess");// Implicit this dereferences are not supported.
-		skipList.add("whileTest");// Implicit this dereferences are not supported.
-		skipList.add("writeToVal");// Implicit this dereferences are not supported.
 		
 		
 	}
