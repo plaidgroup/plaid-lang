@@ -93,6 +93,10 @@ public class Util {
 		return cl.memberDef(memberName, false, definedIn, mutable, overrides);
 	}
 	
+	public static PlaidMemberDef memberDef(PlaidMemberDef other) {
+		return cl.memberDef(other.getMemberName(), false, other.definedIn(), other.isMutable(), other.overrides());
+	}
+	
 	public static PlaidMemberDef anonymousMemberDef(String memberName, boolean mutable, boolean overrides) {
 		return cl.memberDef(memberName, true, null, mutable, overrides);
 	}
@@ -117,11 +121,11 @@ public class Util {
 				if (elem.getStates().contains(lookup("plaid.lang.Pair", unit()))) {
 					PlaidObject fst = null;
 					PlaidObject snd = null;
-					for (PlaidMemberDef m: elem.getMembers().keySet()) {
+					for (PlaidMemberDef m: elem.getMembers().values()) {
 						if (m.getMemberName().equals("fst")) {
-							fst = elem.getMembers().get(m);
+							fst = elem.getMembers().get(m.getMemberName()).getValue();
 						} else if (m.getMemberName().equals("snd")) {
-							snd = elem.getMembers().get(m);
+							snd = elem.getMembers().get(m.getMemberName()).getValue();
 						}
 					}		
 					if (fst instanceof PlaidJavaObject) {

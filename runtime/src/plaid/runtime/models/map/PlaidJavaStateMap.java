@@ -75,7 +75,7 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 	}
 	
 	@Override
-	public Map<PlaidMemberDef, PlaidObject> getMembers() {
+	public Map<String, PlaidMemberDef> getMembers() {
 		// TODO: Not sure if the use of mutability for all fields and immutability for all methods here is correct
 		// TODO: should there be a special tag for Java members?
 		//Map<PlaidMemberDef, PlaidObject> members = new HashMap<PlaidMemberDef, PlaidObject>();
@@ -84,7 +84,9 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 				Object obj;
 				try {
 					obj = f.get(value);
-					this.members().put(Util.memberDef(f.getName(), valueClass.getName(), true, false), new PlaidJavaObjectMap(obj));
+					PlaidMemberDef mdef = Util.memberDef(f.getName(), valueClass.getName(), true, false);
+					mdef.setValue(new PlaidJavaObjectMap(obj));
+					this.members().put(mdef.getMemberName(), mdef);
 				} catch (IllegalArgumentException e) {
 					throw new PlaidInvalidArgumentException("Wrong argument.");
 				} catch (IllegalAccessException e) {
@@ -92,7 +94,9 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 				}				
 			}
 			for (Method m : valueClass.getMethods()) {
-				this.members().put(Util.memberDef(m.getName(), valueClass.getName(), false, false), new PlaidJavaMethodMap(m.getName(), value, valueClass));
+				PlaidMemberDef mdef = Util.memberDef(m.getName(), valueClass.getName(), false, false);
+				mdef.setValue(new PlaidJavaMethodMap(m.getName(), value, valueClass));
+				this.members().put(mdef.getMemberName(), mdef);
 			}
 			reflected = true; //TODO: Tell Sven we did this // lol wtf?
 		}

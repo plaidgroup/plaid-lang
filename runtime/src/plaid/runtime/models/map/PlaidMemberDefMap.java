@@ -1,17 +1,18 @@
 package plaid.runtime.models.map;
 
 import plaid.runtime.PlaidMemberDef;
+import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntimeException;
 
-public class PlaidMemberDefMap implements PlaidMemberDef {
-
-	private String memberName;
-	private String definedIn;
-	private boolean anonymous;
-	private boolean mutable;
-	private boolean overrides;
-	private boolean overrideIsBound = false;
-	private String overridenDef;
+public final class PlaidMemberDefMap implements PlaidMemberDef {
+	protected String memberName;
+	protected String definedIn;
+	protected boolean anonymous;
+	protected boolean mutable;
+	protected boolean overrides;
+	protected boolean overrideIsBound = false;
+	protected String overridenDef;
+	protected PlaidObject value;
 	
 	public static final PlaidMemberDefMap anonymousMember(String memberName, boolean mutable, boolean overrides) {
 		return new PlaidMemberDefMap(memberName, true, null, mutable, overrides);
@@ -23,6 +24,15 @@ public class PlaidMemberDefMap implements PlaidMemberDef {
 		this.mutable = mutable;
 		this.anonymous = anonymous;
 		this.overrides = overrides;
+	}
+
+	public PlaidMemberDefMap(PlaidMemberDefMap other) {
+		this.memberName = other.memberName;
+		this.definedIn  = other.definedIn;
+		this.mutable    = other.mutable;
+		this.anonymous  = other.anonymous;
+		this.overrides  = other.overrides;
+		this.value      = other.value;
 	}
 	
 	public PlaidMemberDefMap(String memberName, String definedIn) {
@@ -115,5 +125,15 @@ public class PlaidMemberDefMap implements PlaidMemberDef {
 		
 		PlaidMemberDefMap o = (PlaidMemberDefMap) other;
 		return this.toString().equals(o.toString());
+	}
+
+	@Override
+	public PlaidObject getValue() {
+		return value;
+	}
+
+	@Override
+	public void setValue(PlaidObject value) {
+		this.value = value;
 	}
 }

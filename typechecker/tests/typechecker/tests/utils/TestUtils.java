@@ -255,10 +255,10 @@ public class TestUtils {
 	 * @return
 	 */
 	public static PlaidObject getField(String fieldName, PlaidObject obj) {
-		Map<PlaidMemberDef, PlaidObject> members = obj.getMembers();
-		for (Entry<PlaidMemberDef, PlaidObject> member : members.entrySet()) {
-			if (member.getKey().getMemberName().equals(fieldName)) {
-				return member.getValue();
+		Map<String, PlaidMemberDef> members = obj.getMembers();
+		for (Entry<String, PlaidMemberDef> member : members.entrySet()) {
+			if (member.getValue().getMemberName().equals(fieldName)) {
+				return member.getValue().getValue();
 			}
 		}
 		return null;
