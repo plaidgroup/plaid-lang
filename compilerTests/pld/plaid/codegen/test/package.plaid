@@ -1,0 +1,50 @@
+package plaid.codegen.test;
+
+import plaid.ast.visitor.ASTViewer;
+import plaid.ast.*;
+import plaid.typechecker.*;
+import plaid.typechecker.typecheckerMethods.*;
+import plaid.optimizer.*;
+import plaid.compilerjava.test.BuildAllExamples;
+import plaid.codegen.CodeGenVisitor;
+
+
+state BuildCompilerExamples {
+	
+	method generateJava(file,runTypechecker){
+		val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(file));
+		val translator = new ASTTranslator;
+		val plaidAST = translator.translateAST(javaAST);
+		val stTranslator = new StateTableBuilderVisitor;
+		plaidAST.accept(stTranslator);
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		val tr = new PackageRepTranslator {
+			val stateTable = stateTable;
+		};
+		val userDir = java.lang.System.getProperty("user.dir");
+		val plaidPath = makeEmptyList();
+		plaidPath.add(userDir + "/bin/");
+		plaidPath.add(userDir + "/../stdlib/bin/");
+		val packageRep = tr.buildPackageRep(javaAST, plaidPath);
+		tr.translate(packageRep);
+		val codeGenVisitor = new CodeGenVisitor { val stateTable = stateTable; };
+		codeGenVisitor.cc.setPrettyPrint(true);
+		codeGenVisitor.cc.setDebugMode(true);
+		codeGenVisitor.cc.setOutputDir("coreOutput/");
+		plaidAST.accept(codeGenVisitor);
+	}
+	
+	
+}
+
+method main() {
+	var codeGenTest = new BuildCompilerExamples;
+	var files = plaid.compilerjava.test.BuildAllExamples.inputFiles(true);
+	var filesIterator = files.iterator();
+	while{filesIterator.hasNext();}{
+		var file = filesIterator.next();
+		codeGenTest.generateJava(file,false);
+	};
+}
