@@ -21,7 +21,8 @@ package plaid.runtime;
 
 import static plaid.runtime.PlaidRuntimeState.RUNTIME_STATE.STOPPED;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import plaid.runtime.event.PlaidRuntimeCallEnterEvent;
 import plaid.runtime.event.PlaidRuntimeCallLeaveEvent;
@@ -34,12 +35,14 @@ import plaid.runtime.event.PlaidRuntimeStateChangeEvent;
 import plaid.runtime.event.PlaidRuntimeVariableUpdateEvent;
 import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.models.map.PlaidRuntimeMap;
+import plaid.runtime.utils.Configuration;
 
 public abstract class PlaidRuntime implements PlaidRuntimeState, PlaidRuntimeControl {
 	// static fields
 	private static volatile PlaidRuntime runtime = null;
 	private static Object runtimeLock = new Object();
-
+	protected static final boolean enableEvent = Configuration.getProperty(PlaidRuntime.class, "enableEvents", false);
+	
 	// instance fields
 	@SuppressWarnings("all")
 	private ThreadLocal<String> currentFilename = new ThreadLocal<String> () {

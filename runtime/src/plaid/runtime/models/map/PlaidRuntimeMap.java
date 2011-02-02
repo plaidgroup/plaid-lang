@@ -30,33 +30,34 @@ import plaid.runtime.PlaidTailCall;
 import plaid.runtime.Util;
 
 public final class PlaidRuntimeMap extends PlaidRuntime {
-	
+
 	@Override
 	public PlaidObject call(PlaidObject func, PlaidObject args) {
 		PlaidObject this$plaid = null;
 		String name = "";
-		if (func instanceof PlaidMethodMap) {
-			PlaidMethodMap pom = (PlaidMethodMap)func;
-			this$plaid = pom.varthis;
-			for (Map.Entry<String, PlaidMemberDef> entry : this$plaid.getMembers().entrySet() ) {
-				if ( entry.getValue() == func ) {
-					name = entry.getValue().getMemberName();
-					enterCall(this$plaid, name);
+		if ( enableEvent ) {
+			if (func instanceof PlaidMethodMap) {
+				PlaidMethodMap pom = (PlaidMethodMap)func;
+				this$plaid = pom.varthis;
+				for (Map.Entry<String, PlaidMemberDef> entry : this$plaid.getMembers().entrySet() ) {
+					if ( entry.getValue() == func ) {
+						name = entry.getValue().getMemberName();
+						enterCall(this$plaid, name);
+					}
 				}
+			} else if ( func instanceof PlaidJavaMethodMap ) {
+				PlaidJavaMethodMap pjom = (PlaidJavaMethodMap)func;
+				this$plaid = PlaidClassLoaderMap.getClassLoader().packJavaObject(pjom.instance);
+				name = pjom.name;
+				enterCall(this$plaid, pjom.name);
+
+			} else if ( func instanceof PlaidFunctionMap ) {
+				PlaidFunctionMap pfm = (PlaidFunctionMap)func;
+				this$plaid = PlaidClassLoaderMap.getClassLoader().unit();
+				name = pfm.getName();
+				enterCall(this$plaid, name);
 			}
-		} else if ( func instanceof PlaidJavaMethodMap ) {
-			PlaidJavaMethodMap pjom = (PlaidJavaMethodMap)func;
-			this$plaid = PlaidClassLoaderMap.getClassLoader().packJavaObject(pjom.instance);
-			name = pjom.name;
-			enterCall(this$plaid, pjom.name);
-			
-		} else if ( func instanceof PlaidFunctionMap ) {
-			PlaidFunctionMap pfm = (PlaidFunctionMap)func;
-			this$plaid = PlaidClassLoaderMap.getClassLoader().unit();
-			name = pfm.getName();
-			enterCall(this$plaid, name);
 		}
-		
 		PlaidObject result;
 		try {
 			result = Util.toPlaidMethod(func).invoke(args);
@@ -69,7 +70,10 @@ public final class PlaidRuntimeMap extends PlaidRuntime {
 		} catch (ClassCastException exn) {
 			throw new PlaidInvalidArgumentException("Attempt to call " + this$plaid + "." + name + "() on " + args + " failed.");
 		}
-		leaveCall(this$plaid, name);
+		
+		if ( enableEvent ) {
+			leaveCall(this$plaid, name);
+		}
 
 		return result;
 	}
