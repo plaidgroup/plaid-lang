@@ -83,8 +83,8 @@ public class PlaidObjectExplorer extends JDialog implements VariabeChangeListene
 				states.add(state);
 			}
 
-			for (Map.Entry<PlaidMemberDef, PlaidObject> entry : dataObject.getMembers().entrySet() ) {
-				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue(),entry.getKey().getMemberName()));
+			for (Map.Entry<String, PlaidMemberDef> entry : dataObject.getMembers().entrySet() ) {
+				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue().getValue(),entry.getValue().getMemberName()));
 				if ( entry.getValue() instanceof PlaidMethod ) {
 					methods.add(item);
 				} else {
@@ -102,8 +102,8 @@ public class PlaidObjectExplorer extends JDialog implements VariabeChangeListene
 				DefaultMutableTreeNode state= new DefaultMutableTreeNode(po);
 				states.add(state);
 			}
-			for (Map.Entry<PlaidMemberDef, PlaidObject> entry : dataObject.getMembers().entrySet() ) {
-				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue(),entry.getKey().getMemberName()));
+			for (Map.Entry<String, PlaidMemberDef> entry : dataObject.getMembers().entrySet() ) {
+				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue().getValue(),entry.getValue().getMemberName()));
 				if ( entry.getValue() instanceof PlaidMethod ) {
 					methods.add(item);
 				} else {
@@ -113,8 +113,8 @@ public class PlaidObjectExplorer extends JDialog implements VariabeChangeListene
 			
 			fields.removeAllChildren();
 			methods.removeAllChildren();
-			for (Map.Entry<PlaidMemberDef, PlaidObject> entry : dataObject.getMembers().entrySet() ) {
-				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue(),entry.getKey().getMemberName()));
+			for (Map.Entry<String, PlaidMemberDef> entry : dataObject.getMembers().entrySet() ) {
+				DefaultMutableTreeNode item = new DefaultMutableTreeNode(new DataObject( entry.getValue().getValue(),entry.getValue().getMemberName()));
 				if ( entry.getValue() instanceof PlaidMethod ) {
 					methods.add(item);
 				} else {

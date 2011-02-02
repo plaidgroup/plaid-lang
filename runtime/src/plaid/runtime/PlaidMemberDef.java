@@ -17,5 +17,8 @@ public interface PlaidMemberDef {
 	public void bindOverride(String overridenDef) throws PlaidRuntimeException;
 	
 	public String overridenDef();
+
+	public PlaidObject getValue();
 	
+	public void setValue(PlaidObject value);
 }

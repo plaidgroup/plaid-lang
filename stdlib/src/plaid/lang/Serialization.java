@@ -59,10 +59,9 @@ public class Serialization {
 
 			// TODO: add tags
 
-			for (Entry<PlaidMemberDef, PlaidObject> entry : plaidObj
-					.getMembers().entrySet()) {
+			for (Entry<String, PlaidMemberDef> entry : plaidObj.getMembers().entrySet()) {
 				if (!(entry.getValue() instanceof PlaidMethod)) {
-					jsonObject.put(entry.getKey().getMemberName(), convertPlaidObjectToJSONObject(entry.getValue()));
+					jsonObject.put(entry.getValue().getMemberName(), convertPlaidObjectToJSONObject(entry.getValue().getValue()));
 				}
 			}
 			return jsonObject;
@@ -124,10 +123,9 @@ public class Serialization {
 	}
 
 	protected static PlaidObject getField(PlaidObject plaidObj, String name) {
-		for (Entry<PlaidMemberDef, PlaidObject> entry : plaidObj.getMembers()
-				.entrySet()) {
-			if (entry.getKey().getMemberName().equals(name)) {
-				return entry.getValue();
+		for (Entry<String, PlaidMemberDef> entry : plaidObj.getMembers().entrySet()) {
+			if (entry.getValue().getMemberName().equals(name)) {
+				return entry.getValue().getValue();
 			}
 		}
 		throw new PlaidRuntimeException("Cannot find '" + name + "' field in: "
@@ -229,9 +227,9 @@ public class Serialization {
 			
 			// populate fields
 			final PlaidState values = plaid.runtime.Util.newState();
-			for ( Entry<PlaidMemberDef, PlaidObject> member : (Set<Entry<PlaidMemberDef, PlaidObject>>)typeState.getMembers().entrySet() ) {
-				if ( !(member.getValue() instanceof PlaidMethod ) ) {
-					final PlaidMemberDef memDef = member.getKey();
+			for ( Entry<String, PlaidMemberDef> member : (Set<Entry<String, PlaidMemberDef>>)typeState.getMembers().entrySet() ) {
+				if ( !(member.getValue().getValue() instanceof PlaidMethod ) ) {
+					final PlaidMemberDef memDef = member.getValue();
 					//System.out.println("Look for field " + memDef.getMemberName() );
 					final JSONObject fieldValue = (JSONObject)jsonObj.get(memDef.getMemberName());
 					if ( fieldValue == null ) {

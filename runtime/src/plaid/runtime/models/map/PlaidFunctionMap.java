@@ -31,8 +31,6 @@ public final class PlaidFunctionMap extends PlaidObjectMap implements PlaidMetho
 	public PlaidFunctionMap(Lambda fn) {
 		this.fn = fn;
 	}
-
-	
 	
 	public String getName() {
 		return name;

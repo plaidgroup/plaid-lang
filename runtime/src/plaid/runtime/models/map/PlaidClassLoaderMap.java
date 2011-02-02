@@ -51,12 +51,12 @@ import plaid.runtime.utils.QualifiedIdentifier;
 
 public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	private final HashMap<String, PlaidObject> singletons = new HashMap<String, PlaidObject>();
-	private final Object singletonsLock = new Object();
-	private final Set<String> nonExistingClasses = new HashSet<String>();
+	private final Object singletonsLock                   = new Object();
+	private final Set<String> nonExistingClasses          = new HashSet<String>();
 	private final PlaidObject unit;
 
 	private static volatile PlaidClassLoaderMap loader = null;
-	private static Object loaderLock = new Object();
+	private static Object loaderLock                   = new Object();
 	
 	private PlaidClassLoaderMap() {
 		unit = loadClass("plaid.lang.Unit");
@@ -81,10 +81,10 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 				if (name.equals(PlaidJavaConstructorMap.NAME)) {
 					if (pthis instanceof PlaidJavaStateMap) {
 						PlaidJavaStateMap pjsm = (PlaidJavaStateMap)pthis;
-						Map<PlaidMemberDef, PlaidObject> members = pjsm.prototype.getMembers();
-						for (PlaidMemberDef m : members.keySet()) {
+						Map<String, PlaidMemberDef> members = pjsm.prototype.getMembers();
+						for (PlaidMemberDef m : members.values()) {
 							if (m.getMemberName().equals(name)) {
-								return members.get(m);
+								return m.getValue();
 							}
 						}
 					}
@@ -94,10 +94,10 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 				}
 
 				// check members 
-				Map<PlaidMemberDef,PlaidObject> members = pthis.getMembers();
-				for (PlaidMemberDef m : members.keySet()) {
+				Map<String, PlaidMemberDef> members = pthis.getMembers();
+				for (PlaidMemberDef m : members.values()) {
 					if (name.equals(m.getMemberName()))
-						return members.get(m);
+						return m.getValue();
 				}
 
 				for (PlaidObject os : pthis.getStates()) {

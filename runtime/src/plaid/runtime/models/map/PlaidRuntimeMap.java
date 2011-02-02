@@ -38,9 +38,9 @@ public final class PlaidRuntimeMap extends PlaidRuntime {
 		if (func instanceof PlaidMethodMap) {
 			PlaidMethodMap pom = (PlaidMethodMap)func;
 			this$plaid = pom.varthis;
-			for (Map.Entry<PlaidMemberDef, PlaidObject> entry : this$plaid.getMembers().entrySet() ) {
+			for (Map.Entry<String, PlaidMemberDef> entry : this$plaid.getMembers().entrySet() ) {
 				if ( entry.getValue() == func ) {
-					name = entry.getKey().getMemberName();
+					name = entry.getValue().getMemberName();
 					enterCall(this$plaid, name);
 				}
 			}

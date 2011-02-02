@@ -167,13 +167,13 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	public PlaidState initState(PlaidState init) throws PlaidException {
 		PlaidStateMap result = new PlaidStateMap();
 		addToPlaidObject(result.prototype, this.prototype);
-		Map<PlaidMemberDef,PlaidObject> initMembers = init.getMembers();
-		Map<PlaidMemberDef, PlaidObject> stateMembers = this.getMembers();
+		Map<String, PlaidMemberDef> initMembers = init.getMembers();
+		Map<String, PlaidMemberDef> stateMembers = this.getMembers();
 	
-		for (PlaidMemberDef member : initMembers.keySet()) {
+		for (PlaidMemberDef member : initMembers.values()) {
 			
 			String memberName = member.getMemberName();
-			PlaidMemberDef existing = findExisting(memberName, stateMembers.keySet());
+			PlaidMemberDef existing = stateMembers.get(memberName); //findExisting(memberName, stateMembers.keySet());
 			
 			// override means defined in the current state from above in the state hierarchy
 			// 1) find existing member to override from this state
@@ -184,7 +184,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 					throw new PlaidRuntimeException("No member " + memberName + " to override");
 				else {
 					//keep as anonymous //TODO : are these the right semantics
-					result.addMember(member, initMembers.get(member));
+					result.addMember(Util.memberDef(member), initMembers.get(memberName).getValue());
 				}
 			} else {
 				if (member.overrides()) { //when overriding, don't care about whether the existing member is abstract
@@ -201,11 +201,11 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 					//otherwise, sometimes overriding something defined in the same place as the overrid
 					PlaidMemberDef overrideMemberDef = Util.memberDef(memberName, this.getPath(), mutable, true); 
 					//overrideMemberDef.bindOverride(originalDef); //This is done in addMember()
-					result.addMember(overrideMemberDef, initMembers.get(member));
+					result.addMember(overrideMemberDef, initMembers.get(memberName).getValue());
 				} else { 
 					
 					//check that the existing member is abstract
-					PlaidObject existingValue = stateMembers.get(existing);
+					PlaidObject existingValue = stateMembers.get(existing.getMemberName()).getValue();
 					if (existingValue != PlaidRuntime.getRuntime().getClassLoader().unit() && 
 							!(existingValue instanceof PlaidAbstractValueMap))
 						throw new PlaidRuntimeException("Cannot re-initialize member " + memberName + " without overriding.");
@@ -220,7 +220,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 								originalDef + ".");
 					
 					result.removeMember(memberName);
-					result.addMember(Util.memberDef(memberName, originalDef, mutable, false), initMembers.get(member));	
+					result.addMember(Util.memberDef(memberName, originalDef, mutable, false), initMembers.get(memberName).getValue());	
 				}
 			} 
 			
@@ -258,23 +258,20 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	protected PlaidObject initialize(PlaidObjectMap pom) {
 		// add members from prototype initializing any that are proto-
-		for ( Map.Entry<PlaidMemberDef, PlaidObject> member : prototype.getMembers().entrySet() ) {
-			PlaidObject memberValue = member.getValue();
-			PlaidMemberDef memberKey = member.getKey();
+		for ( Map.Entry<String, PlaidMemberDef> member : prototype.getMembers().entrySet() ) {
+			PlaidObject memberValue = member.getValue().getValue();
+			PlaidMemberDef memberKey = member.getValue();
 			if (memberValue instanceof PlaidProtoMethodMap) {
 				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap) memberValue;
 				PlaidMethodMap method = new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate());
-				pom.addMember(memberKey, method);
-			} 
-			else if (memberValue  instanceof PlaidProtoFieldMap) {
+				pom.addMember(Util.memberDef(memberKey), method);
+			} else if (memberValue  instanceof PlaidProtoFieldMap) {
 				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap) memberValue;
 				PlaidMethod initializer = new PlaidMethodMap(memberKey.getMemberName(), pom, ppfm.getInitalizer());
-				pom.addMember(memberKey, initializer.invoke(Util.unit()));
-			} 
-			else if (memberValue instanceof PlaidAbstractValueMap) {
-				pom.addMember(memberKey, memberValue);
-			}
-			else {
+				pom.addMember(Util.memberDef(memberKey), initializer.invoke(Util.unit()));
+			} else if (memberValue instanceof PlaidAbstractValueMap) {
+				pom.addMember(Util.memberDef(memberKey), memberValue);
+			} else {
 				pom.addMember(memberKey, memberValue);
 			}
 		}
@@ -294,8 +291,8 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	protected void addToPlaidObject(PlaidObject target, PlaidObject source) {
 		// copy  members 
-		for ( Map.Entry<PlaidMemberDef, PlaidObject> e : source.getMembers().entrySet()) {
-			target.addMember(e.getKey(), e.getValue());
+		for ( Map.Entry<String, PlaidMemberDef> e : source.getMembers().entrySet()) {
+			target.addMember(Util.memberDef(e.getValue()), e.getValue().getValue());
 		}
 		
 		// copy states
@@ -326,7 +323,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 
 	@Override
-	public Map<PlaidMemberDef, PlaidObject> getMembers() {
+	public Map<String, PlaidMemberDef> getMembers() {
 		return Collections.unmodifiableMap(prototype.getMembers());
 	}
 	

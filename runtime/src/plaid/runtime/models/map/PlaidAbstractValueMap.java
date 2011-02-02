@@ -25,7 +25,7 @@ public class PlaidAbstractValueMap extends PlaidObjectMap {
 		throw new PlaidRuntimeException("No operations possible on an abstract value.");
 	}
 	
-	public Map<PlaidMemberDef, PlaidObject> getMembers() {
+	public Map<String, PlaidMemberDef> getMembers() {
 		throw new PlaidRuntimeException("No operations possible on an abstract value.");
 	}
 		
