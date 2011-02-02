@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.models.map.PlaidStateMap;
@@ -32,7 +33,8 @@ public class Util {
 	public static final String thisVar = "this";
 	private static PlaidRuntime rt = PlaidRuntime.getRuntime();
     private static PlaidClassLoader cl = PlaidRuntime.getRuntime().getClassLoader();
-	
+	protected static AtomicReferenceArray<PlaidJavaObject> integerCache = new AtomicReferenceArray<PlaidJavaObject>(256);
+    
 	public static PlaidObject newObject() throws PlaidException {
 		PlaidState object = (PlaidState)cl.lookup("plaid.lang.Object", unit());
 		PlaidObject value = (PlaidObject)object.instantiate();
@@ -51,10 +53,23 @@ public class Util {
 	}
 
 	public static PlaidObject integer(Integer i) throws PlaidException {
-		PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
-		PlaidJavaObject value = (PlaidJavaObject)intState.instantiate(PlaidImmutablePermission.immutable());
-		value.setJavaObject(i);
-		return value;
+		if ( 0 <= i && i < integerCache.length() ) {
+			PlaidJavaObject value = integerCache.get(i);
+			if ( value == null ) {
+				PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
+				value = (PlaidJavaObject)intState.instantiate(PlaidImmutablePermission.immutable());
+				value.setJavaObject(i);
+				if ( !integerCache.weakCompareAndSet(i, null, value) ) {
+					value = integerCache.get(i);
+				}				
+			} 
+			return value;
+		} else {
+			PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
+			PlaidJavaObject value = (PlaidJavaObject)intState.instantiate(PlaidImmutablePermission.immutable());
+			value.setJavaObject(i);
+			return value;
+		}
 	}
 	
 	public static PlaidObject trueObject() throws PlaidException {
