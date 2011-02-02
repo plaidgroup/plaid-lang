@@ -1,0 +1,115 @@
+package plaid.typechecker.typecheckerMethods;
+
+import plaid.typechecker.context.*;
+import plaid.ast.types.*;
+import plaid.ast.*;
+
+state TCvisitMethodDecl {
+	
+	//override val /*StateTable*/ stateTable; // need to know about nominal types during typechecking
+	//override val /*Context*/ context; //need to keep track of variables and types
+	//override var /*Option PermType*/ typedAs;
+	
+	override method visitMethodDecl(node) {
+		java.lang.System.out.println("--typechecking method " + node.name);
+		
+		ifElse(node.abstractMethod) {
+			//don't need to do anything
+			this.typedAs = new Some { val value = node.methodType; };
+			java.lang.System.out.println("Abstract Method " + node.name + " typechecked!");
+			
+		} {
+			//for method Decls we need to verify that the body meets the specification
+			//of the method type.  To do this, we create a new Typechecker instance with
+			//a new context
+			val mContext = this.context.copy();
+			val mtype = node.methodType;
+
+			//add receiver
+			mContext.put(new ID { val name = "this$plaid"; }, getContextType(mtype.receiverType)); 
+		
+			//add args
+			val /*List<Pair<ID,ChangeType>>*/ argIDtypes = node.arguments.zip(mtype.argTypes); //zip to match IDs and types
+			argIDtypes.map(fn (p) => mContext.put(p.fst, getContextType(p.snd)));
+		
+			//mContext.printContext();
+		
+			//TODO: add environment variables
+		
+			//new typechecker for the method body
+			val mST = this.stateTable;
+			val methodChecker = typecheckerFactory(mContext, mST);
+			node.body.accept(methodChecker);
+			//java.lang.System.out.println("later checked failed");
+			//check that return type matches
+			var /*Boolean*/ retCheck = false;
+			match (methodChecker.typedAs) {
+				case Some {
+					retCheck = methodChecker.typedAs.value.isSubPermTypeOf(mtype.returnType, this.stateTable);
+					if (!retCheck) { 
+						val msg = "return type of body of method " + node.name + " does not match declared type";
+						typeError(node, msg, true);
+						java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
+					}
+				}
+				case None {
+					val msg = "typecheck of body for method " + node.name + " failed";
+					typeError(node, msg, false);
+					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+				}
+			};		
+		
+			//check that receiver output type matches - equivalent to typed in the context
+			//resulted by the method typing
+			var /*Boolean*/ thisCheck = false;
+			(new ID { val name = "this$plaid"; }).accept(methodChecker);
+			match (methodChecker.typedAs) {
+				case Some {
+					thisCheck = methodChecker.typedAs.value.isSubPermTypeOf(mtype.receiverType.output, this.stateTable);
+					if (!thisCheck) { 
+						val msg = "output type of receiver for method " + node.name + " does not match declared output type";
+						typeError(node, msg, true);
+						java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
+					}
+				}
+				case None {
+					val msg = "type check of receiver for method " + node.name + " failed";
+					typeError(node, msg, false);
+					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+				}
+			};
+		
+			//check that arg output types match - equivalent to typed in the context
+			//resulted by the method typing, with receiver pulled out
+			var /*Boolean*/ argCheck = argIDtypes.foldr(fn (p,v) => {
+				p.fst.accept(methodChecker);
+				match ( methodChecker.typedAs) {
+					case Some {
+						val /*Boolean*/ newArg = methodChecker.typedAs.value.isSubPermTypeOf(p.snd.output, this.stateTable);
+						if (!newArg) { 
+							val msg = "Output type of arg " + p.fst.name + " for method " + node.name + " does not match declared output type";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
+						}; 
+						ifElse (v) 
+							{ newArg }
+							{ false };
+					}
+					case None {
+						val msg = "arg " + p.fst.name + " not found in context after typechecking";
+						typeError(node, msg, true);
+						//java.lang.System.out.println("TYPECHECK FAILED: " + msg); 
+						false;
+					}
+				}
+			}, true);
+		
+			ifElse(retCheck && thisCheck && argCheck) {
+				this.typedAs = new Some { val value = mtype; };
+				java.lang.System.out.println("Method " + node.name + " typechecked!");
+			} {
+				this.typedAs = NONE;
+			}
+		}
+	}
+}
