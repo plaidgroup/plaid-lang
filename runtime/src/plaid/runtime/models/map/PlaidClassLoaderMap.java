@@ -81,11 +81,9 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 				if (name.equals(PlaidJavaConstructorMap.NAME)) {
 					if (pthis instanceof PlaidJavaStateMap) {
 						PlaidJavaStateMap pjsm = (PlaidJavaStateMap)pthis;
-						Map<String, PlaidMemberDef> members = pjsm.prototype.getMembers();
-						for (PlaidMemberDef m : members.values()) {
-							if (m.getMemberName().equals(name)) {
-								return m.getValue();
-							}
+						PlaidMemberDef memberDef = pjsm.prototype.getMember(name);
+						if ( memberDef != null ) {
+							return memberDef.getValue();
 						}
 					}
 					else {
@@ -94,12 +92,16 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 				}
 
 				// check members 
-				Map<String, PlaidMemberDef> members = pthis.getMembers();
-				for (PlaidMemberDef m : members.values()) {
-					if (name.equals(m.getMemberName()))
-						return m.getValue();
+//				Map<String, PlaidMemberDef> members = pthis.getMembers();
+//				for (PlaidMemberDef m : members.values()) {
+//					if (name.equals(m.getMemberName()))
+//						return m.getValue();
+//				}
+				PlaidMemberDef memberDef = pthis.getMember(name);
+				if ( memberDef != null ) {
+					return memberDef.getValue();
 				}
-
+				
 				for (PlaidObject os : pthis.getStates()) {
 					PlaidStateMap s = (PlaidStateMap)os;
 					if (s.getName().equals(name)) {

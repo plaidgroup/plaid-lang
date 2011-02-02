@@ -49,7 +49,9 @@ public interface PlaidObject {
 	public void removeMember(String name);
 	
 	public Map<String, PlaidMemberDef> getMembers();
-		
+	
+	public PlaidMemberDef getMember(String name);
+	
 	public void addState(PlaidObject state);
 
 	public void removeState(PlaidObject state);

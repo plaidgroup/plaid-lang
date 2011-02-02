@@ -19,10 +19,13 @@
  
 package plaid.runtime.models.map;
 
+
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.Map;
 
@@ -37,6 +40,9 @@ import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidState;
 import plaid.runtime.Util;
 import plaid.runtime.utils.QualifiedIdentifier;
+
+import static plaid.runtime.models.map.PlaidJavaObjectMap.getFields;
+import static plaid.runtime.models.map.PlaidJavaObjectMap.getMethods;
 
 public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaObject {
 	protected Object value;
@@ -80,7 +86,8 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 		// TODO: should there be a special tag for Java members?
 		//Map<PlaidMemberDef, PlaidObject> members = new HashMap<PlaidMemberDef, PlaidObject>();
 		if (reflected == false  && valueClass != null) {
-			for (Field f : valueClass.getFields()) {
+			for (Field f : getFields(valueClass)) {
+				if ( reflected && Modifier.isFinal(f.getModifiers())) continue; // read final fields only once
 				Object obj;
 				try {
 					obj = f.get(value);
@@ -93,7 +100,7 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 					throw new PlaidIllegalAccessException("Cannot get field value");
 				}				
 			}
-			for (Method m : valueClass.getMethods()) {
+			for (Method m : getMethods(valueClass)) {
 				PlaidMemberDef mdef = Util.memberDef(m.getName(), valueClass.getName(), false, false);
 				mdef.setValue(new PlaidJavaMethodMap(m.getName(), value, valueClass));
 				this.members().put(mdef.getMemberName(), mdef);
@@ -103,33 +110,46 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 		return Collections.unmodifiableMap(members());
 	}
 	
-//	@Override
-//	public Map<String, PlaidObject> getMutableMembers() {
-//		if (reflected == false  && valueClass != null) {
-//			for (Field f : valueClass.getFields()) {
-//				Object obj;
-//				try {
-//					obj = f.get(value);
-//					this.mutableMembers.put(f.getName(), new PlaidJavaObjectMap(obj));
-//				} catch (IllegalArgumentException e) {
-//					throw new PlaidInvalidArgumentException("Wrong argument.");
-//				} catch (IllegalAccessException e) {
-//					throw new PlaidIllegalAccessException("Cannot get field value");
-//				}				
-//			}
-//		}
-//		return Collections.unmodifiableMap(this.mutableMembers);
-//	}
-//	
-//	@Override
-//	public Map<String, PlaidObject> getImmutableMembers() {
-//		if (reflected == false  && valueClass != null) {
-//			for (Method m : valueClass.getMethods()) {
-//				this.immutableMembers.put(m.getName(), new PlaidJavaMethodMap(m.getName(), value, valueClass));
-//			}
-//		}
-//		return Collections.unmodifiableMap(this.immutableMembers);
-//	}
+	@Override
+	public final PlaidMemberDef getMember(String name) {
+		PlaidMemberDef result = members().get(name);
+
+		// check fields
+		for (Field f : getFields(valueClass)) {
+			if ( f.getName().equals(name) ) {
+				if ( result != null  && Modifier.isFinal(f.getModifiers())) break; // read final fields only once
+				Object obj;
+				try {
+					obj = f.get(value);
+					result = Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false);
+					if ( obj != null ) {
+						result.setValue(new PlaidJavaObjectMap(obj));
+					} else {
+						result.setValue( PlaidRuntime.getRuntime().getClassLoader().unit());
+					}
+					members().put(f.getName(), result);
+					return result;
+				} catch (IllegalArgumentException e) {
+					throw new PlaidInvalidArgumentException("Wrong argument.");
+				} catch (IllegalAccessException e) {
+					throw new PlaidIllegalAccessException("Cannot get field value");
+				}
+			}
+		}
+
+		if ( !reflected && result == null ) {
+			// try to find method
+			for (Method m : getMethods(valueClass)) {
+				if ( m.getName().equals(name)) {
+					result = Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false);
+					result.setValue(new PlaidJavaMethodMap(m.getName(), value, valueClass));
+					this.members().put(m.getName(), result);
+					return result;
+				}
+			}
+		}
+		return result;
+	}
 	
 	@Override
 	public PlaidState with(PlaidState... args) throws PlaidException {

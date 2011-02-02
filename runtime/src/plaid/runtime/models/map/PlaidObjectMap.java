@@ -217,6 +217,11 @@ public class PlaidObjectMap implements PlaidObject {
 	}
 	
 	@Override
+	public PlaidMemberDef getMember(String name) {
+		return members().get(name);
+	}
+	
+	@Override
 	public void addState(PlaidObject state) throws PlaidException {
 		if (isReadOnly()) {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
