@@ -19,7 +19,6 @@
  
 package plaid.runtime;
 
-import java.io.IOException;
 import java.util.List;
 
 import plaid.runtime.models.map.PlaidGlobalScopeMap;
