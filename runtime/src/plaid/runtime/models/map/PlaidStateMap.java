@@ -136,7 +136,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
 		result.addAll(states());
 		result.addAll(prototype.getStates());
-		return Collections.unmodifiableCollection(result);
+		return result;
 	}
 
 	public void setPrototype(PlaidObject plaidObj) {
@@ -325,7 +325,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	@Override
 	public Map<String, PlaidMemberDef> getMembers() {
-		return Collections.unmodifiableMap(prototype.getMembers());
+		return prototype.getMembers();
 	}
 	
 	@Override
