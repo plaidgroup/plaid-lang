@@ -23,7 +23,7 @@ import plaid.runtime.utils.QualifiedIdentifier;
  *
  */
 public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
-	private static final Set<Import> javaImports = new HashSet<Import>();
+	private final Set<Import> javaImports = new HashSet<Import>();
 	private final Map<String, Import> importMap;
 	private final Object importsLock = new Object();
 
@@ -42,9 +42,9 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 			if (imp.isStar()) //java imports are the only starred imports, leave these for slow lookup
 				javaImports.add(imp);
 			else {
-				Import current = this.importMap.get(imp.getIdent().getSuffix());
+				Import current = importMap.get(imp.getIdent().getSuffix());
 				if (current == null)
-					this.importMap.put(imp.getIdent().getSuffix(), imp);
+					importMap.put(imp.getIdent().getSuffix(), imp);
 				else if (!current.equals(imp))
 					throw new PlaidRuntimeException("Import conflict: Symbol `" + current.getIdent().getSuffix() 
 						+ "' imported from packages `" + current.getIdent().getPrefix()
@@ -55,8 +55,9 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	
 	private void addImports(Collection<Import> imports) {
 		synchronized (importsLock) {
-			for (Import imp : imports)
-				this.addImport(imp);
+			for (Import imp : imports) {
+				addImport(imp);
+			}
 		}
 	}
 	
@@ -66,10 +67,10 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	
 	public PlaidObject lookup(String name) {
 		// check scope map
-		if (this.mutableScopeMapContainsKey(name))
-			return this.mutableScopeMap().get(name);
-		else if (this.immutableScopeMapContainsKey(name))
-			return this.immutableScopeMap().get(name);
+		if (mutableScopeMapContainsKey(name))
+			return mutableScopeMap().get(name);
+		else if (immutableScopeMapContainsKey(name))
+			return immutableScopeMap().get(name);
 		
 		synchronized (importsLock) {
 			// TODO: Check if that's correct.
@@ -117,37 +118,37 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	@Override
 	public PlaidObject shallowLookup(String name) {
 		// check scope map
-		if (this.mutableScopeMapContainsKey(name))
-			return this.mutableScopeMap().get(name);
-		else if (this.immutableScopeMapContainsKey(name))
-			return this.immutableScopeMap().get(name);
+		if (mutableScopeMapContainsKey(name))
+			return mutableScopeMap().get(name);
+		else if (immutableScopeMapContainsKey(name))
+			return immutableScopeMap().get(name);
 		else
 			return null;
 	}
 	
 	@Override
 	public void insert(String name, PlaidObject plaidObj, boolean immutable) {
-		if (this.immutableScopeMapContainsKey(name) || 
-			this.mutableScopeMap().containsKey(name)) {
+		if (immutableScopeMapContainsKey(name) || 
+			mutableScopeMap().containsKey(name)) {
 			throw new PlaidRuntimeException("Cannot insert '" + name + 
 					"': already defined in current scope.");
 		}
 		
 		if (immutable) {
-			this.immutableScopeMap().put(name, plaidObj);
+			immutableScopeMap().put(name, plaidObj);
 		}
 		else {
-			this.mutableScopeMap().put(name, plaidObj);
+			mutableScopeMap().put(name, plaidObj);
 		}
 	}
 	
 	public void update(String name, PlaidObject plaidObj) {
-		if (this.immutableScopeMapContainsKey(name)) {
+		if (immutableScopeMapContainsKey(name)) {
 			throw new PlaidRuntimeException("Cannot assign to variables " +
 											"declared with \"val\".");
 		}
-		else if (this.mutableScopeMapContainsKey(name)) {		
-			this.mutableScopeMap().put(name, plaidObj);
+		else if (mutableScopeMapContainsKey(name)) {		
+			mutableScopeMap().put(name, plaidObj);
 		}
 	}
 	
@@ -158,7 +159,7 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	}
 	
 	public int hashCode() {
-		return this.globalPackage.hashCode();
+		return globalPackage.hashCode();
 	}
 	
 	public static PlaidGlobalScopeMap create(String qi, List<Import> imports) {
@@ -181,11 +182,11 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	
 	@Override
 	public void remove(String name) {
-		if (this.immutableScopeMapContainsKey(name)) {
-			this.immutableScopeMap().remove(name);
+		if (immutableScopeMapContainsKey(name)) {
+			immutableScopeMap().remove(name);
 		}
-		else if (this.mutableScopeMapContainsKey(name)) {
-			this.mutableScopeMap().remove(name);
+		else if (mutableScopeMapContainsKey(name)) {
+			mutableScopeMap().remove(name);
 		}
 		else {
 			throw new PlaidUnboundVariableException("Variable does not " +
