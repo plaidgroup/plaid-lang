@@ -24,12 +24,14 @@ import java.util.List;
 
 public final class QualifiedIdentifier {
 	private List<String> fragments;
+	private String name;
 	
 	public QualifiedIdentifier(String qi) {
 		fragments = new ArrayList<String>();
 		for ( String f : qi.split("\\.") ) {
 			fragments.add(f);
 		}
+		name = qi;
 	}
 	
 	public QualifiedIdentifier(QualifiedIdentifier other) {
@@ -45,11 +47,14 @@ public final class QualifiedIdentifier {
 	}
 	
 	public String getQI() {
-		StringBuilder sb = new StringBuilder();
-		for ( String f : fragments ) {
-			sb.append(f + ".");
+		if ( name == null ) {
+			StringBuilder sb = new StringBuilder();
+			for ( String f : fragments ) {
+				sb.append(f + ".");
+			}
+			name =  sb.substring(0, sb.length()-1);
 		}
-		return sb.substring(0, sb.length()-1);
+		return name;
 	}
 	
 	public String getSuffix() {
