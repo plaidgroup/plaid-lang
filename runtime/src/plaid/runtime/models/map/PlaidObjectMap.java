@@ -161,7 +161,7 @@ public class PlaidObjectMap implements PlaidObject {
 						} else 
 							memberDef.bindOverride(existingDef.definedIn());
 					}
-					members().remove(existingDef);
+					members().remove(existingDef.getMemberName());
 					members().put(existingDef.getMemberName(), memberDef);
 				} else if (!existingDef.isAnonymous()) {
 					//cannot both be defined in a state
@@ -173,7 +173,7 @@ public class PlaidObjectMap implements PlaidObject {
 						//members().put(existingDef,obj);
 					}
 				} else { //remove existing def and use the added def
-					members().remove(existingDef);
+					members().remove(existingDef.getMemberName());
 					members().put(existingDef.getMemberName(), memberDef);
 				}
 			}
