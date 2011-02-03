@@ -137,6 +137,9 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	
 	@Override
 	public Collection<PlaidObject> getStates() {
+		if ( states == null && prototype.getStates() == PlaidObjectMap.EMPTY_STATES ) {
+			return PlaidObjectMap.EMPTY_STATES;
+		}
 		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
 		result.addAll(states());
 		result.addAll(prototype.getStates());
@@ -282,13 +285,17 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		}
 		
 		// add states from prototype
-		for (PlaidObject ps : this.prototype.getStates()) {
-			pom.addState(ps);
+		if ( prototype.getStates() != PlaidObjectMap.EMPTY_STATES ) {
+			for (PlaidObject ps : prototype.getStates() ) {
+				pom.addState(ps);
+			}
 		}
 		
 		// add tags from the prototype
-		for (PlaidTag t : this.prototype.getTags()) {
-			pom.addTag(t);
+		if ( prototype.getTags() != PlaidObjectMap.EMPTY_TAGS ) {
+			for (PlaidTag t : prototype.getTags()) {
+				pom.addTag(t);
+			}
 		}
 		
 		return pom;
@@ -354,6 +361,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	@Override
 	public String getPath() {
-		return pkg.getQI().toString() + "." + name;
+		return qi + "." + name;
 	}
 }

@@ -41,6 +41,10 @@ import plaid.runtime.types.PlaidPermissionTableMap;
 import plaid.runtime.types.PlaidUniquePermission;
 
 public class PlaidObjectMap implements PlaidObject {
+	@SuppressWarnings("unchecked")
+	public static Collection<PlaidObject> EMPTY_STATES = Collections.unmodifiableCollection(Collections.EMPTY_LIST);
+	@SuppressWarnings("unchecked")
+	public static Collection<PlaidTag> EMPTY_TAGS      = Collections.unmodifiableCollection(Collections.EMPTY_LIST);
 	protected PlaidPermissionTable permTable;
 	protected Collection<PlaidObject> states;
 	protected Map<String, PlaidMemberDef> members;
@@ -245,6 +249,9 @@ public class PlaidObjectMap implements PlaidObject {
 
 	@Override
 	public Collection<PlaidObject> getStates() {
+		if ( states == null ) {
+			return EMPTY_STATES;
+		}
 		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
 		result.addAll(states());
 		return result;
@@ -274,6 +281,9 @@ public class PlaidObjectMap implements PlaidObject {
 
 	@Override
 	public Collection<PlaidTag> getTags() {
+		if ( tags == null ) {
+			return EMPTY_TAGS;
+		}
 		Collection<PlaidTag> result = new ArrayList<PlaidTag>();
 		result.addAll(tags());
 		return Collections.unmodifiableCollection(result);
