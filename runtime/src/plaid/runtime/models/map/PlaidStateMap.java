@@ -132,6 +132,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	
 	public void setPackage(PlaidPackageMap pkg) {
 		this.pkg = pkg;
+		qi = pkg.getQI().append(name);
 	}
 	
 	@Override
