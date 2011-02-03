@@ -361,6 +361,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	@Override
 	public String getPath() {
-		return qi + "." + name;
+		return pkg.getQI().toString() + "." + name;
 	}
 }
