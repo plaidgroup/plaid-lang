@@ -22,7 +22,6 @@ package plaid.runtime.models.map;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 
 import plaid.runtime.PlaidException;
@@ -44,13 +43,15 @@ import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	protected static final PlaidPackageMap anonymousPackage = new PlaidPackageMap(new QualifiedIdentifier("<ANONYMOUS>"));
+	protected static final QualifiedIdentifier anonymousQI  = anonymousPackage.getQI().append("<ANONYMOUS>");
 	protected PlaidPackageMap pkg;
 	protected String name;
 	protected RepresentsState psa;
 	protected PlaidObject prototype = new PlaidObjectMap();
 	protected Class<Object> templateClass;
 	protected PlaidTag tag;
-
+	protected QualifiedIdentifier qi;
+	
 	public static PlaidStateMap loadPlaidState(Class<Object> templateClass) {
 		PlaidStateMap theState = null;
 		RepresentsState psa = null;
@@ -109,6 +110,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		}
 		
 		prototype.addState(this);
+		qi = pkg.getQI().append(name);
 	}
 	
 	public PlaidStateMap() {
@@ -117,6 +119,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		this.psa = null;
 		this.templateClass = null;
 		this.tag = null;
+		this.qi = anonymousQI;
 	}
 	
 	public void setName(String name) {
@@ -148,7 +151,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 
 	public QualifiedIdentifier getQI() {
-		return pkg.getQI().append(name);
+		return qi;
 	}
 
 	@Override
