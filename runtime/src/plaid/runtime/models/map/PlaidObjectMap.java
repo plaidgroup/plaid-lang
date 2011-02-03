@@ -138,7 +138,7 @@ public class PlaidObjectMap implements PlaidObject {
 				
 			//if existing is abstract, remove it and add the new one (do not update defined in)
 			if (existingDef.getValue() instanceof PlaidAbstractValueMap) {
-				members().remove(name);
+				//members().remove(name);
 				members().put(name, memberDef);
 			} else {
 				
@@ -161,7 +161,7 @@ public class PlaidObjectMap implements PlaidObject {
 						} else 
 							memberDef.bindOverride(existingDef.definedIn());
 					}
-					members().remove(existingDef.getMemberName());
+					//members().remove(existingDef.getMemberName());
 					members().put(existingDef.getMemberName(), memberDef);
 				} else if (!existingDef.isAnonymous()) {
 					//cannot both be defined in a state
@@ -173,7 +173,7 @@ public class PlaidObjectMap implements PlaidObject {
 						//members().put(existingDef,obj);
 					}
 				} else { //remove existing def and use the added def
-					members().remove(existingDef.getMemberName());
+					//members().remove(existingDef.getMemberName());
 					members().put(existingDef.getMemberName(), memberDef);
 				}
 			}
