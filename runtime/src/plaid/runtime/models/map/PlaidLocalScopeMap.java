@@ -22,7 +22,6 @@ import plaid.runtime.PlaidUnboundVariableException;
 public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 	private final PlaidScope parentScope;
 	private volatile Set<String> stateMembers;
-	
 
 	public PlaidLocalScopeMap(PlaidScope parentScope) {
 		super();

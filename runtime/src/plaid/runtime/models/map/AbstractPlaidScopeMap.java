@@ -27,7 +27,7 @@ public abstract class AbstractPlaidScopeMap implements PlaidScope {
 			synchronized (this) {
 				if ( immutableScopeMap == null ) {
 					Map<String, PlaidObject> map = createMap();
-					immutableScopeMap =  Collections.synchronizedMap(map);
+					immutableScopeMap =  map;
 				}
 			}
 		}
@@ -39,7 +39,7 @@ public abstract class AbstractPlaidScopeMap implements PlaidScope {
 			synchronized (this) {
 				if ( mutableScopeMap == null ) {
 					Map<String, PlaidObject> map = createMap();
-					mutableScopeMap =  Collections.synchronizedMap(map);
+					mutableScopeMap =  map;
 				}
 			}
 		}
@@ -64,6 +64,6 @@ public abstract class AbstractPlaidScopeMap implements PlaidScope {
 
 	@Override
 	public void insert(String name, PlaidObject plaidObj) {
-		this.insert(name, plaidObj, true);
+		insert(name, plaidObj, true);
 	}
 }
