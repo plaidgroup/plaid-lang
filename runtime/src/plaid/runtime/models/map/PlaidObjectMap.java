@@ -41,6 +41,10 @@ import plaid.runtime.types.PlaidPermissionTableMap;
 import plaid.runtime.types.PlaidUniquePermission;
 
 public class PlaidObjectMap implements PlaidObject {
+	@SuppressWarnings("unchecked")
+	public static Collection<PlaidObject> EMPTY_STATES = Collections.unmodifiableCollection(Collections.EMPTY_LIST);
+	@SuppressWarnings("unchecked")
+	public static Collection<PlaidTag> EMPTY_TAGS      = Collections.unmodifiableCollection(Collections.EMPTY_LIST);
 	protected PlaidPermissionTable permTable;
 	protected Collection<PlaidObject> states;
 	protected Map<String, PlaidMemberDef> members;
@@ -134,7 +138,7 @@ public class PlaidObjectMap implements PlaidObject {
 				
 			//if existing is abstract, remove it and add the new one (do not update defined in)
 			if (existingDef.getValue() instanceof PlaidAbstractValueMap) {
-				members().remove(name);
+				//members().remove(name);
 				members().put(name, memberDef);
 			} else {
 				
@@ -157,7 +161,7 @@ public class PlaidObjectMap implements PlaidObject {
 						} else 
 							memberDef.bindOverride(existingDef.definedIn());
 					}
-					members().remove(existingDef);
+					//members().remove(existingDef.getMemberName());
 					members().put(existingDef.getMemberName(), memberDef);
 				} else if (!existingDef.isAnonymous()) {
 					//cannot both be defined in a state
@@ -169,7 +173,7 @@ public class PlaidObjectMap implements PlaidObject {
 						//members().put(existingDef,obj);
 					}
 				} else { //remove existing def and use the added def
-					members().remove(existingDef);
+					//members().remove(existingDef.getMemberName());
 					members().put(existingDef.getMemberName(), memberDef);
 				}
 			}
@@ -245,9 +249,10 @@ public class PlaidObjectMap implements PlaidObject {
 
 	@Override
 	public Collection<PlaidObject> getStates() {
-		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
-		result.addAll(states());
-		return Collections.unmodifiableCollection(result);
+		if ( states == null ) {
+			return EMPTY_STATES;
+		}
+		return Collections.unmodifiableCollection(states());
 	}
 	
 	@Override
@@ -274,9 +279,10 @@ public class PlaidObjectMap implements PlaidObject {
 
 	@Override
 	public Collection<PlaidTag> getTags() {
-		Collection<PlaidTag> result = new ArrayList<PlaidTag>();
-		result.addAll(tags());
-		return Collections.unmodifiableCollection(result);
+		if ( tags == null ) {
+			return EMPTY_TAGS;
+		}
+		return Collections.unmodifiableCollection(tags());
 	}
 	
 	public boolean matchesTag(String tagString) {

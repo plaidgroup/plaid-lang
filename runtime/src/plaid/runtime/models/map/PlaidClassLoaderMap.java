@@ -23,7 +23,6 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import plaid.runtime.PlaidClassLoader;
@@ -92,11 +91,6 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 				}
 
 				// check members 
-//				Map<String, PlaidMemberDef> members = pthis.getMembers();
-//				for (PlaidMemberDef m : members.values()) {
-//					if (name.equals(m.getMemberName()))
-//						return m.getValue();
-//				}
 				PlaidMemberDef memberDef = pthis.getMember(name);
 				if ( memberDef != null ) {
 					return memberDef.getValue();

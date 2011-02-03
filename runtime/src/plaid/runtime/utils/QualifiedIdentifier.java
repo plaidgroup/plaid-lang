@@ -20,17 +20,18 @@
 package plaid.runtime.utils;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public final class QualifiedIdentifier {
 	private List<String> fragments;
+	private String qi;
 	
 	public QualifiedIdentifier(String qi) {
 		fragments = new ArrayList<String>();
 		for ( String f : qi.split("\\.") ) {
 			fragments.add(f);
 		}
+		this.qi = qi;
 	}
 	
 	public QualifiedIdentifier(QualifiedIdentifier other) {
@@ -46,11 +47,14 @@ public final class QualifiedIdentifier {
 	}
 	
 	public String getQI() {
-		StringBuilder sb = new StringBuilder();
-		for ( String f : fragments ) {
-			sb.append(f + ".");
+		if ( qi == null ) {
+			StringBuilder sb = new StringBuilder();
+			for ( String f : fragments ) {
+				sb.append(f + ".");
+			}
+			qi =  sb.substring(0, sb.length()-1);
 		}
-		return sb.substring(0, sb.length()-1);
+		return qi;
 	}
 	
 	public String getSuffix() {

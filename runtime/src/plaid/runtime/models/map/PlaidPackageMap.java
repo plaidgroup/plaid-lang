@@ -30,7 +30,7 @@ public final class PlaidPackageMap extends PlaidObjectMap implements PlaidPackag
 	}
 
 	public QualifiedIdentifier getQI() {
-		return new QualifiedIdentifier(qi);
+		return qi;
 	}
 	
 	public String toString() {

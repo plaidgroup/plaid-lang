@@ -22,7 +22,6 @@ package plaid.runtime.models.map;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 
 import plaid.runtime.PlaidException;
@@ -43,12 +42,15 @@ import plaid.runtime.types.PlaidUniquePermission;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
+	protected static final PlaidPackageMap anonymousPackage = new PlaidPackageMap(new QualifiedIdentifier("<ANONYMOUS>"));
+	protected static final QualifiedIdentifier anonymousQI  = anonymousPackage.getQI().append("<ANONYMOUS>");
 	protected PlaidPackageMap pkg;
 	protected String name;
 	protected RepresentsState psa;
 	protected PlaidObject prototype = new PlaidObjectMap();
 	protected Class<Object> templateClass;
 	protected PlaidTag tag;
+	protected QualifiedIdentifier qi;
 	
 	public static PlaidStateMap loadPlaidState(Class<Object> templateClass) {
 		PlaidStateMap theState = null;
@@ -108,14 +110,16 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		}
 		
 		prototype.addState(this);
+		qi = pkg.getQI().append(name);
 	}
 	
 	public PlaidStateMap() {
-		this.pkg = new PlaidPackageMap(new QualifiedIdentifier("<ANONYMOUS>"));
+		this.pkg = anonymousPackage;
 		this.name = "<ANONYMOUS>";
 		this.psa = null;
 		this.templateClass = null;
 		this.tag = null;
+		this.qi = anonymousQI;
 	}
 	
 	public void setName(String name) {
@@ -128,14 +132,18 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	
 	public void setPackage(PlaidPackageMap pkg) {
 		this.pkg = pkg;
+		qi = pkg.getQI().append(name);
 	}
 	
 	@Override
 	public Collection<PlaidObject> getStates() {
+		if ( states == null && prototype.getStates() == PlaidObjectMap.EMPTY_STATES ) {
+			return PlaidObjectMap.EMPTY_STATES;
+		}
 		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
 		result.addAll(states());
 		result.addAll(prototype.getStates());
-		return Collections.unmodifiableCollection(result);
+		return result;
 	}
 
 	public void setPrototype(PlaidObject plaidObj) {
@@ -147,7 +155,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 
 	public QualifiedIdentifier getQI() {
-		return pkg.getQI().append(name);
+		return qi;
 	}
 
 	@Override
@@ -277,13 +285,17 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		}
 		
 		// add states from prototype
-		for (PlaidObject ps : this.prototype.getStates()) {
-			pom.addState(ps);
+		if ( prototype.getStates() != PlaidObjectMap.EMPTY_STATES ) {
+			for (PlaidObject ps : prototype.getStates() ) {
+				pom.addState(ps);
+			}
 		}
 		
 		// add tags from the prototype
-		for (PlaidTag t : this.prototype.getTags()) {
-			pom.addTag(t);
+		if ( prototype.getTags() != PlaidObjectMap.EMPTY_TAGS ) {
+			for (PlaidTag t : prototype.getTags()) {
+				pom.addTag(t);
+			}
 		}
 		
 		return pom;
@@ -324,7 +336,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	@Override
 	public Map<String, PlaidMemberDef> getMembers() {
-		return Collections.unmodifiableMap(prototype.getMembers());
+		return prototype.getMembers();
 	}
 	
 	@Override
@@ -349,6 +361,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	@Override
 	public String getPath() {
-		return pkg.getQI().toString() + "." + name;
+		return qi.toString();
 	}
 }
