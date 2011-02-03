@@ -43,13 +43,14 @@ import plaid.runtime.types.PlaidUniquePermission;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
+	protected static final PlaidPackageMap anonymousPackage = new PlaidPackageMap(new QualifiedIdentifier("<ANONYMOUS>"));
 	protected PlaidPackageMap pkg;
 	protected String name;
 	protected RepresentsState psa;
 	protected PlaidObject prototype = new PlaidObjectMap();
 	protected Class<Object> templateClass;
 	protected PlaidTag tag;
-	
+
 	public static PlaidStateMap loadPlaidState(Class<Object> templateClass) {
 		PlaidStateMap theState = null;
 		RepresentsState psa = null;
@@ -111,7 +112,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 	
 	public PlaidStateMap() {
-		this.pkg = new PlaidPackageMap(new QualifiedIdentifier("<ANONYMOUS>"));
+		this.pkg = anonymousPackage;
 		this.name = "<ANONYMOUS>";
 		this.psa = null;
 		this.templateClass = null;
