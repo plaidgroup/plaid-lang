@@ -247,7 +247,7 @@ public class PlaidObjectMap implements PlaidObject {
 	public Collection<PlaidObject> getStates() {
 		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
 		result.addAll(states());
-		return Collections.unmodifiableCollection(result);
+		return result;
 	}
 	
 	@Override

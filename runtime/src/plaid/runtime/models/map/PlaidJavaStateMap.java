@@ -21,6 +21,9 @@ package plaid.runtime.models.map;
 
 
 
+import static plaid.runtime.models.map.PlaidJavaObjectMap.getFields;
+import static plaid.runtime.models.map.PlaidJavaObjectMap.getMethods;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -40,9 +43,6 @@ import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidState;
 import plaid.runtime.Util;
 import plaid.runtime.utils.QualifiedIdentifier;
-
-import static plaid.runtime.models.map.PlaidJavaObjectMap.getFields;
-import static plaid.runtime.models.map.PlaidJavaObjectMap.getMethods;
 
 public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaObject {
 	protected Object value;
