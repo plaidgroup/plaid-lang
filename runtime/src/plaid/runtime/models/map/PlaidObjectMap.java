@@ -252,9 +252,7 @@ public class PlaidObjectMap implements PlaidObject {
 		if ( states == null ) {
 			return EMPTY_STATES;
 		}
-		Collection<PlaidObject> result = new ArrayList<PlaidObject>();
-		result.addAll(states());
-		return result;
+		return Collections.unmodifiableCollection(states());
 	}
 	
 	@Override
@@ -284,9 +282,7 @@ public class PlaidObjectMap implements PlaidObject {
 		if ( tags == null ) {
 			return EMPTY_TAGS;
 		}
-		Collection<PlaidTag> result = new ArrayList<PlaidTag>();
-		result.addAll(tags());
-		return Collections.unmodifiableCollection(result);
+		return Collections.unmodifiableCollection(tags());
 	}
 	
 	public boolean matchesTag(String tagString) {
