@@ -21,36 +21,39 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		node.scope = scopes.peek();
 	}
 	
+	//this is package level scope, should be careful no pass file without this package
 	method initialize(fileList) {
-		//initialize global scope here
-	}
+		val /*GlobalScope*/ global = new GlobalScope;
+		scopes.push(global);
 		
-	//generate global package
-	method visitCompilationUnit(node) {
-		node.scope = new GloablScope;
-		scopes.push(node.scope);
-		
-		//update global scope here, should put in the initialize later
-		node.decls.map(fn (decl) => {
-			match (decl) {
-				 case FieldDecl {
-				 	val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = -1; };
-				 	node.scope.add(decl.f.name, sym);
-				 }
-				 default {
-				 }
-			}
+		fileList.map(fn(node) => {
+			node.decls.map(fn (decl) => {
+				match (decl) {
+					 case FieldDecl {
+				 		val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = -1; };
+				 		global.add(decl.f.name, sym);
+				 	}
+				 	default {
+				 	}
+				}
+			});
 		});
+	}
 	
+	method visitCompilationUnit(node) {
+		enterScope(node);
+		
 		node.decls.map(fn (decl) => {
 			decl.accept(this)
 		});
 		node.imports.accept(this);
+		
+		leaveScope(node);
 	}
 	
 	method visitImportList(node) {
 		keepScope(node);
-		//add global variable in each package		
+		//add top level fields in each package		
 		
 //		node.imports.map(fn (im) => {
 //			im.accept(this)
