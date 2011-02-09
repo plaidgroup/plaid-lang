@@ -5,7 +5,7 @@ import plaid.ast.types.*;
 import plaid.ast.visitor.*;
 
 state ScopeBuildingVisitor case of ASTVisitor {
-	val /*StateTable*/ stateTable;
+	//val /*StateTable*/ stateTable;
 	val /*Stack*/ scopes = new Stack;
 	
 	method enterScope(node) {
@@ -20,12 +20,27 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	method keepScope(node) {
 		node.scope = scopes.peek();
 	}
+	
+	method initialize(fileList) {
+		//initialize global scope here
+	}
 		
 	//generate global package
 	method visitCompilationUnit(node) {
 		node.scope = new GloablScope;
 		scopes.push(node.scope);
-		//update global scope here
+		
+		//update global scope here, should put in the initialize later
+		node.decls.map(fn (decl) => {
+			match (decl) {
+				 case FieldDecl {
+				 	val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = -1; };
+				 	node.scope.add(decl.f.name, sym);
+				 }
+				 default {
+				 }
+			}
+		});
 	
 		node.decls.map(fn (decl) => {
 			decl.accept(this)
@@ -33,11 +48,22 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		node.imports.accept(this);
 	}
 	
+	method visitImportList(node) {
+		keepScope(node);
+		//add global variable in each package		
+		
+//		node.imports.map(fn (im) => {
+//			im.accept(this)
+//		});
+	}
+	
 	method visitLetBinding(node) {
 		node.exp.accept(this);
 		
 		enterScope(node);
-		//update
+		val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };	
+		node.scope.add(node.x.name, sym);
+		
 		node.x.accept(this);		
 		node.body.accept(this);
 		
@@ -48,7 +74,10 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		node.exp.accept(this);
 		
 		enterScope(node);
-		//update here
+		//the AST should change first
+		val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };	
+		node.scope.add(node.x.name, sym);
+		
 		node.x.accept(this);
 		node.body.accept(this);
 		
@@ -57,7 +86,20 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	
 	method visitStateDecl(node) {
 		enterScope(node);
-		//update fields here, including the inherited ones
+		val i = 0;
+		node.decls.map(fn (decl) => {
+			match (decl) {
+				 case FieldDecl {
+				 	val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = i; };
+				 	node.scope.add(decl.f.name, sym);
+				 	i = i + 1;
+				 }
+				 default {
+				 }
+			}
+		});
+		val /*Symbol*/ sym2 = new Symbol { val type = node.stateType; val position = -3; };
+		node.scope.add("this", sym2);
 		
 		node.name.accept(this);
 		node.stateDef.accept(this);
@@ -74,7 +116,10 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	method visitMethodDecl(node) {
 		node.arguments.map(fn (a) => a.accept(this)); // arguments should be invisible between each other
 		enterScope(node);
-		//update arugment
+		node.arguments.map(fn (arg) => {
+			val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };
+			node.scope.add(arg.name, sym);
+		});
 		node.body.accept(this);
 		leaveScope(node);
 	}	
@@ -82,11 +127,13 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	method visitLambda(node) {		
 		node.arguments.map(fn (a) => a.accept(this)); // arguments should be invisible between each other
 		enterScope(node);
-		//update arugment
+		node.arguments.map(fn (arg) => {
+			val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };
+			node.scope.add(arg.name, sym);
+		});
 		node.body.accept(this);
 		leaveScope(node);
 	}
-	
 	
 	method visitMatch(node) {	//there some issues here
 		keepScope(node);
@@ -185,14 +232,6 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	
 	method visitID(node) {
 		keepScope(node);
-	}
-	
-	method visitImportList(node) {
-		keepScope(node);
-		
-//		node.imports.map(fn (im) => {
-//			im.accept(this)
-//		});
 	}
 	
 	method visitIntLiteral(node) {
