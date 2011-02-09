@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.PlaidScope;
@@ -54,6 +55,16 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 		return Collections.synchronizedMap(new HashMap<S, T>());
 	}
 	
+	private PlaidObject lookupMember(String name) {
+		 if (immutableScopeMapContainsKey("this$plaid")) {
+			 PlaidObject obj = this.immutableScopeMap.get("this$plaid");
+			 PlaidMemberDef def = obj.getMember(name);
+			 if (def != null)
+				 return def.getValue();			
+		 }
+		return null;
+	}
+	
 	@Override
 	public PlaidObject lookup(String name) {
 		// Search in mutable scope map first so that (mutable) method parameters
@@ -62,6 +73,10 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 			return mutableScopeMap().get(name);
 		else if (immutableScopeMapContainsKey(name))
 			return immutableScopeMap().get(name);
+		PlaidObject member = lookupMember(name);
+		if (member != null)
+			return member;
+		
 		return parentScope.lookup(name);
 	}
 	
