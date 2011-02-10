@@ -43,14 +43,12 @@ import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	protected static final PlaidPackageMap anonymousPackage = new PlaidPackageMap(new QualifiedIdentifier("<ANONYMOUS>"));
-	protected static final QualifiedIdentifier anonymousQI  = anonymousPackage.getQI().append("<ANONYMOUS>");
 	protected PlaidPackageMap pkg;
 	protected String name;
 	protected RepresentsState psa;
 	protected PlaidObject prototype = new PlaidObjectMap();
 	protected Class<Object> templateClass;
 	protected PlaidTag tag;
-	protected QualifiedIdentifier qi;
 	
 	public static PlaidStateMap loadPlaidState(Class<Object> templateClass) {
 		PlaidStateMap theState = null;
@@ -110,7 +108,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		}
 		
 		prototype.addState(this);
-		qi = pkg.getQI().append(name);
 	}
 	
 	public PlaidStateMap() {
@@ -119,7 +116,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		this.psa = null;
 		this.templateClass = null;
 		this.tag = null;
-		this.qi = anonymousQI;
+		//this.qi = anonymousQI;
 	}
 	
 	public void setName(String name) {
@@ -132,7 +129,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	
 	public void setPackage(PlaidPackageMap pkg) {
 		this.pkg = pkg;
-		qi = pkg.getQI().append(name);
 	}
 	
 	@Override
@@ -155,7 +151,8 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	}
 
 	public QualifiedIdentifier getQI() {
-		return qi;
+		return pkg.getQI().append(name);
+		//return qi;
 	}
 
 	@Override
@@ -361,6 +358,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 
 	@Override
 	public String getPath() {
-		return qi.toString();
+		 return pkg.getQI().toString() + "." + name;
 	}
 }
