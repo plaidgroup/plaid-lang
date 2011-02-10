@@ -49,9 +49,7 @@ public class String$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				if ( args instanceof PlaidJavaObjectMap 
-				     && ((PlaidJavaObjectMap)args).getJavaObject() != null
-					 && ((PlaidJavaObjectMap)args).getJavaObject() instanceof String ) {
+				if ( args instanceof PlaidJavaObjectMap && ((PlaidJavaObjectMap)args).getJavaObject() != null ) {
 					String x = ((String)((PlaidJavaObject)thisVar).getJavaObject()) +
 					(((PlaidJavaObject)args).getJavaObject().toString());
 					return Util.string(x);
