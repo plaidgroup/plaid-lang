@@ -380,7 +380,7 @@ public class PlaidObjectMap implements PlaidObject {
 		Map<String, PlaidMemberDef> newMembers = update.getMembers();
 		for (PlaidMemberDef incomingMember : newMembers.values()) {
 			if (!noAdd.contains(incomingMember.definedIn()) || //in the noAdd list, or
-					members().get(members().get(incomingMember.getMemberName()).getValue()) instanceof PlaidAbstractValueMap || //abstract
+					(members().get(members().get(incomingMember.getMemberName())) != null && members().get(members().get(incomingMember.getMemberName()).getValue()) instanceof PlaidAbstractValueMap) || //abstract
 					removedOverrides.contains(incomingMember.getMemberName())) { //previously overriden
 				PlaidObject incomingMemberValue = newMembers.get(incomingMember.getMemberName()).getValue();
 				if (incomingMemberValue instanceof PlaidMethodMap) { //update this pointer if necessary
