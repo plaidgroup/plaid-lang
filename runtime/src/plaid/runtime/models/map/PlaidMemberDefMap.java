@@ -101,11 +101,13 @@ public final class PlaidMemberDefMap implements PlaidMemberDef {
 		else
 			ret.append("(immutable");
 		
-		if (anonymous)
+		if (anonymous) {
 			ret.append(",anonymous");
-		else
-			ret.append("," + definedIn.toString());
-		
+		} else {
+			if ( definedIn != null ) {
+				ret.append("," + definedIn.toString());
+			}
+		}
 		if (overrides) {
 			ret.append(", overrides " + (overrideIsBound ? overridenDef : "?") );
 		}

@@ -22,6 +22,7 @@ package plaid.lang;
 import java.util.ArrayList;
 
 import plaid.runtime.PlaidException;
+import plaid.runtime.PlaidInvalidArgumentException;
 import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
@@ -29,6 +30,7 @@ import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidScope;
 import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsState;
+import plaid.runtime.models.map.PlaidJavaObjectMap;
 import plaid.runtime.models.map.PlaidLocalScopeMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
@@ -47,9 +49,15 @@ public class String$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				String x = ((String)((PlaidJavaObject)thisVar).getJavaObject()) +
-				(((PlaidJavaObject)args).getJavaObject().toString());
-				return Util.string(x);
+				if ( args instanceof PlaidJavaObjectMap 
+				     && ((PlaidJavaObjectMap)args).getJavaObject() != null
+					 && ((PlaidJavaObjectMap)args).getJavaObject() instanceof String ) {
+					String x = ((String)((PlaidJavaObject)thisVar).getJavaObject()) +
+					(((PlaidJavaObject)args).getJavaObject().toString());
+					return Util.string(x);
+				} else {
+					throw new PlaidInvalidArgumentException("Cannot concatenate a String with : " + args);
+				}
 			}
 		}));
 		PlaidMemberDef substring = Util.memberDef("substring$plaid", "plaid.lang.String", false, false);
