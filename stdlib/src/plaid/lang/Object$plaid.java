@@ -41,7 +41,7 @@ public class Object$plaid {
 	public static PlaidObject obj = Util.newState();
 	
 	static {
-		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", "plaid.lang.Object", false, false);
+		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", "plaid.lang.Object", false, true);
 		@RepresentsMethod(name = "eqeq$plaid", toplevel = false)
 		PlaidObject eqeqProtoMethod = Util.protoMethod("plaid.lang.Object.eqeq$plaid", new Delegate() {
 			@Override
