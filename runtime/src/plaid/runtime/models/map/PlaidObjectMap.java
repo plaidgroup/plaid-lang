@@ -185,7 +185,11 @@ public class PlaidObjectMap implements PlaidObject {
 	
 	@Override
 	public void updateMember(String name, PlaidObject obj) {
-		if (this.isReadOnly()) {
+		if ( obj instanceof PlaidLookupMap ) {
+			throw new PlaidRuntimeException("Cannot store PlaidLookupMap in PlaidObjects.");
+		}
+		
+		if (isReadOnly()) {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
