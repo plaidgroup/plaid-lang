@@ -1,0 +1,53 @@
+package plaid.codegen;
+
+import plaid.ast.visitor.ASTViewer;
+import plaid.ast.*;
+import plaid.typechecker.*;
+import plaid.typechecker.typecheckerMethods.*;
+import plaid.optimizer.*;
+
+
+state CodeGenTest{
+	
+	method generateJava(filePath,runTypechecker){
+	/**
+	 *  The problem is that the set of programs that typecheck doesn't
+	 *  completely match the set of programs that we can compile -- for
+	 *  example anything using Java classes will not typecheck but
+	 *  should compile just fine.
+	 */
+		val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new(filePath)));
+		val translator = new ASTTranslator;
+		val plaidAST = translator.translateAST(javaAST);
+		val stTranslator = new StateTableBuilderVisitor;
+		plaidAST.accept(stTranslator);
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		val tr = new PackageRepTranslator {
+			val stateTable = stateTable;
+		};
+		val userDir = java.lang.System.getProperty("user.dir");
+		val plaidPath = makeEmptyList();
+		plaidPath.add(userDir + "/bin/");
+		plaidPath.add(userDir + "/../stdlib/bin/");
+		val packageRep = tr.buildPackageRep(javaAST, plaidPath);
+		tr.translate(packageRep);
+		val codeGenVisitor = new CodeGenVisitor { val stateTable = stateTable; };
+		codeGenVisitor.cc.setPrettyPrint(true);
+		codeGenVisitor.cc.setDebugMode(true);
+		codeGenVisitor.cc.setOutputDir("testOutput/");
+		plaidAST.accept(codeGenVisitor);
+	}
+}
+method main() {
+	var codeGenTest = new CodeGenTest;
+	//codeGenTest.generateJava("testInputs/stateTest/package.plaid",false);
+	codeGenTest.generateJava("E:/plaid-lang/compilerTests/coreExamples/turing/package.plaid",false);
+	codeGenTest.generateJava("E:/plaid-lang/compilerTests/coreExamples/tree/package.plaid",false);
+	codeGenTest.generateJava("E:/plaid-lang/compilerTests/coreExamples/stateVarsTest/package.plaid",false);
+	codeGenTest.generateJava("E:/plaid-lang/compilerTests/coreExamples/destructiveRead/package.plaid",false);
+
+}
+	
+
