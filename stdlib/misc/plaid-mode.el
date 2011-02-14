@@ -17,20 +17,26 @@
 
 
 ;; keywords 
-(defvar plaid-keywords  '("type" "method" "var" "val" "package" "import" "state" "match" "default" "override" "case"  "with" "of" "new" "fn"))
-(defvar plaid-vars      '("this"))
-(defvar plaid-types     '("unique" "immutable" "shared" "none" "unit" "Int" "String"))
-(defvar plaid-constants '("true" "false")) 
-(defvar plaid-keywords-regexp  (regexp-opt plaid-keywords  'words))
-(defvar plaid-vars-regexp      (regexp-opt plaid-vars      'words))
-(defvar plaid-types-regexp     (regexp-opt plaid-types     'words))
-(defvar plaid-constants-regexp (regexp-opt plaid-constants 'words))
+(defvar plaid-builtin      '("type" "method" "var" "val" "package" "state" "override" "case of"  "with""fn"))
+(defvar plaid-keywords     '("if" "ifElse" "while" "match" "default" "case" "new"))
+(defvar plaid-vars         '("this"))
+(defvar plaid-preprocessor '("import" "package"))
+(defvar plaid-types        '("unique" "immutable" "shared" "none" "void" "Integer" "String"))
+(defvar plaid-constants    '("true" "false")) 
+(defvar plaid-builtin-regexp      (regexp-opt plaid-builtin      'words))
+(defvar plaid-keywords-regexp     (regexp-opt plaid-keywords     'words))
+(defvar plaid-vars-regexp         (regexp-opt plaid-vars         'words))
+(defvar plaid-preprocessor-regexp (regexp-opt plaid-preprocessor 'words))
+(defvar plaid-types-regexp        (regexp-opt plaid-types        'words))
+(defvar plaid-constants-regexp    (regexp-opt plaid-constants    'words))
 (defconst plaid-font-lock-keywords
   `(
-    (,plaid-vars-regexp      . font-lock-variable-name-face)
-    (,plaid-constants-regexp . font-lock-constant-face)
-    (,plaid-keywords-regexp  . font-lock-keyword-face)
-    (,plaid-types-regexp     . font-lock-type-face)
+    (,plaid-vars-regexp         . font-lock-variable-name-face)
+    (,plaid-constants-regexp    . font-lock-constant-face)
+    (,plaid-keywords-regexp     . font-lock-keyword-face)
+    (,plaid-builtin-regexp      . font-lock-builtin-face)
+    (,plaid-types-regexp        . font-lock-type-face)
+    (,plaid-preprocessor-regexp . font-lock-preprocessor-face)
     )
   "Additional Keywords to highlight in Plaid mode")
 
@@ -55,7 +61,7 @@
   (use-local-map plaid-mode-map)
   (set (make-local-variable 'font-lock-defaults) '(plaid-font-lock-keywords))
   (setq major-mode 'plaid-mode)
-  (setq mode-name "PLAID")
+  (setq mode-name "Plaid")
   (run-hooks 'plaid-mode-hook))
 
 ;; always activate this mode with Plaid files 
