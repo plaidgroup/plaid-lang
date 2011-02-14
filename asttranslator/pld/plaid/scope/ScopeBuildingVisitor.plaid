@@ -1,0 +1,306 @@
+package plaid.scope;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.ast.visitor.*;
+
+state ScopeBuildingVisitor case of ASTVisitor {
+	//val /*StateTable*/ stateTable;
+	val /*Stack*/ scopes = new Stack;
+	
+	method enterScope(node) {
+		node.scope = new LocalScope { val parentScope = scopes.peek(); };
+		scopes.push(node.scope);
+	}
+	
+	method leaveScope(node) {
+		scopes.pop();
+	}
+	
+	method keepScope(node) {
+		node.scope = scopes.peek();
+	}
+	
+	//this is package level scope, should be careful no pass file without this package
+	method initialize(fileList) {
+		val /*GlobalScope*/ global = new GlobalScope;
+		scopes.push(global);
+		
+		fileList.map(fn(node) => {
+			node.decls.map(fn (decl) => {
+				match (decl) {
+					 case FieldDecl {
+				 		val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = -1; };
+				 		global.add(decl.f.name, sym);
+				 	}
+				 	default {
+				 	}
+				}
+			});
+		});
+	}
+	
+	method visitCompilationUnit(node) {
+		enterScope(node);
+		
+		node.decls.map(fn (decl) => {
+			decl.accept(this)
+		});
+		node.imports.accept(this);
+		
+		leaveScope(node);
+	}
+	
+	method visitImportList(node) {
+		keepScope(node);
+		//add top level fields in each package		
+		
+//		node.imports.map(fn (im) => {
+//			im.accept(this)
+//		});
+	}
+	
+	method visitLetBinding(node) {
+		node.exp.accept(this);
+		
+		enterScope(node);
+		val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };	
+		node.scope.add(node.x.name, sym);
+		
+		node.x.accept(this);		
+		node.body.accept(this);
+		
+		leaveScope(node);
+	}
+
+	method visitAnnotatedLetBinding(node) {		
+		node.exp.accept(this);
+		
+		enterScope(node);
+		//the AST should change first
+		val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };	
+		node.scope.add(node.x.name, sym);
+		
+		node.x.accept(this);
+		node.body.accept(this);
+		
+		leaveScope(node);
+	}
+	
+	method visitStateDecl(node) {
+		enterScope(node);
+		val i = 0;
+		node.decls.map(fn (decl) => {
+			match (decl) {
+				 case FieldDecl {
+				 	val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = i; };
+				 	node.scope.add(decl.f.name, sym);
+				 	i = i + 1;
+				 }
+				 default {
+				 }
+			}
+		});
+		val /*Symbol*/ sym2 = new Symbol { val type = node.stateType; val position = -3; };
+		node.scope.add("this", sym2);
+		
+		node.name.accept(this);
+		node.stateDef.accept(this);
+		
+		match (node.caseOf) {
+			case Some {
+				node.caseOf.value.accept(this);
+			}
+			default {}
+		};
+		leaveScope(node);
+	}
+		
+	method visitMethodDecl(node) {
+		node.arguments.map(fn (a) => a.accept(this)); // arguments should be invisible between each other
+		enterScope(node);
+		node.arguments.map(fn (arg) => {
+			val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };
+			node.scope.add(arg.name, sym);
+		});
+		node.body.accept(this);
+		leaveScope(node);
+	}	
+	
+	method visitLambda(node) {		
+		node.arguments.map(fn (a) => a.accept(this)); // arguments should be invisible between each other
+		enterScope(node);
+		node.arguments.map(fn (arg) => {
+			val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };
+			node.scope.add(arg.name, sym);
+		});
+		node.body.accept(this);
+		leaveScope(node);
+	}
+	
+	method visitMatch(node) {	//there some issues here
+		keepScope(node);
+		
+		node.e.accept(this);
+		node.caseList.map(fn (c) => {
+			c.accept(this)
+		});
+	}
+	
+	method visitFieldDecl(node) {
+		keepScope(node);
+		
+		node.f.accept(this);
+		node.e.accept(this);
+	}
+	
+	method visitApplication(node) {
+		keepScope(node);
+		
+		node.f.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
+	}
+	
+	method visitAssignment(node) {
+		keepScope(node);
+		
+		match (node.target) {
+			case Some {
+				node.target.value.accept(this);
+			}
+			default {}
+		};
+		node.field.accept(this);
+		node.value.accept(this)		
+	}
+	
+	method visitCase(node) {
+		keepScope(node);
+		
+		match (node.qi) {
+			case Some {
+				node.qi.value.accept(this);
+			}
+			case None { }
+		};
+		match (node.x) {
+			case Some {
+				node.x.value.accept(this);
+			}
+			case None { }
+		};
+		node.e.accept(this)
+	}
+	
+	method visitCast(node) {
+		keepScope(node);
+		
+		match (node.theVar) {
+			case Some {
+				node.theVar.value.accept(this);
+			}
+			case None {}
+		};
+		node.body.accept(this);
+	}
+	
+	method visitChangeState(node) {
+		keepScope(node);
+		
+		node.e.accept(this);
+		node.s.accept(this)
+	}
+	
+	method visitDeclList(node) {
+		keepScope(node);
+		
+		node.decls.map(fn (decl) => {
+			decl.accept(this)
+		});
+	}
+	
+	method visitDereference(node) {
+		keepScope(node);
+		
+		node.left.accept(this);
+		node.right.accept(this)
+	}
+	
+	method visitDestructiveDereference(node) {
+		keepScope(node);
+		
+		node.left.accept(this);
+		node.right.accept(this)
+	}
+	
+	method visitID(node) {
+		keepScope(node);
+	}
+	
+	method visitIntLiteral(node) {
+		keepScope(node);
+	}
+	
+	method visitJoin(node) {
+		keepScope(node);
+		
+		node.theVar.accept(this);
+		node.body.accept(this);
+	}
+
+	method visitMethodCall(node) {
+		keepScope(node);
+		
+		node.receiver.accept(this);
+		node.methodName.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
+	}
+	
+	method visitNewInstance(node) {
+		keepScope(node);
+		
+		node.s.accept(this)
+	}
+	
+	method visitNullNode(node) {
+		keepScope(node);
+	}
+	
+	method visitPermType(node) {
+		keepScope(node);
+	}
+	
+	method visitQI(node) {
+		keepScope(node);
+		
+		match (node.initState) {
+			case Some {
+				node.initState.value.accept(this);
+			}
+			case None { }
+		}
+	}
+	
+	method visitSplit(node) {
+		keepScope(node);
+		
+		node.theVar.accept(this);
+		node.body.accept(this);
+	}
+	
+
+	method visitStringLiteral(node) {
+		keepScope(node);
+	}
+	
+	method visitUnitLiteral(node) {
+		keepScope(node);
+	}
+	
+	method visitWith(node) {
+		keepScope(node);
+		
+		node.s1.accept(this);
+		node.s2.accept(this)
+	}
+}

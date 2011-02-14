@@ -1,0 +1,116 @@
+package plaid.ast.types;
+
+import plaid.ast.ID;
+
+//globals for permissions
+val immutable Permission DYNP = new DynPermission;
+val immutable Permission UNIQUE = new UniquePermission;
+val immutable Permission FULL = new FullPermission;
+val immutable Permission IMM = new ImmutablePermission;
+val immutable Permission SHARED = new SharedPermission;
+val immutable Permission PURE = new PurePermission;
+val immutable Permission NONEP = new NonePermission;
+
+val immutable PermType VOID = new PermType {
+	val perm = NONEP;
+	val type = new NominalType { val typeName = new ID { val name = "unit"; }; };
+	val borrowed = false;
+};
+
+//type to indicate an error
+val /*(immutable String >> immutable String) -> FailedTypecheck*/ newErrorType = 
+	fn (msg) => new ErrorType { val errorMsg = msg; };
+	
+//change a node with a type field to indicate an error in typechecking
+val /*({ val Type type }, String, boolean) -> void*/ typeError = fn (node, msg, local) =>
+	node.type <- ErrorType { 
+		val errorMsg = msg;
+		val isLocal	= local;
+	};
+
+//permission for reading a field - check these
+val /*(permission,permission) -> permission*/ fieldReadPermission = fn (objectPerm, fieldPerm) => {
+	match (objectPerm) {
+		case DynPermission { DYNP }
+		case UniquePermission {
+			match (fieldPerm) {
+				case DynPermission { DYNP }
+				case UniquePermission { PURE }
+				case FullPermission { PURE }
+				case ImmutablePermission { IMM }
+				case SharedPermission { SHARED }
+				case PurePermission { PURE }
+				case NonePermission { NONEP }
+			}
+		}
+		case FullPermission {
+			match (fieldPerm) {
+				case DynPermission { DYNP }
+				case UniquePermission { PURE }
+				case FullPermission { PURE }
+				case ImmutablePermission { IMM }
+				case SharedPermission { SHARED }
+				case PurePermission { PURE }
+				case NonePermission { NONEP }
+			}
+		}
+		case ImmutablePermission {
+			match (fieldPerm) {
+				case DynPermission { DYNP }
+				case UniquePermission { PURE }
+				case FullPermission { PURE }
+				case ImmutablePermission { IMM }
+				case SharedPermission { PURE }
+				case PurePermission { PURE }
+				case NonePermission { NONEP }
+			}
+		}
+		case SharedPermission {
+			match (fieldPerm) {
+				case DynPermission { DYNP }
+				case UniquePermission { PURE }
+				case FullPermission { PURE }
+				case ImmutablePermission { IMM }
+				case SharedPermission { PURE }
+				case PurePermission { PURE }
+				case NonePermission { NONEP }
+			}
+		}
+		case PurePermission { 
+			match (fieldPerm) {
+				case DynPermission { DYNP }
+				case UniquePermission { PURE }
+				case FullPermission { PURE }
+				case ImmutablePermission { IMM }
+				case SharedPermission { PURE }
+				case PurePermission { PURE }
+				case NonePermission { NONEP }
+			}
+		}
+		case NonePermission {
+			NonePermission
+		}
+		default { java.lang.System.out.println("not a permission"); }
+	}
+};
+
+//NOTE: this test shows that state change for restricted updated is somewhat broken:
+// without the change to None first, a is not updated because they are the same state
+// and restricted update tries to do something I'm not sure what right now.
+//TODO: fix restricted update when we understand it better
+method maintest() {
+	val a = new PermType {
+		val perm = DYNP;
+		val type = new NominalType { val typeName = new ID { val name = "unit"; }; };
+		val borrowed = false;
+	};
+	java.lang.System.out.println(a.toString());
+	//a <- None;
+	a <- PermType {
+		override val perm = UNIQUE;
+		override val type = new NominalType { val typeName = new ID { val name = "changed"; }; };
+		override val borrowed = true;
+	};
+	java.lang.System.out.println(a.toString());
+	
+}
