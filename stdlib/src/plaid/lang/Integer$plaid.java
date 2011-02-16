@@ -47,8 +47,8 @@ public class Integer$plaid {
 		PlaidObject plusProtoMethod = Util.protoMethod("plaid.lang.Integer.plus$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x += ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -68,8 +68,8 @@ public class Integer$plaid {
 		PlaidObject subProtoMethod = Util.protoMethod("plaid.lang.Integer.sub$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x -= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -89,8 +89,8 @@ public class Integer$plaid {
 		PlaidObject multProtoMethod = Util.protoMethod("plaid.lang.Integer.mult$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x *= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -110,8 +110,8 @@ public class Integer$plaid {
 		PlaidObject divProtoMethod = Util.protoMethod("plaid.lang.Integer.div$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x /= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -131,8 +131,8 @@ public class Integer$plaid {
 		PlaidObject modProtoMethod = Util.protoMethod("plaid.lang.Integer.mod$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x %= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -152,8 +152,8 @@ public class Integer$plaid {
 		PlaidObject eqeqProtoMethod = Util.protoMethod("plaid.lang.Integer.eqeq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x;
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() == ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -175,8 +175,8 @@ public class Integer$plaid {
 		PlaidObject bangeqProtoMethod = Util.protoMethod("plaid.lang.Integer.bangeq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x;
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() != ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -198,8 +198,8 @@ public class Integer$plaid {
 		PlaidObject ltProtoMethod = Util.protoMethod("plaid.lang.Integer.lt$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x;
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() < ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -221,8 +221,8 @@ public class Integer$plaid {
 		PlaidObject gtProtoMethod = Util.protoMethod("plaid.lang.Integer.gt$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x;
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() > ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -244,8 +244,8 @@ public class Integer$plaid {
 		PlaidObject lteqProtoMethod = Util.protoMethod("plaid.lang.Integer.lteq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x;
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() <= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
@@ -267,8 +267,8 @@ public class Integer$plaid {
 		PlaidObject gteqProtoMethod = Util.protoMethod("plaid.lang.Integer.gteq$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 				boolean x;
 				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
 					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() >= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();

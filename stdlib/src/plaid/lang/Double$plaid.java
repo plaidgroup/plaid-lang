@@ -52,8 +52,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						double x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue();
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x += ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -75,8 +75,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						double x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue();
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x -= ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -98,8 +98,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						double x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue();
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x *= ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -121,8 +121,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						double x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue();
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x /= ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -144,8 +144,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						double x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue();
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x %= ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -167,8 +167,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						boolean x;
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue() == ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -193,8 +193,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						boolean x;
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue() != ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -219,8 +219,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						boolean x;
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue() < ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -245,8 +245,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						boolean x;
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue() > ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -271,8 +271,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						boolean x;
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue() <= ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
@@ -297,8 +297,8 @@ public class Double$plaid {
 					@Override
 					public PlaidObject invoke(PlaidObject thisVar,
 							PlaidObject args) throws PlaidException {
-						@SuppressWarnings("unused")
-						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//						@SuppressWarnings("unused")
+//						PlaidScope scope = new PlaidLocalScopeMap(globalScope);
 						boolean x;
 						if ( ((PlaidJavaObject) args).getJavaObject() instanceof Double ) {
 							x = ((Double) ((PlaidJavaObject) thisVar).getJavaObject()).doubleValue() >= ((Double) ((PlaidJavaObject) args).getJavaObject()).doubleValue();
