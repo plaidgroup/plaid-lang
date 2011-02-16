@@ -1,3 +1,7 @@
+/**
+ * Adapted from the Data Structures and Algorithms library:
+ * http://dsa.codeplex.com/
+ */
 package coreExamples.AVLTree;
 
 import java.lang.*;
@@ -5,232 +9,186 @@ import java.lang.*;
 state AVLTreeNonEmpty /* <data> */ case of AVLTree /* <data> */ {
     /* group nodes; */
     var /* shared<nodes> AVLTreeNodeValue<nodes, data> */ root;
-    val debug = true;    
-       
-    method /* immutable Boolean */ add /* <writeable owner, readonly data> */ ( /* shared<data> >> none Comparable */ item ) /* [shared<owner> AVLTreeNonEmpty]*/ {
+    val /* immutable Boolean */ debug = false;
+
+
+    method /* immutable Boolean */ insert /* <writeable owner, readonly data> */ ( /* shared<data> >> none Comparable */ item ) /* [shared<owner> AVLTreeNonEmpty]*/ {
         // unpackInnerGroups {
-            // atomic <nodes> {
-                val node = root.insert/* <nodes,data> */(item);
-                // TODO: rebalance tree
-                rebalance/* <nodes,data> */(node, false); 
-            // } 
+            root = insertNode/* <nodes, data> */(root, item); 
         // }
-        true
     }
 
-    method /* immutable Boolean */ remove /* <writeable owner, readonly data> */ ( /* shared<data> Comparable */ item ) /* [shared<owner> AVLTreeNonEmpty >> AVLTree] */ {
-        // unpackInnerGroups {
-            val found = root.find(item);
-            match (found) {
-                case Some {
-                    DEBUG("delete: " + found.value.value.toString());
-                    val node = found.value;
-                    
-                    var fakeRootParent = new AVLTreeNodeNil;
-                    if ( root == node ) {
-                        // replace root
-                        ifElse ( node.left.isNil() && node.right.isNil() ) {
-                            // node == leaf -> tree is empty
-                            this <- AVLTreeNodeEmpty;
-                        }{
-                             DEBUG("create fake root parent");
-                             fakeRootParent = new AVLTreeNodeValue {
-                                var value           = node.value;
-                                override var left   = node;
-                                override var right  = new AVLTreeNodeNil;
-                                override var parent = new AVLTreeNodeNil;
-                              };
-                              node.parent = fakeRootParent;                           
-                        };                        
-                    };
-                    
-                    ifElse ( node.left.isNil() && node.right.isNil() ) {
-                        // leaf
-                        DEBUG("delete leaf");
-                        ifElse (node.parent.left == node) {
-                            node.parent.left = new AVLTreeNodeNil;
-                        }{
-                            node.parent.right = new AVLTreeNodeNil;
-                        };
-                        node.parent.height = computeHeight(node.parent);
-                        // TODO: rebalance parent
-                        rebalance/* <nodes,data> */(node.parent, true);
-                     }{
-                        ifElse ( !node.left.isNil() && !node.right.isNil() ) {
-                            // has both children
-                            DEBUG("delete node with both children");
-                            val max = node.left.findMax/* <nodes,data> */();
-                            node.value = max.value;
-                            ifElse ( max.parent.left == max ) {
-                                max.parent.left = new AVLTreeNodeNil;
-                            }{
-                                max.parent.right = new AVLTreeNodeNil;
-                            };
-                            max.parent.height = computeHeight(max.parent);
-                            // TODO: rebalance max.parent
-                            rebalance/* <nodes,data> */(max.parent, true);
-                        }{
-                            ifElse ( node.left.isNil() ) {
-                                DEBUG("delete node with right child");
-                                ifElse ( node.parent.left == node ) {
-                                    // replace parent's left child with node's right child
-                                    DEBUG("replace node's parent left child with node's right child");
-                                    node.parent.left  = node.right;
-                                    node.right.parent = node.parent;                                
-                                }{
-                                    // replace parent's right child with node's right child
-                                    DEBUG("replace node's parent right child with node's right child");
-                                    node.parent.right = node.right;
-                                    node.right.parent = node.parent;                                                                  
-                                };   
-                                node.parent.height = computeHeight(node.parent);
-                                //TODO : rebalance node.parent
-                                rebalance/* <nodes,data> */(node.parent, true);
-                            }{
-                                DEBUG("remove node with left child");
-                                ifElse ( node.parent.left == node ) {
-                                    // replace parent's left child with node's left child
-                                    node.parent.left = node.left;
-                                    node.right.parent = node.parent;                                
-                                }{
-                                    // replace parent's right child with node's left child
-                                    node.parent.right = node.left;
-                                    node.right.parent = node.parent;                                                                  
-                                };   
-                                node.parent.height = computeHeight(node.parent);
-                                //TODO : rebalance node.parent
-                                rebalance/* <nodes,data> */(node.parent);                            
-                            }
-                        }
-                    };
 
-                    match (fakeRootParent) {
-                        case AVLTreeNodeValue {
-                            // remove fake root parent
-                            DEBUG("reset fake root parent and fix root ");
-                            root = fakeRootParent.left;
-                            root.parent = new AVLTreeNodeNil;
-                            
-                        }
-                        default {}
-                    };
-                    true
+    method /* shared<nodes> AVLTreeNode */ insertNode /* <writeable nodes, readonly data> */ ( /* shared<nodes> AVLTreeNodeValue */ node,  /* shared<data> Comparable */ item ) /* [shared<owner> AVLTreeNonEmpty]*/ {
+      // unpackInnerGroups {
+        var result = node;
+        ifElse ( result.isNil/* <nodes> */() ) {
+            DEBUG("insert " + item.toString/* <data> */() + " @ nil"); 
+            result = new AVLTreeNodeValue {
+                var value = item;
+            };
+        }{
+            DEBUG("insert " + item.toString/* <data> */() + " @ " + result.value.toString/* <data> */());
+            match ( item.compareTo/* <data> */(result.value) ) {
+                case LT {
+                    result.left = insertNode/* <nodes, data> */(result.left, item);
                 }
-                default { DEBUG("couldn't find: " + item.value.toString()); false }
-            }
-        // }
-    }
-
-    method /* void */ rebalance/* <writeable nodes> */ (/* shared<nodes> AVLTreeNodeValue */ node, /* immutable Boolean */ deletion) /* [] */ {
-        var currentNode = node;
-        var top = false;
-        
-        while { !top } {
-            currentNode.height = computeHeight/* <nodes> */(currentNode);
-            val balance        = computeBalance/* <nodes> */(currentNode);
-            DEBUG("node " + currentNode.value.toString/* <data> */() + " # " + balance + " @ height = " + currentNode.height);
-            if ( false && Math.abs(balance) == 2 ) {
-                DEBUG("node need rebalancing " + currentNode.value.toString());
-                ifElse ( balance == -2 ) {
-                    // tree is right heavy
-                    DEBUG("node is right heavy");
-                    ifElse ( computeBalance(currentNode.right) == -1 ) {
-                        // right sub-tree is right heavy
-                        DEBUG("right sub-node is right heavy");
-                        //currentNode = single_left_rotation(currentNode);
-                        //currentNode.dumpTree("");                        
-                    }{
-                        // right sub-tree is left heavy
-                        DEBUG("right sub-node is left heavy");
-                    };
-                }{
-                    // tree is left heavy
-                    DEBUG("node is left heavy");
-                    ifElse ( computeBalance(currentNode.left) == -1 ) {
-                        // right sub-tree is right heavy
-                        DEBUG("right sub-node is right heavy");
-                    }{
-                        // right sub-tree is left heavy
-                        DEBUG("right sub-node is left heavy"); 
-                    };           
-                };
+                case GT {
+                    result.right = insertNode/* <nodes, data> */(result.right, item);      
+                }
+                case EQ {
+                    result = node;
+                }
             };
-            
-            match (currentNode.parent) {
-                case AVLTreeNodeNil { top = true; }
-                default { currentNode = currentNode.parent; }
-            };
-        }
-    }
+            result = balance/* <nodes> */(result);             
+        };           
 
-    method /* shared<nodes> AVLTreeNodeValue */ single_left_rotation/* <writeable nodes> */(/* shared<nodes> AVLTreeNodeValue */ node) /* [] */ {
-        val rightNode  = node.right;
-        val leftNode   = node.left;
-        val parentNode = node.parent;
+        result.height = Math.max( result.left.height, result.right.height ) + 1;
         
-        node.right = rightNode.left;
-        match (node.right) {
-            case AVLTreeNodeValue { node.right.parent = node; }
-            default {}
-        };
-        node.parent      = rightNode;
-        rightNode.left   = node;
-        rightNode.parent = parentNode;
-        match (rightNode.parent) {
-            case AVLTreeNodeValue {
-                if ( parent.left == node ) {
-                   parent.left = rightNode; 
-                };
-                if ( parentNode.right == node ) {
-                   parentNode.right = rightNode; 
-                };
-            }
-            default {}
-        };
- 
-        // fix heights
-        node.height      = computeHeight/* <nodes> */(node);
-        rightNode.height = computeHeight/* <nodes> */(rightNode);
-        
-        rightNode       
-    }
-
-    method /* immutable Integer */ computeHeight/* <readonly nodes> */(/* shared<nodes> AVLTreeNodeValue*/ node) /* [] */ {
-        var leftHeight  = 0;
-        var rightHeight = 0;
-        
-        match (node.left) {
-            case AVLTreeNodeValue { leftHeight = node.left.height; }
-            default {}
-        };
-        
-        match (node.right) {
-            case AVLTreeNodeValue { rightHeight = node.right.height; }
-            default {}
-        };
-        
-        Math.max(rightHeight,leftHeight) + 1  
+        result
+      // }
     }
     
-    method /* immutable Integer */ computeBalance/* <readonly nodes> */(/* shared<nodes> AVLTreeNodeValue*/ node) /* [] */ {
-        var leftHeight  = 0;
-        var rightHeight = 0;
-        
-        match (node.left) {
-            case AVLTreeNodeValue { leftHeight = node.left.height; }
-            default {}
+    
+    method /* immutable Boolean */ remove /* <writeable owner, readonly data> */ ( /* shared<data> Comparable */ item ) /* [shared<owner> AVLTreeNonEmpty >> AVLTree] */ {
+        // unpackInnerGroups {
+            DEBUG("remove " + item.toString/* <data> */() + " from root");
+            root = removeNode/* <nodes,data> */(root, item);
+            match (root) {
+                case AVLTreeNodeNil {
+                    DEBUG("tree is now empty");
+                    this <- AVLTreeEmpty; // SHOULD this be legal with SHARED ?!?!?!?!??!
+                }
+                default {}
+            }
+        // }
+    }
+    
+   
+    method /* shared<nodes> AVLTreeNode */ removeNode/* <writeable nodes, readonly data> */(/* shared<nodes> AVLTreeNode */ node,  /* shared<data> Comparable */ item) /* [] */ {
+        var result = node;
+        if ( !result.isNil/* <nodes> */() ) {
+            DEBUG("remove " + item.toString/* <data> */() + " @ " + result.value.toString/* <data> */());
+            match ( item.compareTo/* <data> */(result.value) ) {
+                case LT {
+                    result.left = removeNode/* <nodes, data> */(result.left, item); 
+                }
+                case GT {
+                    result.right = removeNode/* <nodes, data> */(result.right, item);
+                }
+                case EQ {
+                    ifElse ( result.left.isNil/* <nodes> */() && result.right.isNil/* <nodes> */() ) {
+                        DEBUG("remove leaf");
+                        result = new AVLTreeNodeNil {
+                            override var height = 0;
+                        };
+                    }{
+                        ifElse ( !result.left.isNil/* <nodes> */() && result.right.isNil/* <nodes> */() ) {
+                            DEBUG("return left sub tree");
+                            result = result.left;
+                        }{
+                            ifElse ( result.left.isNil/* <nodes> */() && !result.right.isNil/* <nodes> */()) {
+                                DEBUG("return right sub tree");
+                                result = result.right
+                            }{                      
+                                // has both child trees
+                                DEBUG("replace with max from left sub tree");
+                                result.value = result.left.findMax/* <nodes, data> */().value;
+                                result.left = removeNode/* <nodes, data> */(result.left, result.value);
+                            };
+                        };
+                        
+                    };                   
+                }
+            }
         };
         
-        match (node.right) {
-            case AVLTreeNodeValue { rightHeight = node.right.height; }
-            default {}
+        if ( !result.isNil/* <nodes> */() ) {
+            result = balance/* <nodes, data> */(result);
+            result.height = Math.max( result.left.height, result.right.height ) + 1;
         };
         
-        leftHeight - rightHeight  
+        result
+    }
+        
+    
+    
+    method /* immutable Integer */ balanceFactor/* <readonly owner> */(/* shared<owner> AVLTreeNonEmpty */ node) /* [shared<owner> AVLTreeNonEmpty] */ {
+        ifElse ( !node.isNil/* <owner> */() ) {
+            node.left.height - node.right.height;
+        }{
+            0
+        }
+    }
+    
+    method /* shared<nodes> AVLTreeNodeValue */ balance/* <writeable nodes>*/(node) /* [] */ {
+        DEBUG("balance node " + node.value.toString());
+        var result = node;
+        if ( !result.isNil/* <nodes> */() ) {            
+            DEBUG("result.left.height  " + result.left.height);
+            DEBUG("result.right.height " + result.right.height);
+            ifElse ( Math.abs(balanceFactor/* <nodes> */(result)) == 2 ) {
+                ifElse ( balanceFactor/* <nodes> */(result) == 2 ) {
+                    DEBUG("node left heavy");
+                      
+                    ifElse ( balanceFactor/* <nodes> */(result.left) > -1) {
+                        result = singleRightRotation/* <nodes> */(result);
+                    }{
+                        result = doubleLeftRightRotation/* <nodes> */(result);
+                    };
+                }{
+                    DEBUG("node right heavy");
+                    ifElse ( balanceFactor(result.right) < 1 ) {
+                        result = singleLeftRotation/* <nodes> */(result);
+                    }{
+                        result = doubleRightLeftRotation/* <nodes> */(result);
+                    };                        
+                };
+            }{                    
+                result.height = Math.max( result.left.height, result.right.height ) + 1;
+            }; 
+        };
+        result
+    }
+    
+    method /* shared<nodes> AVLTreeNodeValue */ singleRightRotation/* <writeable nodes> */(/* shared<nodes> AVLTreeNodeValue */node) /* [] */{
+        DEBUG("singleRightRotation");
+        var k1 = node.left;
+        node.left = k1.right;
+        k1.right = node;
+        node.height =  Math.max( node.left.height, node.right.height ) + 1;
+        k1.height = Math.max( k1.left.height, node.height ) + 1;
+        k1;
     }
 
+    method /* shared<nodes> AVLTreeNodeValue */ singleLeftRotation/* <writeable nodes> */(/* shared<nodes> AVLTreeNodeValue */node) /* [] */ {
+        DEBUG("singleLeftRotation");
+        var k2 = node.right;
+        node.right = k2.left;
+        k2.left = node;
+        node.height = Math.max( node.left.height, node.right.height ) + 1;
+        k2.height = Math.max( k2.right.height, node.height ) + 1;
+        k2;
+    }
+    
+    method /* shared<nodes> AVLTreeNodeValue */ doubleRightLeftRotation/* <writeable nodes> */(/* shared<nodes> AVLTreeNodeValue */node) /* [] */ {
+        DEBUG("doubleRightLeftRotation");
+        node.left = rotateWithRightChild( node.left );
+        rotateWithLeftChild( node );
+    }
+    
+    method /* shared<nodes> AVLTreeNodeValue */ doubleLeftRightRotation/* <writeable nodes> */(/* shared<nodes> AVLTreeNodeValue */ node) /* [] */ {
+        DEBUG("doubleLeftRightRotation");
+        node.right = rotateWithLeftChild/* <nodes> */( node.right );
+        rotateWithRightChild/* <nodes> */( node );
+    }
+    
 
-
+    method /* immutable Integer */ height /* <readable owner> */ () /* [shared<owner> AVLTreeNode] */ {
+        // unpackInnerGroups {
+            root.height
+        // }
+    }    
     method /* immutable Boolean */ contains /* <readonly owner, readonly data> */ ( /* shared<data> Comparable */  item) /* [shared<owner> AVLTreeNonEmpty] */ {
         // unpackInnerGroups {
             val node = root.find/* <owner, data> */(item);
@@ -240,6 +198,7 @@ state AVLTreeNonEmpty /* <data> */ case of AVLTree /* <data> */ {
             }
         // }
     }
+    
 
     method /* shared<data> Comparable */ findMin/* <owner, data> */() /* [shared<owner> AVLTreeNonEmpty] */ {
         // unpackInnerGroups {
