@@ -49,9 +49,16 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() +
-					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
-				return Util.integer(x);
+				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x += ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+					return Util.integer(x);
+				} else if (  ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					double y = x + ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+					return Util.floatingDouble(y);
+				} else {
+					throw new PlaidException("Cannot add '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 			}
 		});
 		foo.addMember(plus, plusProtoMethod);
@@ -63,9 +70,16 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() -
-					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
-				return Util.integer(x);
+				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x -= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+					return Util.integer(x);
+				} else if (  ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					double y = x - ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+					return Util.floatingDouble(y);
+				} else {
+					throw new PlaidException("Cannot sibstract '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 			}
 		});
 		foo.addMember(sub, subProtoMethod);
@@ -77,9 +91,16 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() *
-				((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
-				return Util.integer(x);
+				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x *= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+					return Util.integer(x);
+				} else if (  ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					double y = x * ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+					return Util.floatingDouble(y);
+				} else {
+					throw new PlaidException("Cannot mutliply '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object with Integer.");
+				}
 			}
 		});
 		foo.addMember(mult, multProtoMethod);
@@ -91,9 +112,16 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() /
-					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
-				return Util.integer(x);
+				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x /= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+					return Util.integer(x);
+				} else if (  ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					double y = x / ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+					return Util.floatingDouble(y);
+				} else {
+					throw new PlaidException("Cannot divide '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 			}
 		});
 		foo.addMember(div, divProtoMethod);
@@ -105,9 +133,16 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() %
-					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
-				return Util.integer(x);
+				int x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue();
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x %= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+					return Util.integer(x);
+				} else if (  ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					double y = x % ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+					return Util.floatingDouble(y);
+				} else {
+					throw new PlaidException("Cannot modulo '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 			}
 		});
 		foo.addMember(mod, modProtoMethod);
@@ -119,8 +154,14 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() ==
-					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				boolean x;
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() == ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				} else if ( ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() == ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+				} else {
+					throw new PlaidException("Cannot compare '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 				if (x == true)
 					return Util.trueObject();
 				else
@@ -136,8 +177,14 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() !=
-					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				boolean x;
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() != ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				} else if ( ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() != ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+				} else {
+					throw new PlaidException("Cannot compare '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 				if (x == true)
 					return Util.trueObject();
 				else
@@ -153,8 +200,14 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()) <
-					((Integer)((PlaidJavaObject)args).getJavaObject());
+				boolean x;
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() < ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				} else if ( ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() < ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+				} else {
+					throw new PlaidException("Cannot compare '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 				if (x == true)
 					return Util.trueObject();
 				else
@@ -170,8 +223,14 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() >
-					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				boolean x;
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() > ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				} else if ( ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() > ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+				} else {
+					throw new PlaidException("Cannot compare '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 				if (x == true)
 					return Util.trueObject();
 				else
@@ -187,8 +246,14 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() <=
-					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				boolean x;
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() <= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				} else if ( ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() <= ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+				} else {
+					throw new PlaidException("Cannot compare '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 				if (x == true)
 					return Util.trueObject();
 				else
@@ -204,8 +269,14 @@ public class Integer$plaid {
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
 				@SuppressWarnings("unused")
 				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				boolean x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() >=
-					((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				boolean x;
+				if ( ((PlaidJavaObject)args).getJavaObject() instanceof Integer ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() >= ((Integer)((PlaidJavaObject)args).getJavaObject()).intValue();
+				} else if ( ((PlaidJavaObject)args).getJavaObject() instanceof Double ) {
+					x = ((Integer)((PlaidJavaObject)thisVar).getJavaObject()).intValue() >= ((Double)((PlaidJavaObject)args).getJavaObject()).doubleValue();
+				} else {
+					throw new PlaidException("Cannot compare '" + ((PlaidJavaObject) args).getJavaObject().getClass().getCanonicalName() +"' object to Integer.");
+				}
 				if (x == true)
 					return Util.trueObject();
 				else
