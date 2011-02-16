@@ -529,6 +529,10 @@ public class CodeGen {
 		output.append(utilClass + ".integer(" + i + ")");
 	}
 	
+	public final void plaidDouble(double i) {
+		output.append(utilClass + ".floatingDouble(" + i + ")");
+	}
+	
 	public final void castToState(String s) {
 		output.append(utilClass + ".toPlaidState(" + s + ")");
 	}
