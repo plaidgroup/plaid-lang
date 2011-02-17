@@ -376,7 +376,7 @@ public class CompilerCore {
 	 * configuration input file list.
 	 * @param dir The directory containing plaid files.
 	 */
-	private void convertInputDirToInputFiles(File dir) {
+	public void convertInputDirToInputFiles(File dir) {
 		if (!dir.isDirectory()) {
 			throw new RuntimeException("Input directory " + dir.getName() + " is malformed."); 
 		}
