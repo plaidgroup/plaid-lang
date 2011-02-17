@@ -7,43 +7,44 @@ import plaid.typechecker.typecheckerMethods.*;
 import plaid.optimizer.*;
 
 
-state CodeGenTest{
+state CodeGenerator{
 
-	method compileFiles(val /*List<File>*/ fileList, val /*String*/ output) {
-		var javaList = java.util.ArrayList.new();
-		var plaidList = new List;
-		var iter = fileList.iterator();
-		while { iter.hasNext(); } {
-			var file = iter.next();
-			var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new( file ));
-			javaList.add(javaAST);
-		};
-		
-		var cc = plaid.compilerjava.CompilerConfiguration.new();
+	method compileFiles(inputDir, output) {
+	    var cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setInputDir(inputDir);
+		cc.setOutputDir(output);
 		cc.addToPlaidPath("../stdlib/bin/");
 		cc.addToPlaidPath("../runtime/bin/");
 		cc.setPrettyPrint(true);
 		cc.setDebugMode(true);
-				
-		//following two line should be rewrite in plaid in the future
+		cc.setVerbose(true);
 		var compiler = plaid.compilerjava.CompilerCore.new(cc);
+		compiler.convertInputDirToInputFiles(java.io.File.new(cc.getInputDir()));
+		var javaList = java.util.ArrayList.new();
+		var plaidList = new List{var head = new plaid.lang.Nil;};
+		var iter = cc.getInputFiles().iterator();
+		while { iter.hasNext(); } {
+			var file = iter.next();
+			var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(file));
+			javaList.add(javaAST);
+		};
+		//following two line should be rewrite in plaid in the future
+		
 		compiler.buildPlaidPath(javaList); // javaAST in javaList has changed
 		
 		iter = javaList.iterator();
-		while { iter.hasNext(); } {
-			var javaAST = iter.next();
-			var translator = new ASTTranslator;
-			var plaidAST = translator.translateAST(javaAST);
-			plaidList.add(plaidAST);
-		}
-		
-		val codeGenVisitor = new CodeGenVisitor;		
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		val codeGenVisitor = new CodeGenVisitor {val stateTable = stateTable; };		
 		codeGenVisitor.cc.setOutputDir(output);		
 		codeGenVisitor.cc = cc;
-		
-		plaidList.map(fn(x) => {
-			x.accept(codeGenVisitor);
-		});
+		var translator = new ASTTranslator;
+		while { iter.hasNext(); } {
+			var javaAST = iter.next();
+			var plaidAST = translator.translateAST(javaAST);
+			plaidAST.accept(codeGenVisitor);
+		};
 	}
 	
 	method generateJava(filePath,runTypechecker){
@@ -92,12 +93,10 @@ state CodeGenTest{
 	}
 }
 method main() {
-	var codeGenTest = new CodeGenTest;
-	codeGenTest.generateJava("testInputs/stateTest/package.plaid",false);
-	//codeGenTest.generateJava("../compilerTests/coreExamples/turing/package.plaid",false);
-	//codeGenTest.generateJava("../compilerTests/coreExamples/tree/package.plaid",false);
-	//codeGenTest.generateJava("../compilerTests/coreExamples/stateVarsTest/package.plaid",false);
-	//codeGenTest.generateJava("../compilerTests/coreExamples/destructiveRead/package.plaid",false);
+	
+	
+	var codeGenerator = new CodeGenerator;
+	codeGenerator.compileFiles("../asttranslator/pld","../asttranslator/src_new");
 
 }
 	
