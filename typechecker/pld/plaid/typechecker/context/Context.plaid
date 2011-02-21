@@ -1,0 +1,234 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker.context;
+
+import java.util.HashMap;
+import plaid.ast.types.*;
+
+state Context{
+	
+	val /*Map<String,PermType>*/ contextMap = java.util.HashMap.new();
+	
+	method /*boolean*/ ==(/*Context*/ other) {
+		var /*boolean*/ eq = true;
+		val iter = contextMap.keySet().iterator();
+		while{eq && iter.hasNext()}{
+			var x = iter.next();
+			ifElse (other.containsKey(x)) {
+				ifElse ( other.get(x) == contextMap.get(x)) {
+					eq = true;
+				} {
+					eq = false
+				}
+			} {
+				eq = false;
+			}
+		};
+		eq;
+	}
+	
+	method /*Boolean*/ leastUpperBound(/*Context*/ other, /*Context*/ newContext, /*StateTable*/ stateTable) {
+		var /*Boolean*/ contextOk = true;
+		
+		val iter = this.contextMap.keySet().iterator();
+		
+		while { contextOk && iter.hasNext() } {
+			val /*ID*/ aVar = iter.next();
+			if (other.contextMap.containsKey(aVar)) {
+				val /*PermType*/ thisPT = this.contextMap.get(aVar);
+				val /*PermType*/ otherPT = other.contextMap.get(aVar);
+				
+				//merge permissions
+				val /*Permission*/ newPerm = thisPT.perm.merge(otherPT.perm);
+				
+				//merge types
+				var /*Option Type*/ newTypeOpt = NONE;
+				match( thisPT.type) {
+					case NominalType {
+						match (otherPT.type) {
+							case NominalType {
+								val /*Option StateType*/ thisSTopt = stateTable.get(thisPT.type.typeName);
+								val /*Option StateType*/ otherSTopt = stateTable.get(otherPT.type.typeName);
+								match (thisSTopt) {
+									case Some {
+										match (otherSTopt) {
+											case Some {
+												val /*Option StateType*/ newSTopt = thisSTopt.value.leastUpperBound(otherSTopt.value);
+												match (newSTopt) {
+													case Some {
+														newTypeOpt = createSome(new NominalType {
+															val /*ID*/ typeName = newSTopt.value.name.copy();
+														});
+													}
+													case None {
+														java.lang.System.out.println("least upper bound of states " + otherPT.type.typeName.name + " and " + thisPT.type.typeName.name + " not defined");
+													}
+												}
+											}
+											case None {
+												java.lang.System.out.println("state " + otherPT.type.typeName.name + " not defined");
+											}
+										}	
+									}
+									case None {
+										java.lang.System.out.println("state " + thisPT.type.typeName.name + " not defined");
+									}
+								}
+							}
+							default {
+								java.lang.System.out.println("if one merging type is nominal, both must be");
+							}
+						}
+					}
+					case LambdaType {
+						match (otherPT.type) {
+							case LambdaType {
+								//TODO: least upper bound for lambdas - for now one has to be a subtype of the other and we take the more general one
+								ifElse (thisPT.type.subtypeOf(otherPT.type, stateTable)) {
+									newTypeOpt = createSome(otherPT.type);
+								} {
+									if (otherPT.type.subtypeOf(thisPT.type, stateTable)) {
+										newTypeOpt = createSome(thisPT.type);
+									}
+								}
+							}
+							default {
+								java.lang.System.out.println("both merged types must be lambdas if one is");
+							}
+						}
+					}
+					default {
+						java.lang.System.out.println("only nominal and lambda object types supported");
+					}
+				};
+				
+				var /*Boolean*/ newBorrowed = false;
+				if(thisPT.borrowed || otherPT.borrowed) {
+					newBorrowed = true;
+				};
+				
+				match(newTypeOpt) {
+					case Some {
+						val /*PermType*/ toPut = new PermType {
+							val /*Permission*/ perm = newPerm;
+							val /*Type*/ type = newTypeOpt.value;
+							val /*Boolean*/ borrowed = newBorrowed;
+						};
+						newContext.put(aVar,toPut);
+					}
+					case None {
+						contextOk = false;
+					}
+				}
+			}
+		};
+		contextOk;
+	}
+	
+	/**
+	 * Returns associated list of PermTypes associated with this variable.
+	 */
+	method /*PermType*/ get(x){
+		contextMap.get(x);
+	}
+	
+	method /*Option PermType*/ getOption(x) {
+		ifElse ( contextMap.containsKey(x))
+			{ createSome(contextMap.get(x)) }
+			{ NONE }
+	}
+	
+	method /*boolean*/ containsKey(x) {
+		contextMap.containsKey(x);
+	}
+	
+	/**
+	 * Puts a PermType in context
+	 * Adds to existing list or creates a new one
+	 */
+	method put(x, permType){
+		ifElse (contextMap.containsKey(x)) 
+			{ java.lang.System.out.println("Duplicate permType for " + x.name); }
+			{ contextMap.put(x, permType); }
+	//use for multi set if end up needing - for now go back to single set - handle duplicates in typechecking
+	//	ifElse( contextMap.containsKey(x)) 
+	//		{ contextMap.get(x).append(permType) }
+	//		{ contextMap.put(x,new List { var head  = new Cons { var value = permType; var next = new Nil;}; }); }
+	}
+	
+	/**
+	 * Removes the type information from all PURE and SHARED references.
+	 */
+	method demote(){
+		while{this.contextMap.keySet().iterator().hasNext()}{
+			var x = this.contextMap.keySet().next();
+			var permType = this.contextMap.get(x);
+			var perm = permType.perm;
+			var type = permType.type;
+			//If PermTyps is PURE or SHARED or NONE remove all TypeInformations
+			ifElse (perm == Permission.PURE || perm == Permission.SHARED || perm == Permission.NONE){
+				type.clearTypeInformation();
+			} 
+		}
+	}
+	
+	/**
+	 * Creates a copy of the context.
+	 */
+	method copy(){
+		var copyContext = new Context;
+		val iter = contextMap.keySet().iterator();
+		while { iter.hasNext() } {
+			var x = iter.next();
+			var permType = contextMap.get(x);
+			copyContext.put(x.copy(), permType.copy());
+			//for multiset
+			//copyContext.put(x.copy(), permTypeList.map(fn (value) => value.copy()));
+		};
+		copyContext;
+	}
+	
+	/**
+	 * Removes a permType from context
+	 */
+	method remove(x){
+		contextMap.remove(x);
+	}
+	
+	method reset() {
+		contextMap.clear();
+	}
+	
+	method addAll(other) {
+		val iter = other.contextMap.keySet().iterator();
+		while{iter.hasNext()}{
+			var x = iter.next();
+			contextMap.put(x,other.contextMap.get(x));
+		}
+	}
+	
+	method /*void*/ printContext() {
+		val iter = contextMap.keySet().iterator();
+		while{iter.hasNext()}{
+			var x = iter.next();
+			java.lang.System.out.println(x.name + " : " + this.contextMap.get(x).toString());
+		}
+	}
+}
