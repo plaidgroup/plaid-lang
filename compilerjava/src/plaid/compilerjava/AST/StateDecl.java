@@ -50,15 +50,17 @@ public class StateDecl implements Decl {
 	private QI caseOf;
 	private boolean isCaseOf;
 	private final Permission defaultPerm;
+	private final List<ID> groupArgs;
 	
-	public StateDecl(Token t, ID name, State stateDef, Permission defaultPerm) {
-		this(t, name, stateDef, null, defaultPerm);
+	public StateDecl(Token t, ID name, List<ID> groupArgs, State stateDef, Permission defaultPerm) {
+		this(t, name, groupArgs, stateDef, null, defaultPerm);
 	}
 	
-	public StateDecl(Token t, ID name, State stateDef, QI caseOf, Permission defaultPerm) {
+	public StateDecl(Token t, ID name, List<ID> groupArgs, State stateDef, QI caseOf, Permission defaultPerm) {
 		super();
 		this.token = t;
 		this.setName(name);
+		this.groupArgs = groupArgs;
 		this.setStateDef(stateDef);
 		if (caseOf == null) {
 			this.caseOf = null;
@@ -144,14 +146,17 @@ public class StateDecl implements Decl {
 				List<Decl> decls = ((DeclList) s).getDecls();
 				for (Decl d : decls) {
 					String name = d.getName();
-					if (d instanceof FieldDecl)
+					if (d instanceof FieldDecl) {
 						toRet.addMember(new FieldRep(name));
-					else if (d instanceof MethodDecl)
+					} else if (d instanceof MethodDecl) {
 						toRet.addMember(new MethodRep(name));
-					else if (d instanceof StateDecl)
+					} else if (d instanceof GroupDecl ) {
+						// TODO: fixme 
+					} else if (d instanceof StateDecl) {
 						toRet.addMember(new StateRep(name)); //TODO : nested states and their members
-					else
+					} else {
 						throw new RuntimeException("Type of Decl not accounted for.");
+					}
 				}
 			}
 		}

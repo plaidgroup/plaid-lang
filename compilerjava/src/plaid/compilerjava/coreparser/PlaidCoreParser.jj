@@ -29,6 +29,7 @@ import plaid.runtime.PlaidConstants;
 public class PlaidCoreParser
 {
 		private CompilationUnit cu;
+		private boolean aeminiumMode = true;
 
 		public void init()
 		{
@@ -173,6 +174,10 @@ TOKEN /*[IGNORE_CASE]*/:
 |	< OVERRIDE : "override" >
 | 	< UNIT : "unit" >
 |	< VOID : "void" >
+|   < GROUP : "group" >
+|   < ATOMIC : "atomic" >
+|   < SPLIT : "split" >
+|   <UNPACKINNERGROUPS : "unpackInnerGroups" >
 
 /* Permission kinds */
 |	< DYN : "dyn">
@@ -183,6 +188,12 @@ TOKEN /*[IGNORE_CASE]*/:
 | 	< FULL : "full" >
 | 	< PURE : "pure" >
 |	< NONE : "none" >
+
+/* group permissions */
+|   < EXCLUSIVE : "exclusive" >
+|   < PROTECTED : "protected" >
+|   < MUTABLE : "mutable" >
+|   < READONLY : "readonly" >
 }
 
 /* Literals */
@@ -204,22 +215,22 @@ TOKEN :
 				)*
 				"\"" >
 |       < INTEGER:
-            <DECIMAL_LITERAL> (["l","L"])?
-          | <HEX_LITERAL> (["l","L"])?
-          | <OCTAL_LITERAL> (["l","L"])?
+            <DECIMAL_LITERAL> 
+          | <HEX_LITERAL> 
+          | <OCTAL_LITERAL> 
         >
 |
-        < #DECIMAL_LITERAL: ("-")?  ["1"-"9"] (["0"-"9"])* >
+        < #DECIMAL_LITERAL: ("-")? ["1"-"9"] (["0"-"9"])* >
 |
         < #HEX_LITERAL: "0" ["x","X"] (["0"-"9","a"-"f","A"-"F"])+ >
 |
         < #OCTAL_LITERAL: "0" (["0"-"7"])* >
 
 |       < FLOATING_POINT_LITERAL:
-          (["0"-"9"])+ "." (["0"-"9"])* (<EXPONENT>)? (["f","F","d","D"])?
-          | "." (["0"-"9"])+ (<EXPONENT>)? (["f","F","d","D"])?
-          | (["0"-"9"])+ <EXPONENT> (["f","F","d","D"])?
-          | (["0"-"9"])+ (<EXPONENT>)? ["f","F","d","D"]
+          (["0"-"9"])+ "." (["0"-"9"])* (<EXPONENT>)? 
+          | "." (["0"-"9"])+ (<EXPONENT>)? 
+          | (["0"-"9"])+ <EXPONENT> 
+          | (["0"-"9"])+ (<EXPONENT>)? 
         >
 |
         < #EXPONENT: ["e","E"] (["+","-"])? (["0"-"9"])+ >
@@ -341,6 +352,7 @@ PermType PermType() :
 {	Type type = null;
 	Permission perm = null;
 	LambdaType l = null;
+	Token group = null;
 }
 {	(	<DYN>
 	{
@@ -359,8 +371,16 @@ PermType PermType() :
 	}
 	// TODO: Default permission?
 	// KBN - 2010-11-4 permission no longer optional - currently causes parser conflict
-| 	perm = Permission() type = StructuralType()
-	{		return new PermType(perm, type);
+| 	perm = Permission() [ <LT> group = <ID> <GT> ] type = StructuralType()
+	{
+	    if ( group != null ) {
+            if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode.");
+	        if ( perm != Permission.SHARED ) {
+	            throw new ParseException("Only shared permissions are allowed to have data groups.");
+	        }
+	        return new PermType(perm, new ID(group.image), type);
+	        
+	    }		return new PermType(perm, type);
 	}
 	)
 }
@@ -425,12 +445,13 @@ ObjectType StructuralType() :
 {
   	Token typeAbbrevTok;	ObjectType right = null;
 	List<TypeDecl> typeDecls;
+	List<ID> groupArgs = null;
 }
 {
   	(
-  	// type abbreviation	typeAbbrevTok = <ID> [<WITH> right = StructuralType()]
+  	// type abbreviation	typeAbbrevTok = <ID> [ LOOKAHEAD(2) groupArgs = GroupArgs() ][<WITH> right = StructuralType()]
 	{
-		return (new ObjectType(new ID(typeAbbrevTok.image))).compose(right);
+		return (new ObjectType(new ID(typeAbbrevTok.image), groupArgs)).compose(right);
 	}
 	// type declarations
 | 	typeDecls = TypeDecls() [<WITH> right = StructuralType()]
@@ -496,7 +517,8 @@ TypeDecl TypeDecl() :{	TypeDecl decl;
 }
 {
   	decl = MethodType() <SEMICOLON> { return decl; }
-| 	decl = FieldType() { return decl; }}
+| 	decl = FieldType() { return decl; }
+|   decl = GroupType() { return decl; }}
 
 MethodType MethodType() :
 {
@@ -508,12 +530,13 @@ MethodType MethodType() :
 		Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
 		ChangeType envType;
 		Token envVar;
+		List<GroupParameter> groupParams = new ArrayList<GroupParameter>();
 }
 {
-		//method [T] m([T>>T])[T >> T, E ] 
+		//method [T] m[<g>]([T>>T])[T >> T, E ] 
 			m = <METHOD>
 			( LOOKAHEAD(PermType() IdOrOperator())    
-				returnType = PermType() methodName = IdOrOperator() // optional Return type
+				returnType = PermType() methodName = IdOrOperator() [groupParams = GroupParameters() { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type
 				| methodName = IdOrOperator()  //only method name
 			)
 			<LPAREN> [ argTypes = ChangeTypeList() ] <RPAREN>	//optional arguments with optional types
@@ -557,6 +580,17 @@ FieldType FieldType() :{
   	  	return new FieldType(new ID(fieldNameToken, fieldNameToken.image), fieldPermType, immutable);  	}}
 
 
+GroupType GroupType() : {
+    Token id;
+    boolean isAbstract = true;
+}{
+    <GROUP> id = <ID> [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ] <SEMICOLON>
+    {
+        return new GroupType(new ID(id.image), isAbstract);
+    }
+}
+
+
 /*****************************************************************************/
 /*							END OF TYPING RULES								 */
 /*****************************************************************************/
@@ -589,6 +623,10 @@ Decl Decl() :
 		{
 				return d;
 		}
+|       d = GroupDecl()
+        {
+                return d;
+        }
 | 		(LOOKAHEAD(2) //Because of 'overrides val ...' vs 'overrides method ...' 
 		d = DeclField()
 		{
@@ -607,18 +645,20 @@ Decl DeclState() :
 	State stateDef;
 	List<Token> qi = null;
 	Permission defaultPerm = Permission.DYN;
+	List<ID> groupArgs = null;
+	List<ID> groupArgsCaseOf = null;
 }
-{	[defaultPerm = Permission()] s = <STATE> t = <ID> [ c = <CASE> <OF> qi = DotName() { } ]
+{	[defaultPerm = Permission()] s = <STATE> t = <ID> [ groupArgs = GroupArgs() ] [ c = <CASE> <OF> qi = DotName() [ groupArgsCaseOf = GroupArgs() ]  { } ]
 	(
 		<EQUALS> stateDef = State()
 	|	stateDef = DeclList()
 	)
 	{
 		if (qi == null) {
-			return new StateDecl(s, new ID(t.image), stateDef, defaultPerm);
+			return new StateDecl(s, new ID(t.image), groupArgs, stateDef, defaultPerm);
 		}
 		else {
-			return new StateDecl(s, new ID(t.image), stateDef, new QI(tokenToStringList(qi)), defaultPerm);
+			return new StateDecl(s, new ID(t.image), groupArgs, stateDef, new QI(tokenToStringList(qi)), defaultPerm);
 		}
 	}
 }
@@ -664,6 +704,60 @@ Decl DeclField() :
 }
 
 
+List<ID> GroupArgs() :{
+  Token arg;
+  List<ID> args = new ArrayList<ID>();}{
+  < LT >
+    arg = < ID > {  args.add(new ID(arg.image)); }    (
+      < COMMA > arg = < ID > {  args.add(new ID(arg.image)); }    )* 
+  < GT >
+  {    return args;
+  }}
+
+
+Decl GroupDecl() :{
+  Token id;
+  boolean isAbstract = true;}{    < GROUP > id = < ID > [ < EQUALS > < NEW >  < GROUP > { isAbstract = false; } ] < SEMICOLON > 
+    {        return new GroupDecl(id, new ID(id.image), isAbstract);
+    }
+}
+
+GroupPermission GroupPermission() :{}{
+   < EXCLUSIVE >   {
+     return GroupPermission.EXCLUSIVE;   }
+ | < SHARED >
+   {
+     return GroupPermission.SHARED;
+   }
+ | < PROTECTED >
+   {     return GroupPermission.PROTECTED;   }
+ | < MUTABLE >
+   {
+     return GroupPermission.MUTABLE;
+   }   
+ | < READONLY >
+   {
+     return GroupPermission.READONLY;
+   }   }
+
+GroupParameter GroupParameter() :
+{
+  Token id;
+  GroupPermission gp;}{
+  gp = GroupPermission() id = < ID >
+  {    return new GroupParameter(gp, new ID(id.image));
+  }}
+
+List<GroupParameter> GroupParameters() :{    List<GroupParameter> params = new ArrayList<GroupParameter>();
+    GroupParameter param; 
+}{    < LT >
+        param = GroupParameter() { params.add(param); }
+        (
+          < COMMA > param = GroupParameter() { params.add(param); }                  )*
+    < GT >
+    {        return params;
+    }}
+
 
 Decl DeclMethod() :
 {
@@ -683,15 +777,15 @@ Decl DeclMethod() :
 		ID envID = null;
 		Expression e = null;
 		MethodDecl d;
-		
+		List<GroupParameter> groupParams = new ArrayList<GroupParameter>();
 }
 {
 		//[override] method [T] m([T>>T x])[T >> T, E ] ( {e} | ; )
 		[<OVERRIDE>{ override = true; }] /*methodType = MethodTypeDecl()*/
 			m = <METHOD>
 			( LOOKAHEAD(PermType() IdOrOperator())    
-				returnType = PermType() methodName = IdOrOperator() // optional Return type
-				| methodName = IdOrOperator()  //only method name
+				returnType = PermType() methodName = IdOrOperator() [groupParams = GroupParameters() { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type
+				| methodName = IdOrOperator() [groupParams = GroupParameters() { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] //only method name
 			)
 			<LPAREN> [ argList = DeclArgs() ] <RPAREN>	//optional arguments with optional types
 			[ //optional environment - if you put brakets you have to have at least one entry
@@ -785,16 +879,17 @@ State State() :
 		State s, with;
 		DeclList init = null;
 		List<Token> dotName;
+		List<ID> groupArgs = null;
 }
 {
 		(
 				s = DeclList()
-		|		dotName = DotName() [init = DeclList() ]
+		|		dotName = DotName() [ LOOKAHEAD(2) groupArgs = GroupArgs() ] [init = DeclList() ]
 				{
 						if (init == null ) {
-							s = new QI(tokenToStringList(dotName));
+							s = new QI(tokenToStringList(dotName), groupArgs);
 						} else {
-							s = new QI(tokenToStringList(dotName), init);
+							s = new QI(tokenToStringList(dotName), groupArgs, init);
 						}
 				}
 		)
@@ -855,7 +950,7 @@ Expression BlockExpression(boolean isExp) :
 	Expression e = new UnitLiteral();
 }
 {
-		<LBRACE> [ e = StmtListSemi() ] <RBRACE>
+		<LBRACE> [ e = StmtListFolded() ] <RBRACE>
 		{
 				if (isExp) {					List<PermType> permTypes = new ArrayList<PermType>();
 					permTypes.add(PermType.getUnitPT());
@@ -870,10 +965,10 @@ Expression BlockExpression(boolean isExp) :
 		}
 }
 
-Expression StmtListSemi() :
+ArrayList<Expression> StmtList() :
 {
-		ArrayList < Expression > expList = new ArrayList < Expression > ();
-		Expression e;
+    ArrayList < Expression > expList = new ArrayList < Expression > ();
+	Expression e;	
 }
 {
 		
@@ -883,8 +978,19 @@ Expression StmtListSemi() :
 		)*
 		[<SEMICOLON>]
 		{
-				return foldExpListSemi(expList);
+            return expList;
 		}
+}
+
+Expression StmtListFolded() :
+{
+    ArrayList<Expression> stmtList;
+}
+{
+    stmtList = StmtList() 
+    {
+        return foldExpListSemi(stmtList);
+    }
 }
 
 Expression Stmt() :
@@ -910,6 +1016,8 @@ Expression Exp() :
 		List < Case > cl;
 		Token t;
 		PermType pt;
+		Token id;
+		List<Expression> stmtList = new ArrayList<Expression>();
 }
 {
 		LOOKAHEAD(3) t = <LPAREN> pt = PermType() <RPAREN> e = Exp()
@@ -924,6 +1032,21 @@ Expression Exp() :
 		{
 				return new Match(t, e, cl);
 		}
+|       t = <ATOMIC> <LT> id = <ID> <GT> e = BlockExpression(false) 
+        {   
+            if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); 
+            return new AtomicBlock(t, new ID(id.image), e);
+        }
+|       t = <SPLIT> <LT> id = <ID> <GT> <LBRACE> [ stmtList = StmtList() ] <RBRACE>
+        {   
+            if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); 
+            return new SplitBlock(t, new ID(id.image), stmtList);
+        }
+|       t = <UNPACKINNERGROUPS> e = BlockExpression(false) 
+        {
+            if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); 
+            return new UnpackInnerGroups(t, e);
+        }
 |		e = ConditionalExpression() [ e = ExpSuffix(e) ]
 		{
 				return e;
@@ -936,7 +1059,7 @@ Expression InfixExp() :
 		Token t;
 }
 {
-		e = SimpleExp()
+		e = SimpleExp() 
 		(
 				(t = < ID > | t = < OP >)
 				arg = SimpleExp()
@@ -1095,10 +1218,12 @@ Expression RelationalExpression() :
 		Expression e;
 		Expression arg;
 		Token t;
+		List<ID> groupParams     = new ArrayList<ID>();
+		List<Expression> argList = new ArrayList<Expression>();
 }
 {
-		e = ShiftExpression()
-		(
+		e = ShiftExpression() 
+		(   
 				(
 						t = "<"
 				|		t = ">"
@@ -1109,7 +1234,7 @@ Expression RelationalExpression() :
 				{
 						e = new MethodCall(t, e, new ID(t,t.image), arg);
 				}
-		)*
+		  )*
 		{
 				return e;
 		}
@@ -1303,6 +1428,7 @@ Expression SimpleExp() :
 		List<Expression> eList = null;
 		List<Expression> argList = null;
 		//Expression methodArg = new UnitLiteral();
+		List<ID> groupArgs = new ArrayList<ID>();
 }
 {
 		e = BlockExpression(true)
@@ -1316,27 +1442,28 @@ Expression SimpleExp() :
 |
 		(
 				(t = < ID > | t = <THIS>)
-				{
+				{      
 						e = new ID(t, t.image);
 				}
-		|		t = < LPAREN > eList = ExpList() < RPAREN > { e = foldToPairs(eList); }
+		|		t = < LPAREN > eList = ExpList() < RPAREN > { e = foldToPairs(eList);  }
 		|		e = Literal()
 		)
-		(
+		(LOOKAHEAD(3) 
 				(
 					arg = BlockExpression(true) { e = new Application(arg.getToken(), e, arg); }
-				|
+				|   LOOKAHEAD([GroupArgs() <LPAREN>])
+				    [ groupArgs = GroupArgs()  { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); }  ]
 					t = <LPAREN> [ eList = ExpList() ] <RPAREN> 
 					{ 
-						if (eList == null) { e = new Application(t, e, new UnitLiteral()); }
+						if (eList == null) { e = new Application(t, e, groupArgs, new UnitLiteral()); }
 						else { 
-							e = new Application(t, e, eList);
+							e = new Application(t, e, groupArgs, eList);
 							eList = null; 
 						} 
 					}
 				)
 		)*
-		(
+		( 
 		    (dotToken = <DOT> | dotToken = <BANG> ) (t = <ID> | t = <NEW> )
 		    {
 		    	if (dotToken.image.equals(".")) {
@@ -1345,7 +1472,9 @@ Expression SimpleExp() :
 		    		e = new DestructiveDereference(t, e, new ID(t,t.image));
 		    	}
 		    }
-			(LOOKAHEAD(<LPAREN>) //If we have an expr list in parens next, assume method call
+			(
+			  LOOKAHEAD( [ groupArgs = GroupArgs()] <LPAREN> ) //If we have an expr list in parens next, assume method call
+			  [ groupArgs = GroupArgs()  { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); }  ]
 				<LPAREN>
 		  			[ argList = ExpList() ]
 		  		<RPAREN> 
@@ -1353,9 +1482,10 @@ Expression SimpleExp() :
 		  				if (argList == null ) { 
 		  					argList = new ArrayList<Expression>();
 		  				}
-		  				e = new MethodCall(dotToken, ((Dereference)e).getLeft(), ((Dereference)e).getRight(), argList); 
+		  				e = new MethodCall(dotToken, ((Dereference)e).getLeft(), ((Dereference)e).getRight(), groupArgs, argList); 
 		  				argList = null;
 		  			}
+		  			
 		  		//followed with arbitrary applications			
 				( 
 					(
@@ -1394,6 +1524,7 @@ Expression SimpleExp() :
 			return e;
 		} // will return e if no arguments in curriedArgs
 }
+
 
 List<Expression> ExpList() :
 {

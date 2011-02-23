@@ -35,12 +35,14 @@ public class ObjectType implements Type, /*ASTnode,*/ JSONAware {
 	private final Set<TypeDecl> typeDecls;
 	private final ID nominalType;
 	private final boolean isNominal;
+	private final List<ID> groupArgs;
 	
 	public ObjectType() {
 		this.typeAbbrevs = new HashSet<ID>();
 		this.typeDecls = new HashSet<TypeDecl>();
 		this.nominalType = null;
 		this.isNominal = false;
+		this.groupArgs = null;
 	}
 	
 	public ObjectType(ID typeAbbrev) {
@@ -49,8 +51,16 @@ public class ObjectType implements Type, /*ASTnode,*/ JSONAware {
 		this.typeDecls = null;
 		this.nominalType = typeAbbrev;
 		this.isNominal = true;
-		
-		
+		this.groupArgs = null;		
+	}
+	
+	public ObjectType(ID typeAbbrev, List<ID> groupArgs) {
+		//this();
+		this.typeAbbrevs = null;
+		this.typeDecls = null;
+		this.nominalType = typeAbbrev;
+		this.isNominal = true;
+		this.groupArgs = null;		
 	}
 	
 	public ObjectType(Collection<TypeDecl> typeDecls) {

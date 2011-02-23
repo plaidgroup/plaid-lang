@@ -29,6 +29,7 @@ public interface ASTVisitor<T> {
 	public T visitNode(ASTnode node);
 	public T visitNode(Application node);
 	public T visitNode(Assignment node);
+	//public T visitNode(AtomicBlock node);
 	public T visitNode(Case node);
 	public T visitNode(ChangeState node);
 	public T visitNode(CompilationUnit node);

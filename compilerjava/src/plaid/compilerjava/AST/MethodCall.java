@@ -18,6 +18,7 @@ public class MethodCall implements Expression {
 	private final boolean hasArgs;
 	private final Expression receiver;
 	private final ID method;
+	private final List<ID> groupArgs;
 	
 	private boolean isTailCall = false;
 	
@@ -31,6 +32,20 @@ public class MethodCall implements Expression {
 		}
 		this.receiver = receiver;
 		this.method = method;
+		this.groupArgs = null;
+	}
+	
+	public MethodCall(Token token, Expression receiver, ID method, List<ID> groupArgs, Expression argument) {
+		this.token = token;
+		if (argument instanceof UnitLiteral) {
+			hasArgs = false;
+		} else {
+			this.arguments.add(argument);
+			hasArgs = true;
+		}
+		this.receiver = receiver;
+		this.method = method;
+		this.groupArgs = groupArgs;
 	}
 	
 	public MethodCall(Token token, Expression receiver, ID method, List<Expression> arguments) {
@@ -44,7 +59,21 @@ public class MethodCall implements Expression {
 		}
 		this.receiver = receiver;
 		this.method = method;
-		
+		this.groupArgs = null;
+	}
+	
+	public MethodCall(Token token, Expression receiver, ID method, List<ID> groupArgs, List<Expression> arguments) {
+		this.token = token;
+		this.arguments.addAll(arguments);
+		if (arguments.size() == 1 && arguments.get(0) instanceof UnitLiteral) {
+			this.hasArgs = false;
+			this.arguments.clear();
+		} else {
+			this.hasArgs = true;
+		}
+		this.receiver = receiver;
+		this.method = method;
+		this.groupArgs = null;
 	}
 
 	public List<Expression> getArguments() {

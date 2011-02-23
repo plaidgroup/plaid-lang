@@ -39,7 +39,7 @@ import plaid.compilerjava.util.QualifiedID;
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.Util;
 
-public class FieldDecl implements Decl{
+public class FieldDecl implements Decl {
 	private Token token;
 	private ID f;
 	private Expression e;
