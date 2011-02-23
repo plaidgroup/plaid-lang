@@ -2,6 +2,7 @@ package plaid.codegen;
 
 import plaid.ast.visitor.ASTViewer;
 import plaid.ast.*;
+import plaid.scope.*;
 import plaid.typechecker.*;
 import plaid.typechecker.typecheckerMethods.*;
 import plaid.optimizer.*;
@@ -31,32 +32,43 @@ state CodeGenerator{
 		};
 		//following two line should be rewrite in plaid in the future
 		
-		compiler.buildPlaidPath(javaList); // javaAST in javaList has changed
-		
+		//translate phase
+		var packrep = compiler.buildPlaidPath(javaList); // javaAST in javaList has changed
 		iter = javaList.iterator();
-		val stateTable = new StateTable {
-			override val states = java.util.HashMap.new();
-		};
+
 
 		var translator = new ASTTranslator;
 		while { iter.hasNext(); } {
 			var javaAST = iter.next();
 			var plaidAST = translator.translateAST(javaAST);
 			plaidList.add(plaidAST);
-			//plaidAST.accept(codeGenVisitor); //We must delay this even there are performance issues
 		};
 		
+		//state table building phase
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		val tr = new PackageRepTranslator {
+			val stateTable = stateTable;
+		};
+		tr.translate(packrep);
+		
 		//scope build phase
-		//var /*ScopeBuildingVisitor*/ scopebuilder = new ScopeBuildingVisitor{val rep = packrep;};
+		var /*ScopeBuildingVisitor*/ scopebuilder = new ScopeBuildingVisitor{val stateTable = stateTable; val rep = packrep;};
 		//scopebuilder.build(plaidList);
 		
 		//typechecking phase
+		//TODO: add type checking here
+		plaidList.map(fn(x) => {
+			//x.accept(something);
+		});
 		
 		//optimization phase
-		//var /*OptimizationVisitor*/ optVisitor = new OptimizationVisitor;
-		//plaidList.map(fn(x) => {
-		//	x.accept(optVisitor);
-		//});
+		var /*OptimizationVisitor*/ optVisitor = new OptimizationVisitor;
+		//TODO need double check if something should be modify for the new version of the ASTNodes
+		plaidList.map(fn(x) => {
+			x.accept(optVisitor);
+		});
 						
 		//code genearation phase
 		val codeGenVisitor = new CodeGenVisitor {val stateTable = stateTable; };		
