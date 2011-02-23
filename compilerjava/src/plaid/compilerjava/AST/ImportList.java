@@ -226,4 +226,8 @@ public class ImportList implements ASTnode {
 		return visitor.visitNode(this);
 	}
 
+	@Override
+	public String toString() {
+		return "ImportList" + imports;
+	}
 }
