@@ -2,12 +2,12 @@ package plaid.compilerjava.types;
 
 import plaid.compilerjava.AST.ID;
 
-public class GroupType implements TypeDecl {
+public class GroupType implements TypeDecl, MetaType {
 	private final ID name;
-	private final boolean isImmutable;
+	private final boolean isAbstract;
 
-	public GroupType(ID name, boolean immutable) {
-		this.isImmutable = immutable;
+	public GroupType(ID name, boolean isAbstract) {
+		this.isAbstract = isAbstract;
 		this.name = name;
 	}
 
@@ -37,20 +37,13 @@ public class GroupType implements TypeDecl {
 		return this.name;
 	}
 
-	public boolean isImmutable() {
-		return isImmutable;
+	public boolean isAbstract() {
+		return isAbstract;
 	}
 
 	@Override
 	public String toString() {
-		StringBuilder s = new StringBuilder();
-		if (isImmutable) s.append("val ");
-		else s.append("var ");
-
-		s.append(name.getName());
-
-		return s.toString();
-
+		return "group " + name + ((isAbstract)?"":" = new group");
 	}
 
 }

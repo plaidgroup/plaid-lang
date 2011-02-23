@@ -1,6 +1,6 @@
 package plaid.compilerjava.AST;
 
-public class GroupParameter {
+public class GroupParameter implements MetaParameter {
 	private final GroupPermission permission;
 	private final ID id;
 	

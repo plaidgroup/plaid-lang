@@ -50,17 +50,17 @@ public class StateDecl implements Decl {
 	private QI caseOf;
 	private boolean isCaseOf;
 	private final Permission defaultPerm;
-	private final List<ID> groupArgs;
+	private final List<MetaParameter> metaParams;
 	
-	public StateDecl(Token t, ID name, List<ID> groupArgs, State stateDef, Permission defaultPerm) {
-		this(t, name, groupArgs, stateDef, null, defaultPerm);
+	public StateDecl(Token t, ID name, List<MetaParameter> metaArgs, State stateDef, Permission defaultPerm) {
+		this(t, name, metaArgs, stateDef, null, defaultPerm);
 	}
 	
-	public StateDecl(Token t, ID name, List<ID> groupArgs, State stateDef, QI caseOf, Permission defaultPerm) {
+	public StateDecl(Token t, ID name, List<MetaParameter> metaParams, State stateDef, QI caseOf, Permission defaultPerm) {
 		super();
 		this.token = t;
 		this.setName(name);
-		this.groupArgs = groupArgs;
+		this.metaParams = metaParams;
 		this.setStateDef(stateDef);
 		if (caseOf == null) {
 			this.caseOf = null;
