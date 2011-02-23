@@ -1,0 +1,133 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker;
+
+import plaid.ast.visitor.LeafVisitor;
+
+/**
+ *	state which outputs typechecker information in a nicely printed manor (eventually)
+ */
+state TypecheckOutputVisitor case of LeafVisitor {
+	
+	val immutable String prefix = "TYPE ERROR: ";
+
+	method errorString(msg, tokenOpt) {
+		match (tokenOpt) {
+			case Some {
+				prefix + tokenOpt.value.errorOutput() + " " + msg;
+			}
+			case None {
+				prefix + msg;
+			}
+		}
+	}
+	
+	method checkError(node) {
+		match (node.type) {
+			case ErrorType {
+				if (node.type.isLocal) { //report
+					java.lang.System.out.println(this.errorString(node.type.errorMsg, node.token));
+				}
+			}
+			default { }
+		}	
+	}
+
+	override method visitMethodCall(node) {
+		checkError(node);
+		node.receiver.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
+	}
+	
+	override method visitApplication(node) {
+		checkError(node);
+		node.f.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
+	}
+	
+	override method visitDereference(node) {
+		checkError(node);
+		node.left.accept(this);
+	}
+	
+	override method visitDestructiveDereference(node) {
+		checkError(node);
+		node.left.accept(this);
+	}
+	
+	override method visitMatch(node) {
+		checkError(node);
+		node.e.accept(this);
+		node.caseList.map(fn (c) => c.accept(this));
+	}
+	
+	override method visitCase(node) {
+		checkError(node);
+		node.e.accept(this);
+	}
+	
+	override method visitID(node) {
+		checkError(node);
+	}
+	
+	override method visitLambda(node) {
+		checkError(node);
+		node.body.accept(this);
+	}
+	
+	override method visitNewInstance(node) {
+		checkError(node);
+		match(node.s.initState) {
+			case Some {
+				node.s.initState.value.accept(this);
+			}
+			case None {
+			
+			}
+		}
+	}
+	
+	override method visitFieldDecl(node) {
+		checkError(node);
+		node.e.accept(this)
+	}
+	
+	override method visitMethodDecl(node) {
+		checkError(node);
+		node.body.accept(this);
+	}
+	
+	override method visitStateDecl(node) {
+		checkError(node);
+		node.stateDef.accept(this);
+	}
+	
+	override method visitQI(node) {
+		checkError(node);
+		match (node.initState) {
+			case Some {
+				node.initState.value.accept(this);
+			}
+			case None { }
+		}
+	}
+	
+	
+}
