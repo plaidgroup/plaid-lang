@@ -30,25 +30,28 @@ state CodeGenerator{
 			var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(file));
 			javaList.add(javaAST);
 		};
-		//following two line should be rewrite in plaid in the future
 		
+		//translate phase
 		var packrep = compiler.buildPlaidPath(javaList); // javaAST in javaList has changed
-		
 		iter = javaList.iterator();
-		val stateTable = new StateTable {
-			override val states = java.util.HashMap.new();
-		};
-
 		var translator = new ASTTranslator;
 		while { iter.hasNext(); } {
 			var javaAST = iter.next();
 			var plaidAST = translator.translateAST(javaAST);
 			plaidList.add(plaidAST);
-			//plaidAST.accept(codeGenVisitor); //We must delay this even there are performance issues
 		};
 		
+		//state table building phase
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		val tr = new PackageRepTranslator {
+			val stateTable = stateTable;
+		};
+		tr.translate(packrep);
+		
 		//scope build phase
-		var /*ScopeBuildingVisitor*/ scopebuilder = new ScopeBuildingVisitor{val rep = packrep;};
+		var /*ScopeBuildingVisitor*/ scopebuilder = new ScopeBuildingVisitor{val stateTable = stateTable; val rep = packrep;};
 		scopebuilder.build(plaidList);
 		
 		//typechecking phase
