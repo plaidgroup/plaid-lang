@@ -1,0 +1,103 @@
+package plaid.codegen;
+
+import plaid.ast.visitor.ASTViewer;
+import plaid.ast.*;
+import plaid.typechecker.*;
+import plaid.typechecker.typecheckerMethods.*;
+import plaid.optimizer.*;
+
+
+state CodeGenerator{
+
+	method compileFiles(inputDir, output) {
+	    var cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setInputDir(inputDir);
+		cc.setOutputDir(output);
+		cc.addToPlaidPath("../stdlib/bin/");
+		cc.addToPlaidPath("../runtime/bin/");
+		cc.setPrettyPrint(true);
+		cc.setDebugMode(true);
+		cc.setVerbose(true);
+		var compiler = plaid.compilerjava.CompilerCore.new(cc);
+		compiler.convertInputDirToInputFiles(java.io.File.new(cc.getInputDir()));
+		var javaList = java.util.ArrayList.new();
+		var plaidList = new List{var head = new plaid.lang.Nil;};
+		var iter = cc.getInputFiles().iterator();
+		while { iter.hasNext(); } {
+			var file = iter.next();
+			var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(file));
+			javaList.add(javaAST);
+		};
+		//following two line should be rewrite in plaid in the future
+		
+		compiler.buildPlaidPath(javaList); // javaAST in javaList has changed
+		
+		iter = javaList.iterator();
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		val codeGenVisitor = new CodeGenVisitor {val stateTable = stateTable; };		
+		codeGenVisitor.cc.setOutputDir(output);		
+		codeGenVisitor.cc = cc;
+		var translator = new ASTTranslator;
+		while { iter.hasNext(); } {
+			var javaAST = iter.next();
+			var plaidAST = translator.translateAST(javaAST);
+			plaidAST.accept(codeGenVisitor);
+		};
+	}
+	
+	method generateJava(filePath,runTypechecker){
+	/**
+	 *  The problem is that the set of programs that typecheck doesn't
+	 *  completely match the set of programs that we can compile -- for
+	 *  example anything using Java classes will not typecheck but
+	 *  should compile just fine.
+	 */
+	 	val javaList = java.util.ArrayList.new();
+	 	
+		val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new(filePath)));
+		
+		javaList.add(javaAST);		
+		
+		//using java buildpath
+		var cc = plaid.compilerjava.CompilerConfiguration.new();
+
+		cc.addToPlaidPath("../stdlib/bin/");
+		cc.addToPlaidPath("../asttranslator/bin/");
+		
+		var compiler = plaid.compilerjava.CompilerCore.new(cc);
+		compiler.buildPlaidPath(javaList); // javaAST in javaList has changed		
+		
+		val translator = new ASTTranslator;
+		val plaidAST = translator.translateAST(javaAST);
+		val stTranslator = new StateTableBuilderVisitor;
+		plaidAST.accept(stTranslator);
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		//val tr = new PackageRepTranslator {
+		//	val stateTable = stateTable;
+		//};
+		//val userDir = java.lang.System.getProperty("user.dir");
+		//val plaidPath = makeEmptyList();
+		//plaidPath.add(userDir + "/bin/");
+		//plaidPath.add(userDir + "/../stdlib/bin/");
+		//val packageRep = tr.buildPackageRep(javaAST, plaidPath);
+		//tr.translate(packageRep);
+		val codeGenVisitor = new CodeGenVisitor { val stateTable = stateTable; };
+		codeGenVisitor.cc.setPrettyPrint(true);
+		codeGenVisitor.cc.setDebugMode(true);
+		codeGenVisitor.cc.setOutputDir("testOutput/");
+		plaidAST.accept(codeGenVisitor);
+	}
+}
+method main() {
+	
+	
+	var codeGenerator = new CodeGenerator;
+	codeGenerator.compileFiles("../asttranslator/pld","../asttranslator/src_new");
+
+}
+	
+

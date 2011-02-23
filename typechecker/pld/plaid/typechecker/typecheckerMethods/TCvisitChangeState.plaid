@@ -1,0 +1,55 @@
+package plaid.typechecker.typecheckerMethods;
+
+state TCvisitChangeState {
+	
+	override method visitChangeState(node) {
+		//check that we have a unique permission to the target
+		//and that the state declaration on the right is well formed
+		match (node.s) {
+			case QI {
+				node.s.accept(this);
+				match (this.typedAs) {
+					case Some {
+						val /*Option PermType*/ targetOpt = this.context.getOption(node.e);
+						match (targetOpt) {
+							case Some {
+								ifElse(targetOpt.value.perm.isWritable()) {
+									//java.lang.System.out.println("***********TESTING State Change");
+									//this.context.printContext();
+									this.context.remove(node.e);
+									this.context.put(node.e, this.typedAs.value);
+									this.typedAs = createSome(VOID);
+									//java.lang.System.out.println("-------");
+									//this.context.printContext();
+								} {
+									val msg = "permission " + targetOpt.value.perm + "to object " + node.e.name +  " does not allow state change";
+									typeError(node, msg, true);
+									this.typedAs = NONE;
+									java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+								}
+							}
+							case None {
+								val msg = "state change target object " + node.e.name + " not found in the context";
+								typeError(node, msg, true);
+								this.typedAs = NONE;
+								java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+							}
+						}
+					}
+					case None {
+						val msg = "target state not well formed";
+						typeError(node, msg, false);
+						this.typedAs = NONE;
+						java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+					}
+				}
+			}
+			default {
+				val msg = "unsupported state in target of state change expression";
+				typeError(node, msg, true);
+				this.typedAs = NONE;
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+			}
+		}
+	}
+}
