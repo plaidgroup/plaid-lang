@@ -5,7 +5,7 @@ import plaid.ast.types.*;
 import plaid.ast.visitor.*;
 
 state ScopeBuildingVisitor case of ASTVisitor {
-	//val /*StateTable*/ stateTable;
+	val /*StateTable*/ stateTable;
 	val /*Stack*/ scopes = new Stack;
 	val /*PackageRep*/ rep;
 	
@@ -99,7 +99,28 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	//TODO, not right here! state decl is weired, need examine it again
 	method visitStateDecl(node) {
 		enterScope(node);
-		val i = 0;
+
+		val /*Symbol*/ sym = new Symbol { val type = node.stateType; val position = -3; };
+		node.scope.add("this", sym);	//TODO: double check if we need use this
+		
+		node.name.accept(this); //not need actually
+				
+		match (node.caseOf) {
+			case Some {
+				node.caseOf.value.accept(this);
+			}
+			default {}
+		};
+		
+		node.stateDef.accept(this);
+		
+		leaveScope(node);
+	}
+
+	method visitDeclList(node) {
+		keepScope(node);
+		
+		var i = 0;
 		node.decls.map(fn (decl) => {
 			match (decl) {
 				 case FieldDecl {
@@ -111,21 +132,33 @@ state ScopeBuildingVisitor case of ASTVisitor {
 				 }
 			}
 		});
-		val /*Symbol*/ sym2 = new Symbol { val type = node.stateType; val position = -3; };
-		node.scope.add("this", sym2);
 		
-		node.name.accept(this);
-		node.stateDef.accept(this);
-		
-		match (node.caseOf) {
-			case Some {
-				node.caseOf.value.accept(this);
-			}
-			default {}
-		};
-		leaveScope(node);
+		node.decls.map(fn (decl) => {
+			decl.accept(this)
+		});
 	}
+
+	method visitWith(node) {
+		keepScope(node);
 		
+		node.s1.accept(this);
+		node.s2.accept(this)
+	}
+	
+	method visitQI(node) {
+		keepScope(node);
+		
+		//TODO: find scope of qid, and need to get all fields from it
+		//TODO: consider field conflict
+		
+		match (node.initState) {
+			case Some {
+				node.initState.value.accept(this);
+			}
+			case None { }
+		}
+	}
+	
 	method visitMethodDecl(node) {
 		node.arguments.map(fn (a) => a.accept(this)); // arguments should be invisible between each other
 		enterScope(node);
@@ -221,14 +254,6 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		node.s.accept(this)
 	}
 	
-	method visitDeclList(node) {
-		keepScope(node);
-		
-		node.decls.map(fn (decl) => {
-			decl.accept(this)
-		});
-	}
-	
 	method visitDereference(node) {
 		keepScope(node);
 		
@@ -280,17 +305,6 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		keepScope(node);
 	}
 	
-	method visitQI(node) {
-		keepScope(node);
-		
-		match (node.initState) {
-			case Some {
-				node.initState.value.accept(this);
-			}
-			case None { }
-		}
-	}
-	
 	method visitSplit(node) {
 		keepScope(node);
 		
@@ -305,12 +319,5 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	
 	method visitUnitLiteral(node) {
 		keepScope(node);
-	}
-	
-	method visitWith(node) {
-		keepScope(node);
-		
-		node.s1.accept(this);
-		node.s2.accept(this)
 	}
 }
