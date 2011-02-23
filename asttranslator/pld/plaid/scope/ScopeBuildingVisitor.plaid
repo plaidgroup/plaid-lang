@@ -4,36 +4,83 @@ import plaid.ast.*;
 import plaid.ast.types.*;
 import plaid.ast.visitor.*;
 
+//TODO: not sure if we need to typecheck for java
+
 state ScopeBuildingVisitor case of ASTVisitor {
 	val /*StateTable*/ stateTable;
-	val /*Stack*/ scopes = new Stack;
+	var /*Stack*/ scopes;
 	val /*PackageRep*/ rep;
 	
+	var /*list<qid>*/ curImport;
+	
+	var index = 0;
+	
 	method enterScope(node) {
-		node.scope = new LocalScope { val parentScope = scopes.peek(); };
+		node.scope = new LocalScope { val parentScope = scopes.peek().value; };
 		scopes.push(node.scope);
 	}
 	
 	method leaveScope(node) {
+		//node.scope.showScope();	//use this to show every memebers in current scope when
 		scopes.pop();
 	}
 	
 	method keepScope(node) {
-		node.scope = scopes.peek();
+		node.scope = scopes.peek().value;
+	}
+	
+	method toFullName(name) {
+		var res = name;
+		curImport.map(fn(qid) => {
+			var shortname = qid.toShortName();
+			//java.lang.System.out.println(shortname);
+			//java.lang.System.out.println(qid.toString());
+			if (name == shortname) {
+				res = qid.toString();
+			};
+		});
+		res;
+	}
+	
+	//must reorganize files into different list
+	method build(fileList) {
+		//stateTable.printTable();
+		
+		var /*Map<String, List>*/ packs = java.util.HashMap.new();
+		
+		fileList.map(fn(file) => {
+			var packName = file.getPackageString();
+			if (packs.containsKey(packName) == false ) {
+				packs.put(packName, new List{var head = new plaid.lang.Nil;} );
+			};
+			var packList = packs.get(packName);
+			packList.add(file);
+		});
+		
+		var iter = packs.entrySet().iterator();
+		while { iter.hasNext(); } {
+			var entry = iter.next();
+			var packList = entry.getValue();
+			var msg = "build scope for files in: " + entry.getKey();
+			java.lang.System.out.println(msg);		
+			visitPackage(packList);
+		};		
 	}
 	
 	//this is package level scope, should be careful no pass file without this package. And should be modified if several file is in package but not in fileList
-	method build(fileList) {
+	method visitPackage(packList) {
+		scopes = new Stack;
 		val /*GlobalScope*/ global = new GlobalScope;
 		scopes.push(global);
 		
+		global.id = "global";
+		
 		//add global variables
-		fileList.map(fn(node) => {
+		packList.map(fn(node) => {
 			node.decls.map(fn (decl) => {
 				match (decl) {
 					 case FieldDecl {
-				 		//val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = -1;}; //there is a bug here, it will be compiler as sub 1 
-						val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = (0 - 1); };
+				 		val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = -1;};
 				 		global.add(decl.f.name, sym);
 				 	}
 				 	default {
@@ -43,14 +90,17 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		});
 		
 		//build scope for each file
-		fileList.map(fn(node) => {
+		packList.map(fn(node) => {
+			var msg = "\tbuild scope for file: " + node.sourceFile;
+			java.lang.System.out.println(msg);	
+			
 			node.accept(this);
 		});
 	}
 	
 	method visitCompilationUnit(node) {
 		enterScope(node);
-		
+		node.scope.id = node.sourceFile;
 		node.decls.map(fn (decl) => {
 			decl.accept(this);
 		});
@@ -61,7 +111,9 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	
 	method visitImportList(node) {
 		keepScope(node);
-		//add top level fields in each package		
+		curImport = node.imports;
+		
+		//TODO: add top global val in each package, don't need to care about java import
 		
 //		node.imports.map(fn (im) => {
 //			im.accept(this)
@@ -72,6 +124,7 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		node.exp.accept(this);
 		
 		enterScope(node);
+		node.scope.id = "let";
 		val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };	
 		node.scope.add(node.x.name, sym);
 		
@@ -85,6 +138,7 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		node.exp.accept(this);
 		
 		enterScope(node);
+		node.scope.id = "let annotated";
 		//the AST should change first
 		val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };	
 		node.scope.add(node.x.name, sym);
@@ -97,36 +151,131 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	
 	method visitStateDecl(node) {
 		enterScope(node);
-		val i = 0;
-		node.decls.map(fn (decl) => {
-			match (decl) {
-				 case FieldDecl {
-				 	val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = i; };
-				 	node.scope.add(decl.f.name, sym);
-				 	i = i + 1;
-				 }
-				 default {
-				 }
-			}
-		});
-		val /*Symbol*/ sym2 = new Symbol { val type = node.stateType; val position = -3; };
-		node.scope.add("this", sym2);
+		node.scope.id = node.name.name;
 		
-		node.name.accept(this);
-		node.stateDef.accept(this);
+		index = 0;
 		
+		val /*Symbol*/ sym = new Symbol { val type = node.stateType; val position = -3; };
+		node.scope.add("this", sym);	//TODO: double check if we need use this
+		
+		node.name.accept(this); //not need actually
+				
 		match (node.caseOf) {
 			case Some {
 				node.caseOf.value.accept(this);
 			}
 			default {}
 		};
+		
+		match (node.stateDef) {
+			case DeclList {
+				node.stateDef.accept(this);
+			}
+			case QI {
+				inheritQI(node.stateDef);
+			}
+			case With {
+				node.stateDef.accept(this);
+			}
+		};		
+		
 		leaveScope(node);
 	}
+
+	method visitDeclList(node) {
+		keepScope(node);
 		
+		node.decls.map(fn (decl) => {
+			match (decl) {
+				 case FieldDecl {
+				 	val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = index; };
+				 	node.scope.add(decl.f.name, sym);
+				 	index = index + 1;
+				 }
+				 default {
+				 }
+			}
+		});
+		
+		node.decls.map(fn (decl) => {
+			decl.accept(this)
+		});
+	}
+
+	method visitWith(node) {
+		keepScope(node);
+		
+		match (node.s1) {
+			case QI {
+				inheritQI(node.s1);
+			}
+			default {
+				node.s1.accept(this);
+			}
+		};
+		
+		match (node.s2) {
+			case QI {
+				inheritQI(node.s2);
+			}
+			default {
+				node.s2.accept(this);
+			}
+		};
+	}
+	
+	method inheritQI(node) {
+		keepScope(node);
+		
+		var shortname = node.toString();
+		var name = toFullName(shortname);
+		
+		//java.lang.System.out.println(shortname + name);
+		
+		var /*StateType*/ statetype = stateTable.get(new ID { val name = name; });
+		
+		match (statetype) {
+			case None {
+				java.lang.System.err("Type did find!");
+			} 
+			default {
+				
+			}
+		};
+		
+		var iter = statetype.value.providedTypes.entrySet().iterator();
+		while {iter.hasNext(); } {
+			var entry = iter.next();
+			match (entry.getValue()) {
+				case FieldType {
+					val /*String*/ name = entry.getKey().name;
+					val /*Symbol*/ sym = new Symbol { val type = entry.getValue(); val position = index; };
+					node.scope.add(name, sym);
+					index = index + 1;
+				}
+				default {
+					
+				}
+			};			
+		};
+		
+		match (node.initState) {
+			case Some {
+				node.initState.value.accept(this);
+			}
+			case None { }
+		}
+	}
+	
+	method visitQI(node) {
+		//TODO: disscus other cases!
+		keepScope(node);
+	}
+	
 	method visitMethodDecl(node) {
 		node.arguments.map(fn (a) => a.accept(this)); // arguments should be invisible between each other
 		enterScope(node);
+		node.scope.id = node.name;
 		node.arguments.map(fn (arg) => {
 			val /*Symbol*/ sym = new Symbol { val type = NONE; val position = -2; };
 			node.scope.add(arg.name, sym);
@@ -151,7 +300,7 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		
 		node.e.accept(this);
 		node.caseList.map(fn (c) => {
-			c.accept(this);
+			c.accept(this)
 		});
 	}
 	
@@ -219,14 +368,6 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		node.s.accept(this)
 	}
 	
-	method visitDeclList(node) {
-		keepScope(node);
-		
-		node.decls.map(fn (decl) => {
-			decl.accept(this)
-		});
-	}
-	
 	method visitDereference(node) {
 		keepScope(node);
 		
@@ -278,24 +419,12 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		keepScope(node);
 	}
 	
-	method visitQI(node) {
-		keepScope(node);
-		
-		match (node.initState) {
-			case Some {
-				node.initState.value.accept(this);
-			}
-			case None { }
-		}
-	}
-	
 	method visitSplit(node) {
 		keepScope(node);
 		
 		node.theVar.accept(this);
 		node.body.accept(this);
-	}
-	
+	}	
 
 	method visitStringLiteral(node) {
 		keepScope(node);
@@ -303,12 +432,5 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	
 	method visitUnitLiteral(node) {
 		keepScope(node);
-	}
-	
-	method visitWith(node) {
-		keepScope(node);
-		
-		node.s1.accept(this);
-		node.s2.accept(this)
 	}
 }
