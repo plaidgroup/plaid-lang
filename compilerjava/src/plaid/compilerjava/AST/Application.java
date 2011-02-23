@@ -35,7 +35,7 @@ public class Application implements Expression {
 	private final Expression f;
 	private final List<Expression> arguments = new ArrayList<Expression>();
 	private final boolean hasArgs;
-	private final List<ID> groupArgs;
+	private final List<MetaArgument> metaArgs;
 	
 	private boolean isTailCall = false;
 
@@ -49,10 +49,10 @@ public class Application implements Expression {
 			this.arguments.add(argument);
 			hasArgs = true;
 		}
-		this.groupArgs = null;
+		this.metaArgs = new ArrayList<MetaArgument>();
 	}
 	
-	public Application(Token t, Expression function, List<ID>  groupArgs, Expression argument) {
+	public Application(Token t, Expression function, List<MetaArgument>  metaArgs, Expression argument) {
 		super();
 		this.token = t;
 		this.f = function;
@@ -62,7 +62,7 @@ public class Application implements Expression {
 			this.arguments.add(argument);
 			hasArgs = true;
 		}
-		this.groupArgs = groupArgs;
+		this.metaArgs = metaArgs;
 	}
 	
 	public Application(Token t, Expression function, List<Expression> arguments) {
@@ -76,10 +76,10 @@ public class Application implements Expression {
 		} else {
 			this.hasArgs = true;
 		}
-		this.groupArgs = null;
+		this.metaArgs = new ArrayList<MetaArgument>();
 	}
 	
-	public Application(Token t, Expression function, List<ID> groupArgs, List<Expression> arguments) {
+	public Application(Token t, Expression function, List<MetaArgument> metaArgs, List<Expression> arguments) {
 		super();
 		this.token = t;
 		this.f = function;
@@ -90,7 +90,7 @@ public class Application implements Expression {
 		} else {
 			this.hasArgs = true;
 		}
-		this.groupArgs = groupArgs;
+		this.metaArgs = metaArgs;
 	}
 	
 	public Expression getFunction() {

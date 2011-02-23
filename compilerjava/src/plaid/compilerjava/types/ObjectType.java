@@ -1,14 +1,17 @@
 package plaid.compilerjava.types;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 
-import plaid.compilerjava.AST.ASTnode;
 import plaid.compilerjava.AST.ID;
-import plaid.compilerjava.coreparser.Token;
-import plaid.compilerjava.tools.ASTVisitor;
+import plaid.compilerjava.AST.MetaArgument;
 
 /**
  * Represents a structural type without permissions.  Can contain both type 
@@ -35,14 +38,14 @@ public class ObjectType implements Type, /*ASTnode,*/ JSONAware {
 	private final Set<TypeDecl> typeDecls;
 	private final ID nominalType;
 	private final boolean isNominal;
-	private final List<ID> groupArgs;
+	private final List<MetaArgument> metaArgs;
 	
 	public ObjectType() {
 		this.typeAbbrevs = new HashSet<ID>();
 		this.typeDecls = new HashSet<TypeDecl>();
 		this.nominalType = null;
 		this.isNominal = false;
-		this.groupArgs = null;
+		this.metaArgs = new ArrayList<MetaArgument>();
 	}
 	
 	public ObjectType(ID typeAbbrev) {
@@ -51,16 +54,16 @@ public class ObjectType implements Type, /*ASTnode,*/ JSONAware {
 		this.typeDecls = null;
 		this.nominalType = typeAbbrev;
 		this.isNominal = true;
-		this.groupArgs = null;		
+		this.metaArgs = null;		
 	}
 	
-	public ObjectType(ID typeAbbrev, List<ID> groupArgs) {
+	public ObjectType(ID typeAbbrev, List<MetaArgument> metaArgs) {
 		//this();
 		this.typeAbbrevs = null;
 		this.typeDecls = null;
 		this.nominalType = typeAbbrev;
 		this.isNominal = true;
-		this.groupArgs = null;		
+		this.metaArgs = metaArgs;		
 	}
 	
 	public ObjectType(Collection<TypeDecl> typeDecls) {

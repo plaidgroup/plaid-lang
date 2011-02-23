@@ -174,10 +174,11 @@ TOKEN /*[IGNORE_CASE]*/:
 |	< OVERRIDE : "override" >
 | 	< UNIT : "unit" >
 |	< VOID : "void" >
+|   < TYPE : "type" >
 |   < GROUP : "group" >
 |   < ATOMIC : "atomic" >
 |   < SPLIT : "split" >
-|   <UNPACKINNERGROUPS : "unpackInnerGroups" >
+|   < UNPACKINNERGROUPS : "unpackInnerGroups" >
 
 /* Permission kinds */
 |	< DYN : "dyn">
@@ -445,13 +446,13 @@ ObjectType StructuralType() :
 {
   	Token typeAbbrevTok;	ObjectType right = null;
 	List<TypeDecl> typeDecls;
-	List<ID> groupArgs = null;
+	List<MetaArgument> metaArgs = new ArrayList<MetaArgument>();
 }
 {
   	(
-  	// type abbreviation	typeAbbrevTok = <ID> [ LOOKAHEAD(2) groupArgs = GroupArgs() ][<WITH> right = StructuralType()]
+  	// type abbreviation	typeAbbrevTok = <ID> [ LOOKAHEAD(MetaArguments()) metaArgs = MetaArguments() ][<WITH> right = StructuralType()]
 	{
-		return (new ObjectType(new ID(typeAbbrevTok.image), groupArgs)).compose(right);
+		return (new ObjectType(new ID(typeAbbrevTok.image), metaArgs)).compose(right);
 	}
 	// type declarations
 | 	typeDecls = TypeDecls() [<WITH> right = StructuralType()]
@@ -518,7 +519,7 @@ TypeDecl TypeDecl() :{	TypeDecl decl;
 {
   	decl = MethodType() <SEMICOLON> { return decl; }
 | 	decl = FieldType() { return decl; }
-|   decl = GroupType() { return decl; }}
+|   decl = MetaType(false) <SEMICOLON> { return decl; }}
 
 MethodType MethodType() :
 {
@@ -530,13 +531,13 @@ MethodType MethodType() :
 		Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
 		ChangeType envType;
 		Token envVar;
-		List<GroupParameter> groupParams = new ArrayList<GroupParameter>();
+		List<MetaType> metaTypes = new ArrayList<MetaType>();
 }
 {
-		//method [T] m[<g>]([T>>T])[T >> T, E ] 
+		//method [T] m[<g>]([T>>T])[T >> T, E ]
 			m = <METHOD>
 			( LOOKAHEAD(PermType() IdOrOperator())    
-				returnType = PermType() methodName = IdOrOperator() [groupParams = GroupParameters() { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type
+				returnType = PermType() methodName = IdOrOperator() [metaTypes = MetaTypes(true) { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type
 				| methodName = IdOrOperator()  //only method name
 			)
 			<LPAREN> [ argTypes = ChangeTypeList() ] <RPAREN>	//optional arguments with optional types
@@ -559,7 +560,7 @@ MethodType MethodType() :
 			//	argTypes.add(ChangeType.DEFAULTPARAMTYPE); //fake argument (NEED?)
 			//}
 			
-			return new MethodType(methodName, returnType, argTypes, receiverType, env);
+			return new MethodType(methodName, returnType, metaTypes, argTypes, receiverType, env);
 		}
 
 }
@@ -580,16 +581,45 @@ FieldType FieldType() :{
   	  	return new FieldType(new ID(fieldNameToken, fieldNameToken.image), fieldPermType, immutable);  	}}
 
 
-GroupType GroupType() : {
+MetaType MetaType(boolean isMethod) : {
     Token id;
     boolean isAbstract = true;
+    PermType permType = PermType.getUnitPT();
+    GroupPermission gp = null;
 }{
-    <GROUP> id = <ID> [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ] <SEMICOLON>
-    {
-        return new GroupType(new ID(id.image), isAbstract);
-    }
+    (
+        <GROUP> [gp = GroupPermission()] id = <ID> [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]
+        {
+            if ( !isMethod && gp != null ) {
+                throw new ParseException("Cannot specify group permissions in states.");
+            } else if ( isMethod && gp == null ) {
+                throw new ParseException("Need to specify group permission.");
+            }
+            return new GroupType(new ID(id.image), isAbstract);
+        }
+    |   <TYPE> id = <ID> [ <CASE> <OF> permType = PermType() ]  <SEMICOLON>
+        {
+            return new TypeParameterType(new ID(id.image), permType);
+        }
+    )
 }
 
+
+List<MetaType> MetaTypes(boolean isMethod) :
+{
+  MetaType type;
+  List<MetaType> types = new ArrayList<MetaType>();
+}{
+    < LT >
+        type =  MetaType(isMethod) {  types.add(type); }
+        (
+            < COMMA > type =  MetaType(isMethod) {  types.add(type); }
+        )* 
+    < GT >
+    {
+        return types;
+    }
+}
 
 /*****************************************************************************/
 /*							END OF TYPING RULES								 */
@@ -645,20 +675,20 @@ Decl DeclState() :
 	State stateDef;
 	List<Token> qi = null;
 	Permission defaultPerm = Permission.DYN;
-	List<ID> groupArgs = null;
-	List<ID> groupArgsCaseOf = null;
+	List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
+	List<MetaArgument> metaArgsCaseOf = new ArrayList<MetaArgument>();
 }
-{	[defaultPerm = Permission()] s = <STATE> t = <ID> [ groupArgs = GroupArgs() ] [ c = <CASE> <OF> qi = DotName() [ groupArgsCaseOf = GroupArgs() ]  { } ]
+{	[defaultPerm = Permission()] s = <STATE> t = <ID> [ metaParams = MetaParameters(false) ] [ c = <CASE> <OF> qi = DotName() [ metaArgsCaseOf = MetaArguments() ] ]
 	(
 		<EQUALS> stateDef = State()
 	|	stateDef = DeclList()
 	)
 	{
 		if (qi == null) {
-			return new StateDecl(s, new ID(t.image), groupArgs, stateDef, defaultPerm);
+			return new StateDecl(s, new ID(t.image), metaParams, stateDef, defaultPerm);
 		}
 		else {
-			return new StateDecl(s, new ID(t.image), groupArgs, stateDef, new QI(tokenToStringList(qi)), defaultPerm);
+			return new StateDecl(s, new ID(t.image), metaParams, stateDef, new QI(tokenToStringList(qi)), defaultPerm);
 		}
 	}
 }
@@ -704,15 +734,36 @@ Decl DeclField() :
 }
 
 
-List<ID> GroupArgs() :{
-  Token arg;
-  List<ID> args = new ArrayList<ID>();}{
+MetaArgument MetaArgument() :
+{
+    Token id;
+    PermType permType;
+}{
+    (
+        id = <ID> 
+        {
+            return new MetaVariable(new ID(id.image));
+        }
+    |   permType = PermType() 
+        {
+            return new MetaTypeArgument(permType);
+        }
+    )
+}
+
+
+List<MetaArgument> MetaArguments() :{
+  MetaArgument arg;
+  List<MetaArgument> args = new ArrayList<MetaArgument>();}{
   < LT >
-    arg = < ID > {  args.add(new ID(arg.image)); }    (
-      < COMMA > arg = < ID > {  args.add(new ID(arg.image)); }    )* 
+    arg =  MetaArgument() {  args.add(arg); }    (
+      < COMMA > arg =  MetaArgument() {  args.add(arg); }    )* 
   < GT >
   {    return args;
   }}
+
+
+
 
 
 Decl GroupDecl() :{
@@ -740,23 +791,48 @@ GroupPermission GroupPermission() :{}{
      return GroupPermission.READONLY;
    }   }
 
-GroupParameter GroupParameter() :
+
+
+MetaParameter MetaParameter(boolean isMethod) :
 {
   Token id;
-  GroupPermission gp;}{
-  gp = GroupPermission() id = < ID >
-  {    return new GroupParameter(gp, new ID(id.image));
-  }}
+  GroupPermission gp = GroupPermission.UNDEFINED;
+  PermType permType = PermType.getUnitPT();
+}{
+  (
+    [<GROUP>] [gp = GroupPermission()] id = <ID>
+    {
+        if ( isMethod && gp == GroupPermission.UNDEFINED ) {
+            throw new ParseException("Need to specify group permission");
+        } else if ( !isMethod && gp != GroupPermission.UNDEFINED ) {
+            throw new ParseException("Group permissions are not allowed at statet level");
+        }
+        return new GroupParameter(gp, new ID(id.image));
+    }
+  | <TYPE> id = <ID> [ <CASE> <OF> permType = PermType() ] 
+    {
+        return new TypeParameter(new ID(id.image), permType);
+    }
+  )
+}
 
-List<GroupParameter> GroupParameters() :{    List<GroupParameter> params = new ArrayList<GroupParameter>();
-    GroupParameter param; 
-}{    < LT >
-        param = GroupParameter() { params.add(param); }
+
+List<MetaParameter> MetaParameters(boolean isMethod) :
+{
+    List<MetaParameter> params = new ArrayList<MetaParameter>();
+    MetaParameter param; 
+}
+{
+    < LT >
+        param = MetaParameter(isMethod) { params.add(param); }
         (
-          < COMMA > param = GroupParameter() { params.add(param); }                  )*
+          < COMMA > param = MetaParameter(isMethod) { params.add(param); }          
+        )*
     < GT >
-    {        return params;
-    }}
+    {
+        return params;
+    }
+}
 
 
 Decl DeclMethod() :
@@ -777,15 +853,15 @@ Decl DeclMethod() :
 		ID envID = null;
 		Expression e = null;
 		MethodDecl d;
-		List<GroupParameter> groupParams = new ArrayList<GroupParameter>();
+		List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
 }
 {
 		//[override] method [T] m([T>>T x])[T >> T, E ] ( {e} | ; )
 		[<OVERRIDE>{ override = true; }] /*methodType = MethodTypeDecl()*/
 			m = <METHOD>
 			( LOOKAHEAD(PermType() IdOrOperator())    
-				returnType = PermType() methodName = IdOrOperator() [groupParams = GroupParameters() { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type
-				| methodName = IdOrOperator() [groupParams = GroupParameters() { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] //only method name
+				returnType = PermType() methodName = IdOrOperator() [metaParams = MetaParameters(true) { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type
+				| methodName = IdOrOperator() [metaParams = MetaParameters(true) { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] //only method name
 			)
 			<LPAREN> [ argList = DeclArgs() ] <RPAREN>	//optional arguments with optional types
 			[ //optional environment - if you put brakets you have to have at least one entry
@@ -824,7 +900,21 @@ Decl DeclMethod() :
 					}
 				}
 			}
-			mType = new MethodType(methodName, returnType, argTypes, receiverType, env);
+			List<MetaType> metaTypes = new ArrayList<MetaType>();
+			if ( metaParams.size() > 0 ) {
+			    for (MetaParameter mp : metaParams ) {
+			        if ( mp instanceof GroupParameter ) {
+			            GroupParameter groupParam = (GroupParameter) mp;
+			            metaTypes.add(new GroupType(groupParam.getId(), true));
+			        } else if ( mp instanceof TypeParameter ) {
+			            TypeParameter typeParam = (TypeParameter)mp;
+			            metaTypes.add(new TypeParameterType(typeParam.getId(), typeParam.getCaseOf()));
+			        } else {
+			            throw new ParseException("Unsupported meta paramter " + mp);
+			        }
+			    }
+			}
+			mType = new MethodType(methodName, returnType, metaTypes, argTypes, receiverType, env);
 			
 			if (e == null) {
 				//default method body is unit
@@ -879,17 +969,17 @@ State State() :
 		State s, with;
 		DeclList init = null;
 		List<Token> dotName;
-		List<ID> groupArgs = null;
+		List<MetaArgument> metaArgs = null;
 }
 {
 		(
 				s = DeclList()
-		|		dotName = DotName() [ LOOKAHEAD(2) groupArgs = GroupArgs() ] [init = DeclList() ]
+		|		dotName = DotName() [ LOOKAHEAD(2) metaArgs = MetaArguments() ] [init = DeclList() ]
 				{
 						if (init == null ) {
-							s = new QI(tokenToStringList(dotName), groupArgs);
+							s = new QI(tokenToStringList(dotName), metaArgs);
 						} else {
-							s = new QI(tokenToStringList(dotName), groupArgs, init);
+							s = new QI(tokenToStringList(dotName), metaArgs, init);
 						}
 				}
 		)
@@ -1428,7 +1518,7 @@ Expression SimpleExp() :
 		List<Expression> eList = null;
 		List<Expression> argList = null;
 		//Expression methodArg = new UnitLiteral();
-		List<ID> groupArgs = new ArrayList<ID>();
+		List<MetaArgument> metaArgs = new ArrayList<MetaArgument>();
 }
 {
 		e = BlockExpression(true)
@@ -1451,13 +1541,13 @@ Expression SimpleExp() :
 		(LOOKAHEAD(3) 
 				(
 					arg = BlockExpression(true) { e = new Application(arg.getToken(), e, arg); }
-				|   LOOKAHEAD([GroupArgs() <LPAREN>])
-				    [ groupArgs = GroupArgs()  { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); }  ]
+				|   LOOKAHEAD([MetaArguments() <LPAREN>])
+				    [ metaArgs = MetaArguments()  { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); }  ]
 					t = <LPAREN> [ eList = ExpList() ] <RPAREN> 
 					{ 
-						if (eList == null) { e = new Application(t, e, groupArgs, new UnitLiteral()); }
+						if (eList == null) { e = new Application(t, e, metaArgs, new UnitLiteral()); }
 						else { 
-							e = new Application(t, e, groupArgs, eList);
+							e = new Application(t, e, metaArgs, eList);
 							eList = null; 
 						} 
 					}
@@ -1473,8 +1563,8 @@ Expression SimpleExp() :
 		    	}
 		    }
 			(
-			  LOOKAHEAD( [ groupArgs = GroupArgs()] <LPAREN> ) //If we have an expr list in parens next, assume method call
-			  [ groupArgs = GroupArgs()  { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); }  ]
+			  LOOKAHEAD( [ metaArgs = MetaArguments()] <LPAREN> ) //If we have an expr list in parens next, assume method call
+			  [ metaArgs = MetaArguments()  { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); }  ]
 				<LPAREN>
 		  			[ argList = ExpList() ]
 		  		<RPAREN> 
@@ -1482,7 +1572,7 @@ Expression SimpleExp() :
 		  				if (argList == null ) { 
 		  					argList = new ArrayList<Expression>();
 		  				}
-		  				e = new MethodCall(dotToken, ((Dereference)e).getLeft(), ((Dereference)e).getRight(), groupArgs, argList); 
+		  				e = new MethodCall(dotToken, ((Dereference)e).getLeft(), ((Dereference)e).getRight(), metaArgs, argList); 
 		  				argList = null;
 		  			}
 		  			

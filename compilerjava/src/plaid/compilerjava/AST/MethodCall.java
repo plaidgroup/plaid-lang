@@ -18,7 +18,7 @@ public class MethodCall implements Expression {
 	private final boolean hasArgs;
 	private final Expression receiver;
 	private final ID method;
-	private final List<ID> groupArgs;
+	private final List<MetaArgument> metaArgs;
 	
 	private boolean isTailCall = false;
 	
@@ -32,10 +32,10 @@ public class MethodCall implements Expression {
 		}
 		this.receiver = receiver;
 		this.method = method;
-		this.groupArgs = null;
+		this.metaArgs = new ArrayList<MetaArgument>();
 	}
 	
-	public MethodCall(Token token, Expression receiver, ID method, List<ID> groupArgs, Expression argument) {
+	public MethodCall(Token token, Expression receiver, ID method, List<MetaArgument> metaArgs, Expression argument) {
 		this.token = token;
 		if (argument instanceof UnitLiteral) {
 			hasArgs = false;
@@ -45,7 +45,7 @@ public class MethodCall implements Expression {
 		}
 		this.receiver = receiver;
 		this.method = method;
-		this.groupArgs = groupArgs;
+		this.metaArgs = metaArgs;
 	}
 	
 	public MethodCall(Token token, Expression receiver, ID method, List<Expression> arguments) {
@@ -59,10 +59,10 @@ public class MethodCall implements Expression {
 		}
 		this.receiver = receiver;
 		this.method = method;
-		this.groupArgs = null;
+		this.metaArgs = null;
 	}
 	
-	public MethodCall(Token token, Expression receiver, ID method, List<ID> groupArgs, List<Expression> arguments) {
+	public MethodCall(Token token, Expression receiver, ID method, List<MetaArgument> metaArgs, List<Expression> arguments) {
 		this.token = token;
 		this.arguments.addAll(arguments);
 		if (arguments.size() == 1 && arguments.get(0) instanceof UnitLiteral) {
@@ -73,13 +73,17 @@ public class MethodCall implements Expression {
 		}
 		this.receiver = receiver;
 		this.method = method;
-		this.groupArgs = null;
+		this.metaArgs = metaArgs;
 	}
 
 	public List<Expression> getArguments() {
 		return Collections.unmodifiableList(arguments);
 	}
 
+	public List<MetaArgument> getMetaArgument() {
+		return metaArgs;
+	}
+	
 	public Expression getReceiver() {
 		return receiver;
 	}
