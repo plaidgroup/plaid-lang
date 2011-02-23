@@ -106,21 +106,26 @@ public class StateRep extends MemberRep {
 		@SuppressWarnings("unchecked")
 		List<JSONObject> jsonMembers = (List<JSONObject>)obj.get("members");
 		StateRep rep = new StateRep((String)obj.get("name"));
-		for (JSONObject jsonMember : jsonMembers) {
-			if (jsonMember.get("member_type").equals("field")) {
-				rep.addMember(FieldRep.parseJSONObject(jsonMember));
-			}
-			else if (jsonMember.get("member_type").equals("method")) {
-				rep.addMember(MethodRep.parseJSONObject(jsonMember));
-			}
-			else if (jsonMember.get("member_type").equals("state")) {
-				rep.addMember(StateRep.parseJSONObject(jsonMember));
-			}
-			else {
-				throw new RuntimeException("Unknown member type.");
+		if(null != jsonMembers){
+			for (JSONObject jsonMember : jsonMembers) {
+				if (jsonMember.get("member_type").equals("field")) {
+					rep.addMember(FieldRep.parseJSONObject(jsonMember));
+				}
+				else if (jsonMember.get("member_type").equals("method")) {
+					rep.addMember(MethodRep.parseJSONObject(jsonMember));
+				}
+				else if (jsonMember.get("member_type").equals("state")) {
+					rep.addMember(StateRep.parseJSONObject(jsonMember));
+				}
+				else {
+					throw new RuntimeException("Unknown member type.");
+				}
 			}
 		}
 		
 		return rep;
+		
+
+		
 	}
 }
