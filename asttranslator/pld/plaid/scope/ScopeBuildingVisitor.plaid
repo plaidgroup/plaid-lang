@@ -5,9 +5,9 @@ import plaid.ast.types.*;
 import plaid.ast.visitor.*;
 
 state ScopeBuildingVisitor case of ASTVisitor {
-	//val /*StateTable*/ stateTable;
-	val /*PackageRep*/ rep;
+	val /*StateTable*/ stateTable;
 	val /*Stack*/ scopes = new Stack;
+	val /*PackageRep*/ rep;
 	
 	method enterScope(node) {
 		node.scope = new LocalScope { val parentScope = scopes.peek(); };
@@ -27,11 +27,13 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		val /*GlobalScope*/ global = new GlobalScope;
 		scopes.push(global);
 		
+		//add global variables
 		fileList.map(fn(node) => {
 			node.decls.map(fn (decl) => {
 				match (decl) {
 					 case FieldDecl {
-				 		val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = -1; };
+				 		//val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = -1;}; //there is a bug here, it will be compiler as sub 1 
+						val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = (0 - 1); };
 				 		global.add(decl.f.name, sym);
 				 	}
 				 	default {
@@ -39,13 +41,18 @@ state ScopeBuildingVisitor case of ASTVisitor {
 				}
 			});
 		});
+		
+		//build scope for each file
+		fileList.map(fn(node) => {
+			node.accept(this);
+		});
 	}
 	
 	method visitCompilationUnit(node) {
 		enterScope(node);
 		
 		node.decls.map(fn (decl) => {
-			decl.accept(this)
+			decl.accept(this);
 		});
 		node.imports.accept(this);
 		
