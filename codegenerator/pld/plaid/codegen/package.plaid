@@ -1,0 +1,63 @@
+package plaid.codegen;
+
+import plaid.ast.visitor.ASTViewer;
+import plaid.ast.*;
+import plaid.typechecker.*;
+import plaid.typechecker.typecheckerMethods.*;
+import plaid.optimizer.*;
+
+
+state CodeGenerator{
+
+	method compileFiles(/*String*/inputDir, /*String*/output, /*List<String>*/ plaidPathEntries) {
+	    var cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setInputDir(inputDir);
+		cc.setOutputDir(output);
+		plaidPathEntries.map( fn(plaidPathEntry) => {
+			cc.addToPlaidPath(plaidPathEntry);
+		});
+		cc.setPrettyPrint(true);
+		cc.setDebugMode(true);
+		cc.setVerbose(true);
+		var compiler = plaid.compilerjava.CompilerCore.new(cc);
+		compiler.convertInputDirToInputFiles(java.io.File.new(cc.getInputDir()));
+		var javaList = java.util.ArrayList.new();
+		var plaidList = new List{var head = new plaid.lang.Nil;};
+		var iter = cc.getInputFiles().iterator();
+		while { iter.hasNext(); } {
+			var file = iter.next();
+			var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(file));
+			javaList.add(javaAST);
+		};
+		//following two line should be rewrite in plaid in the future
+		
+		compiler.buildPlaidPath(javaList); // javaAST in javaList has changed
+		
+		iter = javaList.iterator();
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		val codeGenVisitor = new CodeGenVisitor {val stateTable = stateTable; };		
+		codeGenVisitor.cc.setOutputDir(output);		
+		codeGenVisitor.cc = cc;
+		var translator = new ASTTranslator;
+		while { iter.hasNext(); } {
+			var javaAST = iter.next();
+			var plaidAST = translator.translateAST(javaAST);
+			plaidAST.accept(codeGenVisitor);
+		};
+	}
+	
+}
+method main() {
+	//This will compile ASTTranslator and The TypeChecker Projects
+	var codeGenerator = new CodeGenerator;
+	var plaidPathEntries = new List{var head = new plaid.lang.Nil;};
+	plaidPathEntries.add("../stdlib/bin/");
+	plaidPathEntries.add("../runtime/bin/");
+	codeGenerator.compileFiles("../asttranslator/pld","../asttranslator/src_new",plaidPathEntries);
+	plaidPathEntries.add("../asttranslator/bin");
+	codeGenerator.compileFiles("../typechecker/pld","../typechecker/src_new",plaidPathEntries);
+}
+	
+
