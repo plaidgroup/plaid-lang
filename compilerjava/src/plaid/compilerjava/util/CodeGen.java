@@ -561,8 +561,9 @@ public class CodeGen {
 		}
 		
 		//append(functionName + ".invoke(" + classLoader + ".unit());");
+		append("plaid.runtime.PlaidObject arg = new plaid.runtime.models.map.PlaidJavaObjectMap(plaid.lang.Sys.getCommandLineArguments());");
 		
-		call(functionName, classLoader + ".unit()");	//replace by fuyao, reason is to execute last tail call
+		call(functionName, "arg");
 		append(";");
 		
 		if ( cc.isDebugMode() ) { 
