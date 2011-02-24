@@ -7,10 +7,10 @@ import plaid.ast.visitor.*;
 //TODO: not sure if we need to typecheck for java
 
 state ScopeBuildingVisitor case of ASTVisitor {
-	val /*StateTable*/ stateTable;
-	var /*Stack*/ scopes;
+	val /*StateTable*/ stateTable;	
 	val /*PackageRep*/ rep;
 	
+	var /*Stack*/ scopes;
 	var /*list<qid>*/ curImport;
 	
 	var index = 0;
@@ -21,7 +21,7 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	}
 	
 	method leaveScope(node) {
-		//node.scope.showScope();	//use this to show every memebers in current scope when
+		node.scope.showScope();	//use this to show every memebers in current scope
 		scopes.pop();
 	}
 	
@@ -69,7 +69,7 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	
 	//this is package level scope, should be careful no pass file without this package. And should be modified if several file is in package but not in fileList
 	method visitPackage(packList) {
-		scopes = new Stack;
+		this.scopes = new Stack;
 		val /*GlobalScope*/ global = new GlobalScope;
 		scopes.push(global);
 		
@@ -100,18 +100,19 @@ state ScopeBuildingVisitor case of ASTVisitor {
 	
 	method visitCompilationUnit(node) {
 		enterScope(node);
+		node.imports.accept(this);
+		
 		node.scope.id = node.sourceFile;
 		node.decls.map(fn (decl) => {
 			decl.accept(this);
-		});
-		node.imports.accept(this);
+		});	
 		
 		leaveScope(node);
 	}
 	
 	method visitImportList(node) {
 		keepScope(node);
-		curImport = node.imports;
+		this.curImport = node.imports;
 		
 		//TODO: add top global val in each package, don't need to care about java import
 		
@@ -162,7 +163,8 @@ state ScopeBuildingVisitor case of ASTVisitor {
 				
 		match (node.caseOf) {
 			case Some {
-				node.caseOf.value.accept(this);
+				//java.lang.System.out.println("here");
+				inheritQI(node.caseOf.value);
 			}
 			default {}
 		};
@@ -176,6 +178,9 @@ state ScopeBuildingVisitor case of ASTVisitor {
 			}
 			case With {
 				node.stateDef.accept(this);
+			}
+			default {
+				
 			}
 		};		
 		

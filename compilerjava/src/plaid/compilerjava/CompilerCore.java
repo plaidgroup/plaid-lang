@@ -412,6 +412,10 @@ public class CompilerCore {
 	}
 	
 	public static CompilerConfiguration parseParameters(List<String> args) {
+		for (String arg : args) {
+			System.out.print(arg + " ");
+		}
+		System.out.println();
 		CompilerConfiguration cc = new CompilerConfiguration();
 
 		if ( args.size() == 0 ) {
