@@ -101,6 +101,18 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 		}
 	}
 	
+	private boolean updateMember(String name, PlaidObject plaidObj) {
+		if (immutableScopeMapContainsKey("this$plaid")) {
+			PlaidObject obj = this.immutableScopeMap.get("this$plaid");
+			PlaidMemberDef def = obj.getMember(name);
+			if (def != null && def.isMutable()) {
+				obj.updateMember(name, plaidObj);
+				return true;
+			}	
+		 }
+		return false;
+	}
+	
 	@Override
 	public void update(String name, PlaidObject plaidObj) {
 		if (immutableScopeMapContainsKey(name)) {
@@ -119,7 +131,8 @@ public final class PlaidLocalScopeMap extends AbstractPlaidScopeMap {
 			mutableScopeMap().put(name, plaidObj);
 		}
 		else {
-			parentScope.update(name, plaidObj);
+			if (!updateMember(name, plaidObj))
+				parentScope.update(name, plaidObj);
 		}
 	}
 	

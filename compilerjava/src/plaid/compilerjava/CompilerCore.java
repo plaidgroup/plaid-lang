@@ -411,15 +411,19 @@ public class CompilerCore {
 		System.out.println("");
 	}
 	
-	private static CompilerConfiguration parseParameters(String args[]) {
+	public static CompilerConfiguration parseParameters(List<String> args) {
+		for (String arg : args) {
+			System.out.print(arg + " ");
+		}
+		System.out.println();
 		CompilerConfiguration cc = new CompilerConfiguration();
 
-		if ( args.length == 0 ) {
+		if ( args.size() == 0 ) {
 			usage();
 			System.exit(-1);
 		}
 		
-		for ( Iterator<String> it = (Arrays.asList(args)).iterator(); it.hasNext();) {
+		for ( Iterator<String> it = args.iterator(); it.hasNext();) {
 			String value = it.next();
 			if ( value.startsWith("-")) {
 				if ( value.equals("-h") || value.equals("--help")) {
@@ -482,7 +486,7 @@ public class CompilerCore {
 		return cc;
 	}
 
-	private void fileSystemChecks(CompilationUnit cu, String filepath) {
+	public void fileSystemChecks(CompilationUnit cu, String filepath) {
 		//Error checking - enforce file conventions
 		// all files must be in the directory corresponding to the package
 		// file package.plaid can have multiple declarations
@@ -523,7 +527,7 @@ public class CompilerCore {
 	}
 	
 	public static void main(String args[]) {
-		CompilerConfiguration cc = parseParameters(args);
+		CompilerConfiguration cc = parseParameters(Arrays.asList(args));
 
 		if ( cc.getInputFiles().isEmpty() && (cc.getInputDir() == null || cc.getInputDir().equals(""))) {
 			usage();

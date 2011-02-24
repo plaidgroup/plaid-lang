@@ -561,9 +561,13 @@ public class CodeGen {
 		}
 		
 		//append(functionName + ".invoke(" + classLoader + ".unit());");
-		append("plaid.runtime.PlaidObject arg = new plaid.runtime.models.map.PlaidJavaObjectMap(plaid.lang.Sys.getCommandLineArguments());");
+		//get a arraylist<String>
+		append("plaid.runtime.PlaidObject arg1$plaid$init = new plaid.runtime.models.map.PlaidJavaObjectMap(plaid.lang.Sys.getCommandLineArguments());");
+		append("plaid.runtime.PlaidObject convert$plaid$init = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup(\"makeListFromJava\", global$c0pe);");
+		append("plaid.runtime.PlaidObject arg2$plaid$init;");
+		assignToCall("arg2$plaid$init", "convert$plaid$init", "arg1$plaid$init");
 		
-		call(functionName, "arg");
+		call(functionName, "arg2$plaid$init");
 		append(";");
 		
 		if ( cc.isDebugMode() ) { 
