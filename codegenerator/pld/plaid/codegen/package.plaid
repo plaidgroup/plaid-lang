@@ -8,18 +8,10 @@ import plaid.typechecker.typecheckerMethods.*;
 import plaid.optimizer.*;
 
 
-state CodeGenerator{
-
-	method compileFiles(/*String*/inputDir, /*String*/output, /*List<String>*/ plaidPathEntries) {
-	    var cc = plaid.compilerjava.CompilerConfiguration.new();
-		cc.setInputDir(inputDir);
-		cc.setOutputDir(output);
-		plaidPathEntries.map( fn(plaidPathEntry) => {
-			cc.addToPlaidPath(plaidPathEntry);
-		});
-		cc.setPrettyPrint(true);
-		cc.setDebugMode(true);
-		cc.setVerbose(true);
+state PlaidCompiler{
+	var /*CompilerConfigure*/ cc;
+	
+	method compile() {
 		var compiler = plaid.compilerjava.CompilerCore.new(cc);
 		compiler.convertInputDirToInputFiles(java.io.File.new(cc.getInputDir()));
 		var javaList = java.util.ArrayList.new();
@@ -56,7 +48,7 @@ state CodeGenerator{
 		
 		//scope build phase		
 		var /*ScopeBuildingVisitor*/ scopebuilder = new ScopeBuildingVisitor{val stateTable = stateTable; val rep = packrep;};
-		scopebuilder.build(plaidList);
+		//scopebuilder.build(plaidList); //TODO fix bugs
 		
 		//typechecking phase
 		//TODO: add type checking here
@@ -72,23 +64,44 @@ state CodeGenerator{
 		});
 						
 		//code genearation phase
-		val codeGenVisitor = new CodeGenVisitor {val stateTable = stateTable; };		
-		codeGenVisitor.cc.setOutputDir(output);		
-		codeGenVisitor.cc = cc;
+		val codeGenVisitor = new CodeGenVisitor {val stateTable = stateTable; var cc = cc; };		
 		plaidList.map(fn(x) => {
 			x.accept(codeGenVisitor);
 		});
-	}
-	
+	}	
 }
-method main() {
-	//This will compile ASTTranslator and The TypeChecker Projects
-	var codeGenerator = new CodeGenerator;
-	var plaidPathEntries = new List{var head = new plaid.lang.Nil;};
-	plaidPathEntries.add("../stdlib/bin/");
-	plaidPathEntries.add("../runtime/bin/");
-	codeGenerator.compileFiles("../asttranslator/pld","../asttranslator/src_new",plaidPathEntries);
-	plaidPathEntries.add("../asttranslator/bin");
-	codeGenerator.compileFiles("../typechecker/pld","../typechecker/src_new",plaidPathEntries);
-}
+
+method main(args) {
+	var javaargs = java.util.ArrayList.new();
 	
+	args.map(fn(x) => {
+		javaargs.add(x);
+	});
+	
+	var cc =  plaid.compilerjava.CompilerCore.parseParameters(javaargs);
+	var /*PlaidCompiler*/ plaidCompiler = new PlaidCompiler {var cc = cc; };
+	plaidCompiler.compile();
+}
+
+
+////method compileFiles(/*String*/inputDir, /*String*/output, /*List<String>*/ plaidPathEntries) {
+////var cc = plaid.compilerjava.CompilerConfiguration.new();
+////cc.setInputDir(inputDir);
+////cc.setOutputDir(output);
+////plaidPathEntries.map( fn(plaidPathEntry) => {
+////	cc.addToPlaidPath(plaidPathEntry);
+////});
+////cc.setPrettyPrint(true);
+////cc.setDebugMode(true);
+////cc.setVerbose(true);
+//method test() {
+//	//This will compile ASTTranslator and The TypeChecker Projects
+//	var codeGenerator = new CodeGenerator;
+//	var plaidPathEntries = new List{var head = new plaid.lang.Nil;};
+//	plaidPathEntries.add("../stdlib/bin/");
+//	plaidPathEntries.add("../runtime/bin/");
+//	codeGenerator.compileFiles("../asttranslator/pld","../asttranslator/src_new",plaidPathEntries);
+//	plaidPathEntries.add("../asttranslator/bin");
+//	codeGenerator.compileFiles("../typechecker/pld","../typechecker/src_new",plaidPathEntries);
+//}
+//	
