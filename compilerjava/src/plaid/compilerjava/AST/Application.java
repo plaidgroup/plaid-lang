@@ -114,8 +114,11 @@ public class Application implements Expression {
 		return token != null;
 	}
 	
+	List<MetaArgument> getMetaArgs() {
+		return metaArgs;
+	}
+	
 	@Override
-
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		ID x = IdGen.getId();
