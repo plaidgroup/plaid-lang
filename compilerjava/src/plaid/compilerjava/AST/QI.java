@@ -35,6 +35,7 @@ public class QI implements State {
 	private List<String> qid;
 	private boolean hasInit = false;
 	private DeclList initState = null;
+	private List<MetaArgument> metaArgs = new ArrayList<MetaArgument>();
 	
 	public QI(Token t, List<String> qid, DeclList initState) {
 		this.token = t;
@@ -43,6 +44,16 @@ public class QI implements State {
 			hasInit = true;
 			this.initState = initState;
 		}
+	}
+	
+	public QI(Token t, List<String> qid, List<MetaArgument> metaArgs, DeclList initState) {
+		this.token = t;
+		this.qid = qid;
+		if (initState != null) {
+			hasInit = true;
+			this.initState = initState;
+		}
+		this.metaArgs = metaArgs;
 	}
 	
 	public QI(Token t, String qi, DeclList initState) {
@@ -57,13 +68,35 @@ public class QI implements State {
 		}
 	}
 	
+	public QI(Token t, String qi, List<MetaArgument> metaArgs, DeclList initState) {
+		this.token = t;
+		qid = new ArrayList<String>();
+		for ( String f : qi.split("\\.") ) {
+			qid.add(f);
+		}
+		if (initState != null) {
+			hasInit = true;
+			this.initState = initState;
+		}
+		this.metaArgs = metaArgs;
+	}
+	
 	public QI(List<String> qid) {
 		this(null, qid, null);
+	}
+	
+	public QI(List<String> qid, List<MetaArgument> metaArgs) {
+		this(null, qid, metaArgs, null);
 	}
 	
 	public QI(List<String> qid, DeclList init) {
 		this(null, qid, init);
 	}
+
+	public QI(List<String> qid, List<MetaArgument> metaArgs, DeclList init) {
+		this(null, qid, metaArgs, init);
+	}
+	
 	
 	public QI(String qi) {
 		this(null, qi, null);
