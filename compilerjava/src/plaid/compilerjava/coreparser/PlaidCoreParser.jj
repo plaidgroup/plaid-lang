@@ -183,6 +183,7 @@ TOKEN /*[IGNORE_CASE]*/:
 |   < ATOMIC : "atomic" >
 |   < SPLIT : "split" >
 |   < UNPACKINNERGROUPS : "unpackInnerGroups" >
+|	< TAKE : "take" >
 
 /* Permission kinds */
 |	< DYN : "dyn">
@@ -1451,6 +1452,7 @@ Expression LocalVarDecl() :
 		Token id;
 		Arg var;
 		boolean mutable = false; //TODO - this should be the same as for fields, or mutable turned into objects with fields, actually
+		boolean taken = false;
 		Expression e;
 		PermType permType = PermType.getDynPT(); //declarations are always implicitly annotated with DYN
 }
@@ -1458,15 +1460,17 @@ Expression LocalVarDecl() :
 		(
 				t = <VAR> {mutable = true;}
 		|		t = <VAL>
+		|		t = <TAKE> {taken = true;}
 		)
 		( LOOKAHEAD( PermType() ) permType = PermType() id = ID() | id = ID() ) 
 		<EQUALS> e = Exp() //local var declarations must be initialized
 		{
-			
+			if (taken && !(e instanceof ID))
+				throw new ParseException("Only local variables can be bound as a take binding");
 			
 			// Why is the body set to unit here? - KBN: we don't know the body yet, that will be the next expression in the expression list.
 			// The expresion list handles stringing the let's togethers
-			return new LetBinding(t, new ID(id, id.image), e, new UnitLiteral(), mutable, permType);
+			return new LetBinding(t, new ID(id, id.image), e, new UnitLiteral(), mutable, permType, taken);
 		}
 }
 
