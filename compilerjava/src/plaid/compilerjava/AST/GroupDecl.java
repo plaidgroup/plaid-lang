@@ -16,9 +16,7 @@ public class GroupDecl implements Decl {
 	private final Token token; 
 	private final ID id;
 	private final boolean isAbstract;
-	
-	
-	
+		
 	public GroupDecl(Token token, ID id, boolean isAbstract) {
 		super();
 		this.token = token;
@@ -32,6 +30,10 @@ public class GroupDecl implements Decl {
 
 	}
 
+	public boolean isAbstract() {
+		return isAbstract;
+	}
+	
 	@Override
 	public File codegenTopDecl(QualifiedID qid, ImportList imports,	CompilerConfiguration cc, Set<ID> globalVars, PackageRep plaidPath) {
 		// TODO Auto-generated method stub
@@ -58,14 +60,12 @@ public class GroupDecl implements Decl {
 
 	@Override
 	public Token getToken() {
-		// TODO Auto-generated method stub
-		return null;
+		return token;
 	}
 
 	@Override
 	public boolean hasToken() {
-		// TODO Auto-generated method stub
-		return false;
+		return true;
 	}
 
 	@Override

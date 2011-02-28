@@ -146,6 +146,10 @@ public class QI implements State {
 		return initState;
 	}
 
+	public List<MetaArgument> getMetaArguments() {
+		return metaArgs;
+	}
+	
 	@Override
 	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
 
