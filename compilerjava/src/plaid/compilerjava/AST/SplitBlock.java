@@ -29,14 +29,12 @@ public class SplitBlock implements Expression {
 
         @Override
         public boolean hasToken() {
-                // TODO Auto-generated method stub
-                return false;
+                return true;
         }
 
         @Override
         public Token getToken() {
-                // TODO Auto-generated method stub
-                return null;
+                return token;
         }
 
         @Override

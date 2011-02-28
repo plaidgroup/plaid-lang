@@ -149,6 +149,10 @@ public final class Lambda implements Expression {
 		return Collections.unmodifiableList(arguments);
 	}
 
+	public List<MetaParameter> getMetaParamaters() {
+		return metaParams;
+	}
+	
 	public Expression getBody() {
 		return body;
 	}

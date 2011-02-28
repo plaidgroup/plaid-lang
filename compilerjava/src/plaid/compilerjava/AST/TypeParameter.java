@@ -1,6 +1,5 @@
 package plaid.compilerjava.AST;
 
-import plaid.compilerjava.types.PermType;
 import plaid.compilerjava.types.Type;
 
 public class TypeParameter implements MetaParameter {
