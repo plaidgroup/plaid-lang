@@ -1,0 +1,229 @@
+package plaid.typechecker.typecheckerMethods;
+
+import plaid.typechecker.context.*;
+import plaid.ast.types.*;
+import plaid.ast.*;
+
+state TCvisitDereference {
+
+	//override val /*StateTable*/ stateTable; // need to know about nominal types during typechecking
+	//override val /*Context*/ context; //need to keep track of variables and types
+	//override var /*Option PermType*/ typedAs;
+
+	override method visitDereference(node) {
+		java.lang.System.out.println("Checking Deref");
+
+		match (node.left) {
+			case ID {
+				ifElse(this.context.containsKey(node.left)) {
+					val /*PermType*/ leftType = this.context.remove(node.left);
+					match (leftType.type) {
+						case NominalType {
+							val /*Option stateType*/ members = this.stateTable.get(leftType.type.typeName);
+							match (members) {
+								case Some {
+									val /*Option DeclType*/ declType = members.value.declaredTypeOf(node.right);
+									match (declType) {
+										case Some {
+											match (declType.value) {
+												case FieldType {
+													ifElse (leftType.type.missing.containsKey(node.right)) {
+														val msg = node.right.name + " has already been unpacked from state " + leftType.type.typeName.name;
+														typeError(node, msg, true);
+														java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+														this.typedAs = NONE;
+													} {
+														val /*FieldType*/ fType = declType.value.permType;
+														val /*Permission*/ readPerm = fieldReadPermission(leftType.perm, fType.perm);
+														this.typedAs = createSome(new PermType {
+															val /*Permission*/ perm = readPerm;
+															val /*Type*/ type = fType.type;
+															val /*boolean*/ borrowed = leftType.borrowed;  //should be borrowed if the dereference object is borrowed
+														});
+														
+														//add type to deref node
+														node.type <- PermType {
+															val perm = this.typedAs.value.perm;
+															val type = this.typedAs.value.type;
+															val borrowed = this.typedAs.value.borrowed;
+														};
+														node.left.type <- PermType { //type of left object
+															val perm = leftType.perm;
+															val type = leftType.type;
+															val borrowed = leftType.borrowed;
+														};
+														node.right.type <- FieldType { //type of right deref in left object
+															val /*ID*/ name = declType.value.name.copy();
+															val /*PermType*/ permType = declType.value.permType;
+															val /*Boolean*/ isImmutable = declType.value.isImmutable	;
+														};
+														
+														
+														this.context.put(node.left,leftType); //non-destructive means put the left object back as is
+													}
+												}
+												default {
+													val msg = node.right.name + " not a field in " + leftType.type.typeName.name;
+													typeError(node, msg, true);
+													java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+													this.typedAs = NONE;
+												}
+											}									
+										} 
+										default {
+											val msg = "field " + node.right.name + " not declared in type " + leftType.type.typeName.name;
+											typeError(node, msg, true);
+											java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+											this.typedAs = NONE;
+										}
+									}
+								}
+								case None {
+									val msg = "Type " + leftType.type.typeName.name + " not defined";
+									typeError(node, msg, true);
+									java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+									this.typedAs = NONE;
+								}
+							}
+						}
+						default {
+							val msg = "Deref target has unsupported object type (eg not nominal)";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+							this.typedAs = NONE;
+						}
+					}
+				} {
+					val msg = node.left.name + " not found in the context";
+					typeError(node, msg, true);
+					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+					this.typedAs = NONE;
+				}
+			}
+			default {
+				val msg = "Deref Not in let normal form";
+				typeError(node, msg, true);
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+				this.typedAs = NONE;
+			
+			}
+		}
+	}
+	
+	override method visitDestructiveDereference(node) {
+		java.lang.System.out.println("Checking DestructiveDeref");
+
+		match (node.left) {
+			case ID {
+				ifElse(this.context.containsKey(node.left)) {
+					val /*PermType*/ leftType = this.context.remove(node.left);
+					match (leftType.type) {
+						case NominalType {
+							val /*Option stateType*/ members = this.stateTable.get(leftType.type.typeName);
+							match (members) {
+								case Some {
+									val /*Option DeclType*/ declType = members.value.declaredTypeOf(node.right);
+									match (declType) {
+										case Some {
+											match (declType.value) {
+												case FieldType {
+													ifElse (leftType.perm.isWritable()) { //TODO: this might not work for shared - what happens with nominal type when unpack, but it is fine for unique
+														//destructive read means unpack the type - make sure we can
+														val /*NominalType*/ unpackedType = leftType.type.copy();
+														val /*Boolean*/ success = unpackedType.take(node.right, this.stateTable);
+													
+														ifElse (success) {
+															val /*FieldType*/ fType = declType.value.permType;
+															val /*Permission*/ readPerm = fType.perm; //destructive read - take the whole thing
+															this.typedAs = createSome(new PermType {
+																val /*Permission*/ perm = readPerm;
+																val /*Type*/ type = fType.type;
+																val /*boolean*/ borrowed = leftType.borrowed;  //if the type for the dereferenced object is borrowed, so should this one
+															});
+															
+															//add type to deref node
+															node.type <- PermType {
+																val perm = this.typedAs.value.perm;
+																val type = this.typedAs.value.type;
+																val borrowed = this.typedAs.value.borrowed;
+															};
+															node.left.type <- PermType { //type of left object
+																val perm = leftType.perm;
+																val type = leftType.type;
+																val borrowed = leftType.borrowed;
+															};
+															node.right.type <- FieldType { //type of right deref in left object
+																val /*ID*/ name = declType.value.name.copy();
+																val /*PermType*/ permType = declType.value.permType;
+																val /*Boolean*/ isImmutable = declType.value.isImmutable;
+															};
+															
+															val /*PermType*/ newLeftType = new PermType {
+																val perm = leftType.perm;
+																val type = unpackedType;
+																val borrowed = leftType.borrowed;
+															};
+															
+															this.context.put(node.left,newLeftType); 
+														} {
+															val msg = "" + node.right.name + " cannot be taken from this object";
+															typeError(node, msg, true);
+															//java.lang.System.out.println("TYPECHECK FAILED: " + msg); //printed elsewhere
+															this.typedAs = NONE;
+														}
+													
+													} {
+														val msg = leftType.perm.toString() + " does not allow destructive dereferences";
+														typeError(node, msg, true);
+														java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+														this.typedAs = NONE;
+													}
+												}
+												default {
+													val msg = "" + node.right.name + " not a field in " + leftType.type.typeName.name;
+													typeError(node, msg, true);
+													java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+													this.typedAs = NONE;
+												}
+											}									
+										} 
+										default {
+											val msg = "field " + node.right.name + " not declared in type " + leftType.type.typeName.name;
+											typeError(node, msg, true);
+											java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+											this.typedAs = NONE;
+										}
+									}
+								}
+								case None {
+									val msg = "Type " + leftType.type.typeName.name + " not defined";
+									typeError(node, msg, true);
+									java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+									this.typedAs = NONE;
+								}
+							}
+						}
+						default {
+							val msg = "Deref target has unsupported object type (eg Not nominal currently)";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+							this.typedAs = NONE;
+						}
+					}
+				} {
+					val msg = node.left.name + " not found in the context";
+					typeError(node, msg, true);
+					java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+					this.typedAs = NONE;
+				}
+			}
+			default {
+				val msg = "Deref Not in let normal form";
+				typeError(node, msg, true);
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+				this.typedAs = NONE;
+			
+			}
+		}
+	}
+}
