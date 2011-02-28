@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import plaid.compilerjava.AST.ID;
+import plaid.compilerjava.AST.MetaParameter;
 import plaid.compilerjava.coreparser.Token;
 
 public class LambdaType implements Type {
@@ -17,6 +18,7 @@ public class LambdaType implements Type {
 	private final Token t;
 	private final List<ChangeType> argTypes;
 	private final Map<ID,ChangeType> environmentTypes;
+	private final List<MetaParameter> metaParams;
 	private final PermType returnType;
 	
 	public LambdaType(Token t, List<ChangeType> argTypes, Map<ID,ChangeType> sideEffects,
@@ -26,6 +28,16 @@ public class LambdaType implements Type {
 		this.argTypes = argTypes;
 		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
+		this.metaParams = new ArrayList<MetaParameter>();
+	}
+	
+	public LambdaType(Token t, List<ChangeType> argTypes, Map<ID,ChangeType> sideEffects, List<MetaParameter> metaParams, PermType returnType) {
+		super();
+		this.t = t;
+		this.argTypes = argTypes;
+		this.environmentTypes = sideEffects;
+		this.returnType = returnType;
+		this.metaParams = metaParams;
 	}
 	
 	public LambdaType(Token t, ChangeType argType, Map<ID, ChangeType> sideEffects, PermType returnType) {
@@ -34,9 +46,18 @@ public class LambdaType implements Type {
 		argTypes.add(argType);
 		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
-		
+		this.metaParams = new ArrayList<MetaParameter>();		
 	}
 
+	public LambdaType(Token t, ChangeType argType, Map<ID, ChangeType> sideEffects, List<MetaParameter> metaParams, PermType returnType) {
+		this.t = t;
+		this.argTypes = new ArrayList<ChangeType>();
+		argTypes.add(argType);
+		this.environmentTypes = sideEffects;
+		this.returnType = returnType;
+		this.metaParams = metaParams;		
+	}
+	
 	public List<ChangeType> getArgTypes() {
 		return Collections.unmodifiableList(argTypes);
 	}
