@@ -1,0 +1,389 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker;
+
+import plaid.ast.*;
+import plaid.typechecker.ast.*;
+import plaid.ast.visitor.LeafVisitor;
+
+state LetNormalFormVisitor case of LeafVisitor {
+	var immutable Integer counter = 0;
+
+	method generateID(tok) {
+		this.counter = this.counter + 1;
+		val /*immutable String*/ n = "LNF$vAr" + this.counter + "$plaid";
+		new ID with {
+			val immutable Token token = tok;
+			val /*immutable String*/ name = n;
+			override val immutable Boolean istemp = true;
+		};
+	}
+	
+	/*
+	 When translating an application into LNF, we treat it as a take.
+	 So the node itself will translation to an LNFTake state.  Underneath
+	 we translate any inputs that are not variables into LNF form.
+	 */
+	override method void visitApplication(unique Application >> unique LNFTake node) {  
+				//NOTE: this paramter type is not going to work with the current formalization
+				// if we actually subtype LeafVisitor.  In general modifying visitors like this
+				// are going to be a problem, unless we underspecify the interface...
+		
+		//Do I need to translate the function?
+		val unique Expression fn = node!f;
+		match (fn) {
+			case ID { /*no op - nothing to do */ }
+			default { fn.accept(this) } // translates to a binding - will need to update the body
+										// how to do this - options:
+										//	1) make the body a var field so it can be changed
+										//	2) make a temporary state which represents the fact that it
+										//		is a binding in transition and force finalization at some point
+										//  - 2 is an interesting idea, but I don't know if it really makes sense
+										//	so I am starting with 1) for now.
+		
+		}
+		
+		val /*unique List<unique Expression>*/ args = node!arguments;
+		args.map(fn (a) => {
+			match (a) {
+				case ID { /*No op*/ }
+				default { 
+					a.accept(this) 
+					//TODO : need to take transitioned let bindings out of the array and put ID's there in its
+					//place.  Bodies should go elsewhere - this is a bit of a problem... - we may want to create
+					//a new list instead...
+				}
+		});
+		//want to assert that args now has type List<unique ID>
+		
+		val function = node.f;
+		val arguments = node.arguments;
+		val tok = node.token;
+		var addLocation = node;  //keep track of where to add further let bindings
+		
+		//add let binding for function if needed
+		val functionID = match (function) {
+			case ID { function.copy() /*LNF*/ }
+			default {
+				val id = this.generateID(tok);
+				addLocation <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*boolean*/ mutable = false;
+					val /*Expression*/ exp = function;
+					val /*Expression*/ body = new None;
+				};
+				addLocation = addLocation.body;
+				id.copy();
+			}
+		};
+		
+		//add let bindings for any arguments
+		val /*List<ID>*/ argIDs = arguments.map(fn (a) => {
+			match (a) {
+				case ID { a.copy() /*LNF - take a copy of the ID*/ }
+				default { //add letBinding
+					val id = this.generateID(tok);
+					addLocation <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*boolean*/ mutable = false;
+					val /*Expression*/ exp = a;
+					val /*Expression*/ body = new None;
+				};
+				addLocation = addLocation.body;
+				id.copy();
+				}
+			}
+		});
+		
+		//put LNFApplication at the addLocation
+		addLocation <- LNFApplication {
+			override val /*Token*/ token = tok;
+			override val /*ID*/ f = functionID;
+			override val /*List<ID>*/ arguments = argIDs;
+		}
+	}
+	
+	override method visitAssignment(node) {
+		match (node.target) {
+			case Some {
+				node.target.value.accept(this);
+			}
+			case None { }
+		};
+		node.value.accept(this);
+		
+		val /*Token*/ tok = node.token;
+		var /*Option Expression*/ target = node.target;
+		val /*ID*/ field = node.field;
+		var /*Expression*/ value = node.value;
+		var /*expression*/ toUpdate = node;
+		
+		//let bind target if needed
+		match (target) {
+			case Some {
+				match (target.value) {
+					case ID { }
+					default {
+						val id = this.generateID(tok);
+						toUpdate <- UnannotatedLetBinding {
+							override val /*Token*/ token = tok;
+							val /*ID*/ x = id;
+							val /*Expression*/ exp = target.value;
+							val /*Expression*/ body = new None;
+							val /*boolean*/ mutable = false;
+						};
+						toUpdate = toUpdate.body;
+						target = createSome(id);
+					}
+				}
+			}
+			case None { }
+		};
+		
+		match (value) {
+			case ID { }
+			default {
+				val id = this.generateID(tok);
+				toUpdate <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = value;
+					val /*Expression*/ body = new None;
+					val /*boolean*/ mutable = false;
+				};
+				toUpdate = toUpdate.body;
+				value = id;
+			}
+		};
+		
+		//update to an LNFAssignment
+		toUpdate <- LNFAssignment {
+			override var /*Token*/ token = tok;
+			override var /*Option ID*/ target = target;
+			override var /*ID*/ field = field;
+			override var /*ID*/ value = value;
+		};
+	}
+	
+	override method visitChangeState(node) {
+		node.e.accept(this);
+		node.s.accept(this);
+		
+		val tok = node.token;
+		val expr = node.e;
+		val st = node.s;
+		
+		match (expr) {
+			// Already LNF
+			case ID {
+				node <- LNFChangeState {
+					override val /*Token*/ token = tok;
+					val /*ID*/ e = expr;
+					val /*State*/ s = st;
+				};
+			}
+			// Bring AST to LNF
+			default {
+				val id = this.generateID(tok);
+				node <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = expr;
+					val /*Expression*/ body = new LNFChangeState {
+						val /*Token*/ token = tok;
+						val /*ID*/ e = id;
+						val /*State*/ s = st;
+					};
+					val /*boolean*/ mutable = false;
+				};
+			}
+		}
+	}
+	
+	override method visitDereference(node) {
+		node.left.accept(this);
+		node.right.accept(this);
+		
+		val l = node.left;
+		val tok = node.token;
+		
+		match (l) {
+			// Already LNF
+			case ID {
+				node <- LNFDereference {
+					override val /*Token*/ token = tok;
+					override val /*ID*/ left = l;
+					override val /*ID*/ right = node.right;
+				};
+			}
+			// Bring AST to LNF
+			default {
+				val id = this.generateID(tok);
+				node <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = l;
+					val /*Expression*/ body = new LNFDereference {
+						val /*Token*/ token = tok;
+						val /*ID*/ left = id;
+						val /*ID*/ right = node.right;
+					};
+					val /*boolean*/ mutable = false;
+				};
+			}
+		}
+	}
+
+	override method visitDestructiveDereference(node) {
+		node.left.accept(this);
+		node.right.accept(this);
+		
+		val l = node.left;
+		val tok = node.token;
+		
+		match (l) {
+			// Already LNF
+			case ID {
+				node <- LNFDestructiveDereference {
+					override val /*Token*/ token = tok;
+					override val /*ID*/ left = l;
+					override val /*ID*/ right = node.right;
+				};
+			}
+			// Bring AST to LNF
+			default {
+				val id = this.generateID(tok);
+				node <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = l;
+					val /*Expression*/ body = new LNFDereference {
+						val /*Token*/ token = tok;
+						val /*ID*/ left = id;
+						val /*ID*/ right = node.right;
+					};
+					val /*boolean*/ mutable = false;
+				};
+			}
+		}
+	}
+	
+	override method visitMatch(node) {
+		node.e.accept(this);
+		node.caseList.map(fn (c) => {
+			c.accept(this)
+		});
+		val expr = node.e;
+		val tok = node.token;
+				
+		match (expr) {
+			// Already in LNF
+			case ID {
+				node <- LNFMatch {
+					override val /*Token*/ token = tok;
+					override val /*ID*/ e = expr;
+					override val /*List<Case>*/ caseList = node.caseList;
+				};
+			}
+			// Bring AST to LNF
+			default {
+				val id = this.generateID(tok);
+				node <- UnannotatedLetBinding with {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*Expression*/ exp = expr;
+					val /*Expression*/ body = new LNFMatch {
+						val /*Token*/ token = tok;
+						val /*ID*/ e = id;
+						val /*List<Case>*/ caseList = node.caseList;
+					};
+					val /*boolean*/ mutable = false;
+				};						
+			}
+		}
+	}
+	
+	override method visitMethodCall(node) {
+		node.receiver.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
+		
+		val receiver = node.receiver;
+		val tok = node.token;
+		val arguments = node.arguments;
+		val mName = node.methodName;
+		var addLocation = node;  //keep track of where to add further let bindings
+		
+		//add let binding for function if needed
+		val receiverID = match (receiver) {
+			case ID { receiver.copy() /*LNF*/ }
+			default {
+				val id = this.generateID(tok);
+				addLocation <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*boolean*/ mutable = false;
+					val /*Expression*/ exp = receiver;
+					val /*Expression*/ body = new None;
+				};
+				addLocation = addLocation.body;
+				id.copy();
+			}
+		};
+		
+		//add let bindings for any arguments
+		val /*List<ID>*/ argIDs = arguments.map(fn (a) => {
+			match (a) {
+				case ID { a.copy() /*LNF - take a copy of the ID*/ }
+				default { //add letBinding
+					val id = this.generateID(tok);
+					addLocation <- UnannotatedLetBinding {
+					override val /*Token*/ token = tok;
+					val /*ID*/ x = id;
+					val /*boolean*/ mutable = false;
+					val /*Expression*/ exp = a;
+					val /*Expression*/ body = new None;
+				};
+				addLocation = addLocation.body;
+				id.copy();
+				}
+			}
+		});
+		
+		//put LNFApplication at the addLocation
+		addLocation <- MethodCall {
+			override val /*Token*/ token = tok;
+			override val /*ID*/ receiver = receiverID;
+			override val /*List<ID>*/ arguments = argIDs;
+			override val /*ID*/ methodName = mName;
+		}
+	}
+	
+	method /*boolean*/ isValNotID(/*ASTnode*/ node) {
+		match (node) {
+			case IntLiteral { true }
+			case StringLiteral { true }
+			case Lambda { true }
+			case UnitLiteral { true }
+			default { false }
+		}
+	}
+}
