@@ -24,21 +24,54 @@ import plaid.typechecker.ast.*;
 import plaid.ast.visitor.LeafVisitor;
 
 state LetNormalFormVisitor case of LeafVisitor {
-	var counter = 0;
+	var immutable Integer counter = 0;
 
 	method generateID(tok) {
 		this.counter = this.counter + 1;
-		val n = "LNF$vAr" + this.counter + "$plaid";
+		val /*immutable String*/ n = "LNF$vAr" + this.counter + "$plaid";
 		new ID with {
-			val /*Token*/ token = tok;
-			val /*String*/ name = n;
-			override val /*Boolean */ istemp = true;
+			val immutable Token token = tok;
+			val /*immutable String*/ name = n;
+			override val immutable Boolean istemp = true;
 		};
 	}
 	
-	override method visitApplication(node) {
-		node.f.accept(this);
-		node.arguments.map(fn (a) => a.accept(this));
+	/*
+	 When translating an application into LNF, we treat it as a take.
+	 So the node itself will translation to an LNFTake state.  Underneath
+	 we translate any inputs that are not variables into LNF form.
+	 */
+	override method void visitApplication(unique Application >> unique LNFTake node) {  
+				//NOTE: this paramter type is not going to work with the current formalization
+				// if we actually subtype LeafVisitor.  In general modifying visitors like this
+				// are going to be a problem, unless we underspecify the interface...
+		
+		//Do I need to translate the function?
+		val unique Expression fn = node!f;
+		match (fn) {
+			case ID { /*no op - nothing to do */ }
+			default { fn.accept(this) } // translates to a binding - will need to update the body
+										// how to do this - options:
+										//	1) make the body a var field so it can be changed
+										//	2) make a temporary state which represents the fact that it
+										//		is a binding in transition and force finalization at some point
+										//  - 2 is an interesting idea, but I don't know if it really makes sense
+										//	so I am starting with 1) for now.
+		
+		}
+		
+		val /*unique List<unique Expression>*/ args = node!arguments;
+		args.map(fn (a) => {
+			match (a) {
+				case ID { /*No op*/ }
+				default { 
+					a.accept(this) 
+					//TODO : need to take transitioned let bindings out of the array and put ID's there in its
+					//place.  Bodies should go elsewhere - this is a bit of a problem... - we may want to create
+					//a new list instead...
+				}
+		});
+		//want to assert that args now has type List<unique ID>
 		
 		val function = node.f;
 		val arguments = node.arguments;
