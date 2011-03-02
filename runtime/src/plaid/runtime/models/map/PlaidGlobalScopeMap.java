@@ -34,7 +34,7 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	private PlaidGlobalScopeMap(String qi, List<Import> imports) {
 		this.importMap = new HashMap<String, Import>();
 		this.addImports(imports);
-		this.globalPackage = new QualifiedIdentifier(qi);
+		this.globalPackage = QualifiedIdentifier.getQI(qi);
 	}
 	
 	private void addImport(Import imp) {
@@ -95,7 +95,7 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 			// So to keep everything working we fall back to our old (slower) system in that case.
 			for (Import im : javaImports) {
 				PlaidClassLoader cl = PlaidRuntime.getRuntime().getClassLoader();
-				QualifiedIdentifier nameQI = new QualifiedIdentifier(name);
+				QualifiedIdentifier nameQI = QualifiedIdentifier.getQI(name);
 				QualifiedIdentifier fullQualName;
 				// If we specified a matching prefix too, use the full thing to lookup.
 				if (nameQI.getPrefix().equals(im.getIdent().getPrefix())) {
@@ -111,7 +111,7 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 			}
 			
 			// couldn't find anything, so return a lookup map so they can try again
-			return new PlaidLookupMap(this.globalPackage, new QualifiedIdentifier(name));
+			return new PlaidLookupMap(this.globalPackage, QualifiedIdentifier.getQI(name));
 		}
 	}
 	
@@ -164,7 +164,7 @@ public final class PlaidGlobalScopeMap extends AbstractPlaidScopeMap {
 	
 	public static PlaidGlobalScopeMap create(String qi, List<Import> imports) {
 		synchronized (globalScopes) {
-			QualifiedIdentifier qualID = new QualifiedIdentifier(qi);
+			QualifiedIdentifier qualID = QualifiedIdentifier.getQI(qi);
 			PlaidGlobalScopeMap newGlobalScope;
 
 			if (globalScopes.containsKey(qualID)) {

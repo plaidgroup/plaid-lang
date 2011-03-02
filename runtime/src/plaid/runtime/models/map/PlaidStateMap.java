@@ -42,7 +42,7 @@ import plaid.runtime.types.PlaidUniquePermission;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
-	protected static final PlaidPackageMap anonymousPackage = new PlaidPackageMap(new QualifiedIdentifier("<ANONYMOUS>"));
+	protected static final PlaidPackageMap anonymousPackage = new PlaidPackageMap(QualifiedIdentifier.getQI("<ANONYMOUS>"));
 	protected PlaidPackageMap pkg;
 	protected String name;
 	protected RepresentsState psa;
