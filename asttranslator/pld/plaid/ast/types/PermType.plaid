@@ -3,13 +3,11 @@ package plaid.ast.types;
 /**
  * General form of all Types in Plaid.  Made up of:
  *	- a Permission : DynP, Unique, Full, Immutable, Shared, Pure, None
- *	- a Type : Nominal, Structural, Lambda, Dyn
- *	- whether or not the type is borrowed (primitive form of fractional permissions)
+ *	- an ObjectType : Nominal, Structural, Lambda, Dyn
  */
 state PermType case of PlaidType {
-	val /*Permission*/ perm;
-	val /*Type*/ type;
-	val /*Boolean*/ borrowed;
+	val immutable Permission perm;
+	val immutable ObjectType type;
 	
 	/**
 	 * Compares this PermType with the specified PermType for equality.  They 
@@ -36,18 +34,17 @@ state PermType case of PlaidType {
 		new PermType {
 			val perm = this.perm;
 			val type = this.type;
-			val borrowed = this.borrowed;
 		};
 	}
 	
-	//creates a copy of this perm type, but borrowed
-	method copyAsBorrowed() {
-		new PermType {
-			val perm = this.perm;
-			val type = this.type;
-			val borrowed = true;
-		}
-	}
+//	KBN - borrowing moved away from Perm Type level	
+//	//creates a copy of this perm type, but borrowed
+//	method copyAsBorrowed() {
+//		new PermType {
+//			val perm = this.perm;
+//			val type = this.type;
+//		}
+//	}
 
 	/**
 	 * Merges the two permtypes together.  Merging takes the stronger of the 
@@ -55,13 +52,10 @@ state PermType case of PlaidType {
 	 *
 	 * TODO: should this really be the union of the types?  What if the types
 	 * do not have the supertype/subtype relation?  Is this actually a problem?
-	 *
-	 * TODO: how to set borrowed?
 	 */
 	method merge(p2, stateTable) {
 		new PermType{ val perm = this.perm.merge(p2.perm); 
 					  val type = this.type.merge(p2.type, stateTable);
-					  val borrowed = this.borrowed || p2.borrowed;
 		};
 	}
 	
@@ -71,13 +65,10 @@ state PermType case of PlaidType {
 	 *
 	 * TODO: should this really be the intersection of the types?  What if the 
 	 * types do not have the supertype/subtype relation?  Is this actually a problem?
-	 *
-	 * TODO: how to set borrowed
 	 */
 	method /*PermType*/ join(p2, stateTable) {
 		new PermType{ val perm = this.perm.join(p2.perm);
 					  val type = this.type.join(p2.type, stateTable); 
-					  val borrowed = this.borrowed && p2.borrowed; //have to both be borrowed to stay borrowed
 		};
 	}
 	
@@ -162,7 +153,7 @@ state PermType case of PlaidType {
 	/**
 	 * Returns the strongest permtype that can be split off from this permtype 
 	 * while maintaining the current permission of this permtype.
-	 * DEPRECATED FOR NOW - just use Split - return type is the residue
+	 * DEPRECATED FOR NOW - just use splitPerm - return type is the residue
 	 */
 	method /*PermType*/ residue(/*StateTable*/ stateTable) {
 		val /*Option PermType*/ residue = this.splitPerm(this, stateTable);
@@ -210,17 +201,6 @@ state PermType case of PlaidType {
 	//}
 	
 	method toString() {
-		var ret = this.perm.toString() + " " 
-			+ this.type.toString();
-		match(borrowed) {
-			case True {
-				ret = ret + " (b)";
-			}
-			case False {
-				//nothing
-			}
-		};
-		ret
-		
+		this.perm.toString() + " " + this.type.toString();
 	}
 }

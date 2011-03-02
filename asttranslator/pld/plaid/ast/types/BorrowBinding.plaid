@@ -1,0 +1,45 @@
+package plaid.ast.types;
+
+/* A BorrowBinding is a case of TypeBinding used for tracking the types of
+   locations in a Plaid program. In addition to the current PlaidType of the
+   location inherited from TypeBinding, we also keep track of a boolean flag
+   that indicates whether this location is strongly borrowed and thus expects
+   no persistent aliases to remain after it goes out of scope.  Secondly, we
+   keep track of a lower bound on the current permission to this location
+   which is used for catching errors at the uses of the location.
+ */
+ 
+ state BorrowBinding case of TypeBinding {
+ 	val immutable Boolean stronglyBorrowed;
+ 	val immutable Permission lowerBound;
+ 	
+ 	method immutable Boolean ==(immutable TypeBinding other) {
+ 		match (other) {
+ 			case BorrowBinding {
+ 				this.currentType == other.currentType && 
+ 			  	this.stronglyBorrowed == other.stronglyBorrowed &&
+ 			   	this.lowerBound == this.lowerBound;
+ 			}
+ 			default { false }
+ 		}
+ 	}
+ 	
+ 	method toString() {
+ 		var ret = "";
+ 		if (this.stronglyBorrowed) { ret = "(B)" };
+ 		"(" + ret + " " + currentType.toString() + " |> " + lowerBound.toString() + ")";
+ 	}
+ 	
+ 	method immutable Boolean isSubTypeBindingOf(immutable TypeBinding other, stateTable) {
+ 		match (other) {
+ 			case BorrowBinding {
+ 				ifElse (!other.stronglyBorrowed && this.stronglyBorrowed) 
+ 					{ false }
+ 					{ this.currentType.isSubPermTypeOf(other.currentType, stateTable) && 
+ 						other.lowerBound.asStrongAs(this.lowerBound)	
+ 					}
+ 			}
+ 			default { false }
+ 		}
+ 	}
+ }

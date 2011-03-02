@@ -112,7 +112,7 @@ public class CompilerCore {
 	}
 	
 	private void handleFileInJar(JarFile jarFile, JarEntry entry, PackageRep plaidpath) throws Exception {
-		if (!entry.getName().endsWith(".class") || (entry.getName().contains("$") && !entry.getName().contains("$plaid")))
+		if (!entry.getName().endsWith(".class") || (entry.getName().contains("$") && !entry.getName().contains("plaid")))
 			return;
 		
 		String entryName = entry.getName();

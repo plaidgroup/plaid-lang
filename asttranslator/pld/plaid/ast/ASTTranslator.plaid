@@ -1,6 +1,6 @@
 package plaid.ast;
 
-import plaid.lang.*;
+import plaid.lang.globals.*;
 import plaid.ast.types.*;
 
 state ASTTranslator {
@@ -142,7 +142,7 @@ state ASTTranslator {
 				new Cast {
 					val /*Option ID*/ theVar = NONE;
 					val /*Option PermType*/ startType = NONE;
-					val /*PermType*/ resultType = this.translateType(root.getPermType());
+					val /*PermType*/ resultType = this.translatePermType(root.getPermType());
 					val /*Expression*/ body = this.translateAST(root.getExp());
 				}
 			}
@@ -195,7 +195,7 @@ state ASTTranslator {
 					val /*boolean*/ abstractField = root.isAbstractField();
 					val /*boolean*/ immutableField = root.getImmutable();
 					val /*boolean*/ overrides = root.isOverrides();
-					val /*FieldType*/ fieldType = this.translateType(root.getFieldType());
+					val /*FieldType*/ fieldType = this.translateDeclType(root.getFieldType());
 				};
 			}
 			case plaid.compilerjava.AST.ID {
@@ -221,7 +221,7 @@ state ASTTranslator {
 					val /*Option Token*/ token = this.getToken(root);
 					val /*List<ID>*/ arguments = this.map(fn (a) => this.translateAST(a), root.getArguments());
 					val /*Expression*/ body = this.translateAST(root.getBody());
-					val /*LambdaType*/ lambdaType = this.translateType(root.getType());
+					val /*LambdaType*/ lambdaType = this.translateObjectType(root.getType());
 					var /*Option ID*/ recursiveName = new None; //not in Java AST now - only during typechecking
 				};
 			}
@@ -234,7 +234,7 @@ state ASTTranslator {
 							val /*Expression*/ exp = this.translateAST(root.getExp());
 							val /*Expression*/ body = this.translateAST(root.getBody());
 							val /*boolean*/ mutable = root.isMutable();
-							val /*PermType*/ annotation = this.translateType(root.getPermType());
+							val /*PermType*/ annotation = this.translatePermType(root.getPermType());
 						};
 					} {
 						new AnnotatedLetBinding {	
@@ -243,7 +243,7 @@ state ASTTranslator {
 							val /*Expression*/ exp = this.translateAST(root.getExp());
 							val /*Expression*/ body = this.translateAST(root.getBody());
 							val /*boolean*/ mutable = root.isMutable();
-							val /*PermType*/ annotation = this.translateType(root.getPermType());
+							val /*PermType*/ annotation = this.translatePermType(root.getPermType());
 						};
 					}
 				} {
@@ -289,18 +289,9 @@ state ASTTranslator {
 					val /*List<ID>*/ arguments = this.map(fn (a) => this.translateAST(a), root.getArguments());
 					val /*boolean*/ abstractMethod = root.isAbstractMethod();
 					val /*boolean*/ overrides = root.isOverrides();
-					val /*MethodTypeDecl*/ methodType = this.translateType(root.getMethodType());
+					val /*MethodTypeDecl*/ methodType = this.translateDeclType(root.getMethodType());
 				};
 			}
-//			case plaid.compilerjava.AST.MethodTypeDecl {
-//				new MethodTypeDecl {
-//					val /*Option Token*/ token = this.getToken(root);
-//					val /*ID*/ name = this.translateAST(root.getName());
-//					val /*PermType*/ retPermType = this.translateAST(root.getRetPermType());
-//					val /*List<PermType>*/ argTypes = this.map(this.translateAST, root.getArgTypes());
-//					val /*List<ID>*/ argNames = this.map(this.translateAST, root.getArgNames());
-//				};
-//			}
 			case plaid.compilerjava.AST.NewInstance {
 				new NewInstance {
 					val /*Option Token*/ token = this.getToken(root);
@@ -371,36 +362,47 @@ state ASTTranslator {
 		}
 	}
 	
-	method translateType(type) {
+	method unique ChangeType translateChangeType(/*unique plaid.compilerjava.types.ChangeType*/ type) {
+		val unique PermType i = this.translatePermType(type.getInput());
+		val unique PermType o = this.translatePermType(type.getOutput());
+		
+		ifElse (o.perm == NONEP) { //No borrowing involved - take bindings
+			new ChangeType {
+				val immutable TypeBinding input = new TakeBinding { val immutable PermType currentType = i; };
+				val immutable TypeBinding output = new TakeBinding { val immutable PermType currentType = VOID; };
+			};
+		} {
+			val immutable Boolean borrowLevel = type.borrows();  // strong or weak borrowing depending on change Type
+			new ChangeType {
+				val immutable TypeBinding input = new BorrowBinding { 
+													val immutable PermType currentType = i; 
+													val immutable Boolean stronglyBorrowed = borrowLevel;
+													val immutable Permission lowerBound = o.perm;
+												  };
+				val immutable TypeBinding output = new BorrowBinding { 
+													val immutable PermType currentType = o; 
+													val immutable Boolean stronglyBorrowed = borrowLevel;
+													val immutable Permission lowerBound = o.perm;
+												  };
+			};
+		}
+	}
+	
+	method unique PermType translatePermType(/*unique plaid.compilerjava.types.PermType*/ type) {
+		new PermType {
+			val immutable Permission perm = this.translatePermission(type.getPermission());
+			val /*?? ObjectType*/ type = this.translateObjectType(type.getType());
+		}
+	
+	}
+	
+	method unique ObjectType translateObjectType(/*unique plaid.compilerjava.types.Type*/ type) {
 		match (type) {
-			case plaid.compilerjava.types.ChangeType {
-				new ChangeType {
-					val /*PermType*/ input = this.translateType(type.getInput());
-					val /*PermType*/ output = this.translateType(type.getOutput());
-					val /*Boolean*/ borrow = type.borrows(); //this.translateBoolean(type.borrows());
-				}
-			}
-			case plaid.compilerjava.types.FieldType {
-				new FieldType {
-					val /*PermType*/ permType = this.translateType(type.getPermType());
-					val /*ID*/ name = this.translateAST(type.getName());
-					val /*boolean*/ isImmutable = type.isImmutable();
-				}
-			}
 			case plaid.compilerjava.types.LambdaType {
 				new LambdaType {
-					var /*PermType*/ returnType = this.translateType(type.getReturnType());
-					val /*List<ChangeType>*/ argTypes = this.map(this.translateType, type.getArgTypes());
-					val /*Map<ID,ChangeType>*/ environmentTypes = this.translateMap(this.translateAST, this.translateType, type.getEnvironmentTypes());
-				}
-			}
-			case plaid.compilerjava.types.MethodType {
-				new MethodType {
-					val /*ID*/ name = this.translateAST(type.getName());
-					val /*PermType*/ returnType = this.translateType(type.getReturnType());
-					val /*List<ChangeType>*/ argTypes = this.map(this.translateType, type.getArgTypes());
-					val /*ChangeType*/ receiverType = this.translateType(type.getReceiverType());
-					val /*Map<ID,ChangeType>*/ environmentTypes = this.translateMap(this.translateAST, this.translateType, type.getEnvironmentTypes());
+					var /*PermType*/ returnType = this.translatePermType(type.getReturnType());
+					val /*List<ChangeType>*/ argTypes = this.map(this.translateChangeType, type.getArgTypes());
+					val /*Map<ID,ChangeType>*/ environmentTypes = this.translateMap(this.translateAST, this.translateChangeType, type.getEnvironmentTypes());
 				}
 			}
 			case plaid.compilerjava.types.ObjectType {
@@ -415,18 +417,32 @@ state ASTTranslator {
 					};
 				}
 			}
-			case plaid.compilerjava.types.PermType {
-				new PermType {
-					val /*Permission*/ perm = this.translatePermission(type.getPermission());
-					val /*Type*/ type = this.translateType(type.getType());
-					val /*Boolean*/ borrowed = type.isBorrowed();
+		}
+	}
+	
+	
+	method unique DeclType translateDeclType(type) {
+		match (type) {
+			case plaid.compilerjava.types.FieldType {
+				new FieldType {
+					val /*PermType*/ permType = this.translatePermType(type.getPermType());
+					val /*ID*/ name = this.translateAST(type.getName());
+					val /*boolean*/ isImmutable = type.isImmutable();
+				}
+			}
+			case plaid.compilerjava.types.MethodType {
+				new MethodType {
+					val /*ID*/ name = this.translateAST(type.getName());
+					val /*PermType*/ returnType = this.translatePermType(type.getReturnType());
+					val /*List<ChangeType>*/ argTypes = this.map(this.translateChangeType, type.getArgTypes());
+					val /*ChangeType*/ receiverType = this.translateChangeType(type.getReceiverType());
+					val /*Map<ID,ChangeType>*/ environmentTypes = this.translateMap(this.translateAST, this.translateChangeType, type.getEnvironmentTypes());
 				}
 			}
 			default {
-				java.lang.System.out.print("Unknown Type node type: ");
+				java.lang.System.out.print("Unknown DeclType node type: ");
 				java.lang.System.out.println((root.getClass()).getName());
 			}
 		}
-	
 	}
 }
