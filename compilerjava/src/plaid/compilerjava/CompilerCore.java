@@ -112,7 +112,7 @@ public class CompilerCore {
 	}
 	
 	private void handleFileInJar(JarFile jarFile, JarEntry entry, PackageRep plaidpath) throws Exception {
-		if (!entry.getName().endsWith(".class") || entry.getName().contains("$"))
+		if (!entry.getName().endsWith(".class") || (entry.getName().contains("$") && !entry.getName().contains("$plaid")))
 			return;
 		
 		String entryName = entry.getName();
@@ -135,7 +135,7 @@ public class CompilerCore {
 	}
 	
 	private void handleFileInPlaidPath(File file, String absoluteBase, PackageRep plaidpath) throws Exception {
-		if (!file.getName().endsWith(".class") || file.getName().contains("$"))
+		if (!file.getName().endsWith(".class") || (file.getName().contains("$") && !file.getName().contains("$plaid")))
 			return;
 		
 		// Load in the hopes that this is a compiled .plaid file.
