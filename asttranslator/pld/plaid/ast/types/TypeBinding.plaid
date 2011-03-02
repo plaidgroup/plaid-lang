@@ -9,7 +9,106 @@ package plaid.ast.types;
  */
  
  state TypeBinding {
- 	val unique PermType currentType;
+ 	/**
+ 	 	underlying PermType for the current type of the reference
+ 	 */
+ 	var unique PermType currentType;
  	
+ 	//equality
  	method immutable Boolean ==(immutable TypeBinding other);
+ 	
+ 	/**
+		The splitBinding method takes a Binding that should be split off from
+ 		the receiving binding.  The returned binding is the residual binding
+ 		that should be left in the original location
+ 	 */
+ 	method unique TypeBinding splitBinding(immutable TypeBinding s)[immutable TypeBinding];
+ 	
+ 	/**
+ 		The joinBinding method takes a Binding that should be combined with the
+ 		receiving binding.  It also takes an original binding parameter which
+ 		allows us to regain stronger permissions such as unique in special cases.
+ 		It returns the combined binding.
+ 	 */
+ 	method unique TypeBinding joinBinding(immutable TypeBinding j, immutable TypeBinding orig)[immutable TypeBinding];
+ 	
+ 	/**
+ 		The updateObjecType method is an effectful operation which changes the 
+ 		receiving object such that the Object Type of its currentType is now
+ 		the passed in ObjectType.  We take all of the unique permission for that object
+ 	 */
+ 	method void updateObjectType(immutable ObjectType >> void o)[unique TypeBinding] {
+ 		val immutable Permission old = this.currentType.perm;
+ 		this.currentType = new PermType {
+ 			val immutable ObjectType type = o;
+ 			val immutable Permission perm = old;
+ 		}
+ 	}
+ 	 
+ 	val (dyn /*unique List<immutable TypeBinding>*/ >> void) ->  /*Option<unique TypeBinding>*/ dyn bindingLeastUpperBound = 
+ 		fn (dyn >> void list) => { //Dyn only because I don't know how to represent this type yet, but want it to go to void
+ 			
+ 			ifElse (!list.isEmpty) {
+ 			
+ 				//pop the first element off so can process the rest
+ 				val immutable TypeBinding bindingType = list.head.value;
+ 				val /*unique Option<immutable TypeBinding>*/ start = createSome(bindingType);
+ 				list.head = list.head.next;
+ 			
+ 				match (bindingType) { //must either be all TakeBindings or all BorrowBindings
+ 					case TakeBinding {
+ 						rest.foldl(fn (immutable TypeBinding b, /*unique Option<immutable ObjectType>*/ res) => {
+ 							match (res) {
+ 								case Some {
+ 									match (b) {
+ 										case TakeBinding {
+ 											createSome(new TakeBinding { 
+ 												val unique PermType currentType = new PermType {
+ 													val immutable Permission perm = 
+ 														weakestPerm(b.currentType.perm,res.value.currentType.perm);
+ 													val immutable ObjectType type = 
+ 														objectLeastUpperBound(b.currentType.type,res.value.currentType.perm);
+ 												};
+ 											})
+ 										}
+ 										case BorrowBinding { NONE }
+ 									}
+ 								}
+ 								case None { NONE }
+ 							}
+ 						}, start)
+ 					}
+ 					case BorrowBinding {
+ 						rest.foldl(fn (immutable TypeBinding b, /*unique Option<immutable ObjectType>*/ res) => {
+ 							match (res) {
+ 								case Some {
+ 									match (b) {
+ 										case BorrowBinding {
+ 											ifElse ( res.value.stronglyBorrowed == b.stronglyBorrowed && 
+ 													 res.value.lowerBound == b.lowerBound ) 
+ 											{
+ 												createSome(new BorrowBinding { 
+ 													val unique PermType currentType = new PermType {
+ 														val immutable Permission perm = 
+ 															weakestPerm(b.currentType.perm,res.value.currentType.perm);
+ 														val immutable ObjectType type = 
+ 															objectLeastUpperBound(b.currentType.type,res.value.currentType.perm);
+ 													};
+ 													val immutable Permission lowerBound = b.lowerBound;
+ 													val immutable Boolean stronglyBorrowed = b.stronglyBorrowed;
+ 												})
+ 											} { NONE } //all must be strongly borrowed or none strongly borrowed and lower bounds the same
+ 										}
+ 										case TakeBinding { NONE }
+ 									}
+ 								}
+ 								case None { NONE }
+ 							}
+ 						}, start)
+ 					}
+ 				}
+ 			} {
+ 				NONE;
+ 			}
+ 		};
  }
