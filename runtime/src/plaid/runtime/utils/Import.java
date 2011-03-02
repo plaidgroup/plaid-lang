@@ -23,7 +23,7 @@ public class Import {
 	private QualifiedIdentifier qid;
 	
 	public Import(String im) {
-		qid = new QualifiedIdentifier(im);
+		qid = QualifiedIdentifier.getQI(im);
 	}
 	
 	public boolean isStar() {
