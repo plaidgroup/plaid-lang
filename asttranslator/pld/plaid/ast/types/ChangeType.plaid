@@ -1,37 +1,38 @@
 package plaid.ast.types;
 
 /**
- *	ChangeTypes are just two permTypes.  This is a data structure
- * 	used in the types of methods and lambdas to indicate how the
- *	arguments and receivers change.  There is also a borrowed
- * 	flag which is not currently used as it was moved to the PermType
- *	It should likely be removed and the change in notation in toString
- *	determined based off of the type of the input.
- *	It is currently a case of PlaidType only for purposes of matching on it
- *	this is necessary for a robust == method, but should probably be 
- *	done using a Nominal flag of some kind.
+ *	ChangeTypes are used in the type of methods and lambdas to 
+ *  summarize the way in which the types of inputs to these
+ *  abstractions change as a part of the execution.  We represent
+ *  the start and end states as TypeBindings.  Change Types
+ *  that return a non-none permission will be represented
+ *  as BorrowBinding, while anything that ends with a none
+ *  permission will simply be represented as a TakeBinding.
+ *  We might be able to make these more lightweight by
+ *  separating out duplicate information between the two
+ *  TypeBindings, however, it is simpler to do it this
+ *  way for uniform handling elsewhere.
  */
 state ChangeType case of PlaidType {
 	
-	val /*PermType*/ input;
-	val /*PermType*/ output;
-	val /*Boolean*/ borrow;
+	val immutable TypeBinding input;
+	val immutable TypeBinding output;
 	
-	method ==(/*ChangeType*/ other) {
+	method immutable Boolean ==(immutable ChangeType other) {
 		match (other) {
 			case ChangeType {
-				this.input == other.input && this.output == other.output && this.borrow == other.borrow;
+				this.input == other.input && this.output == other.output;
 			}
 			default { false }
 		}
 	}
 	
 	method toString() {
-		var ret = input.toString() + " ";
-		ifElse ( this.borrow ) 
-		 { ret = ret + "><" }
-		 { ret = ret + ">>" };
-		 ret = ret +  " " + output.toString();
-		 ret
+		input.toString() + " >> " + output.toString()
+	}
+	
+	method immutable Boolean isSubChangeTypeOf(immutable ChangeType other, stateTable) {
+		this.input.isSubTypeBindingOf(other.input, stateTable) && 
+			this.output.isSubTypeBindingOf(other.output, stateTable);
 	}
 }
