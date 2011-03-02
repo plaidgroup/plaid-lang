@@ -1,0 +1,97 @@
+package plaid.ast.types;
+
+/**
+ *	Shared Permission
+ */
+state SharedPermission case of Permission {
+	method isWritable() {
+		true;
+	}
+
+	method splitPerm(p2) {
+		match(p2) {
+			// shared => shared/shared
+			case SharedPermission {
+				new Some{ val value = this; };
+			}
+			// shared => none/shared
+			case NonePermission {
+				new Some{ val value = this; };
+			}
+			default {
+				new None;
+			}
+		};
+	}
+	
+	method ==(p2) {
+		match(p2) {
+			case SharedPermission {
+				true;
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	method join(p2) {
+		match (p2) {
+			case DynPermission { p2 }
+			case UniquePermission { p2 }
+			case FullPermission { p2 }
+			case ImmutablePermission { p2 }
+			default { this }
+		}	
+	}
+	
+	method joinTo(p2, target) {
+		match (target) {
+			case UniquePermission {
+				match (p2) {
+					case SharePermission { //share + share = Unique
+						createSome(target);
+					}
+					default { NONE }
+				}
+			}
+			case FullPermission {
+				match (p2) {
+					case SharePermission { //share + share = Full
+						createSome(target);
+					}
+					default { NONE }
+				}
+			}
+			default {
+				val joined = this.join(p2);
+				ifElse (joined.asStrongAs(target))
+					{ createSome(target); }
+					{ NONE; };
+			}
+		
+		}
+	}
+	
+	method asStrongAs(p2) {
+		match (p2) {
+			case NonePermission { true }
+			case PurePermission { true }
+			default { false }
+		}
+	}
+	
+	//weaker
+	method /*Permission*/ merge(p2) {
+		match (p2) {
+			case DynPermission { DYNP }
+			case PurePermission { PURE }
+			case NonePermission { NONEP }
+			default { SHARED } //everything else stronger
+		}
+	}
+	
+	method toString() {
+		"shared"
+	}
+}
