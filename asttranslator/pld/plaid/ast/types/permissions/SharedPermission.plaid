@@ -4,94 +4,83 @@ package plaid.ast.types.permissions;
  *	Shared Permission
  */
 state SharedPermission case of Permission {
-	method isWritable() {
-		true;
+	
+	//shared references can write
+	method immutable Boolean isWritable()[pure SharedPermission] { true }
+
+	//shared references do not have their state guaranteed
+	method immutable Boolean guaranteesState()[pure SharedPermission] { false }
+
+	method immutable Boolean ==(immutable Permission p2)[immutable SharedPermission] {
+		match(p2) {
+			case SharedPermission { true }
+			default { false }
+		};
+	}
+	
+	method immutable String toString()[immutable SharedPermission] {
+		"shared"
 	}
 
-	method splitPerm(p2) {
+	// Shared can only be split up into more shared or pure or none or dyn
+	method /*unique Option<immutable Permission>*/ 
+			splitPerm(immutable Permission p2)
+					 [immutable SharedPermission >> void] 
+	{
 		match(p2) {
 			// shared => shared/shared
-			case SharedPermission {
-				new Some{ val value = this; };
-			}
+			case SharedPermission { createSome(this) }
+			// sahred => pure/shared
+			case PurePermission { createSome(this) }
 			// shared => none/shared
-			case NonePermission {
-				new Some{ val value = this; };
-			}	
-			default {
-				new None;
-			}
+			case NonePermission { createSome(this) }
+			// shared => Dyn/shared  KBN - is this correct?
+			case DynPermission { createSOme(this) }
+			default { new None }
 		};
 	}
 	
-	method ==(p2) {
-		match(p2) {
-			case SharedPermission {
-				true;
-			}
-			default {
-				false;
-			}
-		};
-	}
-	
-	method join(p2) {
+	//shared can coexist with dyn, shared, none, and pure permissions
+	method /*unique Option<immutable Permission>*/ 
+			join(immutable Permission >> void p2)
+				[immutable SharedPermission >> void] 
+	{
 		match (p2) {
-			case DynPermission { p2 }
-			case UniquePermission { p2 }
-			case FullPermission { p2 }
-			case ImmutablePermission { p2 }
-			default { this }
+			case DynPermission { createSome(p2) } //shared/dyn => dyn
+			case SharedPermission { createSome(this) } //shared/shared => shared
+			case PurePermission { createSome(this) } //shared/pure => shared
+			case NonePermission { createSome(this) } //shared/none => shared
+			default { new None }  //everything else can't coexist - return nothing
 		}	
 	}
 	
-	method joinTo(p2, target) {
+	//you can join two shareds into unique or full permissions, otherwise, you better
+	//be joining to shared
+	method /*unique Option<immutable Permission>*/ 
+		joinTo(immutable Permission >> void p2, immutable Permission >> void target)
+			  [immutable SharedPermision >> void] 
+	{
 		match (target) {
-			case UniquePermission {
+			case UniquePermission { //share + share = Unique
 				match (p2) {
-					case SharePermission { //share + share = Unique
-						createSome(target);
-					}
-					default { NONE }
+					case SharePermission { createSome(target) }
+					default { new None }
 				}
 			}
-			case FullPermission {
+			case FullPermission { //share + share = Full
 				match (p2) {
-					case SharePermission { //share + share = Full
-						createSome(target);
-					}
-					default { NONE }
+					case SharePermission { createSome(target) }
+					default { new None }
 				}
 			}
-			default {
-				val joined = this.join(p2);
-				ifElse (joined.asStrongAs(target))
-					{ createSome(target); }
-					{ NONE; };
-			}
-		
+			case SharedPermission { this.join(p2) }
+			default { new None }
 		}
 	}
 	
-	method asStrongAs(p2) {
-		match (p2) {
-			case NonePermission { true }
-			case PurePermission { true }
-			default { false }
-		}
-	}
-	
-	//weaker
-	method /*Permission*/ merge(p2) {
-		match (p2) {
-			case DynPermission { DYNP }
-			case PurePermission { PURE }
-			case NonePermission { NONEP }
-			default { SHARED } //everything else stronger
-		}
-	}
-	
-	method immutable Permission leastUpperBound(p2) {
+	//Immutable is at the same level on different branches of the lattice than Shared,
+	//in this case the upper bound is FULL
+	method immutable Permission leastUpperBound(immutable Permission p2)[immutable SharedPermission] {
 		match (p2) {
 			case DynPermission { DYNP }
 			case UniquePermission { UNIQUE }
@@ -107,7 +96,9 @@ state SharedPermission case of Permission {
 		}
 	}
 	
-	method immutable Permission greatestLowerBound(p2) {
+	//Immutable is at the same level on different branches of the lattice than Shared,
+	//in this case the lower bound is PURE
+	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable SharedPermission] {
 		match (p2) {
 			case DynPermission { DYNP }
 			case UniquePermission { SHARED }
@@ -123,9 +114,24 @@ state SharedPermission case of Permission {
 		}
 	}
 	
-	
-	
-	method toString() {
-		"shared"
+	//***DEPRECATED***
+	method asStrongAs(p2) {
+		match (p2) {
+			case NonePermission { true }
+			case PurePermission { true }
+			default { false }
+		}
 	}
+	
+	//weaker
+	//***DEPRECATED***
+	method /*Permission*/ merge(p2) {
+		match (p2) {
+			case DynPermission { DYNP }
+			case PurePermission { PURE }
+			case NonePermission { NONEP }
+			default { SHARED } //everything else stronger
+		}
+	}	
+
 }

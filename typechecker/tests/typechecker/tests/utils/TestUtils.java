@@ -23,7 +23,7 @@ import plaid.ast.types.NonePermission;
 import plaid.ast.types.PermType;
 import plaid.ast.types.PurePermission;
 import plaid.ast.types.SharedPermission;
-import plaid.ast.types.Type;
+import plaid.ast.types.ObjectType;
 import plaid.ast.types.UniquePermission;
 import plaid.compilerjava.types.Permission;
 import plaid.compilerjava.types.TypeDecl;
@@ -199,7 +199,7 @@ public class TestUtils {
 				protoField(new PlaidJavaObjectMap(typeDecls)));
 		
 		// instantiate the new prototype
-		return initAndInstantiateState(Type.Type, newState);
+		return initAndInstantiateState(ObjectType.ObjectType, newState);
 	}
 	
 	/**

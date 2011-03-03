@@ -4,71 +4,56 @@ package plaid.ast.types.permissions;
  *	None permission
  */
 state NonePermission case of Permission {
-	method isWritable() {
-		false;
-	}
+	
+	// none provides no write abilities
+	method immutable Boolean isWritable()[pure NonePermission] { false }
 
-	method splitPerm(p2) {
+	// none does not guarantee the state of the object
+	method immutable Boolean guaranteesState()[pure NonePermission] { false }
+	
+	method immutable Boolean ==(immutable Permission p2)[immutable NonePermission] {
 		match(p2) {
-			// none => none/none
-			case NonePermission {
-				new Some{ val value = this; };
-			}
-			default {
-				new None;
-			}
-		};
-	}
-	
-	method ==(p2) {
-		match(p2) {
-			case NonePermission {
-				true;
-			}
-			default {
-				false;
-			}
-		};
-	}
-	
-	//always take the other one
-	method join(p2) {
-		p2;
-	}
-	
-	//could only join to None
-	method joinTo(p2,target) {
-		match (target) {
-			case NonePermission { createSome(target) }
-			default { NONE }
-		}
-	}
-	
-	//always weaker
-	method asStrongAs(p2) {
-		match (p2) {
 			case NonePermission { true }
 			default { false }
+		};
+	}
+	
+	method immutable String toString()[immutable Permission] {
+		"none"
+	}
+
+	//Only None can be split from None
+	method /*unique Option<immutable Permission>*/ splitPerm(immutable Permission p2)
+															[immutable NonePermission >> void] 
+	{
+		match(p2) {
+			// none => none/none
+			case NonePermission { createSome(this) }
+			// none => dyn/none KBN - correct?
+			case DynPermission { createSome(this) }
+			default { new None }
+		};
+	}
+	
+	//none can coexist with anything, so always just take the other permission
+	method /*unique Option<immutable Permission>*/ join(immutable Permission >> void p2)
+													   [immutable NonePermission >> void] {
+		createSome(p2);
+	}
+	
+	//can only join to None
+	method /*unique Option<immutable Permission>*/ 
+		joinTo(immutable Permission >> void p2, immutable Permission >> void target)
+			  [immutable NonePermission >> void] 
+	{
+		match (target) {
+			case NonePermission { createSome(target) }
+			default { new None }
 		}
 	}
 	
-		method immutable Permission leastUpperBound(p2) {
-		match (p2) {
-			case DynPermission { DYNP }
-			case UniquePermission { NONEP }
-			case FullPermission { NONEP }
-			case ImmutablePermission { NONEP }
-			case SharedPermission { NONEP }
-			case PurePermission { NONEP }
-			case NonePermission { NONEP }
-			default { 
-				java.lang.System.out.println("not a permission"); 
-				DYNP; 
-			}
-		}
-	}
-	
-	method immutable Permission greatestLowerBound(p2) {
+	//upper bound will always be the other permission
+	method immutable Permission leastUpperBound(immutable Permission p2)[immutable NonePermission] {
 		match (p2) {
 			case DynPermission { DYNP }
 			case UniquePermission { UNIQUE }
@@ -84,12 +69,37 @@ state NonePermission case of Permission {
 		}
 	}
 	
+	//lower bound will always be None (or Dyn)
+	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable NonePermission] {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { NONEP }
+			case FullPermission { NONEP }
+			case ImmutablePermission { NONEP }
+			case SharedPermission { NONEP }
+			case PurePermission { NONEP }
+			case NonePermission { NONEP }
+			default { 
+				java.lang.System.out.println("not a permission"); 
+				DYNP; 
+			}
+		}	
+	}
+	
 	//weaker
+	//***DEPRECATED***
 	method /*Permission*/ merge(p2) {
 		NONEP //always weaker
 	}
 	
-	method toString() {
-		"none"
+	//always weaker
+	//***DEPRECATED***
+	method asStrongAs(p2) {
+		match (p2) {
+			case NonePermission { true }
+			default { false }
+		}
 	}
+	
+
 }
