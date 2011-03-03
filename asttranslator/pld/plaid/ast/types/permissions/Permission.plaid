@@ -5,9 +5,6 @@ package plaid.ast.types.permissions;
  *  DynP, Unique, Full, Immutable, Shared, Pure, None
  */
 state Permission {
-	// What's the purpose of permSplits?
-	// val permSplits = java.util.HashMap.new();
-	
 	/**
 	 * Determines whether a specific permission is writable.  If this permission 
 	 * allows a stage change, then the permission is writable and this function 
@@ -30,12 +27,50 @@ state Permission {
 	 */
 	method immutable Boolean ==(immutable Permission p2)[immutable Permission];
 	
+	/** 
+	 * Print
+	 */
+	method immutable String toString()[immutable Permission];
+	
 	/**
 	 * determines whether the current permission can be split into
 	 * the specified permission.  If it can, the function returns Some(newPerm)
 	 * where newPerm is the residue after splitting.  If it cannot, it returns None
 	 */
-	method /*unique Option<immutable Permission>*/ splitPerm(p2)[immutable Permission];
+	method /*unique Option<immutable Permission>*/ splitPerm(immutable Permission p2)
+															[immutable Permission >> void];
+	
+	/**
+	 *  While there is always a least upper bound, it may not always be possible to combine two
+	 *  permissions into that upper bound.  The join method attempts to join two permissions
+	 *  together.  If they cannot be joined because they cannot coexist, then None is returned.
+	 */
+	method /*unique Option<immutable Permission>*/ join(immutable Permission >> void p2)
+													   [immutable Permission >> void];
+	
+	/**
+	 * When permissions are strongly borrowed, it is possible to rejoin them
+	 * and get back a stronger type.  If the target can be regained from this
+	 * permission and p2 given that they were strongly borrowed (no persistent
+	 * aliases were created), then Some is returned wapping the target permission.
+	 * Otherwise, None is returned.
+	 */
+	method /*unique Option<immutable Permission>*/ 
+		joinTo(immutable Permission >> void p2, immutable Permission >> void target)
+			  [immutable Permision >> void];
+
+	/**
+	 * returns true if this permission is as subpermission of p2
+	 * returns false otherwise
+	 * for permissions, subPerms can be said to be "stronger" than their superPerms 
+	 * the function is implemented in terms of splitting.  If p2 can be split off
+	 * from this permission, then p2 is a super Permission of this permission
+	 * order: dyn, unique, full, immutable <> shared, pure, none
+	 * immutable and shared neither stronger than the other
+	 */
+	method immutable Boolean isSubPermOf(immutable Permission p2)[immutable Permission >> void] {
+		this.splitPerm(p2);
+	}
 	
 	/**
 	 *  If we think of permissions as a lattice, then we can define a least
@@ -56,31 +91,6 @@ state Permission {
 	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable Permission];
 	
 	/**
-	 *  While there is always a least upper bound, it may not always be possible to combine two
-	 *  permissions into that upper bound.  The join method attempts to join two permissions
-	 *  together.  If they cannot be joined because they cannot coexist, then None is returned.
-	 */
-	method /*unique Option<immutable Permission>*/ join(immutable Permission p2)[immutable Permission];
-	
-	/**
-	 * When permissions are strongly borrowed, it is possible to rejoin them
-	 * and get back a stronger type.  If the target can be regained from this
-	 * permission and p2 given that they were strongly borrowed (no persistent
-	 * aliases were created), then Some is returned wapping the target permission.
-	 * Otherwise, None is returned.
-	 */
-	method /*unique Option<immutable Permission>*/ joinTo(immutable Permission p2, immutable Permission target);
-
-	/**
-	 * returns true if this permission is as subpermission of p2
-	 * returns false otherwise
-	 * for permissions, subPerms can be said to be "stronger" than their superPerms 
-	 * order: dyn, unique, full, immutable <> shared, pure, none
-	 * immutable and shared neither stronger than the other
-	 */
-	method immutable Boolean isSubPermOf(immutable Permission p2)[immutable Permission];
-	
-	/**
 	 * returns true if this permission is as strong or stronger than p2
 	 * returns false otherwise
 	 * order: dyn, unique, full, immutable <> shared, pure, none
@@ -94,6 +104,4 @@ state Permission {
 	 *  ***Deprecated in favor of greatestLowerBound***
 	 */
 	method merge(p2);
-	
-	method immutable String toString()[immutable Permission];
 }
