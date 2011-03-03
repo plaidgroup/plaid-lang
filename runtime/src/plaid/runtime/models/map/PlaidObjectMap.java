@@ -286,7 +286,7 @@ public class PlaidObjectMap implements PlaidObject {
 		if ( tags == null ) {
 			return EMPTY_TAGS;
 		}
-		return Collections.unmodifiableCollection(tags());
+		return tags();
 	}
 	
 	public boolean matchesTag(String tagString) {
