@@ -8,9 +8,117 @@ import plaid.lang.*;
  * typechecking purposes 
  */
 state NominalType case of ObjectType {
-	val /*ID*/ typeName;
-	var /*Boolean*/ unpacked = false;
-	val /*Map<ID,PermType>*/ missing = java.util.HashMap.new();
+	val unique ID typeName; //should I cache/store the state definition instead of just the name?
+	
+	/**
+	 *  to find the member of a nominal type, we check the definition of the State from the StateTable
+	 */ 
+	method /* unique Option<immutable DeclType>*/ contains(immutable ID f, unique StateTable st)[immutable NominalType] {
+		val /*unique Option<immutable StateType>*/ theState	= st.get(this.typeName);
+		match (theState) {
+			case Some { theState.value.declaredTypeOf(f) }
+			case None { new None }
+		}
+	}
+	
+	/**
+	 *  declared type is the same as contains in for Nominal Types
+	 */
+	method /* unique Option<immutable DeclType> */ declaredType(immutable ID f, unique StateTable st)[immutable NominalType] {
+		this.contains(f,st)
+	}
+	
+	/**
+	 *  member update causes this type to become unpacked, as long as we update a field and the new type of the field
+	 *  does not meet the invariant of the field (ie is not a subtype)
+	 */
+	method void memberUpdate(immutable ID f, immutable Binding b, unique StateTable st)[unique NominalType >> unique ObjectType] {
+		val /*unique Option<immutable StateType>*/ theState = st.get(this.typeName);
+		match (theState) {
+			case Some {
+				val /*unique Map<unique ID, immutable DeclType>*/ nominalMembers = theState.value.getDeclaredTypes();
+				if(nominalMembers.containsKey(f)) {
+					val /*immutable DeclType*/ fCurrentType = nominalMembers.get(f);
+					match (fCurrentType) {
+						case FieldType {
+							match (b) {
+								case BorrowBinding {  //if tracked, we must unpack
+									nominalMembers.put(f,new FieldType{   //update the field type in nominalMembers
+										val immutable ID name = f;
+										val immutable TypeBinding binding = b;
+										val immutable Boolean isImmutable = fCurrentType.isImmutable;
+									});
+									this <- UnpackedType {   //make this an unpacked type with nominalMembers
+										val unique ID typeName = this.typeName;
+										val /*unique Map<unique ID,immutable DeclType>*/ members = nominalMembers;	
+									}
+								}
+								case TakeBinding {
+									val immutable TypeBinding fCurrentBinding = fCurrentType.binding;
+									match (fCurrentBinding) {
+										case TakeBinding {
+											//only have to update the type and unpack if the new type is not a subtype
+											//of the field Type
+											if(!b.currentType.isSubPermTypeOf(fCurrentBinding.currentType)) {
+												nominalMembers.put(f,new FieldType{   //update the field type in nominalMembers
+													val immutable ID name = f;
+													val immutable TypeBinding binding = b;
+													val immutable Boolean isImmutable = fCurrentType.isImmutable;
+												});
+												this <- UnpackedType {   //make this an unpacked type with nominalMembers
+													val unique ID typeName = this.typeName;
+													val /*unique Map<unique ID,immutable DeclType>*/ members = nominalMembers;	
+												}
+											}
+										}
+										case BorrowBinding {
+											java.lang.System.out.println("Nominal Types cannot have borrowed Bindings in fields");
+											//error - nominal types shouldn't get here
+										}
+									}
+								}
+							}
+						}
+						default { } //no op - cannot update type of other declarations (ERROR?)
+					}	
+				}
+			}
+			case None { } //noop
+		}
+		
+	}
+	
+	/**
+	 *  Some actions such as state change and packing cannot be done if an
+	 *  ObjectType is tracking an alias to one of its fields.  This predicate
+	 *  checks if this is the case and returns true if not.
+	 */
+	method immutable Boolean notborrowed()[immutable ObjectType];
+	
+	/**
+	 *  Pack attempts to turn this objectType into a NominalType.  No action is taken if
+	 *  this cannot be done.
+	 */
+	method void pack()[unique ObjectType];
+	
+	/**
+	 *  constructs the least upper Bound of this type and the other type.  The state table is use
+	 *  for nominal types
+	 */
+	method unique ObjectType leastUpperBound(immutable ObjectType other, unique StateTable st)[immutable ObjectType];
+	
+	/**
+	 *  Object subtyping
+	 */
+	method immutable Boolean isSubObjectTypeOf(immutable ObjectType other)[immutable ObjectType];
+	
+	/**
+	 *  ObjectType downgrading downgrades the objectType of any field that currently has a weak permission
+	 *  Note that we currently assume that Nominal Types cannot have fields with weak permissions
+	 */
+	method void downgrade()[unique ObjectType];
+	
+	
 	
 	method ==(/*NominalType*/ other) {
 		match (other) {
