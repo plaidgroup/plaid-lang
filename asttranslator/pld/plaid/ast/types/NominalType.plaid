@@ -8,7 +8,7 @@ import plaid.lang.*;
  * typechecking purposes 
  */
 state NominalType case of ObjectType {
-	val unique ID typeName; //should I cache/store the state definition instead of just the name?
+	val immutable ID typeName; //should I cache/store the state definition instead of just the name?
 	
 	/**
 	 *  to find the member of a nominal type, we check the definition of the State from the StateTable
@@ -84,41 +84,83 @@ state NominalType case of ObjectType {
 				}
 			}
 			case None { } //noop
-		}
-		
+		}	
 	}
 	
 	/**
-	 *  Some actions such as state change and packing cannot be done if an
-	 *  ObjectType is tracking an alias to one of its fields.  This predicate
-	 *  checks if this is the case and returns true if not.
+	 *  Nominal types are never borrowed in any way
 	 */
-	method immutable Boolean notborrowed()[immutable ObjectType];
+	method immutable Boolean notborrowed()[immutable NominalType] { true }
 	
 	/**
-	 *  Pack attempts to turn this objectType into a NominalType.  No action is taken if
-	 *  this cannot be done.
+	 *  A nominal type is already packed
 	 */
-	method void pack()[unique ObjectType];
+	method void pack()[unique NominalType] { }
 	
 	/**
-	 *  constructs the least upper Bound of this type and the other type.  The state table is use
-	 *  for nominal types
+	 *  constructs the least upper bound from the states represented by the nominal types
+	 *  of this and other.  none is returned if other is not a nominal type.
 	 */
-	method unique ObjectType leastUpperBound(immutable ObjectType other, unique StateTable st)[immutable ObjectType];
+	method /*unique Option<unique ObjectType>*/ leastUpperBound(immutable ObjectType other, unique StateTable st)
+											[immutable NominalType]
+	{
+		match (other) {
+			case NominalType {
+				val /*unique Option<immtuable StateType>*/ thisState = st.get(this.typeName);
+				val /*unique Option<immtuable StateType>*/ otherState = st.get(other.typeName);
+				match (thisState) {
+					case Some {
+						match (otherState) {
+							case Some {
+								thisState.value.leastUpperBound(otherState.value)
+							}	
+							case None { new None }
+						}
+					}
+					case None { new None }
+				}			
+			}
+			default { new None }
+		}
+	}	
+										
 	
 	/**
-	 *  Object subtyping
+	 *  must be a nominal type, in which case we consult the state table
 	 */
-	method immutable Boolean isSubObjectTypeOf(immutable ObjectType other)[immutable ObjectType];
+	method immutable Boolean isSubObjectTypeOf(immutable ObjectType other)[immutable NominalType] {
+		match (other) {
+			case NominalType {
+				val /*unique Option<immtuable StateType>*/ thisState = st.get(this.typeName);
+				val /*unique Option<immtuable StateType>*/ otherState = st.get(other.typeName);
+				match (thisState) {
+					case Some {
+						match (otherState) {
+							case Some {
+								thisState.value.subtypeOf(otherState.value)
+							}	
+							case None { false }
+						}
+					}
+					case None { false }
+				}			
+			}
+			default { false }
+		}
+	}
 	
 	/**
-	 *  ObjectType downgrading downgrades the objectType of any field that currently has a weak permission
-	 *  Note that we currently assume that Nominal Types cannot have fields with weak permissions
+	 *  Assuming that fields of nominal types cannot have weak permissions, then this method
+	 *  is a no op (this will change later)
 	 */
-	method void downgrade()[unique ObjectType];
+	method void downgrade()[unique NominalType] {
+		//no op
+	}
 	
-	
+	method toString() {
+		"N(" + this.typeName.name + ")";
+		
+	}
 	
 	method ==(/*NominalType*/ other) {
 		match (other) {
@@ -131,181 +173,162 @@ state NominalType case of ObjectType {
 		}
 	}
 	
-	method join(other, stateTable) {
-		match (other) {
-			case NominalType { //least upper bound
-				val /*Option StateType*/ thisST = stateTable.get(this.typeName);
-				val /*Option StateType*/ otherST = stateTable.get(other.typeName);
-				match (thisST) {
-					case Some {
-						match(otherST) {
-							case Some {
-								val /*Option StateType*/ lub = thisST.value.leastUpperBound(otherST.value);
-								match (lub) {
-									case Some {
-										//java.lang.System.out.println("***JOIN SUCCEEDED: " + this.toString() + " + " + other.toString() + " = " + lub.value.name.name);
-										new NominalType { val typeName = lub.value.name.copy(); }
-									}
-									case None {
-										java.lang.System.out.println("cannot join " + this.toString() + " and " + other.toString());
-										new NominalType { val typeName = new ID { val name = "unit"; }; };
-									
-									}
-								}
-							}
-							case None {
-								java.lang.System.out.println("state " + other.typeName.name + " not declared");
-								new NominalType { val typeName = new ID { val name = "unit"; }; };	
-							}
-						}
-					}
-					case None {
-						//where to log an error?
-						java.lang.System.out.println("state " + this.typeName.name + " not declared");
-						new NominalType { val typeName = new ID { val name = "unit"; }; };	
-					}
-				}	
-			}
-			default { 
-				java.lang.System.out.println("cannot join " + this.toString() + " with a non-NominalType");
-				new NominalType { val typeName = new ID { val name = "unit"; }; };
-			} 
-		}
-	}
-
-	method merge(other, stateTable) {
-		java.lang.System.out.println("Implement merging in NominalType");
-	}
-	
-	method toString() {
-		var ret = "N(" + this.typeName.name + ")";
-		match (unpacked) {
-			case True {
-				ret = ret + " \\ {";
-				val iter = this.missing.keySet().iterator();
-				while { iter.hasNext() } {
-					ret = ret + iter.next().name + ", ";
-				};
-				ret = ret.substring(0, ret.length() - 2);
-				ret = ret + "}";
-			}
-			case False {
-				//nothing more to add
-			}
-		};
-		ret
-	}
-	
-	method /*Boolean*/ subtypeOf(/*Type*/ other, /*StateTable*/ stateTable) {
-		match (other) {
-			case NominalType {
-				ifElse (this.unpacked || other.unpacked) {
-					java.lang.System.out.println("TYPECHECK FAILED: cannot subtype unpacked types");
-					false;
-				} {
-					val /*Option StateType*/ otherST = stateTable.get(other.typeName);
-					val /*Option StateType*/ thisST = stateTable.get(this.typeName);
-					match (otherST) {
-						case Some {
-							match (thisST) {
-								case Some {
-									val /*Boolean*/ typeSub = thisST.value.subtypeOf(otherST.value, stateTable);
-									if(!typeSub) { java.lang.System.out.println("TYPECHECK FAILED: " + this.typeName.name + " not a subtype of " + other.typeName.name) };
-									typeSub
-								}
-								case None {
-									java.lang.System.out.println("TYPECHECK FAILED: type " + this.typeName.name + " not declared");
-									false;
-								}
-							}	
-						}
-						case None {
-							java.lang.System.out.println("TYPECHECK FAILED: type " + other.typeName.name + " not declared");
-							false;
-						}
-					}
-				}
-			}
-			default {
-				java.lang.System.out.println("TYPECHECK FAILED: nominal cannot be a subtype of a non-nominal Type");
-				false;
-			}
-		}
-	}
-	
-	//method to handle an initial version of unpacking
-	method /*Boolean*/ takeMember(/*ID*/ member, /*StateTable*/ stateTable) {
-		ifElse (missing.containsKey(member)) {
-			val msg = "" + member.name + " from state " + this.typeName.name + " already taken";
-			java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
-			false //already taken
-		} {
-			val /*Option StateType*/ thisST = stateTable.get(this.typeName); //TODO: better handling of state types - should be associated with Nominal Types?
-			match (thisST) {
-				case Some {
-					val /*Option DeclType*/ memberType = thisST.value.declaredTypeOf(member);
-					match (memberType) {
-						case Some {
-							match (memberType.value) {
-								case FieldType {
-									this.unpacked = true;
-									this.missing.put(member, memberType.value.permType);
-									true;
-								}
-								default {
-									val msg = "cannot take method " + member + " from state " + this.typeName.name;
-									java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
-									false
-								}
-							}
-						}
-						case None {
-							//this also shouldn't be an error - caught earlier
-							java.lang.System.out.println("TYPECHECK FAILED: state " + this.typeName.name + " does not have member " + member.name); 
-							false
-						}
-					}	
-				}
-				case None {
-					val msg ="state " + this.typeName.name + " not declared";
-					java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
-					false
-				}
-				
-			}
-		
-		} 
-	}
-	
-	method /*Boolean*/ return(/*ID*/ member, /*PermType*/ type, /*StateTable*/ stateTable) {
-		ifElse (this.missing.containsKey(member)) {
-			val /*Option PermType*/ canReturn = this.missing.get(member).splitPerm(type, stateTable);
-			match (canReturn) {
-				case Some {
-					missing.remove(member);
-					if (missing.size() == 0) { this.unpacked = false; };
-					true;
-				}
-				case None {
-					val msg = type.toString() + " is not enough permission to return member " + member.name + " to state " + this.typeName.name;
-					java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
-					false
-				}
-			}  
-		} {
-			val msg = member + " from state " + this.typeName.name + " not missing";
-			java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
-			false
-		}
-	}
-	
-	method copy() {
-		val copy = new NominalType {
-			val typeName = this.typeName.copy();
-			override var unpacked = this.unpacked;
-		};
-		copy.missing.putAll(this.missing);
-		copy;
-	}
+// 	method join(other, stateTable) {
+// 		match (other) {
+// 			case NominalType { //least upper bound
+// 				val /*Option StateType*/ thisST = stateTable.get(this.typeName);
+// 				val /*Option StateType*/ otherST = stateTable.get(other.typeName);
+// 				match (thisST) {
+// 					case Some {
+// 						match(otherST) {
+// 							case Some {
+// 								val /*Option StateType*/ lub = thisST.value.leastUpperBound(otherST.value);
+// 								match (lub) {
+// 									case Some {
+// 										//java.lang.System.out.println("***JOIN SUCCEEDED: " + this.toString() + " + " + other.toString() + " = " + lub.value.name.name);
+// 										new NominalType { val typeName = lub.value.name.copy(); }
+// 									}
+// 									case None {
+// 										java.lang.System.out.println("cannot join " + this.toString() + " and " + other.toString());
+// 										new NominalType { val typeName = new ID { val name = "unit"; }; };
+// 									
+// 									}
+// 								}
+// 							}
+// 							case None {
+// 								java.lang.System.out.println("state " + other.typeName.name + " not declared");
+// 								new NominalType { val typeName = new ID { val name = "unit"; }; };	
+// 							}
+// 						}
+// 					}
+// 					case None {
+// 						//where to log an error?
+// 						java.lang.System.out.println("state " + this.typeName.name + " not declared");
+// 						new NominalType { val typeName = new ID { val name = "unit"; }; };	
+// 					}
+// 				}	
+// 			}
+// 			default { 
+// 				java.lang.System.out.println("cannot join " + this.toString() + " with a non-NominalType");
+// 				new NominalType { val typeName = new ID { val name = "unit"; }; };
+// 			} 
+// 		}
+// 	}
+// 
+// 	method merge(other, stateTable) {
+// 		java.lang.System.out.println("Implement merging in NominalType");
+// 	}
+// 	
+// 	method /*Boolean*/ subtypeOf(/*Type*/ other, /*StateTable*/ stateTable) {
+// 		match (other) {
+// 			case NominalType {
+// 				ifElse (this.unpacked || other.unpacked) {
+// 					java.lang.System.out.println("TYPECHECK FAILED: cannot subtype unpacked types");
+// 					false;
+// 				} {
+// 					val /*Option StateType*/ otherST = stateTable.get(other.typeName);
+// 					val /*Option StateType*/ thisST = stateTable.get(this.typeName);
+// 					match (otherST) {
+// 						case Some {
+// 							match (thisST) {
+// 								case Some {
+// 									val /*Boolean*/ typeSub = thisST.value.subtypeOf(otherST.value, stateTable);
+// 									if(!typeSub) { java.lang.System.out.println("TYPECHECK FAILED: " + this.typeName.name + " not a subtype of " + other.typeName.name) };
+// 									typeSub
+// 								}
+// 								case None {
+// 									java.lang.System.out.println("TYPECHECK FAILED: type " + this.typeName.name + " not declared");
+// 									false;
+// 								}
+// 							}	
+// 						}
+// 						case None {
+// 							java.lang.System.out.println("TYPECHECK FAILED: type " + other.typeName.name + " not declared");
+// 							false;
+// 						}
+// 					}
+// 				}
+// 			}
+// 			default {
+// 				java.lang.System.out.println("TYPECHECK FAILED: nominal cannot be a subtype of a non-nominal Type");
+// 				false;
+// 			}
+// 		}
+// 	}
+// 	
+// 	//method to handle an initial version of unpacking
+// 	method /*Boolean*/ takeMember(/*ID*/ member, /*StateTable*/ stateTable) {
+// 		ifElse (missing.containsKey(member)) {
+// 			val msg = "" + member.name + " from state " + this.typeName.name + " already taken";
+// 			java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
+// 			false //already taken
+// 		} {
+// 			val /*Option StateType*/ thisST = stateTable.get(this.typeName); //TODO: better handling of state types - should be associated with Nominal Types?
+// 			match (thisST) {
+// 				case Some {
+// 					val /*Option DeclType*/ memberType = thisST.value.declaredTypeOf(member);
+// 					match (memberType) {
+// 						case Some {
+// 							match (memberType.value) {
+// 								case FieldType {
+// 									this.unpacked = true;
+// 									this.missing.put(member, memberType.value.permType);
+// 									true;
+// 								}
+// 								default {
+// 									val msg = "cannot take method " + member + " from state " + this.typeName.name;
+// 									java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
+// 									false
+// 								}
+// 							}
+// 						}
+// 						case None {
+// 							//this also shouldn't be an error - caught earlier
+// 							java.lang.System.out.println("TYPECHECK FAILED: state " + this.typeName.name + " does not have member " + member.name); 
+// 							false
+// 						}
+// 					}	
+// 				}
+// 				case None {
+// 					val msg ="state " + this.typeName.name + " not declared";
+// 					java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
+// 					false
+// 				}
+// 				
+// 			}
+// 		
+// 		} 
+// 	}
+// 	
+// 	method /*Boolean*/ return(/*ID*/ member, /*PermType*/ type, /*StateTable*/ stateTable) {
+// 		ifElse (this.missing.containsKey(member)) {
+// 			val /*Option PermType*/ canReturn = this.missing.get(member).splitPerm(type, stateTable);
+// 			match (canReturn) {
+// 				case Some {
+// 					missing.remove(member);
+// 					if (missing.size() == 0) { this.unpacked = false; };
+// 					true;
+// 				}
+// 				case None {
+// 					val msg = type.toString() + " is not enough permission to return member " + member.name + " to state " + this.typeName.name;
+// 					java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
+// 					false
+// 				}
+// 			}  
+// 		} {
+// 			val msg = member + " from state " + this.typeName.name + " not missing";
+// 			java.lang.System.out.println("TYPECHECK FAILED: "+ msg);
+// 			false
+// 		}
+// 	}
+// 	
+// 	method copy() {
+// 		val copy = new NominalType {
+// 			val typeName = this.typeName.copy();
+// 			override var unpacked = this.unpacked;
+// 		};
+// 		copy.missing.putAll(this.missing);
+// 		copy;
+// 	}
 
 }
