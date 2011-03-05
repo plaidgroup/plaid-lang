@@ -94,8 +94,108 @@ val nominalTypeTests = fn () => {
 	test = otherNomType.contains(iFieldName,st);
 	System.out.print("\tOther.contains(i,st) = Some(iField) - ");
 	match (test) {
-		case Some { ok() }
+		case Some { 
+			match (test.value == iField) { 
+				case True { ok() }
+				case False { failMsg("exists, but not the same as iField") }
+			}
+		}
 		case None { fail() }
+	};
+	System.out.println("");
+	
+	//Test declaredType
+	System.out.println("Testing declaredType");
+	test = otherNomType.declaredType(createID("f"),st);
+	System.out.print("\tOther.declaredType(f,st) = None - ");
+	match (test) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	test = otherNomType.declaredType(iFieldName,st);
+	System.out.print("\tOther.declaredType(i,st) = Some(iField) - ");
+	match (test) {
+		case Some { 
+			match (test.value == iField) { 
+				case True { ok() }
+				case False { failMsg("exists, but not the same as iField") }
+			}
+		}
+		case None { fail() }
+	};
+	var testCompare = otherNomType.contains(iFieldName,st);
+	System.out.print("\tOther.declaredType(i,st) = Other.declaredType(i,st) - ");
+	match (test) {
+		case Some { 
+			match(testCompare) {
+				case Some {
+					match (test.value == testCompare.value) { 
+						case True { ok() }
+						case False { failMsg("exists, but not the same declaration type") }
+					}
+				}
+				case None { failMsg("declaredType() gives a member, but contains() does not") }
+			}	
+		}
+		case None { 
+			match(testCompare) {
+				case Some { failMsg("contains() gives a member, but declaredType() does not") }
+				case None { ok() }
+			}
+		}
+	};
+	System.out.println("");
+	
+	//Testing memberUpdate
+	System.out.println("Testing memberUpdate");
+	val updateFieldBinding = new TakeBinding { var currentType = new PermType {
+																val perm = IMMUTABLE;
+																val type = topNomType;
+															};
+										};
+	
+	var unique NominalType otherUpdateType = createNominalType(other);
+	otherUpdateType.memberUpdate(createID("f"),updateFieldBinding,st);
+	System.out.print("\tOther.memberUpdate(f,IMMUTABLE Top,st) = Other (no update) - ");
+	match (otherUpdateType == otherNomType) {
+		case True { ok() }
+		case False { fail() }
+	};
+	otherUpdateType = createNominalType(other);
+	otherUpdateType.memberUpdate(iFieldName,updateFieldBinding,st);
+	System.out.print("\tOther.memberUpdate(i,IMMUTABLE Top,st) = Other (no update) - ");
+	//System.out.println(otherUpdateType.toString());
+	match (otherUpdateType == otherNomType) {
+		case True { ok() }
+		case False { fail() }
+	};
+	otherUpdateType = createNominalType(other);
+	otherUpdateType.memberUpdate(uFieldName,updateFieldBinding,st);
+	val uFieldBindingU = new TakeBinding { var currentType = new PermType {
+																val perm = IMMUTABLE;
+																val type = topNomType;
+															};
+										};
+	val uFieldU = new FieldType { val name = uFieldName;
+								 val binding = uFieldBindingU;
+								 val isImmutable = true;
+							   };
+	
+	val /*unique Map<unique ID,immutable DeclType>*/ unpackedMembers = java.util.HashMap.new();
+	unpackedMembers.put(iFieldName,iField);
+	unpackedMembers.put(uFieldName,uFieldU);
+	
+	val otherUnpackedType = new UnpackedType {
+		val immutable ID typeName = other;
+		val /*unique Map<unique ID,immutable DeclType>*/ members = unpackedMembers;
+	};
+	
+	System.out.println("\tOther.memberUpdate(u,IMMUTABLE Top,st) = ");
+	System.out.print("\t\t" + otherUnpackedType.toString() + " - ");
+	//System.out.println(otherUpdateType.toString());
+	match (otherUpdateType == otherUnpackedType) {
+		case True { ok() }
+		case False { fail() }
 	};
 	
 	
