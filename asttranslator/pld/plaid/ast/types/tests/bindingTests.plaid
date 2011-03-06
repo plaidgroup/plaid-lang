@@ -1,0 +1,296 @@
+package plaid.ast.types.tests;
+
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import java.lang.System;
+
+val () -> void bindingTests = fn () => {
+
+	System.out.println("---------------------------");
+	System.out.println("|      BINDING TESTS      |");
+	System.out.println("---------------------------");
+
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = createID("unit");
+	temp.put(u, new StateType { val name = u; val superType = new None; });
+	
+	//Top
+	val top = createID("Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = createID("A");
+	val aType = new StateType { val name = a; val superType = createSome(topType);};
+	temp.put(a,aType);
+	
+	//B
+	val b = createID("B");
+	val bType = new StateType { val name = b; val superType = createSome(topType);};
+	temp.put(b,bType);
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	System.out.println("Testing state configuration:");
+	st.printTable();
+	System.out.println("");
+
+	//Testing Downgrade
+	System.out.println("Testing Downgrade");
+	val unique TakeBinding TBuT = new TakeBinding {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = createID("Top");	
+			};
+		};
+	};
+	System.out.print("\t(" + TBuT.toString() + ").downgrade() = ");
+	TBuT.downgrade();
+	System.out.print(TBuT.toString() + " - ");
+	match (TBuT.currentType.type.typeName == createID("Top")) {
+		case True { ok() }
+		case False { fail() }
+	};
+	val unique TakeBinding TBiT = new TakeBinding {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = IMMUTABLE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = createID("Top");	
+			};
+		};
+	};
+	System.out.print("\t(" + TBiT.toString() + ").downgrade() = ");
+	TBuT.downgrade();
+	System.out.print(TBiT.toString() + " - ");
+	match (TBuT.currentType.type.typeName == createID("Top")) {
+		case True { ok() }
+		case False { fail() }
+	};
+	val unique TakeBinding TBnT = new TakeBinding {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = NONEP;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = createID("Top");	
+			};
+		};
+	};
+	System.out.print("\t(" + TBnT.toString() + ").downgrade() = ");
+	TBnT.downgrade();
+	System.out.print(TBnT.toString() + " - ");
+	match (TBnT.currentType.type.typeName == createID("unit")) {
+		case True { ok() }
+		case False { fail() }
+	};
+	
+	//testing least upper bound
+	System.out.println("Testing leastUpperBound");
+	val unique TakeBinding TBnA = new TakeBinding {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = NONEP;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = createID("A");	
+			};
+		};
+	};
+	val unique TakeBinding TBuB = new TakeBinding {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = createID("B");	
+			};
+		};
+	};
+	System.out.print("\t(" + TBnA.toString() + ").leastUpperBound(" + TBuB.toString() + ") = ");
+	var unique TypeBinding res = TBnA.leastUpperBound(TBuB,st);
+	System.out.print(res.toString() + " - "); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm0 = res.value.currentType.perm;
+			val immutable ObjectType resType0 = res.value.currentType.type;
+			match (resPerm0) {
+				case NonePermission {
+					match(resType0) {
+						case NominalType {
+							match (resType0.typeName == createID("Top")) {
+								case True { ok() }
+								case False { failMsg("object type not top") }
+							}
+						}	
+						default { failMsg("Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					failMsg("Wrong Permission");
+				}
+			}
+		}
+		case None { failMsg("No lub"); }
+	};
+	System.out.print("\t(" + TBuB.toString() + ").leastUpperBound(" + TBnA.toString() + ") = ");
+	res = TBuB.leastUpperBound(TBnA,st);
+	System.out.print(res.toString() + " - "); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm1 = res.value.currentType.perm;
+			val immutable ObjectType resType1 = res.value.currentType.type;
+			match (resPerm1) {
+				case NonePermission {
+					match(resType1) {
+						case NominalType {
+							match (resType1.typeName == createID("Top")) {
+								case True { ok() }
+								case False { failMsg("object type not top") }
+							}
+						}	
+						default { failMsg("Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					failMsg("Wrong Permission");
+				}
+			}
+		}
+		case None { failMsg("No lub"); }
+	};
+	val unique BorrowBinding BBnA = new BorrowBinding {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = NONEP;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = createID("A");	
+			};
+		};
+		val immutable Boolean stronglyBorrowed = true;
+		val immutable Permission lowerBound = NONEP;
+	};
+	System.out.print("\t(" + BBnA.toString() + ").leastUpperBound(" + TBuB.toString() + ") = ");
+	res = BBnA.leastUpperBound(TBuB,st);
+	System.out.print(res.toString() + " - "); 
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.print("\t(" + TBuB.toString() + ").leastUpperBound(" + BBnA.toString() + ") = ");
+	res = TBuB.leastUpperBound(BBnA,st);
+	System.out.print(res.toString() + " - "); 
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	val unique BorrowBinding BBuBdb = new BorrowBinding {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = createID("B");	
+			};
+		};
+		val immutable Boolean stronglyBorrowed = false;
+		val immutable Permission lowerBound = NONEP;
+	};
+	System.out.print("\t(" + BBuBdb.toString() + ").leastUpperBound(" + BBnA.toString() + ") = ");
+	res = BBuBdb.leastUpperBound(BBnA,st);
+	System.out.print(res.toString() + " - "); 
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.print("\t(" + BBnA.toString() + ").leastUpperBound(" + BBuBdb.toString() + ") = ");
+	res = BBnA.leastUpperBound(BBuBdb,st);
+	System.out.print(res.toString() + " - "); 
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	val unique BorrowBinding BBuBdl = new BorrowBinding {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = createID("B");	
+			};
+		};
+		val immutable Boolean stronglyBorrowed = true;
+		val immutable Permission lowerBound = IMMUTABLE;
+	};
+	System.out.print("\t(" + BBuBdl.toString() + ").leastUpperBound(" + BBnA.toString() + ") = ");
+	res = BBuBdl.leastUpperBound(BBnA,st);
+	System.out.print(res.toString() + " - "); 
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.print("\t(" + BBnA.toString() + ").leastUpperBound(" + BBuBdl.toString() + ") = ");
+	res = BBnA.leastUpperBound(BBuBdl,st);
+	System.out.print(res.toString() + " - "); 
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	val unique BorrowBinding BBuB = new BorrowBinding {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = createID("B");	
+			};
+		};
+		val immutable Boolean stronglyBorrowed = true;
+		val immutable Permission lowerBound = NONEP;
+	};
+	System.out.print("\t(" + BBuB.toString() + ").leastUpperBound(" + BBnA.toString() + ") = ");
+	res = BBuB.leastUpperBound(BBnA,st);
+	System.out.print(res.toString() + " - "); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm2 = res.value.currentType.perm;
+			val immutable ObjectType resType2 = res.value.currentType.type;
+			match (resPerm2) {
+				case NonePermission {
+					match(resType2) {
+						case NominalType {
+							match (resType2.typeName == createID("Top")) {
+								case True { ok() }
+								case False { failMsg("object type not top") }
+							}
+						}	
+						default { failMsg("Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					failMsg("Wrong Permission");
+				}
+			}
+		}
+		case None { failMsg("No lub"); }
+	};
+	System.out.print("\t(" + BBnA.toString() + ").leastUpperBound(" + BBuB.toString() + ") = ");
+	res = BBnA.leastUpperBound(BBuB,st);
+	System.out.print(res.toString() + " - "); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm3 = res.value.currentType.perm;
+			val immutable ObjectType resType3 = res.value.currentType.type;
+			match (resPerm3) {
+				case NonePermission {
+					match(resType3) {
+						case NominalType {
+							match (resType3.typeName == createID("Top")) {
+								case True { ok() }
+								case False { failMsg("object type not top") }
+							}
+						}	
+						default { failMsg("Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					failMsg("Wrong Permission");
+				}
+			}
+		}
+		case None { failMsg("No lub"); }
+	};
+
+};
