@@ -10,14 +10,18 @@ import plaid.compilerjava.util.IDList;
 
 public class SplitBlock implements Expression {
 		private final Token token;
-        private final ID id;
+        private final List<MetaArgument> metaArgs;
         private final List<Expression> body;
 
-        public SplitBlock(Token token, ID id, List<Expression> body) {
+        public SplitBlock(Token token, List<MetaArgument> metaArgs, List<Expression> body) {
                 super();
                 this.token = token;
-                this.id = id;
+                this.metaArgs = metaArgs;
                 this.body = body;
+        }
+        
+        public List<MetaArgument> getMetaArguments() {
+        	return metaArgs;
         }
 
         @Override
@@ -44,7 +48,7 @@ public class SplitBlock implements Expression {
         
         @Override
         public <T> void visitChildren(ASTVisitor<T> visitor) {
-             id.accept(visitor);
+             //id.accept(visitor);
              for (Expression e : body ) {
             	 e.accept(visitor);
              }
