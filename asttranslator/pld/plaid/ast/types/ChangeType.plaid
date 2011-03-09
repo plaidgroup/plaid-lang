@@ -15,8 +15,9 @@ package plaid.ast.types;
  */
 state ChangeType case of PlaidType {
 	
-	val immutable TypeBinding input;
-	val immutable TypeBinding output;
+	val immutable PermType input;
+	val immutable PermType output;
+	val immutable Boolean strongBorrow;
 	
 	method immutable Boolean ==(immutable ChangeType other) {
 		match (other) {
@@ -32,9 +33,17 @@ state ChangeType case of PlaidType {
 	}
 	
 	method immutable Boolean isSubChangeTypeOf(immutable ChangeType other, stateTable) {
-		// other.input <: this.input && this.output <: other.output 
-		other.input.isSubTypeBindingOf(this.input, stateTable) && 
-			this.output.isSubTypeBindingOf(other.output, stateTable);
+		ifElse (other.strongBorrow) {
+			//if other is strongly borrowed, then so must this and we still must have subtyping relationships
+			this.strongBorrow && 
+				other.input.isSubPermTypeOf(this.input, stateTable) && 
+				this.output.isSubPermTypeOf(other.output, stateTable);
+		} {
+			// if other is not strongly borrowed, then we don't care about whether this is strongly borrowed or not
+			// other.input <: this.input && this.output <: other.output 
+			other.input.isSubPermTypeOf(this.input, stateTable) && 
+				this.output.isSubPermTypeOf(other.output, stateTable);
+		}
 	}
 	
 	 /**
@@ -55,6 +64,7 @@ state ChangeType case of PlaidType {
 						createSome(new ChangeType {
 							val input = newInput.value;
 							val output = newOutput.value;
+							val immutable Boolean strongBorrow = this.strongBorrow && other.strongBorrow; //strongly borrowed if both are
 						})
 					}
 					case None { new None }
@@ -82,6 +92,7 @@ state ChangeType case of PlaidType {
 						createSome(new ChangeType {
 							val input = newInput.value;
 							val output = newOutput.value;
+							val immutable Boolean strongBorrow = this.strongBorrow || other.strongBorrow;
 						})
 					}
 					case None { new None }
@@ -89,6 +100,35 @@ state ChangeType case of PlaidType {
 			}
 			case None { new None }
 		}	
+	}
+	
+	/**
+	 *  the inputBinding method extracts a Type Binding needed for the input to the Change Type
+	 */
+	method immutable TypeBinding inputBinding()[immutable ChangeType] {
+		ifElse (output.perm == NONEP) {  //take binding if not giving any permission back
+			new TakeBinding { val unique PermType currentType = this.input; }
+		} {  //otherwise a BorrowBinding
+			new BorrowBinding {
+				val unique PermType currentType = this.input;
+				val immutable Boolean stronglyBorrowed = this.strongBorrow;
+ 				val immutable Permission lowerBound = this.output.perm;
+			}
+		}
+	} 	
+	
+	/**
+	 *  the outputBinding method extracts a Type Binding resulting as the output to the Change Type
+	 */
+	method immutable TypeBinding outputBinding()[immutable ChangeType] {
+		ifElse (output.perm == NONEP) {  //take binding if not giving any permission back
+			new TakeBinding { val unique PermType currentType = this.output; }
+		} {  //otherwise a BorrowBinding
+			new BorrowBinding {
+				val unique PermType currentType = this.output;
+				val immutable Boolean stronglyBorrowed = this.strongBorrow;
+ 				val immutable Permission lowerBound = this.output.perm;
+			}
+		}
 	}	
- 		
 }
