@@ -1,0 +1,312 @@
+package plaid.ast.types.tests;
+
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import java.lang.System;
+
+val () -> void changeTypeTests = fn () => {
+
+	System.out.println("---------------------------");
+	System.out.println("|    Change Type TESTS    |");
+	System.out.println("---------------------------");
+
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = createID("unit");
+	temp.put(u, new StateType { val name = u; val superType = new None; });
+	
+	//Top
+	val top = createID("Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = createID("A");
+	val aType = new StateType { val name = a; val superType = createSome(topType);};
+	temp.put(a,aType);
+	
+	//B
+	val b = createID("B");
+	val bType = new StateType { val name = b; val superType = createSome(topType);};
+	temp.put(b,bType);
+	
+	//C
+	val c = createID("C");
+	val cType = new StateType { val name = c; val superType = createSome(aType);};
+	temp.put(c,cType);
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	System.out.println("Testing state configuration:");
+	st.printTable();
+	System.out.println("");
+	var test = unit;
+	var compare = unit;
+	var res = unit;
+	
+	System.out.println("Testing subtyping:");
+	test = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};		
+		val strongBorrow = true;
+	};
+	//Test reflexivity
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};		
+		val strongBorrow = true;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.println("\t" + compare.toString() + ".leastUpperBound(" + test.toString() + ") = ");
+	res = compare.leastUpperBound(test,st);
+	System.out.print("\t\t" + res.toString() + " - ");
+	match (res) {
+		case Some { 
+			match (res.value == test) {
+				case True { ok() }
+				case False { failMsg("LUB of two equal change types should be that change type") }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.println("\t" + compare.toString() + ".greatestLowerBound(" + test.toString() + ") = ");
+	res = compare.greatestLowerBound(test,st);
+	System.out.print("\t\t" + res.toString() + " - ");
+	match (res) {
+		case Some { 
+			match (res.value == test) {
+				case True { ok() }
+				case False { failMsg("GLB of two equal change types should be that change type") }
+			}
+		}
+		case None { fail() }
+	};	
+	//test output object subtyping
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(c);
+		};		
+		val strongBorrow = true;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	//test input object supertyping
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(top);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};		
+		val strongBorrow = true;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};	
+	//test input object supertyping and output object subtyping
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(top);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(c);
+		};		
+		val strongBorrow = true;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	//test input object subtyping should fail
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(c);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};		
+		val strongBorrow = true;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};
+	//test output object supertyping should fail
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(top);
+		};		
+		val strongBorrow = true;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};	
+	//different borrowing permissions - should fail
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = IMM;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = IMM;
+			val type = createNominalType(top);
+		};		
+		val strongBorrow = true;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};	
+	//non-borrowed - should fail
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = IMM;
+			val type = createNominalType(top);
+		};		
+		val strongBorrow = false;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};
+	//non-borrowed - should fail
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = IMM;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(top);
+		};		
+		val strongBorrow = false;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};
+	
+	//test when we're not subtyping a strongly borrowed change type
+	test = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};		
+		val strongBorrow = false;
+	};
+	//test reflexivity:
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};		
+		val strongBorrow = false;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	//test that stronglyborrowed and subtype non-strongly borrowed
+	compare = new ChangeType {
+		val input = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};
+		val output = new PermType {
+			val perm = UNIQUE;
+			val type = createNominalType(a);
+		};		
+		val strongBorrow = true;
+	};
+	System.out.print("\t" + compare.toString() + ".isSubChangeTypeOf(" + test.toString() + ") = ");
+	res = compare.isSubChangeTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	//should potentially test more of the permissions, but we'll leave that for now.
+};
+	
+	
