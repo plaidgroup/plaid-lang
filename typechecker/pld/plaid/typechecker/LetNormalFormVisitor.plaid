@@ -1,0 +1,132 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker;
+
+import plaid.ast.*;
+import plaid.typechecker.ast.*;
+import plaid.ast.visitor.LeafVisitor;
+
+state LetNormalFormVisitor case of LeafVisitor {
+	var immutable Integer counter = 0;
+
+	method unique ID generateID(immutable Token >> immutable Token tok) {
+		this.counter = this.counter + 1;
+		val immutable String n = "LNF$" + this.counter + "$plaid";
+		
+		new ID {
+			val immutable Token token = tok;
+			val immutable String name = n;
+			override val immutable Boolean isTemp = true;
+		};
+	}
+	
+	override method void visitID(unique ID >> unique UnannotatedTakeBinding node) {
+		val unique ID id = this.generateID(node.token);
+		
+		// TODO: Is it a good idea to copy id?  Otherwise the references can't be unique...
+		node <- UnannotatedTakeBinding {
+			val immutable Token token     = node.token;
+			val unique ID x               = id;
+			val unique Expression exp     = node;
+			val unique Expression body    = id.copy();
+			val immutable Boolean mutable = false;
+		};
+	}
+	
+	// TODO:  We don't know whether the outgoing type is a take or a borrow, so we specify their supertype (UnannotatedBinding).
+	//        Of course this parameter type creates all kinds of problems with subtyping LeafVisitor and method overriding.
+	override method void visitDereference(unique Dereference >> unique UnannotatedBinding node) {
+		val unique ID id = this.generateID(node.token);
+		
+		match (node.left) {
+			case ID {
+				node <- UnannotatedLetBinding {
+					val immutable Token token     = node.token;
+					val unique ID x               = id;
+					val unique Expression exp     = node;
+					val unique Expression body    = id.copy();
+					val immutable Boolean mutable = false;
+				};
+			}
+			
+			default {
+				node.left.accept(this);
+				// Because node.left was a complex expression, it is now either a TakeBinding or a LetBinding.
+				// Furthermore, we know that node.left's body is an ID.
+				
+				val unique ID t = this.generateID(node.token);
+				val unique Expression left = node!left;
+				
+				match (left) {
+					case UnannotatedLetBinding b {
+						// TODO:  Actually, we know this is an ID but defining tPrime as unique ID would require a cast.
+						val unique Expression tPrime = b!body;
+						
+						node <- UnannotatedLetBinding {
+							val immutable Token token     = node.token;
+							val unique ID x               = b.x.copy();
+							val unique Expression exp     = b.exp.copy();
+							val unique Expression body    = new UnannotatedLetBinding {
+							                                	val immutable Token token     = node.token;
+							                                	val unique ID x               = t;
+							                                	val unique Expression exp     = new Dereference {
+							                                	                                	val immutable Token token  = node.token;
+							                                	                                	val unique Expression left = tPrime;
+							                                	                                	val unique ID right        = node!right;
+							                                	                                };
+							                                	val unique Expression body    = t.copy();
+							                                	val immutable Boolean mutable = false;
+							                                };
+							val immutable Boolean mutable = false;
+						};
+					}
+					
+					case UnannotatedTakeBinding b {
+						// TODO:  Actually, we know this is an ID but defining tPrime as unique ID would require a cast.
+						val unique Expression tPrime = b!body;
+						
+						node <- UnannotatedTakeBinding {
+							val immutable Token token     = node.token;
+							val unique ID x               = b.x.copy();
+							val unique Expression exp     = b.exp.copy();
+							val unique Expression body    = new UnannotatedLetBinding {
+							                                	val immutable Token token     = node.token;
+							                                	val unique ID x               = t;
+							                                	val unique Expression exp     = new Dereference {
+							                                	                                	val immutable Token token  = node.token;
+							                                	                                	val unique Expression left = tPrime;
+							                                	                                	val unique ID right        = node!right;
+							                                	                                };
+							                                	val unique Expression body    = t.copy();
+							                                	val immutable Boolean mutable = false;
+							                                };
+							val immutable Boolean mutable = false;
+						};
+					}
+					
+					default {
+					}
+				};
+			}
+		};
+		
+		unit;
+	}
+}
