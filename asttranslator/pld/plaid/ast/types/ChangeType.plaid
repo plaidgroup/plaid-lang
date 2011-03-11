@@ -4,14 +4,13 @@ package plaid.ast.types;
  *	ChangeTypes are used in the type of methods and lambdas to 
  *  summarize the way in which the types of inputs to these
  *  abstractions change as a part of the execution.  We represent
- *  the start and end states as TypeBindings.  Change Types
- *  that return a non-none permission will be represented
- *  as BorrowBinding, while anything that ends with a none
- *  permission will simply be represented as a TakeBinding.
- *  We might be able to make these more lightweight by
- *  separating out duplicate information between the two
- *  TypeBindings, however, it is simpler to do it this
- *  way for uniform handling elsewhere.
+ *  the start and end states as PermTypes.  We keep one extra
+ *  piece of information - a strongly borrowed flag to indicate
+ *  extra restrictions on aliasing.  Currently it is not explicit
+ *  but may be later that if the change type is strongly borrowed
+ *  then the input and output permissions must be the same.  Also
+ *  it can never be the case that the output permission is strictly
+ *  stronger than the input permission.
  */
 state ChangeType case of PlaidType {
 	
@@ -55,22 +54,32 @@ state ChangeType case of PlaidType {
  	 *  the least upper bound finds the most specific type that is a supertype of the
  	 *  two given types.  Since we follow covariance for outputs and contravariance for inputs
  	 *  finding the least upper bound on the change type corresponds to finding the greatest
- 	 *  lower bound of the input and the lowest upper bound on the output. 
+ 	 *  lower bound of the input and the lowest upper bound on the output.  strongly borrowed
+ 	 *  only if both are.
  	 */ 
  	method /*unique Option<unique ChangeType>*/ 
  		leastUpperBound(immutable ChangeType other, unique StateTable st)[immutable ChangeType]
  	{
- 		val /*unique Option<unique TypeBinding>*/ newInput = this.input.greatestLowerBound(other.input, st);
+ 		val /*unique Option<unique PermType>*/ newInput = this.input.greatestLowerBound(other.input, st);
 		match (newInput) {
 			case Some {
-				val /*unique Option<unique TypeBinding>*/ newOutput = this.output.leastUpperBound(other.output, st);
+				val /*unique Option<unique PermType>*/ newOutput = this.output.leastUpperBound(other.output, st);
 				match (newOutput) {
 					case Some {
-						createSome(new ChangeType {
-							val input = newInput.value;
-							val output = newOutput.value;
-							val immutable Boolean strongBorrow = this.strongBorrow && other.strongBorrow; //strongly borrowed if both are
-						})
+						val newStrongBorrow = this.strongBorrow && other.strongBorrow;
+						match ( (newStrongBorrow && (newInput.value.perm == newOutput.value.perm)) || //if strongly borrowed, permission must be the same
+								(!newStrongBorrow && newInput.value.perm.isSubPermOf(newOutput.value.perm)) ) {  //input permission must be as strong as output
+							case True {
+								createSome(new ChangeType {
+									val input = newInput.value;
+									val output = newOutput.value;
+									val immutable Boolean strongBorrow = newStrongBorrow; //strongly borrowed if both are
+								})
+							}
+							case False {
+								new None  //if strongly borrowed, must both be the same permissions
+							}
+						}
 					}
 					case None { new None }
 				}
@@ -83,22 +92,32 @@ state ChangeType case of PlaidType {
  	 *  the least upper bound finds the most general type that is a subtype of the
  	 *  two given types.  Since we follow covariance for outputs and contravariance for inputs
  	 *  finding the greatest lower bound on the change type corresponds to finding the least
- 	 *  upper bound of the input and the greatest lower bound on the output. 
+ 	 *  upper bound of the input and the greatest lower bound on the output.  strongly borrowed
+ 	 *  if any of these are strongly borrowed 
  	 */
  	method /*unique Option<unique ChangeType>*/ 
  		greatestLowerBound(immutable ChangeType other, unique StateTable st)[immutable ChangeType]
  	{
- 		val /*unique Option<unique TypeBinding>*/ newInput = this.input.leastUpperBound(other.input, st);
+ 		val /*unique Option<unique PermType>*/ newInput = this.input.leastUpperBound(other.input, st);
 		match (newInput) {
 			case Some {
-				val /*unique Option<unique TypeBinding>*/ newOutput = this.output.greatestLowerBound(other.output, st);
+				val /*unique Option<unique PermType>*/ newOutput = this.output.greatestLowerBound(other.output, st);
 				match (newOutput) {
 					case Some {
-						createSome(new ChangeType {
-							val input = newInput.value;
-							val output = newOutput.value;
-							val immutable Boolean strongBorrow = this.strongBorrow || other.strongBorrow;
-						})
+						val newStrongBorrow = this.strongBorrow || other.strongBorrow;
+						match ( (newStrongBorrow && (newInput.value.perm == newOutput.value.perm)) || //if strongly borrowed, permission must be the same
+								(!newStrongBorrow && newInput.value.perm.isSubPermOf(newOutput.value.perm)) ) {  //input permission must be as strong as output
+							case True {
+								createSome(new ChangeType {
+									val input = newInput.value;
+									val output = newOutput.value;
+									val immutable Boolean strongBorrow = newStrongBorrow; //strongly borrowed if both are
+								})
+							}
+							case False {
+								new None  //if strongly borrowed, must both be the same permissions
+							}
+						}
 					}
 					case None { new None }
 				}
@@ -110,12 +129,12 @@ state ChangeType case of PlaidType {
 	/**
 	 *  the inputBinding method extracts a Type Binding needed for the input to the Change Type
 	 */
-	method immutable TypeBinding inputBinding()[immutable ChangeType] {
+	method unique TypeBinding inputBinding()[immutable ChangeType] {
 		ifElse (output.perm == NONEP) {  //take binding if not giving any permission back
-			new TakeBinding { val unique PermType currentType = this.input; }
+			new TakeBinding { var unique PermType currentType = this.input.copy(); }
 		} {  //otherwise a BorrowBinding
 			new BorrowBinding {
-				val unique PermType currentType = this.input;
+				var unique PermType currentType = this.input.copy();
 				val immutable Boolean stronglyBorrowed = this.strongBorrow;
  				val immutable Permission lowerBound = this.output.perm;
 			}
@@ -125,12 +144,12 @@ state ChangeType case of PlaidType {
 	/**
 	 *  the outputBinding method extracts a Type Binding resulting as the output to the Change Type
 	 */
-	method immutable TypeBinding outputBinding()[immutable ChangeType] {
+	method unique TypeBinding outputBinding()[immutable ChangeType] {
 		ifElse (output.perm == NONEP) {  //take binding if not giving any permission back
-			new TakeBinding { val unique PermType currentType = this.output; }
+			new TakeBinding { var unique PermType currentType = this.output.copy(); }
 		} {  //otherwise a BorrowBinding
 			new BorrowBinding {
-				val unique PermType currentType = this.output;
+				var unique PermType currentType = this.output.copy();
 				val immutable Boolean stronglyBorrowed = this.strongBorrow;
  				val immutable Permission lowerBound = this.output.perm;
 			}
