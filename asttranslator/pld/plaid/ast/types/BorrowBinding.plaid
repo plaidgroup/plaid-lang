@@ -1,0 +1,123 @@
+package plaid.ast.types;
+
+import plaid.ast.types.permissions.*;
+
+/* A BorrowBinding is a case of TypeBinding used for tracking the types of
+   locations in a Plaid program. In addition to the current PlaidType of the
+   location inherited from TypeBinding, we also keep track of a boolean flag
+   that indicates whether this location is strongly borrowed and thus expects
+   no persistent aliases to remain after it goes out of scope.  Secondly, we
+   keep track of a lower bound on the current permission to this location
+   which is used for catching errors at the uses of the location.
+ */
+ 
+ state BorrowBinding case of TypeBinding {
+ 	val immutable Boolean stronglyBorrowed;
+ 	val immutable Permission lowerBound;
+ 	
+ 	method /*unique Option<unique TypeBinding>*/ 
+ 		leastUpperBound(immutable TypeBinding other, unique StateTable st)[immutable BorrowBinding]
+ 	{
+ 		match (other) {
+ 			case BorrowBinding {
+ 				match ( this.stronglyBorrowed == other.stronglyBorrowed && 
+ 						 this.lowerBound == other.lowerBound ) 
+ 				{
+ 					case True {
+ 						val /*unique Option<unique PermType>*/ newPermType = 
+ 							other.currentType.leastUpperBound(this.currentType,st);
+ 						match(newPermType) {
+ 							case Some {
+ 								createSome(
+									new BorrowBinding { 
+ 										var unique PermType currentType = newPermType.value;
+										val immutable Permission lowerBound = other.lowerBound;
+ 										val immutable Boolean stronglyBorrowed = other.stronglyBorrowed;
+ 									}
+ 								)
+ 							}
+ 							case None { new None }
+ 						}
+ 					}
+ 					case False { new None }
+ 				} 
+ 			}
+ 			case TakeBinding { new None }
+ 		}
+ 	}
+ 	
+ 	method /*unique Option<unique TypeBinding>*/ 
+ 		greatestLowerBound(immutable TypeBinding other, unique StateTable st)[immutable BorrowBinding]
+ 	{
+ 		match (other) {
+ 			case BorrowBinding {
+ 				match ( this.stronglyBorrowed == other.stronglyBorrowed && 
+ 						 this.lowerBound == other.lowerBound ) 
+ 				{					
+ 					case True {
+ 						val /*unique Option<unique PermType>*/ newPermType = 
+ 							other.currentType.greatestLowerBound(this.currentType,st);
+ 						match(newPermType) {
+ 							case Some {
+ 								createSome(
+									new BorrowBinding { 
+ 										var unique PermType currentType = newPermType.value;
+										val immutable Permission lowerBound = other.lowerBound;
+ 										val immutable Boolean stronglyBorrowed = other.stronglyBorrowed;
+ 									}
+ 								)
+ 							}
+ 							case None { new None }
+ 						}
+ 					}
+ 					case False { new None }
+ 				} 
+ 			}
+ 			case TakeBinding { new None }
+ 		}
+ 	}
+ 	
+ 	method immutable Boolean ==(immutable TypeBinding other) {
+ 		match (other) {
+ 			case BorrowBinding {
+ 				this.currentType == other.currentType && 
+ 			  	this.stronglyBorrowed == other.stronglyBorrowed &&
+ 			   	this.lowerBound == this.lowerBound;
+ 			}
+ 			default { false }
+ 		}
+ 	}
+ 	
+ 	method immutable String toString()[immutable BorrowBinding] {
+ 		var ret = "";
+ 		if (this.stronglyBorrowed) { ret = "(B)" };
+ 		"( " + currentType.toString() + " >>" + ret + " " + lowerBound.toString() + ")";
+ 	}
+ 	
+ 	method unique BorrowBinding copy()[immutable BorrowBinding] {
+ 		new BorrowBinding {
+ 			var unique PermType currentType = this.currentType.copy();
+ 			val immutable Boolean stronglyBorrowed = this.stronglyBorrowed;
+ 			val immutable Permission lowerBound = this.lowerBound;
+ 		}
+ 	}
+ 	
+ 	/**
+ 	 *  Subtyping for borrow bindings requires that both are borrowBindings.  Then, the
+ 	 *  currentTypes must be subtypes as with TakeBindings. 
+ 	 *  DEPRECATED - subtyping was only used for method/lambda subtyping and was confusing
+ 	 *    so I replaced it by using change types and subtyping for those instead
+ 	 */
+ 	/*method immutable Boolean isSubTypeBindingOf(immutable TypeBinding other, stateTable) {
+ 		match (other) {
+ 			case BorrowBinding {
+ 				ifElse (!other.stronglyBorrowed && this.stronglyBorrowed) 
+ 					{ false }
+ 					{ this.currentType.isSubPermTypeOf(other.currentType, stateTable) && 
+ 						other.lowerBound.isSubPermOf(this.lowerBound)	
+ 					}
+ 			}
+ 			default { false }
+ 		}
+ 	}*/
+ }
