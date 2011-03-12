@@ -1,6 +1,7 @@
 package plaid.ast.types;
 
 import plaid.ast.types.permissions.*;
+import java.lang.System;
 
 /* A BorrowType is a case of TypeBinding used for tracking the types of
    locations in a Plaid program. In addition to the current PlaidType of the
@@ -36,7 +37,10 @@ import plaid.ast.types.permissions.*;
 											case False {
 												match (residualPerm.value.isSubPermOf(this.lowerBound)) {
 													case True { // ok - still have enough permissions
-														createSome(createTakeType(residualPerm.value,residualOtype))
+														createSome(createBorrowType(residualPerm.value,
+																					residualOtype,
+																					this.lowerBound,
+																					false))
 													}
 													case False {
 														new None //taking too much permission - won't be able to return correct amount
@@ -66,44 +70,46 @@ import plaid.ast.types.permissions.*;
 														createSome(
 															createBorrowType(residualPerm.value,
 																				residualOtype,
-																				this.lowerBound,
+																				residualPerm.value,
 																				true)
 														)
 													}
 													case False { //check we haven't taken too much
-														match (residualPerm.value.isSubPermOf(this.lowerBound)) {
-															case True { //still enough permission left to return
-																//based on what I will get back from split binding, what do need to get back from the residue to
-																//return to the current permission with the split binding permission
-																//*** This is becoming to tricky, so we're not worrying about it now
-																val /*unique Option<immtuable Permission*/ newLowerBound = createSome(NONEP); //this.lowerBound.splitPerm(other.lowerBound);
-																match (newLowerBound) {
-																	case Some {
-																		createSome(
-																			createBorrowType(residualPerm.value,
+														//after this alias returns, we will have the returned permission plus the residual
+														val immutable Permission afterPerm = residualPerm.value.join(other.lowerBound);
+														match (afterPerm) {
+															case Some {
+																match (afterPerm.value.isSubPermOf(this.lowerBound)) {
+																	case True { //still enough permission left to return
+																		//based on what I will get back from split binding, what do need to get back from the residue to
+																		//return to the current permission with the split binding permission
+																		//*** This is becoming to tricky, so we're not worrying about it now
+																		val /*unique Option<immtuable Permission*/ newLowerBound = createSome(NONEP); //this.lowerBound.splitPerm(other.lowerBound);
+																		match (newLowerBound) {
+																			case Some {
+																				createSome(
+																					createBorrowType(residualPerm.value,
 																								residualOtype,
 																								newLowerBound.value,
 																								false)
-																		)
+																				)
+																			}
+																			case None { //shouldn't happen, but if cannot get new lower bound, then fails
+																				new None
+																			}
+																		}
 																	}
-																	case None { //shouldn't happen, but if cannot get new lower bound, then fails
+																	case False { //took too much
 																		new None
 																	}
 																}
 															}
-															case False { //took too much
-																new None
+															case None {
+																new None;  //it seems wrong that we would ever get here...
 															}
 														}
-													}
-												
-												};
-												createSome(
-													createBorrowType(residualPerm.value,
-																		residualOtype,
-																		NONEP,
-																		false)
-												)
+													}	
+												}
 											}
 										}
 									}
