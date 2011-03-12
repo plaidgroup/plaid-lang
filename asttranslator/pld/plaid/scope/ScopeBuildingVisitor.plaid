@@ -1,6 +1,5 @@
 package plaid.scope;
 
-import plaid.lang.*;
 import plaid.ast.*;
 import plaid.ast.types.*;
 import plaid.ast.visitor.*;
@@ -155,27 +154,65 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		enterScope(node);
 		node.scope.id = node.name.name;
 		
-		index = 0;
+		var index1 = 0;
+		var index2 = 0;
 		
 		val /*Symbol*/ sym = new Symbol { val type = node.stateType; val position = new ThisVar; };
 		node.scope.add("this", sym);	//TODO: double check if we need use this
-		
-		node.name.accept(this); //not need actually
+
+		var shortname = node.name.toString();
 				
-		match (node.caseOf) {
-			case Some {
-				//java.lang.System.out.println("here");
-				inheritQI(node.caseOf.value);
+		//var name = toFullName(shortname);
+		var name = shortname;	//need some futhere refine
+				
+		var /*StateType*/ statetype = stateTable.get(new ID { val name = name; });
+		
+		match (statetype) {
+			case None {
+				java.lang.System.err("Type did find!");
+			} 
+			default {
+				
 			}
-			default {}
 		};
 		
+		var iter = statetype.value.providedTypes.entrySet().iterator();
+		while {iter.hasNext(); } {
+			var entry = iter.next();
+			match (entry.getValue()) {
+				case FieldType {
+					val /*String*/ name = entry.getKey().name;
+					val /*Symbol*/ sym = new Symbol { val type = entry.getValue(); val position = new FieldVar {var index = index1; }; };
+					//Conflict dectection: should do in statetable
+					node.scope.add(name, sym);
+					index1 = index1 + 1;
+				}
+				case MethodType {
+					val /*String*/ name = entry.getKey().name;
+					val /*Symbol*/ sym = new Symbol { val type = entry.getValue(); val position = new MethodVar {var index = index2; }; };
+					node.scope.add(name, sym);
+					index2 = index2 + 1;
+				}
+			};			
+		};
+		
+//	OLD VERSION
+//		node.name.accept(this); //not need actually
+//				
+//		match (node.caseOf) {
+//			case Some {
+//				//java.lang.System.out.println("here");
+//				inheritQI(node.caseOf.value);
+//			}
+//			default {}
+//		};
+//		
 		match (node.stateDef) {
 			case DeclList {
 				node.stateDef.accept(this);
 			}
 			case QI {
-				inheritQI(node.stateDef);
+				//inheritQI(node.stateDef);
 			}
 			case With {
 				node.stateDef.accept(this);
@@ -190,18 +227,19 @@ state ScopeBuildingVisitor case of ASTVisitor {
 
 	method visitDeclList(node) {
 		keepScope(node);
-		
-		node.decls.map(fn (decl) => {
-			match (decl) {
-				 case FieldDecl {
-				 	val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = new FieldVar {var index = index; }; };
-				 	node.scope.add(decl.f.name, sym);
-				 	index = index + 1;
-				 }
-				 default {
-				 }
-			}
-		});
+
+//NOT NEED HERE		
+//		node.decls.map(fn (decl) => {
+//			match (decl) {
+//				 case FieldDecl {
+//				 	val /*Symbol*/ sym = new Symbol { val type = decl.fieldType; val position = new FieldVar {var index = index; }; };
+//				 	node.scope.add(decl.f.name, sym);
+//				 	index = index + 1;
+//				 }
+//				 default {
+//				 }
+//			}
+//		});
 		
 		node.decls.map(fn (decl) => {
 			decl.accept(this)
@@ -213,7 +251,7 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		
 		match (node.s1) {
 			case QI {
-				inheritQI(node.s1);
+			//	inheritQI(node.s1);
 			}
 			default {
 				node.s1.accept(this);
@@ -222,7 +260,7 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		
 		match (node.s2) {
 			case QI {
-				inheritQI(node.s2);
+			//	inheritQI(node.s2);
 			}
 			default {
 				node.s2.accept(this);
@@ -400,10 +438,6 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		node.right.accept(this)
 	}
 	
-	method visitDoubleLiteral(node) {
-        keepScope(node);
-    }
-	
 	method visitID(node) {
 		keepScope(node);
 	}
@@ -441,7 +475,7 @@ state ScopeBuildingVisitor case of ASTVisitor {
 		keepScope(node);
 	}
 	
-	method visitsplitPerm(node) {
+	method visitSplit(node) {
 		keepScope(node);
 		
 		node.theVar.accept(this);
