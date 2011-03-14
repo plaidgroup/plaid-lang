@@ -17,7 +17,7 @@
  *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package plaid.typechecker;
+package plaid.typechecker.lnf;
 
 import plaid.ast.*;
 import plaid.typechecker.ast.*;
@@ -37,6 +37,40 @@ state LetNormalFormVisitor case of LeafVisitor {
 		};
 	}
 	
+	// This does the following:
+	//       ______________
+	//       LET t' = e' in t'
+	//   --> ______________________
+	//       LET t' = e' in newBody
+	//
+	method unique UnannotatedTakeBinding exchangeBody(unique UnannotatedBinding binding, unique Expression >> none Expression newBody) {
+		match (binding) {
+			case UnannotatedBorrowBinding {
+				new UnannotatedBorrowBinding {
+					val immutable Token token     = binding.token;
+					val unique ID x               = binding.x.copy();
+					val unique Expression exp     = binding.exp.copy();
+					val unique Expression body    = newBody;
+					val immutable Boolean mutable = false;
+				};
+			}
+			
+			case UnannotatedTakeBinding {
+				new UnannotatedTakeBinding {
+					val immutable Token token     = binding.token;
+					val unique ID x               = binding.x.copy();
+					val unique Expression exp     = binding.exp.copy();
+					val unique Expression body    = newBody;
+					val immutable Boolean mutable = false;
+				};
+			}
+		};
+	}
+	
+	//
+	// VISIT METHODS
+	//
+	
 	override method void visitID(unique ID >> unique UnannotatedTakeBinding node) {
 		val unique ID id = this.generateID(node.token);
 		
@@ -44,7 +78,7 @@ state LetNormalFormVisitor case of LeafVisitor {
 		node <- UnannotatedTakeBinding {
 			val immutable Token token     = node.token;
 			val unique ID x               = id;
-			val unique Expression exp     = node;
+			val unique Expression exp     = node.copy();
 			val unique Expression body    = id.copy();
 			val immutable Boolean mutable = false;
 		};
@@ -57,10 +91,10 @@ state LetNormalFormVisitor case of LeafVisitor {
 		
 		match (node.left) {
 			case ID {
-				node <- UnannotatedLetBinding {
+				node <- UnannotatedBorrowBinding {
 					val immutable Token token     = node.token;
 					val unique ID x               = id;
-					val unique Expression exp     = node;
+					val unique Expression exp     = node.copy();
 					val unique Expression body    = id.copy();
 					val immutable Boolean mutable = false;
 				};
@@ -72,24 +106,24 @@ state LetNormalFormVisitor case of LeafVisitor {
 				// Furthermore, we know that node.left's body is an ID.
 				
 				val unique ID t = this.generateID(node.token);
-				val unique Expression left = node!left;
+				val unique Expression left = node.left;
 				
 				match (left) {
-					case UnannotatedLetBinding b {
+					case UnannotatedBorrowBinding {
 						// TODO:  Actually, we know this is an ID but defining tPrime as unique ID would require a cast.
-						val unique Expression tPrime = b!body;
+						val unique Expression tPrime = left.body;
 						
-						node <- UnannotatedLetBinding {
+						node <- UnannotatedBorrowBinding {
 							val immutable Token token     = node.token;
-							val unique ID x               = b.x.copy();
-							val unique Expression exp     = b.exp.copy();
-							val unique Expression body    = new UnannotatedLetBinding {
+							val unique ID x               = left.x.copy();
+							val unique Expression exp     = left.exp.copy();
+							val unique Expression body    = new UnannotatedBorrowBinding {
 							                                	val immutable Token token     = node.token;
 							                                	val unique ID x               = t;
 							                                	val unique Expression exp     = new Dereference {
 							                                	                                	val immutable Token token  = node.token;
 							                                	                                	val unique Expression left = tPrime;
-							                                	                                	val unique ID right        = node!right;
+							                                	                                	val unique ID right        = node.right;
 							                                	                                };
 							                                	val unique Expression body    = t.copy();
 							                                	val immutable Boolean mutable = false;
@@ -98,21 +132,21 @@ state LetNormalFormVisitor case of LeafVisitor {
 						};
 					}
 					
-					case UnannotatedTakeBinding b {
+					case UnannotatedTakeBinding {
 						// TODO:  Actually, we know this is an ID but defining tPrime as unique ID would require a cast.
-						val unique Expression tPrime = b!body;
+						val unique Expression tPrime = left.body;
 						
 						node <- UnannotatedTakeBinding {
 							val immutable Token token     = node.token;
-							val unique ID x               = b.x.copy();
-							val unique Expression exp     = b.exp.copy();
-							val unique Expression body    = new UnannotatedLetBinding {
+							val unique ID x               = left.x.copy();
+							val unique Expression exp     = left.exp.copy();
+							val unique Expression body    = new UnannotatedBorrowBinding {
 							                                	val immutable Token token     = node.token;
 							                                	val unique ID x               = t;
 							                                	val unique Expression exp     = new Dereference {
 							                                	                                	val immutable Token token  = node.token;
 							                                	                                	val unique Expression left = tPrime;
-							                                	                                	val unique ID right        = node!right;
+							                                	                                	val unique ID right        = node.right;
 							                                	                                };
 							                                	val unique Expression body    = t.copy();
 							                                	val immutable Boolean mutable = false;
@@ -124,6 +158,104 @@ state LetNormalFormVisitor case of LeafVisitor {
 					default {
 					}
 				};
+			}
+		};
+		
+		unit;
+	}
+	
+	method void handleAssignment(unique Assignment >> unique UnannotatedTakeBinding node, immutable Boolean simpleTarget, immutable Boolean simpleValue) {
+		val unique ID id = this.generateID(node.token);
+		
+		match (simpleTarget) {
+			case True {
+				match (simpleValue) {
+					case True {
+						// lnf-assign-bare: simple target, simple value
+						
+						node <- UnannotatedTakeBinding {
+							val immutable Token token     = node.token;
+							val unique ID x               = id;
+							val unique Expression exp     = node.copy();
+							val unique Expression body    = id.copy();
+							val immutable Boolean mutable = false;
+						};
+					}
+					
+					case False {
+						// lnf-assign-2: simple target, complex value
+						node.value.accept(this);
+						
+						val unique Assignment newBody = new Assignment {
+							val immutable Token token         = node.token;
+							var /*Option Expression */ target = createSome(node.target.value.copy());
+							var unique ID field               = node.field.copy();
+							var unique Expression value       = node.value.body.copy();
+						}; 
+						
+						node <- UnannotatedTakeBinding {
+							val immutable Token token     = node.token;
+							val unique ID x               = id;
+							val unique Expression exp     = this.exchangeBody(node.value, newBody);
+							val unique Expression body    = id.copy();
+							val immutable Boolean mutable = false;
+						};
+					}
+				};
+			}
+			
+			case False {
+				match (simpleValue) {
+					case True {
+						// lnf-assign-1: complex target, simple value
+						
+						// TODO
+					}
+					
+					case False {
+						// lnf-assign-3: complex target, complex value
+						
+						// TODO
+					}
+				};
+			}
+		};
+		
+		unit;
+	}
+	
+	override method void visitAssignment(unique Assignment >> unique UnannotatedTakeBinding node) {
+		// Writes to local variables are currently handled by Assignment nodes where target is None.
+		// This might be subject to change...
+		match (node.target) {
+			case Some {
+				var immutable Boolean simpleTarget = false;
+				var immutable Boolean simpleValue = false;
+				
+				match (node.target.value) {
+					case ID {
+						simpleTarget = true;
+					}
+					
+					default {
+						simpleTarget = false;
+					}
+				};
+				
+				match (node.value) {
+					case ID {
+						simpleValue = true;
+					}
+					
+					default {
+						simpleValue = false;
+					}
+				};
+				
+				this.handleAssignment(node, simpleTarget, simpleValue);
+			}
+			
+			case None {
 			}
 		};
 		
