@@ -32,6 +32,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Stack;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -204,25 +208,39 @@ public class CompilerCore {
 		}		
 	}
 	
-	private void generateCode(List<CompilationUnit> cus, PackageRep plaidpath) throws Exception {
+	private void generateCode(List<CompilationUnit> cus, final PackageRep plaidpath) throws Exception {
 		if (cc.isVerbose())
 			System.out.println("Generating code.");
 
-		List<File> allFiles = new ArrayList<File>();
-		for (CompilationUnit cu : cus) {
-			try {
-				if (cc.isVerbose())
-					System.out.println("Generating code for:\n" + cu);
-				List<File> fileList = cu.codegen(cc, plaidpath);
+		final List<File> allFiles = new ArrayList<File>();
+		ExecutorService taskPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		for (final CompilationUnit cu : cus) {
+			Callable<Object> task = new Callable<Object>() {
+				@Override
+				public Object call() throws Exception {
+					try {
+						if (cc.isVerbose())
+							System.out.println("Generating code for:\n" + cu);
+						List<File> fileList = cu.codegen(cc, plaidpath);
 
-				allFiles.addAll(fileList);
-			} catch (PlaidException p) {
-				System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
-				System.err.println("");
-				printExceptionInformation(p);
-			}
+						synchronized (allFiles) {
+							allFiles.addAll(fileList);					
+						}
+					} catch (PlaidException p) {
+						System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
+						System.err.println("");
+						printExceptionInformation(p);
+					}
+					return null;
+				}
+			};
+			taskPool.submit(task);
 		}
-
+		taskPool.shutdown();
+		while ( !taskPool.isTerminated() ) {
+			taskPool.awaitTermination(1, TimeUnit.MINUTES);
+		}
+		
 		if ( !cc.isKeepTemporaryFiles() ) {
 			for( File f : allFiles ) {
 				f.deleteOnExit();
