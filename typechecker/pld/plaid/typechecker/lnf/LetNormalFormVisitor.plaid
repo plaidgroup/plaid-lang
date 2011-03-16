@@ -175,6 +175,47 @@ state LetNormalFormVisitor case of LeafVisitor {
 		
 		unit;
 	}
+
+	override method void visitDestructiveDereference(unique DestructiveDereference >> unique UnannotatedTakeBinding node) {
+		val unique ID id = this.generateID(node.token);
+		
+		match (node.left) {
+			case ID {
+				node <- UnannotatedTakeBinding {
+					val immutable Token token     = node.token;
+					val unique ID x               = id;
+					val unique Expression exp     = new Dereference {
+                    	val immutable Token token  = node.token;
+                    	val unique Expression left = node.left.copy();
+                    	val unique ID right        = node.right.copy();
+					};
+					val unique Expression body    = id.copy();
+					val immutable Boolean mutable = false;
+				};
+			}
+			
+			default {
+				node.left.accept(this);
+				
+				val unique Expression tPrime = this.selectLastBody(node.left);
+				val unique Expression innerDeref = new Dereference {
+                	val immutable Token token  = node.token;
+                	val unique Expression left = tPrime.copy();
+                	val unique ID right        = node.right.copy();
+				};
+				
+				node <- UnannotatedTakeBinding {
+					val immutable Token token     = node.token;
+					val unique ID x               = id;
+					val unique Expression exp     = this.exchangeBody(node.left, innerDeref);
+					val unique Expression body    = id.copy();
+					val immutable Boolean mutable = false;
+				};
+			}
+		};
+
+		unit;
+	}
 	
 	method void handleAssignment(unique Assignment >> unique UnannotatedTakeBinding node, immutable Boolean simpleTarget, immutable Boolean simpleValue) {
 		val unique ID id = this.generateID(node.token);
