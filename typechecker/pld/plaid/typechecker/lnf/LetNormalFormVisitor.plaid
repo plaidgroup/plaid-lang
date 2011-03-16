@@ -26,6 +26,13 @@ import plaid.ast.visitor.PrintVisitor;
 
 state LetNormalFormVisitor case of LeafVisitor {
 	var immutable Integer counter = 0;
+	
+	
+	// This records the body of the binding that has been visited last.
+	// This means the body of the binding that visit() has last been called on.
+	// It is used to prevent traversing long chains of bindings to find the innermost body.
+	// TODO:  This will not typecheck.
+	// var unique Expression lastBody;
 
 	method unique ID generateID(immutable Token >> immutable Token tok) {
 		this.counter = this.counter + 1;
@@ -602,6 +609,79 @@ state LetNormalFormVisitor case of LeafVisitor {
 			val unique Expression exp     = node.copy();
 			val unique Expression body    = id.copy();
 			val immutable Boolean mutable = false;
+		};
+	}
+	
+	override method void visitCasE(unique Case >> unique Case node) {
+		node.e.accept(this);
+	}
+	
+	override method void visitMatch(unique Match >> unique UnannotatedBinding node) {
+		match (node.e) {
+			case ID {
+			}
+			
+			default {
+				node.e.accept(this);
+			}
+		};
+		
+		node.caseList.map(fn (c) => {
+			c.e.accept(this);
+		});
+		
+		val unique ID id = this.generateID(node.token);
+		
+		match (node.e) {
+			case ID {
+				node <- UnannotatedTakeBinding {
+					val immutable Token token     = node.token;
+					val unique ID x               = id;
+					val unique Expression exp     = node.copy();
+					val unique Expression body    = id.copy();
+					val immutable Boolean mutable = false;
+				};
+			}
+			
+			default {
+				// In this case, the output type of node depends on the new type of node.e.
+				
+				val unique Expression newMatch = new Match {
+					val immutable Token token   = node.token;
+					val unique Expression e     = this.selectLastBody(node.e);
+					val /*List<Case>*/ caseList = node!caseList; // TODO: Copy?
+				};
+				
+				val unique Expression innerTake = new UnannotatedTakeBinding {
+					val immutable Token token     = node.token;
+					val unique ID x               = id;
+					val unique Expression exp     = newMatch;
+					val unique Expression body    = id.copy();
+					val immutable Boolean mutable = false;
+				};
+				
+				match (node.e) {
+					case UnannotatedTakeBinding {
+						node <- UnannotatedTakeBinding {
+							val immutable Token token     = node.e.token;
+							val unique ID x               = node.e.x.copy();
+							val unique Expression exp     = node.e.exp.copy();
+							val unique Expression body    = this.exchangeBody(node.e.body, innerTake);
+							val immutable Boolean mutable = false;
+						};
+					}
+					
+					case UnannotatedBorrowBinding {
+						node <- UnannotatedBorrowBinding {
+							val immutable Token token     = node.e.token;
+							val unique ID x               = node.e.x.copy();
+							val unique Expression exp     = node.e.exp.copy();
+							val unique Expression body    = this.exchangeBody(node.e.body, innerTake);
+							val immutable Boolean mutable = false;
+						};
+					}
+				};
+			}
 		};
 	}
 }
