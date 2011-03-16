@@ -476,6 +476,78 @@ state LetNormalFormVisitor case of LeafVisitor {
 			}
 		};
 	}
+	
+	override method void visitApplication(unique Application >> unique UnannotatedTakeBinding node) {
+		var unique Expression lets = new ID {
+			val immutable Token token = node.token;
+			val immutable String name = "dummy";
+		};
+		
+		var unique ID fID = lets.copy();
+		
+		match (node.f) {
+			case ID {
+				fID = node.f.copy(); 
+			}
+			
+			default {
+				node.f.accept(this);
+				lets = this.exchangeBody(lets, node.f.copy());
+				fID = this.selectLastBody(lets);
+			}
+		};
+		
+		var /*List<unique ID>*/ argIDs = makeEmptyList();
+		
+		node.arguments.map(fn (arg) => {
+			match (arg) {
+				case ID {
+					argIDs.add(arg.copy());
+				}
+				
+				default {
+					arg.accept(this);
+					lets = this.exchangeBody(lets, arg.copy());
+					argIDs.add(this.selectLastBody(lets)); 
+				}
+			};
+		});
+		
+		
+		val unique ID id = this.generateID(node.token);
+		
+		match (lets) {
+			case ID {
+				// lnf-app-bare
+				
+				node <- UnannotatedTakeBinding {
+					val immutable Token token     = node.token;
+					val unique ID x               = id;
+					val unique Expression exp     = node.copy();
+					val unique Expression body    = id.copy();
+					val immutable Boolean mutable = false;					
+				};
+			}
+			
+			default {
+				val unique Application newApp = new Application {
+					val immutable Token token          = node.token;
+					val unique Expression f            = fID;
+					val /*List<Expression>*/ arguments = argIDs;
+				};
+				
+				lets = this.exchangeBody(lets, newApp);
+			
+				node <- UnannotatedTakeBinding {
+					val immutable Token token     = node.token;
+					val unique ID x               = id;
+					val unique Expression exp     = lets;
+					val unique Expression body    = id.copy();
+					val immutable Boolean mutable = false;	
+				};
+			}
+		};
+	}
 
 	override method void visitNewInstance(unique NewInstance >> unique UnannotatedTakeBinding node) {
 		// TODO:  How to detect second case?
