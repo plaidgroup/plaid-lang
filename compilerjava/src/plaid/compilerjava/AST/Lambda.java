@@ -39,7 +39,7 @@ public final class Lambda implements Expression {
 	private final boolean hasArgs;
 	private Expression body;
 	private final LambdaType type;
-	
+	private List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
 	
 	
 	// TODO: I'm not sure that this is a very good constructor...
@@ -54,6 +54,17 @@ public final class Lambda implements Expression {
 		this.body = body;
 		this.type = type;
 		this.hasArgs = false;
+	
+	}
+	
+	public Lambda(Token token, Expression body,  List<MetaParameter> metaParams, LambdaType type) {
+		super();
+		
+		this.token = token;
+		this.body = body;
+		this.type = type;
+		this.hasArgs = false;
+		this.metaParams = metaParams;
 	
 	}
 	
@@ -75,6 +86,26 @@ public final class Lambda implements Expression {
 		this.type = type;
 	}
 	
+	
+	public Lambda(Token token, ID var, Expression body, List<MetaParameter> metaParams, LambdaType type) {
+		super();
+		
+		this.token = token;
+		
+		// if var is unit, generate a fresh ID that won't get used in the body
+		if (var == null)
+			this.hasArgs = false;
+		else {
+			this.hasArgs = true;
+			this.arguments.add(var);
+		
+		}
+		
+		this.body = body;
+		this.type = type;
+		this.metaParams = metaParams;
+	}
+	
 	public Lambda(Token token, List<ID> boundVars, Expression body, LambdaType type) {
 		super();
 		
@@ -86,6 +117,19 @@ public final class Lambda implements Expression {
 		this.body = body;
 		this.type = type;
 		
+	}
+	
+	public Lambda(Token token, List<ID> boundVars, Expression body, List<MetaParameter> metaParams, LambdaType type) {
+		super();
+		
+		this.token = token;
+		
+		this.arguments.addAll(boundVars);
+		this.hasArgs = boundVars.size() > 0;
+		
+		this.body = body;
+		this.type = type;
+		this.metaParams = metaParams;
 	}
 
 	public Token getToken() {
@@ -105,6 +149,10 @@ public final class Lambda implements Expression {
 		return Collections.unmodifiableList(arguments);
 	}
 
+	public List<MetaParameter> getMetaParamaters() {
+		return metaParams;
+	}
+	
 	public Expression getBody() {
 		return body;
 	}

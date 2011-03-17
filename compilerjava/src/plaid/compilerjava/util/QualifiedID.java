@@ -66,4 +66,8 @@ public class QualifiedID {
 		}
 		return qid;
 	}
+	
+	public String toShortName() {
+		return qidList.get(qidList.size() - 1);
+	}
 }

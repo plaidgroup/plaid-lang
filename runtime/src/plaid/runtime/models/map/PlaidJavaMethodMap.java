@@ -39,6 +39,8 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 	protected Object instance;
 	protected Class<?> instanceClass;
 	
+	protected static final PlaidStateMap javaObjectState = new PlaidStateMap(new PlaidPackageMap(QualifiedIdentifier.getQI("java.lang")), "Object", Object.class);
+	
 	public PlaidJavaMethodMap(String name, Object instance, Class<Object> instanceClass) {
 		super();
 		this.name = name;
@@ -182,9 +184,7 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 				// if we didn't convert this to a pure Plaid object, then add tags to it
 				// to allow for pattern matching
 				if (plaidResult instanceof PlaidJavaObject) {
-					plaidResult.addTag(new PlaidTagMap(result.getClass().getName(), 
-							new PlaidStateMap(new PlaidPackageMap(
-									new QualifiedIdentifier("java.lang")), "Object", Object.class))); //TODO: will we have this tag?
+					plaidResult.addTag(new PlaidTagMap(result.getClass().getName(), javaObjectState)); //TODO: will we have this tag?
 				}
 				return plaidResult;
 				

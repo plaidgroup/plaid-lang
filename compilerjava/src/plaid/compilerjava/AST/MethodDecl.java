@@ -155,7 +155,7 @@ public final class MethodDecl implements Decl {
 			if (!abstractMethod) body = RewriteUtil.getBodyWithPairExtractions(arguments, argID, 1, body);
 		}
 		
-		if (newName.equals("main") && !hasArg()) {
+		if (newName.equals("main") /*&& !hasArg()*/) {
 			out.topLevelMain(newName + "_func");
 		} else {
 			localVars = localVars.add(argID);

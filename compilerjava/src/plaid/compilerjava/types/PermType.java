@@ -3,21 +3,23 @@ package plaid.compilerjava.types;
 import org.json.simple.JSONAware;
 import org.json.simple.JSONObject;
 
+import plaid.compilerjava.AST.ID;
+
 public class PermType implements /*ASTnode,*/ JSONAware {
 	//public static final PermType UNIT = new PermType(Permission.IMMUTABLE, Type.UNIT);
 	public static PermType getUnitPT() {
-		return new PermType(Permission.IMMUTABLE, Type.UNIT);
+		return new PermType(Permission.IMMUTABLE, null, Type.UNIT);
 	}
 	
 	
 	//public static final PermType DYN = new PermType(Permission.DYN, Type.DYN);
 	public static PermType getDynPT() {
-		return new PermType(Permission.DYN, Type.DYN);
+		return new PermType(Permission.DYN, null, Type.DYN);
 	}
 	
 	//public static final PermType VOID = new PermType(Permission.NONE, Type.UNIT);  //VOID = none unit
 	public static PermType getVoidPT() {
-		return new PermType(Permission.NONE, Type.UNIT);
+		return new PermType(Permission.NONE, null, Type.UNIT);
 	}
 	
 	// This is a marker to indicate that the permission and type of the receiver should remain unchanged
@@ -26,15 +28,21 @@ public class PermType implements /*ASTnode,*/ JSONAware {
 	private final Permission perm;
 	private final Type type;
 	private boolean borrowed = false;
+	private ID group;
 	
-	public PermType(Permission perm, Type type) {
+	public PermType(Permission perm, ID group, Type type) {
 		if (perm == null || type == null) {
 			throw new RuntimeException("Perm and type must not be null!");
 		}
 		this.perm = perm;
 		this.type = type;
+		this.group = group;
 	}
 
+	public PermType(Permission perm, Type type) {
+		this(perm, null, type);
+	}
+	
 //	@Override
 //	public <T> T accept(ASTVisitor<T> visitor) {
 //		return visitor.visitNode(this);
