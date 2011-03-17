@@ -176,7 +176,7 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 				try {
 					@SuppressWarnings("unchecked")
 					Class<Object> obj = (Class<Object>) cl.loadClass(current);
-					return createPlaidObjectFromClass(new QualifiedIdentifier(current), obj);
+					return createPlaidObjectFromClass(QualifiedIdentifier.getQI(current), obj);
 				} catch (ClassNotFoundException e) {
 					// If there is no classfile then we need to keep searching
 					nonExistingClasses.add(current);

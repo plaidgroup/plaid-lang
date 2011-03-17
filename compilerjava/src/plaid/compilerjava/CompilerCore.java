@@ -32,6 +32,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 import java.util.Stack;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -112,7 +116,7 @@ public class CompilerCore {
 	}
 	
 	private void handleFileInJar(JarFile jarFile, JarEntry entry, PackageRep plaidpath) throws Exception {
-		if (!entry.getName().endsWith(".class"))
+		if (!entry.getName().endsWith(".class") || (entry.getName().contains("$") && !entry.getName().contains("plaid")))
 			return;
 		
 		String entryName = entry.getName();
@@ -135,7 +139,7 @@ public class CompilerCore {
 	}
 	
 	private void handleFileInPlaidPath(File file, String absoluteBase, PackageRep plaidpath) throws Exception {
-		if (!file.getName().endsWith(".class"))
+		if (!file.getName().endsWith(".class") || (file.getName().contains("$") && !file.getName().contains("$plaid")))
 			return;
 		
 		// Load in the hopes that this is a compiled .plaid file.
@@ -204,25 +208,39 @@ public class CompilerCore {
 		}		
 	}
 	
-	private void generateCode(List<CompilationUnit> cus, PackageRep plaidpath) throws Exception {
+	private void generateCode(List<CompilationUnit> cus, final PackageRep plaidpath) throws Exception {
 		if (cc.isVerbose())
 			System.out.println("Generating code.");
 
-		List<File> allFiles = new ArrayList<File>();
-		for (CompilationUnit cu : cus) {
-			try {
-				if (cc.isVerbose())
-					System.out.println("Generating code for:\n" + cu);
-				List<File> fileList = cu.codegen(cc, plaidpath);
+		final List<File> allFiles = new ArrayList<File>();
+		ExecutorService taskPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+		for (final CompilationUnit cu : cus) {
+			Callable<Object> task = new Callable<Object>() {
+				@Override
+				public Object call() throws Exception {
+					try {
+						if (cc.isVerbose())
+							System.out.println("Generating code for:\n" + cu);
+						List<File> fileList = cu.codegen(cc, plaidpath);
 
-				allFiles.addAll(fileList);
-			} catch (PlaidException p) {
-				System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
-				System.err.println("");
-				printExceptionInformation(p);
-			}
+						synchronized (allFiles) {
+							allFiles.addAll(fileList);					
+						}
+					} catch (PlaidException p) {
+						System.err.println("Error while compiling " + cu.getSourceFile().toString() + ":");
+						System.err.println("");
+						printExceptionInformation(p);
+					}
+					return null;
+				}
+			};
+			taskPool.submit(task);
 		}
-
+		taskPool.shutdown();
+		while ( !taskPool.isTerminated() ) {
+			taskPool.awaitTermination(1, TimeUnit.MINUTES);
+		}
+		
 		if ( !cc.isKeepTemporaryFiles() ) {
 			for( File f : allFiles ) {
 				f.deleteOnExit();
@@ -376,7 +394,7 @@ public class CompilerCore {
 	 * configuration input file list.
 	 * @param dir The directory containing plaid files.
 	 */
-	private void convertInputDirToInputFiles(File dir) {
+	public void convertInputDirToInputFiles(File dir) {
 		if (!dir.isDirectory()) {
 			throw new RuntimeException("Input directory " + dir.getName() + " is malformed."); 
 		}
@@ -411,15 +429,19 @@ public class CompilerCore {
 		System.out.println("");
 	}
 	
-	private static CompilerConfiguration parseParameters(String args[]) {
+	public static CompilerConfiguration parseParameters(List<String> args) {
+		for (String arg : args) {
+			System.out.print(arg + " ");
+		}
+		System.out.println();
 		CompilerConfiguration cc = new CompilerConfiguration();
 
-		if ( args.length == 0 ) {
+		if ( args.size() == 0 ) {
 			usage();
 			System.exit(-1);
 		}
 		
-		for ( Iterator<String> it = (Arrays.asList(args)).iterator(); it.hasNext();) {
+		for ( Iterator<String> it = args.iterator(); it.hasNext();) {
 			String value = it.next();
 			if ( value.startsWith("-")) {
 				if ( value.equals("-h") || value.equals("--help")) {
@@ -482,7 +504,7 @@ public class CompilerCore {
 		return cc;
 	}
 
-	private void fileSystemChecks(CompilationUnit cu, String filepath) {
+	public void fileSystemChecks(CompilationUnit cu, String filepath) {
 		//Error checking - enforce file conventions
 		// all files must be in the directory corresponding to the package
 		// file package.plaid can have multiple declarations
@@ -523,7 +545,7 @@ public class CompilerCore {
 	}
 	
 	public static void main(String args[]) {
-		CompilerConfiguration cc = parseParameters(args);
+		CompilerConfiguration cc = parseParameters(Arrays.asList(args));
 
 		if ( cc.getInputFiles().isEmpty() && (cc.getInputDir() == null || cc.getInputDir().equals(""))) {
 			usage();

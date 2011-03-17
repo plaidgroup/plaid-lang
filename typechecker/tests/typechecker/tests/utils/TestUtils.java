@@ -16,15 +16,15 @@ import plaid.ast.UnannotatedLetBinding;
 import plaid.ast.types.ChangeType;
 import plaid.ast.types.Dyn;
 import plaid.ast.types.FieldType;
-import plaid.ast.types.FullPermission;
-import plaid.ast.types.ImmutablePermission;
+import plaid.ast.types.permissions.FullPermission;
+import plaid.ast.types.permissions.ImmutablePermission;
 import plaid.ast.types.MethodType;
-import plaid.ast.types.NonePermission;
+import plaid.ast.types.permissions.NonePermission;
 import plaid.ast.types.PermType;
-import plaid.ast.types.PurePermission;
-import plaid.ast.types.SharedPermission;
-import plaid.ast.types.Type;
-import plaid.ast.types.UniquePermission;
+import plaid.ast.types.permissions.PurePermission;
+import plaid.ast.types.permissions.SharedPermission;
+import plaid.ast.types.ObjectType;
+import plaid.ast.types.permissions.UniquePermission;
 import plaid.compilerjava.types.Permission;
 import plaid.compilerjava.types.TypeDecl;
 import plaid.compilerjava.util.FieldRep;
@@ -199,7 +199,7 @@ public class TestUtils {
 				protoField(new PlaidJavaObjectMap(typeDecls)));
 		
 		// instantiate the new prototype
-		return initAndInstantiateState(Type.Type, newState);
+		return initAndInstantiateState(ObjectType.ObjectType, newState);
 	}
 	
 	/**

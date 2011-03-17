@@ -35,6 +35,7 @@ public class Application implements Expression {
 	private final Expression f;
 	private final List<Expression> arguments = new ArrayList<Expression>();
 	private final boolean hasArgs;
+	private final List<MetaArgument> metaArgs;
 	
 	private boolean isTailCall = false;
 
@@ -48,6 +49,20 @@ public class Application implements Expression {
 			this.arguments.add(argument);
 			hasArgs = true;
 		}
+		this.metaArgs = new ArrayList<MetaArgument>();
+	}
+	
+	public Application(Token t, Expression function, List<MetaArgument>  metaArgs, Expression argument) {
+		super();
+		this.token = t;
+		this.f = function;
+		if (argument instanceof UnitLiteral) {
+			hasArgs = false;
+		} else {
+			this.arguments.add(argument);
+			hasArgs = true;
+		}
+		this.metaArgs = metaArgs;
 	}
 	
 	public Application(Token t, Expression function, List<Expression> arguments) {
@@ -61,6 +76,21 @@ public class Application implements Expression {
 		} else {
 			this.hasArgs = true;
 		}
+		this.metaArgs = new ArrayList<MetaArgument>();
+	}
+	
+	public Application(Token t, Expression function, List<MetaArgument> metaArgs, List<Expression> arguments) {
+		super();
+		this.token = t;
+		this.f = function;
+		this.arguments.addAll(arguments);
+		if (this.arguments.size() == 1 && this.arguments.get(0) instanceof UnitLiteral) {
+			this.hasArgs = false;
+			this.arguments.clear();
+		} else {
+			this.hasArgs = true;
+		}
+		this.metaArgs = metaArgs;
 	}
 	
 	public Expression getFunction() {
@@ -84,8 +114,11 @@ public class Application implements Expression {
 		return token != null;
 	}
 	
+	List<MetaArgument> getMetaArgs() {
+		return metaArgs;
+	}
+	
 	@Override
-
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 		out.setLocation(token);
 		ID x = IdGen.getId();

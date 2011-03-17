@@ -529,6 +529,10 @@ public class CodeGen {
 		output.append(utilClass + ".integer(" + i + ")");
 	}
 	
+	public final void plaidDouble(double i) {
+		output.append(utilClass + ".floatingDouble(" + i + ")");
+	}
+	
 	public final void castToState(String s) {
 		output.append(utilClass + ".toPlaidState(" + s + ")");
 	}
@@ -557,8 +561,13 @@ public class CodeGen {
 		}
 		
 		//append(functionName + ".invoke(" + classLoader + ".unit());");
+		//get a arraylist<String>
+		append("plaid.runtime.PlaidObject arg1$plaid$init = new plaid.runtime.models.map.PlaidJavaObjectMap(plaid.lang.Sys.getCommandLineArguments());");
+		append("plaid.runtime.PlaidObject convert$plaid$init = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup(\"makeListFromJava\", global$c0pe);");
+		append("plaid.runtime.PlaidObject arg2$plaid$init;");
+		assignToCall("arg2$plaid$init", "convert$plaid$init", "arg1$plaid$init");
 		
-		call(functionName, classLoader + ".unit()");	//replace by fuyao, reason is to execute last tail call
+		call(functionName, "arg2$plaid$init");
 		append(";");
 		
 		if ( cc.isDebugMode() ) { 

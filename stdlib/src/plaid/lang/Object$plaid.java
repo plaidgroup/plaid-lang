@@ -21,13 +21,39 @@ package plaid.lang;
 
 import java.util.ArrayList;
 
+import plaid.runtime.PlaidException;
+import plaid.runtime.PlaidMemberDef;
+import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidScope;
+import plaid.runtime.Util;
+import plaid.runtime.annotations.RepresentsMethod;
 import plaid.runtime.annotations.RepresentsState;
+import plaid.runtime.models.map.PlaidLocalScopeMap;
+import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 
 @RepresentsState(name="Object", inPackage = "plaid.lang", toplevel=true, jsonRep="{\"member_type\": \"state\",\"name\": \"Object\",\"members\": []}")
 public class Object$plaid {
+	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
+
+	@RepresentsState(name="Object") 
+	public static PlaidObject obj = Util.newState();
 	
-	public static PlaidScope currentScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
+	static {
+		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", "plaid.lang.Object", false, true);
+		@RepresentsMethod(name = "eqeq$plaid", toplevel = false)
+		PlaidObject eqeqProtoMethod = Util.protoMethod("plaid.lang.Object.eqeq$plaid", new Delegate() {
+			@Override
+			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
+				@SuppressWarnings("unused")
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+				if (thisVar == args)
+					return Util.trueObject();
+				else
+					return Util.falseObject();
+			}
+		});
+		obj.addMember(eqeq, eqeqProtoMethod);		
+	}
 }

@@ -72,6 +72,13 @@ public class Util {
 		}
 	}
 	
+	public static PlaidObject floatingDouble(Double i) throws PlaidException {
+		PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Double", unit()));
+		PlaidJavaObject value = (PlaidJavaObject)intState.instantiate(PlaidImmutablePermission.immutable());
+		value.setJavaObject(i);
+		return value;
+	}
+	
 	public static PlaidObject trueObject() throws PlaidException {
 		PlaidState trueState = toPlaidState(cl.lookup("plaid.lang.True", unit()));
 		PlaidObject value = (PlaidObject)trueState.instantiate();

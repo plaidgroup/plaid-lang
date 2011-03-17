@@ -185,7 +185,11 @@ public class PlaidObjectMap implements PlaidObject {
 	
 	@Override
 	public void updateMember(String name, PlaidObject obj) {
-		if (this.isReadOnly()) {
+		if ( obj instanceof PlaidLookupMap ) {
+			throw new PlaidRuntimeException("Cannot store PlaidLookupMap in PlaidObjects.");
+		}
+		
+		if (isReadOnly()) {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
@@ -282,7 +286,7 @@ public class PlaidObjectMap implements PlaidObject {
 		if ( tags == null ) {
 			return EMPTY_TAGS;
 		}
-		return Collections.unmodifiableCollection(tags());
+		return tags();
 	}
 	
 	public boolean matchesTag(String tagString) {
@@ -380,7 +384,7 @@ public class PlaidObjectMap implements PlaidObject {
 		Map<String, PlaidMemberDef> newMembers = update.getMembers();
 		for (PlaidMemberDef incomingMember : newMembers.values()) {
 			if (!noAdd.contains(incomingMember.definedIn()) || //in the noAdd list, or
-					members().get(members().get(incomingMember.getMemberName()).getValue()) instanceof PlaidAbstractValueMap || //abstract
+					(members().get(members().get(incomingMember.getMemberName())) != null && members().get(members().get(incomingMember.getMemberName()).getValue()) instanceof PlaidAbstractValueMap) || //abstract
 					removedOverrides.contains(incomingMember.getMemberName())) { //previously overriden
 				PlaidObject incomingMemberValue = newMembers.get(incomingMember.getMemberName()).getValue();
 				if (incomingMemberValue instanceof PlaidMethodMap) { //update this pointer if necessary

@@ -42,10 +42,8 @@ public class BuildAllExamples {
 	
 	static{
 		skipList.add("destructiveRead"); //Exception at runtime - something to do with destructive read construct
-		skipList.add("reader");//MethodDeclFragment
 		skipList.add("stateVarsTest");//Implicit this dereferences are not supported.
 		skipList.add("tree");//java.lang.RuntimeException: Pattern match exhausted. AssignmentFragment
-		skipList.add("treeTest");//java.lang.RuntimeException: Pattern match exhausted. AssignmentFragment
 		skipList.add("turing");//Implicit this dereferences are not supported.
 		skipList.add("typeTests");//Method 'root.getTypeDecls' not found in package 'plaid.ast'.
 		

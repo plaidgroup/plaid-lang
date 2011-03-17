@@ -1,5 +1,6 @@
 package plaid.compilerjava.types;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ public class MethodType implements TypeDecl {
 	private final List<ChangeType> argTypes; //Order matters
 	private final ChangeType receiverType;
 	private final Map<ID,ChangeType> environmentTypes;
+	private final List<MetaType> metaTypes;
 	
 	//TODO: do we need this, or is there another way to signal this?
 	// This boolean is necessary to prevent nulls in the Plaid AST
@@ -23,18 +25,27 @@ public class MethodType implements TypeDecl {
 	// to true if we need to infer any typestate changes in the method.
 	//private final boolean needTypeTransInference;
 	
-	public MethodType(ID name, PermType returnType, List<ChangeType> argTypes, 
-						ChangeType receiverType, Map<ID,ChangeType> environmentTypes) {
+	public MethodType(ID name, 
+				      PermType returnType, 
+				      List<MetaType> metaTypes,
+				      List<ChangeType> argTypes, 
+				      ChangeType receiverType, 
+				      Map<ID,ChangeType> environmentTypes) {
 		this.name = name;
 		this.returnType = returnType;
+		this.metaTypes = metaTypes;
 		this.argTypes = argTypes;
 		this.receiverType = receiverType;
-		this.environmentTypes = environmentTypes;
-		
-		
+		this.environmentTypes = environmentTypes;	
 	}
 	
-
+	public MethodType(ID name, 
+		      PermType returnType, 
+		      List<ChangeType> argTypes, 
+		      ChangeType receiverType, 
+		      Map<ID,ChangeType> environmentTypes) {
+		this(name, returnType, new ArrayList<MetaType>(), argTypes, receiverType, environmentTypes);
+	}
 
 //	@Override
 //	public <T> T accept(ASTVisitor<T> visitor) {

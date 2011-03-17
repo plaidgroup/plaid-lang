@@ -20,26 +20,27 @@
 package plaid.runtime.utils;
 
 public class Import {
-	private QualifiedIdentifier qid;
+	private final QualifiedIdentifier qid;
+	private final QualifiedIdentifier prefix;
+	private final boolean isStar;
 	
 	public Import(String im) {
-		qid = new QualifiedIdentifier(im);
+		qid = QualifiedIdentifier.getQI(im);
+		if ( qid.getSuffix().equals("*") ) {
+			isStar = true;
+			prefix = qid.getPrefix();
+		} else {
+			isStar = false;
+			prefix = qid;
+		}
 	}
 	
 	public boolean isStar() {
-		if ( qid.getSuffix().equals("*")) {
-			return true;
-		} else {
-			return false;
-		}
+		return isStar;
 	}
 	
 	public QualifiedIdentifier getIdent() {
-		if ( isStar() ) {
-			return qid.getPrefix();
-		} else {
-			return qid;
-		}
+		return prefix;
  	}
 
 	@Override
@@ -51,7 +52,7 @@ public class Import {
 	public boolean equals(Object o) {
 		if (!(o instanceof Import))
 			return false;
-		return this.qid.equals(((Import)o).qid);
+		return this.qid == ((Import)o).qid;
 	}
 	
 	@Override

@@ -28,7 +28,7 @@ import plaid.runtime.utils.QualifiedIdentifier;
 public class QualifiedIdentifierTest extends BaseTest {
 	@Test
 	public void QIFromString() {
-		QualifiedIdentifier qi = new QualifiedIdentifier("foo.bar.baz");
+		QualifiedIdentifier qi = QualifiedIdentifier.getQI("foo.bar.baz");
 		assertTrue( qi.getSuffix().equals("baz"));
 		
 		QualifiedIdentifier prefix1 = qi.getPrefix();

@@ -20,26 +20,42 @@
 package plaid.runtime.utils;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class QualifiedIdentifier {
-	private List<String> fragments;
-	private String qi;
+	private final List<String> fragments;
+	private final String qi;
 	
-	public QualifiedIdentifier(String qi) {
-		fragments = new ArrayList<String>();
-		for ( String f : qi.split("\\.") ) {
-			fragments.add(f);
-		}
-		this.qi = qi;
-	}
+	protected static final ConcurrentHashMap<String, QualifiedIdentifier> qiCache = new ConcurrentHashMap<String, QualifiedIdentifier>();
 	
-	public QualifiedIdentifier(QualifiedIdentifier other) {
-		fragments = new ArrayList<String>(other.fragments);
-	}
-	
-	protected QualifiedIdentifier(List<String> fragments) {
+	protected QualifiedIdentifier(String name, List<String> fragments) {
+		this.qi = name;
 		this.fragments = fragments;
+	}
+	
+	public static QualifiedIdentifier getQI(String name) {
+		QualifiedIdentifier qi = qiCache.get(name);
+		if ( qi == null ) {
+			List<String> fragments = new ArrayList<String>();
+			for ( String f : name.split("\\.") ) {
+				fragments.add(f);
+			}
+			qi = new QualifiedIdentifier(name, Collections.unmodifiableList(fragments));
+			qiCache.putIfAbsent(name, qi);
+		}
+		return qi;
+	}
+	
+	public static QualifiedIdentifier getQI(List<String> fragments) {
+		String name = ""; 
+		for(String s : fragments) {
+			name += s + ".";
+		}
+		return getQI(name.substring(0, name.length()-1));
 	}
 	
 	public boolean isEmpty() {
@@ -47,13 +63,6 @@ public final class QualifiedIdentifier {
 	}
 	
 	public String getQI() {
-		if ( qi == null ) {
-			StringBuilder sb = new StringBuilder();
-			for ( String f : fragments ) {
-				sb.append(f + ".");
-			}
-			qi =  sb.substring(0, sb.length()-1);
-		}
 		return qi;
 	}
 	
@@ -67,53 +76,40 @@ public final class QualifiedIdentifier {
 	
 	public QualifiedIdentifier getPrefix() {
 		if (fragments.size() > 1)
-			return new QualifiedIdentifier(fragments.subList(0, fragments.size()-1));
+			return getQI(fragments.subList(0, fragments.size()-1));
 		else
-			return new QualifiedIdentifier(fragments.get(0));
+			return getQI(fragments.get(0));
 	}
 
 	public List<String> split() {
-		return new ArrayList<String>(fragments);
+		return fragments;
 	}
 	
 	public QualifiedIdentifier append(String name) {
-		List<String> frags = new ArrayList<String>();
-		frags.addAll(fragments);
-		frags.add(name);
-		return new QualifiedIdentifier(frags);
+		return getQI(qi + "." + name);
 	}
 
 	public QualifiedIdentifier append(QualifiedIdentifier name) {
-		List<String> frags = new ArrayList<String>();
-		frags.addAll(fragments);
-		frags.addAll(name.split());
-		return new QualifiedIdentifier(frags);
+		return getQI(qi+"." + name);
 	}
 	
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		for (String s : fragments)
-			result = prime * result	+ s.hashCode();
-		return result;
+		return qi.hashCode();
 	}
-
+	
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
+		if ( obj instanceof QualifiedIdentifier ) {
+			QualifiedIdentifier other = (QualifiedIdentifier)obj;
+			return qi.equals(other.qi);
+		} else {
 			return false;
-		if (getClass() != obj.getClass())
-			return false;
-
-		QualifiedIdentifier other = (QualifiedIdentifier) obj;
-		return this.fragments.equals(other.fragments);
+		}
 	}
 
 	@Override
 	public String toString() {
-		return getQI();
+		return qi;
 	}
 }

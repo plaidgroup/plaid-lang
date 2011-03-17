@@ -1,21 +1,60 @@
 package plaid.ast.types;
 
 import plaid.ast.ID;
+import plaid.ast.types.permissions.*;
 
-//globals for permissions
-val immutable Permission DYNP = new DynPermission;
-val immutable Permission UNIQUE = new UniquePermission;
-val immutable Permission FULL = new FullPermission;
-val immutable Permission IMM = new ImmutablePermission;
-val immutable Permission SHARED = new SharedPermission;
-val immutable Permission PURE = new PurePermission;
-val immutable Permission NONEP = new NonePermission;
+val (immutable TypeBinding, immutable TypeBinding, immutable Boolean) -> /*unique Option<immutable Permission>*/ void
+fieldReadPermB =
+	fn (immutable TypeBinding fieldBinding,
+		immutable TypeBinding >> void neededBinding,
+		immutable Boolean stronglyBorrowed) => 
+	{
+		fieldReadPerm(fieldBinding.currentType.perm, neededBinding.currentType.perm, stronglyBorrowed)
+	};
+
+val () -> unique NominalType getUnitType = fn () => {
+	new NominalType { val typeName = new ID { val name = "unit"; }; }
+};
+
+val () -> unique PermType getVoidType = fn () => {
+	createPermType(NONEP, getUnitType())
+};
+
+val (immutable Permission >> void, unique ObjectType >> void) -> unique TakeType createTakeType =
+	fn (immutable Permission >> void p, unique ObjectType >> void t) => {
+		new TakeType {
+			var unique PermType currentType = createPermType(p,t);
+		}
+	};
+	
+val (immutable Permission >> void, unique ObjectType >> void, 
+	 immutable Permission >> void, immutable Boolean >> void) -> unique BorrowType createBorrowType =
+	fn (immutable Permission >> void p, unique ObjectType >> void t,
+		immutable Permission >> void lb, immutable Boolean >> void sb) => {
+		new BorrowType {
+			var unique PermType currentType = createPermType(p,t);
+			val immutable Permission lowerBound = lb;
+			val immutable Boolean stronglyBorrowed = sb;
+		}
+	};
+	
+val (immutable Permission >> void, unique ObjectType >> void) -> unique PermType createPermType =
+	fn (immutable Permission >> void p, unique ObjectType >> void t) => {
+		new PermType {
+			val immutable Permission perm = p;
+			val unique ObjectType type = t;
+		}
+	};
 
 val immutable PermType VOID = new PermType {
 	val perm = NONEP;
 	val type = new NominalType { val typeName = new ID { val name = "unit"; }; };
-	val borrowed = false;
 };
+
+val (immutable ID >> void) -> unique NominalType createNominalType = 
+	fn (immutable ID >> void name) => {
+		new NominalType { val immutable ID typeName = name; }; 
+	};
 
 //type to indicate an error
 val /*(immutable String >> immutable String) -> FailedTypecheck*/ newErrorType = 
@@ -28,71 +67,6 @@ val /*({ val Type type }, String, boolean) -> void*/ typeError = fn (node, msg, 
 		val isLocal	= local;
 	};
 
-//permission for reading a field - check these
-val /*(permission,permission) -> permission*/ fieldReadPermission = fn (objectPerm, fieldPerm) => {
-	match (objectPerm) {
-		case DynPermission { DYNP }
-		case UniquePermission {
-			match (fieldPerm) {
-				case DynPermission { DYNP }
-				case UniquePermission { PURE }
-				case FullPermission { PURE }
-				case ImmutablePermission { IMM }
-				case SharedPermission { SHARED }
-				case PurePermission { PURE }
-				case NonePermission { NONEP }
-			}
-		}
-		case FullPermission {
-			match (fieldPerm) {
-				case DynPermission { DYNP }
-				case UniquePermission { PURE }
-				case FullPermission { PURE }
-				case ImmutablePermission { IMM }
-				case SharedPermission { SHARED }
-				case PurePermission { PURE }
-				case NonePermission { NONEP }
-			}
-		}
-		case ImmutablePermission {
-			match (fieldPerm) {
-				case DynPermission { DYNP }
-				case UniquePermission { PURE }
-				case FullPermission { PURE }
-				case ImmutablePermission { IMM }
-				case SharedPermission { PURE }
-				case PurePermission { PURE }
-				case NonePermission { NONEP }
-			}
-		}
-		case SharedPermission {
-			match (fieldPerm) {
-				case DynPermission { DYNP }
-				case UniquePermission { PURE }
-				case FullPermission { PURE }
-				case ImmutablePermission { IMM }
-				case SharedPermission { PURE }
-				case PurePermission { PURE }
-				case NonePermission { NONEP }
-			}
-		}
-		case PurePermission { 
-			match (fieldPerm) {
-				case DynPermission { DYNP }
-				case UniquePermission { PURE }
-				case FullPermission { PURE }
-				case ImmutablePermission { IMM }
-				case SharedPermission { PURE }
-				case PurePermission { PURE }
-				case NonePermission { NONEP }
-			}
-		}
-		case NonePermission {
-			NonePermission
-		}
-		default { java.lang.System.out.println("not a permission"); }
-	}
-};
 
 //NOTE: this test shows that state change for restricted updated is somewhat broken:
 // without the change to None first, a is not updated because they are the same state
@@ -102,14 +76,12 @@ method maintest() {
 	val a = new PermType {
 		val perm = DYNP;
 		val type = new NominalType { val typeName = new ID { val name = "unit"; }; };
-		val borrowed = false;
 	};
 	java.lang.System.out.println(a.toString());
 	//a <- None;
 	a <- PermType {
 		override val perm = UNIQUE;
 		override val type = new NominalType { val typeName = new ID { val name = "changed"; }; };
-		override val borrowed = true;
 	};
 	java.lang.System.out.println(a.toString());
 	
