@@ -1,0 +1,139 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.ast.stateTable;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+
+state StateTable {
+	//My favorite plaid hack so far - killer initializer - put unit state into initial table
+	val /*Map<ID,StateType>*/ states = (fn () => { 
+		val temp = java.util.HashMap.new();
+		//unit
+		val u = new ID { val name = "unit"; };
+		temp.put(u, new StateType { val name = u; val superType = new None; });
+		
+		//integer
+		val intID = new ID { val name  = "Integer"; };
+		val pt = new PermType {
+			val /*Permission*/ perm = IMM;
+			val /*Type*/ type = new NominalType { val typeName = intID; };
+		};
+		val ct = new ChangeType {
+			val /*PermTYpe*/ input = pt;
+			val /*PermType*/ output = VOID;
+			val immutable Boolean stronglyBorrowed = false;
+		};
+		val intType = new StateType { val name = intID; val superType = new None; };
+		
+		//plus method
+		val plusID = new ID { val name = "+"; };
+		val plusMethod = new MethodType {
+			val /*ID*/ name = plusID;
+			val /*PermType*/ returnType = pt;
+			val /*List<ChangeType>*/ argTypes = new List {
+				var head = new Cons { 
+					var value = ct;
+					var next = new Nil;
+				};		
+			};
+			val /*ChangeType*/ receiverType =  ct;
+			val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+		};
+		intType.providedTypes.put(plusID, plusMethod);
+		intType.declaredTypes.put(plusID, plusMethod);
+		
+		//minus method
+		val minusID = new ID { val name = "-"; };
+		val minusMethod = new MethodType {
+			val /*ID*/ name = minusID;
+			val /*PermType*/ returnType = pt;
+			val /*List<ChangeType>*/ argTypes = new List {
+				var head = new Cons { 
+					var value = ct;
+					var next = new Nil;
+				};		
+			};
+			val /*ChangeType*/ receiverType =  ct;
+			val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+		};
+		intType.providedTypes.put(minusID, minusMethod);
+		intType.declaredTypes.put(minusID, minusMethod);
+		
+		//leq method
+		val leqID = new ID { val name = "<="; };
+		val leqMethod = new MethodType {
+			val /*ID*/ name = leqID;
+			val /*PermType*/ returnType = new PermType {
+				val /*Permission*/ perm = IMM;
+				val /*Type*/ type = new NominalType { val typeName = new ID { val name = "Boolean";};  };
+			};
+			val /*List<ChangeType>*/ argTypes = new List {
+				var head = new Cons { 
+					var value = ct;
+					var next = new Nil;
+				};
+			};
+			val /*ChangeType*/ receiverType = ct;
+			val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+		};
+		intType.providedTypes.put(leqID, leqMethod);
+		intType.declaredTypes.put(leqID, leqMethod);
+		
+		//add Integer to State Table
+		temp.put(intID,intType);
+		
+		//Boolean
+		val boolID = new ID { val name = "Boolean"; };
+		val boolType = new StateType { val name = boolID; val superType = new None; };
+		//don't need methods for now
+		temp.put(boolID, boolType);
+		
+		val trueID = new ID { val name = "True"; };
+		val trueType = new StateType { val name = trueID; val superType = createSome(boolType); };
+		temp.put(trueID, trueType);
+		
+		val falseID = new ID { val name = "False"; };
+		val falseType = new StateType { val name = falseID; val superType = createSome(boolType); };
+		temp.put(falseID, falseType);
+		
+		
+		temp;
+	}) ();
+	
+	method put(/*ID*/ name, /*StateType*/ type) {
+		states.put(name,type);
+	}
+	
+	method /*Option StateType*/ get(/*ID*/ name) {
+		ifElse (states.containsKey(name) )
+			{ new Some { val value = states.get(name); } }
+			{ new None }
+	}
+	
+	method printTable() {
+        val iter = states.values().iterator();
+        while { iter.hasNext(); }{
+            java.lang.System.out.print(iter.next().toString());
+        };
+	}
+	
+	
+}
