@@ -1,0 +1,247 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker.lnf;
+
+import plaid.ast.*;
+import plaid.typechecker.ast.*;
+import plaid.ast.visitor.LeafVisitor;
+import plaid.ast.visitor.PrintVisitor;
+
+state NewLetNormalFormVisitor {
+	var immutable Integer counter = 0;
+	
+	method unique ID generateID(immutable Token >> immutable Token tok) {
+		this.counter = this.counter + 1;
+		val immutable String n = "LNF$" + this.counter + "$plaid";
+		
+		new ID {
+			val immutable Token token = tok;
+			val immutable String name = n;
+			override val immutable Boolean isTemp = true;
+		};
+	}
+	
+	// lastBody keeps track of the body of the last binding that has been constructed.
+	// Its purpose is to prevent the need to traverse very long chains of bindings to get access to the last body.
+	// This won't typecheck but greatly simplifies the code.
+	var unique Expression lastBody;
+	
+	method unique UnannotatedTakeBinding makeTake(immutable Token token, unique ID >> none ID x, unique Expression >> none Expression exp, unique Expression >> none Expression body) {
+		val unique UnannotatedTakeBinding ret = new UnannotatedTakeBinding {
+			val immutable Token token     = token;
+			val unique ID x               = x;
+			val unique Expression exp     = exp;
+			val unique Expression body    = body;
+			val immutable Boolean mutable = false;
+		};
+		
+		this.lastBody = ret.body;
+		
+		ret;
+	}
+	
+	method unique UnannotatedBorrowBinding makeBorrow(immutable Token token, unique ID >> none ID x, unique Expression >> none Expression exp, unique Expression >> none Expression body) {
+		val unique UnannotatedBorrowBinding ret = new UnannotatedBorrowBinding {
+			val immutable Token token     = token;
+			val unique ID x               = x;
+			val unique Expression exp     = exp;
+			val unique Expression body    = body;
+			val immutable Boolean mutable = false;
+		};
+		
+		this.lastBody = ret.body;
+		
+		ret;
+	}
+
+	method void changeLastBodyToBorrow(immutable Token token, unique ID >> none ID x, unique Expression >> none Expression exp, unique Expression >> none Expression body) {
+		this.lastBody <- UnannotatedBorrowBinding {
+			val immutable Token token     = token;
+			val unique ID x               = x;
+			val unique Expression exp     = exp;
+			val unique Expression body    = body;
+			val immutable Boolean mutable = false;
+		};
+		
+		this.lastBody = body;
+	}
+
+/*
+	method void connectBindings(unique Expression body, unique UnannotatedBinding nextBinding) {
+		match (nextBinding) {
+			case UnannotatedBorrowBinding {
+				body <- UnannotatedBorrowBinding {
+					val immutable Token token     = nextBinding.token;
+					val unique ID x               = nextBinding.x;
+					val unique Expression exp     = nextBinding.exp;
+					val unique Expression body    = nextBinding.body;
+					val immutable Boolean mutable = false;
+				};
+			}
+			
+			case UnannotatedTakeBinding {
+				body <- UnannotatedTakeBinding {
+					val immutable Token token     = nextBinding.token;
+					val unique ID x               = nextBinding.x;
+					val unique Expression exp     = nextBinding.exp;
+					val unique Expression body    = nextBinding.body;
+					val immutable Boolean mutable = false;
+				};
+			}
+		};
+	}
+*/
+
+	//
+	// VISIT METHODS
+	//
+	
+	method unique Expression visitID(immutable ID node) {
+		val unique ID id = this.generateID(node.token);
+		this.makeTake(node.token, id, node.copy(), id.copy());
+	}
+	
+	method unique Expression visitDereference(immutable Dereference node) {
+		val unique ID id = this.generateID(node.token);
+		
+		match (node.left) {
+			case ID {
+				this.makeBorrow(node.token, id, node.copy(), id.copy());
+			}
+			
+			default {
+				val unique Expression left = node.left.accept(this);
+				
+				val unique Dereference deref = new Dereference {
+                	val immutable Token token  = node.token;
+                	val unique Expression left = this.lastBody.copy();
+                	val unique ID right        = node.right.copy();
+				};
+				
+				this.changeLastBodyToBorrow(node.token, id, deref, id.copy());
+				left;
+			}
+		};
+	}
+
+	method unique Expression visitDestructiveDereference(immutable DestructiveDereference node) {
+		val unique ID id = this.generateID(node.token);
+		
+		match (node.left) {
+			case ID {
+				val unique Dereference deref = new Dereference {
+                	val immutable Token token  = node.token;
+                	val unique Expression left = node.left.copy();
+                	val unique ID right        = node.right.copy();
+				};
+				
+				this.makeTake(node.token, id, deref, id.copy());
+			}
+			
+			default {
+				val unique Expression left = node.left.accept(this);
+				
+				this.lastBody <- Dereference {
+                	val immutable Token token  = node.token;
+                	val unique Expression left = this.lastBody.copy();
+                	val unique ID right        = node.right.copy();
+				};
+				
+				this.makeTake(node.token, id, left, id.copy());
+			}
+		};
+	}
+
+/*
+	method unique Expression visitMethodCall(immutable MethodCall node) {
+		val unique ID dummy = new ID {
+			val immutable Token token = node.token;
+			val immutable String name = "dummy";
+		};
+		var /*Pair<Expression, Expression>*/ lets = makePair(dummy, dummy);
+		var unique ID receiverID                  = new ID;
+		
+		match (node.receiver) {
+			case ID {
+				receiverID = node.receiver.copy(); 
+			}
+			
+			default {
+				val unique Expression newReceiver = node.receiver.accept(this);
+				receiverID = this.lastNode.copy();
+				lets = makePair(newReceiver, this.lastNode);
+			}
+		};
+		
+		var /*List<unique ID>*/ argIDs = makeEmptyList();
+		
+		node.arguments.map(fn (arg) => {
+			match (arg) {
+				case ID {
+					argIDs.add(arg.copy());
+				}
+				
+				default {
+					val unique Expression newArg = arg.accept(this);
+					
+					lets = this.exchangeBody(lets, arg.copy());
+					argIDs.add(this.selectLastBody(lets)); 
+				}
+			};
+		});
+		
+		
+		val unique ID id = this.generateID(node.token);
+		
+		match (lets) {
+			case ID {
+				// lnf-call-bare
+				
+				node <- UnannotatedTakeBinding {
+					val immutable Token token     = node.token;
+					val unique ID x               = id;
+					val unique Expression exp     = node.copy();
+					val unique Expression body    = id.copy();
+					val immutable Boolean mutable = false;					
+				};
+			}
+			
+			default {
+				val unique MethodCall newCall = new MethodCall {
+					val unique Expression receiver     = receiverID;
+					val unique ID methodName           = node.methodName.copy();
+					val /*List<Expression>*/ arguments = argIDs;
+					val immutable Token token          = node.token;
+				};
+				
+				lets = this.exchangeBody(lets, newCall);
+			
+				node <- UnannotatedTakeBinding {
+					val immutable Token token     = node.token;
+					val unique ID x               = id;
+					val unique Expression exp     = lets;
+					val unique Expression body    = id.copy();
+					val immutable Boolean mutable = false;	
+				};
+			}
+		};
+	}
+*/
+}
