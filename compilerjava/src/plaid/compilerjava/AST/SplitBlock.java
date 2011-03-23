@@ -41,7 +41,15 @@ public class SplitBlock implements Expression {
                 return token;
         }
 
-        @Override
+        public List<MetaArgument> getMetaArgs() {
+			return metaArgs;
+		}
+
+		public List<Expression> getBody() {
+			return body;
+		}
+
+		@Override
         public <T> T accept(ASTVisitor<T> visitor) {
         	return visitor.visitNode(this);
         }
