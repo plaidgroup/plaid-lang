@@ -7,12 +7,12 @@ public class ChangeType {
 	
 	private final PermType input;
 	private final PermType output;
-	private final boolean borrow;
+	private final boolean strongBorrow;
 	
 	public ChangeType(PermType input, PermType output, boolean borrow) {
 		this.input = input;
 		this.output = output;
-		this.borrow = borrow;
+		this.strongBorrow = borrow;
 	}
 
 	public PermType getInput() {
@@ -23,13 +23,14 @@ public class ChangeType {
 		return output;
 	}
 	
-	public boolean borrows() {
-		return borrow;
+	public boolean stronglyBorrows() {
+		return strongBorrow;
 	}
 	
 	@Override 
 	public String toString() {
-		return input.toString() + " >> " + output.toString();
+		String b = this.strongBorrow ? "(B) " : " ";
+		return input.toString() + " >>" + b + output.toString();
 		
 	}
 }
