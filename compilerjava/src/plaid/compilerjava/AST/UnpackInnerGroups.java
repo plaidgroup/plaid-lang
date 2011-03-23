@@ -32,7 +32,11 @@ public class UnpackInnerGroups implements Expression {
                 return token;
         }
 
-        @Override
+        public Expression getBody() {
+			return body;
+		}
+
+		@Override
         public <T> T accept(ASTVisitor<T> visitor) {
         	return visitor.visitNode(this);
         }
