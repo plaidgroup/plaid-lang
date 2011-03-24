@@ -580,14 +580,14 @@ public class PlaidObjectMap implements PlaidObject {
 		// add states from this object to frozen state
 		if ( this.getStates() != PlaidObjectMap.EMPTY_STATES ) {
 			for (PlaidObject ps : this.getStates() ) {
-				frozenState.addState(ps);
+				frozenState.getPrototype().addState(ps);
 			}
 		}
 		
 		// add tags from this object to frozen state
 		if ( this.getTags() != PlaidObjectMap.EMPTY_TAGS ) {
 			for (PlaidTag t : this.getTags()) {
-				frozenState.addTag(t);
+				frozenState.getPrototype().addTag(t);
 			}
 		}
 		
