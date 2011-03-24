@@ -63,4 +63,8 @@ public final class PlaidMethodMap extends PlaidObjectMap implements PlaidMethod 
 	public int hashCode() {
 		return this.fullyQualName.hashCode();
 	}
+	
+	public Delegate getDelegate() {
+		return this.delegate;
+	}
 }

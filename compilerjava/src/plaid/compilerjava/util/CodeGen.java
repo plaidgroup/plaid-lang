@@ -287,6 +287,12 @@ public class CodeGen {
 		with(s1,s2);
 		updateVarDebugInfo(target);
 	}
+
+	public final void assignToFreeze(String target, String s1) {
+		assign(target);
+		freeze(s1);
+		updateVarDebugInfo(target);
+	}
 	
 	public final void assignToStateInitialization(String target, String toInit, String initState) {
 		assign(target);
@@ -480,6 +486,10 @@ public class CodeGen {
 	
 	public final void with(String target, String param) {
 		output.append(target + ".with(" + param + ");");
+	}
+	
+	public final void freeze(String target) {
+		output.append(target + ".freeze();");
 	}
 	
 	public final void call(String function, String arg) {
