@@ -32,6 +32,7 @@ import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntimeException;
+import plaid.runtime.PlaidState;
 import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
 import plaid.runtime.types.PlaidPermType;
@@ -39,6 +40,7 @@ import plaid.runtime.types.PlaidPermission;
 import plaid.runtime.types.PlaidPermissionTable;
 import plaid.runtime.types.PlaidPermissionTableMap;
 import plaid.runtime.types.PlaidUniquePermission;
+import plaid.runtime.utils.Delegate;
 
 public class PlaidObjectMap implements PlaidObject {
 	@SuppressWarnings("unchecked")
@@ -550,5 +552,45 @@ public class PlaidObjectMap implements PlaidObject {
 		PlaidPermission toJoinPerm2 = toJoinType2.getPermission();
 		PlaidPermission resultPerm = resultType.getPermission();
 		permTable.execPermSplit(toJoinPerm1, toJoinPerm2, resultPerm);
+	}
+	
+	@Override
+	public PlaidState freeze() {
+		
+		// add members from object to the state as proto members
+		PlaidState frozenState = new PlaidStateMap();
+		for ( Map.Entry<String, PlaidMemberDef> member : this.getMembers().entrySet() ) {
+			final PlaidObject memberValue = member.getValue().getValue();
+			PlaidMemberDef memberKey = member.getValue();
+			if (memberValue instanceof PlaidMethodMap) {
+				PlaidMethodMap pmm = (PlaidMethodMap) memberValue;
+				PlaidProtoMethodMap protoMethod = new PlaidProtoMethodMap(pmm.getFullyQualifiedName(), pmm.getDelegate());
+				frozenState.addMember(Util.memberDef(memberKey), protoMethod);
+			} else if (memberValue instanceof PlaidAbstractValueMap) {
+				frozenState.addMember(Util.memberDef(memberKey), memberValue);
+			} else {	
+				PlaidProtoFieldMap protoField = new PlaidProtoFieldMap(new Delegate() {
+					public PlaidObject invoke(PlaidObject thisVar, PlaidObject args) throws PlaidException {	
+						return memberValue;
+					}
+				});
+				frozenState.addMember(memberKey, protoField);
+			}
+		}
+		// add states from this object to frozen state
+		if ( this.getStates() != PlaidObjectMap.EMPTY_STATES ) {
+			for (PlaidObject ps : this.getStates() ) {
+				frozenState.addState(ps);
+			}
+		}
+		
+		// add tags from this object to frozen state
+		if ( this.getTags() != PlaidObjectMap.EMPTY_TAGS ) {
+			for (PlaidTag t : this.getTags()) {
+				frozenState.addTag(t);
+			}
+		}
+		
+		return frozenState;
 	}
 }
