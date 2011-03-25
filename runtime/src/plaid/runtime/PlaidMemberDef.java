@@ -21,4 +21,6 @@ public interface PlaidMemberDef {
 	public PlaidObject getValue();
 	
 	public void setValue(PlaidObject value);
+	
+	public PlaidMemberDef copy();
 }
