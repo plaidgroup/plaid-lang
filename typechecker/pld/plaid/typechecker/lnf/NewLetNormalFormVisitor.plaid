@@ -325,4 +325,47 @@ state NewLetNormalFormVisitor {
 			}
 		};
 	}
+	
+	method /*Pair<Binding, Expression>*/ visitMatch(immutable Match node) {
+		val /*List<Case>*/ newCaseList = node.caseList.map(fn (immutable Case c) => {
+			new Case {
+				val immutable Token token         = c.token;
+				val /*Option QI*/ qi              = match (c.qi) { case Some { createSome(c.qi.value.copy()); } case None { new None; } };
+				val /*Option ID*/ x               = match (c.x)  { case Some { createSome(c.x.value.copy());  } case None { new None; } };
+				val /*Expression*/ e              = c.e.accept(this).first();
+				val immutable Boolean defaultCase = c.defaultCase;
+				val immutable Boolean boundVar    = c.boundVar;
+			};
+		});
+		
+		val unique ID id = this.generateID(node.token);
+		
+		match (node.e) {
+			case ID {
+				val unique Match m = new Match {
+					val immutable Token token   = node.token;
+					val unique Expression e     = node.e.copy();
+					val /*List<Case>*/ caseList = newCaseList;
+				};
+				
+				this.makeTake(node.token, id, m, id.copy());
+			}
+			
+			default {
+				val /*Pair<Binding, Expression>*/ p = node.e.accept(this);
+				
+				val unique Match m = new Match {
+					val immutable Token token   = node.token;
+					val unique Expression e     = p.second().copy();
+					val /*List<Case>*/ caseList = newCaseList;
+				};				
+				
+				val /*List<Pair<Binding, Expression>>*/ bindings = makeEmptyList();
+				bindings.add(p);
+				
+				val /*List<Pair<Binding, Expression>>*/ t = this.makeTake(node.token, id, m, id.copy());
+				makePair(this.zipBindings(bindings, t.first()), t.second());
+			}
+		};		
+	}
 }
