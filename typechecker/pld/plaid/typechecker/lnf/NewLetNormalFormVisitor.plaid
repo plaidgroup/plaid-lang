@@ -204,4 +204,125 @@ state NewLetNormalFormVisitor {
 			}
 		};
 	}
+
+	method /*Pair<Binding, Expression>*/ visitApplication(immutable Application node) {
+		var unique ID fID = new ID;
+		val /*List<Pair<UnannotatedBinding, Expression>>*/ bindings = makeEmptyList();
+		
+		match (node.f) {
+			case ID {
+				fID = node.f.copy(); 
+			}
+			
+			default {
+				val /*Pair<Binding, Expression>*/ newF = node.f.accept(this);
+				fID = newF.second().copy();
+				bindings.add(newF);
+			}
+		};
+		
+		val /*List<ID>*/ argIDs = makeEmptyList();
+		
+		node.arguments.map(fn (arg) => {
+			match (arg) {
+				case ID {
+					argIDs.add(arg.copy());
+				}
+				
+				default {
+					val /*Pair<Binding, Expression>*/ newArg = arg.accept(this);
+					
+					argIDs.add(newArg.second().copy());
+					bindings.add(newArg);
+				}
+			};
+		});
+		
+		
+		val unique ID id = this.generateID(node.token);
+		
+		match (bindings.isEmpty()) {
+			case True {
+				// lnf-call-bare
+				
+				this.makeTake(node.token, id, node.copy(), id.copy());
+			}
+			
+			case False {
+				val unique Application newApp = new Application {
+					val immutable Token token          = node.token;
+					val unique Expression f            = fID;
+					val /*List<Expression>*/ arguments = argIDs;
+				};
+				
+				val unique Binding zipped = this.zipBindings(bindings, newApp);
+				this.makeTake(node.token, id, zipped, id.copy());
+			}
+		};
+	}
+	
+	method /*Pair<Binding, Expression>*/ visitAssignment(immutable Assignment node) {
+		var unique ID targetID = new ID;
+		var unique ID valueID = new ID;
+		val /*List<Pair<UnannotatedBinding, Expression>>*/ bindings = makeEmptyList();
+		
+		// Writes to local variables are currently handled by Assignment nodes where target is None.
+		// This might be subject to change...
+		match (node.target) {
+			case None {
+			}
+			
+			case Some {
+				val unique Expression realTarget = node.target.value;
+				
+				match (realTarget) {
+					case ID {
+						targetID = realTarget.copy();
+					}
+					
+					default {
+						val /*Pair<Binding, Expression>*/ newTarget = realTarget.accept(this);
+						
+						targetID = newTarget.second().copy();
+						bindings.add(newTarget);
+					}
+				};
+			}
+		};
+		
+		match (node.value) {
+			case ID {
+				valueID = node.value.copy();
+			}
+			
+			default {
+				val /*Pair<Binding, Expression>*/ newValue = node.value.accept(this);
+				
+				valueID = newValue.second().copy();
+				bindings.add(newValue);
+			}
+		};
+
+		val unique ID id = this.generateID(node.token);
+		
+		match (bindings.isEmpty()) {
+			case True {
+				// lnf-assign-bare
+				
+				this.makeTake(node.token, id, node.copy(), id.copy());
+			}
+			
+			case False {
+				val unique Assignment newAssign = new Assignment {
+					var immutable Token token          = node.token;
+					var /*Option Expression*/ target   = createSome(targetID);
+					var unique ID field                = node.field.copy();
+					var unique Expression value        = valueID;
+				};
+				
+				val unique Binding zipped = this.zipBindings(bindings, newAssign);
+				this.makeTake(node.token, id, zipped, id.copy());
+			}
+		};
+	}
 }
