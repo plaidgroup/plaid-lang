@@ -561,7 +561,7 @@ public class PlaidObjectMap implements PlaidObject {
 		PlaidState frozenState = new PlaidStateMap();
 		for ( Map.Entry<String, PlaidMemberDef> member : this.getMembers().entrySet() ) {
 			final PlaidObject memberValue = member.getValue().getValue();
-			PlaidMemberDef memberKey = member.getValue();
+			PlaidMemberDef memberKey = member.getValue().copy();
 			if (memberValue instanceof PlaidMethodMap) {
 				PlaidMethodMap pmm = (PlaidMethodMap) memberValue;
 				PlaidProtoMethodMap protoMethod = new PlaidProtoMethodMap(pmm.getFullyQualifiedName(), pmm.getDelegate());
