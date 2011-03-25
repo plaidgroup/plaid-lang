@@ -383,4 +383,71 @@ state NewLetNormalFormVisitor {
 		val unique ID id = this.generateID(node.token);
 		this.makeTake(node.token, id, newLambda, id.copy());
 	}
+
+	method /*Pair<Binding, Expression>*/ visitLetBinding(immutable LetBinding node) {
+		var immutable Boolean handled = false;
+		var /*Pair<Binding, Expression>*/ ret = makePair(new None, new None);
+		
+		match (node.exp) {
+			case ID {
+				// lnf-let-bare
+				handled = true;
+				
+				val /*Pair<Binding, Expression>*/ p = node.body.accept(this);
+				ret = this.makeBorrow(node.token, node.x.copy(), node.exp.copy(), p.first());
+			}
+			
+			case Dereference {
+				match (node.exp.left) {
+					case ID {
+						// lnf-let-read1
+						handled = true;
+				
+						val /*Pair<Binding, Expression>*/ p = node.body.accept(this);
+						ret = this.makeBorrow(node.token, node.x.copy(), node.exp.copy(), p.first());				
+					}
+					
+					default {
+						// lnf-let-read2
+						
+						val /*Pair<Binding, Expression>*/ p1 = node.exp.left.accept(this);
+						val /*Pair<Binding, Expression>*/ p2 = node.body.accept(this);
+						
+						val unique Dereference newDeref = new Dereference {
+		                	val immutable Token token  = node.token;
+		                	val unique Expression left = p1.second().copy();
+		                	val unique ID right        = node.exp.right.copy();
+						};
+						
+						val /*List<Pair<Binding, Expression>>*/ l = makeEmptyList();
+						l.add(p1);
+						
+						val unique ID id = this.generateID(node.token);
+						val /*Pair<Binding, Expression>*/ b  = this.makeBorrow(node.token, node.x.copy(), newDeref, p2.first());
+						ret = makePair(this.zipBindings(l, b.first()), b.second());
+					}
+				};
+			}
+			
+			default {
+				// TODO:  What happens here?
+			}
+		};
+		
+		match (handled) {
+			case True {
+			}
+			
+			case False {
+
+			}
+		};
+		
+		ret;
+	}
+	
+	method /*Pair<Binding, Expression>*/ visitAnnotatedLetBinding(immutable AnnotatedLetBinding node) {
+		// TODO:  This won't typecheck but saves a lot of duplicate code for now.
+		this.visitLetBinding(node);
+	}
 }
