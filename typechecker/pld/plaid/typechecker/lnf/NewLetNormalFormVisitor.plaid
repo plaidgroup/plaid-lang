@@ -25,7 +25,7 @@ import plaid.ast.visitor.LeafVisitor;
 import plaid.ast.visitor.PrintVisitor;
 
 // TODO:  Making this a case of LeafVisitor saves some code for now but will not typecheck.
-state NewLetNormalFormVisitor case of LeafVisitor {
+state NewLetNormalFormVisitor {
 	var immutable Integer counter = 0;
 	
 	method unique ID generateID(immutable Token >> immutable Token tok) {
@@ -89,12 +89,12 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 	// VISIT METHODS
 	//
 	
-	override method /*Pair<Binding, Expression>*/ visitID(immutable ID node) {
+	method /*Pair<Binding, Expression>*/ visitID(immutable ID node) {
 		val unique ID id = this.generateID(node.token);
 		this.makeTake(node.token, id, node.copy(), id.copy());
 	}
 	
-	override method /*Pair<Binding, Expression>*/ visitDereference(immutable Dereference node) {
+	method /*Pair<Binding, Expression>*/ visitDereference(immutable Dereference node) {
 		val unique ID id = this.generateID(node.token);
 		
 		match (node.left) {
@@ -119,12 +119,12 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 					val immutable Boolean mutable = false;
 				};
 		
-				left;
+				makePair(left.first(), left.second().body);
 			}
 		};
 	}
 
-	override method /*Pair<Binding, Expression>*/ visitDestructiveDereference(immutable DestructiveDereference node) {
+	method /*Pair<Binding, Expression>*/ visitDestructiveDereference(immutable DestructiveDereference node) {
 		val unique ID id = this.generateID(node.token);
 		
 		match (node.left) {
@@ -152,7 +152,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		};
 	}
 
-	override method /*Pair<Binding, Expression>*/ visitMethodCall(immutable MethodCall node) {
+	method /*Pair<Binding, Expression>*/ visitMethodCall(immutable MethodCall node) {
 		var unique ID receiverID = new ID;
 		val /*List<Pair<UnannotatedBinding, Expression>>*/ bindings = makeEmptyList();
 		
@@ -209,7 +209,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		};
 	}
 
-	override method /*Pair<Binding, Expression>*/ visitApplication(immutable Application node) {
+	method /*Pair<Binding, Expression>*/ visitApplication(immutable Application node) {
 		var unique ID fID = new ID;
 		val /*List<Pair<UnannotatedBinding, Expression>>*/ bindings = makeEmptyList();
 		
@@ -265,7 +265,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		};
 	}
 	
-	override method /*Pair<Binding, Expression>*/ visitAssignment(immutable Assignment node) {
+	method /*Pair<Binding, Expression>*/ visitAssignment(immutable Assignment node) {
 		var unique ID targetID = new ID;
 		var unique ID valueID = new ID;
 		val /*List<Pair<UnannotatedBinding, Expression>>*/ bindings = makeEmptyList();
@@ -330,7 +330,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		};
 	}
 	
-	override method /*Pair<Binding, Expression>*/ visitMatch(immutable Match node) {
+	method /*Pair<Binding, Expression>*/ visitMatch(immutable Match node) {
 		val /*List<Case>*/ newCaseList = node.caseList.map(fn (immutable Case c) => {
 			new Case {
 				val immutable Token token         = c.token;
@@ -373,7 +373,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		};		
 	}
 	
-	override method /*Pair<Binding, Expression>*/ visitLambda(immutable Lambda node) {
+	method /*Pair<Binding, Expression>*/ visitLambda(immutable Lambda node) {
 		val /*Pair<Binding, Expression>*/ p = node.body.accept(this);
 		
 		val unique Lambda newLambda = new Lambda {
@@ -388,7 +388,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		this.makeTake(node.token, id, newLambda, id.copy());
 	}
 
-	override method /*Pair<Binding, Expression>*/ visitLetBinding(immutable LetBinding node) {
+	method /*Pair<Binding, Expression>*/ visitLetBinding(immutable LetBinding node) {
 		var /*Pair<Binding, Expression>*/ ret = makePair(new None, new None);
 		
 		match (node.exp) {
@@ -444,12 +444,12 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		ret;
 	}
 	
-	override method /*Pair<Binding, Expression>*/ visitAnnotatedLetBinding(immutable AnnotatedLetBinding node) {
+	method /*Pair<Binding, Expression>*/ visitAnnotatedLetBinding(immutable AnnotatedLetBinding node) {
 		// TODO:  This won't typecheck but saves a lot of duplicate code for now.
 		this.visitLetBinding(node);
 	}
 	
-	override method /*Pair<Binding, Expression>*/ visitNewInstance(immutable NewInstance node) {
+	method /*Pair<Binding, Expression>*/ visitNewInstance(immutable NewInstance node) {
 		// TODO:  For now, we always assume that we have a QI here.
 		
 		match (node.s.initState) {
@@ -503,7 +503,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		};
 	}
 	
-	override method /*Pair<Binding, Expression>*/ visitChangeState(immutable ChangeState node) {
+	method /*Pair<Binding, Expression>*/ visitChangeState(immutable ChangeState node) {
 		// TODO:  For now, we always assume that we have a QI here.
 		
 		match (node.s.initState) {
@@ -612,7 +612,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		};
 	}
 	
-	override method /*Pair<Binding, Expression>*/ visitIntLiteral(immutable IntLiteral node) {
+	method /*Pair<Binding, Expression>*/ visitIntLiteral(immutable IntLiteral node) {
 		val unique ID id = this.generateID(node.token);
 		
 		val unique Binding binding = new UnannotatedLetBinding {
@@ -626,7 +626,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		makePair(binding, binding.body);
 	}
 
-	override method /*Pair<Binding, Expression>*/ visitUnitLiteral(immutable UnitLiteral node) {
+	method /*Pair<Binding, Expression>*/ visitUnitLiteral(immutable UnitLiteral node) {
 		val unique ID id = this.generateID(node.token);
 		
 		val unique Binding binding = new UnannotatedLetBinding {
@@ -639,11 +639,38 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		
 		makePair(binding, binding.body);
 	}
-	
+
+	method /*Pair<Binding, Expression>*/ visitStringLiteral(immutable StringLiteral node) {
+		val unique ID id = this.generateID(node.token);
+		
+		val unique Binding binding = new UnannotatedLetBinding {
+			val immutable Token token     = node.token;
+			val immutable ID x            = id;
+			val unique Expression exp     = node.copy();
+			val unique Expression body    = id.copy();
+			val immutable Boolean mutable = false;
+		};
+		
+		makePair(binding, binding.body);
+	}
+
+	method /*Pair<Binding, Expression>*/ visitDoubleLiteral(immutable DoubleLiteral node) {
+		val unique ID id = this.generateID(node.token);
+		
+		val unique Binding binding = new UnannotatedLetBinding {
+			val immutable Token token     = node.token;
+			val immutable ID x            = id;
+			val unique Expression exp     = node.copy();
+			val unique Expression body    = id.copy();
+			val immutable Boolean mutable = false;
+		};
+		
+		makePair(binding, binding.body);
+	}	
 	
 	// NON-EXPRESSION VISIT METHODS
 
-	override method unique CompilationUnit visitCompilationUnit(immutable CompilationUnit node) {
+	method unique CompilationUnit visitCompilationUnit(immutable CompilationUnit node) {
 		new CompilationUnit {
 			val /*List<Decl>*/ decls         = node.decls.map(fn (decl) => decl.accept(this));
 			val /*List<String>*/ packageName = node.packageName;
@@ -652,7 +679,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		};
 	}
 	
-	override method unique DeclList visitDeclList(immutable DeclList node) {
+	method unique DeclList visitDeclList(immutable DeclList node) {
 		new DeclList {
 			val immutable Token token = node.token;
 			val /*List<Decl>*/ decls = node.decls.map(fn (decl) => decl.accept(this));
@@ -662,7 +689,7 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 	var /*List<Pair<FieldDecl, Pair<Binding, Expression>>>*/ fieldDecls = makeEmptyList();
 	var immutable Boolean collectFields = false;
 
-	override method unique FieldDecl visitFieldDecl(immutable FieldDecl node) {
+	method unique FieldDecl visitFieldDecl(immutable FieldDecl node) {
 		match (this.collectFields) {
 			case True {
 				val /*Pair<Binding, Expression>*/ rewritten = node.e.accept(this);	
@@ -682,8 +709,11 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 			}
 		};
 	}
+	
+	method visitImportList(node) {
+	}
 
-	override method visitMethodDecl(node) {
+	method visitMethodDecl(node) {
 		new MethodDecl {
 			val immutable Token token = node.token;
 			val immutable String name = node.name;
@@ -694,23 +724,33 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 			val immutable MethodType methodType = node.methodType;
 		};
 	}
+	
+	method visitQI(node) {
+		match (node.initState) {
+			case Some {
+				node.initState.value.accept(this);
+			}
+			case None {
+			}
+		}
+	}
 
-	override method unique StateDecl visitStateDecl(immutable StateDecl node) {
+	method unique StateDecl visitStateDecl(immutable StateDecl node) {
 		new StateDecl {
 			val immutable Token token         = node.token;
 			val immutable ID name             = node.name;
-			val unique State stateDef         = node.stateDef.accept(this).first(); 
+			val unique State stateDef         = node.stateDef.accept(this); 
 			val /*Option QI*/ caseOf          = match (node.caseOf) { case None { new None; } case Some { createSome(node.caseOf.value.copy()); } };
 			val immutable Boolean isCaseOf    = node.isCaseOf;
-			val immutable StateType stateType = node.stateType;
+			override val immutable StateType stateType = node.stateType;
 		};
 	}
 
-	override method unique With visitWith(immutable With node) {
+	method unique With visitWith(immutable With node) {
 		new With {
 			val immutable Token token = node.token;
-			val unique State s1       = node.s1.accept(this).first(); 
-			val unique State s2       = node.s2.accept(this).first();
+			val unique State s1       = node.s1.accept(this); 
+			val unique State s2       = node.s2.accept(this);
 		};
 	}
 }
