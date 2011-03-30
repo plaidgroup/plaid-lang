@@ -423,7 +423,6 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 						val /*List<Pair<Binding, Expression>>*/ l = makeEmptyList();
 						l.add(p1);
 						
-						val unique ID id = this.generateID(node.token);
 						val /*Pair<Binding, Expression>*/ b  = this.makeBorrow(node.token, node.x.copy(), newDeref, p2.first());
 						ret = makePair(this.zipBindings(l, b.first()), b.second());
 					}
@@ -431,7 +430,14 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 			}
 			
 			default {
-				// TODO:  What happens here?
+				val /*Pair<Binding, Expression>*/ p1 = node.exp.accept(this);
+				val /*Pair<Binding, Expression>*/ p2 = node.body.accept(this);
+				
+				val /*List<Pair<Binding, Expression>>*/ l = makeEmptyList();
+				l.add(p1);
+				
+				val /*Pair<Binding, Expression>*/ b  = this.makeBorrow(node.token, node.x.copy(), p1.second().copy(), p2.first());
+				ret = makePair(this.zipBindings(l, b.first()), b.second());
 			}
 		};
 		
@@ -443,21 +449,16 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 		this.visitLetBinding(node);
 	}
 	
-	var /*List<Pair<FieldDecl, Pair<Binding, Expression>>>*/ fieldDecls = makeEmptyList();
-	
-	override method /*Pair<Binding, Expression>*/ visitFieldDecl(immutable FieldDecl node) {
-		val /*Pair<Binding, Expression>*/ rewritten = node.e.accept(this);	
-		this.fieldDecls.add(makePair(node, rewritten));
-	}
-	
 	override method /*Pair<Binding, Expression>*/ visitNewInstance(immutable NewInstance node) {
 		// TODO:  For now, we always assume that we have a QI here.
 		
 		match (node.s.initState) {
 			case Some {
 				// Collect all FieldDecls.  While visiting, we rewrite the initialization expressions.
+				this.collectFields = true;
 				this.fieldDecls = makeEmptyList();
 				node.s.accept(this);
+				this.collectFields = false;
 				
 				
 				val /*List<Binding, Expression>*/ takes = makeEmptyList();
@@ -556,8 +557,10 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 				
 				
 				// Collect all FieldDecls.  While visiting, we rewrite the initialization expressions.
+				this.collectFields = true;
 				this.fieldDecls = makeEmptyList();
 				node.s.accept(this);
+				this.collectFields = false;
 				
 				
 				val /*List<Binding, Expression>*/ takes = makeEmptyList();
@@ -606,6 +609,108 @@ state NewLetNormalFormVisitor case of LeafVisitor {
 					}
 				};
 			}
+		};
+	}
+	
+	override method /*Pair<Binding, Expression>*/ visitIntLiteral(immutable IntLiteral node) {
+		val unique ID id = this.generateID(node.token);
+		
+		val unique Binding binding = new UnannotatedLetBinding {
+			val immutable Token token     = node.token;
+			val immutable ID x            = id;
+			val unique Expression exp     = node.copy();
+			val unique Expression body    = id.copy();
+			val immutable Boolean mutable = false;
+		};
+		
+		makePair(binding, binding.body);
+	}
+
+	override method /*Pair<Binding, Expression>*/ visitUnitLiteral(immutable UnitLiteral node) {
+		val unique ID id = this.generateID(node.token);
+		
+		val unique Binding binding = new UnannotatedLetBinding {
+			val immutable Token token     = node.token;
+			val immutable ID x            = id;
+			val unique Expression exp     = node.copy();
+			val unique Expression body    = id.copy();
+			val immutable Boolean mutable = false;
+		};
+		
+		makePair(binding, binding.body);
+	}
+	
+	
+	// NON-EXPRESSION VISIT METHODS
+
+	override method unique CompilationUnit visitCompilationUnit(immutable CompilationUnit node) {
+		new CompilationUnit {
+			val /*List<Decl>*/ decls         = node.decls.map(fn (decl) => decl.accept(this));
+			val /*List<String>*/ packageName = node.packageName;
+			val unique ImportList imports    = node.imports.copy();
+			val immutable String sourceFile  = node.sourceFile;
+		};
+	}
+	
+	override method unique DeclList visitDeclList(immutable DeclList node) {
+		new DeclList {
+			val immutable Token token = node.token;
+			val /*List<Decl>*/ decls = node.decls.map(fn (decl) => decl.accept(this));
+		};
+	}
+	
+	var /*List<Pair<FieldDecl, Pair<Binding, Expression>>>*/ fieldDecls = makeEmptyList();
+	var immutable Boolean collectFields = false;
+
+	override method unique FieldDecl visitFieldDecl(immutable FieldDecl node) {
+		match (this.collectFields) {
+			case True {
+				val /*Pair<Binding, Expression>*/ rewritten = node.e.accept(this);	
+				this.fieldDecls.add(makePair(node, rewritten));
+			}
+			
+			case False {
+				new FieldDecl {
+					val immutable Token token            = node.token;
+					val immutable ID f                   = node.f.copy();
+					val unique Expression e              = node.e.accept(this).first();
+					val immutable Boolean abstractField  = node.abstractField;
+					val immutable Boolean immutableField = node.immutableField;
+					val immutable Boolean overrides      = node.overrides;
+					val immutable FieldType fieldType    = node.fieldType;
+				};
+			}
+		};
+	}
+
+	override method visitMethodDecl(node) {
+		new MethodDecl {
+			val immutable Token token = node.token;
+			val immutable String name = node.name;
+			val unique Expression body = node.body.accept(this).first();
+			val /*List<ID>*/ arguments = node.arguments;
+			val immutable Boolean abstractMethod = node.abstractMethod;
+			val immutable Boolean overrides = node.overrides;
+			val immutable MethodType methodType = node.methodType;
+		};
+	}
+
+	override method unique StateDecl visitStateDecl(immutable StateDecl node) {
+		new StateDecl {
+			val immutable Token token         = node.token;
+			val immutable ID name             = node.name;
+			val unique State stateDef         = node.stateDef.accept(this).first(); 
+			val /*Option QI*/ caseOf          = match (node.caseOf) { case None { new None; } case Some { createSome(node.caseOf.value.copy()); } };
+			val immutable Boolean isCaseOf    = node.isCaseOf;
+			val immutable StateType stateType = node.stateType;
+		};
+	}
+
+	override method unique With visitWith(immutable With node) {
+		new With {
+			val immutable Token token = node.token;
+			val unique State s1       = node.s1.accept(this).first(); 
+			val unique State s2       = node.s2.accept(this).first();
 		};
 	}
 }
