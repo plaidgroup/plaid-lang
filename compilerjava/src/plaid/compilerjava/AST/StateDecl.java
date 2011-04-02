@@ -49,14 +49,15 @@ public class StateDecl implements Decl {
 	private State stateDef;
 	private QI caseOf;
 	private boolean isCaseOf;
+	private boolean typedef; // typedefs do not have tags associated with them
 	private final Permission defaultPerm;
 	private final List<MetaParameter> metaParams;
 	
-	public StateDecl(Token t, ID name, List<MetaParameter> metaArgs, State stateDef, Permission defaultPerm) {
-		this(t, name, metaArgs, stateDef, null, defaultPerm);
+	public StateDecl(Token t, ID name, List<MetaParameter> metaArgs, State stateDef, Permission defaultPerm, boolean typedef) {
+		this(t, name, metaArgs, stateDef, null, defaultPerm, typedef);
 	}
 	
-	public StateDecl(Token t, ID name, List<MetaParameter> metaParams, State stateDef, QI caseOf, Permission defaultPerm) {
+	public StateDecl(Token t, ID name, List<MetaParameter> metaParams, State stateDef, QI caseOf, Permission defaultPerm, boolean typedef) {
 		super();
 		this.token = t;
 		this.setName(name);
@@ -71,6 +72,7 @@ public class StateDecl implements Decl {
 			isCaseOf = true;
 		}
 		this.defaultPerm = defaultPerm;
+		this.typedef = typedef;
 	}
 
 	public ID getID() {
@@ -118,6 +120,10 @@ public class StateDecl implements Decl {
 
 	public void setIsCaseOf(boolean isCaseOf) {
 		this.isCaseOf = isCaseOf;
+	}
+	
+	public boolean isTypedef() {
+		return this.typedef;
 	}
 
 	@Override

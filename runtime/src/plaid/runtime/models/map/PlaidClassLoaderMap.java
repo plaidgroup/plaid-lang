@@ -217,8 +217,8 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 	}
 	
 	@Override 
-	public PlaidTag tag(String tagName, PlaidState caseOf) {
-		return new PlaidTagMap(tagName, caseOf);
+	public PlaidTag tag(String tagName, PlaidPackage pkg, PlaidTag superTag) {
+		return new PlaidTagMap(tagName, pkg, superTag);
 	}
 
 	public PlaidTailCall tailCall(PlaidObject method, PlaidObject args) {

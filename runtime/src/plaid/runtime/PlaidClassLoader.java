@@ -23,6 +23,7 @@ import java.util.List;
 
 import plaid.runtime.models.map.PlaidGlobalScopeMap;
 import plaid.runtime.models.map.PlaidLocalScopeMap;
+import plaid.runtime.models.map.PlaidPackageMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 import plaid.runtime.utils.Lambda;
@@ -116,10 +117,11 @@ public interface PlaidClassLoader {
 	 * return a new Tag Object
 	 * 
 	 * @param tag  (the QI of the state with the tag)
-	 * @param caseOf (the PlaidState representing the state this tag is a case of)
+	 * @param pkg  (the package this tag is declared in)
+	 * @param superTag (the super tag of this tag, if there is one and null otherwise)
 	 * @return
 	 */
-	public PlaidTag tag(String tagName, PlaidState caseOf);
+	public PlaidTag tag(String tagName, PlaidPackage pkg, PlaidTag superTag);
 	
 	/**
 	 * TODO: Document

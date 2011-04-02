@@ -131,8 +131,8 @@ public class Util {
 		return cl.lookup(name, scope);
 	}
 	
-	public static PlaidTag tag(String tag, PlaidState caseOf) {
-		return cl.tag(tag, caseOf);
+	public static PlaidTag tag(String tag, PlaidPackage pkg, PlaidTag superTag) {
+		return cl.tag(tag, pkg, superTag);
 	}
 	
 	public static Object[] convertParamsToArray(PlaidObject params) throws PlaidException {

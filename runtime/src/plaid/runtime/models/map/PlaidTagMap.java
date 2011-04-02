@@ -4,35 +4,43 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import plaid.runtime.PlaidState;
+import plaid.runtime.PlaidPackage;
 import plaid.runtime.PlaidTag;
 
 public class PlaidTagMap implements PlaidTag {
 
-	private String theCase;
-	private PlaidState caseOf;
+	private String tagName;
+	private PlaidTag superTag;
+	//private PlaidState caseOf;
 	private boolean hasSuperTag;
 	private String root;
+	private PlaidPackage pkg;
 	private List<String> hierarchy = new ArrayList<String>();
 	
-	public PlaidTagMap(String theCase, PlaidState caseOf) {
-		this.theCase = theCase;
-		this.caseOf = caseOf;
-		hasSuperTag = caseOf.hasTag();
-		hierarchy.add(theCase);
+	public PlaidTagMap(String tagName, PlaidPackage pkg, PlaidTag superTag) {
+		this.tagName = tagName;
+		this.pkg = pkg;
+		//this.caseOf = caseOf;
+		if (superTag != null) {
+			this.hasSuperTag = true;
+			this.superTag = superTag;
+		} else {
+			this.hasSuperTag = false;
+			this.superTag = null;
+		}
+		hierarchy.add(this.getPath());
 		PlaidTag findRoot = this;
 		while (findRoot.hasSuperTag()) {
-			hierarchy.add(findRoot.caseOf().getPath());
 			findRoot = findRoot.superTag();
+			hierarchy.add(findRoot.getPath());
 		}
-		root = findRoot.caseOf().getPath();
-		hierarchy.add(root);
+		root = findRoot.getPath();
 	}
 	
-	@Override
-	public PlaidState caseOf() {
-		return caseOf;
-	}
+//	@Override
+//	public PlaidState caseOf() {
+//		return caseOf;
+//	}
 
 	@Override
 	public boolean hasSuperTag() {
@@ -41,18 +49,22 @@ public class PlaidTagMap implements PlaidTag {
 
 	@Override
 	public PlaidTag superTag() {
-		return caseOf.getTag();
+		return this.superTag;
 	}
 
 	public String toString() {
-		return "Tag<" + theCase + " of " + caseOf.toString().substring(5);	
+		String toRet = "Tag<" + this.tagName;
+		for (int i = 1; i < this.hierarchy.size(); i++) {
+			toRet += " <: " + hierarchy.get(i);
+		}
+		return toRet + ">";
 	}
 	
 	public String getName() {
-			return theCase;
+			return tagName;
 	}
 	
-	public String rootState() {
+	public String rootTag() {
 		return root;
 	}
 	
@@ -69,5 +81,10 @@ public class PlaidTagMap implements PlaidTag {
 		} else {
 			return false;
 		}
+	}
+	
+	@Override
+	public String getPath() {
+		 return pkg.getQI().toString() + "." + this.tagName;
 	}
 }

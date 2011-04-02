@@ -4,7 +4,7 @@ import java.util.List;
 
 public interface PlaidTag {
 	
-	public PlaidState caseOf();
+	//public PlaidState caseOf();
 	
 	public PlaidTag superTag();
 	
@@ -14,7 +14,9 @@ public interface PlaidTag {
 	
 	public String getName();
 	
-	public String rootState();
+	public String rootTag();
 	
 	public List<String> getHierarchy();
+
+	public String getPath();
 }

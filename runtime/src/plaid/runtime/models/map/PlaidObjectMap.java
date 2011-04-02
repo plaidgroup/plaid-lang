@@ -321,7 +321,7 @@ public class PlaidObjectMap implements PlaidObject {
 		Map<PlaidTag,PlaidTag> outIn = new HashMap<PlaidTag,PlaidTag>();
 		for (PlaidTag newTag : update.getTags()) {
 			for (PlaidTag existingTag : this.getTags()) {
-				if (newTag.rootState().equals(existingTag.rootState())) {
+				if (newTag.rootTag().equals(existingTag.rootTag())) {
 					if (outIn.keySet().contains(existingTag)) throw new PlaidRuntimeException(existingTag + " already a member of this object");
 					if (outIn.values().contains(existingTag)) throw new PlaidRuntimeException(newTag + " already a member of the new object");
 					outIn.put(existingTag, newTag);
