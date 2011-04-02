@@ -428,14 +428,14 @@ public class CodeGen {
 	 */
 	
 	public final void updateVarInScope(String destination, String source) {
-		ifCondition(source + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is no keeping encapsulation of plaid.runtime.map
+		ifCondition(source + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is not keeping encapsulation of plaid.runtime.map
 		throwNewPlaidException("No object found to insert into scope");
 		elseCase();
 		output.append(localScope + ".update(\"" + destination + "\", " + source + ");");
 	}
 	
 	public final void insertIntoScope(String scope, String varName, boolean isImmutable) {
-		ifCondition(varName + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is no keeping encapsulation of plaid.runtime.map
+		ifCondition(varName + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is not keeping encapsulation of plaid.runtime.map
 		throwNewPlaidException("No object found to insert into scope");
 		elseCase();
 		output.append(scope + ".insert(\"" + varName + "\", " + varName + ", "+ isImmutable + ");");
@@ -483,8 +483,12 @@ public class CodeGen {
 		output.append(target + ".addMember(" + memberName + "," + genName + ");");
 	}
 	
-	public final void addTag(String target, String tagName) {
-		output.append(target + ".addTag(" + tagName + ");");
+	public final void addTag(String target, String tagName, String enclosingTagName) {
+		output.append(target + ".addTag(" + tagName + ", " + enclosingTagName + ");");
+	}
+	
+	public final void addTopTag(String target, String tagName) {
+		output.append(target + ".addTopTag(" + tagName + ");");
 	}
 	
 	public final void updateMember(String target, String memberName, String genName) {

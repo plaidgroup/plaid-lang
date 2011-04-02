@@ -58,7 +58,7 @@ public class PlaidObjectMap implements PlaidObject {
 	
 	//some tags are nested and some are at the top level
 	protected Map<PlaidTag,PlaidTag> tags;  //map between plaid tags and their enclosing tag
-	protected List<PlaidTag> topTags; //top level tags for easy access
+	protected List<PlaidTag> topTags = new ArrayList<PlaidTag>(); //top level tags for easy access
 	
 	// map from scopes to sets of bound variable names for this object
 	protected boolean readonly = false;

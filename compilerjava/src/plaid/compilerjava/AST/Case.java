@@ -135,17 +135,20 @@ public class Case implements ASTnode {
 		else {
 			// otherwise generate code execute associated code if this case matches
 			ID potentialMatch = IdGen.getId();
-			ID potentialMatchTagString = IdGen.getId();
+			ID potentialMatchTag = IdGen.getId();
 			
 			//generate code to get the state to match against
 			out.declareFinalVar(CodeGen.plaidStateType,potentialMatch.getName());
 			qi.codegenState(out, potentialMatch, localVars, stateVars, null);
 			
-			out.declareFinalVar("String", potentialMatchTagString.getName());
-			out.assignToQIDString(potentialMatchTagString.getName(), potentialMatch.getName());
+			out.declareFinalVar(CodeGen.plaidTagType, potentialMatchTag.getName());
+			out.assignToStateTag(potentialMatchTag.getName(), potentialMatch.getName());
+			out.ifCondition(potentialMatchTag.getName() + " == null");
+			out.throwNewPlaidException("No Tag to match on for " + qi.toString());
+			
 			
 			//test if the toMatch object has the tag 
-			out.ifCondition(CodeGen.objectMatchesTag(toMatch.getName(),potentialMatchTagString.getName()));  //if (toMatch.hasState(potentialMatch))
+			out.ifCondition(CodeGen.objectMatchesTag(toMatch.getName(),potentialMatchTag.getName()));  //if (toMatch.hasState(potentialMatch))
 			out.openBlock(); // {
 			if (boundVar) { //if there is a bound variable
 				out.declareFinalVar(CodeGen.plaidObjectType, x.getName()); //PlaidObject x;

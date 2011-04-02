@@ -105,6 +105,6 @@ public class String$plaid {
 		}));
 	}
 	static {
-		foo.addTag(String$Tag$plaid);	
+		foo.addTopTag(String$Tag$plaid);	
 	}
 }
