@@ -139,7 +139,7 @@ public class Case implements ASTnode {
 			
 			//generate code to get the state to match against
 			out.declareFinalVar(CodeGen.plaidStateType,potentialMatch.getName());
-			qi.codegenState(out, potentialMatch, localVars, stateVars, CodeGen.anonymousDeclaration);
+			qi.codegenState(out, potentialMatch, localVars, stateVars, null);
 			
 			out.declareFinalVar("String", potentialMatchTagString.getName());
 			out.assignToQIDString(potentialMatchTagString.getName(), potentialMatch.getName());

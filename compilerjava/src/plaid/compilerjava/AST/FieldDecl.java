@@ -152,7 +152,7 @@ public class FieldDecl implements Decl {
 
 	//Normal Field Decl
 	@Override
-	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 
 		//if (abstractField) return;  //do nothing for abstract fields
 		
@@ -179,10 +179,10 @@ public class FieldDecl implements Decl {
 		//define the PlaidMemberDef
 		ID memberDef = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidMemberDefType, memberDef.getName());
-		if (stateContext.equals(CodeGen.anonymousDeclaration))
+		if (tagContext == null)
 			out.assignToAnonymousMemberDef(memberDef.getName(), f.getName(), !immutable, overrides);
 		else
-			out.assignToNewMemberDef(memberDef.getName(), f.getName(), stateContext, !immutable, overrides);
+			out.assignToNewMemberDef(memberDef.getName(), f.getName(), tagContext.getName(), !immutable, overrides);
 		
 		out.addMember(y.getName(), memberDef.getName(), freshFieldName.getName());  //y.addMember(f,freshFieldName)
 		

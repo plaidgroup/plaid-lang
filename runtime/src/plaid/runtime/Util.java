@@ -111,7 +111,7 @@ public class Util {
 		return cl.protoMethod(fullyQualName, dlg);
 	}
 	
-	public static PlaidMemberDef memberDef(String memberName, String definedIn, boolean mutable, boolean overrides) {
+	public static PlaidMemberDef memberDef(String memberName, PlaidTag definedIn, boolean mutable, boolean overrides) {
 		return cl.memberDef(memberName, false, definedIn, mutable, overrides);
 	}
 	
@@ -131,7 +131,7 @@ public class Util {
 		return cl.lookup(name, scope);
 	}
 	
-	public static PlaidTag tag(String tag, PlaidPackage pkg, PlaidTag superTag) {
+	public static PlaidTag tag(String tag, String pkg, PlaidTag superTag) {
 		return cl.tag(tag, pkg, superTag);
 	}
 	

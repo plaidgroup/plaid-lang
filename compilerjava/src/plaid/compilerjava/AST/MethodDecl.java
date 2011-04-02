@@ -183,7 +183,7 @@ public final class MethodDecl implements Decl {
 	}
 
 	@Override
-	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 		//if (abstractMethod) return; //do nothing for abstract methods
 		
 		String newName = CodeGen.convertOpNames(name);
@@ -209,7 +209,7 @@ public final class MethodDecl implements Decl {
 		if (abstractMethod) { //if abstract it will just be unit - won't be added to initialized object
 			body.codegenExpr(out, freshMethName, newLocalVars, stateVars);
 		} else { //otherwise create a protomethod
-			out.assignToProtoMethod(freshMethName.getName(), argID.getName(), stateContext + "." + name);  //freshMethName = new protofield( ... { {
+			out.assignToProtoMethod(freshMethName.getName(), argID.getName(), tagContext.getName() +".getPath()" + "+ \".\" + \"" + name + "\"");  //freshMethName = new protofield( ... { {
 			
 			//body of the protomethod
 			//out.declareLambdaScope();
@@ -227,10 +227,10 @@ public final class MethodDecl implements Decl {
 		// TODO: methods are immutable by default?
 		ID memberDef = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidMemberDefType, memberDef.getName());
-		if (stateContext.equals(CodeGen.anonymousDeclaration))
+		if (tagContext == null)
 			out.assignToAnonymousMemberDef(memberDef.getName(), newName, false, overrides);
 		else
-			out.assignToNewMemberDef(memberDef.getName(), newName, stateContext, false, overrides);
+			out.assignToNewMemberDef(memberDef.getName(), newName, tagContext.getName(), false, overrides);
 		
 		
 		out.addMember(y.getName(), memberDef.getName(), freshMethName.getName());  //y.addMember(memberDef,freshMethName)

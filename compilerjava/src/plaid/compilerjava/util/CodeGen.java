@@ -165,6 +165,13 @@ public class CodeGen {
 		output.append(target + " = ");
 	}
 	
+	public final void assignToNull(String target) {
+		assign(target);
+		append("null;");
+		updateVarDebugInfo(target);
+		
+	}
+	
 	public final void assignToCall(String target, String function, String arg) {
 		assign(target);
 		call(function,arg);
@@ -224,7 +231,7 @@ public class CodeGen {
 	public final void assignToProtoMethod(String target, String name, String path) {
 		assign(target);
 		// TODO: target + name is a temporary fix.  we should put the fully qualified name here
-		output.append(classLoader + ".protoMethod(\"" + path + "\", new " + delegateType + " () {" +
+		output.append(classLoader + ".protoMethod(" + path + ", new " + delegateType + " () {" +
 			"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" +
 				"final " + plaidScopeType + " " + localScope + " = " + classLoader + ".localScope(" + CodeGen.globalScope + ");");
 		insertIntoScope(localScope, name, false);
@@ -245,7 +252,7 @@ public class CodeGen {
 	//Member Definition
 	public final void assignToNewMemberDef(String target, String varName, String definedIn, boolean mutable, boolean overrides) {
 		assign(target);
-		append(utilClass + ".memberDef(\"" + varName + "\", \"" + definedIn + "\", " + mutable + ", " + overrides + ");");
+		append(utilClass + ".memberDef(\"" + varName + "\", " + definedIn + ", " + mutable + ", " + overrides + ");");
 	}
 	
 	public final void assignToAnonymousMemberDef(String target, String varName, boolean mutable, boolean overrides) {
@@ -318,9 +325,9 @@ public class CodeGen {
 		updateVarDebugInfo(target);
 	}
 	
-	public final void assignToNewTag(String target, String tag, String caseOf) {
+	public final void assignToNewTag(String target, String tag, String pkg, String superTag) {
 		assign(target);
-		append(utilClass + ".tag(\"" + tag + "\", " + caseOf + ");");
+		append(utilClass + ".tag(\"" + tag + "\", \"" + pkg + "\", " + superTag + ");");
 		updateVarDebugInfo(target);
 	}
 	

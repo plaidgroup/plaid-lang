@@ -23,7 +23,6 @@ import java.util.List;
 
 import plaid.runtime.models.map.PlaidGlobalScopeMap;
 import plaid.runtime.models.map.PlaidLocalScopeMap;
-import plaid.runtime.models.map.PlaidPackageMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 import plaid.runtime.utils.Lambda;
@@ -121,7 +120,7 @@ public interface PlaidClassLoader {
 	 * @param superTag (the super tag of this tag, if there is one and null otherwise)
 	 * @return
 	 */
-	public PlaidTag tag(String tagName, PlaidPackage pkg, PlaidTag superTag);
+	public PlaidTag tag(String tagName, String pkg, PlaidTag superTag);
 	
 	/**
 	 * TODO: Document
@@ -154,5 +153,5 @@ public interface PlaidClassLoader {
 	 * @param overrides - whether or not this member overrides a previously defined member
 	 * @return
 	 */
-	public PlaidMemberDef memberDef(String memberName, boolean anonymous, String definedIn, boolean mutable, boolean overrides);
+	public PlaidMemberDef memberDef(String memberName, boolean anonymous, PlaidTag definedIn, boolean mutable, boolean overrides);
 }

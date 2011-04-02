@@ -76,7 +76,7 @@ public class NewInstance implements Expression{
 		ID r = IdGen.getId();
 		out.declareFinalVar(CodeGen.plaidStateType, r.getName()); 
 
-		st.codegenState(out, r, localVars, stateVars, CodeGen.anonymousDeclaration);
+		st.codegenState(out, r, localVars, stateVars, null);
 
 		out.assignToInstantiation(y.getName(),r.getName()); //y = r.instantiate();
 	}

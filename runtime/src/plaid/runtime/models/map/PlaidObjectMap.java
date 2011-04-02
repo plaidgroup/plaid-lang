@@ -161,7 +161,7 @@ public class PlaidObjectMap implements PlaidObject {
 						if (existingDef.isAnonymous()) {
 							memberDef.bindOverride("<Anonymous>"); // TODO: don't use a string like this
 						} else 
-							memberDef.bindOverride(existingDef.definedIn());
+							memberDef.bindOverride(existingDef.definedIn().getPath());
 					}
 					//members().remove(existingDef.getMemberName());
 					members().put(existingDef.getMemberName(), memberDef);

@@ -91,7 +91,7 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 				Object obj;
 				try {
 					obj = f.get(value);
-					PlaidMemberDef mdef = Util.memberDef(f.getName(), valueClass.getName(), true, false);
+					PlaidMemberDef mdef = Util.memberDef(f.getName(), null, true, false);
 					mdef.setValue(new PlaidJavaObjectMap(obj));
 					this.members().put(mdef.getMemberName(), mdef);
 				} catch (IllegalArgumentException e) {
@@ -101,7 +101,7 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 				}				
 			}
 			for (Method m : getMethods(valueClass)) {
-				PlaidMemberDef mdef = Util.memberDef(m.getName(), valueClass.getName(), false, false);
+				PlaidMemberDef mdef = Util.memberDef(m.getName(), null, false, false);
 				mdef.setValue(new PlaidJavaMethodMap(m.getName(), value, valueClass));
 				this.members().put(mdef.getMemberName(), mdef);
 			}
@@ -121,7 +121,7 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 				Object obj;
 				try {
 					obj = f.get(value);
-					result = Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false);
+					result = Util.memberDef(f.getName(), null, true, false);
 					if ( obj != null ) {
 						result.setValue(new PlaidJavaObjectMap(obj));
 					} else {
@@ -141,7 +141,7 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 			// try to find method
 			for (Method m : getMethods(valueClass)) {
 				if ( m.getName().equals(name)) {
-					result = Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false);
+					result = Util.memberDef(m.getName(), null, false, false);
 					result.setValue(new PlaidJavaMethodMap(m.getName(), value, valueClass));
 					this.members().put(m.getName(), result);
 					return result;

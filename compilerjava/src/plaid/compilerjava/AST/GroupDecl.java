@@ -25,7 +25,7 @@ public class GroupDecl implements Decl {
 	}
 
 	@Override
-	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, 	Set<ID> stateVars, String stateContext) {
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, 	Set<ID> stateVars, ID tagContext) {
 		// TODO Auto-generated method stub
 
 	}
