@@ -274,8 +274,12 @@ public class PlaidObjectMap implements PlaidObject {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
-		if (!tags().containsKey(tag)) {
+		if (this.existingHierarchy(tag)) 
+			throw new PlaidRuntimeException("Hierarchy " + tag.rootTag().getName() + " already exists in the object");
+		else {
 			tags().put(tag,enclosingTag);
+			if (enclosingTag == null)
+				topTags.add(tag);
 		}
 	}
 
@@ -285,7 +289,9 @@ public class PlaidObjectMap implements PlaidObject {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
-		if (tags().containsKey(tag)) {
+		if (!this.existingHierarchy(tag)) 
+			throw new PlaidRuntimeException("Hierarchy " + tag.rootTag().getName() + " does not exist in the object");
+		else {
 			PlaidTag enclosingTag = tags().remove(tag);
 			if (enclosingTag == null) topTags.remove(tag);
 		}		
@@ -299,6 +305,7 @@ public class PlaidObjectMap implements PlaidObject {
 		return tags();
 	}
 	
+	@Override
 	public boolean matchesTag(PlaidTag toMatch) {
 		for (PlaidTag tag : getTags().keySet()) {
 			if (toMatch.matches(tag)) {
@@ -307,7 +314,27 @@ public class PlaidObjectMap implements PlaidObject {
 		}
 		return false;
 	}
+	
+	@Override
+	public void addTopTag(PlaidTag topTag) {
+		if (!tags().containsKey(topTag)) {
+			tags().put(topTag,null);
+			topTags.add(topTag);
+		}
+	}
 
+	@Override
+	public Collection<PlaidTag> getTopTags() throws PlaidException {
+		return Collections.unmodifiableList(this.topTags);
+	}
+
+	private boolean existingHierarchy(PlaidTag incoming) {
+		for (PlaidTag t : tags().keySet()) {
+			if (t.rootTag() == incoming.rootTag()) return true;
+		}
+		return false;
+	}
+	
 	@Override
 	public PlaidObject changeState(PlaidObject update) throws PlaidException {
 		if (isReadOnly()) {
@@ -604,16 +631,5 @@ public class PlaidObjectMap implements PlaidObject {
 		return frozenState;
 	}
 	
-	@Override
-	public void addTopTag(PlaidTag topTag) {
-		if (!tags().containsKey(topTag)) {
-			tags().put(topTag,null);
-			topTags.add(topTag);
-		}
-	}
 
-	@Override
-	public Collection<PlaidTag> getTopTags() throws PlaidException {
-		return Collections.unmodifiableList(this.topTags);
-	}
 }
