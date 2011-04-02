@@ -32,18 +32,21 @@ public class ChangeState implements Expression {
 	private Token token;
 	private Expression e;
 	private State st;
+	private boolean wipe;
 
-	public ChangeState(Expression e, State st) {
+	public ChangeState(Expression e, State st, boolean wipe) {
 		super();
 		this.e = e;
 		this.st = st;
+		this.wipe = wipe;
 	}
 
-	public ChangeState(Token t, Expression e, State st) {
+	public ChangeState(Token t, Expression e, State st, boolean wipe) {
 		super();
 		this.token = t;
 		this.e = e;
 		this.st = st;
+		this.wipe = wipe;
 	}
 	
 	public Token getToken() {
@@ -71,6 +74,10 @@ public class ChangeState implements Expression {
 		this.st = st;
 	}
 	
+	public boolean wipeSemantics() {
+		return wipe;
+	}
+	
 	@Override
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
 
@@ -91,17 +98,17 @@ public class ChangeState implements Expression {
 		out.declareFinalVar(CodeGen.plaidStateType,s.getName());
 		out.assignCastedtoState(s.getName(), r.getName());
 		
-		// create instance
-		ID i = IdGen.getId();
-		out.declareFinalVar(CodeGen.plaidObjectType,i.getName());
-		out.assignToInstantiation(i.getName(), s.getName());
+		// create instance - KBN - don't do this to allow us to choose which fields are initialized (ie don't always launch the missles)
+//		ID i = IdGen.getId();
+//		out.declareFinalVar(CodeGen.plaidObjectType,i.getName());
+//		out.assignToInstantiation(i.getName(), s.getName());
 		
 //		ID oldObj = IdGen.getId();
 //		out.declareFinalVar(CodeGen.plaidObjectType, oldObj.getName());
 //		out.append(oldObj.getName() + " = " + x.getName() + ".copy();");
 		
 		//assign result of state change to target (y)
-		out.assignToChangedState(y.getName(),x.getName(), i.getName());  // y = x.changeState(r);
+		out.assignToChangedState(y.getName(),x.getName(), s.getName(), (wipe ? "true" : "false"));  // y = x.changeState(r);
 		
 //		// clear away all of the old state members from this state in the local scope
 //		out.append(CodeGen.localScope + ".clearOrUpdateOldMembers(" + oldObj.getName() + ", " + x.getName() + ");");

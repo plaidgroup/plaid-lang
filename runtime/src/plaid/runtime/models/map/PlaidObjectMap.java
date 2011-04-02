@@ -336,19 +336,18 @@ public class PlaidObjectMap implements PlaidObject {
 	}
 	
 	@Override
-	public PlaidObject changeState(PlaidObject update) throws PlaidException {
+	public PlaidObject changeState(PlaidState update, boolean wipe) throws PlaidException {
 		if (isReadOnly()) {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
-		if (!changeByTransition(update)) changeByWipe(update);
+		if (wipe) changeByWipe(update);
+		else restrictedUpdate(update);
 		
 		return Util.unit();
 	}
 	
-	private boolean changeByTransition(PlaidObject update) {
-		boolean isTransition = false;
-		
+	private void restrictedUpdate(PlaidState update) {		
 		
 		//Need to figure out which states from the old object to remove members from
 		//and which states from the new object to add members from
@@ -360,11 +359,11 @@ public class PlaidObjectMap implements PlaidObject {
 					if (outIn.keySet().contains(existingTag)) throw new PlaidRuntimeException(existingTag + " already a member of this object");
 					if (outIn.values().contains(existingTag)) throw new PlaidRuntimeException(newTag + " already a member of the new object");
 					outIn.put(existingTag, newTag);
-					isTransition = true;
+
 				}
 			}
 		}
-		if (!isTransition) return false; //Do wipe away state change if no tags match
+
 		
 		//2) next find the roots of each pair and determine which states are do not add state
 		//   and which are do not remove states
@@ -433,20 +432,21 @@ public class PlaidObjectMap implements PlaidObject {
 		}
 		//6) add incoming tags
 		for (PlaidTag inTag : outIn.values()) addTag(inTag,null); //TODO: fix change by transition
-			
-		return true;
 	
 	}
 	
-	private void changeByWipe(PlaidObject update) {
+	private void changeByWipe(PlaidState update) {
 
 		// cleanup current information
-		members().clear(); //TODO: fix this
+		members().clear(); //TODO: fix this (KBN - how?)
 		states().clear();
 		tags().clear();
+		topTags.clear();
+		
+		PlaidObject instantiated  = update.instantiate();
 		
 		// add in the members from the updating object
-		for (Map.Entry<String, PlaidMemberDef> e : update.getMembers().entrySet()) {
+		for (Map.Entry<String, PlaidMemberDef> e : instantiated.getMembers().entrySet()) {
 			if (e.getValue().getValue() instanceof PlaidMethodMap) {
 				PlaidMethodMap pmm = (PlaidMethodMap)e.getValue().getValue();
 				addMember(Util.memberDef(e.getValue()), new PlaidMethodMap(pmm.getFullyQualifiedName(), this, pmm.delegate));
@@ -457,8 +457,8 @@ public class PlaidObjectMap implements PlaidObject {
 		}
 		
 		// add other states
-		states().addAll(update.getStates());
-		tags().putAll(update.getTags());
+		states().addAll(instantiated.getStates());
+		for (PlaidTag t : instantiated.getTags().keySet()) this.addTag(t,instantiated.getTags().get(t)); 
 		
 		membersChanged = true;
 	}
