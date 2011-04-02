@@ -145,7 +145,8 @@ public class Case implements ASTnode {
 			out.assignToStateTag(potentialMatchTag.getName(), potentialMatch.getName());
 			out.ifCondition(potentialMatchTag.getName() + " == null");
 			out.throwNewPlaidException("No Tag to match on for " + qi.toString());
-			
+			out.ifCondition("!" + potentialMatchTag.getName() + ".hasSuperTag()");
+			out.throwNewPlaidException(qi.toString() + " is a root tag - matching not allowed");
 			
 			//test if the toMatch object has the tag 
 			out.ifCondition(CodeGen.objectMatchesTag(toMatch.getName(),potentialMatchTag.getName()));  //if (toMatch.hasState(potentialMatch))
