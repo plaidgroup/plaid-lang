@@ -267,7 +267,8 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 			return new PlaidMethodMap(ppmm.getFullyQualifiedName(), thisPointer, ppmm.getDelegate());
 		} else if (memberValue  instanceof PlaidProtoFieldMap) {
 			PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap) memberValue;
-			return new PlaidMethodMap("init", thisPointer, ppfm.getInitalizer());	
+			PlaidMethod initializer = new PlaidMethodMap("init", thisPointer, ppfm.getInitalizer());	
+			return initializer.invoke(Util.unit());
 		} else {
 			return memberValue;
 		}
