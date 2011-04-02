@@ -19,6 +19,8 @@
 
 package plaid.runtime;
 
+import java.util.Set;
+
 import plaid.runtime.types.PlaidPermission;
 
 public interface PlaidState extends PlaidObject {

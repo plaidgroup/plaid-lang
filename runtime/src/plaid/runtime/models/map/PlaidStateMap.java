@@ -261,24 +261,25 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		return this.instantiate(PlaidUniquePermission.unique(), args);
 	}
 
+	public static PlaidObject initializeMember(PlaidObject memberValue, PlaidObjectMap thisPointer) {
+		if (memberValue instanceof PlaidProtoMethodMap) {
+			PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap) memberValue;
+			return new PlaidMethodMap(ppmm.getFullyQualifiedName(), thisPointer, ppmm.getDelegate());
+		} else if (memberValue  instanceof PlaidProtoFieldMap) {
+			PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap) memberValue;
+			return new PlaidMethodMap("init", thisPointer, ppfm.getInitalizer());	
+		} else {
+			return memberValue;
+		}
+	}
+	
 	protected PlaidObject initialize(PlaidObjectMap pom) {
 		// add members from prototype initializing any that are proto-
 		for ( Map.Entry<String, PlaidMemberDef> member : prototype.getMembers().entrySet() ) {
 			PlaidObject memberValue = member.getValue().getValue();
 			PlaidMemberDef memberKey = member.getValue();
-			if (memberValue instanceof PlaidProtoMethodMap) {
-				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap) memberValue;
-				PlaidMethodMap method = new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate());
-				pom.addMember(Util.memberDef(memberKey), method);
-			} else if (memberValue  instanceof PlaidProtoFieldMap) {
-				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap) memberValue;
-				PlaidMethod initializer = new PlaidMethodMap(memberKey.getMemberName(), pom, ppfm.getInitalizer());
-				pom.addMember(Util.memberDef(memberKey), initializer.invoke(Util.unit()));
-			} else if (memberValue instanceof PlaidAbstractValueMap) {
-				pom.addMember(Util.memberDef(memberKey), memberValue);
-			} else {
-				pom.addMember(memberKey, memberValue);
-			}
+			
+			pom.addMember(Util.memberDef(memberKey), initializeMember(memberValue,pom));	
 		}
 		
 		// add states from prototype

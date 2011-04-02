@@ -37,7 +37,7 @@ public final class PlaidProtoFieldMap extends PlaidObjectMap implements PlaidMet
 	
 	@Override
 	public PlaidObject invoke(PlaidObject args) throws PlaidException {
-		throw new PlaidException("Cannot call an uninitialized method");
+		throw new PlaidException("Cannot call an uninitialized field");
 	}
 
 }
