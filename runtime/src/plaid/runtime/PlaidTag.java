@@ -19,4 +19,6 @@ public interface PlaidTag {
 	public List<PlaidTag> getHierarchy();
 
 	public String getPath();
+	
+	public void nest(PlaidState state);
 }

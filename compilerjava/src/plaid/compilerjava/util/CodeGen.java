@@ -499,6 +499,10 @@ public class CodeGen {
 		output.append(target + ".with(" + param + ");");
 	}
 	
+	public final void nest(String tagTarget, String stateParam) {
+		output.append(tagTarget + ".nest(" + stateParam + ");");
+	}
+	
 	public final void freeze(String target) {
 		output.append(target + ".freeze();");
 	}

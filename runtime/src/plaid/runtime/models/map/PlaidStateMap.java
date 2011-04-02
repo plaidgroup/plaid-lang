@@ -292,7 +292,11 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		if ( prototype.getTags() != PlaidObjectMap.EMPTY_TAGS ) {
 			Map<PlaidTag,PlaidTag> tagMap = prototype.getTags();
 			for (PlaidTag t : tagMap.keySet()) {
-				pom.addTag(t,tagMap.get(t));
+				PlaidTag enclosingTag = tagMap.get(t);
+				if (enclosingTag == null)
+					pom.addTopTag(t);
+				else
+					pom.addTag(t,enclosingTag);
 			}
 		}
 		
@@ -314,8 +318,9 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		Map<PlaidTag,PlaidTag> sourceTags = source.getTags();
 		for (PlaidTag t : sourceTags.keySet()) {
 			PlaidTag enclosingTag = sourceTags.get(t);
-			target.addTag(t,enclosingTag); //TODO : need to throw errors when tags cannot coexist
-			if (enclosingTag == null) //then it is a top tag
+			if (enclosingTag != null)
+				target.addTag(t,enclosingTag); //TODO : need to throw errors when tags cannot coexist
+			else
 				target.addTopTag(t);
 		}
 	}
@@ -365,4 +370,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	public String getPath() {
 		 return pkg.getQI().toString() + "." + name;
 	}
+
+
 }
