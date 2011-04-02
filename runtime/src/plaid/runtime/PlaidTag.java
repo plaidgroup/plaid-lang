@@ -10,13 +10,13 @@ public interface PlaidTag {
 	
 	public boolean hasSuperTag();
 	
-	public boolean matches(String tag);
+	public boolean matches(PlaidTag tag);
 	
 	public String getName();
 	
-	public String rootTag();
+	public PlaidTag rootTag();
 	
-	public List<String> getHierarchy();
+	public List<PlaidTag> getHierarchy();
 
 	public String getPath();
 }

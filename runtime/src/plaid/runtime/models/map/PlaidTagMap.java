@@ -13,9 +13,9 @@ public class PlaidTagMap implements PlaidTag {
 	private PlaidTag superTag;
 	//private PlaidState caseOf;
 	private boolean hasSuperTag;
-	private String root;
+	private PlaidTag root;
 	private QualifiedIdentifier pkg;
-	private List<String> hierarchy = new ArrayList<String>();
+	private List<PlaidTag> hierarchy = new ArrayList<PlaidTag>();
 	
 	public PlaidTagMap(String tagName, String pkg, PlaidTag superTag) {
 		this.tagName = tagName;
@@ -28,13 +28,13 @@ public class PlaidTagMap implements PlaidTag {
 			this.hasSuperTag = false;
 			this.superTag = null;
 		}
-		hierarchy.add(this.getPath());
+		hierarchy.add(this);
 		PlaidTag findRoot = this;
 		while (findRoot.hasSuperTag()) {
 			findRoot = findRoot.superTag();
-			hierarchy.add(findRoot.getPath());
+			hierarchy.add(findRoot);
 		}
-		root = findRoot.getPath();
+		root = findRoot;
 	}
 	
 //	@Override
@@ -55,7 +55,7 @@ public class PlaidTagMap implements PlaidTag {
 	public String toString() {
 		String toRet = "Tag<" + this.tagName;
 		for (int i = 1; i < this.hierarchy.size(); i++) {
-			toRet += " <: " + hierarchy.get(i);
+			toRet += " <: " + hierarchy.get(i).getName();
 		}
 		return toRet + ">";
 	}
@@ -64,23 +64,18 @@ public class PlaidTagMap implements PlaidTag {
 			return tagName;
 	}
 	
-	public String rootTag() {
+	public PlaidTag rootTag() {
 		return root;
 	}
 	
-	public List<String> getHierarchy() {
+	//@Override
+	public List<PlaidTag> getHierarchy() {
 		return Collections.unmodifiableList(hierarchy);
 	}
 	
-	
-	public boolean matches(String tag) {
-		if (tag.equals(getName())){
-			return true;
-		} else if (hasSuperTag()) {
-			return superTag().matches(tag);
-		} else {
-			return false;
-		}
+	//@Override
+	public boolean matches(PlaidTag tag) {
+		return hierarchy.contains(tag);  //TODO: probably a more efficient way to do this...
 	}
 	
 	@Override

@@ -91,6 +91,11 @@ public class Util {
 		return value;
 	}
 	
+	public static PlaidTag getTag(String tagPath) throws PlaidException {
+		PlaidState tagState = toPlaidState(cl.lookup(tagPath, unit()));
+		return tagState.getTag();
+	}
+
 	public static PlaidObject unit() throws PlaidException {
 		return cl.unit();
 	}

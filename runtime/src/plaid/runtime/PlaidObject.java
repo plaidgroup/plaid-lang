@@ -58,13 +58,17 @@ public interface PlaidObject {
 	
 	public Collection<PlaidObject> getStates() throws PlaidException;
 	
-	public void addTag(PlaidTag tag);
+	public void addTag(PlaidTag tag, PlaidTag enclosingTag);
+	
+	public void addTopTag(PlaidTag tag);
 	
 	public void removeTag(PlaidTag tag);
 	
-	public boolean matchesTag(String tagName);
+	public boolean matchesTag(PlaidTag match);
 	
-	public Collection<PlaidTag> getTags() throws PlaidException;
+	public Map<PlaidTag,PlaidTag> getTags() throws PlaidException;
+	
+	public Collection<PlaidTag> getTopTags() throws PlaidException;
 		
 	/**
 	 * Change the state of the current object to the specified 

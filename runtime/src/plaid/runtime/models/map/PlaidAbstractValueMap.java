@@ -41,7 +41,11 @@ public class PlaidAbstractValueMap extends PlaidObjectMap {
 		throw new PlaidRuntimeException("No operations possible on an abstract value.");
 	}
 	
-	public void addTag(PlaidTag tag) {
+	public void addTag(PlaidTag tag,PlaidTag enclosingTag) {
+		throw new PlaidRuntimeException("No operations possible on an abstract value.");
+	}
+	
+	public void addTopTag(PlaidTag tag) {
 		throw new PlaidRuntimeException("No operations possible on an abstract value.");
 	}
 	
@@ -53,7 +57,11 @@ public class PlaidAbstractValueMap extends PlaidObjectMap {
 		throw new PlaidRuntimeException("No operations possible on an abstract value.");
 	}
 	
-	public Collection<PlaidTag> getTags() throws PlaidException {
+	public Map<PlaidTag,PlaidTag> getTags() throws PlaidException {
+		throw new PlaidRuntimeException("No operations possible on an abstract value.");
+	}
+	
+	public Collection<PlaidTag> getTopTags() throws PlaidException {
 		throw new PlaidRuntimeException("No operations possible on an abstract value.");
 	}
 		
