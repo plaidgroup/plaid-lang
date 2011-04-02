@@ -323,6 +323,6 @@ public class Double$plaid {
                 foo.addMember(gteq, gteqProtoMethod);
         }
     	static {
-    		foo.addTag(Double$Tag$plaid);	
+    		foo.addTopTag(Double$Tag$plaid);	
     	}
 }

@@ -294,6 +294,6 @@ public class Integer$plaid {
 		foo.addMember(gteq, gteqProtoMethod);	
 	}
 	static {
-		foo.addTag(Integer$Tag$plaid);	
+		foo.addTopTag(Integer$Tag$plaid);	
 	}
 }

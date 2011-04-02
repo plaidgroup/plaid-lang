@@ -66,6 +66,6 @@ public class Object$plaid {
 		obj.addMember(eqeq, eqeqProtoMethod);		
 	}
 	static {
-		obj.addTag(Object$Tag$plaid);	
+		obj.addTopTag(Object$Tag$plaid);	
 	}
 }

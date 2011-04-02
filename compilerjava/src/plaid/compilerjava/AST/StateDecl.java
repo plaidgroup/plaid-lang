@@ -300,7 +300,7 @@ public class StateDecl implements Decl {
 		out.closeBlock(); // } (for static block to init prototype)
 		
 		out.openStaticBlock(); //static {	 (to add tag)
-		out.append(name.getName() + ".addTag(" + name.getName() + "$Tag" + PlaidConstants.ID_SUFFIX + ");");
+		out.addTopTag(name.getName(), tag.getName());
 		out.updateVarDebugInfo(name.getName());
 		out.closeBlock(); // } (for adding tag)
 		
