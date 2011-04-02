@@ -286,7 +286,8 @@ public class PlaidObjectMap implements PlaidObject {
 		}
 		
 		if (tags().containsKey(tag)) {
-			tags().remove(tag);
+			PlaidTag enclosingTag = tags().remove(tag);
+			if (enclosingTag == null) topTags.remove(tag);
 		}		
 	}
 
@@ -300,7 +301,7 @@ public class PlaidObjectMap implements PlaidObject {
 	
 	public boolean matchesTag(PlaidTag toMatch) {
 		for (PlaidTag tag : getTags().keySet()) {
-			if (tag.matches(toMatch)) {
+			if (toMatch.matches(tag)) {
 				return true;
 			}
 		}

@@ -1,9 +1,12 @@
 package plaid.runtime.models.map;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import plaid.runtime.PlaidObject;
+import plaid.runtime.PlaidState;
 import plaid.runtime.PlaidTag;
 import plaid.runtime.utils.QualifiedIdentifier;
 
@@ -75,11 +78,39 @@ public class PlaidTagMap implements PlaidTag {
 	
 	//@Override
 	public boolean matches(PlaidTag tag) {
-		return hierarchy.contains(tag);  //TODO: probably a more efficient way to do this...
+		if (this.root != tag.rootTag()) return false;
+		return tag.getHierarchy().contains(this);  //TODO: probably a more efficient way to do this - the above line should help
 	}
 	
 	@Override
 	public String getPath() {
 		 return pkg.toString() + "." + this.tagName;
+	}
+	
+	@Override
+	public void nest(PlaidState s) {
+		PlaidObject prototype = s.getPrototype();   
+		List<PlaidTag> oldTopTags = new ArrayList<PlaidTag>();
+		oldTopTags.addAll(prototype.getTopTags());
+		for (PlaidTag oldTopTag : oldTopTags ) {
+			prototype.removeTag(oldTopTag);
+			
+			//if matches, is the parent tag which is added later implicitly with inTag as topTag
+			if (!oldTopTag.matches(this))  
+				prototype.addTag(oldTopTag, this);
+		}
+		prototype.addTopTag(this);
+		
+	}
+	
+	@Override
+	public boolean equals(Object o) {
+		
+		if (o instanceof PlaidTag) {
+			boolean test = this == o;
+			boolean test2 = this == (PlaidTag)o;
+			return this == o;
+		}
+		else return false;
 	}
 }
