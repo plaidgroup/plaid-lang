@@ -23,8 +23,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Map.Entry;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
@@ -353,86 +356,118 @@ public class PlaidObjectMap implements PlaidObject {
 		//and which states from the new object to add members from
 		//1) first find tags from matching hierarchies and pair them	
 		Map<PlaidTag,PlaidTag> outIn = new HashMap<PlaidTag,PlaidTag>();
-		for (PlaidTag newTag : update.getTopTags()) {
+		for (PlaidTag newTag : update.getPrototype().getTopTags()) {
 			for (PlaidTag existingTag : this.getTags().keySet()) {
 				if (newTag.rootTag().equals(existingTag.rootTag())) {
 					if (outIn.keySet().contains(existingTag)) throw new PlaidRuntimeException(existingTag + " already a member of this object");
 					if (outIn.values().contains(existingTag)) throw new PlaidRuntimeException(newTag + " already a member of the new object");
 					outIn.put(existingTag, newTag);
-
 				}
 			}
 		}
 
 		
-		//2) next find the roots of each pair and determine which states are do not add state
-		//   and which are do not remove states
-		List<PlaidTag> noAdd = new ArrayList<PlaidTag>();
-		List<PlaidTag> toRemove = new ArrayList<PlaidTag>();
-		List<String> removedOverrides = new ArrayList<String>();
+		//2) next find the roots of each pair and determine which states are "do not add" tags
+		//   and which are "do not remove" tags
+		Set<PlaidTag> noAdd = new HashSet<PlaidTag>();
+		Set<PlaidTag> toRemove = new HashSet<PlaidTag>();
+		//List<String> removedOverrides = new ArrayList<String>();
 		for (PlaidTag existingTag : outIn.keySet()) {
+			
 			List<PlaidTag> existingHierarchy = existingTag.getHierarchy();
 			int existingCount = existingHierarchy.size()-1;
 			List<PlaidTag> newHierarchy = outIn.get(existingTag).getHierarchy();
 			int newCount = newHierarchy.size()-1;
 			
-			
+			//know the hierarchies overlap - now find the place where they diverge
 			while ( existingCount >= 0 && newCount >= 0 &&
 					existingHierarchy.get(existingCount).equals(newHierarchy.get(newCount))) {
+				noAdd.add(existingHierarchy.get(existingCount)); // will not need to 
 				newCount--;
 				existingCount--;
 			}
 			
-			if ( existingCount < 0 ) { //we are transitioning down
-				// do not add members from states at the existing state and above
-				newCount++;
-				while ( newCount < newHierarchy.size() ) noAdd.add(newHierarchy.get(newCount++));
-			} else if ( newCount < 0 ) { //we are transitioning up
+			//we are transitioning down - already added stuff above to noAdd list
+			if ( newCount < 0 ) { //we are transitioning up
 				// remove members here and below
 				while ( existingCount >= 0 ) toRemove.add(existingHierarchy.get(existingCount--));
-				// do not add members above
-				newCount++;
-				while ( newCount < newHierarchy.size() ) noAdd.add(newHierarchy.get(newCount++));
-			} else { //we are transitioning across
+			} else if ( existingCount >= 0 ) { //we are transitioning across
 				// remove members here and below
 				while ( existingCount >= 0 ) toRemove.add(existingHierarchy.get(existingCount--));
-				// do not add above here
-				newCount++;
-				while ( newCount < newHierarchy.size() ) noAdd.add(newHierarchy.get(newCount++));
+			} //else transitioning down and nothing else to do since higher up states already added to the noAdd list
+		}
+		
+		//2a) any tags nested in toRemove tags will be removed too
+		this.tagDependencyClosure(toRemove);
+		
+		//2b) any tags nested in tags from noAdd should also not be added
+		this.tagDependencyClosure(noAdd);
+		
+		//3) initialize members defined in tags not on the noAdd list
+		Map<PlaidMemberDef,PlaidObject> willAdd = new HashMap<PlaidMemberDef,PlaidObject>();
+		Map<String, PlaidMemberDef> newMembers = update.getPrototype().getMembers();
+		for (PlaidMemberDef incomingMember : newMembers.values()) {
+			if (!noAdd.contains(incomingMember.definedIn()) || //in the noAdd list, or
+					(members().get(members().get(incomingMember.getMemberName())) != null && 
+							members().get(members().get(incomingMember.getMemberName()).getValue()) instanceof PlaidAbstractValueMap)) //abstract
+			{ 
+				PlaidObject incomingMemberValue = newMembers.get(incomingMember.getMemberName()).getValue();
+				willAdd.put(incomingMember, PlaidStateMap.initializeMember(incomingMemberValue, this));
 			}
 		}
 		
-		//3) loop over existing members removing those defined in states from toRemove List
+		//4) loop over existing members removing those defined in states from toRemove List
 		List<PlaidMemberDef> removeDefs = new ArrayList<PlaidMemberDef>();
 		for (PlaidMemberDef member : members().values()) {
 			if (toRemove.contains(member.definedIn())) {
 				removeDefs.add(member);
-				if (member.overrides()) removedOverrides.add(member.getMemberName());
+				//if (member.overrides()) removedOverrides.add(member.getMemberName());
 			}
 		}
 		for (PlaidMemberDef rem : removeDefs) removeMember(rem.getMemberName());
 		
-		//4) remove outgoing tags
-		for (PlaidTag outTag : outIn.keySet()) removeTag(outTag);
+		//5) remove outgoing tags
+		List<PlaidTag> removeTags = new ArrayList<PlaidTag>();
+		for (PlaidTag outTag : tags().keySet()) {
+			if(toRemove.contains(outTag)) removeTags.add(outTag);
+		}
+		for (PlaidTag t : removeTags) removeTag(t);
 		
-		//5) loop over updating members adding those defined in states not in the noAdd list
-		//   except those which are abstract (missing) (or were previously overriden - to implement)
-		Map<String, PlaidMemberDef> newMembers = update.getMembers();
-		for (PlaidMemberDef incomingMember : newMembers.values()) {
-			if (!noAdd.contains(incomingMember.definedIn()) || //in the noAdd list, or
-					(members().get(members().get(incomingMember.getMemberName())) != null && members().get(members().get(incomingMember.getMemberName()).getValue()) instanceof PlaidAbstractValueMap) || //abstract
-					removedOverrides.contains(incomingMember.getMemberName())) { //previously overriden
-				PlaidObject incomingMemberValue = newMembers.get(incomingMember.getMemberName()).getValue();
-				if (incomingMemberValue instanceof PlaidMethodMap) { //update this pointer if necessary
-					PlaidMethodMap oldMethod = (PlaidMethodMap) incomingMemberValue;
-					incomingMemberValue = new PlaidMethodMap(oldMethod.getFullyQualifiedName(), this, oldMethod.delegate);
-				}
-				addMember(incomingMember, incomingMemberValue);
+		//6) add new members
+		for (Entry<PlaidMemberDef,PlaidObject> add : willAdd.entrySet()) {
+			addMember(add.getKey(),add.getValue());
+		}
+		
+		//7) add incoming tags
+		for (PlaidTag inTag : update.getPrototype().getTags().keySet()) {
+			if (!noAdd.contains(inTag)) {
+				addTag(inTag,null); //TODO: fix change by transition
 			}
 		}
-		//6) add incoming tags
-		for (PlaidTag inTag : outIn.values()) addTag(inTag,null); //TODO: fix change by transition
+	}
 	
+	//TODO: This is kind of ugly, but I don't see any way around it - I wonder if there is a better scheme
+	//Note that the toRemove set contains ALL individual tags that are being removed while the tag() collection
+	//of this PlaidObjectis optimized to group all tags in the same hierarchy together.  This is why we addAll
+	//parts of the hierarchy when adding tags to toRemove
+	private void tagDependencyClosure(Set<PlaidTag> toRemove) {
+		Map<PlaidTag,List<PlaidTag>> dependencies = new HashMap<PlaidTag,List<PlaidTag>>();
+		for (PlaidTag tag : tags().keySet()) {
+			if (!toRemove.contains(tag)) {
+				PlaidTag dependsOn = tags().get(tag);
+				if (toRemove.contains(dependsOn)) { 			//if this tag is nested in an outgoing tag... 
+					toRemove.addAll(tag.getHierarchy());  		//add all levels of its hierarchy
+					if (dependencies.get(tag) != null) toRemove.addAll(dependencies.get(tag));		//along with all found dependencies
+				} else {
+					List<PlaidTag> deps = dependencies.get(dependsOn);   //otherwise, cache this dependency
+					if (deps == null) {
+						deps = new ArrayList<PlaidTag>();
+						dependencies.put(dependsOn,deps);
+					}
+					deps.addAll(tag.getHierarchy());  //add each individual level in hierarchy to the dependency list
+				}
+			}
+		}
 	}
 	
 	private void changeByWipe(PlaidState update) {
