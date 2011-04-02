@@ -186,10 +186,10 @@ public class CodeGen {
 		updateVarDebugInfo(target);
 	}
 	
-	public final void assignToChangedState(String target, String object, String newState) {
+	public final void assignToChangedState(String target, String object, String newState, String wipe) {
 		
 		assign(target);
-		changeState(object,newState);
+		changeState(object,newState,wipe);
 		updateVarDebugInfo(target);
 	}
 
@@ -511,8 +511,8 @@ public class CodeGen {
 		output.append(utilClass + ".call(" + function + ", " + arg + ")"); //TODO deal with removal of ;
 	}
 	
-	public final void changeState(String target, String newState) {
-		output.append(target + ".changeState(" + newState + ");");
+	public final void changeState(String target, String newState, String wipe) {
+		output.append(target + ".changeState(" + newState + ", " + wipe + ");");
 	}
 	
 	public final void lookup(String name, String scope) {

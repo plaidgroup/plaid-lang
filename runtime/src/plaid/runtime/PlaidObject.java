@@ -76,7 +76,7 @@ public interface PlaidObject {
 	 * @return 
 	 * @throws PlaidException
 	 */
-	public PlaidObject changeState(PlaidObject update) throws PlaidException;
+	public PlaidObject changeState(PlaidState update, boolean wipe) throws PlaidException;
 
 	public PlaidObject copy();
 	
