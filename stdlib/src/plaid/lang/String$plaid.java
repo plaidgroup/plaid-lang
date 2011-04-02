@@ -39,11 +39,20 @@ import plaid.runtime.utils.Import;
 public class String$plaid {
 	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 	
+	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.String")
+ 	public static final plaid.runtime.PlaidTag String$Tag$plaid;
+ 	static {
+ 		final plaid.runtime.PlaidTag vAr23$plaid;
+ 		vAr23$plaid = null;
+ 		String$Tag$plaid = plaid.runtime.Util.tag("String", "plaid.lang", vAr23$plaid);
+ 		
+ 	}
+	
 	@RepresentsState(name="String") 
 	public static PlaidObject foo = Util.newObject();
 	
 	static {		
-		PlaidMemberDef plus = Util.memberDef("plus$plaid", "plaid.lang.String", false, false);
+		PlaidMemberDef plus = Util.memberDef("plus$plaid", String$Tag$plaid, false, false);
 		foo.addMember(plus, Util.protoMethod("plaid.lang.String.plus$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -58,7 +67,7 @@ public class String$plaid {
 				}
 			}
 		}));
-		PlaidMemberDef substring = Util.memberDef("substring$plaid", "plaid.lang.String", false, false);
+		PlaidMemberDef substring = Util.memberDef("substring$plaid", String$Tag$plaid, false, false);
 		foo.addMember(substring, Util.protoMethod("plaid.lang.String.substring$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -75,7 +84,7 @@ public class String$plaid {
 				return Util.string(x);
 			}
 		}));
-		PlaidMemberDef substring2 = Util.memberDef("substring2$plaid", "plaid.lang.String", false, false);
+		PlaidMemberDef substring2 = Util.memberDef("substring2$plaid", String$Tag$plaid, false, false);
 		foo.addMember(substring2, Util.protoMethod("plaid.lang.String.substring2$plaid", new Delegate() {
 			@Override
 			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
@@ -94,5 +103,8 @@ public class String$plaid {
 				return Util.string(x);
 			}
 		}));
+	}
+	static {
+		foo.addTag(String$Tag$plaid);	
 	}
 }

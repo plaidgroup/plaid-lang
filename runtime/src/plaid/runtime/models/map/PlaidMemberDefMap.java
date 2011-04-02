@@ -3,10 +3,11 @@ package plaid.runtime.models.map;
 import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntimeException;
+import plaid.runtime.PlaidTag;
 
 public final class PlaidMemberDefMap implements PlaidMemberDef {
 	protected String memberName;
-	protected String definedIn;
+	protected PlaidTag definedIn;
 	protected boolean anonymous;
 	protected boolean mutable;
 	protected boolean overrides;
@@ -18,7 +19,7 @@ public final class PlaidMemberDefMap implements PlaidMemberDef {
 		return new PlaidMemberDefMap(memberName, true, null, mutable, overrides);
 	}
 	
-	public PlaidMemberDefMap(String memberName, boolean anonymous, String definedIn, boolean mutable, boolean overrides) {
+	public PlaidMemberDefMap(String memberName, boolean anonymous, PlaidTag definedIn, boolean mutable, boolean overrides) {
 		this.memberName = memberName;
 		this.definedIn = definedIn;
 		this.mutable = mutable;
@@ -35,7 +36,7 @@ public final class PlaidMemberDefMap implements PlaidMemberDef {
 		this.value      = other.value;
 	}
 	
-	public PlaidMemberDefMap(String memberName, String definedIn) {
+	public PlaidMemberDefMap(String memberName, PlaidTag definedIn) {
 		this(memberName, false, definedIn, false, false);
 	}
 	
@@ -57,7 +58,7 @@ public final class PlaidMemberDefMap implements PlaidMemberDef {
 	}
 
 	@Override
-	public String definedIn() {
+	public PlaidTag definedIn() {
 		return definedIn;
 	}
 

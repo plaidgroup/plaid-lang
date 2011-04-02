@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import plaid.runtime.PlaidPackage;
 import plaid.runtime.PlaidTag;
+import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidTagMap implements PlaidTag {
 
@@ -14,12 +14,12 @@ public class PlaidTagMap implements PlaidTag {
 	//private PlaidState caseOf;
 	private boolean hasSuperTag;
 	private String root;
-	private PlaidPackage pkg;
+	private QualifiedIdentifier pkg;
 	private List<String> hierarchy = new ArrayList<String>();
 	
-	public PlaidTagMap(String tagName, PlaidPackage pkg, PlaidTag superTag) {
+	public PlaidTagMap(String tagName, String pkg, PlaidTag superTag) {
 		this.tagName = tagName;
-		this.pkg = pkg;
+		this.pkg = QualifiedIdentifier.getQI(pkg);
 		//this.caseOf = caseOf;
 		if (superTag != null) {
 			this.hasSuperTag = true;
@@ -85,6 +85,6 @@ public class PlaidTagMap implements PlaidTag {
 	
 	@Override
 	public String getPath() {
-		 return pkg.getQI().toString() + "." + this.tagName;
+		 return pkg.toString() + "." + this.tagName;
 	}
 }

@@ -23,7 +23,7 @@ public class Freeze implements State {
 	}
 
 	@Override
-	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
+	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 		out.setLocation(this.token);
 		
 		ID fresh = IdGen.getId();

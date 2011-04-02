@@ -89,7 +89,7 @@ public class DeclList implements State {
 	
 	// for state declarations
 	@Override
-	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
+	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 
 		out.setLocation(token);
 		
@@ -102,7 +102,7 @@ public class DeclList implements State {
 				throw new PlaidException("Cannot have two members defined with the name \"" + name + "\".");
 			} else { 
 				declNames.add(decl.getName());
-				decl.codegenNestedDecl(out, y, localVars, stateVars, stateContext);
+				decl.codegenNestedDecl(out, y, localVars, stateVars, tagContext);
 			}
 		}
 	}

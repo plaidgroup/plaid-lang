@@ -105,7 +105,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 					// find existing entry
 					PlaidMemberDef entry = members().get(f.getName());
 					if ( entry == null ) {
-						entry = Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false);
+						entry = Util.memberDef(f.getName(), null, true, false);
 						members().put(f.getName(), entry);
 					}
 					if ( obj != null ) {
@@ -121,7 +121,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 			}
 			if ( reflected == false) {
 				for (Method m : valueClass.getMethods()) {
-					PlaidMemberDef mdef = Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false);
+					PlaidMemberDef mdef = Util.memberDef(m.getName(), null, false, false);
 					mdef.setValue(new PlaidJavaMethodMap(m.getName(), value, valueClass));
 					this.members().put(m.getName(), mdef);
 				}
@@ -142,7 +142,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 				Object obj;
 				try {
 					obj = f.get(value);
-					result = Util.memberDef(f.getName(), f.getDeclaringClass().getName(), true, false);
+					result = Util.memberDef(f.getName(), null, true, false);
 					if ( obj != null ) {
 						result.setValue(new PlaidJavaObjectMap(obj));
 					} else {
@@ -162,7 +162,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 			// try to find method
 			for (Method m : getMethods(valueClass)) {
 				if ( m.getName().equals(name)) {
-					result = Util.memberDef(m.getName(), m.getDeclaringClass().getName(), false, false);
+					result = Util.memberDef(m.getName(), null, false, false);
 					result.setValue(new PlaidJavaMethodMap(m.getName(), value, valueClass));
 					this.members().put(m.getName(), result);
 					return result;

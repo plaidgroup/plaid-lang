@@ -204,7 +204,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 					// else add as an override member and bind override to the found member
 					//TODO: do we need to distinguish that this was done in an init?
 					//otherwise, sometimes overriding something defined in the same place as the overrid
-					PlaidMemberDef overrideMemberDef = Util.memberDef(memberName, this.getPath(), mutable, true); 
+					PlaidMemberDef overrideMemberDef = Util.memberDef(memberName, this.getTag(), mutable, true); 
 					//overrideMemberDef.bindOverride(originalDef); //This is done in addMember()
 					result.addMember(overrideMemberDef, initMembers.get(memberName).getValue());
 				} else { 
@@ -218,7 +218,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 					//if not, treat initialized member as definedIn the place where declared abstract
 					//check that mutability lines up // TODO: other checks?
 					boolean mutable = existing.isMutable();
-					String originalDef = existing.definedIn();
+					PlaidTag originalDef = existing.definedIn();
 					if (mutable != member.isMutable())
 						throw new PlaidRuntimeException("Initialized member " + memberName + " must be " +
 								(mutable ? "mutable" : "immutable")  + " like the abstract definition from " +

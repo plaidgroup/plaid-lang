@@ -30,7 +30,6 @@ import plaid.runtime.PlaidScope;
 import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsMethod;
 import plaid.runtime.annotations.RepresentsState;
-import plaid.runtime.models.map.PlaidLocalScopeMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 
@@ -38,11 +37,20 @@ import plaid.runtime.utils.Import;
 public class Integer$plaid {
 	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 	
+	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Integer")
+ 	public static final plaid.runtime.PlaidTag Integer$Tag$plaid;
+ 	static {
+ 		final plaid.runtime.PlaidTag vAr23$plaid;
+ 		vAr23$plaid = null;
+ 		Integer$Tag$plaid = plaid.runtime.Util.tag("Integer", "plaid.lang", vAr23$plaid);
+ 		
+ 	}
+	
 	@RepresentsState(name="Integer") 
 	public static PlaidObject foo = Util.newState();
 	
 	static {
-		PlaidMemberDef plus = Util.memberDef("plus$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef plus = Util.memberDef("plus$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "plus$plaid", toplevel = false)
 		PlaidObject plusProtoMethod = Util.protoMethod("plaid.lang.Integer.plus$plaid", new Delegate() {
 			@Override
@@ -63,7 +71,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(plus, plusProtoMethod);
 		
-		PlaidMemberDef sub = Util.memberDef("sub$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef sub = Util.memberDef("sub$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "sub$plaid", toplevel = false)
 		PlaidObject subProtoMethod = Util.protoMethod("plaid.lang.Integer.sub$plaid", new Delegate() {
 			@Override
@@ -84,7 +92,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(sub, subProtoMethod);
 		
-		PlaidMemberDef mult = Util.memberDef("mult$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef mult = Util.memberDef("mult$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "mult$plaid", toplevel = false)
 		PlaidObject multProtoMethod = Util.protoMethod("plaid.lang.Integer.mult$plaid", new Delegate() {
 			@Override
@@ -105,7 +113,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(mult, multProtoMethod);
 		
-		PlaidMemberDef div = Util.memberDef("div$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef div = Util.memberDef("div$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "div$plaid", toplevel = false)
 		PlaidObject divProtoMethod = Util.protoMethod("plaid.lang.Integer.div$plaid", new Delegate() {
 			@Override
@@ -126,7 +134,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(div, divProtoMethod);
 		
-		PlaidMemberDef mod = Util.memberDef("mod$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef mod = Util.memberDef("mod$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "mod$plaid", toplevel = false)
 		PlaidObject modProtoMethod = Util.protoMethod("plaid.lang.Integer.mod$plaid", new Delegate() {
 			@Override
@@ -147,7 +155,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(mod, modProtoMethod);
 		
-		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "eqeq$plaid", toplevel = false)
 		PlaidObject eqeqProtoMethod = Util.protoMethod("plaid.lang.Integer.eqeq$plaid", new Delegate() {
 			@Override
@@ -170,7 +178,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(eqeq, eqeqProtoMethod);
 		
-		PlaidMemberDef bangeq = Util.memberDef("bangeq$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef bangeq = Util.memberDef("bangeq$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "bangeq$plaid", toplevel = false)
 		PlaidObject bangeqProtoMethod = Util.protoMethod("plaid.lang.Integer.bangeq$plaid", new Delegate() {
 			@Override
@@ -193,7 +201,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(bangeq, bangeqProtoMethod);
 		
-		PlaidMemberDef lt = Util.memberDef("lt$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef lt = Util.memberDef("lt$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "lt$plaid", toplevel = false)
 		PlaidObject ltProtoMethod = Util.protoMethod("plaid.lang.Integer.lt$plaid", new Delegate() {
 			@Override
@@ -216,7 +224,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(lt, ltProtoMethod);
 		
-		PlaidMemberDef gt = Util.memberDef("gt$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef gt = Util.memberDef("gt$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "gt$plaid", toplevel = false)
 		PlaidObject gtProtoMethod = Util.protoMethod("plaid.lang.Integer.gt$plaid", new Delegate() {
 			@Override
@@ -239,7 +247,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(gt, gtProtoMethod);
 		
-		PlaidMemberDef lteq = Util.memberDef("lteq$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef lteq = Util.memberDef("lteq$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "lteq$plaid", toplevel = false)
 		PlaidObject lteqProtoMethod = Util.protoMethod("plaid.lang.Integer.lteq$plaid", new Delegate() {
 			@Override
@@ -262,7 +270,7 @@ public class Integer$plaid {
 		});
 		foo.addMember(lteq, lteqProtoMethod);
 
-		PlaidMemberDef gteq = Util.memberDef("gteq$plaid", "plaid.lang.Integer", false, false);
+		PlaidMemberDef gteq = Util.memberDef("gteq$plaid", Integer$Tag$plaid, false, false);
 		@RepresentsMethod(name = "gteq$plaid", toplevel = false)
 		PlaidObject gteqProtoMethod = Util.protoMethod("plaid.lang.Integer.gteq$plaid", new Delegate() {
 			@Override
@@ -284,5 +292,8 @@ public class Integer$plaid {
 			}
 		});
 		foo.addMember(gteq, gteqProtoMethod);	
+	}
+	static {
+		foo.addTag(Integer$Tag$plaid);	
 	}
 }

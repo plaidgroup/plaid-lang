@@ -227,6 +227,8 @@ public class StateDecl implements Decl {
 //		String memberString = members.toString();
 //		if (memberString.length() > 0) memberString = memberString.substring(0,memberString.length()-1);
 		
+		
+		
 		// state annotation and class definition
 		out.topStateAnnotation(name.getName(), thePackage, repString);
 		out.declarePublicClass(name.getName()); out.openBlock();  // public class f {
@@ -236,6 +238,34 @@ public class StateDecl implements Decl {
 		imports.codegen(out, freshImports);
 		out.declareGlobalScope(qid.toString(),freshImports.getName());
 
+		
+		//Tag
+		//Declare variable to hold the tag
+		ID tag = new ID(name.getName() + "$Tag" + PlaidConstants.ID_SUFFIX);
+		out.tagAnnotation(qid.toString() + "." + name.getName());
+		out.declarePublicStaticFinalVar(CodeGen.plaidTagType, tag.getName());
+		
+		out.openStaticBlock(); //static {	
+		
+		if (!typedef) { //if we have a tag	
+			ID caseOfTag = IdGen.getId();
+			out.declareFinalVar(CodeGen.plaidTagType, caseOfTag.getName());
+			if (this.isCaseOf) {
+				ID caseOfState = IdGen.getId();
+				out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
+				caseOf.codegenState(out, caseOfState, new IDList(), stateVars, null);
+				out.assignToStateTag(caseOfTag.getName(), caseOfState.getName());
+			} else {
+				out.assignToNull(caseOfTag.getName());
+			}
+				
+			out.assignToNewTag(tag.getName(), name.getName(), qid.toString(), caseOfTag.getName());  //tag = new PlaidTag(caseOfState)
+		} else {
+			out.assignToNull(tag.getName());
+		}
+		out.closeBlock(); // } (for static block to init tag)
+	
+		
 		//annotation for the prototype object representing the state
 		out.stateAnnotation(name.getName());
 		out.declarePublicStaticFinalVar(CodeGen.plaidObjectType, name.getName());
@@ -250,15 +280,15 @@ public class StateDecl implements Decl {
 		
 		// with caseOf State
 		if (!isCaseOf) {
-			stateDef.codegenState(out, theState, idList, stateVars, qid.toString() + "." + name.getName());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+			stateDef.codegenState(out, theState, idList, stateVars, tag);//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
 			out.assignToPrototype(name.getName(), theState.getName());
 		} else {
 			ID caseOfState = IdGen.getId();
 			ID declaredState = IdGen.getId();
 			out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
-			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, CodeGen.anonymousDeclaration);
+			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, null);
 			out.declareFinalVar(CodeGen.plaidStateType, declaredState.getName());
-			stateDef.codegenState(out, declaredState, idList, stateVars, qid.toString() + "." + name.getName());//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
+			stateDef.codegenState(out, declaredState, idList, stateVars, tag);//this is this declaration.  It will not have any members, but at runtime can forward to its enclosing (instantiated) state
 			out.assignToWith(theState.getName(),caseOfState.getName(),declaredState.getName());  //y = fresh1.with(fresh2); 
 					
 			out.assignToPrototype(name.getName(), theState.getName());
@@ -268,26 +298,11 @@ public class StateDecl implements Decl {
 			out.append(name.getName() + ".removeTag(" + caseOfState.getName() + ".getTag());"); //remove it from the prototype
 		}
 		out.closeBlock(); // } (for static block to init prototype)
-
-		if (isCaseOf) { //if we have a tag	
-			//Tag
-			//Declare variable to hold the tag
-			ID tag = new ID(name.getName() + "$Tag" + PlaidConstants.ID_SUFFIX);
-			String tagPath = qid.toString() + "." + name.getName();
-			out.tagAnnotation(tagPath);
-			out.declarePublicStaticFinalVar(CodeGen.plaidTagType, tag.getName());
-			
-			out.openStaticBlock(); //static {	
-			ID caseOfState = IdGen.getId();
-			out.declareFinalVar(CodeGen.plaidStateType, caseOfState.getName());
-			caseOf.codegenState(out, caseOfState, new IDList(), stateVars, CodeGen.anonymousDeclaration);
-			out.assignToNewTag(tag.getName(), tagPath,  caseOfState.getName());  //tag = new PlaidTag(caseOfState)
-			
-			out.append(name.getName() + ".addTag(" + name.getName() + "$Tag" + PlaidConstants.ID_SUFFIX + ");");
-			out.updateVarDebugInfo(name.getName());
-			
-			out.closeBlock(); // } (for static block to init tag)
-		}
+		
+		out.openStaticBlock(); //static {	 (to add tag)
+		out.append(name.getName() + ".addTag(" + name.getName() + "$Tag" + PlaidConstants.ID_SUFFIX + ");");
+		out.updateVarDebugInfo(name.getName());
+		out.closeBlock(); // } (for adding tag)
 		
 		out.closeBlock(); // } (for class Def)
 		
@@ -300,7 +315,7 @@ public class StateDecl implements Decl {
 	 * language spec but currently not supported.
 	 */
 	@Override
-	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
+	public void codegenNestedDecl(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 		throw new RuntimeException("Nested states are not supported yet.");
 	}
 

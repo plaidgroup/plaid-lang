@@ -151,7 +151,7 @@ public class QI implements State {
 	}
 	
 	@Override
-	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
+	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 
 		out.setLocation(token);
 		
@@ -168,14 +168,17 @@ public class QI implements State {
 		if (hasInit) {
 			ID initialization = IdGen.getId();
 			ID toInit = IdGen.getId();
+			ID tag = IdGen.getId();
 			
 			//make sure we got a state out of the lookup
 			out.declareFinalVar(CodeGen.plaidStateType, toInit.getName());
 			out.assignCastedtoState(toInit.getName(),fresh.getName()); //toInit = (PlaidState)fresh
 			
 			//generate code for the initialization state
+			out.declareFinalVar(CodeGen.plaidTagType, tag.getName());
+			out.assignToStateTag(tag.getName(),toInit.getName());
 			out.declareFinalVar(CodeGen.plaidStateType, initialization.getName());
-			initState.codegenState(out, initialization, localVars, stateVars, CodeGen.anonymousDeclaration);
+			initState.codegenState(out, initialization, localVars, stateVars, tag);
 		
 			//initialize the state
 			out.assignToStateInitialization(y.getName(), toInit.getName(), initialization.getName());	
