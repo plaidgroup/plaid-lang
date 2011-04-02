@@ -220,14 +220,6 @@ public class StateDecl implements Decl {
 		} else {
 			throw new RuntimeException("Cannot find state '" + thePackage + "." + name.getName() + "'");
 		}
-//		Set<ID> stateVars = new StateDeclHelper().genStateVars(qid, imports.getImports(), stateDef, caseOf);
-//		
-//		StringBuilder members = new StringBuilder();
-//		for (ID member : stateVars) members.append(member.getName() + ",");
-//		String memberString = members.toString();
-//		if (memberString.length() > 0) memberString = memberString.substring(0,memberString.length()-1);
-		
-		
 		
 		// state annotation and class definition
 		out.topStateAnnotation(name.getName(), thePackage, repString);
@@ -275,8 +267,6 @@ public class StateDecl implements Decl {
 		out.declareFinalVar(CodeGen.plaidStateType, theState.getName());
 
 		IDList idList = new IDList(globalVars).add(new ID(CodeGen.thisVar)); // "this" should be visible during field initializations
-		
-		
 		
 		// with caseOf State
 		if (!isCaseOf) {
