@@ -290,8 +290,9 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		
 		// add tags from the prototype
 		if ( prototype.getTags() != PlaidObjectMap.EMPTY_TAGS ) {
-			for (PlaidTag t : prototype.getTags()) {
-				pom.addTag(t);
+			Map<PlaidTag,PlaidTag> tagMap = prototype.getTags();
+			for (PlaidTag t : tagMap.keySet()) {
+				pom.addTag(t,tagMap.get(t));
 			}
 		}
 		
@@ -310,8 +311,12 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		}
 		
 		// copy tags
-		for (PlaidTag t : source.getTags()) {
-			target.addTag(t); //TODO : need to throw errors when tags cannot coexist
+		Map<PlaidTag,PlaidTag> sourceTags = source.getTags();
+		for (PlaidTag t : sourceTags.keySet()) {
+			PlaidTag enclosingTag = sourceTags.get(t);
+			target.addTag(t,enclosingTag); //TODO : need to throw errors when tags cannot coexist
+			if (enclosingTag == null) //then it is a top tag
+				target.addTopTag(t);
 		}
 	}
 	

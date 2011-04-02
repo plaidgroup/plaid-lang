@@ -46,13 +46,20 @@ public class PlaidObjectMap implements PlaidObject {
 	@SuppressWarnings("unchecked")
 	public static Collection<PlaidObject> EMPTY_STATES = Collections.unmodifiableCollection(Collections.EMPTY_LIST);
 	@SuppressWarnings("unchecked")
-	public static Collection<PlaidTag> EMPTY_TAGS      = Collections.unmodifiableCollection(Collections.EMPTY_LIST);
+	public static Map<PlaidTag,PlaidTag> EMPTY_TAGS      = Collections.unmodifiableMap(Collections.EMPTY_MAP);
 	protected PlaidPermissionTable permTable;
 	protected Collection<PlaidObject> states;
+	
+	//members fixed is an immutable copy of members which is lazily updated after
+	//member updates and returned whenever getMembers() is called
 	protected Map<String, PlaidMemberDef> members;
 	protected Map<String, PlaidMemberDef> membersFixed;
 	protected boolean membersChanged = true;
-	protected Collection<PlaidTag> tags;
+	
+	//some tags are nested and some are at the top level
+	protected Map<PlaidTag,PlaidTag> tags;  //map between plaid tags and their enclosing tag
+	protected List<PlaidTag> topTags; //top level tags for easy access
+	
 	// map from scopes to sets of bound variable names for this object
 	protected boolean readonly = false;
 	
@@ -90,11 +97,11 @@ public class PlaidObjectMap implements PlaidObject {
 		return states;
 	}
 	
-	protected final Collection<PlaidTag> tags() {
+	protected final Map<PlaidTag,PlaidTag> tags() {
 		if ( tags == null ) {
 			synchronized (this) {
 				if ( tags == null ) {
-					tags = new ArrayList<PlaidTag>();
+					tags = new HashMap<PlaidTag,PlaidTag>();
 				}
 			}
 		}
@@ -262,13 +269,13 @@ public class PlaidObjectMap implements PlaidObject {
 	}
 	
 	@Override
-	public void addTag(PlaidTag tag) throws PlaidException {
+	public void addTag(PlaidTag tag, PlaidTag enclosingTag) throws PlaidException {
 		if (isReadOnly()) {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
-		if (!tags().contains(tag)) {
-			tags().add(tag);
+		if (!tags().containsKey(tag)) {
+			tags().put(tag,enclosingTag);
 		}
 	}
 
@@ -278,22 +285,22 @@ public class PlaidObjectMap implements PlaidObject {
 			throw new PlaidIllegalAccessException("Cannot change readonly object.");
 		}
 		
-		if (tags().contains(tag)) {
+		if (tags().containsKey(tag)) {
 			tags().remove(tag);
 		}		
 	}
 
 	@Override
-	public Collection<PlaidTag> getTags() {
+	public Map<PlaidTag,PlaidTag> getTags() {
 		if ( tags == null ) {
 			return EMPTY_TAGS;
 		}
 		return tags();
 	}
 	
-	public boolean matchesTag(String tagString) {
-		for (PlaidTag tag : getTags()) {
-			if (tag.matches(tagString)) {
+	public boolean matchesTag(PlaidTag toMatch) {
+		for (PlaidTag tag : getTags().keySet()) {
+			if (tag.matches(toMatch)) {
 				return true;
 			}
 		}
@@ -319,8 +326,8 @@ public class PlaidObjectMap implements PlaidObject {
 		//and which states from the new object to add members from
 		//1) first find tags from matching hierarchies and pair them	
 		Map<PlaidTag,PlaidTag> outIn = new HashMap<PlaidTag,PlaidTag>();
-		for (PlaidTag newTag : update.getTags()) {
-			for (PlaidTag existingTag : this.getTags()) {
+		for (PlaidTag newTag : update.getTopTags()) {
+			for (PlaidTag existingTag : this.getTags().keySet()) {
 				if (newTag.rootTag().equals(existingTag.rootTag())) {
 					if (outIn.keySet().contains(existingTag)) throw new PlaidRuntimeException(existingTag + " already a member of this object");
 					if (outIn.values().contains(existingTag)) throw new PlaidRuntimeException(newTag + " already a member of the new object");
@@ -333,13 +340,13 @@ public class PlaidObjectMap implements PlaidObject {
 		
 		//2) next find the roots of each pair and determine which states are do not add state
 		//   and which are do not remove states
-		List<String> noAdd = new ArrayList<String>();
-		List<String> toRemove = new ArrayList<String>();
+		List<PlaidTag> noAdd = new ArrayList<PlaidTag>();
+		List<PlaidTag> toRemove = new ArrayList<PlaidTag>();
 		List<String> removedOverrides = new ArrayList<String>();
 		for (PlaidTag existingTag : outIn.keySet()) {
-			List<String> existingHierarchy = existingTag.getHierarchy();
+			List<PlaidTag> existingHierarchy = existingTag.getHierarchy();
 			int existingCount = existingHierarchy.size()-1;
-			List<String> newHierarchy = outIn.get(existingTag).getHierarchy();
+			List<PlaidTag> newHierarchy = outIn.get(existingTag).getHierarchy();
 			int newCount = newHierarchy.size()-1;
 			
 			
@@ -397,7 +404,7 @@ public class PlaidObjectMap implements PlaidObject {
 			}
 		}
 		//6) add incoming tags
-		for (PlaidTag inTag : outIn.values()) addTag(inTag);
+		for (PlaidTag inTag : outIn.values()) addTag(inTag,null); //TODO: fix change by transition
 			
 		return true;
 	
@@ -423,7 +430,7 @@ public class PlaidObjectMap implements PlaidObject {
 		
 		// add other states
 		states().addAll(update.getStates());
-		tags().addAll(update.getTags());
+		tags().putAll(update.getTags());
 		
 		membersChanged = true;
 	}
@@ -436,7 +443,8 @@ public class PlaidObjectMap implements PlaidObject {
 		// add states
 		newObj.states().addAll(this.states());
 		// add tags
-		newObj.tags().addAll(this.tags());
+		newObj.tags().putAll(this.tags());
+		newObj.topTags.addAll(this.topTags);
 		return newObj;
 	}
 
@@ -463,7 +471,7 @@ public class PlaidObjectMap implements PlaidObject {
 		
 		// tags
 		sb.append("}, \n\ttags={");
-		for (Object t : tags().toArray()) {
+		for (Object t : tags().keySet().toArray()) {
 			PlaidTag tm = (PlaidTagMap)t;
 			sb.append(tm + ",");
 		}	
@@ -525,7 +533,7 @@ public class PlaidObjectMap implements PlaidObject {
 		PlaidObject retval = plaid.runtime.Util.call(eqmeth, po);	//for tco
 
 		// We need to find out if retval is a (Plaid) true
-		return retval.matchesTag("plaid.lang.True");
+		return retval.matchesTag(Util.getTag("plaid.lang.True"));
 	}
 
 	@Override
@@ -586,11 +594,25 @@ public class PlaidObjectMap implements PlaidObject {
 		
 		// add tags from this object to frozen state
 		if ( this.getTags() != PlaidObjectMap.EMPTY_TAGS ) {
-			for (PlaidTag t : this.getTags()) {
-				frozenState.getPrototype().addTag(t);
+			Map<PlaidTag,PlaidTag> tags = this.getTags();
+			for (PlaidTag t : tags.keySet()) {
+				frozenState.getPrototype().addTag(t,tags.get(t));
 			}
 		}
 		
 		return frozenState;
+	}
+	
+	@Override
+	public void addTopTag(PlaidTag topTag) {
+		if (!tags().containsKey(topTag)) {
+			tags().put(topTag,null);
+			topTags.add(topTag);
+		}
+	}
+
+	@Override
+	public Collection<PlaidTag> getTopTags() throws PlaidException {
+		return Collections.unmodifiableList(this.topTags);
 	}
 }
