@@ -4,111 +4,33 @@ import plaid.ast.*;
 import plaid.ast.types.*;
 import plaid.ast.visitor.PrintVisitor;
 import plaid.typechecker.lnf.LetNormalFormVisitor;
-
-val () -> unique Token makeToken = fn() => {
-	new Token {
-		val immutable Integer beginLine = 0;
-		val immutable Integer beginColumn = 0;
-		val immutable Integer endLine = 0;
-		val immutable Integer endColumn = 0;
-		val immutable String image = ""; 
-	};
-};
-
-val (immutable String) -> unique ID makeID = fn(immutable String n) => {
-	new ID {
-		val immutable Token token = makeToken();
-		val immutable String name = n;
-	};
-};
-
-val (unique ID, unique Expression, unique Expression) -> unique UnannotatedLetBinding makeLetBinding = fn(unique ID x, unique Expression exp, unique Expression body) => {
-	new UnannotatedLetBinding {
-		val immutable Token token = makeToken();
-		val unique ID x = x;
-		val unique Expression exp = exp;
-		val unique Expression body = body;
-	};
-};
-
-val (unique Expression, unique ID) -> unique Dereference makeDereference = fn(unique Expression left, unique ID right) => {
-	new Dereference {
-		val immutable Token token = makeToken();
-		val unique Expression left = left;
-		val unique ID right = right;
-	};
-}; 
-
-val makeMethodCall = fn(receiver, name, args) => {
-	new MethodCall {
-		val unique Expression receiver     = receiver;
-		val immutable ID methodName        = name;
-		val /*List<Expression>*/ arguments = args;
-		val immutable Token token          = makeToken();
-	};
-};
-
-val makeApplication = fn(f, args) => {
-	new Application {
-		val immutable Token token          = makeToken();
-		val unique Expression f            = f;
-		val /*List<Expression>*/ arguments = args;
-	};
-};
-
-val (unique Expression) -> unique Case makeCase = fn(unique Expression e) => {
-	new Case {
-		val immutable Token token         = makeToken();
-		val /*Option QI*/ qi              = new None;
-		val /*Option ID*/ x               = new None;
-		val unique Expression e           = e;
-		val immutable Boolean defaultCase = false;
-		val immutable Boolean boundVar    = false;
-	};
-};
-
-val makeMatch = fn(e, cases) => {
-	new Match {
-		val immutable Token token   = makeToken();
-		val unique Expression e     = e;
-		val /*List<Case>*/ caseList = cases;
-	};
-};
-
-val makeLambda = fn(body) => {
-	new Lambda {
-		val immutable Token token = makeToken();
-		val /*List<ID>*/ arguments = makeEmptyList();
-		val unique Expression body = body;
-		// Set up a dummy type.
-		val immutable LambdaType lambdaType = new LambdaType {
-			var immutable PermType returnType = new UncheckedType;
-			val /*unique List<immutable ChangeType>*/ argTypes = makeEmptyList();
-			val /*unique Map<immutable ID,immutable ChangeType>*/ environmentTypes = java.util.HashMap.new();
-		};
-		var /*Option ID*/ recursiveName = new None;
-	};
-};
+import plaid.typechecker.lnf.NewLetNormalFormVisitor;
 
 val (unique Expression) -> void rewrite = fn (unique Expression e) => {
 	val unique PrintVisitor printVisitor = new PrintVisitor;
-	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	val unique NewLetNormalFormVisitor lnfVisitor = new NewLetNormalFormVisitor;
 	
 	java.lang.System.out.println("\nREWRITE TEST");
 	e.accept(printVisitor);
 	java.lang.System.out.println("---------------------");
-	e.accept(lnfVisitor);
-	e.accept(printVisitor);
+	val newAst = e.accept(lnfVisitor).first();
+	newAst.accept(printVisitor);
 };
 
 method main() {
 	varTests();
 	fieldReadTests();
 	destructiveReadTests();
-	assignmentTests();
-	letBindingTests();
 	methodCallTests();
 	appTests();
+	assignmentTests();
 	matchTests();
 	lambdaTests();
+	letBindingTests();
+	newTests();
+	changeStateTests();
+	
+	wholeProgramTest("testInputs/fibonacci/package.plaid");
+	wholeProgramTest("testInputs/basicAeminium/package.plaid");
+	wholeProgramTest("testInputs/functionalMergeSort/package.plaid");
 }

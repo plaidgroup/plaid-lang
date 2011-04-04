@@ -100,5 +100,11 @@ public interface PlaidObject {
 	 * @param t3
 	 */
 	public void join(PlaidPermType toJoin1, PlaidPermType toJoin2, PlaidPermType result);
+	
+	/**
+	 * Turns a PlaidObject into a Plaid State
+	 * @return
+	 */
+	public PlaidState freeze();
 }
 
