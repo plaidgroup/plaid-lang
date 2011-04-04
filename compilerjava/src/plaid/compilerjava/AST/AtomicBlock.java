@@ -12,7 +12,7 @@ public class AtomicBlock implements Expression {
         private final ID id;
         private final Expression body;
 
-        public AtomicBlock(Token token, ID id, Expression body) {
+		public AtomicBlock(Token token, ID id, Expression body) {
                 super();
                 this.token = token;
                 this.id = id;
@@ -33,6 +33,14 @@ public class AtomicBlock implements Expression {
         public Token getToken() {
                 return token;
         }
+
+        public ID getId() {
+			return id;
+		}
+
+		public Expression getBody() {
+			return body;
+		}
 
         @Override
         public <T> T accept(ASTVisitor<T> visitor) {

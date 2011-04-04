@@ -18,7 +18,7 @@ public class LambdaType implements Type {
 	private final Token t;
 	private final List<ChangeType> argTypes;
 	private final Map<ID,ChangeType> environmentTypes;
-	private final List<MetaParameter> metaParams;
+	private final List<MetaType> metaTypes;
 	private final PermType returnType;
 	
 	public LambdaType(Token t, List<ChangeType> argTypes, Map<ID,ChangeType> sideEffects,
@@ -28,16 +28,16 @@ public class LambdaType implements Type {
 		this.argTypes = argTypes;
 		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
-		this.metaParams = new ArrayList<MetaParameter>();
+		this.metaTypes = new ArrayList<MetaType>();
 	}
 	
-	public LambdaType(Token t, List<ChangeType> argTypes, Map<ID,ChangeType> sideEffects, List<MetaParameter> metaParams, PermType returnType) {
+	public LambdaType(Token t, List<ChangeType> argTypes, Map<ID,ChangeType> sideEffects, List<MetaType> metaTypes, PermType returnType) {
 		super();
 		this.t = t;
 		this.argTypes = argTypes;
 		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
-		this.metaParams = metaParams;
+		this.metaTypes = metaTypes;
 	}
 	
 	public LambdaType(Token t, ChangeType argType, Map<ID, ChangeType> sideEffects, PermType returnType) {
@@ -46,16 +46,16 @@ public class LambdaType implements Type {
 		argTypes.add(argType);
 		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
-		this.metaParams = new ArrayList<MetaParameter>();		
+		this.metaTypes = new ArrayList<MetaType>();		
 	}
 
-	public LambdaType(Token t, ChangeType argType, Map<ID, ChangeType> sideEffects, List<MetaParameter> metaParams, PermType returnType) {
+	public LambdaType(Token t, ChangeType argType, Map<ID, ChangeType> sideEffects, List<MetaType> metaTypes, PermType returnType) {
 		this.t = t;
 		this.argTypes = new ArrayList<ChangeType>();
 		argTypes.add(argType);
 		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
-		this.metaParams = metaParams;		
+		this.metaTypes = metaTypes;		
 	}
 	
 	public List<ChangeType> getArgTypes() {

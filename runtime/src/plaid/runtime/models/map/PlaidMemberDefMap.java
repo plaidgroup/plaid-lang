@@ -46,6 +46,10 @@ public final class PlaidMemberDefMap implements PlaidMemberDef {
 	public PlaidMemberDefMap(String memberName, boolean mutable) {
 		this(memberName, true, null, mutable, false);
 	}
+	
+	public PlaidMemberDef copy() {
+		return new PlaidMemberDefMap(this);
+	}
 
 	@Override
 	public String getMemberName() {
@@ -138,4 +142,6 @@ public final class PlaidMemberDefMap implements PlaidMemberDef {
 	public void setValue(PlaidObject value) {
 		this.value = value;
 	}
+
+
 }

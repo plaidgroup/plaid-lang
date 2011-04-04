@@ -30,6 +30,10 @@ public class GroupDecl implements Decl {
 
 	}
 
+	public ID getId() {
+		return id;
+	}
+	
 	public boolean isAbstract() {
 		return isAbstract;
 	}
