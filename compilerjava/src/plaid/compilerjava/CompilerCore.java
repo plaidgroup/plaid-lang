@@ -219,7 +219,7 @@ public class CompilerCore {
 			if ( cc.getInputDir() != null ) {
 				String relativePath = cu.getSourceFile().getAbsolutePath().toString().substring(cc.getInputDir().length());
 				File targetFile = new File(cc.getOutputDir() + relativePath.substring(0, relativePath.length() - ".plaid".length()) + ".java");
-				if ( targetFile.lastModified() >= cu.getSourceFile().lastModified()) {
+				if ( targetFile.exists() && targetFile.lastModified() >= cu.getSourceFile().lastModified()) {
 					continue;
 				}
 				if (cc.isVerbose()) {
