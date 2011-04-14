@@ -30,7 +30,7 @@ public class CompilerConfiguration {
 	private String inputDir = "";
 	private List<String> plaidpath = new ArrayList<String>();
 	
-	private boolean debugMode = true;
+	private boolean debugMode = false;
 	private List<File> inputFiles = new ArrayList<File>();
 	private boolean invokeCompiler = true;
 	private boolean keepTemporaryFiles = false;
