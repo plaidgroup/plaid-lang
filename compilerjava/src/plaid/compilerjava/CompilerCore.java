@@ -218,9 +218,23 @@ public class CompilerCore {
 		for (final CompilationUnit cu : cus) {
 			if ( cc.getInputDir() != null ) {
 				String relativePath = cu.getSourceFile().getAbsolutePath().toString().substring(cc.getInputDir().length());
-				File targetFile = new File(cc.getOutputDir() + relativePath.substring(0, relativePath.length() - ".plaid".length()) + ".java");
-				if ( targetFile.exists() && targetFile.lastModified() >= cu.getSourceFile().lastModified()) {
-					continue;
+				if ( relativePath.endsWith("package.plaid")) {
+					boolean rebuild = false;
+					for( Decl d : cu.getDecls() ) {
+						File targetFile = new File(cc.getOutputDir() + relativePath.substring(0, relativePath.length() - "package.plaid".length()) + d.getName() + ".java");
+						if ( !targetFile.exists() || targetFile.lastModified() < cu.getSourceFile().lastModified()) {
+							rebuild = true;
+							continue;
+						}
+					}
+					if ( !rebuild ) {
+						continue;
+					}
+				} else {
+					File targetFile = new File(cc.getOutputDir() + relativePath.substring(0, relativePath.length() - ".plaid".length()) + ".java");
+					if ( targetFile.exists() && targetFile.lastModified() >= cu.getSourceFile().lastModified()) {
+						continue;
+					}					
 				}
 				if (cc.isVerbose()) {
 					System.out.println("Rebuild: " + cu.getSourceFile());
@@ -257,8 +271,8 @@ public class CompilerCore {
 				f.deleteOnExit();
 			}
 		}
-
-		if ( cc.isInvokeCompiler() ) {
+		
+		if ( cc.isInvokeCompiler() && allFiles.size() > 0 ) {
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 			StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
 			Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
