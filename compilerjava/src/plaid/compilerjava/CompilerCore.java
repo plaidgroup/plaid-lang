@@ -209,12 +209,27 @@ public class CompilerCore {
 	}
 	
 	private void generateCode(List<CompilationUnit> cus, final PackageRep plaidpath) throws Exception {
-		if (cc.isVerbose())
+		if (cc.isVerbose()) {
 			System.out.println("Generating code.");
+		}
 
 		final List<File> allFiles = new ArrayList<File>();
 		ExecutorService taskPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		for (final CompilationUnit cu : cus) {
+			if ( cc.getInputDir() != null ) {
+				String relativePath = cu.getSourceFile().getAbsolutePath().toString().substring(cc.getInputDir().length());
+				File targetFile = new File(cc.getOutputDir() + relativePath.substring(0, relativePath.length() - ".plaid".length()) + ".java");
+				if ( targetFile.lastModified() >= cu.getSourceFile().lastModified()) {
+					continue;
+				} else {
+					if (cc.isVerbose()) {
+						System.out.println("rebuild " + cu.getSourceFile());
+					}
+				}
+				if (cc.isVerbose()) {
+					System.out.println("Rebuild: " + cu.getSourceFile());
+				}
+			}
 			Callable<Object> task = new Callable<Object>() {
 				@Override
 				public Object call() throws Exception {
@@ -352,8 +367,9 @@ public class CompilerCore {
 		// open the file(s)
 		List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
 		for (File f : cc.getInputFiles()) {
-			if (cc.isVerbose())
+			if (cc.isVerbose()) {
 				System.out.println("Parsing '" + f.getName() + "'.");
+			}
 			
 			CompilationUnit cu;
 			try {
