@@ -221,10 +221,6 @@ public class CompilerCore {
 				File targetFile = new File(cc.getOutputDir() + relativePath.substring(0, relativePath.length() - ".plaid".length()) + ".java");
 				if ( targetFile.lastModified() >= cu.getSourceFile().lastModified()) {
 					continue;
-				} else {
-					if (cc.isVerbose()) {
-						System.out.println("rebuild " + cu.getSourceFile());
-					}
 				}
 				if (cc.isVerbose()) {
 					System.out.println("Rebuild: " + cu.getSourceFile());
