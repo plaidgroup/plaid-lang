@@ -216,29 +216,24 @@ public class CompilerCore {
 		final List<File> allFiles = new ArrayList<File>();
 		ExecutorService taskPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		for (final CompilationUnit cu : cus) {
-			if ( cc.getInputDir() != null ) {
-				String relativePath = cu.getSourceFile().getAbsolutePath().toString().substring(cc.getInputDir().length());
-				if ( relativePath.endsWith("package.plaid")) {
-					boolean rebuild = false;
-					for( Decl d : cu.getDecls() ) {
-						File targetFile = new File(cc.getOutputDir() + relativePath.substring(0, relativePath.length() - "package.plaid".length()) + d.getName() + ".java");
-						if ( !targetFile.exists() || targetFile.lastModified() < cu.getSourceFile().lastModified()) {
-							rebuild = true;
-							continue;
-						}
-					}
-					if ( !rebuild ) {
-						continue;
-					}
-				} else {
-					File targetFile = new File(cc.getOutputDir() + relativePath.substring(0, relativePath.length() - ".plaid".length()) + ".java");
-					if ( targetFile.exists() && targetFile.lastModified() >= cu.getSourceFile().lastModified()) {
-						continue;
-					}					
+			boolean rebuild = false;
+			for ( Decl d : cu.getDecls() ) {
+				StringBuilder packageName = new StringBuilder();
+				for ( String s : cu.getPackageName() ) {
+					packageName.append(s);
+					packageName.append(System.getProperty("file.separator"));
 				}
-				if (cc.isVerbose()) {
-					System.out.println("Rebuild: " + cu.getSourceFile());
+				File targetFile = new File(cc.getOutputDir() + System.getProperty("file.separator") + packageName + d.getName() + ".java");
+				if ( !targetFile.exists() || targetFile.lastModified() < cu.getSourceFile().lastModified()) {
+					rebuild = true;
+					continue;
 				}
+			}
+			if ( !rebuild ) {
+				continue;
+			}
+			if (cc.isVerbose()) {
+				System.out.println("Rebuild: " + cu.getSourceFile());
 			}
 			Callable<Object> task = new Callable<Object>() {
 				@Override
