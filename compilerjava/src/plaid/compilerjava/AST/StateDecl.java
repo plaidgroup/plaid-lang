@@ -120,6 +120,10 @@ public class StateDecl implements Decl {
 		this.isCaseOf = isCaseOf;
 	}
 
+	public List<MetaParameter> getMetaParameters() {
+		return metaParams;
+	}
+	
 	@Override
 	public MemberRep generateHeader(PackageRep plaidpath, ImportList imports, String inPackage) {
 		StateRep toRet = new StateRep(name.getName()); 
