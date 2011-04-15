@@ -231,6 +231,9 @@ public class CompilerCore {
 					}
 				}
 				if ( !rebuild ) {
+                    if (cc.isVerbose()) {
+                        System.out.println("file up-to-date : " + cu.getSourceFile());
+                    }
 					continue;
 				}
 				if (cc.isVerbose()) {
@@ -269,6 +272,10 @@ public class CompilerCore {
 			}
 		}
 		
+
+        if (cc.isVerbose()) {
+            System.out.println("invoke Java compiler"));
+        }
 		if ( cc.isInvokeCompiler() && allFiles.size() > 0 ) {
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 			StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
