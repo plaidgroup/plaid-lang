@@ -39,6 +39,7 @@ public class CompilerConfiguration {
 	private boolean printCompilerStackTrace = false;
 	private boolean prettyPrint = true;
 	private boolean aeminiumMode = false;
+	private boolean forceRecompile = false;
 	private CompilationUnit cu = null;
 	
 	public CompilerConfiguration() {}
@@ -154,6 +155,13 @@ public class CompilerConfiguration {
 		this.prettyPrint = prettyPrint;
 	}
 	
+	public void setForceRecompile(boolean value) {
+		forceRecompile = value;
+	}
+	
+	public boolean forceRecompile() {
+		return forceRecompile;
+	}
 	public boolean isAeminiumMode() {
 		return this.aeminiumMode;
 	}
