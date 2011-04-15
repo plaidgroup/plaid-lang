@@ -274,7 +274,7 @@ public class CompilerCore {
 		
 
         if (cc.isVerbose()) {
-            System.out.println("invoke Java compiler"));
+            System.out.println("invoke Java compiler");
         }
 		if ( cc.isInvokeCompiler() && allFiles.size() > 0 ) {
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
