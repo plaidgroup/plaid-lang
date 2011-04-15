@@ -227,7 +227,7 @@ public class CompilerCore {
 					File targetFile = new File(cc.getOutputDir() + System.getProperty("file.separator") + packageName + d.getName() + ".java");
 					if ( !targetFile.exists() || targetFile.lastModified() < cu.getSourceFile().lastModified()) {
 						rebuild = true;
-						continue;
+						break;
 					}
 				}
 				if ( !rebuild ) {
