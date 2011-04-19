@@ -1,7 +1,6 @@
 package plaid.runtime.models.map;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -107,8 +106,6 @@ public class PlaidTagMap implements PlaidTag {
 	public boolean equals(Object o) {
 		
 		if (o instanceof PlaidTag) {
-			boolean test = this == o;
-			boolean test2 = this == (PlaidTag)o;
 			return this == o;
 		}
 		else return false;
