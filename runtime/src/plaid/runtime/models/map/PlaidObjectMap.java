@@ -354,19 +354,26 @@ public class PlaidObjectMap implements PlaidObject {
 		
 		//Need to figure out which states from the old object to remove members from
 		//and which states from the new object to add members from
-		//1) first find tags from matching hierarchies and pair them	
+		//1) first find matching hierarchies to incoming top tags in existing object	
 		Map<PlaidTag,PlaidTag> outIn = new HashMap<PlaidTag,PlaidTag>();
+		Map<PlaidTag,PlaidTag> preserveEnclosing = new HashMap<PlaidTag,PlaidTag>();  //keep track of enclosing tag of incoming states
+		List<PlaidTag> incoming = new ArrayList<PlaidTag>(); // for tags without matches that will be added.
 		for (PlaidTag newTag : update.getPrototype().getTopTags()) {
-			for (PlaidTag existingTag : this.getTags().keySet()) {
-				if (newTag.rootTag().equals(existingTag.rootTag())) {
-					if (outIn.keySet().contains(existingTag)) throw new PlaidRuntimeException(existingTag + " already a member of this object");
-					if (outIn.values().contains(existingTag)) throw new PlaidRuntimeException(newTag + " already a member of the new object");
-					outIn.put(existingTag, newTag);
+			boolean added = false;
+			for (Entry<PlaidTag,PlaidTag> existingTag : this.getTags().entrySet()) {
+				if (newTag.rootTag().equals(existingTag.getKey().rootTag())) {
+					if (outIn.keySet().contains(existingTag.getKey())) throw new PlaidRuntimeException(existingTag + " already a member of this object");
+					if (outIn.values().contains(existingTag.getKey())) throw new PlaidRuntimeException(newTag + " already a member of the new object");
+					outIn.put(existingTag.getKey(), newTag);
+					preserveEnclosing.put(newTag,existingTag.getValue());  //where this tag was 
+					added = true;
 				}
+			}
+			if (!added) {
+				incoming.add(newTag);
 			}
 		}
 
-		
 		//2) next find the roots of each pair and determine which states are "do not add" tags
 		//   and which are "do not remove" tags
 		Set<PlaidTag> noAdd = new HashSet<PlaidTag>();
@@ -439,10 +446,16 @@ public class PlaidObjectMap implements PlaidObject {
 		}
 		
 		//7) add incoming tags
-		for (PlaidTag inTag : update.getPrototype().getTags().keySet()) {
-			if (!noAdd.contains(inTag)) {
-				addTag(inTag,null); //TODO: fix change by transition
+		for (Entry<PlaidTag,PlaidTag> inTag : update.getPrototype().getTags().entrySet()) {
+			if (!noAdd.contains(inTag.getKey())) {
+				if (inTag.getValue() != null ) //keep nesting from incoming state
+					addTag(inTag.getKey(),inTag.getValue()); //TODO: fix change by transition
+				else //keep nesting in existing object
+					addTag(inTag.getKey(),preserveEnclosing.get(inTag.getKey()));
 			}
+		}
+		for (PlaidTag inTag : incoming) {
+			addTag(inTag,null);
 		}
 	}
 	
@@ -662,6 +675,10 @@ public class PlaidObjectMap implements PlaidObject {
 				frozenState.getPrototype().addTag(t,tags.get(t));
 			}
 		}
+		
+//		for (PlaidTag t : this.getTopTags()) {
+//			frozenState.getPrototype().addTopTag(t)
+//		}
 		
 		return frozenState;
 	}
