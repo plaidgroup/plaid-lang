@@ -33,6 +33,7 @@ import plaid.runtime.PlaidMemberDef;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidRuntimeException;
+import plaid.runtime.PlaidState;
 import plaid.runtime.Util;
 import plaid.runtime.types.PlaidPermission;
 
@@ -48,6 +49,14 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 	public PlaidJavaObjectMap(Object value) {
 		super();
 		setJavaObject(value);
+		String name = valueClass.getCanonicalName();
+		if (name != null) {
+			PlaidObject tagObject = PlaidRuntime.getRuntime().getClassLoader().lookup(name, PlaidRuntime.getRuntime().getClassLoader().unit());
+			if (tagObject != null) {
+				PlaidState tagState = (PlaidState) tagObject;
+				this.addTopTag(tagState.getTag());
+			}
+		}
 	}
 	
 	public PlaidJavaObjectMap(PlaidPermission initPerm, Object value) {

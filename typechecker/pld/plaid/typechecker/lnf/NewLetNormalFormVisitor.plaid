@@ -77,8 +77,8 @@ state NewLetNormalFormVisitor {
 				val ret = this.zipBindings(list.cdr(), last);
 
 				// TODO:  The old restricted update bug bites again.
-				body <- None;
-				body <- freeze(ret);
+				//body <- None;
+				body <<- freeze(ret);
 				
 				binding;
 			}
@@ -111,7 +111,7 @@ state NewLetNormalFormVisitor {
                 	val unique ID right        = node.right.copy();
 				};
 				
-				left.second() <- UnannotatedBorrowBinding {
+				left.second() <<- UnannotatedBorrowBinding {
 					val immutable Token token     = node.token;
 					val unique ID x               = id;
 					val unique Expression exp     = deref;
@@ -140,10 +140,11 @@ state NewLetNormalFormVisitor {
 			
 			default {
 				val /*Pair<Binding, Expression>*/ left = node.left.accept(this);
+				val temp = left.second().copy();
 				
-				left.second() <- Dereference {
+				left.second() <<- Dereference {
                 	val immutable Token token  = node.token;
-                	val unique Expression left = left.second().copy();
+                	val unique Expression left = temp;
                 	val unique ID right        = node.right.copy();
 				};
 				
@@ -714,10 +715,14 @@ state NewLetNormalFormVisitor {
 	}
 
 	method visitMethodDecl(node) {
+		val methodBody = match (node.abstractMethod) {
+			case True { node.body }
+			case False { node.body.accept(this).first() } 
+		};
 		new MethodDecl {
 			val immutable Token token = node.token;
 			val immutable String name = node.name;
-			val unique Expression body = node.body.accept(this).first();
+			val unique Expression body = methodBody;
 			val /*List<ID>*/ arguments = node.arguments;
 			val immutable Boolean abstractMethod = node.abstractMethod;
 			val immutable Boolean overrides = node.overrides;
