@@ -53,6 +53,7 @@ public final class PlaidJavaStateMap extends PlaidStateMap implements PlaidJavaO
 		super();
 		this.setPackage(new PlaidPackageMap(QualifiedIdentifier.getQI(valueClass.getPackage().getName())));
 		this.setName(valueClass.getSimpleName());
+		this.tag = new PlaidTagMap(valueClass.getName(), valueClass.getPackage().getName(), Util.javaObjectTag);
 		this.value   = value;
 		this.valueClass = valueClass;
 		createConstructor();

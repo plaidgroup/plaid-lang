@@ -34,6 +34,7 @@ public class Util {
 	private static PlaidRuntime rt = PlaidRuntime.getRuntime();
     private static PlaidClassLoader cl = PlaidRuntime.getRuntime().getClassLoader();
 	protected static AtomicReferenceArray<PlaidJavaObject> integerCache = new AtomicReferenceArray<PlaidJavaObject>(256);
+	public static final PlaidTag javaObjectTag = tag("Object", "java.util", null);
     
 	public static PlaidObject newObject() throws PlaidException {
 		PlaidState object = (PlaidState)cl.lookup("plaid.lang.Object", unit());
