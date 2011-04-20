@@ -126,6 +126,10 @@ public class StateDecl implements Decl {
 		return this.typedef;
 	}
 
+	public List<MetaParameter> getMetaParameters() {
+		return metaParams;
+	}
+	
 	@Override
 	public MemberRep generateHeader(PackageRep plaidpath, ImportList imports, String inPackage) {
 		StateRep toRet = new StateRep(name.getName()); 

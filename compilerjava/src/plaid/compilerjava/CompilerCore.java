@@ -207,14 +207,39 @@ public class CompilerCore {
 			}					
 		}		
 	}
-	
+
 	private void generateCode(List<CompilationUnit> cus, final PackageRep plaidpath) throws Exception {
-		if (cc.isVerbose())
+		if (cc.isVerbose()) {
 			System.out.println("Generating code.");
+		}
 
 		final List<File> allFiles = new ArrayList<File>();
 		ExecutorService taskPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 		for (final CompilationUnit cu : cus) {
+			if ( !cc.forceRecompile() ) {
+				boolean rebuild = false;
+				for ( Decl d : cu.getDecls() ) {
+					StringBuilder packageName = new StringBuilder();
+					for ( String s : cu.getPackageName() ) {
+						packageName.append(s);
+						packageName.append(System.getProperty("file.separator"));
+					}
+					File targetFile = new File(cc.getOutputDir() + System.getProperty("file.separator") + packageName + d.getName() + ".java");
+					if ( !targetFile.exists() || targetFile.lastModified() < cu.getSourceFile().lastModified()) {
+						rebuild = true;
+						break;
+					}
+				}
+				if ( !rebuild ) {
+                    if (cc.isVerbose()) {
+                        System.out.println("file up-to-date : " + cu.getSourceFile());
+                    }
+					continue;
+				}
+				if (cc.isVerbose()) {
+					System.out.println("Rebuild: " + cu.getSourceFile());
+				}
+			}
 			Callable<Object> task = new Callable<Object>() {
 				@Override
 				public Object call() throws Exception {
@@ -246,8 +271,12 @@ public class CompilerCore {
 				f.deleteOnExit();
 			}
 		}
+		
 
-		if ( cc.isInvokeCompiler() ) {
+        if (cc.isVerbose()) {
+            System.out.println("invoke Java compiler");
+        }
+		if ( cc.isInvokeCompiler() && allFiles.size() > 0 ) {
 			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 			StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null);
 			Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
@@ -352,8 +381,9 @@ public class CompilerCore {
 		// open the file(s)
 		List<CompilationUnit> cus = new ArrayList<CompilationUnit>();
 		for (File f : cc.getInputFiles()) {
-			if (cc.isVerbose())
+			if (cc.isVerbose()) {
 				System.out.println("Parsing '" + f.getName() + "'.");
+			}
 			
 			CompilationUnit cu;
 			try {
@@ -416,16 +446,17 @@ public class CompilerCore {
 		System.out.println("usage: plaidc [OPTIONS] <FILES>");
 		System.out.println("");
 		System.out.println("Options:");
-		System.out.println(" -h|--help            This message.");
-		System.out.println(" -v|--version         This message.");
-		System.out.println(" -o|--output          The directory to put generated files.");
-		System.out.println(" -k|--keepTempFiles   Do not delete temporary files.");
-		System.out.println(" -n|--nocompile       Do not compile generated Java source.");
-		System.out.println(" -g|--debug           Generate debugging information.");
-		System.out.println(" -r|--readable        Format generated Java source.");
-		System.out.println(" -V|--verbose         Verbose compiler output");
-		System.out.println(" -d|--directory       Input directory");
-		System.out.println(" -p|--plaidpath       ';' separated list of locations to search for other plaid resources.");
+		System.out.println(" -h|--help             This message.");
+		System.out.println(" -v|--version          This message.");
+		System.out.println(" -o|--output           The directory to put generated files.");
+		System.out.println(" -k|--keepTempFiles    Do not delete temporary files.");
+		System.out.println(" -n|--nocompile        Do not compile generated Java source.");
+		System.out.println(" -g|--debug            Generate debugging information.");
+		System.out.println(" -r|--readable         Format generated Java source.");
+		System.out.println(" -V|--verbose          Verbose compiler output");
+		System.out.println(" -d|--directory        Input directory");
+		System.out.println(" -f|--force-recompile  Disables incremental compilation and rebuilds all files.");
+		System.out.println(" -p|--plaidpath        ';' separated list of locations to search for other plaid resources.");
 		System.out.println("");
 	}
 	
@@ -466,6 +497,8 @@ public class CompilerCore {
 					cc.setVerbose(true);
 				} else if (value.equals("-n") || value.equals("--nocompile")) {
 					cc.setInvokeCompiler(false);
+				} else if (value.equals("-f") || value.equals("--force-recompile")) {
+					cc.setForceRecompile(true);
 				} else if ( value.equals("-d") || value.equals("--directory")) {
 					if ( it.hasNext()) {
 						cc.setInputDir(it.next());

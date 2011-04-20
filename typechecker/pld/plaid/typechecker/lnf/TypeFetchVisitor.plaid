@@ -1,9 +1,18 @@
-package plaid.ast.visitor;
+package plaid.typechecker.lnf;
 
 import plaid.lang.*;
-import plaid.ast.*;
+import plaid.ast.visitor.*;
 
-state PrintVisitor case of ASTVisitor {
+
+state TypeFetchVisitor case of ASTVisitor {
+	//TODO: initialize them
+	var immutable StateTable stateTable;
+	var immutable Context context;
+	//TODO: associate with scope so we could know the decltype, maybe in NewLetNormalFormVisitor
+	//TODO: delete all the stuff of printVisitor
+	//TODO: every expression should return its type
+	//TODO: fix all permission
+	
 	var indent = 0;
 	
 	method output(s) {
@@ -98,11 +107,16 @@ state PrintVisitor case of ASTVisitor {
 	}
 	
 	method visitChangeState(node) {
-		this.output("ChangeState");
-		this.inc();
 		node.e.accept(this);
 		node.s.accept(this);
-		this.dec();
+		match (e) {
+			case ID{
+				context.update(node.e, createNominalType(IMM, node.s.toString()));
+			}
+			default {
+				//TODO, not sure how?
+			}
+		}		
 	}
 	
 	method visitCompilationUnit(node) {
@@ -158,18 +172,7 @@ state PrintVisitor case of ASTVisitor {
 		node.id.accept(this);
 		this.dec();
 	}
-
-    method visitGroupParameter(node) {
-        match (node.permission) {
-            case plaid.ast.types.groupPermissions.UndefinedGroupPermission {
-                this.output("GroupParameter(" + node.id.toString() + ")");
-            }
-            default {
-                this.output("GroupParameter(" + node.permission.toString() + " " + node.id.toString() + ")");
-            }
-        };
-    }
-    	
+	
 	method visitID(node) {
 		this.output("ID(" + node.name + ")");
 	}
@@ -210,12 +213,35 @@ state PrintVisitor case of ASTVisitor {
 	}
 	
 	method visitMethodCall(node) {
-		this.output("MethodCall");
-		this.inc();
 		node.receiver.accept(this);
 		node.methodName.accept(this);
 		node.arguments.map(fn (arg) => arg.accept(this));
-		this.dec();
+				
+		val /*MethodType*/ mt = unit;
+		//TODO: find the method by node.methodName
+		
+		match(node.receiver) {
+			case ID {
+				context.update(node.receiver,  new TypeBinding {var unique PermType currentType = mt.returnType;}  )
+			}
+			default {
+				//TODO deal with this
+			}
+		};
+				
+		val /*ListCell*/ lc = node.arguments.head;
+		mt.argTypes.map(fn(argType) => {
+			//TODO, not sure this is the best way
+			context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
+			lc = lc.next;
+		});
+		
+	    var it = mt.environmentTypes.entrySet().iterator();
+	    while {it.hasNext(); } {
+	        var pair = it.next();
+	        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
+	        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
+	    }
 	}
 	
 	method visitMethodDecl(node) {
@@ -227,10 +253,9 @@ state PrintVisitor case of ASTVisitor {
 	}
 	
 	method visitNewInstance(node) {
-		this.output("NewInstance");
-		this.inc();
 		node.s.accept(this);
-		this.dec();
+		//Perhaps will be useful in next phrase
+		//context.update(node.x, createNominalType(IMM, node.s.toString()));	//TODO now I only assume here the state is QI, not consider with
 	}
 	
 	method visitPermType(node) {
@@ -262,18 +287,14 @@ state PrintVisitor case of ASTVisitor {
 		this.output("StateDecl");
 		this.inc();
 		node.name.accept(this);
-		this.output("MetaParameters");
-        this.inc();
-        node.metaParams.map(fn (p) => p.accept(this));
-        this.dec();
+		node.stateDef.accept(this);
 		match (node.caseOf) {
             case plaid.lang.Some {
 			    node.caseOf.value.accept(this);
             }
             default {}
 		};
-        node.stateDef.accept(this);
-        this.dec();
+		this.dec();
 	}
 	
 	method visitStringLiteral(node) {
@@ -287,10 +308,6 @@ state PrintVisitor case of ASTVisitor {
 		node.exp.accept(this);
 		node.body.accept(this);
 		this.dec();
-	}
-	
-	method visitTypeParameter(node) {
-	   this.output("TypeParameter(" + node.id.toString() + ")");
 	}
 	
 	method visitUnitLiteral(node) {

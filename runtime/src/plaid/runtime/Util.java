@@ -34,6 +34,8 @@ public class Util {
 	private static PlaidRuntime rt = PlaidRuntime.getRuntime();
     private static PlaidClassLoader cl = PlaidRuntime.getRuntime().getClassLoader();
 	protected static AtomicReferenceArray<PlaidJavaObject> integerCache = new AtomicReferenceArray<PlaidJavaObject>(256);
+    protected static volatile PlaidObject TRUE; 
+    protected static volatile PlaidObject FALSE;
 	public static final PlaidTag javaObjectTag = tag("Object", "java.util", null);
     
 	public static PlaidObject newObject() throws PlaidException {
@@ -81,15 +83,27 @@ public class Util {
 	}
 	
 	public static PlaidObject trueObject() throws PlaidException {
-		PlaidState trueState = toPlaidState(cl.lookup("plaid.lang.True", unit()));
-		PlaidObject value = (PlaidObject)trueState.instantiate();
-		return value;
+        if ( TRUE == null ) {
+            synchronized(Util.class) {
+                if ( TRUE == null ) {
+                    PlaidState trueState = toPlaidState(cl.lookup("plaid.lang.True", unit()));
+                    TRUE =(PlaidObject)trueState.instantiate();
+                }
+            }
+        }
+        return TRUE;
 	}
 	
 	public static PlaidObject falseObject() throws PlaidException {
-		PlaidState falseState = toPlaidState(cl.lookup("plaid.lang.False", unit()));
-		PlaidObject value = (PlaidObject)falseState.instantiate();
-		return value;
+        if ( FALSE == null ) {
+            synchronized(Util.class) {
+                if ( FALSE == null ) {
+                    PlaidState trueState = toPlaidState(cl.lookup("plaid.lang.False", unit()));
+                    FALSE =(PlaidObject)trueState.instantiate();
+                }
+            }
+        }
+        return FALSE;
 	}
 	
 	public static PlaidTag getTag(String tagPath) throws PlaidException {
