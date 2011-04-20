@@ -4,17 +4,21 @@ import java.util.List;
 
 public interface PlaidTag {
 	
-	public PlaidState caseOf();
+	//public PlaidState caseOf();
 	
 	public PlaidTag superTag();
 	
 	public boolean hasSuperTag();
 	
-	public boolean matches(String tag);
+	public boolean matches(PlaidTag tag);
 	
 	public String getName();
 	
-	public String rootState();
+	public PlaidTag rootTag();
 	
-	public List<String> getHierarchy();
+	public List<PlaidTag> getHierarchy();
+
+	public String getPath();
+	
+	public void nest(PlaidState state);
 }

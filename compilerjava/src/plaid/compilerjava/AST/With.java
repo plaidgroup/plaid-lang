@@ -76,7 +76,7 @@ public class With implements State {
 	}
 	
 	@Override
-	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
+	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
 
 		out.setLocation(token);
 		
@@ -86,9 +86,9 @@ public class With implements State {
 		out.declareFinalVar(CodeGen.plaidStateType, fresh1.getName());
 		out.declareFinalVar(CodeGen.plaidStateType, fresh2.getName());
 		
-		r1.codegenState(out, fresh1, localVars, stateVars, stateContext);
+		r1.codegenState(out, fresh1, localVars, stateVars, tagContext);
 
-		r2.codegenState(out, fresh2, localVars, stateVars, stateContext);
+		r2.codegenState(out, fresh2, localVars, stateVars, tagContext);
 
 		
 		out.assignToWith(y.getName(),fresh1.getName(),fresh2.getName());  //y = fresh1.with(fresh2); 

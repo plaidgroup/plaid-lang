@@ -31,7 +31,6 @@ import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.Util;
-import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMethod{
 	public static final String NAME = "new" + PlaidConstants.ID_SUFFIX;
@@ -119,8 +118,7 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 			} else {
 				PlaidJavaObject plaidResult = new PlaidJavaObjectMap(result);
 				// add the tag  //TODO: this is not correct since Java objects will not actually have tags...?
-				plaidResult.addTag(new PlaidTagMap(result.getClass().getName(), 
-						new PlaidStateMap(new PlaidPackageMap(QualifiedIdentifier.getQI("java.lang")), "Object", Object.class)));
+				//plaidResult.addTag(new PlaidTagMap(result.getClass().getName(), result.getClass().getPackage().getName(), Util.javaObjectTag),null);
 				return plaidResult;
 			}
 		} catch (IllegalArgumentException e) {

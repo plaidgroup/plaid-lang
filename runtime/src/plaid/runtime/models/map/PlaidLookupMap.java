@@ -55,4 +55,10 @@ public final class PlaidLookupMap extends PlaidObjectMap implements PlaidPackage
 	public String toString() {
 		return "PlaidLookupMap("+thePackage + "." + toLookup +")";
 	}
+
+	@Override
+	public QualifiedIdentifier getQI() {
+		return this.thePackage.append(this.toLookup);
+	}
+	
 }

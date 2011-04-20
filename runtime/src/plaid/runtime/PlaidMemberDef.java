@@ -4,7 +4,7 @@ public interface PlaidMemberDef {
 
 	public String getMemberName();
 
-	public String definedIn();
+	public PlaidTag definedIn();
 
 	public boolean isAnonymous();
 	

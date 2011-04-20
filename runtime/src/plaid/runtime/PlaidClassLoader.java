@@ -116,10 +116,11 @@ public interface PlaidClassLoader {
 	 * return a new Tag Object
 	 * 
 	 * @param tag  (the QI of the state with the tag)
-	 * @param caseOf (the PlaidState representing the state this tag is a case of)
+	 * @param pkg  (the package this tag is declared in)
+	 * @param superTag (the super tag of this tag, if there is one and null otherwise)
 	 * @return
 	 */
-	public PlaidTag tag(String tagName, PlaidState caseOf);
+	public PlaidTag tag(String tagName, String pkg, PlaidTag superTag);
 	
 	/**
 	 * TODO: Document
@@ -152,5 +153,5 @@ public interface PlaidClassLoader {
 	 * @param overrides - whether or not this member overrides a previously defined member
 	 * @return
 	 */
-	public PlaidMemberDef memberDef(String memberName, boolean anonymous, String definedIn, boolean mutable, boolean overrides);
+	public PlaidMemberDef memberDef(String memberName, boolean anonymous, PlaidTag definedIn, boolean mutable, boolean overrides);
 }

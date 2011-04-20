@@ -169,6 +169,7 @@ TOKEN /*[IGNORE_CASE]*/:
 |	< OF : "of" >
 |	< PACKAGE : "package" >
 |	< STATE : "state" >
+| 	< TYPEDEF : "typedef" >
 |	< THIS : "this" >
 |	< VAL : "val" >
 |	< VAR : "var" >	
@@ -256,6 +257,7 @@ TOKEN :
 |		< EQUALS : "=" >
 |		< RARROW : "->" >
 |		< LARROW : "<-" >
+| 		< DLARROW : "<<-" >
 |		< DARROW : "=>" >
 |		< MARROW : ">>" >
 |		< AT : "@" >
@@ -674,7 +676,7 @@ Decl Decl() :
 		Decl d;
 }
 {
-		LOOKAHEAD([Permission()] <STATE>) d = DeclState()
+		LOOKAHEAD([Permission()] [<TYPEDEF>] <STATE>) d = DeclState()
 		{
 				return d;
 		}
@@ -697,23 +699,28 @@ Decl Decl() :
 Decl DeclState() :
 {
 	Token t, s, c = null;
+	boolean typedef = false;
 	State stateDef;
 	List<Token> qi = null;
 	Permission defaultPerm = Permission.DYN;
 	List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
 	List<MetaArgument> metaArgsCaseOf = new ArrayList<MetaArgument>();
 }
-{	[defaultPerm = Permission()] s = <STATE> t = <ID> [ metaParams = MetaParameters(false) ] [ c = <CASE> <OF> qi = DotName() [ metaArgsCaseOf = MetaArguments() ] ]
+{	[defaultPerm = Permission()] [ < TYPEDEF > { typedef = true; } ]
+		s = <STATE> t = <ID>
+			[ metaParams = MetaParameters(false) ]
+			[ c = <CASE> <OF> qi = DotName() [ metaArgsCaseOf = MetaArguments() ] ]
 	(
 		<EQUALS> stateDef = State()
 	|	stateDef = DeclList()
 	)
 	{
+	  	if (typedef && qi != null ) throw new ParseException("case of states cannot be typedefs");
 		if (qi == null) {
-			return new StateDecl(s, new ID(t.image), metaParams, stateDef, defaultPerm);
+			return new StateDecl(s, new ID(t.image), metaParams, stateDef, defaultPerm, typedef);
 		}
 		else {
-			return new StateDecl(s, new ID(t.image), metaParams, stateDef, new QI(tokenToStringList(qi)), defaultPerm);
+			return new StateDecl(s, new ID(t.image), metaParams, stateDef, new QI(tokenToStringList(qi)), defaultPerm, typedef);
 		}
 	}
 }
@@ -1679,11 +1686,13 @@ Expression ExpSuffix(Expression prefix) :
 		State s;
 		ID field = null;
 		Dereference location;
+		boolean wipe;
 }
 {
-		t = < LARROW > s = State()
+		( t = < LARROW > { wipe = false; } | t = < DLARROW > { wipe = true; })  
+		s = State()
 		{
-				return new ChangeState(t, prefix, s);
+				return new ChangeState(t, prefix, s, wipe);
 		}
 |		t = < EQUALS > assignTo = Exp()
 		{

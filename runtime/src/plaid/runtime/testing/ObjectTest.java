@@ -43,10 +43,10 @@ public class ObjectTest extends BaseTest {
 		PlaidObject pc = Util.lookup("plaid.lang.Pair", Util.unit());
 		assertTrue( pc != null );
 		PlaidState pcs = Util.toPlaidState(pc);
-		PlaidObject po = pcs.instantiate();
-		assertTrue( po != null );
+		//PlaidObject po = pcs.instantiate();
+		//assertTrue( po != null );
 		
-		o.changeState(po);
+		o.changeState(pcs,true);
 		assertTrue( o.getMembers().containsKey("first") == true );
 	}
 }

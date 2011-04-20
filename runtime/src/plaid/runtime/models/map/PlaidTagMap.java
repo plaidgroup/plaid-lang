@@ -4,35 +4,45 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidState;
 import plaid.runtime.PlaidTag;
+import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidTagMap implements PlaidTag {
 
-	private String theCase;
-	private PlaidState caseOf;
+	private String tagName;
+	private PlaidTag superTag;
+	//private PlaidState caseOf;
 	private boolean hasSuperTag;
-	private String root;
-	private List<String> hierarchy = new ArrayList<String>();
+	private PlaidTag root;
+	private QualifiedIdentifier pkg;
+	private List<PlaidTag> hierarchy = new ArrayList<PlaidTag>();
 	
-	public PlaidTagMap(String theCase, PlaidState caseOf) {
-		this.theCase = theCase;
-		this.caseOf = caseOf;
-		hasSuperTag = caseOf.hasTag();
-		hierarchy.add(theCase);
+	public PlaidTagMap(String tagName, String pkg, PlaidTag superTag) {
+		this.tagName = tagName;
+		this.pkg = QualifiedIdentifier.getQI(pkg);
+		//this.caseOf = caseOf;
+		if (superTag != null) {
+			this.hasSuperTag = true;
+			this.superTag = superTag;
+		} else {
+			this.hasSuperTag = false;
+			this.superTag = null;
+		}
+		hierarchy.add(this);
 		PlaidTag findRoot = this;
 		while (findRoot.hasSuperTag()) {
-			hierarchy.add(findRoot.caseOf().getPath());
 			findRoot = findRoot.superTag();
+			hierarchy.add(findRoot);
 		}
-		root = findRoot.caseOf().getPath();
-		hierarchy.add(root);
+		root = findRoot;
 	}
 	
-	@Override
-	public PlaidState caseOf() {
-		return caseOf;
-	}
+//	@Override
+//	public PlaidState caseOf() {
+//		return caseOf;
+//	}
 
 	@Override
 	public boolean hasSuperTag() {
@@ -41,33 +51,63 @@ public class PlaidTagMap implements PlaidTag {
 
 	@Override
 	public PlaidTag superTag() {
-		return caseOf.getTag();
+		return this.superTag;
 	}
 
 	public String toString() {
-		return "Tag<" + theCase + " of " + caseOf.toString().substring(5);	
+		String toRet = "Tag<" + this.tagName;
+		for (int i = 1; i < this.hierarchy.size(); i++) {
+			toRet += " <: " + hierarchy.get(i).getName();
+		}
+		return toRet + ">";
 	}
 	
 	public String getName() {
-			return theCase;
+			return tagName;
 	}
 	
-	public String rootState() {
+	public PlaidTag rootTag() {
 		return root;
 	}
 	
-	public List<String> getHierarchy() {
+	//@Override
+	public List<PlaidTag> getHierarchy() {
 		return Collections.unmodifiableList(hierarchy);
 	}
 	
+	//@Override
+	public boolean matches(PlaidTag tag) {
+		if (this.root != tag.rootTag()) return false;
+		return tag.getHierarchy().contains(this);  //TODO: probably a more efficient way to do this - the above line should help
+	}
 	
-	public boolean matches(String tag) {
-		if (tag.equals(getName())){
-			return true;
-		} else if (hasSuperTag()) {
-			return superTag().matches(tag);
-		} else {
-			return false;
+	@Override
+	public String getPath() {
+		 return pkg.toString() + "." + this.tagName;
+	}
+	
+	@Override
+	public void nest(PlaidState s) {
+		PlaidObject prototype = s.getPrototype();   
+		List<PlaidTag> oldTopTags = new ArrayList<PlaidTag>();
+		oldTopTags.addAll(prototype.getTopTags());
+		for (PlaidTag oldTopTag : oldTopTags ) {
+			prototype.removeTag(oldTopTag);
+			
+			//if matches, is the parent tag which is added later implicitly with inTag as topTag
+			if (!oldTopTag.matches(this))  
+				prototype.addTag(oldTopTag, this);
 		}
+		prototype.addTopTag(this);
+		
+	}
+	
+	@Override
+	public boolean equals(Object o) {
+		
+		if (o instanceof PlaidTag) {
+			return this == o;
+		}
+		else return false;
 	}
 }

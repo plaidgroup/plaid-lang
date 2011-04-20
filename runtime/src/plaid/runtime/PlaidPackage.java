@@ -19,6 +19,8 @@
  
 package plaid.runtime;
 
-public interface PlaidPackage extends PlaidObject {
+import plaid.runtime.utils.QualifiedIdentifier;
 
+public interface PlaidPackage extends PlaidObject {
+	public QualifiedIdentifier getQI();
 }

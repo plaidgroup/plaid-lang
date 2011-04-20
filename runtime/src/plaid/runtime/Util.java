@@ -36,6 +36,7 @@ public class Util {
 	protected static AtomicReferenceArray<PlaidJavaObject> integerCache = new AtomicReferenceArray<PlaidJavaObject>(256);
     protected static volatile PlaidObject TRUE; 
     protected static volatile PlaidObject FALSE;
+	public static final PlaidTag javaObjectTag = tag("Object", "java.util", null);
     
 	public static PlaidObject newObject() throws PlaidException {
 		PlaidState object = (PlaidState)cl.lookup("plaid.lang.Object", unit());
@@ -105,6 +106,11 @@ public class Util {
         return FALSE;
 	}
 	
+	public static PlaidTag getTag(String tagPath) throws PlaidException {
+		PlaidState tagState = toPlaidState(cl.lookup(tagPath, unit()));
+		return tagState.getTag();
+	}
+
 	public static PlaidObject unit() throws PlaidException {
 		return cl.unit();
 	}
@@ -125,7 +131,7 @@ public class Util {
 		return cl.protoMethod(fullyQualName, dlg);
 	}
 	
-	public static PlaidMemberDef memberDef(String memberName, String definedIn, boolean mutable, boolean overrides) {
+	public static PlaidMemberDef memberDef(String memberName, PlaidTag definedIn, boolean mutable, boolean overrides) {
 		return cl.memberDef(memberName, false, definedIn, mutable, overrides);
 	}
 	
@@ -145,8 +151,8 @@ public class Util {
 		return cl.lookup(name, scope);
 	}
 	
-	public static PlaidTag tag(String tag, PlaidState caseOf) {
-		return cl.tag(tag, caseOf);
+	public static PlaidTag tag(String tag, String pkg, PlaidTag superTag) {
+		return cl.tag(tag, pkg, superTag);
 	}
 	
 	public static Object[] convertParamsToArray(PlaidObject params) throws PlaidException {

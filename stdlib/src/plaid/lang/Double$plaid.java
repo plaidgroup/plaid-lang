@@ -30,7 +30,6 @@ import plaid.runtime.PlaidScope;
 import plaid.runtime.Util;
 import plaid.runtime.annotations.RepresentsMethod;
 import plaid.runtime.annotations.RepresentsState;
-import plaid.runtime.models.map.PlaidLocalScopeMap;
 import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.Import;
 
@@ -39,13 +38,21 @@ public class Double$plaid {
         public static PlaidScope globalScope = PlaidRuntime.getRuntime()
                         .getClassLoader()
                         .globalScope("plaid.lang", new ArrayList<Import>());
-
+        @plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Double")
+    	public static final plaid.runtime.PlaidTag Double$Tag$plaid;
+    	static {
+    		final plaid.runtime.PlaidTag vAr23$plaid;
+    		vAr23$plaid = null;
+    		Double$Tag$plaid = plaid.runtime.Util.tag("Double", "plaid.lang", vAr23$plaid);
+    		
+    	}
+        
         @RepresentsState(name = "Double")
         public static PlaidObject foo = Util.newState();
 
         static {
                 PlaidMemberDef plus = Util.memberDef("plus$plaid",
-                                "plaid.lang.Double", false, false);
+                		Double$Tag$plaid, false, false);
                 @RepresentsMethod(name = "plus$plaid", toplevel = false)
                 PlaidObject plusProtoMethod = Util.protoMethod(
                                 "plaid.lang.Double.plus$plaid", new Delegate() {
@@ -67,7 +74,7 @@ public class Double$plaid {
                                 });
                 foo.addMember(plus, plusProtoMethod);
 
-                PlaidMemberDef sub = Util.memberDef("sub$plaid", "plaid.lang.Double",
+                PlaidMemberDef sub = Util.memberDef("sub$plaid", Double$Tag$plaid,
                                 false, false);
                 @RepresentsMethod(name = "sub$plaid", toplevel = false)
                 PlaidObject subProtoMethod = Util.protoMethod(
@@ -91,7 +98,7 @@ public class Double$plaid {
                 foo.addMember(sub, subProtoMethod);
 
                 PlaidMemberDef mult = Util.memberDef("mult$plaid",
-                                "plaid.lang.Double", false, false);
+                                Double$Tag$plaid, false, false);
                 @RepresentsMethod(name = "mult$plaid", toplevel = false)
                 PlaidObject multProtoMethod = Util.protoMethod(
                                 "plaid.lang.Double.mult$plaid", new Delegate() {
@@ -113,7 +120,7 @@ public class Double$plaid {
                                 });
                 foo.addMember(mult, multProtoMethod);
 
-                PlaidMemberDef div = Util.memberDef("div$plaid", "plaid.lang.Double",
+                PlaidMemberDef div = Util.memberDef("div$plaid", Double$Tag$plaid,
                                 false, false);
                 @RepresentsMethod(name = "div$plaid", toplevel = false)
                 PlaidObject divProtoMethod = Util.protoMethod(
@@ -136,7 +143,7 @@ public class Double$plaid {
                                 });
                 foo.addMember(div, divProtoMethod);
 
-                PlaidMemberDef mod = Util.memberDef("mod$plaid", "plaid.lang.Double",
+                PlaidMemberDef mod = Util.memberDef("mod$plaid", Double$Tag$plaid,
                                 false, false);
                 @RepresentsMethod(name = "mod$plaid", toplevel = false)
                 PlaidObject modProtoMethod = Util.protoMethod(
@@ -160,7 +167,7 @@ public class Double$plaid {
                 foo.addMember(mod, modProtoMethod);
 
                 PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid",
-                                "plaid.lang.Double", false, false);
+                                Double$Tag$plaid, false, false);
                 @RepresentsMethod(name = "eqeq$plaid", toplevel = false)
                 PlaidObject eqeqProtoMethod = Util.protoMethod(
                                 "plaid.lang.Double.eqeq$plaid", new Delegate() {
@@ -186,7 +193,7 @@ public class Double$plaid {
                 foo.addMember(eqeq, eqeqProtoMethod);
 
                 PlaidMemberDef bangeq = Util.memberDef("bangeq$plaid",
-                                "plaid.lang.Double", false, false);
+                                Double$Tag$plaid, false, false);
                 @RepresentsMethod(name = "bangeq$plaid", toplevel = false)
                 PlaidObject bangeqProtoMethod = Util.protoMethod(
                                 "plaid.lang.Double.bangeq$plaid", new Delegate() {
@@ -211,7 +218,7 @@ public class Double$plaid {
                                 });
                 foo.addMember(bangeq, bangeqProtoMethod);
 
-                PlaidMemberDef lt = Util.memberDef("lt$plaid", "plaid.lang.Double",
+                PlaidMemberDef lt = Util.memberDef("lt$plaid", Double$Tag$plaid,
                                 false, false);
                 @RepresentsMethod(name = "lt$plaid", toplevel = false)
                 PlaidObject ltProtoMethod = Util.protoMethod(
@@ -237,7 +244,7 @@ public class Double$plaid {
                                 });
                 foo.addMember(lt, ltProtoMethod);
 
-                PlaidMemberDef gt = Util.memberDef("gt$plaid", "plaid.lang.Double",
+                PlaidMemberDef gt = Util.memberDef("gt$plaid", Double$Tag$plaid,
                                 false, false);
                 @RepresentsMethod(name = "gt$plaid", toplevel = false)
                 PlaidObject gtProtoMethod = Util.protoMethod(
@@ -264,7 +271,7 @@ public class Double$plaid {
                 foo.addMember(gt, gtProtoMethod);
 
                 PlaidMemberDef lteq = Util.memberDef("lteq$plaid",
-                                "plaid.lang.Double", false, false);
+                                Double$Tag$plaid, false, false);
                 @RepresentsMethod(name = "lteq$plaid", toplevel = false)
                 PlaidObject lteqProtoMethod = Util.protoMethod(
                                 "plaid.lang.Double.lteq$plaid", new Delegate() {
@@ -290,7 +297,7 @@ public class Double$plaid {
                 foo.addMember(lteq, lteqProtoMethod);
 
                 PlaidMemberDef gteq = Util.memberDef("gteq$plaid",
-                                "plaid.lang.Double", false, false);
+                                Double$Tag$plaid, false, false);
                 @RepresentsMethod(name = "gteq$plaid", toplevel = false)
                 PlaidObject gteqProtoMethod = Util.protoMethod(
                                 "plaid.lang.Double.gteq$plaid", new Delegate() {
@@ -315,4 +322,7 @@ public class Double$plaid {
                                 });
                 foo.addMember(gteq, gteqProtoMethod);
         }
+    	static {
+    		foo.addTopTag(Double$Tag$plaid);	
+    	}
 }

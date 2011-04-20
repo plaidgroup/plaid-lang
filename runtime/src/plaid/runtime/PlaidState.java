@@ -19,6 +19,8 @@
 
 package plaid.runtime;
 
+import java.util.Set;
+
 import plaid.runtime.types.PlaidPermission;
 
 public interface PlaidState extends PlaidObject {
@@ -45,8 +47,7 @@ public interface PlaidState extends PlaidObject {
 	 * @param objects   List of PlaidObject that should be merged with.
 	 * @return
 	 */
-	public PlaidState with(PlaidState ...args) throws PlaidException;
-	
+	public PlaidState with(PlaidState ...args) throws PlaidException;	
 	
 	/**
 	 * Similar to With, but treating the parameter state as an initialization

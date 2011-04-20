@@ -204,7 +204,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 					// else add as an override member and bind override to the found member
 					//TODO: do we need to distinguish that this was done in an init?
 					//otherwise, sometimes overriding something defined in the same place as the overrid
-					PlaidMemberDef overrideMemberDef = Util.memberDef(memberName, this.getPath(), mutable, true); 
+					PlaidMemberDef overrideMemberDef = Util.memberDef(memberName, this.getTag(), mutable, true); 
 					//overrideMemberDef.bindOverride(originalDef); //This is done in addMember()
 					result.addMember(overrideMemberDef, initMembers.get(memberName).getValue());
 				} else { 
@@ -218,7 +218,7 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 					//if not, treat initialized member as definedIn the place where declared abstract
 					//check that mutability lines up // TODO: other checks?
 					boolean mutable = existing.isMutable();
-					String originalDef = existing.definedIn();
+					PlaidTag originalDef = existing.definedIn();
 					if (mutable != member.isMutable())
 						throw new PlaidRuntimeException("Initialized member " + memberName + " must be " +
 								(mutable ? "mutable" : "immutable")  + " like the abstract definition from " +
@@ -261,24 +261,26 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		return this.instantiate(PlaidUniquePermission.unique(), args);
 	}
 
+	public static PlaidObject initializeMember(PlaidObject memberValue, PlaidObjectMap thisPointer) {
+		if (memberValue instanceof PlaidProtoMethodMap) {
+			PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap) memberValue;
+			return new PlaidMethodMap(ppmm.getFullyQualifiedName(), thisPointer, ppmm.getDelegate());
+		} else if (memberValue  instanceof PlaidProtoFieldMap) {
+			PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap) memberValue;
+			PlaidMethod initializer = new PlaidMethodMap("init", thisPointer, ppfm.getInitalizer());	
+			return initializer.invoke(Util.unit());
+		} else {
+			return memberValue;
+		}
+	}
+	
 	protected PlaidObject initialize(PlaidObjectMap pom) {
 		// add members from prototype initializing any that are proto-
 		for ( Map.Entry<String, PlaidMemberDef> member : prototype.getMembers().entrySet() ) {
 			PlaidObject memberValue = member.getValue().getValue();
 			PlaidMemberDef memberKey = member.getValue();
-			if (memberValue instanceof PlaidProtoMethodMap) {
-				PlaidProtoMethodMap ppmm = (PlaidProtoMethodMap) memberValue;
-				PlaidMethodMap method = new PlaidMethodMap(ppmm.getFullyQualifiedName(), pom, ppmm.getDelegate());
-				pom.addMember(Util.memberDef(memberKey), method);
-			} else if (memberValue  instanceof PlaidProtoFieldMap) {
-				PlaidProtoFieldMap ppfm =(PlaidProtoFieldMap) memberValue;
-				PlaidMethod initializer = new PlaidMethodMap(memberKey.getMemberName(), pom, ppfm.getInitalizer());
-				pom.addMember(Util.memberDef(memberKey), initializer.invoke(Util.unit()));
-			} else if (memberValue instanceof PlaidAbstractValueMap) {
-				pom.addMember(Util.memberDef(memberKey), memberValue);
-			} else {
-				pom.addMember(memberKey, memberValue);
-			}
+			
+			pom.addMember(Util.memberDef(memberKey), initializeMember(memberValue,pom));	
 		}
 		
 		// add states from prototype
@@ -290,8 +292,13 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		
 		// add tags from the prototype
 		if ( prototype.getTags() != PlaidObjectMap.EMPTY_TAGS ) {
-			for (PlaidTag t : prototype.getTags()) {
-				pom.addTag(t);
+			Map<PlaidTag,PlaidTag> tagMap = prototype.getTags();
+			for (PlaidTag t : tagMap.keySet()) {
+				PlaidTag enclosingTag = tagMap.get(t);
+				if (enclosingTag == null)
+					pom.addTopTag(t);
+				else
+					pom.addTag(t,enclosingTag);
 			}
 		}
 		
@@ -310,8 +317,13 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 		}
 		
 		// copy tags
-		for (PlaidTag t : source.getTags()) {
-			target.addTag(t); //TODO : need to throw errors when tags cannot coexist
+		Map<PlaidTag,PlaidTag> sourceTags = source.getTags();
+		for (PlaidTag t : sourceTags.keySet()) {
+			PlaidTag enclosingTag = sourceTags.get(t);
+			if (enclosingTag != null)
+				target.addTag(t,enclosingTag); //TODO : need to throw errors when tags cannot coexist
+			else
+				target.addTopTag(t);
 		}
 	}
 	
@@ -360,4 +372,6 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 	public String getPath() {
 		 return pkg.getQI().toString() + "." + name;
 	}
+
+
 }

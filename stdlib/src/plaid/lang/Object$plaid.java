@@ -37,11 +37,20 @@ import plaid.runtime.utils.Import;
 public class Object$plaid {
 	public static PlaidScope globalScope = PlaidRuntime.getRuntime().getClassLoader().globalScope("plaid.lang", new ArrayList<Import>());
 
+	@plaid.runtime.annotations.RepresentsTag(name = "plaid.lang.Object")
+ 	public static final plaid.runtime.PlaidTag Object$Tag$plaid;
+ 	static {
+ 		final plaid.runtime.PlaidTag vAr23$plaid;
+ 		vAr23$plaid = null;
+ 		Object$Tag$plaid = plaid.runtime.Util.tag("Object", "plaid.lang", vAr23$plaid);
+ 		
+ 	}
+	
 	@RepresentsState(name="Object") 
 	public static PlaidObject obj = Util.newState();
 	
 	static {
-		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", "plaid.lang.Object", false, true);
+		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", Object$Tag$plaid, false, true);
 		@RepresentsMethod(name = "eqeq$plaid", toplevel = false)
 		PlaidObject eqeqProtoMethod = Util.protoMethod("plaid.lang.Object.eqeq$plaid", new Delegate() {
 			@Override
@@ -55,5 +64,8 @@ public class Object$plaid {
 			}
 		});
 		obj.addMember(eqeq, eqeqProtoMethod);		
+	}
+	static {
+		obj.addTopTag(Object$Tag$plaid);	
 	}
 }

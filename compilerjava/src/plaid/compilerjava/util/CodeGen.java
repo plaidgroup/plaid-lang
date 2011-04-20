@@ -165,6 +165,13 @@ public class CodeGen {
 		output.append(target + " = ");
 	}
 	
+	public final void assignToNull(String target) {
+		assign(target);
+		append("null;");
+		updateVarDebugInfo(target);
+		
+	}
+	
 	public final void assignToCall(String target, String function, String arg) {
 		assign(target);
 		call(function,arg);
@@ -179,10 +186,10 @@ public class CodeGen {
 		updateVarDebugInfo(target);
 	}
 	
-	public final void assignToChangedState(String target, String object, String newState) {
+	public final void assignToChangedState(String target, String object, String newState, String wipe) {
 		
 		assign(target);
-		changeState(object,newState);
+		changeState(object,newState,wipe);
 		updateVarDebugInfo(target);
 	}
 
@@ -224,7 +231,7 @@ public class CodeGen {
 	public final void assignToProtoMethod(String target, String name, String path) {
 		assign(target);
 		// TODO: target + name is a temporary fix.  we should put the fully qualified name here
-		output.append(classLoader + ".protoMethod(\"" + path + "\", new " + delegateType + " () {" +
+		output.append(classLoader + ".protoMethod(" + path + ", new " + delegateType + " () {" +
 			"public " + plaidObjectType + " invoke(final " + plaidObjectType + " " + thisVar + ", final " + plaidObjectType + " " + name + ") {" +
 				"final " + plaidScopeType + " " + localScope + " = " + classLoader + ".localScope(" + CodeGen.globalScope + ");");
 		insertIntoScope(localScope, name, false);
@@ -245,7 +252,7 @@ public class CodeGen {
 	//Member Definition
 	public final void assignToNewMemberDef(String target, String varName, String definedIn, boolean mutable, boolean overrides) {
 		assign(target);
-		append(utilClass + ".memberDef(\"" + varName + "\", \"" + definedIn + "\", " + mutable + ", " + overrides + ");");
+		append(utilClass + ".memberDef(\"" + varName + "\", " + definedIn + ", " + mutable + ", " + overrides + ");");
 	}
 	
 	public final void assignToAnonymousMemberDef(String target, String varName, boolean mutable, boolean overrides) {
@@ -318,9 +325,9 @@ public class CodeGen {
 		updateVarDebugInfo(target);
 	}
 	
-	public final void assignToNewTag(String target, String tag, String caseOf) {
+	public final void assignToNewTag(String target, String tag, String pkg, String superTag) {
 		assign(target);
-		append(utilClass + ".tag(\"" + tag + "\", " + caseOf + ");");
+		append(utilClass + ".tag(\"" + tag + "\", \"" + pkg + "\", " + superTag + ");");
 		updateVarDebugInfo(target);
 	}
 	
@@ -421,14 +428,14 @@ public class CodeGen {
 	 */
 	
 	public final void updateVarInScope(String destination, String source) {
-		ifCondition(source + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is no keeping encapsulation of plaid.runtime.map
+		ifCondition(source + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is not keeping encapsulation of plaid.runtime.map
 		throwNewPlaidException("No object found to insert into scope");
 		elseCase();
 		output.append(localScope + ".update(\"" + destination + "\", " + source + ");");
 	}
 	
 	public final void insertIntoScope(String scope, String varName, boolean isImmutable) {
-		ifCondition(varName + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is no keeping encapsulation of plaid.runtime.map
+		ifCondition(varName + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is not keeping encapsulation of plaid.runtime.map
 		throwNewPlaidException("No object found to insert into scope");
 		elseCase();
 		output.append(scope + ".insert(\"" + varName + "\", " + varName + ", "+ isImmutable + ");");
@@ -476,8 +483,12 @@ public class CodeGen {
 		output.append(target + ".addMember(" + memberName + "," + genName + ");");
 	}
 	
-	public final void addTag(String target, String tagName) {
-		output.append(target + ".addTag(" + tagName + ");");
+	public final void addTag(String target, String tagName, String enclosingTagName) {
+		output.append(target + ".addTag(" + tagName + ", " + enclosingTagName + ");");
+	}
+	
+	public final void addTopTag(String target, String tagName) {
+		output.append(target + ".addTopTag(" + tagName + ");");
 	}
 	
 	public final void updateMember(String target, String memberName, String genName) {
@@ -488,6 +499,10 @@ public class CodeGen {
 		output.append(target + ".with(" + param + ");");
 	}
 	
+	public final void nest(String tagTarget, String stateParam) {
+		output.append(tagTarget + ".nest(" + stateParam + ");");
+	}
+	
 	public final void freeze(String target) {
 		output.append(target + ".freeze();");
 	}
@@ -496,8 +511,8 @@ public class CodeGen {
 		output.append(utilClass + ".call(" + function + ", " + arg + ")"); //TODO deal with removal of ;
 	}
 	
-	public final void changeState(String target, String newState) {
-		output.append(target + ".changeState(" + newState + ");");
+	public final void changeState(String target, String newState, String wipe) {
+		output.append(target + ".changeState(" + newState + ", " + wipe + ");");
 	}
 	
 	public final void lookup(String name, String scope) {
