@@ -227,6 +227,9 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 		else if (result.getClass().equals(String.class)) {
 			return Util.string((String)result);
 		}
+		else if (result.getClass().equals(Double.class)) {
+			return Util.floatingDouble((Double)result);
+		}
 		else if (result instanceof PlaidObject) {
 			return (PlaidObject)result;
 		}

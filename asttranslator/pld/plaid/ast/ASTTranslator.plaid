@@ -212,6 +212,12 @@ state ASTTranslator {
 					val immutable Boolean isAbstract = root.isAbstract();
 				};
 			}
+			case plaid.compilerjava.AST.GroupParameter {
+			    new GroupParameter {
+			        val unique ID id = this.translateAST(root.getId());
+			        val unique GroupPermission permission = this.translateGroupPermission(root.getPermission());
+			    }
+			}
 			case plaid.compilerjava.AST.ID {
 				new ID {
 					val /*Option Token*/ token = this.getToken(root);
@@ -341,6 +347,7 @@ state ASTTranslator {
 						} {
 							new None;
 						};
+				    val /* List<MetaParameter> */ metaParams = map(fn (p) => this.translateAST(p), root.getMetaParameters());
 				};
 			}
 			case plaid.compilerjava.AST.StringLiteral {
@@ -348,6 +355,23 @@ state ASTTranslator {
 					val /*Option Token*/ token = this.getToken(root);
 					val /*String*/ string = root.toString();
 				};
+			}
+			case plaid.compilerjava.AST.TypeParameter {
+			    new TypeParameter {
+			        val unique ID id = this.translateAST(root.getId());
+			        val unique Type caseOf = match (root.getCaseOf() ) {
+			                                     case  plaid.compilerjava.types.ObjectType  {
+			                                         ifElse ( root.getCaseOf().getNominalType().getName().equals("unit") ) { 
+			                                             new UnitLiteral { val token = new None; }
+			                                         }{
+			                                             this.translatePermType(root.getCaseOf());
+			                                         };
+			                                     }
+			                                     default { 
+			                                         this.translatePermType(root.getCaseOf()); 
+			                                     }			                                     
+			                                 };
+			    }
 			}
 			case plaid.compilerjava.AST.UnitLiteral {
 				new UnitLiteral {
@@ -387,6 +411,28 @@ state ASTTranslator {
 				java.lang.System.out.println((root.getClass()).getName());
 			}
 		}
+	}
+	
+	method unique GroupPermission translateGroupPermission(/* unqiue plaid.compilerjava.AST.GroupPermission */ permission) {
+	    var unique GroupPermission result = new types.groupPermissions.UndefinedGroupPermission;
+	    
+        if( plaid.compilerjava.AST.GroupPermission.EXCLUSIVE.equals(permission) ) {
+            result = new types.groupPermissions.ExclusiveGroupPermission;
+        };
+        if( plaid.compilerjava.AST.GroupPermission.SHARED.equals(permission) ) {
+            result = new types.groupPermissions.SharedGroupPermission;
+        };
+        if( plaid.compilerjava.AST.GroupPermission.PROTECTED.equals(permission) ) {
+            result = new types.groupPermissions.ProtectedGroupPermission;
+        };
+        if( plaid.compilerjava.AST.GroupPermission.MUTABLE.equals(permission) ) {
+            result = new types.groupPermissions.MutableGroupPermission;
+        };
+        if( plaid.compilerjava.AST.GroupPermission.READONLY.equals(permission) ) {
+            result = new types.groupPermissions.ReadonlyGroupPermission;
+        };
+     
+        result
 	}
 	
 	method unique ChangeType translateChangeType(/*unique plaid.compilerjava.types.ChangeType*/ type) {
