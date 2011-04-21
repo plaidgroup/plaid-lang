@@ -426,8 +426,9 @@ public class PlaidObjectMap implements PlaidObject {
 					(members().get(members().get(incomingMember.getMemberName())) != null && 
 							members().get(members().get(incomingMember.getMemberName()).getValue()) instanceof PlaidAbstractValueMap)) //abstract
 			{ 
-				PlaidObject incomingMemberValue = newMembers.get(incomingMember.getMemberName()).getValue();
-				willAdd.put(incomingMember, PlaidStateMap.initializeMember(incomingMemberValue, this));
+				PlaidMemberDef newMemberDef = Util.memberDef(incomingMember);
+				PlaidObject incomingMemberValue = newMembers.get(newMemberDef.getMemberName()).getValue();
+				willAdd.put(newMemberDef, PlaidStateMap.initializeMember(incomingMemberValue, this));
 			}
 		}
 		
