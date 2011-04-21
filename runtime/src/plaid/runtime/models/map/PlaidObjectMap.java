@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Stack;
 import java.util.Map.Entry;
 
 import plaid.runtime.PlaidException;
@@ -357,15 +358,22 @@ public class PlaidObjectMap implements PlaidObject {
 		//1) first find matching hierarchies to incoming top tags in existing object	
 		Map<PlaidTag,PlaidTag> outIn = new HashMap<PlaidTag,PlaidTag>();
 		Map<PlaidTag,PlaidTag> preserveEnclosing = new HashMap<PlaidTag,PlaidTag>();  //keep track of enclosing tag of incoming states
-		List<PlaidTag> incoming = new ArrayList<PlaidTag>(); // for tags without matches that will be added.
+		Set<PlaidTag> incoming = new HashSet<PlaidTag>(); // for tags without matches that will be added.
+		Set<PlaidTag> removeHierarchies = new HashSet<PlaidTag>(); // optimized collection of tag hierarchies for removal
+		//Turns out this one is not needed because incoming tags might include sub-hierarchies nested in tags that won't be added.
+		//Set<PlaidTag> noAddHierarchies = new HashSet<PlaidTag>(); // optimized collection of tag hierarchies that remain in the object;
 		for (PlaidTag newTag : update.getPrototype().getTopTags()) {
 			boolean added = false;
 			for (Entry<PlaidTag,PlaidTag> existingTag : this.getTags().entrySet()) {
 				if (newTag.rootTag().equals(existingTag.getKey().rootTag())) {
-					if (outIn.keySet().contains(existingTag.getKey())) throw new PlaidRuntimeException(existingTag + " already a member of this object");
-					if (outIn.values().contains(existingTag.getKey())) throw new PlaidRuntimeException(newTag + " already a member of the new object");
+					
+					//TODO: figure out what these restrictions should be - they are not clear and the second one is definitely wrong (too conservative)
+					//They will be checked below when the tags are actually added, so perhaps they are not needed
+					//if (outIn.keySet().contains(existingTag.getKey())) throw new PlaidRuntimeException(existingTag + " already a member of this object");
+					//if (outIn.values().contains(existingTag.getKey())) throw new PlaidRuntimeException(newTag + " already a member of the new object");
 					outIn.put(existingTag.getKey(), newTag);
 					preserveEnclosing.put(newTag,existingTag.getValue());  //where this tag was 
+					removeHierarchies.add(existingTag.getKey());
 					added = true;
 				}
 			}
@@ -405,10 +413,10 @@ public class PlaidObjectMap implements PlaidObject {
 		}
 		
 		//2a) any tags nested in toRemove tags will be removed too
-		this.tagDependencyClosure(toRemove);
+		this.tagDependencyClosure(toRemove,removeHierarchies);
 		
 		//2b) any tags nested in tags from noAdd should also not be added
-		this.tagDependencyClosure(noAdd);
+		this.tagDependencyClosure(noAdd,new HashSet<PlaidTag>()); //hierarchy set not used
 		
 		//3) initialize members defined in tags not on the noAdd list
 		Map<PlaidMemberDef,PlaidObject> willAdd = new HashMap<PlaidMemberDef,PlaidObject>();
@@ -433,19 +441,15 @@ public class PlaidObjectMap implements PlaidObject {
 		}
 		for (PlaidMemberDef rem : removeDefs) removeMember(rem.getMemberName());
 		
-		//5) remove outgoing tags
-		List<PlaidTag> removeTags = new ArrayList<PlaidTag>();
-		for (PlaidTag outTag : tags().keySet()) {
-			if(toRemove.contains(outTag)) removeTags.add(outTag);
-		}
-		for (PlaidTag t : removeTags) removeTag(t);
+		//5) remove outgoing hierarchies
+		for (PlaidTag outTag : removeHierarchies) removeTag(outTag);
 		
 		//6) add new members
 		for (Entry<PlaidMemberDef,PlaidObject> add : willAdd.entrySet()) {
 			addMember(add.getKey(),add.getValue());
 		}
 		
-		//7) add incoming tags
+		//7) add incoming hiearchies
 		for (Entry<PlaidTag,PlaidTag> inTag : update.getPrototype().getTags().entrySet()) {
 			if (!noAdd.contains(inTag.getKey())) {
 				if (inTag.getValue() != null ) //keep nesting from incoming state
@@ -454,30 +458,43 @@ public class PlaidObjectMap implements PlaidObject {
 					addTag(inTag.getKey(),preserveEnclosing.get(inTag.getKey()));
 			}
 		}
-		for (PlaidTag inTag : incoming) {
+		for (PlaidTag inTag : incoming) { //add tags that 
 			addTag(inTag,null);
 		}
 	}
 	
-	//TODO: This is kind of ugly, but I don't see any way around it - I wonder if there is a better scheme
+	//TODO: KBN - This is kind of ugly, but I don't see any way around it - I wonder if there is a better scheme
 	//Note that the toRemove set contains ALL individual tags that are being removed while the tag() collection
-	//of this PlaidObjectis optimized to group all tags in the same hierarchy together.  This is why we addAll
+	//of this PlaidObject is optimized to group all tags in the same hierarchy together.  This is why we addAll
 	//parts of the hierarchy when adding tags to toRemove
-	private void tagDependencyClosure(Set<PlaidTag> toRemove) {
-		Map<PlaidTag,List<PlaidTag>> dependencies = new HashMap<PlaidTag,List<PlaidTag>>();
-		for (PlaidTag tag : tags().keySet()) {
-			if (!toRemove.contains(tag)) {
-				PlaidTag dependsOn = tags().get(tag);
-				if (toRemove.contains(dependsOn)) { 			//if this tag is nested in an outgoing tag... 
-					toRemove.addAll(tag.getHierarchy());  		//add all levels of its hierarchy
-					if (dependencies.get(tag) != null) toRemove.addAll(dependencies.get(tag));		//along with all found dependencies
+	//KBN 2011-4-20 - update turns out we need the hiearchies too since tags are added/removed from the object
+	// on a hierarchy basis unlike members which are added/removed on an individual tag basis
+	private void tagDependencyClosure(Set<PlaidTag> individualTags, Set<PlaidTag> hierarchies) {
+		Map<PlaidTag,List<PlaidTag>> dependencies = new HashMap<PlaidTag,List<PlaidTag>>(); //hierarchies
+		for (PlaidTag tag : tags().keySet()) {						//for each hierarchy associated with this object
+			if (!individualTags.contains(tag)) {					//do nothing if it is already included in the set (already added)
+				PlaidTag dependsOn = tags().get(tag);				//otherwise, get its enclosing tag
+				if (individualTags.contains(dependsOn)) { 			//if its enclosing tag is outgoing, it needs to be added
+					hierarchies.add(tag);							//add the hierarchy as a whole to the closure
+					Stack<PlaidTag> worklist = new Stack<PlaidTag>(); 
+					worklist.addAll(tag.getHierarchy());			//remove each tag in the hierarchy along with any dependent hierarchies
+					while (!worklist.empty()) {
+						PlaidTag checkDependencies = worklist.pop();
+						individualTags.add(checkDependencies);  		   //add to list of individual tags in the closure
+						if (dependencies.containsKey(checkDependencies)) { //recursively add dependent hieararchies
+							for (PlaidTag removeDependency : dependencies.get(checkDependencies)) {
+								hierarchies.add(removeDependency);  				//add whole hierarchy to the closure
+								worklist.addAll(removeDependency.getHierarchy());  //each tag will also be checked for dependencies
+							}
+						}
+					}
 				} else {
 					List<PlaidTag> deps = dependencies.get(dependsOn);   //otherwise, cache this dependency
-					if (deps == null) {
+					if (deps == null) {  //add the dependent list to the map if it is not already there
 						deps = new ArrayList<PlaidTag>();
 						dependencies.put(dependsOn,deps);
 					}
-					deps.addAll(tag.getHierarchy());  //add each individual level in hierarchy to the dependency list
+					deps.add(tag);  //add the whole hierarchy as a dependency
 				}
 			}
 		}

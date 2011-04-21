@@ -100,7 +100,7 @@ public class PackageRep {
 					packageMembers.remove(existing);
 					packageMembers.add(member);
 				}
-				else throw new RuntimeException("Attempt to overwrite member");  //TODO : cannot currently give good error message - don't have package
+				else throw new RuntimeException("Attempt to overwrite member " + member.getName());  //TODO : cannot currently give good error message - don't have package
 			} else {
 				packageMembers.add(member);
 			}
