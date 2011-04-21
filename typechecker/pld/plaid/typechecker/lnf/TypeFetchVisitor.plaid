@@ -30,37 +30,51 @@ state TypeFetchVisitor case of ASTVisitor {
 	
 	method dec() {
 		this.indent = this.indent - 1
-	}
+	}	
 	
-	method visitAnnotatedLetBinding(node) {
-		this.output("AnnotatedLetBinding");
-		this.inc();
+	//let, borrow, take
+	method visitLetBinding(node) {		
 		node.x.accept(this);
+		//TODO: future work
 		node.exp.accept(this);
 		node.body.accept(this);
-		this.dec();
 	}
 	
-	method visitApplication(node) {
-		node.f.accept(this);
-		node.arguments.map(fn (a) => a.accept(this));
-		
-		var mt = 1;
-		//TODO: find the lambda by node.recursiveName??
-						
-		var lc = node.arguments.head;
-		mt.argTypes.map(fn(argType) => {
-			context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
-			lc = lc.next;
-		});
-		
-	    var it = mt.environmentTypes.entrySet().iterator();
-	    while {it.hasNext(); } {
-	        var pair = it.next();
-	        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
-	        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
-	    }
+	method visitBorrowBinding(node) {
+		node.x.accept(this);
+		//TODO: future work
+		node.exp.accept(this);
+		node.body.accept(this);
 	}
+	
+	method visitTakeBinding(node) {
+		node.x.accept(this);
+		//TODO: future work
+		node.exp.accept(this);
+		node.body.accept(this);
+	}	
+
+	method visitAnnotatedLetBinding(node) {
+		node.x.accept(this);
+		context.put(node.x, node.annotation);
+		node.exp.accept(this);
+		node.body.accept(this);
+	}
+	
+	method visitAnnotatedTakeBinding(node) {
+		node.x.accept(this);
+		context.put(node.x, node.annotation);
+		node.exp.accept(this);
+		node.body.accept(this);
+	}
+	
+	method visitAnnotatedBorrowBinding(node) {
+		node.x.accept(this);
+		context.put(node.x, node.annotation);
+		node.exp.accept(this);
+		node.body.accept(this);
+	}
+	//let, borrow, take
 	
 	method visitAssignment(node) {
 		this.output("Assignment");
@@ -84,15 +98,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		this.dec();
 	}
 	
-	method visitBorrowBinding(node) {
-		this.output("BorrowBinding");
-		this.inc();
-		node.x.accept(this);
-		node.exp.accept(this);
-		node.body.accept(this);
-		this.dec();
-	}
-	
+
 	method visitCase(node) {
 		this.output("Case");
 		this.inc();
@@ -204,15 +210,6 @@ state TypeFetchVisitor case of ASTVisitor {
 		this.dec();
 	}
 	
-	method visitLetBinding(node) {
-		this.output("LetBinding");
-		this.inc();
-		node.x.accept(this);
-		node.exp.accept(this);
-		node.body.accept(this);
-		this.dec();
-	}
-	
 	method visitMatch(node) {
 		this.output("Match");
 		this.inc();
@@ -229,7 +226,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		node.arguments.map(fn (arg) => arg.accept(this));
 				
 		val /*MethodType*/ mt = unit;
-		//TODO: find the method by node.methodName
+		//TODO: find the method by node.methodName using scope
 		
 		match(node.receiver) {
 			case ID {
@@ -254,6 +251,28 @@ state TypeFetchVisitor case of ASTVisitor {
 	        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
 	    }
 	}
+	
+	method visitApplication(node) {
+		node.f.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
+		
+		var mt = 1;
+		//TODO: find the lambda by node.recursiveName??  using scope
+		
+		var lc = node.arguments.head;
+		mt.argTypes.map(fn(argType) => {
+			context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
+			lc = lc.next;
+		});
+		
+	    var it = mt.environmentTypes.entrySet().iterator();
+	    while {it.hasNext(); } {
+	        var pair = it.next();
+	        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
+	        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
+	    }
+	}
+	
 	
 	method visitMethodDecl(node) {
 		this.output("MethodDecl(" + node.name + ")");
@@ -310,15 +329,6 @@ state TypeFetchVisitor case of ASTVisitor {
 	
 	method visitStringLiteral(node) {
 		this.output("StringLiteral('" + node.string + "')");
-	}
-	
-	method visitTakeBinding(node) {
-		this.output("TakeBinding");
-		this.inc();
-		node.x.accept(this);
-		node.exp.accept(this);
-		node.body.accept(this);
-		this.dec();
 	}
 	
 	method visitUnitLiteral(node) {
