@@ -9,13 +9,7 @@ state TypeFetchVisitor case of ASTVisitor {
 	var immutable StateTable stateTable;
 	var immutable Context context;
 	//TODO: associate with scope so we could know the decltype, maybe in NewLetNormalFormVisitor
-	//TODO: delete all the stuff of printVisitor
-	//TODO: FINISH the remain.
-	//TODO: fix all permission
-	
-	method output(s) {}	
-	method inc() {}	
-	method dec() {}
+	//TODO: FINISH the remain.	
 	
 	//let, borrow, take
 	method visitBorrowBinding(node) {
@@ -99,10 +93,7 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 
-	method visitCase(node) {
-		this.output("Case");
-		this.inc();
-		
+	method visitCase(node) {		
 		match (node.qi) {
 			case Some {
 				node.qi.value.accept(this);
@@ -120,7 +111,6 @@ state TypeFetchVisitor case of ASTVisitor {
 		};
 		
 		node.e.accept(this);
-		this.dec();
 	}
 	
 	method visitChangeState(node) {
@@ -134,7 +124,7 @@ state TypeFetchVisitor case of ASTVisitor {
 				context.update(node.e, createNominalType(IMM, node.s.toString()));
 			}
 			default {
-				//TODO, not sure how?
+				java.lang.System.err.println("some thing wrong?");
 			}
 		}
 	}
@@ -153,29 +143,73 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 	method visitDereference(node) {
+		//I assume it can only be the form of ID.ID
 		node.left.accept(this);
 		node.right.accept(this);
-		//TODO get node.objectType
+		var /*ObjectType*/ oType = context.get(node.left).type;
+		var /*Option StateType*/ oState = stateTable.get(oType.typeName); 	//I assume here alway be a nominal type
+		match (oState) {
+			case Some {
+				var /*Option DeclType*/ fDecl = oState.declaredTypeOf(node.right);
+				match (fDecl) {
+					case Some {
+						var /*ObjectType*/ fType = new NominalType { val immutable ID typeName = fDecl.value.name; };	//it must be a state, so must have name field
+						node.objectType = fType;
+					}
+					default {
+						java.lang.System.err.println("some thing wrong?");
+					}
+				}				
+			}
+			default {
+				java.lang.System.err.println("some thing wrong?");
+			}
+		}
 	}
 
 	method visitDestructiveDereference(node) {
 		java.lang.System.err.println("I don't know how to deal with you");
 	}
 	
+	method visitQI(node) {
+		match (node.initState) {
+			case Some {
+				node.initState.value.accept(this);
+			}
+			
+			case None {
+			}
+		};
+		match (oState) {
+			case Some {
+				node.objectType = new NominalType { val immutable ID typeName = node.toShortName(); };
+				//node.objectType = new NominalType { val immutable ID typeName = node.toString(); }; this is correct in long term
+			}
+			default {
+			
+			}
+		}
+	}
+	
+	//TODO Double check whether the object name for them is correct!
 	method visitDoubleLiteral(node) {
-        //TODO : return double type node.objectType = ...
+		var id = new Id { val name = "Double"; };
+		node.objectType = new NominalType { val immutable ID typeName = id; };
     }
     
 	method visitIntLiteral(node) {
-		//TODO : return int type
+		var id = new Id { val name = "Int"; };
+		node.objectType = new NominalType { val immutable ID typeName = id; };
 	}
 	
 	method visitStringLiteral(node) {
-		//TODO : return type
+		var id = new Id { val name = "String"; };
+		node.objectType = new NominalType { val immutable ID typeName = id; };
 	}
 	
 	method visitUnitLiteral(node) {
-		//TODO : return type
+		var id = new Id { val name = "Unit"; };
+		node.objectType = new NominalType { val immutable ID typeName = id; };
 	}
 	
 	method visitFieldDecl(node) {
@@ -200,11 +234,14 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 	method visitMatch(node) {
+		node.objectType = unit;
+		
 		node.e.accept(this);
 		node.caseList.map(fn (c) => {
-			c.accept(this)
+			c.accept(this);
+			var caseType = c.e.objectType;		
 		});
-		//TODO: get lowever bound of the objectType
+		//TODO: get lowever bound of all the objectType
 	}
 	
 	method visitMethodCall(node) {
@@ -220,7 +257,7 @@ state TypeFetchVisitor case of ASTVisitor {
 				context.update(node.receiver,  new TypeBinding {var unique PermType currentType = mt.returnType;}  )
 			}
 			default {
-				//TODO deal with this
+				java.lang.System.err.println("some thing wrong?");
 			}
 		};
 				
@@ -274,18 +311,6 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 	method visitPermType(node) {
-	}
-	
-	method visitQI(node) {
-		match (node.initState) {
-			case Some {
-				node.initState.value.accept(this);
-			}
-			
-			case None {
-			}
-		};
-		//TODO, get object type for stateTable
 	}
 	
 	method visitSplitBlock(node) {
