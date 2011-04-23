@@ -20,7 +20,7 @@
 package plaid.typechecker.lnf;
 
 import plaid.ast.*;
-import plaid.typechecker.ast.*;
+//import plaid.typechecker.ast.*;
 import plaid.ast.visitor.LeafVisitor;
 import plaid.ast.visitor.PrintVisitor;
 
@@ -28,7 +28,7 @@ import plaid.ast.visitor.PrintVisitor;
 state NewLetNormalFormVisitor {
 	var immutable Integer counter = 0;
 	
-	method unique ID generateID(immutable Token >> immutable Token tok) {
+	method unique ID generateID(immutable Token >> void tok) {
 		this.counter = this.counter + 1;
 		val immutable String n = "LNF$" + this.counter + "$plaid";
 		
@@ -39,27 +39,13 @@ state NewLetNormalFormVisitor {
 		};
 	}
 	
-	method /*Pair<Binding, Expression>*/ makeTake(immutable Token token, unique ID >> void x, unique Expression >> void exp, unique Expression >> void body) {
-		val unique UnannotatedTakeBinding ret = new UnannotatedTakeBinding {
-			val immutable Token token     = token;
-			val unique ID x               = x;
-			val unique Expression exp     = exp;
-			val unique Expression body    = body;
-			val immutable Boolean mutable = false;
-		};
-		
+	method /*Pair<Binding, Expression>*/ takePair(immutable Token >> void token, unique ID >> void x, unique Expression >> void exp, unique Expression >> void body) {
+		val unique TakeBinding ret = makeTake(token,x,exp,body,false);
 		makePair(ret, body);
 	}
 	
-	method /*Pair<Binding, Expression>*/ makeBorrow(immutable Token token, unique ID >> void x, unique Expression >> void exp, unique Expression >> void body) {
-		val unique UnannotatedBorrowBinding ret = new UnannotatedBorrowBinding {
-			val immutable Token token     = token;
-			val unique ID x               = x;
-			val unique Expression exp     = exp;
-			val unique Expression body    = body;
-			val immutable Boolean mutable = false;
-		};
-		
+	method /*Pair<Binding, Expression>*/ borrowPair(immutable Token >> void token, unique ID >> void x, unique Expression >> void exp, unique Expression >> void body) {
+		val unique BorrowBinding ret = makeBorrow(token, x, exp, body, false);	
 		makePair(ret, body);
 	}
 	
@@ -68,7 +54,6 @@ state NewLetNormalFormVisitor {
 			case True {
 				last;
 			}
-			
 			case False {
 				val pair    = list.car();
 				val binding = pair.first();
@@ -91,7 +76,7 @@ state NewLetNormalFormVisitor {
 	
 	method /*Pair<Binding, Expression>*/ visitID(immutable ID node) {
 		val unique ID id = this.generateID(node.token);
-		this.makeTake(node.token, id, node.copy(), id.copy());
+		this.takePair(node.token, id, node.copy(), id.copy());
 	}
 	
 	method /*Pair<Binding, Expression>*/ visitDereference(immutable Dereference node) {
@@ -99,7 +84,7 @@ state NewLetNormalFormVisitor {
 		
 		match (node.left) {
 			case ID {
-				this.makeBorrow(node.token, id, node.copy(), id.copy());
+				this.borrowPair(node.token, id, node.copy(), id.copy());
 			}
 			
 			default {
@@ -111,13 +96,9 @@ state NewLetNormalFormVisitor {
                 	val unique ID right        = node.right.copy();
 				};
 				
-				left.second() <<- UnannotatedBorrowBinding {
-					val immutable Token token     = node.token;
-					val unique ID x               = id;
-					val unique Expression exp     = deref;
-					val unique Expression body    = id.copy();
-					val immutable Boolean mutable = false;
-				};
+				val addAsBody = makeBorrow(node.token, id, deref, id.copy(), false);
+				
+				left.second() <<- freeze(addAsBody);
 		
 				makePair(left.first(), left.second().body);
 			}
@@ -135,7 +116,7 @@ state NewLetNormalFormVisitor {
                 	val unique ID right        = node.right.copy();
 				};
 				
-				this.makeTake(node.token, id, deref, id.copy());
+				this.takePair(node.token, id, deref, id.copy());
 			}
 			
 			default {
@@ -148,7 +129,7 @@ state NewLetNormalFormVisitor {
                 	val unique ID right        = node.right.copy();
 				};
 				
-				this.makeTake(node.token, id, left.first(), id.copy());
+				this.takePair(node.token, id, left.first(), id.copy());
 			}
 		};
 	}
@@ -193,7 +174,7 @@ state NewLetNormalFormVisitor {
 			case True {
 				// lnf-call-bare
 				
-				this.makeTake(node.token, id, node.copy(), id.copy());
+				this.takePair(node.token, id, node.copy(), id.copy());
 			}
 			
 			case False {
@@ -205,7 +186,7 @@ state NewLetNormalFormVisitor {
 				};
 				
 				val unique Binding zipped = this.zipBindings(bindings, methodCall);
-				this.makeTake(node.token, id, zipped, id.copy());
+				this.takePair(node.token, id, zipped, id.copy());
 			}
 		};
 	}
@@ -250,7 +231,7 @@ state NewLetNormalFormVisitor {
 			case True {
 				// lnf-call-bare
 				
-				this.makeTake(node.token, id, node.copy(), id.copy());
+				this.takePair(node.token, id, node.copy(), id.copy());
 			}
 			
 			case False {
@@ -261,7 +242,7 @@ state NewLetNormalFormVisitor {
 				};
 				
 				val unique Binding zipped = this.zipBindings(bindings, newApp);
-				this.makeTake(node.token, id, zipped, id.copy());
+				this.takePair(node.token, id, zipped, id.copy());
 			}
 		};
 	}
@@ -314,19 +295,19 @@ state NewLetNormalFormVisitor {
 			case True {
 				// lnf-assign-bare
 				
-				this.makeTake(node.token, id, node.copy(), id.copy());
+				this.takePair(node.token, id, node.copy(), id.copy());
 			}
 			
 			case False {
 				val unique Assignment newAssign = new Assignment {
-					var immutable Token token          = node.token;
-					var /*Option Expression*/ target   = createSome(targetID);
-					var unique ID field                = node.field.copy();
-					var unique Expression value        = valueID;
+					val immutable Token token          = node.token;
+					val /*Option Expression*/ target   = createSome(targetID);
+					val unique ID field                = node.field.copy();
+					val unique Expression value        = valueID;
 				};
 				
 				val unique Binding zipped = this.zipBindings(bindings, newAssign);
-				this.makeTake(node.token, id, zipped, id.copy());
+				this.takePair(node.token, id, zipped, id.copy());
 			}
 		};
 	}
@@ -353,7 +334,7 @@ state NewLetNormalFormVisitor {
 					val /*List<Case>*/ caseList = newCaseList;
 				};
 				
-				this.makeTake(node.token, id, m, id.copy());
+				this.takePair(node.token, id, m, id.copy());
 			}
 			
 			default {
@@ -368,7 +349,7 @@ state NewLetNormalFormVisitor {
 				val /*List<Pair<Binding, Expression>>*/ bindings = makeEmptyList();
 				bindings.add(p);
 				
-				val /*List<Pair<Binding, Expression>>*/ t = this.makeTake(node.token, id, m, id.copy());
+				val /*List<Pair<Binding, Expression>>*/ t = this.takePair(node.token, id, m, id.copy());
 				makePair(this.zipBindings(bindings, t.first()), t.second());
 			}
 		};		
@@ -386,18 +367,19 @@ state NewLetNormalFormVisitor {
 		};
 		
 		val unique ID id = this.generateID(node.token);
-		this.makeTake(node.token, id, newLambda, id.copy());
+		this.takePair(node.token, id, newLambda, id.copy());
 	}
 
 	method /*Pair<Binding, Expression>*/ visitLetBinding(immutable LetBinding node) {
-		var /*Pair<Binding, Expression>*/ ret = makePair(new None, new None);
 		
 		match (node.exp) {
 			case ID {
 				// lnf-let-bare
 				
-				val /*Pair<Binding, Expression>*/ p = node.body.accept(this);
-				ret = this.makeBorrow(node.token, node.x.copy(), node.exp.copy(), p.first());
+				val /*Pair<Binding, Expression>*/ translatedBody = node.body.accept(this);
+				val newLet = node.updatePreserveStates(node.exp.copy(),translatedBody.first());
+				newLet.toBorrow();
+				makePair(newLet,translatedBody.second());
 			}
 			
 			case Dereference {
@@ -405,44 +387,44 @@ state NewLetNormalFormVisitor {
 					case ID {
 						// lnf-let-read1
 				
-						val /*Pair<Binding, Expression>*/ p = node.body.accept(this);
-						ret = this.makeBorrow(node.token, node.x.copy(), node.exp.copy(), p.first());				
+						val /*Pair<Binding, Expression>*/ translatedBody = node.body.accept(this);
+						val newLet = node.updatePreserveStates(node.exp.copy(),translatedBody.first());
+						newLet.toBorrow();
+						makePair(newLet,translatedBody.second());		
 					}
 					
 					default {
 						// lnf-let-read2
 						
-						val /*Pair<Binding, Expression>*/ p1 = node.exp.left.accept(this);
-						val /*Pair<Binding, Expression>*/ p2 = node.body.accept(this);
+						val /*Pair<Binding, Expression>*/ translatedExp = node.exp.left.accept(this);
+						val /*Pair<Binding, Expression>*/ translatedBody = node.body.accept(this);
 						
 						val unique Dereference newDeref = new Dereference {
 		                	val immutable Token token  = node.token;
-		                	val unique Expression left = p1.second().copy();
+		                	val unique Expression left = translatedExp.second().copy();
 		                	val unique ID right        = node.exp.right.copy();
 						};
+						val newLet = node.updatePreserveStates(newDeref,translatedBody.first());
+						newLet.toBorrow();
 						
 						val /*List<Pair<Binding, Expression>>*/ l = makeEmptyList();
-						l.add(p1);
-						
-						val /*Pair<Binding, Expression>*/ b  = this.makeBorrow(node.token, node.x.copy(), newDeref, p2.first());
-						ret = makePair(this.zipBindings(l, b.first()), b.second());
+						l.add(translatedExp);
+						makePair(this.zipBindings(l, newLet), translatedBody.second());
 					}
 				};
 			}
 			
 			default {
-				val /*Pair<Binding, Expression>*/ p1 = node.exp.accept(this);
-				val /*Pair<Binding, Expression>*/ p2 = node.body.accept(this);
+				val /*Pair<Binding, Expression>*/ translatedExp = node.exp.accept(this);
+				val /*Pair<Binding, Expression>*/ translatedBody = node.body.accept(this);
+				val newLet = node.updatePreserveStates(translatedExp.second(),translatedBody.first());
+				newLet.toBorrow();
 				
 				val /*List<Pair<Binding, Expression>>*/ l = makeEmptyList();
-				l.add(p1);
-				
-				val /*Pair<Binding, Expression>*/ b  = this.makeBorrow(node.token, node.x.copy(), p1.second().copy(), p2.first());
-				ret = makePair(this.zipBindings(l, b.first()), b.second());
+				l.add(translatedExp);
+				makePair(this.zipBindings(l, newLet), translatedBody.second());
 			}
 		};
-		
-		ret;
 	}
 	
 	method /*Pair<Binding, Expression>*/ visitAnnotatedLetBinding(immutable AnnotatedLetBinding node) {
@@ -471,17 +453,17 @@ state NewLetNormalFormVisitor {
 					
 					val immutable ID f = fd.f;
 					val unique Assignment newAssign = new Assignment {
-						var immutable Token token          = node.token;
-						var /*Option Expression*/ target   = createSome(n.copy());
-						var unique ID field                = f.copy();
-						var unique Expression value        = b.second().copy();
+						val immutable Token token          = node.token;
+						val /*Option Expression*/ target   = createSome(n.copy());
+						val unique ID field                = f.copy();
+						val unique Expression value        = b.second().copy();
 					};
 					
 					val dummyList = makeEmptyList();
 					dummyList.add(b);
 					val unique Expression takeExp = this.zipBindings(dummyList, newAssign);
 					
-					takes.add(this.makeTake(node.token, f.copy(), takeExp, f.copy()));
+					takes.add(this.takePair(node.token, f.copy(), takeExp, f.copy()));
 				});
 				
 				val unique NewInstance newNew = new NewInstance {
@@ -493,13 +475,13 @@ state NewLetNormalFormVisitor {
 					};
 				};
 				
-				this.makeTake(node.token, n.copy(), newNew, this.zipBindings(takes, n.copy()));
+				this.takePair(node.token, n.copy(), newNew, this.zipBindings(takes, n.copy()));
 			}
 			
 			default {
 				// lnf-new-bare
 				val unique ID id = this.generateID(node.token);
-				this.makeTake(node.token, id, node.copy(), id.copy());
+				this.takePair(node.token, id, node.copy(), id.copy());
 			}
 		};
 	}
@@ -515,7 +497,7 @@ state NewLetNormalFormVisitor {
 					case ID {
 						// lnf-change-bare
 						
-						this.makeTake(node.token, id, node.copy(), id.copy());
+						this.takePair(node.token, id, node.copy(), id.copy());
 					}
 					
 					default {
@@ -530,7 +512,7 @@ state NewLetNormalFormVisitor {
 						
 						val dummyList = makeEmptyList();
 						dummyList.add(newE);
-						this.makeTake(node.token, id, this.zipBindings(dummyList, newChange), id.copy());
+						this.takePair(node.token, id, this.zipBindings(dummyList, newChange), id.copy());
 					}
 				};
 			}
@@ -573,17 +555,17 @@ state NewLetNormalFormVisitor {
 					
 					val immutable ID f = fd.f;
 					val unique Assignment newAssign = new Assignment {
-						var immutable Token token          = node.token;
-						var /*Option Expression*/ target   = createSome(targetID.copy());
-						var unique ID field                = f.copy();
-						var unique Expression value        = b.second().copy();
+						val immutable Token token          = node.token;
+						val /*Option Expression*/ target   = createSome(targetID.copy());
+						val unique ID field                = f.copy();
+						val unique Expression value        = b.second().copy();
 					};
 					
 					val dummyList = makeEmptyList();
 					dummyList.add(b);
 					val unique Expression takeExp = this.zipBindings(dummyList, newAssign);
 					
-					takes.add(this.makeTake(node.token, f.copy(), takeExp, f.copy()));
+					takes.add(this.takePair(node.token, f.copy(), takeExp, f.copy()));
 				});
 				
 				val unique ChangeState newChange = new ChangeState {
@@ -599,14 +581,14 @@ state NewLetNormalFormVisitor {
 				
 				match (binding) {
 					case None {
-						this.makeTake(node.token, n.copy(), newChange, this.zipBindings(takes, n.copy()));
+						this.takePair(node.token, n.copy(), newChange, this.zipBindings(takes, n.copy()));
 					}
 					
 					case Some {
 						val dummyList = makeEmptyList();
 						dummyList.add(binding.value);
 						
-						this.makeTake(node.token, n.copy(), this.zipBindings(dummyList, newChange), this.zipBindings(takes, n.copy()));
+						this.takePair(node.token, n.copy(), this.zipBindings(dummyList, newChange), this.zipBindings(takes, n.copy()));
 					}
 				};
 			}
@@ -615,57 +597,25 @@ state NewLetNormalFormVisitor {
 	
 	method /*Pair<Binding, Expression>*/ visitIntLiteral(immutable IntLiteral node) {
 		val unique ID id = this.generateID(node.token);
-		
-		val unique Binding binding = new UnannotatedLetBinding {
-			val immutable Token token     = node.token;
-			val immutable ID x            = id;
-			val unique Expression exp     = node.copy();
-			val unique Expression body    = id.copy();
-			val immutable Boolean mutable = false;
-		};
-		
+		val unique Binding binding = makeLet(node.token,id,node.copy(),id.copy(),false);
 		makePair(binding, binding.body);
 	}
 
 	method /*Pair<Binding, Expression>*/ visitUnitLiteral(immutable UnitLiteral node) {
 		val unique ID id = this.generateID(node.token);
-		
-		val unique Binding binding = new UnannotatedLetBinding {
-			val immutable Token token     = node.token;
-			val immutable ID x            = id;
-			val unique Expression exp     = node.copy();
-			val unique Expression body    = id.copy();
-			val immutable Boolean mutable = false;
-		};
-		
+	val unique Binding binding = makeLet(node.token,id,node.copy(),id.copy(),false);
 		makePair(binding, binding.body);
 	}
 
 	method /*Pair<Binding, Expression>*/ visitStringLiteral(immutable StringLiteral node) {
 		val unique ID id = this.generateID(node.token);
-		
-		val unique Binding binding = new UnannotatedLetBinding {
-			val immutable Token token     = node.token;
-			val immutable ID x            = id;
-			val unique Expression exp     = node.copy();
-			val unique Expression body    = id.copy();
-			val immutable Boolean mutable = false;
-		};
-		
+		val unique Binding binding = makeLet(node.token,id,node.copy(),id.copy(),false);
 		makePair(binding, binding.body);
 	}
 
 	method /*Pair<Binding, Expression>*/ visitDoubleLiteral(immutable DoubleLiteral node) {
 		val unique ID id = this.generateID(node.token);
-		
-		val unique Binding binding = new UnannotatedLetBinding {
-			val immutable Token token     = node.token;
-			val immutable ID x            = id;
-			val unique Expression exp     = node.copy();
-			val unique Expression body    = id.copy();
-			val immutable Boolean mutable = false;
-		};
-		
+		val unique Binding binding = makeLet(node.token,id,node.copy(),id.copy(),false);
 		makePair(binding, binding.body);
 	}	
 	

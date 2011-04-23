@@ -17,17 +17,7 @@ method main() {
     //reconAST.accept(new visitor.ASTViewer);
 }
 
-
-
-//Need to set token, etc
-val (immutable String >> void) -> unique ID createID = fn (immutable String >> void name) => {
-	new ID {
-		val immutable String name = name;
-	}
-};
-
-
-val () -> unique Token makeToken = fn() => {
+val makeToken = fn() => {
 	new Token {
 		val immutable Integer beginLine = 0;
 		val immutable Integer beginColumn = 0;
@@ -37,149 +27,146 @@ val () -> unique Token makeToken = fn() => {
 	};
 };
 
-val (immutable String) -> unique ID makeID = fn(immutable String n) => {
+val makeID = fn(immutable Token >> void token, immutable String >> void n) => {
 	new ID {
-		val immutable Token token = makeToken();
+		val immutable Token token = token;
 		val immutable String name = n;
 	};
 };
 
-val (immutable String) -> unique ID makeTempID = fn(immutable String n) => {
+val makeTempID = fn(immutable Token >> void token, immutable String >> void n) => {
 	new ID {
-		val immutable Token token = makeToken();
+		val immutable Token token = token;
 		val immutable String name = n;
 		override val immutable Boolean isTemp = true;
 	};
 };
 
-val (unique ID, unique Expression, unique Expression) -> unique UnannotatedLetBinding makeLetBinding = fn(unique ID x, unique Expression exp, unique Expression body) => {
-	new UnannotatedLetBinding {
-		val immutable Token token = makeToken();
-		val unique ID x = x;
-		val unique Expression exp = exp;
-		val unique Expression body = body;
-	};
+val makeAssignment = fn (immutable Token >> void token, /*unique Option<Expression>*/ target,
+						 unique ID >> void field, unique Expression >> void value) => {
+	new Assignment {	
+		val /*Token*/ token = token;
+		val /*Option Expression */ target = target;
+		val /*ID*/ field = field;
+		val /*Expression*/ value = value;					 
+	}				 
 };
 
-val (unique ID, unique Expression, unique Expression) -> unique UnannotatedTakeBinding makeTakeBinding = fn(unique ID x, unique Expression exp, unique Expression body) => {
-	new UnannotatedTakeBinding {
-		val immutable Token token = makeToken();
-		val unique ID x = x;
-		val unique Expression exp = exp;
-		val unique Expression body = body;
-	};
-};
-
-val (unique ID, unique Expression, unique Expression) -> unique UnannotatedBorrowBinding makeBorrowBinding = fn(unique ID x, unique Expression exp, unique Expression body) => {
-	new UnannotatedBorrowBinding {
-		val immutable Token token = makeToken();
-		val unique ID x = x;
-		val unique Expression exp = exp;
-		val unique Expression body = body;
-	};
-};
-
-val (unique Expression, unique ID) -> unique Dereference makeDereference = fn(unique Expression left, unique ID right) => {
+val makeDereference = fn(immutable Token >> void token, unique Expression >> void left, unique ID >> void right) => {
 	new Dereference {
-		val immutable Token token = makeToken();
+		val immutable Token token = token;
 		val unique Expression left = left;
 		val unique ID right = right;
 	};
 }; 
 
-val makeMethodCall = fn(receiver, name, args) => {
+val makeMethodCall = fn(immutable Token >> void token, unique Expression >> void receiver, 
+						unique ID >> void name, /*unique List<unique Expression>*/ args) => {
 	new MethodCall {
+		val immutable Token token          = token;
 		val unique Expression receiver     = receiver;
 		val immutable ID methodName        = name;
 		val /*List<Expression>*/ arguments = args;
-		val immutable Token token          = makeToken();
 	};
 };
 
-val makeApplication = fn(f, args) => {
+val makeApplication = fn(immutable Token >> void token, unique Expression >> void f, /*unique List<unique Expression>*/ args) => {
 	new Application {
-		val immutable Token token          = makeToken();
+		val immutable Token token          = token;
 		val unique Expression f            = f;
 		val /*List<Expression>*/ arguments = args;
 	};
 };
 
-val (unique Expression) -> unique Case makeCase = fn(unique Expression e) => {
+val makeCase = fn(immutable Token >> void token, /*unique Option<unique QI> >> void*/ qi, 
+				  /*unique Option<unique ID> >> void*/ x, unique Expression >> void e) => {
 	new Case {
-		val immutable Token token         = makeToken();
-		val /*Option QI*/ qi              = new None;
-		val /*Option ID*/ x               = new None;
+		val immutable Token token         = token;
+		val /*Option QI*/ qi              = qi;
+		val /*Option ID*/ x               = x;
 		val unique Expression e           = e;
-		val immutable Boolean defaultCase = false;
-		val immutable Boolean boundVar    = false;
+		val immutable Boolean defaultCase = match (qi) { case Some { false } case None { true } };
+		val immutable Boolean boundVar    = match (qi) { case Some { true } case None { false } };
 	};
 };
 
-val makeMatch = fn(e, cases) => {
+val makeDefaultCase = fn(immutable Token >> void token, unique Expression >> void e) => {
+	new Case {
+		val immutable Token token         = token;
+		val /*Option QI*/ qi              = new None;
+		val /*Option ID*/ x               = new None;
+		val unique Expression e           = e;
+		val immutable Boolean defaultCase = true;
+		val immutable Boolean boundVar    = false;
+	}
+};
+
+val makeQI = fn(immutable Token >> void token, /*unique List<immutable String> >> void*/ qid, 
+				/*unique Option<unique DeclList> >> void*/ init) => {
+	new QI {
+		val token = token;
+		val qid = qid;
+		val initState = init;
+	}
+};
+
+val makeMatch = fn(immutable Token >> void token, unique Expression >> void e, /*unique List<unique Case>*/ cases) => {
 	new Match {
-		val immutable Token token   = makeToken();
+		val immutable Token token   = token;
 		val unique Expression e     = e;
 		val /*List<Case>*/ caseList = cases;
 	};
 };
 
-val makeLambda = fn(body) => {
+//TODO: work this out a little better
+val makeLambda = fn(immutable Token >> void token, /*unique List<unique ID> >> void*/ args, unique Expression >> void body) => {
 	new Lambda {
 		val immutable Token token = makeToken();
 		val /*List<ID>*/ arguments = makeEmptyList();
 		val unique Expression body = body;
-		// Set up a dummy type.
-		val immutable LambdaType lambdaType = new LambdaType {
-			var immutable PermType returnType = new UncheckedType;
-			val /*unique List<immutable ChangeType>*/ argTypes = makeEmptyList();
-			val /*unique Map<immutable ID,immutable ChangeType>*/ environmentTypes = java.util.HashMap.new();
-		};
+		// Set up a dummy type.  KBN 4/22/2011 - not sure we want this information in the lambda...
+		//val immutable LambdaType lambdaType = new LambdaType {
+		//	var immutable PermType returnType = new UncheckedType;
+		//	val /*unique List<immutable ChangeType>*/ argTypes = makeEmptyList();
+		//	val /*unique Map<immutable ID,immutable ChangeType>*/ environmentTypes = java.util.HashMap.new();
+		//};
+		val immutable LambdaType lambdaType = new UncheckedType;
 		var /*Option ID*/ recursiveName = new None;
 	};
 };
 
-val unique Expression makeNewInstance = fn(s) => {
+val makeNewInstance = fn(immutable Token >> void token, unique State >> void s) => {
 	new NewInstance {
-		val immutable Token token = makeToken();
+		val immutable Token token = token;
 		val unique State s = s;
 	};
 };
 
-val makeQI = fn(qid, initState) => {
-	// TODO: Do this right.
-	
-	val /*List<String>*/ l = makeEmptyList();
-	l.add(qid);
-	
-	new QI {
-		val immutable Token token = makeToken();
-		val /*List<String>*/ qid = l; 
-		val /*Option DeclList*/ initState = initState;
-	};
-};
-
-val makeDeclList = fn(decls) => {
+val makeDeclList = fn(immutable Token >> void token, /*unique List<unique Decl> >> void*/ decls) => {
 	new DeclList {
-		val immutable Token token = makeToken();
+		val immutable Token token = token;
 		val /*List<Decl>*/ decls = decls;
 	};
 };
 
-val makeFieldDecl = fn(name, exp) => {
+//TODO: work this out a little better
+val makeFieldDecl = fn(immutable Token >> void token, unique ID >> void name, unique Expression >> void exp,
+					   immutable Boolean >> void isAbstract, immutable Boolean >> void isImmutable, 
+					   unique FieldType >> void ft) => {
 	new FieldDecl {
-		val immutable Token token = makeToken();
+		val immutable Token token = token;
 		val /*ID*/ f = name;
 		val /*Expression*/ e = exp;
-		val /*boolean*/ abstractField = false;
-		val /*boolean*/ immutableField = false;
+		val /*boolean*/ abstractField = isAbstract;
+		val /*boolean*/ immutableField = isImmutable;
 		val /*boolean*/ overrides = false;
-		val /*FieldType*/ fieldType = new FieldType;
+		val /*FieldType*/ fieldType = ft;
 	};
 };
 
-val makeChangeState = fn(exp, s) => {
+val makeChangeState = fn(immutable Token >> void token, unique Expression >> void exp, unique State >> void s) => {
 	new ChangeState {
-		val immutable Token token = makeToken();
+		val immutable Token token = token;
 		val unique Expression e = exp;
 		val unique State s = s;
 	};
@@ -263,7 +250,7 @@ val /*(immutable Token >> void token,
 	b
  };
  
-//Returns aTakeBinding with a type Annotation
+//Returns a TakeBinding with a type Annotation
 val /*(immutable Token >> void token,
 	 unique ID >> void x,
 	 unique Expression >> void exp,

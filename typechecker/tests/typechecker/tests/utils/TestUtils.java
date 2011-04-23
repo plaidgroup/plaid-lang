@@ -12,7 +12,6 @@ import org.json.simple.JSONValue;
 
 import plaid.ast.ID;
 import plaid.ast.IntLiteral;
-import plaid.ast.UnannotatedLetBinding;
 import plaid.ast.types.ChangeType;
 import plaid.ast.types.Dyn;
 import plaid.ast.types.FieldType;
@@ -80,8 +79,8 @@ public class TestUtils {
 				protoField(Util.falseObject()));
 		
 		// instantiate the new prototype
-		return initAndInstantiateState(UnannotatedLetBinding.UnannotatedLetBinding, 
-				newState);
+		return null; //initAndInstantiateState(UnannotatedLetBinding.UnannotatedLetBinding,   //TODO: broken
+				//newState);
 	}
 		
 	/**
