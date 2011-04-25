@@ -67,6 +67,22 @@ public class String$plaid {
 				}
 			}
 		}));
+		PlaidMemberDef eqeq = Util.memberDef("eqeq$plaid", String$Tag$plaid, false, false);
+		foo.removeMember("eqeq$plaid");
+		foo.addMember(eqeq, Util.protoMethod("plaid.lang.String.eqeq$plaid", new Delegate() {
+			@Override
+			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
+				@SuppressWarnings("unused")
+				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+				if ( args instanceof PlaidJavaObjectMap && ((PlaidJavaObjectMap)args).getJavaObject() != null ) {
+					boolean eq = ((String)((PlaidJavaObject)thisVar).getJavaObject()).equals
+					(((PlaidJavaObject)args).getJavaObject().toString());
+					return Util.boolObject(eq);
+				} else {
+					throw new PlaidInvalidArgumentException("Cannot concatenate a String with : " + args);
+				}
+			}
+		}));
 		PlaidMemberDef substring = Util.memberDef("substring$plaid", String$Tag$plaid, false, false);
 		foo.addMember(substring, Util.protoMethod("plaid.lang.String.substring$plaid", new Delegate() {
 			@Override
