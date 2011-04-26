@@ -83,6 +83,10 @@ public class MethodType implements TypeDecl {
 		return receiverType;
 	}
 
+	public List<MetaType> getMetaTypes () {
+		return metaTypes;
+	}
+	
 	public Map<ID, ChangeType> getEnvironmentTypes() {
 		return Collections.unmodifiableMap(environmentTypes);
 	}
