@@ -79,7 +79,7 @@ public class String$plaid {
 					(((PlaidJavaObject)args).getJavaObject().toString());
 					return Util.boolObject(eq);
 				} else {
-					throw new PlaidInvalidArgumentException("Cannot concatenate a String with : " + args);
+					throw new PlaidInvalidArgumentException("Cannot compare a String with : " + args);
 				}
 			}
 		}));
