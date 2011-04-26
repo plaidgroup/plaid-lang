@@ -77,6 +77,14 @@ public class PermType implements /*ASTnode,*/ JSONAware {
 		return this.type;
 	}
 
+	public boolean hasGroup() {
+		return (group==null)?false:true;
+	}
+	
+	public ID getGroup() {
+		return group;
+	}
+	
 	public boolean isBorrowed() {
 		return borrowed;
 	}
