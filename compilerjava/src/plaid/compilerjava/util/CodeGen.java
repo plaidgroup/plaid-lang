@@ -33,7 +33,7 @@ import plaid.runtime.PlaidConstants;
  */
 public class CodeGen {
 	private CompilerConfiguration cc = null; 
-	
+	private String[] indentTable = new String[128];
 	
 	//store the output
 	private final StringBuilder output = new StringBuilder();
@@ -125,6 +125,11 @@ public class CodeGen {
 		this.cc = cc;
 		if ( cc.addCopyrightHeader() ) {
 			output.append(copyright);
+		}
+		// compute indent table
+		indentTable[0] = "";
+		for ( int i = 1 ; i < indentTable.length; i++ ) {
+			indentTable[i] = indentTable[i-1] + "\t";
 		}
 	}
 
@@ -771,9 +776,13 @@ public class CodeGen {
 	}
 	
 	private final String getIndent() {
-		String indentString = "";
-		for (int i = 0; i < indent; i++) indentString += "\t";
-		return indentString;
+		if ( indent < indentTable.length) {
+			return indentTable[indent]; 
+		} else {
+			String indentString = indentTable[indentTable.length-1];
+			for (int i = indentTable.length-1; i < indent; i++) indentString += "\t";
+			return indentString;
+		}
 	}
 	
 	private final String getNewLine() {
