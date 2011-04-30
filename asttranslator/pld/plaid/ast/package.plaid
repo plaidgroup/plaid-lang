@@ -1,7 +1,9 @@
 package plaid.ast;
 
 method main() {
-	var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/AEminium/package.plaid")));
+    val file = java.io.File.new("testInputs/AEminium/package.plaid");
+	var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(file));
+	javaAST.setSourceFile(file);
 	val translator = new ASTTranslator;
 	var plaidAST = translator.translateAST(javaAST);
 
@@ -14,6 +16,7 @@ method main() {
     //val reconAST = plaid.lang.Serialization.fromJSON(json);
 
     plaidAST.accept(new visitor.PrintVisitor);
+    plaidAST.accept(new visitor.ASTViewer);
     //reconAST.accept(new visitor.ASTViewer);
 }
 
@@ -26,6 +29,10 @@ val makeToken = fn() => {
 		val immutable String image = ""; 
 	};
 };
+
+/********
+	factory functions for expressions
+********/
 
 val makeID = fn(immutable Token >> void token, immutable String >> void n) => {
 	new ID {
@@ -60,21 +67,29 @@ val makeDereference = fn(immutable Token >> void token, unique Expression >> voi
 	};
 }; 
 
-val makeMethodCall = fn(immutable Token >> void token, unique Expression >> void receiver, 
-						unique ID >> void name, /*unique List<unique Expression>*/ args) => {
-	new MethodCall {
-		val immutable Token token          = token;
-		val unique Expression receiver     = receiver;
-		val immutable ID methodName        = name;
-		val /*List<Expression>*/ arguments = args;
+val makeDestructiveDereference = fn(immutable Token >> void token, unique Expression >> void left, unique ID >> void right) => {
+	new DestructiveDereference {
+		val immutable Token token = token;
+		val unique Expression left = left;
+		val unique ID right = right;
 	};
-};
+}; 
 
 val makeApplication = fn(immutable Token >> void token, unique Expression >> void f, /*unique List<unique Expression>*/ args) => {
 	new Application {
 		val immutable Token token          = token;
 		val unique Expression f            = f;
 		val /*List<Expression>*/ arguments = args;
+	};
+};
+
+val makeMethodCall = fn(immutable Token >> void token, unique Expression >> void receiver, unique ID >> void methodName,
+						/*unique List<unique Expression>*/ arguments ) => {
+	new MethodCall {
+		val /*Token*/ token = token;
+		val /*Expression*/ receiver = receiver;
+		val /*ID*/ methodName = methodName;
+		val /*List<Expression>*/ arguments = arguments;
 	};
 };
 
@@ -101,15 +116,6 @@ val makeDefaultCase = fn(immutable Token >> void token, unique Expression >> voi
 	}
 };
 
-val makeQI = fn(immutable Token >> void token, /*unique List<immutable String> >> void*/ qid, 
-				/*unique Option<unique DeclList> >> void*/ init) => {
-	new QI {
-		val token = token;
-		val qid = qid;
-		val initState = init;
-	}
-};
-
 val makeMatch = fn(immutable Token >> void token, unique Expression >> void e, /*unique List<unique Case>*/ cases) => {
 	new Match {
 		val immutable Token token   = token;
@@ -118,20 +124,14 @@ val makeMatch = fn(immutable Token >> void token, unique Expression >> void e, /
 	};
 };
 
-//TODO: work this out a little better
-val makeLambda = fn(immutable Token >> void token, /*unique List<unique ID> >> void*/ args, unique Expression >> void body) => {
+val makeLambda = fn(immutable Token >> void token, /*unique List<unique ID> >> void*/ args, unique Expression >> void body,
+					unique LambdaType >> void lt, /*unique Option<unique ID> >> void*/ recursiveName) => {
 	new Lambda {
-		val immutable Token token = makeToken();
-		val /*List<ID>*/ arguments = makeEmptyList();
+		val immutable Token token = token;
+		val /*List<ID>*/ arguments = args;
 		val unique Expression body = body;
-		// Set up a dummy type.  KBN 4/22/2011 - not sure we want this information in the lambda...
-		//val immutable LambdaType lambdaType = new LambdaType {
-		//	var immutable PermType returnType = new UncheckedType;
-		//	val /*unique List<immutable ChangeType>*/ argTypes = makeEmptyList();
-		//	val /*unique Map<immutable ID,immutable ChangeType>*/ environmentTypes = java.util.HashMap.new();
-		//};
-		val immutable LambdaType lambdaType = new UncheckedType;
-		var /*Option ID*/ recursiveName = new None;
+		val immutable LambdaType lambdaType = lt;
+		var /*Option ID*/ recursiveName = recursiveName;
 	};
 };
 
@@ -139,28 +139,6 @@ val makeNewInstance = fn(immutable Token >> void token, unique State >> void s) 
 	new NewInstance {
 		val immutable Token token = token;
 		val unique State s = s;
-	};
-};
-
-val makeDeclList = fn(immutable Token >> void token, /*unique List<unique Decl> >> void*/ decls) => {
-	new DeclList {
-		val immutable Token token = token;
-		val /*List<Decl>*/ decls = decls;
-	};
-};
-
-//TODO: work this out a little better
-val makeFieldDecl = fn(immutable Token >> void token, unique ID >> void name, unique Expression >> void exp,
-					   immutable Boolean >> void isAbstract, immutable Boolean >> void isImmutable, 
-					   unique FieldType >> void ft) => {
-	new FieldDecl {
-		val immutable Token token = token;
-		val /*ID*/ f = name;
-		val /*Expression*/ e = exp;
-		val /*boolean*/ abstractField = isAbstract;
-		val /*boolean*/ immutableField = isImmutable;
-		val /*boolean*/ overrides = false;
-		val /*FieldType*/ fieldType = ft;
 	};
 };
 
@@ -288,3 +266,54 @@ val /*(immutable Token >> void token,
 	b <- NoLowerBound;
 	b
  };
+
+/*********
+	factory functions for States
+*********/
+
+val makeQI = fn(immutable Token >> void token, /*unique List<immutable String> >> void*/ qid, 
+				/*unique Option<unique DeclList> >> void*/ init) => {
+	new QI {
+		val token = token;
+		val qid = qid;
+		val initState = init;
+	}
+};
+
+val makeDeclList = fn(immutable Token >> void token, /*unique List<unique Decl> >> void*/ decls) => {
+	new DeclList {
+		val immutable Token token = token;
+		val /*List<Decl>*/ decls = decls;
+	};
+};
+
+val makeWith = fn(immutable Token >> void token, unique State >> void s1, unique State >> void s2) => {
+	new With {
+		val /*Token*/ token = token;
+		val /*State*/ s1 = s1;
+		val /*State*/ s2 = s2;
+	}
+};
+
+/*********
+	Factory functions for Declarations
+*********/
+
+//TODO: work this out a little better
+val makeFieldDecl = fn(immutable Token >> void token, unique ID >> void name, unique Expression >> void exp,
+					   immutable Boolean >> void isAbstract, immutable Boolean >> void isImmutable, 
+					   unique FieldType >> void ft) => {
+	new FieldDecl {
+		val immutable Token token = token;
+		val /*ID*/ f = name;
+		val /*Expression*/ e = exp;
+		val /*boolean*/ abstractField = isAbstract;
+		val /*boolean*/ immutableField = isImmutable;
+		val /*boolean*/ overrides = false;
+		val /*FieldType*/ fieldType = ft;
+	};
+};
+
+
+
+

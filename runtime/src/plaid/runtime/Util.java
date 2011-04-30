@@ -82,6 +82,11 @@ public class Util {
 		return value;
 	}
 	
+	public static PlaidObject boolObject(boolean b) throws PlaidException {
+		if (b) { return trueObject(); }
+		else { return falseObject(); }
+	}
+	
 	public static PlaidObject trueObject() throws PlaidException {
         if ( TRUE == null ) {
             synchronized(Util.class) {

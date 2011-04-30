@@ -11,4 +11,9 @@ public class MetaVariable implements MetaArgument {
 	public ID getID() {
 		return id;
 	}
+
+	@Override
+	public String toString() {
+		return "MetaVariable(" + id.getName() +")";
+	}
 }

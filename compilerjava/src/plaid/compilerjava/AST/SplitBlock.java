@@ -18,6 +18,9 @@ public class SplitBlock implements Expression {
                 this.token = token;
                 this.metaArgs = metaArgs;
                 this.body = body;
+                if ( this.body.isEmpty() ) {
+                	this.body.add(new UnitLiteral());
+                }
         }
         
         public List<MetaArgument> getMetaArguments() {
