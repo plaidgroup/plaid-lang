@@ -256,57 +256,85 @@ state TypeFetchVisitor case of ASTVisitor {
 		node.receiver.accept(this);
 		node.methodName.accept(this);
 		node.arguments.map(fn (arg) => arg.accept(this));
-				
-		val /*MethodType*/ mt = unit;
-		//TODO: find the method by node.methodName using scope
 		
-		match(node.receiver) {
-			case ID {
-				context.update(node.receiver,  new TypeBinding {var unique PermType currentType = mt.returnType;}  )
+		val /*stateType Option*/ st = stateTable.get(node.receiver);	//TODO check if node.receiver is the right way, care about this
+		
+		match (st) {	//check if the state is existed
+			case Some {
+				val /*MethodType*/ mt = st.value.providedTypeOf(node.methodName);
+				match(mt) {	//check if the method is existed
+					case Some {
+						match(node.receiver) {
+							case ID {
+								context.update(node.receiver,  new TypeBinding {var unique PermType currentType = mt.returnType;}  )
+							}
+							default {
+								java.lang.System.err.println("some thing wrong?");
+							}
+						};
+						
+						val /*ListCell*/ lc = node.arguments.head;
+						mt.argTypes.map(fn(argType) => {
+							//TODO, not sure this is the best way
+							context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
+							lc = lc.next;
+						});
+						
+					    var it = mt.environmentTypes.entrySet().iterator();
+					    while {it.hasNext(); } {
+					        var pair = it.next();
+					        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
+					        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
+					    };
+					    node.objectType = mt.returnType.objectType;
+					}
+					default {
+						java.lang.System.err.println("method doesn't exist");
+					}
+				}
 			}
 			default {
-				java.lang.System.err.println("some thing wrong?");
-			}
+				java.lang.System.err.println("state doesn't exist");
+			}			
 		};
-				
-		val /*ListCell*/ lc = node.arguments.head;
-		mt.argTypes.map(fn(argType) => {
-			//TODO, not sure this is the best way
-			context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
-			lc = lc.next;
-		});
-		
-	    var it = mt.environmentTypes.entrySet().iterator();
-	    while {it.hasNext(); } {
-	        var pair = it.next();
-	        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
-	        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
-	    };
-	    node.objectType = mt.returnType.objectType;
 	}
 	
 	method visitApplication(node) {
 		node.f.accept(this);
 		node.arguments.map(fn (a) => a.accept(this));
 		
-		var mt = unit;
-		//TODO: find the lambda by node.recursiveName??  using scope
+		val /*stateType Option*/ st = stateTable.get(node.receiver);	//TODO check if node.receiver is the right way, care about this
 		
-		var lc = node.arguments.head;
-		mt.argTypes.map(fn(argType) => {
-			context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
-			lc = lc.next;
-		});
-		
-	    var it = mt.environmentTypes.entrySet().iterator();
-	    while {it.hasNext(); } {
-	        var pair = it.next();
-	        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
-	        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
-	    };
-	    node.objectType = mt.returnType.objectType;
+		match (st) {	//check if the state is existed
+			case Some {
+				val /*MethodType*/ mt = st.value.providedTypeOf(node.methodName);
+				match(mt) {	//check if the method is existed
+					case Some {
+						val /*ListCell*/ lc = node.arguments.head;
+						mt.argTypes.map(fn(argType) => {
+							//TODO, not sure this is the best way
+							context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
+							lc = lc.next;
+						});
+						
+					    var it = mt.environmentTypes.entrySet().iterator();
+					    while {it.hasNext(); } {
+					        var pair = it.next();
+					        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
+					        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
+					    };
+					    node.objectType = mt.returnType.objectType;
+					}
+					default {
+						java.lang.System.err.println("lambda doesn't exist");
+					}
+				}
+			}
+			default {
+				java.lang.System.err.println("state doesn't exist");
+			}			
+		};
 	}
-	
 	
 	method visitMethodDecl(node) {
 		node.arguments.map(fn (a) => a.accept(this));
