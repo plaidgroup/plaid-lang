@@ -10,7 +10,7 @@ public class MetaTypeArgument implements MetaArgument {
 		this.permType = permType;
 	}
 	
-	PermType getPermType() {
+	public PermType getPermType() {
 		return permType;
 	}
 }

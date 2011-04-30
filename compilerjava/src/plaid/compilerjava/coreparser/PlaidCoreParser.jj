@@ -596,8 +596,8 @@ FieldType FieldType() :{
 MetaType MetaType(boolean isMethod) : {
     Token id;
     boolean isAbstract = true;
-    Type type = Type.UNIT;
-    GroupPermission gp = null;
+    ObjectType type = ObjectType.UNIT;
+    GroupPermission gp = GroupPermission.UNDEFINED;
 }{
     (
         <GROUP> [gp = GroupPermission()] id = <ID> [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]
@@ -607,7 +607,7 @@ MetaType MetaType(boolean isMethod) : {
             } else if ( isMethod && gp == null ) {
                 throw new ParseException("Need to specify group permission.");
             }
-            return new GroupType(new ID(id.image), isAbstract);
+            return new GroupType(gp, new ID(id.image), isAbstract);
         }
     |   <TYPE> id = <ID> [ <CASE> <OF> type = StructuralType() ] 
         {
@@ -704,12 +704,12 @@ Decl DeclState() :
 	List<Token> qi = null;
 	Permission defaultPerm = Permission.DYN;
 	List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
-	List<MetaArgument> metaArgsCaseOf = new ArrayList<MetaArgument>();
+	List<MetaArgument> metaCaseOfArgs = new ArrayList<MetaArgument>();
 }
 {	[defaultPerm = Permission()] [ < TYPEDEF > { typedef = true; } ]
 		s = <STATE> t = <ID>
 			[ metaParams = MetaParameters(false) ]
-			[ c = <CASE> <OF> qi = DotName() [ metaArgsCaseOf = MetaArguments() ] ]
+			[ c = <CASE> <OF> qi = DotName() [ metaCaseOfArgs = MetaArguments() ] ]
 	(
 		<EQUALS> stateDef = State()
 	|	stateDef = DeclList()
@@ -717,10 +717,10 @@ Decl DeclState() :
 	{
 	  	if (typedef && qi != null ) throw new ParseException("case of states cannot be typedefs");
 		if (qi == null) {
-			return new StateDecl(s, new ID(t.image), metaParams, stateDef, defaultPerm, typedef);
+			return new StateDecl(s, new ID(t.image), metaParams, metaCaseOfArgs, stateDef, defaultPerm, typedef);
 		}
 		else {
-			return new StateDecl(s, new ID(t.image), metaParams, stateDef, new QI(tokenToStringList(qi)), defaultPerm, typedef);
+			return new StateDecl(s, new ID(t.image), metaParams, metaCaseOfArgs, stateDef, new QI(tokenToStringList(qi)), defaultPerm, typedef);
 		}
 	}
 }
@@ -829,7 +829,7 @@ MetaParameter MetaParameter(boolean isMethod) :
 {
   Token id;
   GroupPermission gp = GroupPermission.UNDEFINED;
-  Type type = Type.UNIT;
+  ObjectType type = ObjectType.UNIT;
 }{
   (
     [<GROUP>] [gp = GroupPermission()] id = <ID>
@@ -937,7 +937,7 @@ Decl DeclMethod() :
 			    for (MetaParameter mp : metaParams ) {
 			        if ( mp instanceof GroupParameter ) {
 			            GroupParameter groupParam = (GroupParameter) mp;
-			            metaTypes.add(new GroupType(groupParam.getId(), true));
+			            metaTypes.add(new GroupType(groupParam.getPermission(), groupParam.getId(), true));
 			        } else if ( mp instanceof TypeParameter ) {
 			            TypeParameter typeParam = (TypeParameter)mp;
 			            metaTypes.add(new TypeParameterType(typeParam.getId(), typeParam.getCaseOf()));

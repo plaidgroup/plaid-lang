@@ -72,6 +72,7 @@ state ASTTranslator {
 					        new SharedPermission {
                                 val /*Option Token*/ token = this.getToken(root);
                                 val /*String*/ image = root.getImage();
+                                var /*Option<ID>*/ groupID = new None;
                             };
                         } {
                         	ifElse (root.equals(plaid.compilerjava.types.Permission.DYN)) {
@@ -285,6 +286,16 @@ state ASTTranslator {
 					val /*List<Case>*/ caseList = this.map(this.translateAST, root.getCaseList());
 				};
 			}
+			case plaid.compilerjava.AST.MetaVariable {
+			    new MetaVariable {
+			        val /* ID */ id = this.translateAST(root.getID());
+			    }
+			}
+			case plaid.compilerjava.AST.MetaTypeArgument {
+			    new MetaTypeArgument {
+			        val /* unique PermType */ permType = translatePermType(root.getPermType());
+			    }
+			}
 			case plaid.compilerjava.AST.MethodCall {
 				new MethodCall {
 					val /*Expression*/ receiver = this.translateAST(root.getReceiver());
@@ -330,7 +341,7 @@ state ASTTranslator {
 			}
 			case plaid.compilerjava.AST.StateDecl {
 				new StateDecl {
-					val /*Option Token*/ token = this.getToken(root);
+					val /*Option<Token>*/ token = this.getToken(root);
 					val /*ID*/ name = this.translateAST(root.getID());
 					val /*State*/ stateDef = this.translateAST(root.getStateDef());
 					val /*boolean*/ isCaseOf = root.getIsCaseOf();
@@ -339,7 +350,8 @@ state ASTTranslator {
 						} {
 							new None;
 						};
-				    val /* List<MetaParameter> */ metaParams = map(fn (p) => this.translateAST(p), root.getMetaParameters());
+                    val /* List<MetaParameter> */ metaParams = map(fn (p) => this.translateAST(p), root.getMetaParameters());
+                    val /* List<MetaArgument> */ metaCaseOfArgs = map(fn (p) => this.translateAST(p), root.getMetaCaseOfArguments());
 				};
 			}
 			case plaid.compilerjava.AST.StringLiteral {
@@ -448,7 +460,13 @@ state ASTTranslator {
 	
 	method unique PermType translatePermType(/*unique plaid.compilerjava.types.PermType*/ type) {
 		new PermType {
-			val immutable Permission perm = this.translatePermission(type.getPermission());
+			val immutable Permission perm = ifElse (type.hasGroup()) {
+			    val perm = this.translatePermission(type.getPermission());
+                perm.groupID = new Some { val value = this.translateAST(type.getGroup()); };
+                perm
+			}{
+			    this.translatePermission(type.getPermission());
+			};
 			val /*?? ObjectType*/ type = this.translateObjectType(type.getType());
 		}
 	
@@ -483,7 +501,7 @@ state ASTTranslator {
 		match (type) {
 			case plaid.compilerjava.types.FieldType {
 				new FieldType {
-					val /*PermType*/ permType = this.translatePermType(type.getPermType());
+					val /*PermType*/ binding = this.translatePermType(type.getPermType());
 					val /*ID*/ name = this.translateAST(type.getName());
 					val /*boolean*/ isImmutable = type.isImmutable();
 				}
@@ -495,6 +513,24 @@ state ASTTranslator {
 					val /*List<ChangeType>*/ argTypes = this.map(this.translateChangeType, type.getArgTypes());
 					val /*ChangeType*/ receiverType = this.translateChangeType(type.getReceiverType());
 					val /*Map<ID,ChangeType>*/ environmentTypes = this.translateMap(this.translateAST, this.translateChangeType, type.getEnvironmentTypes());
+					val /*List<MetaType> */ metaTypes = this.map(fn (t) => {
+					    match (t) {
+					        case plaid.compilerjava.types.GroupType {
+					            new GroupType {
+					                val unique ID id = this.translateAST(t.getID());
+					                val immutable Boolean isAbstract = ifElse ( t.isAbstract() ) { true }{ false };
+					                val unique GroupPermission groupPermission = this.translateGroupPermission(t.getGroupPermission());
+					            }
+					        }
+					        case plaid.compilerjava.types.TypeParameterType {
+					            new TypeParameterType {
+					                val unique ID id = this.translateAST(t.getID());
+					                val unique ObjectType caseOf = this.translateObjectType(t.getCaseOf());
+					            }
+					        }
+					        default {} 
+					    };
+					}, type.getMetaTypes());
 				}
 			}
 			default {

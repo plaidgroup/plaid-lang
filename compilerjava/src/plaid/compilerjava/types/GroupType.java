@@ -1,14 +1,17 @@
 package plaid.compilerjava.types;
 
+import plaid.compilerjava.AST.GroupPermission;
 import plaid.compilerjava.AST.ID;
 
 public class GroupType implements TypeDecl, MetaType {
-	private final ID name;
+	private final ID id;
+	private final GroupPermission groupPermission;
 	private final boolean isAbstract;
 
-	public GroupType(ID name, boolean isAbstract) {
+	public GroupType(GroupPermission groupPermission, ID id, boolean isAbstract) {
+		this.groupPermission = groupPermission;
 		this.isAbstract = isAbstract;
-		this.name = name;
+		this.id = id;
 	}
 
 	//      @Override
@@ -33,17 +36,21 @@ public class GroupType implements TypeDecl, MetaType {
 	//      }
 
 
-	public ID getName() {
-		return this.name;
+	public ID getID() {
+		return this.id;
 	}
 
 	public boolean isAbstract() {
 		return isAbstract;
 	}
 
+	public GroupPermission getGroupPermission() {
+		return groupPermission;
+	}
+	
 	@Override
 	public String toString() {
-		return "group " + name + ((isAbstract)?"":" = new group");
+		return "group " + id + ((isAbstract)?"":" = new group");
 	}
 
 }
