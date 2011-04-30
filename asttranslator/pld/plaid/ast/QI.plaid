@@ -1,0 +1,90 @@
+package plaid.ast;
+
+state QI case of ASTNode {
+	val /*Token*/ token;
+	val /*List<String>*/ qid;
+	val /*Option DeclList*/ initState;
+
+	method accept(v) {
+		v.visitQI(this)
+	}
+	
+	method toString() {
+		
+		var s = "";
+		this.qid.map(fn (x) => { s = s + x + "."; });
+		match(s.equals("")) {
+			case True { "" }
+			case False { s.substring(0, s.length() - 1) }
+		}
+	}
+	
+	method toDirectoryName() {
+		var s = "";
+		val separator = java.lang.System.getProperty("file.separator");
+		qid.map(fn (x) => { s = s + x + separator; });
+		s;
+	}
+	
+	method all() {
+		val qid2 = new plaid.lang.List with { var head = new plaid.lang.Nil; };
+		qid2.append(this.qid);
+		qid2.add("*");
+		new QI {
+			val qid = qid2;
+		};
+	}
+	
+	method toShortName() {
+		var res = "";
+		this.qid.map(fn (x) => { res = x; });
+		res;
+	}
+	
+	method copy() {
+		new QI {
+			val /*Token*/ token = this.token;
+			val /*List<String>*/ qid = this.qid.map(fn (s) => s);
+			val /*Option DeclList*/ initState = (fn () => {
+				match (this.initState) {
+					case Some { createSome(this.initState.value.copy()) }
+					case None { NONE}
+				}
+			}) ();
+		}
+	}	
+	
+	method immutable Boolean ==(immutable ASTNode other)[immutable QI] {
+		match (other) {
+			case QI {
+				val initOk = match (this.initState) {
+					case Some {
+						match (other.initState) {
+							case Some {
+								this.initState.value == other.initState.value
+							}
+							case None { false }
+						}
+					}
+					case None {
+						match (other.initState) {
+							case Some { false }
+							case None { true }
+						}
+					}
+				};
+				match (initOk && this.qid.length() == other.qid.length()) {
+					case True {
+						var qidOk = true;
+						this.qid.zip(other.qid).map( 
+							fn (/*Pair<String,String>*/ p) => qidOk = qidOk && p.fst.equals(p.snd) 
+						);
+						qidOk
+					}
+					case False { false }
+				}
+			}
+			default { false }
+		}
+	}
+}
