@@ -1,57 +1,110 @@
 package plaid.typechecker.lnf.tests;
 
 import plaid.ast.*;
+import plaid.testing.*;
 
-val () -> void assignmentTests = fn() => {
-	val unique Assignment bareAssignment = new Assignment {
-		val immutable Token token = makeToken();
-		val unique Expression target = createSome(makeID(makeToken(),"x"));
-		val unique ID field = makeID(makeToken(),"f");
-		val unique Expression value = makeID(makeToken(),"y");
+val () -> void assignmentTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique NewLetNormalFormVisitor lnfVisitor = new NewLetNormalFormVisitor;
+	
+	
+	System.out.println("Testing Assignment transformation");
+	testName("lnf-assign-bare");
+	oldAst = makeAssignment(makeToken(), createSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeID(makeToken(),"y"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeAssignment(makeToken(), createSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeID(makeToken(),"y")),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-assign1");
+	oldAst = makeAssignment(makeToken(), 
+							createSome(makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z"))), 
+							makeID(makeToken(),"f"), 
+							makeID(makeToken(),"y"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")),
+					   			  makeAssignment(makeToken(), createSome(makeTempID(makeToken(),"t2")), makeID(makeToken(),"f"), makeID(makeToken(),"y")),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
 	};
 
-	rewrite(bareAssignment);
-	
-	val unique Assignment assign1 = new Assignment {
-		val immutable Token token = makeToken();
-		val unique Expression target = createSome(new Dereference {
-			val immutable Token token = makeToken();
-			val unique Expression left = makeID(makeToken(),"a");
-			val unique ID right = makeID(makeToken(),"b");
-		});
-		val unique ID field = makeID(makeToken(),"f");
-		val unique Expression value = makeID(makeToken(),"y");
+	testName("lnf-assign2");
+	oldAst = makeAssignment(makeToken(), 
+							createSome(makeID(makeToken(),"x")), 
+							makeID(makeToken(),"f"), 
+							makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  makeAssignment(makeToken(), createSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeTempID(makeToken(),"t2")),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
 	};
 	
-	rewrite(assign1);
-	
-	val unique Assignment assign2 = new Assignment {
-		val immutable Token token = makeToken();
-		val unique Expression target = createSome(makeID(makeToken(),"x"));
-		val unique ID field = makeID(makeToken(),"f");
-		val unique Expression value = new Dereference {
-			val immutable Token token = makeToken();
-			val unique Expression left = makeID(makeToken(),"a");
-			val unique ID right = makeID(makeToken(),"b");
-		};
+	testName("lnf-assign3");
+	oldAst = makeAssignment(makeToken(), 
+							createSome(makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w"))), 
+							makeID(makeToken(),"f"), 
+							makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w")),
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t3"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  			 makeAssignment(makeToken(), createSome(makeTempID(makeToken(),"t2")), makeID(makeToken(),"f"), makeTempID(makeToken(),"t3")),
+					   			  			 false),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
 	};
 	
-	rewrite(assign2);
 	
-	val unique Assignment assign3 = new Assignment {
-		val immutable Token token = makeToken();
-		val unique Expression target = createSome(new Dereference {
-			val immutable Token token = makeToken();
-			val unique Expression left = makeID(makeToken(),"x");
-			val unique ID right = makeID(makeToken(),"y");
-		});
-		val unique ID field = makeID(makeToken(),"f");
-		val unique Expression value = new Dereference {
-			val immutable Token token = makeToken();
-			val unique Expression left = makeID(makeToken(),"a");
-			val unique ID right = makeID(makeToken(),"b");
-		};
-	};
-	
-	rewrite(assign3);
 };
