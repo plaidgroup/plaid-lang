@@ -427,63 +427,16 @@ state NewLetNormalFormVisitor {
 		};
 	}
 	
-	method /*Pair<Binding, Expression>*/ visitAnnotatedLetBinding(immutable AnnotatedLetBinding node) {
-		// TODO:  This won't typecheck but saves a lot of duplicate code for now.
-		this.visitLetBinding(node);
-	}
+//	method /*Pair<Binding, Expression>*/ visitAnnotatedLetBinding(immutable AnnotatedLetBinding node) {
+//		// TODO:  This won't typecheck but saves a lot of duplicate code for now.
+//		this.visitLetBinding(node);
+//	}
 	
+	//KBN 5/3/2011 don't pull initialization out of states
 	method /*Pair<Binding, Expression>*/ visitNewInstance(immutable NewInstance node) {
-		// TODO:  For now, we always assume that we have a QI here.
-		
-		match (node.s.initState) {
-			case Some {
-				// Collect all FieldDecls.  While visiting, we rewrite the initialization expressions.
-				this.collectFields = true;
-				this.fieldDecls = makeEmptyList();
-				node.s.accept(this);
-				this.collectFields = false;
-				
-				
-				val /*List<Binding, Expression>*/ takes = makeEmptyList();
-				val unique ID n = this.generateID(node.token);
-				
-				this.fieldDecls.map(fn (p) => {
-					val immutable FieldDecl fd = p.first();
-					val /*Pair<Binding, Expression>*/ b = p.second();
-					
-					val immutable ID f = fd.f;
-					val unique Assignment newAssign = new Assignment {
-						val immutable Token token          = node.token;
-						val /*Option Expression*/ target   = createSome(n.copy());
-						val unique ID field                = f.copy();
-						val unique Expression value        = b.second().copy();
-					};
-					
-					val dummyList = makeEmptyList();
-					dummyList.add(b);
-					val unique Expression takeExp = this.zipBindings(dummyList, newAssign);
-					
-					takes.add(this.takePair(node.token, f.copy(), takeExp, f.copy()));
-				});
-				
-				val unique NewInstance newNew = new NewInstance {
-					val /*Token*/ token = node.token;
-					val /*State*/ s = new QI {
-						val /*Token*/ token = node.s.token;
-						val /*List<String>*/ qid = node.s.qid;
-						val /*Option DeclList*/ initState = new None;
-					};
-				};
-				
-				this.takePair(node.token, n.copy(), newNew, this.zipBindings(takes, n.copy()));
-			}
-			
-			default {
-				// lnf-new-bare
-				val unique ID id = this.generateID(node.token);
-				this.takePair(node.token, id, node.copy(), id.copy());
-			}
-		};
+		val unique ID boundID = this.generateID(node.token);
+		val unique ID body = boundID.copy();
+		this.takePair(node.token, boundID, makeNewInstance(node.token, node.s.accept(this)), body);
 	}
 	
 	method /*Pair<Binding, Expression>*/ visitChangeState(immutable ChangeState node) {
@@ -637,28 +590,10 @@ state NewLetNormalFormVisitor {
 		};
 	}
 	
-	var /*List<Pair<FieldDecl, Pair<Binding, Expression>>>*/ fieldDecls = makeEmptyList();
-	var immutable Boolean collectFields = false;
-
 	method unique FieldDecl visitFieldDecl(immutable FieldDecl node) {
-		match (this.collectFields) {
-			case True {
-				val /*Pair<Binding, Expression>*/ rewritten = node.e.accept(this);	
-				this.fieldDecls.add(makePair(node, rewritten));
-			}
-			
-			case False {
-				new FieldDecl {
-					val immutable Token token            = node.token;
-					val immutable ID f                   = node.f.copy();
-					val unique Expression e              = node.e.accept(this).first();
-					val immutable Boolean abstractField  = node.abstractField;
-					val immutable Boolean immutableField = node.immutableField;
-					val immutable Boolean overrides      = node.overrides;
-					val immutable FieldType fieldType    = node.fieldType;
-				};
-			}
-		};
+		makeFieldDecl(node.token, node.f.copy(), node.e.accept(this).first(),
+					  node.abstractField, node.immutableField, 
+					  node.fieldType);
 	}
 	
 	method visitImportList(node) {
@@ -681,13 +616,11 @@ state NewLetNormalFormVisitor {
 	}
 	
 	method visitQI(node) {
-		match (node.initState) {
-			case Some {
-				node.initState.value.accept(this);
-			}
-			case None {
-			}
-		}
+		val newInitState = match (node.initState) {
+			case Some { createSome(node.initState.value.accept(this)) }
+			case None { new None }
+		};
+		makeQI(node.token,node.qid.map(fn (s) => s),newInitState)
 	}
 
 	method unique StateDecl visitStateDecl(immutable StateDecl node) {
