@@ -23,20 +23,25 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized.Parameters;
 
 import plaid.compilerjava.CompilerConfiguration;
 import plaid.compilerjava.CompilerCore;
+import uk.ac.lkl.common.util.testing.LabelledParameterized;
 
-//@RunWith(LabelledParameterized.class)
+@RunWith(LabelledParameterized.class)
 public class BuildAllExamples {
-//	private File f;
-//	public BuildAllExamples(File f) {
-//		this.f = f;
-//	}
+	private List<File> files;
+	
+	public BuildAllExamples(List<File> files) {
+		this.files = files;
+	}
 	
 	private static HashSet<String> skipList = new HashSet<String>();
 	
@@ -54,7 +59,7 @@ public class BuildAllExamples {
 	public void compile() throws Exception {
 		CompilerConfiguration cc = new CompilerConfiguration();
 		cc.setOutputDir("coreOutput");
-		for (File f : inputFiles())
+		for (File f : this.files)
 			cc.addInputFile(f);
 		cc.setKeepTemporaryFiles(true);
 		cc.setInvokeCompiler(false);
@@ -72,47 +77,54 @@ public class BuildAllExamples {
 		compiler.compile();
 	}
 
-	public static List<File> inputFiles() {
-		return inputFiles(false);
-	}
-	
-	public static List<File> inputFiles(boolean canSkip) {
-		List<File> results = new ArrayList<File>();
+	@Parameters
+	public static Collection<Object[]> inputFiles() {
+		Collection<Object[]> results = new ArrayList<Object[]>();
 	    String currentdir = System.getProperty("user.dir") + System.getProperty("file.separator"); // should be work space by default
 	    File cur = new File(currentdir);
 	    assertTrue( cur.isDirectory() );
 	    for (File f : cur.listFiles()) {
 			if ( f.getName().equals("coreExamples")) {
-				List<File> files = new ArrayList<File>();
-				findPlaidFile(f, files, canSkip);
-				for (File file : files) {
-					File f1 = new File(file.getAbsolutePath().substring(currentdir.length()));
-					results.add(f1);
+				List<List<File>> files = new ArrayList<List<File>>();
+				findPlaidDirectories(f, files);
+				for (List<File> dirFiles : files) {
+					if (!dirFiles.isEmpty()) {
+						List<File> iFiles = new ArrayList<File>();
+						for (int i = 0; i < dirFiles.size(); i ++) 
+							iFiles.add(new File(dirFiles.get(i).getAbsolutePath().substring(currentdir.length())));
+						results.add(new Object[] { iFiles } );
+					}
 				}
 			}
 		}
 	    return results;
 	}
-//	
-//	@Parameters
-//	public static Collection<Object[]> inputFiles() {
-//		Collection<Object[]> results = new ArrayList<Object[]>();
-//	    String currentdir = System.getProperty("user.dir"); // should be work space by default
-//	    File cur = new File(currentdir);
-//	    assertTrue( cur.isDirectory() );
-//	    for (File f : cur.listFiles()) {
-//			if ( f.getName().equals("coreExamples")) {
-//				List<File> files = new ArrayList<File>();
-//				findPlaidFile(f, files);
-//				for (File file : files) {
-//					File f1 = new File(file.getAbsolutePath().substring(currentdir.length()+1));
-//					results.add(new Object[] { f1 });
-//				}
-//			}
-//		}
-//	    return results;
-//	}
-//	
+	
+	private static void findPlaidDirectories(File f, List<List<File>> files) {
+		assertTrue( f.isDirectory() );
+		//collect .plaid files from this directory
+		List<File> thisDirFiles = new  ArrayList<File>();
+		getPlaidFilesFromDirectory(f,thisDirFiles);
+		files.add(thisDirFiles);
+		//collect .plaid files from sub directories
+		for (File file : f.listFiles()) {
+			if ( file.isDirectory()) {
+				List<List<File>> subDirFiles = new ArrayList<List<File>>();
+				findPlaidDirectories(file, subDirFiles);
+				files.addAll(subDirFiles);
+			}
+		}
+	}
+	
+	private static void getPlaidFilesFromDirectory(File f, List<File> files) {
+		assertTrue( f.isDirectory() );
+		for (File file : f.listFiles()) {
+			if ( file.isFile()  && file.getName().endsWith(".plaid")) {
+				files.add(file);
+			}
+		}
+	}
+	
 	
 	private static void findPlaidFile(File f, List<File> files, boolean canSkip) {
 		if ( f.isFile() ) {
