@@ -1,0 +1,109 @@
+package plaid.typechecker.lnf.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.IMM;
+
+val newTests = fn(unique Tester tester) => {
+	
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique NewLetNormalFormVisitor lnfVisitor = new NewLetNormalFormVisitor;
+	var oldDecls = unit;
+	var goalDecls = unit;
+	val qiList = makeEmptyList(); qiList.add("N");
+	
+	testName("lnf-new-bare");
+	oldDecls = new None;
+	oldAst = makeNewInstance(makeToken(), makeQI(makeToken(), qiList, oldDecls));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalDecls = new None;
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeNewInstance(makeToken(), makeQI(makeToken(), qiList, goalDecls)),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-new-complex");
+	val decls = makeEmptyList();
+	decls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"f"), 
+							makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
+							false, false, 
+							makeFieldType(makeID(makeToken(),"f"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	decls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"g"), 
+							makeDereference(makeToken(),makeID(makeToken(),"c"), makeID(makeToken(),"d")),
+							false, false,
+							makeFieldType(makeID(makeToken(),"g"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	decls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"h"), 
+							makeID(makeToken(),"e"),
+							false, false,
+							makeFieldType(makeID(makeToken(),"h"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));							
+	val initState = makeDeclList(makeToken(),decls);
+	oldDecls = createSome(initState);
+	oldAst = makeNewInstance(makeToken(), makeQI(makeToken(), qiList, oldDecls));
+	newAst = oldAst.accept(lnfVisitor).first();
+	val newDecls = makeEmptyList();
+	newDecls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"f"), 
+							makeTempID(makeToken(),"t2"),
+							false, false,
+							makeFieldType(makeID(makeToken(),"f"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	newDecls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"g"), 
+							makeTempID(makeToken(),"t3"),
+							false, false,
+							makeFieldType(makeID(makeToken(),"g"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	newDecls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"h"), 
+							makeID(makeToken(),"e"),
+							false, false,
+							makeFieldType(makeID(makeToken(),"h"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));									
+	val newInitState = makeDeclList(makeToken(),newDecls);
+	goalDecls = createSome(newInitState);
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"a"),makeID(makeToken(),"b")),
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t3"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"c"), makeID(makeToken(),"d")),
+					   			  			 makeNewInstance(makeToken(), makeQI(makeToken(), qiList, goalDecls)),
+					   			  			 false),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassedMsg(false,"This fails because of a choice in transformation that is not resolved yet - todo");
+			//printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+};
