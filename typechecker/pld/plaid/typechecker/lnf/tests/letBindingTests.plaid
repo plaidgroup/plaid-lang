@@ -2,13 +2,94 @@ package plaid.typechecker.lnf.tests;
 
 import plaid.ast.*;
 
-val () -> void letBindingTests = fn() => {
-	val unique Expression letBare = makeLet(makeToken(),makeID(makeToken(),"x"), makeID(makeToken(),"y"), makeID(makeToken(),"z"), false);
-	rewrite(letBare);
+val letBindingTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique NewLetNormalFormVisitor lnfVisitor = new NewLetNormalFormVisitor;
 	
-	val unique Expression letRead1 = makeLet(makeToken(),makeID(makeToken(),"x"), makeDereference(makeToken(),makeID(makeToken(),"y"), makeID(makeToken(),"f")), makeID(makeToken(),"z"),false);
-	rewrite(letRead1);
+	System.out.println("Testing Let Transformation");
+	testName("lnf-let-bare");
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeID(makeToken(),"y"),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalAst = makeBorrow(makeToken(),
+					     makeID(makeToken(),"x"),
+					     makeID(makeToken(),"y"),
+					     makeBorrow(makeToken(),
+					     			makeTempID(makeToken(),"t1"),
+					     			makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					     			makeTempID(makeToken(),"t1"),
+					     			false),
+					     false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
 	
-	val unique Expression letRead2 = makeLet(makeToken(),makeID(makeToken(),"x"), makeDereference(makeToken(),makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")), makeID(makeToken(),"c")), makeID(makeToken(),"z"),false);
-	rewrite(letRead2);
+	testName("lnf-let-read1");
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"f")),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalAst = makeBorrow(makeToken(),
+					     makeID(makeToken(),"x"),
+					     makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"f")),
+					     makeBorrow(makeToken(),
+					     			makeTempID(makeToken(),"t1"),
+					     			makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					     			makeTempID(makeToken(),"t1"),
+					     			false),
+					     false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+
+	testName("lnf-let-read2");
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeDereference(makeToken(),
+					 				 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"g")),
+					 				 makeID(makeToken(),"f")),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalAst = makeBorrow(makeToken(),
+						 makeTempID(makeToken(),"t2"),
+						 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"g")),
+						 makeBorrow(makeToken(),
+							        makeID(makeToken(),"x"),
+							        makeDereference(makeToken(),makeTempID(makeToken(),"t2"),makeID(makeToken(),"f")),
+							        makeBorrow(makeToken(),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   false),
+							        false),
+						  false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
 };
