@@ -325,6 +325,7 @@ state NewLetNormalFormVisitor {
 		});
 		
 		val unique ID id = this.generateID(node.token);
+		val unique ID body = id.copy();
 		
 		match (node.e) {
 			case ID {
@@ -334,23 +335,23 @@ state NewLetNormalFormVisitor {
 					val /*List<Case>*/ caseList = newCaseList;
 				};
 				
-				this.takePair(node.token, id, m, id.copy());
+				this.takePair(node.token, id, m, body);
 			}
 			
 			default {
-				val /*Pair<Binding, Expression>*/ p = node.e.accept(this);
+				val /*Pair<Binding, Expression>*/ translatedExp = node.e.accept(this);
+				//Know that translatedExp.snd is an ID, so this state change will be ok: (I think)
+				val unique ID toMatch = translatedExp.second().copy();
+				translatedExp.second() <<- Match {
+					val token = node.token;
+					val e = toMatch;
+					val caseList = newCaseList;
+				};
+				this.takePair(node.token,
+							  id,
+							  translatedExp.first(),
+							  body)
 				
-				val unique Match m = new Match {
-					val immutable Token token   = node.token;
-					val unique Expression e     = p.second().copy();
-					val /*List<Case>*/ caseList = newCaseList;
-				};				
-				
-				val /*List<Pair<Binding, Expression>>*/ bindings = makeEmptyList();
-				bindings.add(p);
-				
-				val /*List<Pair<Binding, Expression>>*/ t = this.takePair(node.token, id, m, id.copy());
-				makePair(this.zipBindings(bindings, t.first()), t.second());
 			}
 		};		
 	}
@@ -455,7 +456,7 @@ state NewLetNormalFormVisitor {
 				val /*unique Pair<unique Binding, unique Expression>*/ translatedExp = node.e.accept(this);
 				//Know that translatedExp.snd is an ID, so this state change will be ok: (I think)
 				val unique ID target = translatedExp.second().copy();
-				translatedExp.second() <- ChangeState {
+				translatedExp.second() <<- ChangeState {
 					val token = node.token;
 					val e = target;
 					val s = node.s.accept(this);
