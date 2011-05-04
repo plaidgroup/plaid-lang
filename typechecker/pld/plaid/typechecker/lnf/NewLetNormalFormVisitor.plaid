@@ -440,112 +440,32 @@ state NewLetNormalFormVisitor {
 	}
 	
 	method /*Pair<Binding, Expression>*/ visitChangeState(immutable ChangeState node) {
-		// TODO:  For now, we always assume that we have a QI here.
 		
-		match (node.s.initState) {
-			case None {
-				val unique ID id = this.generateID(node.token);
-				
-				match (node.e) {
-					case ID {
-						// lnf-change-bare
-						
-						this.takePair(node.token, id, node.copy(), id.copy());
-					}
-					
-					default {
-						// lnf-change-C
-						
-						val /*Pair<Binding, Expression>*/ newE = node.e.accept(this);
-						val unique ChangeState newChange = new ChangeState {
-							val immutable Token token = node.token;
-							val unique Expression e = newE.second().copy();
-							val unique State s = node.s.copy();
-						};
-						
-						val dummyList = makeEmptyList();
-						dummyList.add(newE);
-						this.takePair(node.token, id, this.zipBindings(dummyList, newChange), id.copy());
-					}
-				};
+		val unique ID boundID = this.generateID(node.token);
+		val unique ID body = boundID.copy();
+		
+		match (node.e) {
+			case ID {
+				this.takePair(node.token, 
+							  boundID, 
+							  makeChangeState(node.token, node.e.copy(), node.s.accept(this)), 
+							  body)
 			}
-			
-			case Some {
-				var immutable ID targetID = new ID;
-				var /*Option Pair<Binding, Expression>*/ binding = new None;
-				
-				match (node.e) {
-					case ID {
-						// lnf-change-I
-						targetID = node.e;
-					}
-					
-					default {
-						// lnf-change-CI
-						
-						val /*Pair<Binding, Expression>*/ newTarget = node.e.accept(this);
-						
-						targetID = newTarget.second().copy();
-						binding = createSome(newTarget);						
-					}
+			default {
+				val /*unique Pair<unique Binding, unique Expression>*/ translatedExp = node.e.accept(this);
+				//Know that translatedExp.snd is an ID, so this state change will be ok: (I think)
+				val unique ID target = translatedExp.second().copy();
+				translatedExp.second() <- ChangeState {
+					val token = node.token;
+					val e = target;
+					val s = node.s.accept(this);
 				};
-				
-				
-				
-				// Collect all FieldDecls.  While visiting, we rewrite the initialization expressions.
-				this.collectFields = true;
-				this.fieldDecls = makeEmptyList();
-				node.s.accept(this);
-				this.collectFields = false;
-				
-				
-				val /*List<Binding, Expression>*/ takes = makeEmptyList();
-				val unique ID n = this.generateID(node.token);
-				
-				this.fieldDecls.map(fn (p) => {
-					val immutable FieldDecl fd = p.first();
-					val /*Pair<Binding, Expression>*/ b = p.second();
-					
-					val immutable ID f = fd.f;
-					val unique Assignment newAssign = new Assignment {
-						val immutable Token token          = node.token;
-						val /*Option Expression*/ target   = createSome(targetID.copy());
-						val unique ID field                = f.copy();
-						val unique Expression value        = b.second().copy();
-					};
-					
-					val dummyList = makeEmptyList();
-					dummyList.add(b);
-					val unique Expression takeExp = this.zipBindings(dummyList, newAssign);
-					
-					takes.add(this.takePair(node.token, f.copy(), takeExp, f.copy()));
-				});
-				
-				val unique ChangeState newChange = new ChangeState {
-					val /*Token*/ token = node.token;
-					val unique Expression e = targetID.copy();
-					val /*State*/ s = new QI {
-						val /*Token*/ token = node.s.token;
-						val /*List<String>*/ qid = node.s.qid;
-						val /*Option DeclList*/ initState = new None;
-					};
-				};
-				
-				
-				match (binding) {
-					case None {
-						this.takePair(node.token, n.copy(), newChange, this.zipBindings(takes, n.copy()));
-					}
-					
-					case Some {
-						val dummyList = makeEmptyList();
-						dummyList.add(binding.value);
-						
-						this.takePair(node.token, n.copy(), this.zipBindings(dummyList, newChange), this.zipBindings(takes, n.copy()));
-					}
-				};
+				this.takePair(node.token,
+							  boundID,
+							  translatedExp.first(),
+							  body)
 			}
-		};
+		}
 	}
 	
 	method /*Pair<Binding, Expression>*/ visitIntLiteral(immutable IntLiteral node) {
