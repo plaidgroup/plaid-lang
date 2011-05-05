@@ -1,0 +1,105 @@
+package plaid.typechecker.lnf.tests;
+
+import plaid.ast.*;
+
+val matchTests = fn(unique Tester tester) => {
+	
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	var oldCases = unit;
+	var goalCases = unit;
+	val qiList = makeEmptyList(); qiList.add("N");
+	
+	System.out.println("Testing Match Transformation");
+	testName("lnf-match-bare");
+	oldCases = makeEmptyList();
+	oldCases.add(makeCase(makeToken(), 
+					   createSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeID(makeToken(),"y")));
+	oldCases.add(makeDefaultCase(makeToken(), makeID(makeToken(),"z")));
+	oldAst = makeMatch(makeToken(), makeID(makeToken(), "x"), oldCases);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalCases = makeEmptyList();
+	goalCases.add(makeCase(makeToken(), 
+					   createSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeTake(makeToken(),
+					   			makeTempID(makeToken(),"t2"),
+					   			makeID(makeToken(),"y"),
+					   			makeTempID(makeToken(), "t2"),
+					   			false
+					   )
+				 ));
+	goalCases.add(makeDefaultCase(makeToken(), 
+								  makeTake(makeToken(),
+					   			  		   makeTempID(makeToken(),"t3"),
+					   			  		   makeID(makeToken(),"z"),
+					   			  		   makeTempID(makeToken(), "t3"),
+					   			  		   false)
+					   ));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeMatch(makeToken(), makeID(makeToken(), "x"), goalCases),
+					   makeTempID(makeToken(),"t1"),
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-match-complex");
+	oldCases = makeEmptyList();
+	oldCases.add(makeCase(makeToken(), 
+					   createSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeID(makeToken(),"y")));
+	oldCases.add(makeDefaultCase(makeToken(), makeID(makeToken(),"z")));
+	oldAst = makeMatch(makeToken(),
+					   makeDereference(makeToken(), makeID(makeToken(), "x"), makeID(makeToken(),"f")), 
+					   oldCases);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalCases = makeEmptyList();
+	goalCases.add(makeCase(makeToken(), 
+					   createSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeTake(makeToken(),
+					   			makeTempID(makeToken(),"t2"),
+					   			makeID(makeToken(),"y"),
+					   			makeTempID(makeToken(), "t2"),
+					   			false
+					   )
+				 ));
+	goalCases.add(makeDefaultCase(makeToken(), 
+								  makeTake(makeToken(),
+					   			  		   makeTempID(makeToken(),"t3"),
+					   			  		   makeID(makeToken(),"z"),
+					   			  		   makeTempID(makeToken(), "t3"),
+					   			  		   false)
+					   ));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+						 		  makeTempID(makeToken(),"t4"),
+						 		  makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(), "f")),
+						 		  makeMatch(makeToken(), makeTempID(makeToken(), "t4"), goalCases),
+						 		  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+};	

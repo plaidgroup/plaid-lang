@@ -1,0 +1,71 @@
+package plaid.typechecker.typecheckerMethods;
+
+state TCvisitQI {
+	
+	override method visitQI(node) {
+		val stateID = new ID {val name = node.toString(); }; //TODO: robust handling of QIs
+		val theState = this.stateTable.get(stateID);
+		match (theState) {
+			case Some {
+				//need to check that the state is well formed
+				var /*Boolean*/ isWellFormed = true;
+				match (node.initState) {
+					case Some {
+						// need to typecheck the declList
+						node.initState.value.accept(this); //typecheck using this context
+						match (this.typedAs) {
+							case Some {
+								isWellFormed = theState.value.isWellFormed(createSome(this.typedAs.value), this.stateTable);
+								if (!isWellFormed) {
+									val msg = "instantiation of state " + stateID.name + " is not well formed";
+									typeError(node, msg, true);
+									java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+								}
+								//error elsewhere
+							}
+							case None {
+								//error elsewhere - declList did not typecheck
+								isWellFormed = false;
+								val msg = "the initialization of state " + stateID.name + " did not typecheck";
+								typeError(node, msg, false);
+								java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+							}
+						}	
+					}
+					case None { //no initializer - check that the state is well formed without initialization
+						isWellFormed = theState.value.isWellFormed(NONE, this.stateTable);
+						if (!isWellFormed) {
+							val msg = "instantiation of state " + stateID.name + " is not well formed";
+							typeError(node, msg, true);
+							java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+						};
+						//error elsewhere
+					}
+				};
+				ifElse (isWellFormed) {
+					//java.lang.System.out.println("success - object created");
+					this.typedAs = new Some { 
+						val value = new PermType {
+							val perm = new UniquePermission;
+							val type = new NominalType { val typeName = stateID.copy(); };
+							val borrowed = false;
+						};
+					};
+					node.type <- PermType {
+						val perm = new UniquePermission;
+						val type = new NominalType { val typeName = stateID.copy(); };
+						val borrowed = false;
+					};
+				} {
+					this.typedAs = NONE;
+				}
+			}
+			case None {
+				val msg = "state " + stateID.name + " not defined";
+				typeError(node, msg, true);
+				this.typedAs = NONE;
+				java.lang.System.out.println("TYPECHECK FAILED: " + msg);
+			}
+		}
+	}
+}

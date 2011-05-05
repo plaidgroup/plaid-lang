@@ -1,0 +1,384 @@
+package plaid.typechecker.lnf;
+
+import plaid.lang.*;
+import plaid.ast.visitor.*;
+
+/*
+ * if node.objectType = unit, it mean the object type for the expression cannot be get
+ */
+
+state TypeFetchVisitor case of ASTVisitor {
+	//TODO: initialize them
+	var immutable StateTable stateTable;
+	var immutable Context context;
+	
+	//let, borrow, take
+	method visitBorrowBinding(node) {
+		node.x.accept(this);
+		
+		node.exp.accept(this);
+		//node.x.objectType = node.exp.objectType;
+		
+		match(node) {	//node = binding with annotation
+			case NoTypeAnnotation {				
+				node.addObjectType(node.x.objectType);
+				//TODO: perm
+			}
+			case ObjectTypeAnnotation  {
+				//TODO: perm
+			}
+			case PermTypeAnnotation {
+				
+			}
+		};
+		
+		context.put(node.x, node.pType);	//x must be permTypeAnnotation now
+		
+		node.body.accept(this);
+		node.objectType = node.body.objectType;
+		
+		//let a var 1
+		context.update(node.exp, context.get(node.x));	
+		//not quit sure if we'are going to do something addition for let a var 2, I think above is enough
+		
+		context.remove(node.x);
+	}
+	
+	method visitTakeBinding(node) {
+		node.x.accept(this);
+		node.exp.accept(this);
+		//node.x.objectType = node.exp.objectType;
+		
+		match(node) {
+			case NoTypeAnnotation {
+				node.addObjectType(node.x.objectType);
+				//TODO: perm
+			}
+			case ObjectTypeAnnotation  {
+				//TODO: perm
+			}
+			case PermTypeAnnotation {
+				
+			}
+		};
+		
+		node.body.accept(this);
+		node.objectType = node.body.objectType;
+		
+		context.remove(node.x);
+	}	
+	
+	method visitLetBinding(node) {
+		java.lang.System.err.println("never should access here");
+	}
+
+	method visitAnnotatedLetBinding(node) {
+		java.lang.System.err.println("never should access here");
+	}
+	
+	method visitAnnotatedTakeBinding(node) {
+		java.lang.System.err.println("never should access here");
+	}
+	
+	method visitAnnotatedBorrowBinding(node) {
+		java.lang.System.err.println("never should access here");
+	}
+	//let, borrow, take
+	
+	method visitAssignment(node) {
+		java.lang.System.err.println("never should access here");	
+	}
+	
+	method visitAtomicBlock(node) {
+		java.lang.System.err.println("I don't know how to deal with you");
+	}
+	
+
+	method visitCase(node) {		
+		match (node.qi) {
+			case Some {
+				node.qi.value.accept(this);
+			}			
+			case None {
+			}
+		};
+		
+		match (node.x) {
+			case Some {
+				node.x.value.accept(this);
+			}			
+			case None {
+			}
+		};
+		
+		node.e.accept(this);
+	}
+	
+	method visitChangeState(node) {
+		node.e.accept(this);
+		node.s.accept(this);
+		node.e.objectType = node.s.objectType;
+		node.objectType = node.s.objectType;
+		
+		match (e) {
+			case ID{
+				context.update(node.e, createNominalType(IMM, node.s.toString()));
+			}
+			default {
+				java.lang.System.err.println("some thing wrong?");
+				node.objectType = unit;
+			}
+		}
+	}
+	
+	method visitCompilationUnit(node) {		
+		node.decls.map(fn (decl) => {
+			decl.accept(this)
+		});
+		node.imports.accept(this);
+	}
+	
+	method visitDeclList(node) {
+		node.decls.map(fn (decl) => {
+			decl.accept(this)
+		});
+	}
+	
+	method visitDereference(node) {
+		//I assume it can only be the form of ID.ID
+		node.left.accept(this);
+		node.right.accept(this);
+		var /*ObjectType*/ oType = context.get(node.left).type;
+		var /*Option StateType*/ oState = stateTable.get(oType.typeName); 	//I assume here alway be a nominal type
+		match (oState) {
+			case Some {
+				var /*Option DeclType*/ fDecl = oState.declaredTypeOf(node.right);
+				match (fDecl) {
+					case Some {
+						var /*ObjectType*/ fType = new NominalType { val immutable ID typeName = fDecl.value.name; };	//it must be a state, so must have name field
+						node.objectType = fType;
+					}
+					default {
+						java.lang.System.err.println("some thing wrong?");
+						node.objectType = unit;
+					}
+				}				
+			}
+			default {
+				java.lang.System.err.println("some thing wrong?");
+				node.objectType = unit;
+			}
+		}
+	}
+
+	method visitDestructiveDereference(node) {
+		java.lang.System.err.println("I don't know how to deal with you");
+	}
+	
+	method visitQI(node) {
+		match (node.initState) {
+			case Some {
+				node.initState.value.accept(this);
+			}			
+			case None {
+				
+			}
+		};
+		match (oState) {
+			case Some {
+				node.objectType = new NominalType { val immutable ID typeName = node.toShortName(); };
+				//node.objectType = new NominalType { val immutable ID typeName = node.toString(); }; this is correct in long term
+			}
+			default {
+				node.objectType = unit;
+			}
+		}
+	}
+	
+	//TODO Double check whether the object name for them is correct!
+	method visitDoubleLiteral(node) {
+		var id = new Id { val name = "Double"; };
+		node.objectType = new NominalType { val immutable ID typeName = id; };
+    }
+    
+	method visitIntLiteral(node) {
+		var id = new Id { val name = "Int"; };
+		node.objectType = new NominalType { val immutable ID typeName = id; };
+	}
+	
+	method visitStringLiteral(node) {
+		var id = new Id { val name = "String"; };
+		node.objectType = new NominalType { val immutable ID typeName = id; };
+	}
+	
+	method visitUnitLiteral(node) {
+		var id = new Id { val name = "Unit"; };
+		node.objectType = new NominalType { val immutable ID typeName = id; };
+	}
+	
+	method visitFieldDecl(node) {
+		node.f.accept(this);
+		node.e.accept(this);
+	}
+	
+	method visitGroupDecl(node) {
+		java.lang.System.err.println("I don't know how to deal with you");
+	}
+	
+	method visitID(node) {
+		
+	}
+	
+	method visitImportList(node) {
+	}
+	
+	method visitLambda(node) {
+		node.arguments.map(fn (a) => a.accept(this));
+		node.body.accept(this);
+	}
+	
+	method visitMatch(node) {
+		//TODO: The rule is clear, but is it too simple?
+		node.objectType = unit;
+		
+		var /*Context*/ oldContext = context.copy();
+		var /*Context*/ result = context.copy();
+		
+		node.e.accept(this);
+		node.caseList.map(fn (c) => {
+			context = oldContext.copy();
+			c.accept(this);			
+			result.merge(context, stateTable);
+			
+			var caseType = c.e.objectType;
+			node.objectType = caseType;			//now assume the objectType is the same
+		});
+		context = result;		
+	}
+	
+	method visitMethodCall(node) {
+		node.receiver.accept(this);
+		node.methodName.accept(this);
+		node.arguments.map(fn (arg) => arg.accept(this));
+		
+		val /*stateType Option*/ st = stateTable.get(node.receiver);	//TODO check if node.receiver is the right way, care about this
+		
+		match (st) {	//check if the state is existed
+			case Some {
+				val /*MethodType*/ mt = st.value.providedTypeOf(node.methodName);
+				match(mt) {	//check if the method is existed
+					case Some {
+						match(node.receiver) {
+							case ID {
+								context.update(node.receiver,  new TypeBinding {var unique PermType currentType = mt.returnType;}  )
+							}
+							default {
+								java.lang.System.err.println("some thing wrong?");
+								node.objectType = unit;
+							}
+						};
+						
+						val /*ListCell*/ lc = node.arguments.head;
+						mt.argTypes.map(fn(argType) => {
+							//TODO, not sure this is the best way
+							context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
+							lc = lc.next;
+						});
+						
+					    var it = mt.environmentTypes.entrySet().iterator();
+					    while {it.hasNext(); } {
+					        var pair = it.next();
+					        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
+					        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
+					    };
+					    node.objectType = mt.returnType.objectType;
+					}
+					default {
+						java.lang.System.err.println("method doesn't exist");
+						node.objectType = unit;
+					}
+				}
+			}
+			default {
+				java.lang.System.err.println("state doesn't exist");
+				node.objectType = unit;
+			}			
+		};
+	}
+	
+	method visitApplication(node) {
+		node.f.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
+		
+		val /*stateType Option*/ st = stateTable.get(node.receiver);	//TODO check if node.receiver is the right way, care about this
+		
+		match (st) {	//check if the state is existed
+			case Some {
+				val /*MethodType*/ mt = st.value.providedTypeOf(node.methodName);
+				match(mt) {	//check if the method is existed
+					case Some {
+						val /*ListCell*/ lc = node.arguments.head;
+						mt.argTypes.map(fn(argType) => {
+							//TODO, not sure this is the best way
+							context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
+							lc = lc.next;
+						});
+						
+					    var it = mt.environmentTypes.entrySet().iterator();
+					    while {it.hasNext(); } {
+					        var pair = it.next();
+					        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
+					        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
+					    };
+					    node.objectType = mt.returnType.objectType;
+					}
+					default {
+						java.lang.System.err.println("lambda doesn't exist");
+						node.objectType = unit;
+					}
+				}
+			}
+			default {
+				java.lang.System.err.println("state doesn't exist");
+				node.objectType = unit;
+			}			
+		};
+	}
+	
+	method visitMethodDecl(node) {
+		node.arguments.map(fn (a) => a.accept(this));
+		node.body.accept(this);
+	}
+	
+	method visitNewInstance(node) {
+		node.s.accept(this);
+		node.objectType = node.s.objectType;
+	}
+	
+	method visitPermType(node) {
+	}
+	
+	method visitSplitBlock(node) {
+		java.lang.System.err.println("I don't know how to deal with you");
+	}
+	
+	method visitStateDecl(node) {
+		node.name.accept(this);
+		node.stateDef.accept(this);
+		match (node.caseOf) {
+            case plaid.lang.Some {
+			    node.caseOf.value.accept(this);
+            }
+            default {}
+		};
+	}
+	
+	method visitUnpackInnerGroups(node) {
+		java.lang.System.err.println("I don't know how to deal with you");
+	}
+	
+	method visitWith(node) {
+		node.s1.accept(this);
+		node.s2.accept(this);
+	}
+}
