@@ -2,6 +2,9 @@ package plaid.typechecker.lnf;
 
 import plaid.lang.*;
 import plaid.ast.visitor.*;
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
 
 /*
  * if node.objectType = unit, it mean the object type for the expression cannot be get
@@ -17,12 +20,13 @@ state TypeFetchVisitor case of ASTVisitor {
 		node.x.accept(this);
 		
 		node.exp.accept(this);
-		//node.x.objectType = node.exp.objectType;
+		node.x.objectType = node.exp.objectType;
 		
 		match(node) {	//node = binding with annotation
 			case NoTypeAnnotation {				
 				node.addObjectType(node.x.objectType);
-				//TODO: perm
+				node.addPermission(IMMUTABLE);	//TODO, fix this
+				//java.lang.System.err.println("we got borrow");
 			}
 			case ObjectTypeAnnotation  {
 				//TODO: perm
@@ -32,14 +36,20 @@ state TypeFetchVisitor case of ASTVisitor {
 			}
 		};
 		
-		context.put(node.x, node.pType);	//x must be permTypeAnnotation now
+		context.put(node.x, new TypeBinding { var unique PermType currentType = node.pType; } );	//x must be permTypeAnnotation now
 		
 		node.body.accept(this);
 		node.objectType = node.body.objectType;
 		
-		//let a var 1
-		context.update(node.exp, context.get(node.x));	
-		//not quit sure if we'are going to do something addition for let a var 2, I think above is enough
+		//let a var 1, TODO, test this code
+		match (node.exp) {
+			case ID {
+				context.update(node.exp, context.get(node.x));
+			}
+			default {
+				
+			}
+		};
 		
 		context.remove(node.x);
 	}
@@ -47,12 +57,17 @@ state TypeFetchVisitor case of ASTVisitor {
 	method visitTakeBinding(node) {
 		node.x.accept(this);
 		node.exp.accept(this);
-		//node.x.objectType = node.exp.objectType;
+		node.x.objectType = node.exp.objectType;
 		
 		match(node) {
 			case NoTypeAnnotation {
-				node.addObjectType(node.x.objectType);
-				//TODO: perm
+				//java.lang.System.err.println("we got here: take!");
+				//java.lang.System.err.println(node.x.toString());
+				//java.lang.System.err.println(node.exp.toString());
+				//java.lang.System.err.println(node.exp.objectType.toString());
+				node.addObjectType(node.x.objectType);			
+				node.addPermission(IMMUTABLE);	//TODO, fix this
+				//java.lang.System.err.println(node.x.objectType.toString());
 			}
 			case ObjectTypeAnnotation  {
 				//TODO: perm
@@ -61,6 +76,8 @@ state TypeFetchVisitor case of ASTVisitor {
 				
 			}
 		};
+		
+		
 		
 		node.body.accept(this);
 		node.objectType = node.body.objectType;
@@ -148,25 +165,38 @@ state TypeFetchVisitor case of ASTVisitor {
 		//I assume it can only be the form of ID.ID
 		node.left.accept(this);
 		node.right.accept(this);
-		var /*ObjectType*/ oType = context.get(node.left).type;
-		var /*Option StateType*/ oState = stateTable.get(oType.typeName); 	//I assume here alway be a nominal type
-		match (oState) {
-			case Some {
-				var /*Option DeclType*/ fDecl = oState.declaredTypeOf(node.right);
-				match (fDecl) {
-					case Some {
-						var /*ObjectType*/ fType = new NominalType { val immutable ID typeName = fDecl.value.name; };	//it must be a state, so must have name field
-						node.objectType = fType;
-					}
-					default {
-						java.lang.System.err.println("some thing wrong?");
-						node.objectType = unit;
-					}
-				}				
-			}
-			default {
-				java.lang.System.err.println("some thing wrong?");
-				node.objectType = unit;
+		
+		ifElse (!context.containsKey(node.left)) {
+			java.lang.System.err.println("Dereference's left doesn't exist in the context");
+			node.objectType = unit;
+		} {	
+			//java.lang.System.err.println(node.left.name);
+			//java.lang.System.err.println(context.get(node.left));
+			var /*ObjectType*/ oType = context.get(node.left).getObjectType();
+			var /*Option StateType*/ oState = stateTable.get(oType.typeName); 	//I assume here alway be a nominal type
+			//java.lang.System.err.println(oType.typeName);
+			
+			//oState = stateTable.get(makeID(makeToken(), "B"));
+			
+			match (oState) {
+				case Some {
+					var /*Option DeclType*/ fDecl = oState.value.declaredTypeOf(node.right);
+					match (fDecl) {
+						case Some {
+							var /*ObjectType*/ fType = new NominalType { val immutable ID typeName = fDecl.value.name; };	//it must be a state, so must have name field
+							node.objectType = fType;
+						}
+						default {
+							java.lang.System.err.println("Dereference error: no such field");
+							node.objectType = unit;
+						}
+					}				
+				}
+				default {
+					stateTable.printTable();
+					java.lang.System.err.println("Dereference error: no such type for Dereference.left: " + oType.typeName);
+					node.objectType = unit;
+				}
 			}
 		}
 	}
@@ -226,7 +256,18 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 	method visitID(node) {
+		//TODO : SHOULD BE REMOVED AFTER TESTING
+		//java.lang.System.err.println(node.name);
 		
+		match (context.containsKey(node)) {
+			case True {
+				//java.lang.System.err.println("here");
+				node.objectType = context.get(node.name).type;
+			}
+			case False {
+				node.objectType = unit;
+			}
+		};
 	}
 	
 	method visitImportList(node) {
