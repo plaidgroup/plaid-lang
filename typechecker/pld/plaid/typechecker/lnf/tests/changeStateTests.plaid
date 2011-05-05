@@ -1,0 +1,118 @@
+package plaid.typechecker.lnf.tests;
+
+import plaid.ast.*;
+
+val changeStateTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	var oldDecls = unit;
+	var goalDecls = unit;
+	val qiList = makeEmptyList(); qiList.add("N");
+	
+	System.out.println("Testing State Change Transformation");
+	testName("lnf-change-bare");
+	oldDecls = new None;
+	oldAst = makeChangeState(makeToken(), makeID(makeToken(), "x"), makeQI(makeToken(), qiList, oldDecls));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalDecls = new None;
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeChangeState(makeToken(), makeID(makeToken(), "x"),makeQI(makeToken(), qiList, goalDecls)),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-change-C");
+	val decls = makeEmptyList();
+	decls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"f"), 
+							makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
+							false, false, 
+							makeFieldType(makeID(makeToken(),"f"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	decls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"g"), 
+							makeDereference(makeToken(),makeID(makeToken(),"c"), makeID(makeToken(),"d")),
+							false, false,
+							makeFieldType(makeID(makeToken(),"g"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	decls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"h"), 
+							makeID(makeToken(),"e"),
+							false, false,
+							makeFieldType(makeID(makeToken(),"h"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));							
+	val initState = makeDeclList(makeToken(),decls);
+	oldDecls = createSome(initState);
+	oldAst = makeChangeState(makeToken(), 
+							 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(), "y")),
+							 makeQI(makeToken(), qiList, oldDecls));
+	newAst = oldAst.accept(lnfVisitor).first();
+	val newDecls = makeEmptyList();
+	newDecls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"f"), 
+							makeBorrow(makeToken(),
+					   			 	   makeTempID(makeToken(),"t2"),
+					   			  	   makeDereference(makeToken(),makeID(makeToken(),"a"),makeID(makeToken(),"b")),
+					   			 	   makeTempID(makeToken(),"t2"),
+					   			  	   false),
+							false, false,
+							makeFieldType(makeID(makeToken(),"f"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	newDecls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"g"), 
+							makeBorrow(makeToken(),
+					   			  	   makeTempID(makeToken(),"t3"),
+					   			  	   makeDereference(makeToken(),makeID(makeToken(),"c"), makeID(makeToken(),"d")),
+					   			  	   makeTempID(makeToken(),"t3"),
+					   			  	   false),
+							false, false,
+							makeFieldType(makeID(makeToken(),"g"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	newDecls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"h"), 
+							makeTake(makeToken(),
+									 makeTempID(makeToken(), "t4"),
+									 makeID(makeToken(),"e"),
+									 makeTempID(makeToken(),"t4"),
+									 false),
+							false, false,
+							makeFieldType(makeID(makeToken(),"h"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));									
+	val newInitState = makeDeclList(makeToken(),newDecls);
+	goalDecls = createSome(newInitState);
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(), "t5"),
+					   			  makeDereference(makeToken(), makeID(makeToken(), "x"), makeID(makeToken(), "y")),
+					   			  makeChangeState(makeToken(), 
+					   			  				  makeTempID(makeToken(), "t5"),
+					   			  				  makeQI(makeToken(),qiList,goalDecls)),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+};
