@@ -19,23 +19,64 @@
 
 package plaid.typechecker;
 
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.ast.*;
+import plaid.ast.types.*;
+
 var counter = 0;
 
 /**
  * Helper functions for typechecking
  */
 
+val createError= fn (message, node) => {
+	new Error{val message = message; val node=node;};
+};
+
+val createOuterError = fn (message, node, innerError) => {
+	new OuterError{val message = message; val node=node; val innerError = innerError;};
+};
+
 val typeCheckExpression = fn (unique Context c, 
 	unique StateTable st, 
 	unique Expression e, 
-	unique PermType pt) {
-	
-}
+	unique PermType pt) => {
+		match(e) {
+			case UnitLiteral {
+				match(pt==getVoidType()) {
+					case True { makePair(createSome(c), new None); }
+					case False { makePair(new None, 
+						createSome(createError("Unit literals must have type void.", e)));}
+				}
+			}
+			default {
+				makePair(new None, 
+					createSome(createError("Unsupported expression type", e)));
+			}
+		}
+};
 
-val typeCheckDecl = fn (unique Decl d, unique StateTable st) {
+val typeCheckDecl = fn (unique Decl d, unique StateTable st) => {
 	match(d) {
 		case FieldDecl {
-			
+			match(d.abstractField) {
+				case True { makePair(createSome(d.fieldType), new None); }
+				case False {
+					val expCheck = typeCheckExpression(
+						new Context, st, d.e, d.fieldType.binding);
+					match(expCheck.second()) {
+						case None {
+							makePair(createSome(d.fieldType), new None);
+						}
+						case Some {
+							makePair(new None, createSome(
+								createOuterError("Field initialization expression has wrong type.", d, 
+									expCheck.second().value)));
+						}
+					}
+				}
+			}
 		}
 		case MethodDecl {
 		}
@@ -44,4 +85,5 @@ val typeCheckDecl = fn (unique Decl d, unique StateTable st) {
 		default {
 			new None;
 		}
-}
+	}
+};
