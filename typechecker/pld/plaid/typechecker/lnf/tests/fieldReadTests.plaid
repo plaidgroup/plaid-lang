@@ -2,8 +2,10 @@ package plaid.typechecker.lnf.tests;
 
 import plaid.ast.*;
 import plaid.testing.*;
-import plaid.ast.stateTable.*;
 import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.lnf.*;
+import plaid.ast.types.permissions.*;
 
 val () -> void fieldReadTests = fn(unique Tester tester) => {
 	var newAst = unit;
@@ -85,7 +87,7 @@ val () -> void fieldReadTests = fn(unique Tester tester) => {
 	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
 	newAst.accept(typefetcher);
 	
-	testName("lnf-fieldReadD-bare");
+	testName("lnf-fieldReadD-bare");	//x.f
 	oldAst = makeDestructiveDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f"));
 	newAst = oldAst.accept(lnfVisitor).first();
 	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
@@ -101,7 +103,20 @@ val () -> void fieldReadTests = fn(unique Tester tester) => {
 		}
 	};	
 	
-	testName("lnf-fieldReadD-complex");
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	addField(st, "A", "f", "B");
+	putPerm(ct, "x", "A");
+	//st.printTable();
+
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-fieldReadD-complex"); //x.f.g
 	oldAst = makeDestructiveDereference(makeToken(),
 							 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"f")),
 							 makeID(makeToken(),"g"));
@@ -124,6 +139,22 @@ val () -> void fieldReadTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};		
+	
+	//Object Type test
+	st = new StateTable  { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");
+	
+	addField(st, "A", "f", "B");
+	addField(st, "B", "g", "C");
+	putPerm(ct, "x", "A");	
+	
+	//st.printTable();
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
 	
 	
 	//val unique Dereference nested = makeDereference(makeToken(),makeDereference(makeToken(),makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")), makeID(makeToken(),"c")), makeID(makeToken(),"d"));
