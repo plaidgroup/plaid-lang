@@ -1,6 +1,13 @@
 package plaid.typechecker.lnf.tests;
 
 import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.IMM;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.lnf.*;
+import plaid.ast.types.permissions.*;
 
 val letBindingTests = fn(unique Tester tester) => {
 	var newAst = unit;
@@ -8,8 +15,13 @@ val letBindingTests = fn(unique Tester tester) => {
 	var goalAst = unit;
 	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
 	
+	var st = unit;
+	var ct = unit;
+	var typefetcher = unit;
+	var atypes = unit;
+		
 	System.out.println("Testing Let Transformation");
-	testName("lnf-let-bare");
+	testName("lnf-let-bare");	//let x = y in x.b
 	oldAst = makeLet(makeToken(), 
 					 makeID(makeToken(),"x"),
 					 makeID(makeToken(),"y"),
@@ -35,7 +47,19 @@ val letBindingTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	testName("lnf-let-read1");
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	addField(st, "A", "b", "B");
+	putPerm(ct, "y", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-let-read1");	//let x = y.f in x.b
 	oldAst = makeLet(makeToken(), 
 					 makeID(makeToken(),"x"),
 					 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"f")),
@@ -60,8 +84,22 @@ val letBindingTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
+	
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");
+	addField(st, "A", "f", "B");
+	addField(st, "B", "b", "C");
+	putPerm(ct, "y", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
 
-	testName("lnf-let-read2");
+	testName("lnf-let-read2");	//let x = y.g.f in x. b
 	oldAst = makeLet(makeToken(), 
 					 makeID(makeToken(),"x"),
 					 makeDereference(makeToken(),
@@ -93,7 +131,21 @@ val letBindingTests = fn(unique Tester tester) => {
 		}
 	};	
 	
-	testName("lnf-let-complex");
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	addField(st, "A", "f", "B");
+	addField(st, "A", "g", "A");
+	addField(st, "B", "b", "B");
+	putPerm(ct, "y", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-let-complex");	//let x = f(a) in x.b
 	var oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"a"));
 	oldAst = makeLet(makeToken(), 
 					 makeID(makeToken(),"x"),
@@ -125,7 +177,24 @@ val letBindingTests = fn(unique Tester tester) => {
 		}
 	};	
 	
-	testName("lnf-let-complex (literals)");
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");
+	addField(st, "B", "b", "C");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	putPermLam(ct, "f", addLambda(st, "A", "x", "B", atypes));
+	
+	putPerm(ct, "a", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-let-complex (literals)");	//let x = f(a) in unit
 	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"a"));
 	oldAst = makeLet(makeToken(), 
 					 makeID(makeToken(),"x"),
@@ -156,4 +225,21 @@ val letBindingTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};	
+	
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");
+	addField(st, "B", "b", "C");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	putPermLam(ct, "f", addLambda(st, "A", "x", "B", atypes));
+	
+	putPerm(ct, "a", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
 };
