@@ -32,10 +32,26 @@ val printErrorASTs = fn (immutable ASTNode oldAst, immutable ASTNode newAst, imm
 //a faster version of createPermType, in order to writing test
 //the permission is default immutable
 method putPerm(context, id, oType) {
-	var tBind =  new TypeBinding;
-	tBind.currentType =  createPermType(IMMUTABLE, createNominalType(makeID(makeToken(), oType)));
+	var tBind =  new BorrowType {
+		val immutable Boolean stronglyBorrowed = true; 
+		val immutable Permission lowerBound = IMMUTABLE;
+		var unique PermType currentType = createPermType(IMMUTABLE, createNominalType(makeID(makeToken(), oType)));
+		
+	};	//assume all borrow binding
+	
 	context.put(makeID(makeToken(), id), tBind);
 }
+
+method putPermLam(context, id, lType) {
+	var tBind =  new BorrowType {
+		val immutable Boolean stronglyBorrowed = true; 
+		val immutable Permission lowerBound = IMMUTABLE;
+		var unique PermType currentType = createPermType(IMMUTABLE, lType);
+	};	//assume all borrow binding
+	
+	context.put(makeID(makeToken(), id), tBind);
+}
+
 
 method putState(stateTable, st) {
 	val stId = makeID(makeToken(), st);
@@ -43,16 +59,24 @@ method putState(stateTable, st) {
 	stateTable.put(stId, stType);
 }
 
-//add a field to a state, the field type and the state type should already in stateTable
+//add a field to a state, the field type and 
+//the state type should already in stateTable
 method addField(stateTable, stStr, fieldStr, fTypeStr) {
 	val stType = stateTable.get(makeID(makeToken(), stStr)).value;
-	val fType =  stateTable.get(makeID(makeToken(), fTypeStr)).value;
+	//val fType =  stateTable.get(makeID(makeToken(), fTypeStr)).value;
 	
-	stType.providedTypes.put(makeID(makeToken(), fieldStr), fType);
-	stType.declaredTypes.put(makeID(makeToken(), fieldStr), fType);
+	val field = new FieldType {
+		val unique ID name = makeID(makeToken(), fieldStr);
+		val immutable PermType binding = createPermType(IMM, createNominalType(makeID(makeToken(), fTypeStr)));
+		val immutable Boolean isImmutable = true;			//always assume that
+	};
+	
+	stType.providedTypes.put(makeID(makeToken(), fieldStr), field);
+	stType.declaredTypes.put(makeID(makeToken(), fieldStr), field);
 }
 
 //add a method to a state, and don't use advanced type features
+//the state type should already in stateTable
 method addMethod(stateTable, stStr, metStr, retTypeStr, argTypesStr) {
 	val stType = stateTable.get(makeID(makeToken(), stStr)).value;
 	val retType =  stateTable.get(makeID(makeToken(), retTypeStr)).value;
@@ -60,7 +84,7 @@ method addMethod(stateTable, stStr, metStr, retTypeStr, argTypesStr) {
 	val args = makeEmptyList();
 	
 	argTypesStr.map( fn(argTypeStr) => {
-		val aType = stateTable.get(makeID(makeToken(), argTypeStr)).value;
+		val aType = createPermType(IMM,  createNominalType(makeID(makeToken(), argTypeStr)));
 		val argType = new ChangeType { val immutable PermType input = aType; val immutable PermType output = aType; };
 		args.add(argType);
 	});	
@@ -77,43 +101,51 @@ method addMethod(stateTable, stStr, metStr, retTypeStr, argTypesStr) {
 }
 
 //TODO: add a lambda to a state, and don't use advanced type features
-method addlambda(stateTable, stStr, metStr, retTypeStr, argTypesStr) {
+//the state type should already in stateTable
+//it will return the lambdaType been created
+method addLambda(stateTable, stStr, fnStr, retTypeStr, argTypesStr) {
 	val stType = stateTable.get(makeID(makeToken(), stStr)).value;
-	val retType =  stateTable.get(makeID(makeToken(), retTypeStr)).value;
+	val retType = stateTable.get(makeID(makeToken(), retTypeStr)).value;
 
 	val args = makeEmptyList();
 	
 	argTypesStr.map( fn(argTypeStr) => {
-		val aType = stateTable.get(makeID(makeToken(), argTypeStr)).value;
+		val aType = createPermType(IMM,  createNominalType(makeID(makeToken(), argTypeStr)));
 		val argType = new ChangeType { val immutable PermType input = aType; val immutable PermType output = aType; };
 		args.add(argType);
 	});	
 	
-	val metType = new MethodType { 
-		val unique ID name = makeID(makeToken(), metStr); 
-		val unique PermType returnType = createPermType(IMMUTABLE, createNominalType(makeID(makeToken(), retTypeStr)));	//now assume only return immutable
+	val lambdaType = new LambdaType { 
+		var immutable PermType returnType = createPermType(IMMUTABLE, createNominalType(makeID(makeToken(), retTypeStr)));	//now assume only return immutable
 		val argTypes = args;
 		val environmentTypes = java.util.HashMap.new();	//assume no stuff here
 	};
 	
-	stType.providedTypes.put(makeID(makeToken(), metStr), metType);
-	stType.declaredTypes.put(makeID(makeToken(), metStr), metType);
+	val lambdaField = new FieldType {
+		val unique ID name = makeID(makeToken(), fnStr);
+		val immutable PermType binding = createPermType(IMM, lambdaType);
+		val immutable Boolean isImmutable = true;		
+	};
+	
+	stType.providedTypes.put(makeID(makeToken(), fnStr), lambdaField);
+	stType.declaredTypes.put(makeID(makeToken(), fnStr), lambdaField);
+	lambdaType;
 }
 
 
 method main() {
 	val tester = new Tester;
-//	
-//	varTests(tester);
-//	fieldReadTests(tester);
-//	assignmentTests(tester);
-//	methodCallTests(tester);
-//	appTests(tester);	//TODO
-//	newTests(tester);
-//	changeStateTests(tester);
+	
+	varTests(tester);
+	fieldReadTests(tester);	//TODO: test destructive read
+	assignmentTests(tester);
+	methodCallTests(tester);
+	appTests(tester);	//TODO
+	newTests(tester);
+	changeStateTests(tester);
 	matchTests(tester);
 //	lambdaTests(tester);	//TODO
-//	letBindingTests(tester);
+	letBindingTests(tester);	//do more after finish lambda
 
 //	wholeProgramTest("testInputs/fibonacci/package.plaid");
 //	wholeProgramTest("testInputs/basicAeminium/package.plaid");
