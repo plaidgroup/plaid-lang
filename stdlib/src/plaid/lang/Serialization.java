@@ -29,8 +29,13 @@ public class Serialization {
 	protected Serialization() {
 	}
 
-	public static String toJSON(PlaidObject plaidObj) {
-		return convertPlaidObjectToJSONObject(plaidObj).toJSONString();
+	public static PlaidObject toJSON(PlaidObject plaidObj) {
+		try {
+			String jsonString = convertPlaidObjectToJSONObject(plaidObj).toJSONString();
+			return Util.some(Util.string(jsonString));
+		} catch (Throwable e ) {			
+			return Util.none();
+		}
 	}
 
 	protected static JSONAware convertPlaidObjectToJSONObject(PlaidObject plaidObj) throws PlaidRuntimeException {
@@ -60,7 +65,7 @@ public class Serialization {
 			// TODO: add tags
 
 			for (Entry<String, PlaidMemberDef> entry : plaidObj.getMembers().entrySet()) {
-				if (!(entry.getValue() instanceof PlaidMethod)) {
+				if (!(entry.getValue().getValue() instanceof PlaidMethod)) {
 					jsonObject.put(entry.getValue().getMemberName(), convertPlaidObjectToJSONObject(entry.getValue().getValue()));
 				}
 			}
@@ -161,9 +166,14 @@ public class Serialization {
 	public static PlaidObject fromJSON(String json) {
 		Object obj = JSONValue.parse(json);
 		if ( obj instanceof JSONObject ) {
-			return convertJSONObjectToPlaidObject((JSONObject)obj);
+			try {
+				PlaidObject plaidObject = convertJSONObjectToPlaidObject((JSONObject)obj);
+				return Util.some(plaidObject);
+			} catch (Throwable ex){
+				return Util.none();
+			}
 		} else {
-			throw new PlaidRuntimeException("Top-level JSON object is not a JSONObject but : " + obj.getClass().getName());
+			return Util.none();
 		}
 	}
 	

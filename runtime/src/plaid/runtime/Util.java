@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import plaid.runtime.models.map.PlaidLookupMap;
@@ -36,6 +37,7 @@ public class Util {
 	protected static AtomicReferenceArray<PlaidJavaObject> integerCache = new AtomicReferenceArray<PlaidJavaObject>(256);
     protected static volatile PlaidObject TRUE; 
     protected static volatile PlaidObject FALSE;
+    protected static AtomicReference<PlaidObject> NONE = new AtomicReference<PlaidObject>();
 	public static final PlaidTag javaObjectTag = tag("Object", "java.util", null);
     
 	public static PlaidObject newObject() throws PlaidException {
@@ -47,6 +49,24 @@ public class Util {
 	public static PlaidState newState() throws PlaidException {
 		return cl.state();
 	}
+	
+	public static PlaidObject none() throws PlaidException {
+		if ( NONE.get() == null ) {
+			PlaidObject none = (PlaidObject)cl.lookup("plaid.lang.globals.NONE", unit());
+			NONE.compareAndSet(null, none);
+		}
+		return NONE.get();
+	}
+
+	public static PlaidObject some(final PlaidObject value) throws PlaidException {
+		PlaidState someState = (PlaidState)cl.lookup("plaid.lang.Some", unit());
+		PlaidState init = newState();
+		PlaidMemberDef mdef = memberDef("value", null, false, true);
+		init.addMember(mdef, value);
+		PlaidState initState = (PlaidState)someState.initState(init);
+		return initState.instantiate();		
+	}
+	
 	
 	public static PlaidObject string(String s) throws PlaidException {
 		PlaidState intState = (PlaidState)cl.lookup("plaid.lang.String", unit());
