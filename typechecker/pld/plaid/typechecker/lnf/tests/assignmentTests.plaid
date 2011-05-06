@@ -1,0 +1,184 @@
+package plaid.typechecker.lnf.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.lnf.*;
+import plaid.ast.types.permissions.*;
+
+val () -> void assignmentTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	
+	var st = unit;
+	var ct = unit;
+	var typefetcher = unit;
+	
+	System.out.println("Testing Assignment transformation");
+	testName("lnf-assign-bare");	//x.f = y
+	oldAst = makeAssignment(makeToken(), createSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeID(makeToken(),"y"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeAssignment(makeToken(), createSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeID(makeToken(),"y")),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	addField(st, "A", "f", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+		
+	testName("lnf-assign1");	//x.z.f = y
+	oldAst = makeAssignment(makeToken(), 
+							createSome(makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z"))), 
+							makeID(makeToken(),"f"), 
+							makeID(makeToken(),"y"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")),
+					   			  makeAssignment(makeToken(), createSome(makeTempID(makeToken(),"t2")), makeID(makeToken(),"f"), makeID(makeToken(),"y")),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");	
+	addField(st, "A", "z", "B");
+	addField(st, "B", "f", "C");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "C");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+
+	testName("lnf-assign2");	//x.f = y.z
+	oldAst = makeAssignment(makeToken(), 
+							createSome(makeID(makeToken(),"x")), 
+							makeID(makeToken(),"f"), 
+							makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  makeAssignment(makeToken(), createSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeTempID(makeToken(),"t2")),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	addField(st, "A", "f", "B");
+	
+	putState(st, "C");
+	addField(st, "C", "z", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "C");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-assign3");	//x.w.f = f.z
+	oldAst = makeAssignment(makeToken(), 
+							createSome(makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w"))), 
+							makeID(makeToken(),"f"), 
+							makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w")),
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t3"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  			 makeAssignment(makeToken(), createSome(makeTempID(makeToken(),"t2")), makeID(makeToken(),"f"), makeTempID(makeToken(),"t3")),
+					   			  			 false),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");
+
+	addField(st, "A", "w", "B");
+	addField(st, "B", "f", "C");
+	
+	putState(st, "D");
+	addField(st, "D", "z", "C");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "D");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+};

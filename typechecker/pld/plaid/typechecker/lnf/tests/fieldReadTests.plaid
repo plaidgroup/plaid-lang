@@ -1,0 +1,131 @@
+package plaid.typechecker.lnf.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.context.*;
+
+val () -> void fieldReadTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	
+	var st = unit;
+	var ct = unit;
+	var typefetcher = unit;
+	
+	System.out.println("Testing Dereference transformation");	//x.f
+	testName("lnf-fieldRead-bare");
+	oldAst = makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeBorrow(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f")),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	addField(st, "A", "f", "B");
+	putPerm(ct, "x", "A");
+	//st.printTable();
+
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-fieldRead-complex");	//x.f.g
+	oldAst = makeDereference(makeToken(),
+							 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"f")),
+							 makeID(makeToken(),"g"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeBorrow(makeToken(),
+						 makeTempID(makeToken(),"t1"),
+						 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"f")),
+						 makeBorrow(makeToken(),
+						 			makeTempID(makeToken(),"t2"),
+						 			makeDereference(makeToken(), makeTempID(makeToken(),"t1"), makeID(makeToken(),"g")),
+					     			makeTempID(makeToken(),"t2"), 
+					     			false),
+					     false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	
+	//Object Type test
+	st = new StateTable  { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");
+	
+	addField(st, "A", "f", "B");
+	addField(st, "B", "g", "C");
+	putPerm(ct, "x", "A");	
+	
+	//st.printTable();
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-fieldReadD-bare");
+	oldAst = makeDestructiveDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f")),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	
+	testName("lnf-fieldReadD-complex");
+	oldAst = makeDestructiveDereference(makeToken(),
+							 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"f")),
+							 makeID(makeToken(),"g"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+						 makeTempID(makeToken(),"t1"),
+						 makeBorrow(makeToken(),
+						 			makeTempID(makeToken(),"t2"),
+						 			makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f")),
+					     			makeDereference(makeToken(), makeTempID(makeToken(),"t2"), makeID(makeToken(),"g")), 
+					     			false),
+						 makeTempID(makeToken(),"t1"),
+					     false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};		
+	
+	
+	//val unique Dereference nested = makeDereference(makeToken(),makeDereference(makeToken(),makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")), makeID(makeToken(),"c")), makeID(makeToken(),"d"));
+	//rewrite(nested);
+};
