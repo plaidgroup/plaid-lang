@@ -1,0 +1,246 @@
+package plaid.typechecker.lnf.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.context.*;
+import plaid.typechecker.lnf.*;
+
+val () -> void methodCallTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	var oldArgs = unit;
+	var goalArgs = unit;
+	
+	var st = unit;
+	var ct = unit;
+	var typefetcher = unit;
+	var atypes = unit;
+	
+	System.out.println("Testing Method Call transformation");
+	testName("lnf-call-bare");	//x.m(y)
+	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"y"));
+	oldAst = makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalArgs = makeEmptyList(); goalArgs.add(makeID(makeToken(),"y"));
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), goalArgs),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	addMethod(st, "A", "m", "B", atypes);
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
+	
+	newAst.accept(new PrintVisitor);
+	
+	testName("lnf-call1");	//x.z.m(y);
+	oldAst = makeMethodCall(makeToken(), 
+							makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")), 
+							makeID(makeToken(),"m"), 
+							oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")),
+					   			  makeMethodCall(makeToken(), makeTempID(makeToken(),"t2"), makeID(makeToken(),"m"), goalArgs),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	addMethod(st, "B", "m", "B", atypes);
+	addField(st, "A", "z", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
+
+	testName("lnf-call2");	//x.m(y.z)
+	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	oldAst = makeMethodCall(makeToken(), 
+							makeID(makeToken(),"x"), 
+							makeID(makeToken(),"m"), 
+							oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalArgs = makeEmptyList(); goalArgs.add(makeTempID(makeToken(),"t2"));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), goalArgs),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	addMethod(st, "A", "m", "B", atypes);
+	addField(st, "B", "z", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
+	
+	testName("lnf-call2 (multiple args)");	//x.m(y.z, a.b)
+	oldArgs = makeEmptyList(); 
+	oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")));
+	oldAst = makeMethodCall(makeToken(), 
+							makeID(makeToken(),"x"), 
+							makeID(makeToken(),"m"), 
+							oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalArgs = makeEmptyList(); goalArgs.add(makeTempID(makeToken(),"t2")); goalArgs.add(makeTempID(makeToken(),"t3"));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t3"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
+					   			  			 makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), goalArgs),
+					   			  			 false),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B"); atypes.add("B");
+	addMethod(st, "A", "m", "B", atypes);
+	addField(st, "A", "z", "B");
+	addField(st, "A", "b", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "A");
+	putPerm(ct, "a", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
+	
+	
+	testName("lnf-call3");		//x.w.m(y.z)
+	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	oldAst = makeMethodCall(makeToken(), 
+							makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w")), 
+							makeID(makeToken(),"m"), 
+							oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalArgs = makeEmptyList(); goalArgs.add(makeTempID(makeToken(),"t3"));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w")),
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t3"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  			 makeMethodCall(makeToken(), makeTempID(makeToken(),"t2"), makeID(makeToken(),"m"), goalArgs),
+					   			  			 false),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	addMethod(st, "B", "m", "B", atypes);
+	addField(st, "A", "w", "B");
+	addField(st, "A", "z", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
+};

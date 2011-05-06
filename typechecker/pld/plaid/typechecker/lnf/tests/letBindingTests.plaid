@@ -1,0 +1,247 @@
+package plaid.typechecker.lnf.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.IMM;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.lnf.*;
+import plaid.ast.types.permissions.*;
+
+val letBindingTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	
+	var st = unit;
+	var ct = unit;
+	var typefetcher = unit;
+	var atypes = unit;
+		
+	System.out.println("Testing Let Transformation");
+	testName("lnf-let-bare");	//let x = y in x.b
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeID(makeToken(),"y"),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalAst = makeBorrow(makeToken(),
+					     makeID(makeToken(),"x"),
+					     makeID(makeToken(),"y"),
+					     makeBorrow(makeToken(),
+					     			makeTempID(makeToken(),"t1"),
+					     			makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					     			makeTempID(makeToken(),"t1"),
+					     			false),
+					     false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	addField(st, "A", "b", "B");
+	putPerm(ct, "y", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	newAst.accept(new PrintVisitor);
+	
+	testName("lnf-let-read1");	//let x = y.f in x.b
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"f")),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalAst = makeBorrow(makeToken(),
+					     makeID(makeToken(),"x"),
+					     makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"f")),
+					     makeBorrow(makeToken(),
+					     			makeTempID(makeToken(),"t1"),
+					     			makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					     			makeTempID(makeToken(),"t1"),
+					     			false),
+					     false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");
+	addField(st, "A", "f", "B");
+	addField(st, "B", "b", "C");
+	putPerm(ct, "y", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+
+	testName("lnf-let-read2");	//let x = y.g.f in x. b
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeDereference(makeToken(),
+					 				 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"g")),
+					 				 makeID(makeToken(),"f")),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalAst = makeBorrow(makeToken(),
+						 makeTempID(makeToken(),"t2"),
+						 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"g")),
+						 makeBorrow(makeToken(),
+							        makeID(makeToken(),"x"),
+							        makeDereference(makeToken(),makeTempID(makeToken(),"t2"),makeID(makeToken(),"f")),
+							        makeBorrow(makeToken(),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   false),
+							        false),
+						  false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	addField(st, "A", "f", "B");
+	addField(st, "A", "g", "A");
+	addField(st, "B", "b", "B");
+	putPerm(ct, "y", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-let-complex");	//let x = f(a) in x.b
+	var oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"a"));
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeApplication(makeToken(),makeID(makeToken(),"f"),oldArgs),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	var goalArgs = makeEmptyList(); goalArgs.add(makeID(makeToken(),"a"));
+	goalAst = makeTake(makeToken(),
+						 makeTempID(makeToken(),"t2"),
+						 makeApplication(makeToken(),makeID(makeToken(),"f"),goalArgs),
+						 makeTake(makeToken(),
+							        makeID(makeToken(),"x"),
+							        makeTempID(makeToken(),"t2"),
+							        makeBorrow(makeToken(),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   false),
+							        false),
+						  false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");
+	addField(st, "B", "b", "C");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	putPermLam(ct, "f", addLambda(st, "A", "x", "B", atypes));
+	
+	putPerm(ct, "a", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-let-complex (literals)");	//let x = f(a) in unit
+	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"a"));
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeApplication(makeToken(),makeID(makeToken(),"f"),oldArgs),
+					 new UnitLiteral { val token = makeToken(); },
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalArgs = makeEmptyList(); goalArgs.add(makeID(makeToken(),"a"));
+	goalAst = makeTake(makeToken(),
+						 makeTempID(makeToken(),"t2"),
+						 makeApplication(makeToken(),makeID(makeToken(),"f"),goalArgs),
+						 makeTake(makeToken(),
+							        makeID(makeToken(),"x"),
+							        makeTempID(makeToken(),"t2"),
+							       	makeTake(makeToken(),
+							       			 makeTempID(makeToken(),"t3"),
+							       			 new UnitLiteral { val token = makeToken(); },
+							       			 makeTempID(makeToken(),"t3"),
+							       			 false),
+							        false),
+						  false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	putState(st, "C");
+	addField(st, "B", "b", "C");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	putPermLam(ct, "f", addLambda(st, "A", "x", "B", atypes));
+	
+	putPerm(ct, "a", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+};

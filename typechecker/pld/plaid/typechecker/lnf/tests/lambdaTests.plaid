@@ -1,0 +1,66 @@
+package plaid.typechecker.lnf.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.lnf.*;
+import plaid.ast.types.permissions.*;
+
+val lambdaTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	
+	var st = unit;
+	var ct = unit;
+	var typefetcher = unit;
+	
+	System.out.println("Testing Function Transformation");
+	testName("lnf-function");	// fn() -> {a.b}
+	val oldFnType = createLambdaType(getVoidType(),makeEmptyList(),java.util.HashMap.new());
+	oldAst = makeLambda(makeToken(), 
+					    makeEmptyList(), 
+					    makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
+					    oldFnType,
+					    new None);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	val newFnType = createLambdaType(getVoidType(),makeEmptyList(),java.util.HashMap.new());
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeLambda(makeToken(), 
+					   			  makeEmptyList(), 
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t2"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
+					   			  			 makeTempID(makeToken(),"t2"),
+					   			  			 false),
+					   			  newFnType,
+					   			  new None),
+					   makeTempID(makeToken(),"t1"),
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	st = new StateTable ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	addField(st, "A", "b", "B");
+	
+	putPerm(ct, "a", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	newAst.accept(new PrintVisitor);
+};

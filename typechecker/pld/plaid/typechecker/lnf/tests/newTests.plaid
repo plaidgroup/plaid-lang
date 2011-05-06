@@ -1,0 +1,151 @@
+package plaid.typechecker.lnf.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.IMM;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.lnf.*;
+import plaid.ast.types.permissions.*;
+
+val newTests = fn(unique Tester tester) => {
+	
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	var oldDecls = unit;
+	var goalDecls = unit;
+	val qiList = makeEmptyList(); qiList.add("N");
+	
+	var st = unit;
+	var ct = unit;
+	var typefetcher = unit;
+	
+	System.out.println("Testing New Transformation");
+	testName("lnf-new-bare");	//new N
+	oldDecls = new None;
+	oldAst = makeNewInstance(makeToken(), makeQI(makeToken(), qiList, oldDecls));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalDecls = new None;
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeNewInstance(makeToken(), makeQI(makeToken(), qiList, goalDecls)),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "N");
+
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	newAst.accept(new PrintVisitor);
+	
+	testName("lnf-new-complex");	//new N {val immutable test f = a.b; val immutable test g = c.d; val immutable test h = e; }
+	val decls = makeEmptyList();
+	decls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"f"), 
+							makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
+							false, false, 
+							makeFieldType(makeID(makeToken(),"f"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	decls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"g"), 
+							makeDereference(makeToken(),makeID(makeToken(),"c"), makeID(makeToken(),"d")),
+							false, false,
+							makeFieldType(makeID(makeToken(),"g"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	decls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"h"), 
+							makeID(makeToken(),"e"),
+							false, false,
+							makeFieldType(makeID(makeToken(),"h"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));							
+	val initState = makeDeclList(makeToken(),decls);
+	oldDecls = createSome(initState);
+	oldAst = makeNewInstance(makeToken(), makeQI(makeToken(), qiList, oldDecls));
+	newAst = oldAst.accept(lnfVisitor).first();
+	val newDecls = makeEmptyList();
+	newDecls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"f"), 
+							makeBorrow(makeToken(),
+					   			 	   makeTempID(makeToken(),"t2"),
+					   			  	   makeDereference(makeToken(),makeID(makeToken(),"a"),makeID(makeToken(),"b")),
+					   			 	   makeTempID(makeToken(),"t2"),
+					   			  	   false),
+							false, false,
+							makeFieldType(makeID(makeToken(),"f"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	newDecls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"g"), 
+							makeBorrow(makeToken(),
+					   			  	   makeTempID(makeToken(),"t3"),
+					   			  	   makeDereference(makeToken(),makeID(makeToken(),"c"), makeID(makeToken(),"d")),
+					   			  	   makeTempID(makeToken(),"t3"),
+					   			  	   false),
+							false, false,
+							makeFieldType(makeID(makeToken(),"g"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));
+	newDecls.add(makeFieldDecl(makeToken(),
+							makeID(makeToken(),"h"), 
+							makeTake(makeToken(),
+									 makeTempID(makeToken(), "t4"),
+									 makeID(makeToken(),"e"),
+									 makeTempID(makeToken(),"t4"),
+									 false),
+							false, false,
+							makeFieldType(makeID(makeToken(),"h"),
+											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
+											true)));									
+	val newInitState = makeDeclList(makeToken(),newDecls);
+	goalDecls = createSome(newInitState);
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeNewInstance(makeToken(), makeQI(makeToken(), qiList, goalDecls)),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	//object type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "N");
+	putState(st, "A");
+	putState(st, "test");
+	
+	addField(st, "A", "b", "test");
+	addField(st, "A", "d", "test");
+	
+	putPerm(ct, "a", "A");
+	putPerm(ct, "c", "A");
+	putPerm(ct, "e", "test");
+
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+};
