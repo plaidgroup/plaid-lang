@@ -2,15 +2,33 @@ package plaid.typechecker.lnf.tests;
 
 import plaid.ast.*;
 import plaid.ast.visitor.*;
+import plaid.ast.stateTable.*;
+import plaid.testing.*;
+import plaid.typechecker.context.*;
+import plaid.typechecker.lnf.*;
+import plaid.typechecker.StateTableBuilderVisitor;
+import plaid.ast.types.permissions.*;
 
 val () -> void wholeProgramTest = fn(immutable String filename) => {
 	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new(filename)));
 	val unique ASTTranslator translator = new ASTTranslator;
+	
 	val unique ASTNode plaidAST = translator.translateAST(javaAST);	
+	val stateTableVisitor = new StateTableBuilderVisitor;
+	plaidAST.accept(stateTableVisitor);
+	
+	java.lang.System.out.println("\n\nSTATE TABLE: " + filename + "\n\n");
+	stateTableVisitor.stateTable.printTable();
+	
 	java.lang.System.out.println("\n\nWHOLE PROGRAM: " + filename + "\n\n");
-	plaidAST.accept(new PrintVisitor);
+	
+	//plaidAST.accept(new PrintVisitor);
+	
 	java.lang.System.out.println("\n==============================\n");
 	val unique ASTNode newAST = plaidAST.accept(new LetNormalFormVisitor);
 	
 	newAST.accept(new PrintVisitor);
+	
+	val typefetcher = new TypeFetchVisitor { var context = stateTableVisitor.initialContext; var stateTable = stateTableVisitor.stateTable; };
+	newAST.accept(typefetcher);	
 };

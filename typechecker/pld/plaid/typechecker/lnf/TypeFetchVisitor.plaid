@@ -7,8 +7,9 @@ import plaid.ast.types.*;
 import plaid.ast.types.permissions.*;
 
 /*
- * if node.objectType = unit, it mean the object type for the expression cannot be get
+ * if node.objectType = noType, it mean the object type for the expression cannot be get
  * TODO: gurantee this been propogate from botton to top
+ * TODO: initialize context when entering lambda, method, and state
  */
 
 state TypeFetchVisitor case of ASTVisitor {
@@ -19,8 +20,11 @@ state TypeFetchVisitor case of ASTVisitor {
 	//TODO: following should be careully impl when we going perm pass
 	//the field is val so I cannot direct modify it, instead, I'll create new PermType
 	method updateContext(id, obj/*, perm*/) {
-		context.update(id, createTakeType(IMM, obj));
-		
+		ifElse (context.containsKey(id)) {
+			context.update(id, createTakeType(IMM, obj));
+		} {
+			java.lang.System.err.println("Identifier not find in context when doing update. " + id.toString());
+		};
 //		var newbinding = unit;
 //		var oldBinding = context.get(id);
 //		
@@ -173,7 +177,7 @@ state TypeFetchVisitor case of ASTVisitor {
 			default {
 				java.lang.System.err.println("State Chnage error: expression is not a ID");
 				java.lang.System.err.println(node.e);
-				node.objectType = unit;
+				node.objectType = noType;
 			}
 		}
 	}
@@ -200,7 +204,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		
 		ifElse (!context.containsKey(node.left)) {
 			java.lang.System.err.println("Dereference's left doesn't exist in the context");
-			node.objectType = unit;
+			node.objectType = noType;
 		} {	
 			//java.lang.System.err.println(node.left.name);
 			//java.lang.System.err.println(context.get(node.left).currentType);
@@ -225,14 +229,14 @@ state TypeFetchVisitor case of ASTVisitor {
 						default {
 							java.lang.System.err.print("Dereference error: no such field");
 							java.lang.System.err.println(node.left.toString() + "." + node.right.toString());
-							node.objectType = unit;
+							node.objectType = noType;
 						}
 					}				
 				}
 				default {
 					stateTable.printTable();
 					java.lang.System.err.println("Dereference error: no such type for Dereference.left: " + oType.typeName);
-					node.objectType = unit;
+					node.objectType = noType;
 				}
 			}
 		}
@@ -314,7 +318,7 @@ state TypeFetchVisitor case of ASTVisitor {
 				//java.lang.System.err.println(node.objectType.toString());
 			}
 			case False {
-				node.objectType = unit;
+				node.objectType = noType;
 			}
 		};
 	}
@@ -329,7 +333,7 @@ state TypeFetchVisitor case of ASTVisitor {
 	
 	method visitMatch(node) {
 		//TODO: The rule is clear, but is it too simple?
-		node.objectType = unit;
+		node.objectType = noType;
 		
 		var /*Context*/ oldContext = context.copy();
 		var /*Context*/ result = context.copy();
@@ -352,7 +356,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		node.arguments.map(fn (arg) => arg.accept(this));
 		
 		if (!context.containsKey(node.receiver)) {
-			java.lang.System.err.println("Method call target not exist!");
+			java.lang.System.err.println("Method call target not exist! " + node.receiver.toString() );
 		};
 		
 		val /*ObjectType*/ obj = context.get(node.receiver).getObjectType();
@@ -376,7 +380,7 @@ state TypeFetchVisitor case of ASTVisitor {
 							}
 							default {
 								java.lang.System.err.println("some thing wrong?");
-								node.objectType = unit;
+								node.objectType = noType;
 							}
 						};
 						
@@ -401,13 +405,13 @@ state TypeFetchVisitor case of ASTVisitor {
 					}
 					default {
 						java.lang.System.err.println("method doesn't exist");
-						node.objectType = unit;
+						node.objectType = noType;
 					}
 				}
 			}
 			default {
 				java.lang.System.err.println("state doesn't exist");
-				node.objectType = unit;
+				node.objectType = noType;
 			}			
 		};
 	}
@@ -431,8 +435,8 @@ state TypeFetchVisitor case of ASTVisitor {
 			
 			var /*ListCell*/ lc = node.arguments.head;
 			fnType.argTypes.map(fn(argType) => {
-				//TODO, not sure this is the best way
 				//context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
+				
 				updateContext(lc.value, argType.output.type);	//TODO add perm
 				lc = lc.next;
 			});
@@ -447,7 +451,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		    node.objectType = fnType.returnType.type;
 		} {
 			java.lang.System.err.println("lambda type cannot be found in the context");
-			node.objectType = unit;
+			node.objectType = noType;
 		}	
 	}
 	
