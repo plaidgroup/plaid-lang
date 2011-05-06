@@ -567,6 +567,7 @@ public class CompilerCore {
 			throw new RuntimeException("File '" + filename + "' in package '" + declaredPackage + 
 					"' resides in mismatched directory '" + directoryPackage + "'.");
 		
+//		JOSH: Private helper methods and static methods needed!
 		if (!filename.equals("package.plaid")) { //check that the declaration matches the filename
 			String declname = filename.substring(0,filename.length()-6); //*.plaid
 			List<Decl> declList = cu.getDecls();
