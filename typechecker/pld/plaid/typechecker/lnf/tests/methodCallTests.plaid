@@ -2,6 +2,9 @@ package plaid.typechecker.lnf.tests;
 
 import plaid.ast.*;
 import plaid.testing.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.context.*;
+import plaid.typechecker.lnf.*;
 
 val () -> void methodCallTests = fn(unique Tester tester) => {
 	var newAst = unit;
@@ -11,9 +14,13 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 	var oldArgs = unit;
 	var goalArgs = unit;
 	
+	var st = unit;
+	var ct = unit;
+	var typefetcher = unit;
+	var atypes = unit;
 	
 	System.out.println("Testing Method Call transformation");
-	testName("lnf-call-bare");
+	testName("lnf-call-bare");	//x.m(y)
 	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"y"));
 	oldAst = makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), oldArgs);
 	newAst = oldAst.accept(lnfVisitor).first();
@@ -31,7 +38,23 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	testName("lnf-call1");
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	addMethod(st, "A", "m", "B", atypes);
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
+	
+	testName("lnf-call1");	//x.z.m(y);
 	oldAst = makeMethodCall(makeToken(), 
 							makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")), 
 							makeID(makeToken(),"m"), 
@@ -55,8 +78,25 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
+	
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	addMethod(st, "B", "m", "B", atypes);
+	addField(st, "A", "z", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
 
-	testName("lnf-call2");
+	testName("lnf-call2");	//x.m(y.z)
 	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
 	oldAst = makeMethodCall(makeToken(), 
 							makeID(makeToken(),"x"), 
@@ -83,7 +123,24 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	testName("lnf-call2 (multiple args)");
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	addMethod(st, "A", "m", "B", atypes);
+	addField(st, "B", "z", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "B");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
+	
+	testName("lnf-call2 (multiple args)");	//x.m(y.z, a.b)
 	oldArgs = makeEmptyList(); 
 	oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
 	oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")));
@@ -116,7 +173,27 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	testName("lnf-call3");
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B"); atypes.add("B");
+	addMethod(st, "A", "m", "B", atypes);
+	addField(st, "A", "z", "B");
+	addField(st, "A", "b", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "A");
+	putPerm(ct, "a", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
+	
+	
+	testName("lnf-call3");		//x.w.m(y.z)
 	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
 	oldAst = makeMethodCall(makeToken(), 
 							makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w")), 
@@ -146,4 +223,22 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
+	
+	//Object Type test
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	ct = new Context; 
+	
+	putState(st, "A");
+	putState(st, "B");
+	
+	atypes = makeEmptyList(); atypes.add("B");
+	addMethod(st, "B", "m", "B", atypes);
+	addField(st, "A", "w", "B");
+	addField(st, "A", "z", "B");
+	
+	putPerm(ct, "x", "A");
+	putPerm(ct, "y", "A");
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);	
 };

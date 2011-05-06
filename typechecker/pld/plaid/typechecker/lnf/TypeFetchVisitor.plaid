@@ -77,8 +77,6 @@ state TypeFetchVisitor case of ASTVisitor {
 			}
 		};
 		
-		
-		
 		node.body.accept(this);
 		node.objectType = node.body.objectType;
 		
@@ -86,30 +84,25 @@ state TypeFetchVisitor case of ASTVisitor {
 	}	
 	
 	method visitLetBinding(node) {
-		java.lang.System.err.println("never should access here");
+		java.lang.System.err.println("never should access here: visitLetBinding");
 	}
 
 	method visitAnnotatedLetBinding(node) {
-		java.lang.System.err.println("never should access here");
+		java.lang.System.err.println("never should access here: visitAnnotatedLetBinding");
 	}
 	
 	method visitAnnotatedTakeBinding(node) {
-		java.lang.System.err.println("never should access here");
+		java.lang.System.err.println("never should access here: visitAnnotatedTakeBinding");
 	}
 	
 	method visitAnnotatedBorrowBinding(node) {
-		java.lang.System.err.println("never should access here");
+		java.lang.System.err.println("never should access here: visitAnnotatedBorrowBinding");
 	}
 	//let, borrow, take
-	
-	method visitAssignment(node) {
-		java.lang.System.err.println("never should access here");	
-	}
-	
+		
 	method visitAtomicBlock(node) {
 		java.lang.System.err.println("I don't know how to deal with you");
 	}
-	
 
 	method visitCase(node) {		
 		match (node.qi) {
@@ -200,9 +193,24 @@ state TypeFetchVisitor case of ASTVisitor {
 			}
 		}
 	}
-
+	
 	method visitDestructiveDereference(node) {
 		java.lang.System.err.println("I don't know how to deal with you");
+	}
+	
+	method visitAssignment(node) {
+		//java.lang.System.err.println("never should access here: visitAssignment");
+		
+		match (node.target) {
+			case plaid.lang.Some {
+				node.target.value.accept(this);
+			}
+			default {}
+		};
+		node.field.accept(this);
+		node.value.accept(this);
+		
+		node.objectType = stateTable.get(makeID(makeToken(), "unit")).value;	//field write rule 
 	}
 	
 	method visitQI(node) {
@@ -302,16 +310,27 @@ state TypeFetchVisitor case of ASTVisitor {
 		node.methodName.accept(this);
 		node.arguments.map(fn (arg) => arg.accept(this));
 		
-		val /*stateType Option*/ st = stateTable.get(node.receiver);	//TODO check if node.receiver is the right way, care about this
+		if (!context.containsKey(node.receiver)) {
+			java.lang.System.err.println("Method call target not exist!");
+		};
+		
+		val /*ObjectType*/ obj = context.get(node.receiver).getObjectType();
+		val /*stateType Option*/ st = stateTable.get(obj.typeName);
+		
+		//java.lang.System.err.println(obj.typeName.name);
+		//java.lang.System.err.println(st.value);
 		
 		match (st) {	//check if the state is existed
 			case Some {
-				val /*MethodType*/ mt = st.value.providedTypeOf(node.methodName);
+				val /*Option MethodType*/ mt = st.value.providedTypeOf(node.methodName);	//TODO possible inherited from others
+				
+			//	java.lang.System.err.println(mt);
+				
 				match(mt) {	//check if the method is existed
 					case Some {
 						match(node.receiver) {
 							case ID {
-								context.update(node.receiver,  new TypeBinding {var unique PermType currentType = mt.returnType;}  )
+								context.update(node.receiver,  new TypeBinding {var unique PermType currentType = mt.value.returnType;}  )
 							}
 							default {
 								java.lang.System.err.println("some thing wrong?");
@@ -319,20 +338,21 @@ state TypeFetchVisitor case of ASTVisitor {
 							}
 						};
 						
-						val /*ListCell*/ lc = node.arguments.head;
-						mt.argTypes.map(fn(argType) => {
+						//TODO check arguments match here
+						var /*ListCell*/ lc = node.arguments.head;
+						mt.value.argTypes.map(fn(argType) => {
 							//TODO, not sure this is the best way
 							context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
 							lc = lc.next;
 						});
 						
-					    var it = mt.environmentTypes.entrySet().iterator();
+					    var it = mt.value.environmentTypes.entrySet().iterator();
 					    while {it.hasNext(); } {
 					        var pair = it.next();
 					        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
 					        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
 					    };
-					    node.objectType = mt.returnType.objectType;
+					    node.objectType = mt.value.returnType.type;
 					}
 					default {
 						java.lang.System.err.println("method doesn't exist");
@@ -351,30 +371,42 @@ state TypeFetchVisitor case of ASTVisitor {
 		node.f.accept(this);
 		node.arguments.map(fn (a) => a.accept(this));
 		
-		val /*stateType Option*/ st = stateTable.get(node.receiver);	//TODO check if node.receiver is the right way, care about this
+		if (!context.containsKey(node.receiver)) {
+			java.lang.System.err.println("Method call target not exist!");
+		};
+		
+		val /*ObjectType*/ obj = context.get(node.receiver).getObjectType();
+		val /*stateType Option*/ st = stateTable.get(obj.typeName);
+		
+		//java.lang.System.err.println(obj.typeName.name);
+		//java.lang.System.err.println(st.value);
 		
 		match (st) {	//check if the state is existed
 			case Some {
-				val /*MethodType*/ mt = st.value.providedTypeOf(node.methodName);
+				val /*Option MethodType*/ mt = st.value.providedTypeOf(node.methodName);	//TODO possible inherited from others
+				
+			//	java.lang.System.err.println(mt);
+				
 				match(mt) {	//check if the method is existed
 					case Some {
-						val /*ListCell*/ lc = node.arguments.head;
-						mt.argTypes.map(fn(argType) => {
+						//TODO check arguments match here
+						var /*ListCell*/ lc = node.arguments.head;
+						mt.value.argTypes.map(fn(argType) => {
 							//TODO, not sure this is the best way
 							context.update(lc.value, new TypeBinding {var unique PermType currentType = argType.output;} );
 							lc = lc.next;
 						});
 						
-					    var it = mt.environmentTypes.entrySet().iterator();
+					    var it = mt.value.environmentTypes.entrySet().iterator();
 					    while {it.hasNext(); } {
 					        var pair = it.next();
 					        context.update(pair.getKey(), new TypeBinding {var unique PermType currentType = pair.getValue().output;} );
 					        //System.out.println(pairs.getKey() + " = " + pairs.getValue());
 					    };
-					    node.objectType = mt.returnType.objectType;
+					    node.objectType = mt.value.returnType.type;
 					}
 					default {
-						java.lang.System.err.println("lambda doesn't exist");
+						java.lang.System.err.println("method doesn't exist");
 						node.objectType = unit;
 					}
 				}
