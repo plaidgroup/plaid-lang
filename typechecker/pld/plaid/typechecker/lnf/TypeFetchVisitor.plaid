@@ -8,6 +8,7 @@ import plaid.ast.types.permissions.*;
 
 /*
  * if node.objectType = unit, it mean the object type for the expression cannot be get
+ * TODO: gurantee this been propogate from botton to top
  */
 
 state TypeFetchVisitor case of ASTVisitor {
@@ -32,7 +33,7 @@ state TypeFetchVisitor case of ASTVisitor {
 				//TODO: perm
 			}
 			case PermTypeAnnotation {
-				
+				//do nothing
 			}
 		};
 		
@@ -47,7 +48,7 @@ state TypeFetchVisitor case of ASTVisitor {
 				context.update(node.exp, context.get(node.x));
 			}
 			default {
-				
+				//do nothing
 			}
 		};
 		
@@ -127,15 +128,20 @@ state TypeFetchVisitor case of ASTVisitor {
 	method visitChangeState(node) {
 		node.e.accept(this);
 		node.s.accept(this);
-		node.e.objectType = node.s.objectType;
-		node.objectType = node.s.objectType;
+		node.e.objectType = createNominalType(makeID(makeToken(), node.s.toShortName()));
+		node.objectType = createNominalType(makeID(makeToken(), "unit"));
 		
-		match (e) {
-			case ID{
-				context.update(node.e, createNominalType(IMM, node.s.toString()));
+		match (node.e) {
+			case ID {
+				ifElse (context.containsKey(node.e)) {
+					context.update(node.e, createPermType(IMMUTABLE, node.e.objectType));
+				} {
+					java.lang.System.err.println("State Change error: identifier not exist!");
+				}				
 			}
 			default {
-				java.lang.System.err.println("some thing wrong?");
+				java.lang.System.err.println("State Chnage error: expression is not a ID");
+				java.lang.System.err.println(node.e);
 				node.objectType = unit;
 			}
 		}
@@ -180,7 +186,8 @@ state TypeFetchVisitor case of ASTVisitor {
 							node.objectType = fType;
 						}
 						default {
-							java.lang.System.err.println("Dereference error: no such field");
+							java.lang.System.err.print("Dereference error: no such field");
+							java.lang.System.err.println(node.left.toString() + "." + node.right.toString());
 							node.objectType = unit;
 						}
 					}				
@@ -210,7 +217,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		node.field.accept(this);
 		node.value.accept(this);
 		
-		node.objectType = stateTable.get(makeID(makeToken(), "unit")).value;	//field write rule 
+		node.objectType = createNominalType(makeID(makeToken(), "unit"));	//field write rule 
 	}
 	
 	method visitQI(node) {
@@ -222,15 +229,15 @@ state TypeFetchVisitor case of ASTVisitor {
 				
 			}
 		};
-		match (oState) {
-			case Some {
-				node.objectType = new NominalType { val immutable ID typeName = node.toShortName(); };
-				//node.objectType = new NominalType { val immutable ID typeName = node.toString(); }; this is correct in long term
-			}
-			default {
-				node.objectType = unit;
-			}
-		}
+//		match (oState) {
+//			case Some {
+//				node.objectType = new NominalType { val immutable ID typeName = node.toShortName(); };
+//				//node.objectType = new NominalType { val immutable ID typeName = node.toString(); }; this is correct in long term
+//			}
+//			default {
+//				node.objectType = unit;
+//			}
+//		}
 	}
 	
 	//TODO Double check whether the object name for them is correct!
@@ -425,7 +432,7 @@ state TypeFetchVisitor case of ASTVisitor {
 	
 	method visitNewInstance(node) {
 		node.s.accept(this);
-		node.objectType = node.s.objectType;
+		node.objectType = createNominalType(makeID(makeToken(), node.s.toShortName()));	//TODO: make use full name later
 	}
 	
 	method visitPermType(node) {

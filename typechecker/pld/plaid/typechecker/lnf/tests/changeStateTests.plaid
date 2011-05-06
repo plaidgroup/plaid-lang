@@ -1,6 +1,13 @@
 package plaid.typechecker.lnf.tests;
 
 import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.IMM;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.lnf.*;
+import plaid.ast.types.permissions.*;
 
 val changeStateTests = fn(unique Tester tester) => {
 	var newAst = unit;
@@ -11,8 +18,12 @@ val changeStateTests = fn(unique Tester tester) => {
 	var goalDecls = unit;
 	val qiList = makeEmptyList(); qiList.add("N");
 	
+	var st = unit;
+	var ct = unit;
+	var typefetcher = unit;
+	
 	System.out.println("Testing State Change Transformation");
-	testName("lnf-change-bare");
+	testName("lnf-change-bare");	//x <- N
 	oldDecls = new None;
 	oldAst = makeChangeState(makeToken(), makeID(makeToken(), "x"), makeQI(makeToken(), qiList, oldDecls));
 	newAst = oldAst.accept(lnfVisitor).first();
@@ -30,7 +41,18 @@ val changeStateTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	testName("lnf-change-C");
+	//object Type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	
+	putState(st, "N");
+	putState(st, "M");
+	putPerm(ct, "x", "M");	//so x : M --> N
+	
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
+	
+	testName("lnf-change-C");	//x.y <- N {val immutable test f = a.b; val immutable test g = c.d; val immutable test h = e; }
 	val decls = makeEmptyList();
 	decls.add(makeFieldDecl(makeToken(),
 							makeID(makeToken(),"f"), 
@@ -115,4 +137,25 @@ val changeStateTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
+	
+	//object type
+	st = new StateTable { override val states = java.util.HashMap.new(); };
+	ct = new Context; 
+	putState(st, "N");
+	putState(st, "A");
+	putState(st, "test");
+	putState(st, "M");
+	putPerm(ct, "x", "A");	
+	
+	addField(st, "A", "y", "M"); //so x.y : M --> N
+	addField(st, "A", "b", "test");
+	addField(st, "A", "d", "test");
+	
+	putPerm(ct, "a", "A");
+	putPerm(ct, "c", "A");
+	putPerm(ct, "e", "test");
+	
+	//newAst.accept(new PrintVisitor);
+	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
+	newAst.accept(typefetcher);
 };
