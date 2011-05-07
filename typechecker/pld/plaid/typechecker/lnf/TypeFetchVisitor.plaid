@@ -10,6 +10,8 @@ import plaid.ast.types.permissions.*;
  * if node.objectType = noType, it mean the object type for the expression cannot be get
  * TODO: gurantee this been propogate from botton to top
  * TODO: initialize context when entering lambda, method, and state
+ * TODO: put basic type into stateTable, put basic stae inot context
+ * TODO: consider how to deal with top level method (should it in context? or state)
  */
 
 state TypeFetchVisitor case of ASTVisitor {
@@ -326,10 +328,7 @@ state TypeFetchVisitor case of ASTVisitor {
 	method visitImportList(node) {
 	}
 	
-	method visitLambda(node) {
-		node.arguments.map(fn (a) => a.accept(this));
-		node.body.accept(this);
-	}
+
 	
 	method visitMatch(node) {
 		//TODO: The rule is clear, but is it too simple?
@@ -404,13 +403,13 @@ state TypeFetchVisitor case of ASTVisitor {
 					    node.objectType = mt.value.returnType.type;
 					}
 					default {
-						java.lang.System.err.println("method doesn't exist");
+						java.lang.System.err.println("method doesn't exist: " + node.methodName.toString());
 						node.objectType = noType;
 					}
 				}
 			}
 			default {
-				java.lang.System.err.println("state doesn't exist");
+				java.lang.System.err.println("state doesn't exist: " + obj.typeName.toString());
 				node.objectType = noType;
 			}			
 		};
@@ -456,8 +455,37 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 	method visitMethodDecl(node) {
+		//java.lang.System.err.println("test method decl");
+		var oldContext = context.copy();
+		
+		var arg = node.arguments.head;
+		node.methodType.argTypes.map(fn(argType) => {					
+			context.put(arg.value, createTakeType(IMM, argType.output.type));
+			arg = arg.next;
+		});	
+		
 		node.arguments.map(fn (a) => a.accept(this));
 		node.body.accept(this);
+		
+		context = oldContext;
+	}
+	
+	method visitLambda(node) {
+		//java.lang.System.err.println("test lambda decl");
+		var oldContext = context.copy();
+		
+		var arg = node.arguments.head;
+		node.lambdaType.argTypes.map(fn(argType) => {
+		//	java.lang.System.err.println(arg.value);
+			context.put(arg.value, createTakeType(IMM, argType.output.type));
+			arg = arg.next;
+		});
+		
+		
+		node.arguments.map(fn (a) => a.accept(this));
+		node.body.accept(this);
+		
+		context = oldContext;
 	}
 	
 	method visitNewInstance(node) {
@@ -473,7 +501,37 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 	method visitStateDecl(node) {
-		node.name.accept(this);
+		node.name.accept(this); //no use
+		var oldContext = context.copy();
+		
+		context.put(makeID(makeToken(), "this$plaid"), createTakeType(IMM, createNominalType(node.name)));	//TODO perm??
+		
+		var /*Option StateType*/ statetype = stateTable.get(node.name);	//TODO: NOT SURE IF I CAN USE node.stateType directly
+		match (statetype) {
+			case Some {				
+			} 
+			default {
+				java.lang.System.err("Cannot find State in State Table: " + node.name.toString());
+			}
+		};
+		
+		//iterate all the field
+		var iter = statetype.value.providedTypes.entrySet().iterator();
+		while {iter.hasNext(); } {
+			var entry = iter.next();
+			val /*ID*/ name = entry.getKey();
+			val /*DeclType*/ decltype = entry.getValue();
+			match (decltype) {
+				case FieldType {					
+					val /*ObjectType*/ type = decltype.binding.type;
+					context.put(name, createTakeType(IMM, type));	//TODO : add perm	
+				}
+				case MethodType {
+					//TODO, check if method could be use as var x = x.m;  m is a method in x.
+				}
+			};
+		};
+					
 		node.stateDef.accept(this);
 		match (node.caseOf) {
             case plaid.lang.Some {
@@ -481,6 +539,23 @@ state TypeFetchVisitor case of ASTVisitor {
             }
             default {}
 		};
+//		
+//		match (node.stateDef) {
+//			case DeclList {
+//				node.stateDef.accept(this);
+//			}
+//			case QI {
+//				//inheritQI(node.stateDef);
+//			}
+//			case With {
+//				node.stateDef.accept(this);
+//			}
+//			default {
+//				
+//			}
+//		};
+//				
+		context = oldContext;
 	}
 	
 	method visitUnpackInnerGroups(node) {
