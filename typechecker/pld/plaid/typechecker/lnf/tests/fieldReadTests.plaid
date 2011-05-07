@@ -17,11 +17,12 @@ val () -> void fieldReadTests = fn(unique Tester tester) => {
 	var ct = unit;
 	var typefetcher = unit;
 	
-	System.out.println("Testing Dereference transformation");	//x.f
+	System.out.println("Testing Dereference transformation");	
+	
 	testName("lnf-fieldRead-bare");
-	oldAst = makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f"));
+	oldAst = makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f"));//x.f
 	newAst = oldAst.accept(lnfVisitor).first();
-	goalAst = makeBorrow(makeToken(),makeTempID(makeToken(),"t1"),
+	goalAst = makeBorrow(makeToken(),makeTempID(makeToken(),"t1"),	//let t1 = x.f in t1
 						 makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f")),
 					     makeTempID(makeToken(),"t1"), false);
 	match (newAst == goalAst) {
@@ -34,6 +35,7 @@ val () -> void fieldReadTests = fn(unique Tester tester) => {
 		}
 	};
 	
+	testName("lnf-fieldRead-bare : typed");
 	//Object Type test
 	st = new StateTable { override val states = java.util.HashMap.new(); };
 	ct = new Context; 
@@ -45,10 +47,29 @@ val () -> void fieldReadTests = fn(unique Tester tester) => {
 	//st.printTable();
 
 	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);
+	newAst.accept(typefetcher);	
+//	newAst.accept(new PrintVisitor);
 	
-	newAst.accept(new PrintVisitor);
+	//set goalAst type
+	goalAst.x.objectType = getObjectType("B");
+	goalAst.exp.objectType = getObjectType("B");
+	goalAst.exp.left.objectType = getObjectType("A");
+	goalAst.exp.right.objectType = getObjectType("B");
+	goalAst.body.objectType = getObjectType("B");
+	goalAst.objectType = getObjectType("B");
+	//goalAst.accept(new PrintVisitor);		
 	
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	testName("lnf-fieldRead-complex");	//x.f.g
 	oldAst = makeDereference(makeToken(),
 							 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"f")),
