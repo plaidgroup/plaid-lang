@@ -20,12 +20,12 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 	var atypes = unit;
 	
 	System.out.println("Testing Method Call transformation");
-	testName("lnf-call-bare");	//x.m(y)
-	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"y"));
+	testName("lnf-call-bare");	
+	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"y"));	//x.m(y)
 	oldAst = makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), oldArgs);
 	newAst = oldAst.accept(lnfVisitor).first();
 	goalArgs = makeEmptyList(); goalArgs.add(makeID(makeToken(),"y"));
-	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"), //let t1 = x.m(y) in t1
 						 makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), goalArgs),
 					     makeTempID(makeToken(),"t1"), false);
 	match (newAst == goalAst) {
@@ -38,15 +38,17 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 		}
 	};
 	
+	testName("lnf-call-bare : typed");	
 	//Object Type test
 	st = new StateTable { override val states = java.util.HashMap.new(); } ;
 	ct = new Context; 
 	
 	putState(st, "A");
 	putState(st, "B");
+	putState(st, "C");
 	
 	atypes = makeEmptyList(); atypes.add("B");
-	addMethod(st, "A", "m", "B", atypes);
+	addMethod(st, "A", "m", "C", atypes);
 	
 	putPerm(ct, "x", "A");
 	putPerm(ct, "y", "B");
@@ -54,7 +56,31 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
 	newAst.accept(typefetcher);	
 	
-	newAst.accept(new PrintVisitor);
+//	newAst.accept(new PrintVisitor);
+	
+	//set goalAst type
+	goalAst.x.objectType = getObjectType("C");
+	goalAst.exp.objectType = getObjectType("C");
+	goalAst.exp.receiver.objectType = getObjectType("A");
+	goalAst.exp.methodName.objectType = noType;
+	goalAst.exp.arguments.head.value.objectType = getObjectType("B");
+	goalAst.body.objectType = getObjectType("C");
+	goalAst.objectType = getObjectType("C");
+	
+//	goalAst.accept(new PrintVisitor);		
+	
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
 	
 	testName("lnf-call1");	//x.z.m(y);
 	oldAst = makeMethodCall(makeToken(), 

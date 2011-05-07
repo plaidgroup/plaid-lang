@@ -18,12 +18,13 @@ val () -> void assignmentTests = fn(unique Tester tester) => {
 	var typefetcher = unit;
 	
 	System.out.println("Testing Assignment transformation");
-	testName("lnf-assign-bare");	//x.f = y
-	oldAst = makeAssignment(makeToken(), createSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeID(makeToken(),"y"));
+	
+	testName("lnf-assign-bare");	
+	oldAst = makeAssignment(makeToken(), createSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeID(makeToken(),"y"));//x.f = y
 	newAst = oldAst.accept(lnfVisitor).first();
 	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
 						 makeAssignment(makeToken(), createSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeID(makeToken(),"y")),
-					     makeTempID(makeToken(),"t1"), false);
+					     makeTempID(makeToken(),"t1"), false); // let t1 = (x.f = y) in t1
 	match (newAst == goalAst) {
 		case True {
 			tester.testPassed(true);
@@ -33,6 +34,8 @@ val () -> void assignmentTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
+	
+	testName("lnf-assign-bare : typed");	
 	
 	//Object Type test
 	st = new StateTable ;
@@ -47,7 +50,30 @@ val () -> void assignmentTests = fn(unique Tester tester) => {
 	
 	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
 	newAst.accept(typefetcher);
-	newAst.accept(new PrintVisitor);
+	//newAst.accept(new PrintVisitor);
+	
+	//set goalAst type
+	goalAst.x.objectType = getObjectType("unit");
+	goalAst.exp.objectType = getObjectType("unit");
+	goalAst.exp.target.value.objectType = getObjectType("A");
+	goalAst.exp.field.objectType = getObjectType("unit");
+	goalAst.exp.value.objectType = getObjectType("B");
+	goalAst.body.objectType = getObjectType("unit");
+	goalAst.objectType = getObjectType("unit");
+	
+	//goalAst.accept(new PrintVisitor);		
+	
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		
 	testName("lnf-assign1");	//x.z.f = y
 	oldAst = makeAssignment(makeToken(), 

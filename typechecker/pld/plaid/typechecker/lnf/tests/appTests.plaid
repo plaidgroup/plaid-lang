@@ -20,6 +20,7 @@ val () -> void appTests = fn(unique Tester tester) => {
 	var atypes = unit;
 		
 	System.out.println("Testing Application transformation");
+	
 	testName("lnf-app-bare");	//x(y)
 	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"y"));
 	oldAst = makeApplication(makeToken(), makeID(makeToken(),"x"), oldArgs);
@@ -38,7 +39,7 @@ val () -> void appTests = fn(unique Tester tester) => {
 		}
 	};
 
-	newAst.accept(new PrintVisitor);
+	//newAst.accept(new PrintVisitor);
 	
 	//Object Type test
 	st = new StateTable { override val states = java.util.HashMap.new(); } ;
@@ -54,8 +55,9 @@ val () -> void appTests = fn(unique Tester tester) => {
 	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
 	newAst.accept(typefetcher);
 	
-	newAst.accept(new PrintVisitor);
+	//newAst.accept(new PrintVisitor);
 	
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 	testName("lnf-call1");	//x.z(y) *
 	oldAst = makeApplication(makeToken(), 
 							makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")),  
@@ -68,7 +70,7 @@ val () -> void appTests = fn(unique Tester tester) => {
 					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")),
 					   			  makeApplication(makeToken(), makeTempID(makeToken(),"t2"), goalArgs),
 					   			  false),
-					   makeTempID(makeToken(),"t1"), 
+					   makeTempID(makeToken(),"t1"),  // take t1 = borrow t2 = x.z in t2(y) in t1
 					   false);
 	match (newAst == goalAst) {
 		case True {
@@ -80,20 +82,53 @@ val () -> void appTests = fn(unique Tester tester) => {
 		}
 	};
 	
+	testName("lnf-call1 : typed");
 	//Object Type test
 	st = new StateTable { override val states = java.util.HashMap.new(); } ;
 	ct = new Context; 
 	
 	putState(st, "A");
 	putState(st, "B");
+	putState(st, "C");
 	
 	atypes = makeEmptyList(); atypes.add("B");
-	addLambda(st, "A", "z", "B", atypes);
+	var lam = addLambda(st, "A", "z", "C", atypes);
 	putPerm(ct, "x", "A");
 	putPerm(ct, "y", "B");
 	
 	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);
+	newAst.accept(typefetcher);		
+	
+	//set goalAst type
+	goalAst.objectType = getObjectType("C");	
+	goalAst.x.objectType = getObjectType("C");
+	goalAst.exp.objectType = getObjectType("C");
+	goalAst.body.objectType = getObjectType("C");
+		
+	goalAst.exp.x.objectType = lam;
+	goalAst.exp.exp.objectType = lam;
+	goalAst.exp.body.objectType = getObjectType("C");
+	
+	goalAst.exp.exp.left.objectType = getObjectType("A");
+	goalAst.exp.exp.right.objectType = noType;
+	
+	goalAst.exp.body.f.objectType = lam;
+	goalAst.exp.body.arguments.head.value.objectType = getObjectType("B");
+	
+//	newAst.accept(new PrintVisitor);	
+//	goalAst.accept(new PrintVisitor);	
+	
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	testName("lnf-call2");	//x(y.z)
 	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
