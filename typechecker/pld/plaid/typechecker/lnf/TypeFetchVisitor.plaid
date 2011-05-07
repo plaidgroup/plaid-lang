@@ -182,7 +182,7 @@ state TypeFetchVisitor case of ASTVisitor {
 			}
 			default {
 				java.lang.System.err.println("State Chnage error: expression is not a ID");
-				java.lang.System.err.println(node.e);
+				//java.lang.System.err.println(node.e);
 				node.objectType = noType;
 			}
 		}
@@ -234,7 +234,7 @@ state TypeFetchVisitor case of ASTVisitor {
 						}
 						default {
 							java.lang.System.err.print("Dereference error: no such field");
-							java.lang.System.err.println(node.left.toString() + "." + node.right.toString());
+							java.lang.System.err.println(node.left.name +"(" + node.left.objectType.typeName.name + ")" + "." + node.right.name);
 							node.objectType = noType;
 						}
 					}				
@@ -302,7 +302,7 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 	method visitUnitLiteral(node) {
-		node.objectType = createNominalType(makeID(makeToken(), "Unit"));	
+		node.objectType = createNominalType(makeID(makeToken(), "unit"));	
 	}
 	
 	method visitFieldDecl(node) {
@@ -344,13 +344,33 @@ state TypeFetchVisitor case of ASTVisitor {
 		node.e.accept(this);
 		node.caseList.map(fn (c) => {
 			context = oldContext.copy();
-			c.accept(this);			
+			
+			match(node.e) {
+				case ID {
+					match (c.qi) {
+						case Some {
+							var typeId = makeID(makeToken(), c.qi.value.toShortName());
+							updateContext(node.e, createNominalType(typeId));
+						}
+						default {
+							//default case, do nothing
+						}
+					};					
+				}
+				default {
+					java.lang.System.err.println("Match error: identifier not a ID");
+				}
+			};
+			
+			c.accept(this);
+			
 			result.merge(context, stateTable);
 			
 			var caseType = c.e.objectType;
 			node.objectType = caseType;			//now assume the objectType is the same
 		});
-		context = result;		
+		context = result;
+		context.update(node.e, oldContext.get(node.e));	//use the original type in the context
 	}
 	
 	method visitMethodCall(node) {
@@ -365,21 +385,21 @@ state TypeFetchVisitor case of ASTVisitor {
 		val /*ObjectType*/ obj = context.get(node.receiver).getObjectType();
 		val /*stateType Option*/ st = stateTable.get(obj.typeName);
 		
+		//java.lang.System.err.println(st);
+		
 		//java.lang.System.err.println(obj.typeName.name);
 		//java.lang.System.err.println(st.value);
 		
 		match (st) {	//check if the state is existed
 			case Some {
-				val /*Option MethodType*/ mt = st.value.providedTypeOf(node.methodName);	//TODO possible inherited from others
-				
-			//	java.lang.System.err.println(mt);
-				
+				val /*Option MethodType*/ mt = st.value.declaredTypeOf(node.methodName);	//TODO possible inherited from others
+								
 				match(mt) {	//check if the method is existed
 					case Some {
 						match(node.receiver) {
 							case ID {								
 								//context.update(node.receiver,  new TypeBinding {var unique PermType currentType = mt.value.returnType;}  )
-								updateContext(node.receiver, mt.value.returnType.type);	//TODO add perm
+								updateContext(node.receiver, mt.value.receiverType.output.type);	//TODO add perm
 							}
 							default {
 								java.lang.System.err.println("some thing wrong in lnf, reciver not a ID?");
@@ -407,7 +427,8 @@ state TypeFetchVisitor case of ASTVisitor {
 					    node.objectType = mt.value.returnType.type;
 					}
 					default {
-						java.lang.System.err.println("method doesn't exist: " + node.methodName.toString());
+						java.lang.System.err.println("method doesn't exist: " + obj.typeName.name + "." + node.methodName.name);
+						//stateTable.printTable();						
 						node.objectType = noType;
 					}
 				}
@@ -464,7 +485,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		
 		var arg = node.arguments.head;
 		node.methodType.argTypes.map(fn(argType) => {					
-			context.put(arg.value, createTakeType(IMM, argType.output.type));
+			context.put(arg.value, createTakeType(IMM, argType.input.type));
 			arg = arg.next;
 		});	
 		
@@ -477,19 +498,20 @@ state TypeFetchVisitor case of ASTVisitor {
 	method visitLambda(node) {
 		//java.lang.System.err.println("test lambda decl");
 		var oldContext = context.copy();
-		
+	
 		var arg = node.arguments.head;
 		node.lambdaType.argTypes.map(fn(argType) => {
 		//	java.lang.System.err.println(arg.value);
-			context.put(arg.value, createTakeType(IMM, argType.output.type));
+			context.put(arg.value, createTakeType(IMM, argType.input.type));
 			arg = arg.next;
 		});
-		
-		
+		//context.printContext();	
 		node.arguments.map(fn (a) => a.accept(this));
+			
 		node.body.accept(this);
 		
 		context = oldContext;
+
 	}
 	
 	method visitNewInstance(node) {
