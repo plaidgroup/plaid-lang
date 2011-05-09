@@ -7,7 +7,8 @@ import plaid.ast.types.*;
 import plaid.ast.types.permissions.*;
 
 /*
- * if node.objectType = noType, it mean the object type for the expression cannot be get
+ * if node.objectType = errType, it means  the object type for the expression cannot be get because some err
+ * if node.objectType = noType, it means the field hasn't been initialized or it is the right ID in a dereference node.
  * TODO: gurantee this been propogate from botton to top
  * TODO: initialize context when entering lambda, method, and state
  * TODO: put basic type into stateTable, put basic stae inot context
@@ -52,7 +53,7 @@ state TypeFetchVisitor case of ASTVisitor {
 				node.addObjectType(node.x.objectType);
 			//	java.lang.System.out.println(node.x.toString());
 			//	java.lang.System.out.println(node.x.objectType);
-				node.addPermission(IMMUTABLE);	//TODO, fix this
+			//	node.addPermission(IMMUTABLE);	//TODO, fix this
 				//java.lang.System.err.println("we got borrow");
 				//java.lang.System.out.println(node.pType.perm);
 			}
@@ -65,7 +66,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		};
 		//java.lang.System.out.println(node.x.toString());
 		//java.lang.System.out.println(node.pType.perm);
-		context.put(node.x, createBorrowType(IMMUTABLE, node.pType.type, IMMUTABLE, true));	//TODO: add perm
+		context.put(node.x, createBorrowType(IMMUTABLE, node.x.objectType, IMMUTABLE, true));	//TODO: add perm
 		
 		node.body.accept(this);
 		node.objectType = node.body.objectType;
@@ -101,7 +102,7 @@ state TypeFetchVisitor case of ASTVisitor {
 				//java.lang.System.err.println(node.exp.toString());
 				//java.lang.System.err.println(node.exp.objectType.toString());
 				node.addObjectType(node.x.objectType);			
-				node.addPermission(IMMUTABLE);	//TODO, fix this
+			//	node.addPermission(IMMUTABLE);	//TODO, fix this
 				//java.lang.System.err.println(node.x.objectType.toString());
 			}
 			case ObjectTypeAnnotation  {
@@ -112,7 +113,7 @@ state TypeFetchVisitor case of ASTVisitor {
 			}
 		};
 		
-		context.put(node.x, createTakeType(IMMUTABLE, node.pType.type));	//TODO: fix that
+		context.put(node.x, createTakeType(IMMUTABLE, node.x.objectType));	//TODO: fix that
 		
 		node.body.accept(this);
 		node.objectType = node.body.objectType;
@@ -183,7 +184,7 @@ state TypeFetchVisitor case of ASTVisitor {
 			default {
 				java.lang.System.err.println("State Chnage error: expression is not a ID");
 				//java.lang.System.err.println(node.e);
-				node.objectType = noType;
+				node.objectType = errType;
 			}
 		}
 	}
@@ -210,7 +211,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		
 		ifElse (!context.containsKey(node.left)) {
 			java.lang.System.err.println("Dereference's left doesn't exist in the context: " + node.left.toString());
-			node.objectType = noType;
+			node.objectType = errType;
 		} {	
 			//java.lang.System.err.println(node.left.name);
 			//java.lang.System.err.println(context.get(node.left).currentType);
@@ -235,14 +236,14 @@ state TypeFetchVisitor case of ASTVisitor {
 						default {
 							java.lang.System.err.print("Dereference error: no such field");
 							java.lang.System.err.println(node.left.name +"(" + node.left.objectType.typeName.name + ")" + "." + node.right.name);
-							node.objectType = noType;
+							node.objectType = errType;
 						}
 					}				
 				}
 				default {
 					stateTable.printTable();
 					java.lang.System.err.println("Dereference error: no such type for Dereference.left: " + oType.typeName);
-					node.objectType = noType;
+					node.objectType = errType;
 				}
 			}
 		}
@@ -403,7 +404,7 @@ state TypeFetchVisitor case of ASTVisitor {
 							}
 							default {
 								java.lang.System.err.println("some thing wrong in lnf, reciver not a ID?");
-								node.objectType = noType;
+								node.objectType = errType;
 							}
 						};
 						
@@ -429,13 +430,13 @@ state TypeFetchVisitor case of ASTVisitor {
 					default {
 						java.lang.System.err.println("method doesn't exist: " + obj.typeName.name + "." + node.methodName.name);
 						//stateTable.printTable();						
-						node.objectType = noType;
+						node.objectType = errType;
 					}
 				}
 			}
 			default {
 				java.lang.System.err.println("state doesn't exist: " + obj.typeName.toString());
-				node.objectType = noType;
+				node.objectType = errType;
 			}			
 		};
 	}
@@ -475,7 +476,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		    node.objectType = fnType.returnType.type;
 		} {
 			java.lang.System.err.println("lambda type cannot be found in the context");
-			node.objectType = noType;
+			node.objectType = errType;
 		}	
 	}
 	
