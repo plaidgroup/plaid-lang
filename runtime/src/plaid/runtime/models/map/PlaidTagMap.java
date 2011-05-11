@@ -1,7 +1,6 @@
 package plaid.runtime.models.map;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import plaid.runtime.PlaidObject;
@@ -72,7 +71,7 @@ public class PlaidTagMap implements PlaidTag {
 	
 	//@Override
 	public List<PlaidTag> getHierarchy() {
-		return Collections.unmodifiableList(hierarchy);
+		return hierarchy;
 	}
 	
 	//@Override
