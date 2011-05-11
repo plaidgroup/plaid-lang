@@ -61,5 +61,54 @@ val fieldTests = fn (unique Tester tester) => {
 			tester.testPassedMsg(false, "Unit literals should have void type");
 		}
 	};
+	
+	//TODO: move this elsewhere
+	var context = new Context;
+	
+	testName("borrow binding succeeds");
+	val y = makeID(makeToken,"y");
+	context.put(y.copy(), createBorrowType(UNIQUE, getUnitType(), UNIQUE, true));
+	toCheck = makeBorrow(
+							makeToken(), 
+							makeID(makeToken,"x"), 
+							y, 
+							makeUnitLiteral(makeToken),
+							false);
+	toCheck.addPermType(createBorrowType(UNIQUE, getUnitType(), UNIQUE, true));
+	result = typeCheckExpression(context, st, toCheck, getVoidType());
+	match (result.second()) {
+		case Some {
+			tester.testPassedMsg(false, "Unique unit can be borrowed from unique unit.");
+		}
+		case None {
+			val expectedContext = new Context;
+			expectedContext.put(y.copy(), createBorrowType(UNIQUE, getUnitType(), UNIQUE, true));
+			match(expectedContext == result.first().value) {
+				case True { tester.testPassed(true); }
+				case False { tester.testPassedMsg(false, "Unexpected outgoing context."); }
+			};
+		}
+	};
+	
+	context = new Context;
+	testName("borrow binding, split fails");
+	context.put(y.copy(), createBorrowType(IMM, getUnitType(), UNIQUE, true));
+	toCheck = makeBorrow(
+							makeToken(), 
+							makeID(makeToken,"x"), 
+							y.copy(), 
+							makeUnitLiteral(makeToken),
+							false);
+	toCheck.addPermType(createBorrowType(UNIQUE, getUnitType(), UNIQUE, true));
+	result = typeCheckExpression(context, st, toCheck, getVoidType());
+	match (result.second()) {
+		case Some {
+			tester.testPassed(true);
+		}
+		case None {
+			tester.testPassedMsg(false, "Should not be able to split a unique permission from an immutable permission");
+		}
+	};
+	
 
 };
