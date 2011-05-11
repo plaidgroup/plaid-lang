@@ -1,5 +1,6 @@
 package plaid.lang;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -202,6 +203,14 @@ public class Serialization {
 						newHashSet.add(convertJSONObjectToPlaidObject((JSONObject)obj));
 					}
 					return PlaidRuntime.getRuntime().getClassLoader().packJavaObject(newHashSet);
+				} else if (  ((String)type).equals("class java.util.HashMap") ) {
+					final HashMap<Object, Object> newHashMap = new HashMap<Object, Object>();
+					JSONArray data = (JSONArray)jsonObj.get(DATA);
+					for ( Object obj : data ) {
+						newHashMap.put(convertJSONObjectToPlaidObject((JSONObject)((JSONObject)obj).get(MAP_KEY)), 
+								       convertJSONObjectToPlaidObject((JSONObject)((JSONObject)obj).get(MAP_VALUE)));
+					}
+					return PlaidRuntime.getRuntime().getClassLoader().packJavaObject(newHashMap);
 				} else {
 					throw new PlaidRuntimeException("Cannot convert : " + type.getClass());
 				}
