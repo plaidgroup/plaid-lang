@@ -15,7 +15,7 @@ val varTests = fn(unique Tester tester) => {
 	var goalAst = unit;
 	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
 	
-	System.out.println("Testing Variable transformation");
+	System.out.println("Testing Variable LNF transformation");
 	
 	oldAst = makeID(makeToken(),"x");
 	newAst = oldAst.accept(lnfVisitor).first();
@@ -33,34 +33,42 @@ val varTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	//
-		
-
-	//get Object Type for newAst
-	val st = new StateTable;
-	val ct = new Context; 
+	var typefetcher = unit;
+	var ast = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
 	
-	putPerm(ct, "x", "A");
-	
-	var typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);
-	
-	//newAst.accept(new PrintVisitor);
-	
-	//set goalAst type
-	goalAst.x.objectType = getObjectType("A");
-	goalAst.exp.objectType = getObjectType("A");
-	goalAst.body.objectType = getObjectType("A");
-	goalAst.objectType = getObjectType("A");	
-	//goalAst.accept(new PrintVisitor);		
-	testName("lnf-var : typed");
-	match (newAst == goalAst) {
-		case True {
-			tester.testPassed(true);
+	System.out.println("Testing Variable ObjectType Inference");
+	testName("obj-var");
+	st = new StateTable;
+	cIn = new Context; 
+	cIn.put(makeID(makeToken(),"x"), getIntegerType());
+	cOut = cIn.copy();
+	ast = makeID(makeToken(),"x");
+	typefetcher = new TypeFetchVisitor { val context = cIn; val stateTable = st; };
+	result = ast.accept(typefetcher);
+	match (result) {
+		case Some {
+			match (result.value == getIntegerType() ) {
+				case True {
+					match (cIn == cOut) {
+						case True {
+							tester.testPassed(true)
+						}
+						case False {
+							tester.testPassedMsg(false, "context Incorrect")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "unexpected ObjectType");
+				}
+			}
 		}
-		case False {
-			tester.testPassed(false);
-			printErrorASTs(oldAst,newAst,goalAst);
+		case None {
+			tester.testPassedMsg(false,"object inference failed");
 		}
 	};
 };
