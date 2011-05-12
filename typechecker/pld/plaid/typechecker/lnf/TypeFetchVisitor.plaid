@@ -17,110 +17,45 @@ import plaid.ast.types.permissions.*;
 
 state TypeFetchVisitor case of ASTVisitor {
 	//TODO: initialize them
-	var immutable StateTable stateTable;
-	var immutable Context context;
+	val unique StateTable stateTable;
+	val unique Context context;
 	
-	//TODO: following should be careully impl when we going perm pass
-	//the field is val so I cannot direct modify it, instead, I'll create new PermType
-	method updateContext(id, obj/*, perm*/) {
-		ifElse (context.containsKey(id)) {
-			context.update(id, createTakeType(IMM, obj));
-		} {
-			java.lang.System.err.println("Identifier not find in context when doing update. " + id.toString());
-		};
-//		var newbinding = unit;
-//		var oldBinding = context.get(id);
-//		
-//		match(oldBinding) {
-//			case TakeType {
-//				
-//			}
-//			case BorrowType {
-//				
-//			}
-//		};
+	method visitBinding(node) {
+		val /*unique Option<immutable ObjectType>*/ expTypeOption = node.exp.accept(this);
+		match (expTypeOption) {
+			case Some {
+				val immutable ObjectType expType = expTypeOption.value;
+				this.context.put(node.x.copy(), expType);
+				val /*unique Option<immutable ObjectType>*/ bodyTypeOption = node.body.accept(this);
+				match (bodyTypeOption) {
+					case Some {
+						//success
+						match (node) {
+							case NoTypeAnnotation { node.addObjectType(expType) }
+							default { /* no op */ }
+						};
+						this.context.remove(node.x);
+						bodyTypeOption.value;
+					}
+					case None {
+						//body failed
+						new None;
+					}
+				}
+			}
+			case None {
+				//Failed
+				new None;
+			}
+		}
 	}
 	
-	//let, borrow, take
 	method visitBorrowBinding(node) {
-		node.x.accept(this);
-		
-		node.exp.accept(this);
-		node.x.objectType = node.exp.objectType;
-		
-		match(node) {	//node = binding with annotation
-			case NoTypeAnnotation {		
-				node.addObjectType(node.x.objectType);
-			//	java.lang.System.out.println(node.x.toString());
-			//	java.lang.System.out.println(node.x.objectType);
-			//	node.addPermission(IMMUTABLE);	//TODO, fix this
-				//java.lang.System.err.println("we got borrow");
-				//java.lang.System.out.println(node.pType.perm);
-			}
-			case ObjectTypeAnnotation  {
-				//TODO: perm
-			}
-			case PermTypeAnnotation {
-				//do nothing
-			}
-		};
-		//java.lang.System.out.println(node.x.toString());
-		//java.lang.System.out.println(node.pType.perm);
-		context.put(node.x, createBorrowType(IMMUTABLE, node.x.objectType, IMMUTABLE, true));	//TODO: add perm
-		
-		node.body.accept(this);
-		node.objectType = node.body.objectType;
-		
-		//let a var 1, TODO, test this code
-		match (node.exp) {
-			case ID {
-				context.update(node.exp, context.get(node.x));	//TODO: add perm
-			}
-			default {
-				//do nothing
-			}
-		};
-		
-		context.remove(node.x);
+		visitBinding(node)
 	}
 	
 	method visitTakeBinding(node) {
-		node.x.accept(this);
-		
-		//java.lang.System.err.println(node.exp);
-		//java.lang.System.err.println(node.exp.accept);
-		node.exp.accept(this);
-		
-		//java.lang.System.err.println("here we go");
-		
-		node.x.objectType = node.exp.objectType;
-		
-		match(node) {
-			case NoTypeAnnotation {
-				//java.lang.System.err.println("we got here: take!");
-				//java.lang.System.err.println(node.x.toString());
-				//java.lang.System.err.println(node.exp.toString());
-				//java.lang.System.err.println(node.exp.objectType.toString());
-				node.addObjectType(node.x.objectType);			
-			//	node.addPermission(IMMUTABLE);	//TODO, fix this
-				//java.lang.System.err.println(node.x.objectType.toString());
-			}
-			case ObjectTypeAnnotation  {
-				//TODO: perm
-			}
-			case PermTypeAnnotation {
-				
-			}
-		};
-		
-		context.put(node.x, createTakeType(IMMUTABLE, node.x.objectType));	//TODO: fix that
-		
-		node.body.accept(this);
-		node.objectType = node.body.objectType;
-		
-		context.remove(node.x);
-		
-		//java.lang.System.err.println(node.objectType.toString());
+		visitBinding(node)
 	}	
 	
 	method visitLetBinding(node) {
@@ -144,23 +79,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		java.lang.System.err.println("I don't know how to deal with you");
 	}
 
-	method visitCase(node) {		
-		match (node.qi) {
-			case Some {
-				node.qi.value.accept(this);
-			}			
-			case None {
-			}
-		};
-		
-		match (node.x) {
-			case Some {
-				node.x.value.accept(this);
-			}			
-			case None {
-			}
-		};
-		
+	method visitCase(node) {				
 		node.e.accept(this);
 	}
 	
@@ -335,14 +254,19 @@ state TypeFetchVisitor case of ASTVisitor {
 	
 
 	
-	method visitMatch(node) {
-		//TODO: The rule is clear, but is it too simple?
-		node.objectType = noType;
+	method visitMatch(node) {		
+		val unique Context oldContext = context.copy();
+		val unique Context result = context.copy();
 		
-		var /*Context*/ oldContext = context.copy();
-		var /*Context*/ result = context.copy();
-		
-		node.e.accept(this);
+		val /*unique Option<immutable ObjectType>*/ matchExpOption = this.context.getOption(node.e);
+		match (matchExpOption) {
+			case Some {
+			
+			}
+			case None { 
+			
+			}
+		}
 		node.caseList.map(fn (c) => {
 			context = oldContext.copy();
 			
