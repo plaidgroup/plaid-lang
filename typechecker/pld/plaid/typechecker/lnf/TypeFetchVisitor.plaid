@@ -320,7 +320,7 @@ state TypeFetchVisitor case of ASTVisitor {
 								argsAndReceiver.map( fn (p) => {
 									match (this.context.containsKey(p.fst)) {
 										case True {
-											this.context.update(p.fst.copy(), p.snd.getOutputBinding().getObjectType())
+											this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
 										}
 										case False {
 											//Error - argument not in scope
@@ -361,42 +361,62 @@ state TypeFetchVisitor case of ASTVisitor {
 		val /* unique Option<immutable ObjectType> */ functionTypeOption = this.context.getOption(node.f);
 		match (functionTypeOption) {
 			case Some {
-				val immutable LambdaType functionType = functionTypeOption.value;
-				match (node.arguments.length() == functionType.argTypes.length() ) { //redundant?
-					case True {
-						//TODO: add environment
-						val args = node.arguments.zip(functionType.argTypes);
-						var immutable Boolean argsOk = true;
-						args.map( fn (p) => {
-							match (this.context.containsKey(p.fst)) {
-								case True {
-									this.context.update(p.fst.copy(), p.snd.getOutputBinding().getObjectType())
-								}
-								case False {
-									//Error - argument not in scope
-									argsOk = false;
-								}
-							}
-						});
-						match (argsOk) {
+				val immutable ObjectType functionType = functionTypeOption.value;
+				match (functionType) {
+					case LambdaType {
+						match (node.arguments.length() == functionType.argTypes.length() ) { //redundant?
 							case True {
-								//return the return object type
-								createSome(functionType.returnType.type.copy()) //return type should probably be a Binding
+								//TODO: add environment
+								val args = node.arguments.zip(functionType.argTypes);
+								var immutable Boolean argsOk = true;
+								args.map( fn (p) => {
+									match (this.context.containsKey(p.fst)) {
+										case True {
+											this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
+										}
+										case False {
+											//Error - argument not in scope
+											argsOk = false;
+										}
+									}
+								});
+								match (argsOk) {
+									case True {
+										//return the return object type
+										match (functionType.returnType) {
+											case ObjectType { //TODO : this is hacky
+												createSome(functionType.returnType.copy()) //return type should probably be a Binding
+											}
+											case PermType {
+												createSome(functionType.returnType.type.copy()) //return type should probably be a Binding
+											}
+											default {
+												new None
+											}
+										};
+									}
+									case False {
+										// arg not in scope
+										new None
+									}
+								}
 							}
 							case False {
-								// arg not in scope
+								//number of args mismatched
 								new None
 							}
 						}
+					
 					}
-					case False {
-						//number of args mismatched
+					default {
+						//not a lambda type
 						new None
 					}
 				}
 			}
 			case None {
 				//receiver not in context/not in LNF
+				new None
 			}
 		}
 	}
@@ -406,9 +426,9 @@ state TypeFetchVisitor case of ASTVisitor {
 			case True {
 				val methodContext = new Context;
 				node.arguments.zip(node.methodType.argTypes).map(fn (p) => {
-					methodContext.put(p.fst.copy(), p.snd.getInputBinding().getObjectType())
+					methodContext.put(p.fst.copy(), p.snd.inputBinding().getObjectType())
 				});
-				methodContext.put(makeID(makeToken(),"this"),methodType.receiverType.getInputBinding().getObjectType());
+				methodContext.put(makeID(makeToken(),"this"),methodType.receiverType.inputBinding().getObjectType());
 				//TODO: add environment
 				node.body.accept(new TypeFetchVisitor { val st = this.st; val context = methodContext; })
 			}
@@ -424,7 +444,7 @@ state TypeFetchVisitor case of ASTVisitor {
 			case True {
 				val lambdaContext = new Context;
 				node.arguments.zip(node.lambdaType.argTypes).map(fn (p) => {
-					lambdaContext.put(p.fst.copy(), p.snd.getInputBinding().getObjectType())
+					lambdaContext.put(p.fst.copy(), p.snd.inputBinding().getObjectType())
 				});
 				//TODO: add environment
 				val /*unique Option<immutable ObjectType>*/ returnTypeOption = 

@@ -148,21 +148,20 @@ val () -> void appTests = fn(unique Tester tester) => {
 	System.out.println("");
 	
 	
+	System.out.println("Testing Application ObjectType inference");
 	var typefetcher = unit;
 	var st = unit;
 	var cIn = unit;
 	var cOut = unit;
 	var result = unit;
-	System.out.println("Testing Application ObjectType inference");
 	var goalType = unit;
-	
+	var oldFnType = unit;
 	
 	testName("obj-app succeed");
-	//Object Type test
 	st = new StateTable { override val states = java.util.HashMap.new(); } ;
 	cIn = new Context; 
 
-	val oldFnType = createLambdaType(getVoidType(), makeEmptyList(), java.util.HashMap.new());
+	oldFnType = createLambdaType(getUnitType(), makeEmptyList(), java.util.HashMap.new());
 	cIn.put(makeID(makeToken(),"f"), oldFnType);
 	cOut = cIn.copy();
 	oldAst = makeApplication(makeToken(),makeID(makeToken(),"f"),makeEmptyList());
@@ -173,7 +172,7 @@ val () -> void appTests = fn(unique Tester tester) => {
 		case Some {
 			match (typefetcher.context == cOut) {
 				case True {
-					match (result.value == getVoidType()) {
+					match (result.value == getUnitType()) {
 						case True {
 							match (oldAst == goalAst) {
 								case True {
@@ -198,4 +197,128 @@ val () -> void appTests = fn(unique Tester tester) => {
 			tester.testPassedMsg(false,"object type could not be assigned");
 		}
 	};
+	
+	testName("obj-app mismatched number of arguments");
+	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"a"));
+	oldAst = makeApplication(makeToken(),makeID(makeToken(),"f"),oldArgs);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case Some {
+			tester.testPassed(false);
+		}
+		case None {
+			tester.testPassed(true);
+		}
+	};
+	
+	testName("obj-app arg not in context");
+	oldAst = makeApplication(makeToken(),makeID(makeToken(),"f"),oldArgs);
+	val argTypes = makeEmptyList();
+	argTypes.add(createChangeType(createPermType(IMM,getIntegerType()),createPermType(NONEP,getIntegerType()), false));
+	oldFnType = createLambdaType(getUnitType(), argTypes, java.util.HashMap.new());
+	cIn.update(makeID(makeToken(),"f"), oldFnType);
+	oldAst = makeApplication(makeToken(),makeID(makeToken(),"f"),oldArgs);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case Some {
+			tester.testPassed(false);
+		}
+		case None {
+			tester.testPassed(true);
+		}
+	};
+	
+	testName("obj-app arg succeed");
+	cIn.put(makeID(makeToken(),"a"),getIntegerType());
+	cOut = cIn.copy();
+	goalAst = makeApplication(makeToken(),makeID(makeToken(),"f"),oldArgs);
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case Some {
+			match (typefetcher.context == cOut) {
+				case True {
+					match (result.value == getUnitType()) {
+						case True {
+							match (oldAst == goalAst) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "Ast transformed incorrectly")
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "returned type not correct")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "context not updated correctly")
+				}
+			}
+		}
+		case None {
+			tester.testPassedMsg(false,"object type could not be assigned");
+		}
+	};
+	
+	testName("obj-app arg not in LNF");
+	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),
+														   makeID(makeToken(),"a"),
+														   makeID(makeToken(), "b")));
+	oldAst = makeApplication(makeToken(),makeID(makeToken(),"f"),oldArgs);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case Some {
+			tester.testPassed(false);
+		}
+		case None {
+			tester.testPassed(true);
+		}
+	};
+	
+	testName("obj-app not a function type");
+	cIn.update(makeID(makeToken(),"f"), getUnitType());
+	oldAst = makeApplication(makeToken(),makeID(makeToken(),"f"),makeEmptyList());
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case Some {
+			tester.testPassed(false);
+		}
+		case None {
+			tester.testPassed(true);
+		}
+	};
+	
+	testName("obj-app function variable not in context");
+	cIn.remove(makeID(makeToken(),"f"));
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case Some {
+			tester.testPassed(false);
+		}
+		case None {
+			tester.testPassed(true);
+		}
+	};
+	
+	testName("obj-app application not in LNF");
+	oldAst = makeApplication(makeToken(),
+							 makeDereference(makeToken(), 
+							 				 makeID(makeToken(),"f"),
+							 				 makeID(makeToken(),"g")),
+							 makeEmptyList());
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case Some {
+			tester.testPassed(false);
+		}
+		case None {
+			tester.testPassed(true);
+		}
+	};
+	
+
+	
 };
