@@ -14,11 +14,6 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 	var oldArgs = unit;
 	var goalArgs = unit;
 	
-	var st = unit;
-	var ct = unit;
-	var typefetcher = unit;
-	var atypes = unit;
-	
 	System.out.println("Testing Method Call transformation");
 	testName("lnf-call-bare");	
 	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"y"));	//x.m(y)
@@ -37,51 +32,6 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
-	
-	testName("lnf-call-bare : typed");	
-	//Object Type test
-	st = new StateTable { override val states = java.util.HashMap.new(); } ;
-	ct = new Context; 
-	
-	putState(st, "A");
-	putState(st, "B");
-	putState(st, "C");
-	
-	atypes = makeEmptyList(); atypes.add("B");
-	addMethod(st, "A", "m", "C", atypes);
-	
-	putPerm(ct, "x", "A");
-	putPerm(ct, "y", "B");
-	
-	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);	
-	
-	//newAst.accept(new PrintVisitor);
-	
-	//set goalAst type
-	goalAst.x.objectType = getObjectType("C");
-	goalAst.exp.objectType = getObjectType("C");
-	goalAst.exp.receiver.objectType = getObjectType("A");
-	goalAst.exp.methodName.objectType = noType;
-	goalAst.exp.arguments.head.value.objectType = getObjectType("B");
-	goalAst.body.objectType = getObjectType("C");
-	goalAst.objectType = getObjectType("C");
-	
-		
-	
-	match (newAst == goalAst) {
-		case True {
-			tester.testPassed(true);
-		}
-		case False {
-			tester.testPassed(false);
-			printErrorASTs(oldAst,newAst,goalAst);
-		}
-	};
-	
-	//goalAst.accept(new PrintVisitor);
-	
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
 	testName("lnf-call1");	//x.z.m(y);
 	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"y"));
@@ -112,23 +62,6 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 		}
 	};
 	
-//	//Object Type test
-//	st = new StateTable { override val states = java.util.HashMap.new(); } ;
-//	ct = new Context; 
-//	
-//	putState(st, "A");
-//	putState(st, "B");
-//	
-//	atypes = makeEmptyList(); atypes.add("B");
-//	addMethod(st, "B", "m", "B", atypes);
-//	addField(st, "A", "z", "B");
-//	
-//	putPerm(ct, "x", "A");
-//	putPerm(ct, "y", "B");
-//	
-//	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-//	newAst.accept(typefetcher);	
-
 	testName("lnf-call2");	//x.m(y.z)
 	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
 	oldAst = makeMethodCall(makeToken(), 
@@ -155,23 +88,6 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
-	
-	//Object Type test
-	st = new StateTable { override val states = java.util.HashMap.new(); } ;
-	ct = new Context; 
-	
-	putState(st, "A");
-	putState(st, "B");
-	
-	atypes = makeEmptyList(); atypes.add("B");
-	addMethod(st, "A", "m", "B", atypes);
-	addField(st, "B", "z", "B");
-	
-	putPerm(ct, "x", "A");
-	putPerm(ct, "y", "B");
-	
-	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);	
 	
 	testName("lnf-call2 (multiple args)");	//x.m(y.z, a.b)
 	oldArgs = makeEmptyList(); 
@@ -206,26 +122,6 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	//Object Type test
-	st = new StateTable { override val states = java.util.HashMap.new(); } ;
-	ct = new Context; 
-	
-	putState(st, "A");
-	putState(st, "B");
-	
-	atypes = makeEmptyList(); atypes.add("B"); atypes.add("B");
-	addMethod(st, "A", "m", "B", atypes);
-	addField(st, "A", "z", "B");
-	addField(st, "A", "b", "B");
-	
-	putPerm(ct, "x", "A");
-	putPerm(ct, "y", "A");
-	putPerm(ct, "a", "A");
-	
-	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);	
-	
-	
 	testName("lnf-call3");		//x.w.m(y.z)
 	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
 	oldAst = makeMethodCall(makeToken(), 
@@ -257,21 +153,61 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	//Object Type test
-	st = new StateTable { override val states = java.util.HashMap.new(); } ;
-	ct = new Context; 
+	System.out.println("");
 	
-	putState(st, "A");
-	putState(st, "B");
+	var typefetcher = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
+	var argList = unit;
 	
-	atypes = makeEmptyList(); atypes.add("B");
-	addMethod(st, "B", "m", "B", atypes);
-	addField(st, "A", "w", "B");
-	addField(st, "A", "z", "B");
+	System.out.println("Testing method Call ObjectType Inference");
+	testName("obj-methodCall succeed");
 	
-	putPerm(ct, "x", "A");
-	putPerm(ct, "y", "A");
+	st = new StateTable;
+	cIn = new Context;
+	cIn.put(makeID(makeToken(),"o"), getIntegerType());
+	cIn.put(makeID(makeToken(),"t"), getIntegerType());
 	
-	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);	
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"t"));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"o"),
+							makeID(makeToken(),"+"),
+							argList);
+	newAst = oldAst.copy();
+	cOut = cIn.copy();
+	typefetcher = new TypeFetchVisitor { val context = cIn; val st = st; };
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false, result.toString());
+		}
+		default {
+			match (result == getIntegerType()) {
+				case True {
+					match (oldAst == newAst) {
+						case True {
+							match (cIn == cOut) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "context should not be updated" );
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "ast should not be updated");
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "wrong return type (not Integer)");
+				}
+			}	
+		}
+	};
+
+	
 };
