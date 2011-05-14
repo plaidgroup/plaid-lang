@@ -303,39 +303,48 @@ state TypeFetchVisitor case of ASTVisitor {
 				match (methodTypeOption) {
 					case Some {
 						val immutable DeclType methodType = methodTypeOption.value; 
-						match (node.arguments.length() == methodType.argTypes.length() ) { //redundant?
-							case True {
-								//TODO: add environment
-								val argsAndReceiver = node.arguments.zip(methodType.argTypes);
-								argsAndReceiver.prepend(makePair(node.receiver.copy(), methodType.receiverType));
-								var immutable Boolean argsOk = true;
-								argsAndReceiver.map( fn (p) => {
-									match (this.context.containsKey(p.fst)) {
-										case True {
-											this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
-										}
-										case False {
-											//Error - argument not in scope
-											argsOk = false;
-										}
-									}
-								});
-								match (argsOk) {
+						match (methodType) {
+							case MethodType {
+								match (node.arguments.length() == methodType.argTypes.length() ) { //redundant?
 									case True {
-										//return the return object type
-										methodType.returnType.type.copy()  //return type should probably be a Binding
+										//TODO: add environment
+										val argsAndReceiver = node.arguments.zip(methodType.argTypes);
+										argsAndReceiver.prepend(makePair(node.receiver.copy(), methodType.receiverType));
+										var immutable Boolean argsOk = true;
+										argsAndReceiver.map( fn (p) => {
+											match (this.context.containsKey(p.fst)) {
+												case True {
+													this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
+												}
+												case False {
+													//Error - argument not in scope
+													argsOk = false;
+												}
+											}
+										});
+										match (argsOk) {
+											case True {
+												//return the return object type
+												methodType.returnType.currentType.type.copy()
+											}
+											case False {
+												// arg not in scope
+												newObjectError("not all args in LNF and in scope");
+											}
+										}
 									}
 									case False {
-										// arg not in scope
-										newObjectError("not all args in LNF and in scope");
+										//number of args mismatched
+										newObjectError("incorrect number of arguments supplied");
 									}
 								}
 							}
-							case False {
-								//number of args mismatched
-								newObjectError("incorrect number of arguments supplied");
+							default {
+								//not a method
+								newObjectError("member " + node.methodName.name + " is a field not a method");
 							}
 						}
+						
 					}
 					case None {
 						//method not found
@@ -473,6 +482,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		newObjectError("Split Block not implemented");
 	}
 	
+	//TODO : update
 	method visitStateDecl(node) {
 		node.name.accept(this); //no use
 		var oldContext = context.copy();

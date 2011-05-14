@@ -208,6 +208,168 @@ val () -> void methodCallTests = fn(unique Tester tester) => {
 			}	
 		}
 	};
-
+	
+	testName("obj-methodCall arg not in scope");
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"x"));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"o"),
+							makeID(makeToken(),"+"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall arg not in LNF");
+	argList = makeEmptyList(); argList.add(makeDereference(makeToken(),
+										   makeID(makeToken(),"x"),
+										   makeID(makeToken(),"f")));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"o"),
+							makeID(makeToken(),"+"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall method not found");
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"t"));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"o"),
+							makeID(makeToken(),"*"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall field not a method");
+	
+	val aID = makeID(makeToken(),"A");
+	val aType = new StateType { val name = aID; val superType = new None; };
+	val fID = makeID(makeToken(),"f");
+	val fType = makeFieldType(fID.copy(), createTakeType(IMM,getIntegerType()), true);
+	aType.providedTypes.put(fID.copy(), fType);
+	aType.declaredTypes.put(fID.copy(), fType);
+	st.put(aID, aType);
+	
+	cIn.put(makeID(makeToken(), "a"), createNominalType(makeID(makeToken(), "A")));
+	oldAst = oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"a"),
+							makeID(makeToken(),"f"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall receiver not in scope");
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"t"));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"y"),
+							makeID(makeToken(),"*"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall receiver not in LNF");
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"t"));
+	oldAst = makeMethodCall(makeToken(),
+							makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"f")),
+							makeID(makeToken(),"*"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall succeed (update types)");
+	
+	val mArgTypes = makeEmptyList();
+	mArgTypes.add(createChangeType(createPermType(IMM,getIntegerType()),
+								   getVoidType(),
+								   false));
+	val mID = makeID(makeToken(),"m");
+	val mType = makeMethodType(mID.copy(), 
+							   createTakeType(IMM,getIntegerType()),
+							   mArgTypes,
+							   createChangeType(createPermType(IMM,getIntegerType()),
+								   getVoidType(),
+								   false),
+							   java.util.HashMap.new());
+	aType.providedTypes.put(mID.copy(), mType);
+	aType.declaredTypes.put(mID.copy(), mType);
+	
+	oldAst = oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"a"),
+							makeID(makeToken(),"m"),
+							argList);
+	newAst = oldAst.copy();
+	cOut = cIn.copy();
+	cOut.update(makeID(makeToken(), "a"), getUnitType());
+	cOut.update(makeID(makeToken(), "t"), getUnitType());
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false, result.toString());
+		}
+		default {
+			match (result == getIntegerType()) {
+				case True {
+					match (oldAst == newAst) {
+						case True {
+							match (cIn == cOut) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "context should be updated" );
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "ast should not be updated");
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "wrong return type (not Integer)");
+				}
+			}	
+		}
+	};
 	
 };
