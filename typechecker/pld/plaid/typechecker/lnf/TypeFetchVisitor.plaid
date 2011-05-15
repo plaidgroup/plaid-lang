@@ -71,17 +71,22 @@ state TypeFetchVisitor case of ASTVisitor {
 			case ID {
 				match (this.context.containsKey(node.e)) {
 					case True {
-						val /*unique Option<immutable ObjectType>*/ stateType = node.s.accept(this);
-						match (stateType) {
-							case ErrObjectType {
-								//state not supported yet
-								newObjectError("Only QIs supported for state change");
+						match (node.s) {
+							case QI {
+								val /*unique Option<immutable ObjectType>*/ stateType = node.s.accept(this);
+								match (stateType) {
+									case ErrObjectType {
+										newObjectError("Error in Initializer: " + stateType.errorMsg);
+									}
+									default {
+										this.context.update(node.e,stateType);
+										getUnitType();
+									}
+								}
 							}
 							default {
-								this.context.update(node.e,stateTypeOption);
-								getUnitType();
+								newObjectError("Only QIs supported as states right now");
 							}
-
 						}
 					}
 					case False {
@@ -160,13 +165,30 @@ state TypeFetchVisitor case of ASTVisitor {
 	method visitQI(node) {
 		match (node.initState) {
 			case Some { //use this visitor (context) on the initializers 
-				node.initState.value.decls.map(fn (decl) => decl.accept(this) );
+				val initTypes = node.initState.value.decls.map(fn (decl) => decl.accept(this));
+				val errString = initTypes.foldr(fn (t,z) => {
+					match (t) {
+						case ErrObjectType {
+							z + "\n\t" + t.errorMsg
+						}
+						default {
+							z
+						}
+					}
+				}, "");
+				match (errString == "") {
+					case True {
+						createNominalType(makeID(node.token, node.toShortName()))
+					}
+					case False {
+						newObjectError(errString);
+					}
+				}
 			}			
 			case None {
-				/* no op */
+				createNominalType(makeID(node.token, node.toShortName()))
 			}
 		};
-		createNominalType(makeID(node.token, node.toShortName()))
 	}
 	
 	method visitDoubleLiteral(node) {
@@ -187,7 +209,6 @@ state TypeFetchVisitor case of ASTVisitor {
 	
 	method void visitFieldDecl(node) {
 		node.e.accept(this);
-		unit
 	}
 	
 	method visitGroupDecl(node) {
@@ -360,64 +381,72 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 	method visitApplication(node) {
-		val /* unique Option<immutable ObjectType> */ functionTypeOption = this.context.getOption(node.f);
-		match (functionTypeOption) {
-			case Some {
-				val immutable ObjectType functionType = functionTypeOption.value;
-				match (functionType) {
-					case LambdaType {
-						match (node.arguments.length() == functionType.argTypes.length() ) { //redundant?
-							case True {
-								//TODO: add environment
-								val args = node.arguments.zip(functionType.argTypes);
-								var immutable Boolean argsOk = true;
-								args.map( fn (p) => {
-									match (this.context.containsKey(p.fst)) {
-										case True {
-											this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
-										}
-										case False {
-											//Error - argument not in scope
-											argsOk = false;
-										}
-									}
-								});
-								match (argsOk) {
+		match(node.f) {
+			case ID {
+				val /* unique Option<immutable ObjectType> */ functionTypeOption = this.context.getOption(node.f);
+				match (functionTypeOption) {
+					case Some {
+						val immutable ObjectType functionType = functionTypeOption.value;
+						match (functionType) {
+							case LambdaType {
+								match (node.arguments.length() == functionType.argTypes.length() ) { //redundant?
 									case True {
-										//return the return object type
-										match (functionType.returnType) {
-											case ObjectType { //TODO : this is hacky
-												functionType.returnType.copy() //return type should probably be a Binding
+										//TODO: add environment
+										val args = node.arguments.zip(functionType.argTypes);
+										var immutable Boolean argsOk = true;
+										args.map( fn (p) => {
+											match (this.context.containsKey(p.fst)) {
+												case True {
+													this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
+												}
+												case False {
+													//Error - argument not in scope
+													argsOk = false;
+												}
 											}
-											case PermType {
-												functionType.returnType.type.copy() //return type should probably be a Binding
+										});
+										match (argsOk) {
+											case True {
+												//return the return object type
+												match (functionType.returnType) {
+													case ObjectType { //TODO : this is hacky
+														functionType.returnType.copy() //return type should probably be a Binding
+													}
+													case PermType {
+														functionType.returnType.type.copy() //return type should probably be a Binding
+													}
+													default {
+														newObjectError("bad function return type");
+													}
+												};
 											}
-											default {
-												newObjectError("bad function return type");
+											case False {
+												// arg not in scope
+												newObjectError("not all args in LNF and in scope");
 											}
-										};
+										}
 									}
 									case False {
-										// arg not in scope
-										newObjectError("not all args in LNF and in scope");
+										//number of args mismatched
+										newObjectError("incorrect number of arguments supplied");
 									}
 								}
 							}
-							case False {
-								//number of args mismatched
-								newObjectError("incorrect number of arguments supplied");
+							default {
+								//not a lambda type
+								newObjectError("ID " + node.f.name + " not a lambda");
 							}
 						}
 					}
-					default {
-						//not a lambda type
-						newObjectError("ID " + node.name + " not a lambda");
+					case None {
+						//lambda not in context
+						newObjectError("ID " + node.f.name + " not a lambda");
 					}
 				}
 			}
-			case None {
-				//receiver not in context/not in LNF
-				newObjectError("ID " + node.name + " not a lambda");
+			default {
+				//lambda not in lnf
+				newObjectError("Not in LNF");
 			}
 		}
 	}
@@ -434,10 +463,9 @@ state TypeFetchVisitor case of ASTVisitor {
 				node.body.accept(new TypeFetchVisitor { val st = this.st; val context = methodContext; })
 			}
 			case False {
-				//error somehow....
+				newObjectError("arg number mismatch");
 			}
 		};
-		unit //always return void for now
 	}
 	
 	method visitLambda(node) {

@@ -19,10 +19,6 @@ val newTests = fn(unique Tester tester) => {
 	var goalDecls = unit;
 	val qiList = makeEmptyList(); qiList.add("N");
 	
-	var st = unit;
-	var ct = unit;
-	var typefetcher = unit;
-	
 	System.out.println("Testing New Transformation");
 	testName("lnf-new-bare");	//new N
 	oldDecls = new None;
@@ -41,17 +37,6 @@ val newTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
-	
-	//object Type
-	st = new StateTable { override val states = java.util.HashMap.new(); };
-	ct = new Context; 
-	
-	putState(st, "N");
-
-	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);
-	
-	newAst.accept(new PrintVisitor);
 	
 	testName("lnf-new-complex");	//new N {val immutable test f = a.b; val immutable test g = c.d; val immutable test h = e; }
 	val decls = makeEmptyList();
@@ -138,67 +123,57 @@ val newTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	testName("lnf-new-complex : typed");
-	
-	//object type
-	st = new StateTable { override val states = java.util.HashMap.new(); };
-	ct = new Context; 
-	
-	putState(st, "N");
-	putState(st, "A");
-	putState(st, "test");
-	
-	addField(st, "A", "b", "test");
-	addField(st, "A", "d", "test");
-	
-	putPerm(ct, "a", "A");
-	putPerm(ct, "c", "A");
-	putPerm(ct, "e", "test");
-
-	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);
-	
-	//set goalAst Type
-	
-	goalAst.objectType = getObjectType("N");	
-	goalAst.x.objectType = getObjectType("N");
-	goalAst.exp.objectType = getObjectType("N");
-	goalAst.body.objectType = getObjectType("N");
-	
-	goalAst.exp.s.initState.value.decls.head.value.f.objectType = noType;
-	goalAst.exp.s.initState.value.decls.head.value.e.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.value.e.x.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.value.e.exp.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.value.e.body.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.value.e.exp.left.objectType = getObjectType("A");
-	goalAst.exp.s.initState.value.decls.head.value.e.exp.right.objectType = noType;
+	System.out.println("");
 	
 	
-	goalAst.exp.s.initState.value.decls.head.next.value.f.objectType = noType;
-	goalAst.exp.s.initState.value.decls.head.next.value.e.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.next.value.e.x.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.next.value.e.exp.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.next.value.e.body.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.next.value.e.exp.left.objectType = getObjectType("A");
-	goalAst.exp.s.initState.value.decls.head.next.value.e.exp.right.objectType = noType;
+	System.out.println("Testing NewInstance ObjectType inference");
+	var typefetcher = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
 	
-	goalAst.exp.s.initState.value.decls.head.next.next.value.f.objectType = noType;
-	goalAst.exp.s.initState.value.decls.head.next.next.value.e.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.next.next.value.e.x.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.next.next.value.e.exp.objectType = getObjectType("test");
-	goalAst.exp.s.initState.value.decls.head.next.next.value.e.body.objectType = getObjectType("test");
 	
-	//newAst.accept(new PrintVisitor);
-//	goalAst.accept(new PrintVisitor);
+	st = new StateTable;
+	cIn = new Context;
+	cOut = cIn.copy();
+	val QI = makeQI(makeToken(),qiList,new None);
+	oldAst = makeNewInstance(makeToken(),QI);
+	newAst = oldAst.copy();
+	typefetcher = new TypeFetchVisitor{ val st = st; val context = cIn; };
 	
-	match (newAst == goalAst) {
-		case True {
-			tester.testPassed(true);
+	
+	testName("obj-new succeed");
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false, "error typing state: " + result.errorMsg);
 		}
-		case False {
-			tester.testPassed(false);
-			printErrorASTs(oldAst,newAst,goalAst);
+		default {
+			match (result == createNominalType(makeID(makeToken(), "N"))) {
+				case True {
+					match (oldAst == newAst) {
+						case True {
+							match (cIn == cOut) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "context should not change")
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "Ast should not change");
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "wrong type returned");
+				}
+			}
 		}
 	};
+	
 	
 };
