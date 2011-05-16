@@ -25,6 +25,7 @@ import java.lang.reflect.Modifier;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import plaid.runtime.PlaidCastException;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidInvalidArgumentException;
@@ -36,6 +37,7 @@ import plaid.runtime.PlaidRuntimeException;
 import plaid.runtime.PlaidState;
 import plaid.runtime.Util;
 import plaid.runtime.types.PlaidPermission;
+import plaid.runtime.utils.Delegate;
 
 public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObject {
 	@SuppressWarnings("unchecked")
@@ -176,6 +178,39 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 					this.members().put(m.getName(), result);
 					return result;
 				}
+			}
+		}
+		
+		// check for buildin operators
+		if ( result == null ) {
+			if ( name.equals("asInstanceOf") ) {
+				result = PlaidRuntime.getRuntime().getClassLoader().memberDef("asInstanceOf", true, null, false, true);
+				result.setValue(new PlaidMethodMap("asInstanceOf", this, new Delegate() {					
+					@Override
+					public PlaidObject invoke(PlaidObject thisVar, PlaidObject args) throws PlaidException {
+						PlaidJavaObjectMap pjom = (PlaidJavaObjectMap)thisVar;
+						if ( args instanceof PlaidJavaStateMap ) {
+							Class<?> iface = ((PlaidJavaStateMap)args).valueClass;
+							if ( iface.isInterface() ) {
+								boolean matched = false;
+								for ( Class<?> cls : pjom.getJavaObject().getClass().getInterfaces() ) {
+									if ( cls == iface ) {
+										matched = true;
+									}
+								}
+								if (matched) {
+									return thisVar;
+								} else {
+									throw new PlaidCastException("'" + pjom.getJavaObject().getClass().getCanonicalName() + "' does not implement '" + iface.getCanonicalName()+"'");
+								}
+							} else {
+								throw new PlaidCastException("'asInstanceOf' need a Java interface as parameter and not" + iface.getCanonicalName());
+							}	
+						} else {	
+							throw new PlaidCastException("'asInstanceOf' need a Java interface as parameter and not : " + args.toString());
+						}
+					}
+				}));
 			}
 		}
 		return result;

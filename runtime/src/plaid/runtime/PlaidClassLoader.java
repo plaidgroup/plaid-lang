@@ -154,4 +154,6 @@ public interface PlaidClassLoader {
 	 * @return
 	 */
 	public PlaidMemberDef memberDef(String memberName, boolean anonymous, PlaidTag definedIn, boolean mutable, boolean overrides);
+	
+	public PlaidJavaObject javaProxy(PlaidObject obj, Class<?> iface);
 }

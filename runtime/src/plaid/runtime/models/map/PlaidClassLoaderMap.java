@@ -340,4 +340,11 @@ public final class PlaidClassLoaderMap implements PlaidClassLoader {
 		
 		return loader;
 	}
+	
+	public PlaidJavaObject javaProxy(PlaidObject obj, Class<?> klazz) {
+		Class<?>[] klazzes = {klazz};
+		PlaidJavaObjectMap pjom = new PlaidJavaObjectMap();
+		pjom.setJavaObject(PlaidJavaProxyMap.newInstance(obj, klazzes));
+		return pjom;
+	}
 }
