@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 
+import plaid.runtime.PlaidCastException;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidInvalidArgumentException;
@@ -39,6 +40,7 @@ import plaid.runtime.annotations.RepresentsState;
 import plaid.runtime.annotations.RepresentsTag;
 import plaid.runtime.types.PlaidPermission;
 import plaid.runtime.types.PlaidUniquePermission;
+import plaid.runtime.utils.Delegate;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
@@ -301,6 +303,26 @@ public class PlaidStateMap extends PlaidObjectMap implements PlaidState {
 					pom.addTag(t,enclosingTag);
 			}
 		}
+		
+		// add build-in operators
+		PlaidMemberDef mdef = PlaidRuntime.getRuntime().getClassLoader().memberDef("asInstanceOf", true, PlaidRuntime.getRuntime().getClassLoader().tag("buildin", "internal", null), false, true);
+		pom.addMember(mdef, new PlaidMethodMap("asInstanceOf", pom, new Delegate() {
+			@Override
+			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)
+			throws PlaidException {
+				if ( args instanceof PlaidJavaStateMap ) {
+					Class<?> iface = ((PlaidJavaStateMap)args).valueClass;
+					if ( iface.isInterface() ) {
+						return PlaidRuntime.getRuntime().getClassLoader().javaProxy(thisVar, iface);
+					} else {
+						throw new PlaidCastException("'asInstanceOf' need a Java interface as parameter and not" + iface.getCanonicalName());
+					}	
+				} else {	
+					throw new PlaidCastException("'asInstanceOf' need a Java interface as parameter and not : " + args.toString());
+				}	
+			}	
+		}));
+
 		
 		return pom;
 	}
