@@ -11,15 +11,12 @@ val lambdaTests = fn(unique Tester tester) => {
 	var newAst = unit;
 	var oldAst = unit;
 	var goalAst = unit;
+	var oldFnType = unit;
 	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
-	
-	var st = unit;
-	var ct = unit;
-	var typefetcher = unit;
 	
 	System.out.println("Testing Function Transformation");
 	testName("lnf-function");	// fn() -> {a.b}
-	val oldFnType = createLambdaType(getVoidType(),makeEmptyList(),java.util.HashMap.new());
+	oldFnType = createLambdaType(getVoidType(),makeEmptyList(),java.util.HashMap.new());
 	oldAst = makeLambda(makeToken(), 
 					    makeEmptyList(), 
 					    makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
@@ -49,44 +46,66 @@ val lambdaTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
+
+	System.out.println("");
 	
-	testName("lnf-function : typed");	// fn() -> {a.b}
+	System.out.println("Testing StateChange ObjectType inference");
+	var typefetcher = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
+	var goalType = unit;
+	var argList = unit;
+	var argTypes = unit;
 	
-	st = new StateTable ;
-	ct = new Context; 
+	testName("obj-lambda succeed");
+	argTypes = makeEmptyList();
+	argTypes.add(createChangeType(createPermType(IMM,getIntegerType()),createPermType(NONEP,getIntegerType()), false));
+	oldFnType = createLambdaType(getUnitType(), argTypes, java.util.HashMap.new());
+	argList = makeEmptyList();
+	argList.add(makeID(makeToken(),"x"));
+	oldAst = makeLambda(makeToken(),argList,makeID(makeToken(),"x"),oldFnType,new None);
+	goalType = oldFnType.copy();
+	goalType.returnType = getIntegerType();
+	val newArgList = makeEmptyList();
+	newArgList.add(makeID(makeToken(),"x"));
+	newAst = makeLambda(makeToken(),newArgList,makeID(makeToken(),"x"),goalType,new None);
+	cIn = new Context;
+	cOut = new Context;
+	st = new StateTable;
+	typefetcher = new TypeFetchVisitor { val st = st; val context = cIn; };
 	
-	putState(st, "A");
-	putState(st, "B");
-	addField(st, "A", "b", "B");
-	
-	putPerm(ct, "a", "A");
-	
-	typefetcher = new TypeFetchVisitor { var context = ct; var stateTable = st; };
-	newAst.accept(typefetcher);
-	
-	goalAst.objectType =  noType;
-	goalAst.x.objectType = noType;
-	goalAst.exp.objectType =  noType;
-	goalAst.body.objectType =  noType;
-		
-	goalAst.exp.body.objectType = getObjectType("B");
-	goalAst.exp.body.x.objectType = getObjectType("B");
-	goalAst.exp.body.exp.objectType = getObjectType("B");
-	goalAst.exp.body.body.objectType = getObjectType("B");
-	
-	goalAst.exp.body.exp.left.objectType = getObjectType("A");
-	goalAst.exp.body.exp.right.objectType = noType;
-	
-	//newAst.accept(new PrintVisitor);
-	//goalAst.accept(new PrintVisitor);
-	
-	match (newAst == goalAst) {
-		case True {
-			tester.testPassed(true);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false, "object type infernce of lambda failed: " + result.errorMsg);
 		}
-		case False {
-			tester.testPassed(false);
-			printErrorASTs(oldAst,newAst,goalAst);
+		default {
+			match (result == goalType) {
+				case True {
+					match (newAst == oldAst) {
+						case True {
+							match (cIn == cOut) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "context should not be updated");
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "type not updated in AST");
+						}
+					}	
+				}
+				case False {
+					tester.testPassedMsg(false, "wrong type returned");
+				}
+			}
 		}
-	};
+	}
+	
+
 };
