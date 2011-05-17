@@ -7,15 +7,6 @@ import plaid.ast.types.*;
 import plaid.ast.types.permissions.*;
 import plaid.typechecker.context.*;
 
-/*
- * if node.objectType = errType, it means  the object type for the expression cannot be get because some err
- * if node.objectType = noType, it means the field hasn't been initialized or it is the right ID in a dereference node.
- * TODO: gurantee this been propogate from botton to top
- * TODO: initialize context when entering lambda, method, and state
- * TODO: put basic type into st, put basic stae inot context
- * TODO: consider how to deal with top level method (should it in context? or state)
- */
-
 state TypeFetchVisitor case of ASTVisitor {
 	//TODO: initialize them
 	val unique StateTable st;
@@ -228,156 +219,170 @@ state TypeFetchVisitor case of ASTVisitor {
 		}
 	}
 
-	method visitMatch(node) {		
-		val unique Context oldContext = context.copy();
-		val unique Context result = context.copy();
-		
-		val /*unique Option<immutable ObjectType>*/ matchExpOption = this.context.getOption(node.e);
-		match (matchExpOption) {
-			case Some {
-				val /*List<unique Option<unique Pair<ObjectType,Context>>>*/ casesList = node.caseList.map(fn (c) => {
-					val caseContext = this.context.copy();
-					
-					//update type of matched ID in context
-					match (c.qi) {
-						case Some {
-							//new context so if somehow there are initializers that don't get run, they don't mess up the context
-							val /*unique Option<immutable ObjectType>*/ updateType =
-								c.qi.value.accept(new TypeFetchVisitor { val st = this.st; val context = new Context; }); 
-							match (updateType) {
+	method visitMatch(node) {			
+		match (node.e) {
+			case ID {
+				val /*unique Option<immutable ObjectType>*/ matchExpOption = this.context.getOption(node.e);
+				match (matchExpOption) {
+					case Some {
+						val /*List<unique Option<unique Pair<ObjectType,Context>>>*/ casesList = node.caseList.map(fn (c) => {
+							val caseContext = this.context.copy();
+							
+							//update type of matched ID in context
+							match (c.qi) {
+								case Some {
+									//new context so if somehow there are initializers that don't get run, they don't mess up the context
+									val /*unique Option<immutable ObjectType>*/ updateType =
+										c.qi.value.accept(new TypeFetchVisitor { val st = this.st; val context = new Context; }); 
+									match (updateType) {
+										case ErrObjectType {
+											//do nothing ... doesn't impact execution
+										}
+										default {
+											caseContext.update(node.e.copy(),updateType)
+										}
+									}
+								}
+								case None {
+									/* default case - no op */
+								}
+							};
+							
+							val /*unique Option<immutable ObjectType>*/ expType = 
+								c.e.accept(new TypeFetchVisitor { val st = this.st; val context = caseContext; });
+							makePair(expType, caseContext)
+						});
+						
+						val seed = casesList.car();
+						val casesListCDR = casesList.cdr();
+						val outgoingTypeAndContext = casesListCDR.foldl(fn (o,z) => {
+							match (z.fst) {
 								case ErrObjectType {
-									//do nothing ... doesn't impact execution
+									match (o.fst) {
+										case ErrObjectType { //add to error string
+											makePair(newObjectError("" + o.fst.errorMsg + ", " + z.fst.errorMsg),z.snd)
+										}
+										default { //don't add anything - context won't be used
+											o
+										}
+									}
 								}
 								default {
-									caseContext.update(node.e.copy(),updateType)
-								}
-							}
-						}
-						case None {
-							/* default case - no op */
-						}
-					};
-					
-					val /*unique Option<immutable ObjectType>*/ expType = 
-						c.e.accept(new TypeFetchVisitor { val st = this.st; val context = caseContext; });
-					makePair(expType, caseContext)
-				});
-				
-				val seed = casesList.car();
-				val casesListCDR = casesList.cdr();
-				val outgoingTypeAndContext = casesListCDR.foldl(fn (o,z) => {
-					match (z.fst) {
-						case ErrObjectType {
-							match (o.fst) {
-								case ErrObjectType { //add to error string
-									makePair(newObjectError("" + o.errorMsg + "\n" + z.errorMsg),z.snd)
-								}
-								default { //don't add anything - context won't be used
-									o
-								}
-							}
-						}
-						default {
-							match(z.fst == o.fst) { //for now types have to be the same (could do least upper bound too)
-								case True {
-									val /*unique Option<unique Context>*/ mergedContextOption = 
-										z.snd.merge(o.snd,this.st);
-									match (mergedContextOption) {
+									val unique ObjectType lub = z.fst.leastUpperBound(o.fst,this.st);
+									match(lub) { 
 										case Some {
-											makePair(z.fst,mergedContextOption.value)
+											val /*unique Option<unique Context>*/ mergedContextOption = 
+												z.snd.merge(o.snd,this.st);
+											match (mergedContextOption) {
+												case Some {
+													makePair(lub.value,mergedContextOption.value)
+												}
+												case None { makePair(newObjectError("contexts could not be merged"),z.snd); }
+											}	
 										}
-										case None { newObjectError("contexts could not be merged"); }
-									}	
+										case None { makePair(newObjectError("types returned from different cases not from same hierarchy"),z.snd); }
+									}
 								}
-								case False { newObjectError("types returned from different cases not equal"); }
+							}
+						}, seed);
+						
+						
+						match(outgoingTypeAndContext.fst)  {
+							case ErrObjectType {
+								outgoingTypeAndContext.fst
+							}
+							default {
+								//set context to the merged version from the cases
+								this.context.reset();
+								this.context.addAll(outgoingTypeAndContext.snd);
+								outgoingTypeAndContext.fst // return
 							}
 						}
+		
 					}
-				}, seed);
-				
-				
-				match(outgoingTypeAndContext.fst)  {
-					case ErrObjectType {
-						outgoingTypeAndContext.fst
-					}
-					default {
-						//set context to the merged version from the cases
-						this.context.reset();
-						this.context.addAll(outgoingTypeAndContextOption.value.snd);
-						outgoingTypeAndContextOption.fst // return
+					case None { 
+						//ID not in scope
+						newObjectError("match target not in scope");
 					}
 				}
-
 			}
-			case None { 
-				//ID not in scope
-				newObjectError("match target not in scope or not in LNF");
+			default {
+				//target not in LNF
+				newObjectError("match target not in LNF");
 			}
 		}
 	}
 	
 	method visitMethodCall(node) {
-		val /* unique Option<immutable ObjectType> */ receiverTypeOption = this.context.getOption(node.receiver);
-		match (receiverTypeOption) {
-			case Some {
-				val /*unique Option<immutable DeclType> */ methodTypeOption =
-					receiverTypeOption.value.declaredType(node.methodName,this.st);
-				match (methodTypeOption) {
+		match( node.receiver) {
+			case ID {
+				val /* unique Option<immutable ObjectType> */ receiverTypeOption = this.context.getOption(node.receiver);
+				match (receiverTypeOption) {
 					case Some {
-						val immutable DeclType methodType = methodTypeOption.value; 
-						match (methodType) {
-							case MethodType {
-								match (node.arguments.length() == methodType.argTypes.length() ) { //redundant?
-									case True {
-										//TODO: add environment
-										val argsAndReceiver = node.arguments.zip(methodType.argTypes);
-										argsAndReceiver.prepend(makePair(node.receiver.copy(), methodType.receiverType));
-										var immutable Boolean argsOk = true;
-										argsAndReceiver.map( fn (p) => {
-											match (this.context.containsKey(p.fst)) {
-												case True {
-													this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
-												}
-												case False {
-													//Error - argument not in scope
-													argsOk = false;
-												}
-											}
-										});
-										match (argsOk) {
+						val /*unique Option<immutable DeclType> */ methodTypeOption =
+							receiverTypeOption.value.declaredType(node.methodName,this.st);
+						match (methodTypeOption) {
+							case Some {
+								val immutable DeclType methodType = methodTypeOption.value; 
+								match (methodType) {
+									case MethodType {
+										match (node.arguments.length() == methodType.argTypes.length() ) { //redundant?
 											case True {
-												//return the return object type
-												methodType.returnType.currentType.type.copy()
+												//TODO: add environment
+												val argsAndReceiver = node.arguments.zip(methodType.argTypes);
+												argsAndReceiver.prepend(makePair(node.receiver.copy(), methodType.receiverType));
+												var immutable Boolean argsOk = true;
+												argsAndReceiver.map( fn (p) => {
+													match (this.context.containsKey(p.fst)) {
+														case True {
+															this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
+														}
+														case False {
+															//Error - argument not in scope
+															argsOk = false;
+														}
+													}
+												});
+												match (argsOk) {
+													case True {
+														//return the return object type
+														methodType.returnType.currentType.type.copy()
+													}
+													case False {
+														// arg not in scope
+														newObjectError("not all args in LNF and in scope");
+													}
+												}
 											}
 											case False {
-												// arg not in scope
-												newObjectError("not all args in LNF and in scope");
+												//number of args mismatched
+												newObjectError("incorrect number of arguments supplied");
 											}
 										}
 									}
-									case False {
-										//number of args mismatched
-										newObjectError("incorrect number of arguments supplied");
+									default {
+										//not a method
+										newObjectError("member " + node.methodName.name + " is a field not a method");
 									}
 								}
+								
 							}
-							default {
-								//not a method
-								newObjectError("member " + node.methodName.name + " is a field not a method");
+							case None {
+								//method not found
+								newObjectError("method " + node.methodName.name + " not found");
 							}
 						}
-						
 					}
 					case None {
-						//method not found
-						newObjectError("method " + node.methodName.name + " not found");
+						//receiver not in context
+						newObjectError("receiver not in scope");
 					}
 				}
 			}
-			case None {
-				//receiver not in context/not in LNF
-				newObjectError("receiver not in LNF or not in scope");
-			}
+			default {
+				//receiver not in LNF
+				newObjectError("receiver not in LNF");
+			}	
 		}
 	}
 	
