@@ -8,20 +8,24 @@ import plaid.ast.types.permissions.*;
 import plaid.typechecker.context.*;
 
 state TypeFetchVisitor case of ASTVisitor {
-	//TODO: initialize them
 	val unique StateTable st;
 	val unique Context context;
 	
 	method visitBinding(node) {
-		val /*unique Option<immutable ObjectType>*/ expType = node.exp.accept(this);
+		val immutable ObjectType expType = node.exp.accept(this);
 		match (expType) {
 			case ErrObjectType {
 				//bound exp Failed
 				newObjectError("object Inference of bound expression of binding failed")
 			}
 			default {
-				this.context.put(node.x.copy(), expType);
-				val /*unique Option<immutable ObjectType>*/ bodyType = node.body.accept(this);
+				val immutable ObjectType xType = match (node) {
+					case NoTypeAnnotation { expType }
+					case ObjectTypeAnnotation { node.oType.copy(); }
+					case PermTypeAnnotation { node.pType.type.copy() } 
+				};
+				this.context.put(node.x.copy(), xType);
+				val immutable ObjectType bodyType = node.body.accept(this);
 				match (bodyType) {
 					case ErrObjectType {
 						//body failed
@@ -34,11 +38,10 @@ state TypeFetchVisitor case of ASTVisitor {
 							default { /* no op */ }
 						};
 						this.context.remove(node.x);
-						bodyTypeOption.value;
+						bodyType;
 					}
 				}
 			}
-
 		}
 	}
 	
