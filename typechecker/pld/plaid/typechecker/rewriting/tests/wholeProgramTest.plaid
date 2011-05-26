@@ -9,28 +9,26 @@ import plaid.typechecker.rewriting.*;
 import plaid.typechecker.StateTableBuilderVisitor;
 import plaid.ast.types.permissions.*;
 
-val () -> void wholeProgramTest = fn(immutable String filename) => {
+val () -> void wholeProgramTest = fn(immutable String filename, unique Tester tester) => {
 	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new(filename)));
 	val unique ASTTranslator translator = new ASTTranslator;
-	
 	val unique ASTNode plaidAST = translator.translateAST(javaAST);	
 	val stateTableVisitor = new StateTableBuilderVisitor;
 	plaidAST.accept(stateTableVisitor);
 	
-	java.lang.System.out.println("\n\nSTATE TABLE: " + filename + "\n\n");
-	stateTableVisitor.stateTable.printTable();
-	
-	java.lang.System.out.println("\n\nWHOLE PROGRAM: " + filename + "\n\n");
-	
-	//plaidAST.accept(new PrintVisitor);
-	
-	java.lang.System.out.println("\n==============AST without Type================\n");
+	testName("WHOLE PROGRAM: " + filename + "\n\n");
 	val unique ASTNode newAST = plaidAST.accept(new LetNormalFormVisitor);
-	
-//	newAST.accept(new PrintVisitor);
-	
-	val typefetcher = new TypeFetchVisitor { val context = stateTableVisitor.initialContext; val st = stateTableVisitor.stateTable; };
-	newAST.accept(typefetcher);	
+	val ct = createObjContextFromCU(newAST);
+	val typefetcher = new TypeFetchVisitor { val context = ct; val st = stateTableVisitor.stateTable; };
+	val result = newAST.accept(typefetcher);
+	match( result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,result.errorMsg);
+		}
+		default {
+			tester.testPassed(true)
+		}
+	};
 	
 	java.lang.System.out.println("\n===============AST with Type===============\n");
 	newAST.accept(new PrintVisitor);
