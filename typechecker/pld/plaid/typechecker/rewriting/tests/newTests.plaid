@@ -1,4 +1,4 @@
-package plaid.typechecker.lnf.tests;
+package plaid.typechecker.rewriting.tests;
 
 import plaid.ast.*;
 import plaid.testing.*;
@@ -6,10 +6,11 @@ import plaid.ast.types.*;
 import plaid.ast.types.permissions.IMM;
 import plaid.typechecker.context.*;
 import plaid.ast.stateTable.*;
-import plaid.typechecker.lnf.*;
+import plaid.typechecker.rewriting.*;
 import plaid.ast.types.permissions.*;
 
-val changeStateTests = fn(unique Tester tester) => {
+val newTests = fn(unique Tester tester) => {
+	
 	var newAst = unit;
 	var oldAst = unit;
 	var goalAst = unit;
@@ -18,14 +19,14 @@ val changeStateTests = fn(unique Tester tester) => {
 	var goalDecls = unit;
 	val qiList = makeEmptyList(); qiList.add("N");
 	
-	System.out.println("Testing State Change Transformation");
-	testName("lnf-change-bare");	//x <- N
+	System.out.println("Testing New Transformation");
+	testName("lnf-new-bare");	//new N
 	oldDecls = new None;
-	oldAst = makeChangeState(makeToken(), makeID(makeToken(), "x"), makeQI(makeToken(), qiList, oldDecls));
+	oldAst = makeNewInstance(makeToken(), makeQI(makeToken(), qiList, oldDecls));
 	newAst = oldAst.accept(lnfVisitor).first();
 	goalDecls = new None;
 	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
-						 makeChangeState(makeToken(), makeID(makeToken(), "x"),makeQI(makeToken(), qiList, goalDecls)),
+						 makeNewInstance(makeToken(), makeQI(makeToken(), qiList, goalDecls)),
 					     makeTempID(makeToken(),"t1"), false);
 	match (newAst == goalAst) {
 		case True {
@@ -37,7 +38,7 @@ val changeStateTests = fn(unique Tester tester) => {
 		}
 	};
 	
-	testName("lnf-change-C");	//x.y <- N {val immutable test f = a.b; val immutable test g = c.d; val immutable test h = e; }
+	testName("lnf-new-complex");	//new N {val immutable test f = a.b; val immutable test g = c.d; val immutable test h = e; }
 	val decls = makeEmptyList();
 	decls.add(makeFieldDecl(makeToken(),
 							makeID(makeToken(),"f"), 
@@ -62,9 +63,7 @@ val changeStateTests = fn(unique Tester tester) => {
 											true)));							
 	val initState = makeDeclList(makeToken(),decls);
 	oldDecls = createSome(initState);
-	oldAst = makeChangeState(makeToken(), 
-							 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(), "y")),
-							 makeQI(makeToken(), qiList, oldDecls));
+	oldAst = makeNewInstance(makeToken(), makeQI(makeToken(), qiList, oldDecls));
 	newAst = oldAst.accept(lnfVisitor).first();
 	val newDecls = makeEmptyList();
 	newDecls.add(makeFieldDecl(makeToken(),
@@ -104,15 +103,16 @@ val changeStateTests = fn(unique Tester tester) => {
 	goalDecls = createSome(newInitState);
 	goalAst = makeTake(makeToken(),
 					   makeTempID(makeToken(),"t1"),
-					   makeBorrow(makeToken(),
-					   			  makeTempID(makeToken(), "t5"),
-					   			  makeDereference(makeToken(), makeID(makeToken(), "x"), makeID(makeToken(), "y")),
-					   			  makeChangeState(makeToken(), 
-					   			  				  makeTempID(makeToken(), "t5"),
-					   			  				  makeQI(makeToken(),qiList,goalDecls)),
-					   			  false),
+					   makeNewInstance(makeToken(), makeQI(makeToken(), qiList, goalDecls)),
 					   makeTempID(makeToken(),"t1"), 
 					   false);
+	/*
+	 * take t1 = new N {
+	 * 	f = borrow t2 = a.b int t2
+	 *  g = .....
+	 * } int t1
+	 */
+		
 	match (newAst == goalAst) {
 		case True {
 			tester.testPassed(true);
@@ -122,124 +122,56 @@ val changeStateTests = fn(unique Tester tester) => {
 			printErrorASTs(oldAst,newAst,goalAst);
 		}
 	};
+	
 	System.out.println("");
 	
-	System.out.println("Testing StateChange ObjectType inference");
+	
+	System.out.println("Testing NewInstance ObjectType inference");
 	var typefetcher = unit;
 	var st = unit;
 	var cIn = unit;
 	var cOut = unit;
 	var result = unit;
-	var goalType = unit;
-	var oldFnType = unit;
 	
-	testName("obj-changeState succeed");
+	
 	st = new StateTable;
-	oldAst = makeChangeState(makeToken(), makeID(makeToken(), "x"), makeQI(makeToken(), qiList, new None));
 	cIn = new Context;
-	cIn.put(makeID(makeToken(), "x"),getUnitType());
 	cOut = cIn.copy();
-	cOut.update(makeID(makeToken(), "x"), createNominalType(makeID(makeToken(),"N")));
+	val QI = makeQI(makeToken(),qiList,new None);
+	oldAst = makeNewInstance(makeToken(),QI);
 	newAst = oldAst.copy();
-	typefetcher = new TypeFetchVisitor { val st = st; val context = cIn; };
+	typefetcher = new TypeFetchVisitor{ val st = st; val context = cIn; };
+	
+	
+	testName("obj-new succeed");
 	result = oldAst.accept(typefetcher);
-	match (result) {
+	match(result) {
 		case ErrObjectType {
-			tester.testPassedMsg(false,"inference failed: " + result.errorMsg);
+			tester.testPassedMsg(false, "error typing state: " + result.errorMsg);
 		}
 		default {
-			match (result == getUnitType()) {
+			match (result == createNominalType(makeID(makeToken(), "N"))) {
 				case True {
 					match (oldAst == newAst) {
 						case True {
-							match ( cIn == cOut) {
+							match (cIn == cOut) {
 								case True {
 									tester.testPassed(true);
-								}	
+								}
 								case False {
-									tester.testPassedMsg(false, "context not updated correctly");
+									tester.testPassedMsg(false, "context should not change")
 								}
 							}
 						}
 						case False {
-							tester.testPassedMsg(false, "AST should not be updated");
+							tester.testPassedMsg(false, "Ast should not change");
 						}
 					}
 				}
 				case False {
-					tester.testPassedMsg(false, "wrong type returned (not Unit)");
+					tester.testPassedMsg(false, "wrong type returned");
 				}
 			}
-		}
-	};
-	
-	testName("obj-changeState not in LNF");
-	oldAst = makeChangeState(makeToken(), 
-							 makeDereference(makeToken(),
-							 				 makeID(makeToken(), "x"),
-							 				 makeID(makeToken(),"f")),
-							 makeQI(makeToken(), qiList, new None));
-	result = oldAst.accept(typefetcher);
-	match( result) {
-		case ErrObjectType {
-			tester.testPassedMsg(true, result.errorMsg);
-		}
-		default {
-			tester.testPassed(false);
-		}
-	};
-	
-	testName("obj-changeState target not in scope");
-	oldAst = makeChangeState(makeToken(), 
-							 makeID(makeToken(),"a"),
-							 makeQI(makeToken(), qiList, new None));
-	result = oldAst.accept(typefetcher);
-	match( result) {
-		case ErrObjectType {
-			tester.testPassedMsg(true, result.errorMsg);
-		}
-		default {
-			tester.testPassed(false);
-		}
-	};
-	
-	testName("obj-changeState state not a QI");
-	oldAst = makeChangeState(makeToken(), 
-							 makeID(makeToken(), "x"),
-							 makeWith(makeToken(),
-							 		  makeQI(makeToken(), qiList, new None),
-							 		  makeQI(makeToken(), qiList, new None)));
-	result = oldAst.accept(typefetcher);
-	match( result) {
-		case ErrObjectType {
-			tester.testPassedMsg(true, result.errorMsg);
-		}
-		default {
-			tester.testPassed(false);
-		}
-	};
-	
-	testName("obj-changeState error in initializer");
-	val initDecls = makeEmptyList();
-	initDecls.add(makeFieldDecl(makeToken(),
-							makeID(makeToken(),"f"), 
-							makeID(makeToken(), "z"),
-							false, false, 
-							makeFieldType(makeID(makeToken(),"f"),
-											createTakeType(IMM,createNominalType(makeID(makeToken(),"test"))),
-											true)));
-	val initSC = makeDeclList(makeToken(),initDecls);
-	oldAst = makeChangeState(makeToken(), 
-							 makeID(makeToken(), "x"),
-							 makeQI(makeToken(), qiList, createSome(initSC)));
-	result = oldAst.accept(typefetcher);
-	
-	match (result) {
-		case ErrObjectType {
-			tester.testPassedMsg(true,result.errorMsg);
-		}
-		default {
-			tester.testPassed(false);
 		}
 	};
 	
