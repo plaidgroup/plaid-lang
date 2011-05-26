@@ -16,7 +16,7 @@ state TypeFetchVisitor case of ASTVisitor {
 		match (expType) {
 			case ErrObjectType {
 				//bound exp Failed
-				newObjectError("object Inference of bound expression of binding failed")
+				newObjectError("let exp failure: " + expType.errorMsg)
 			}
 			default {
 				val immutable ObjectType xType = match (node) {
@@ -29,7 +29,7 @@ state TypeFetchVisitor case of ASTVisitor {
 				match (bodyType) {
 					case ErrObjectType {
 						//body failed
-						newObjectError("object Inference of body of binding failed");
+						newObjectError("let body failure: " + bodyType.errorMsg);
 					}
 					default {
 						//success
@@ -97,17 +97,35 @@ state TypeFetchVisitor case of ASTVisitor {
 		}
 	}
 	
-	method visitCompilationUnit(node) {		
-		node.decls.map(fn (decl) => {
-			decl.accept(new TypeFetchVisitor { val st = this.st; val context = new Context; })
-		});
+	method visitCompilationUnit(node) {
+		declListHelper(node.decls);
 	}
 	
 	method visitDeclList(node) {
-		node.decls.map(fn (decl) => {
-			decl.accept(new TypeFetchVisitor { val st = this.st; val context = new Context; })
-		});
-		newObjectError("non Nominal States not implemented");
+		declListHelper(node.decls);
+		//newObjectError("non Nominal States not implemented");
+	}
+	
+	method declListHelper(/* immutable List<Decl>*/ decls) {
+		decls.foldl(fn (decl,pastResult) => {
+			val result = decl.accept(this);
+			match (result) {
+				case ErrObjectType {
+					val errString = "error in decl " + decl.getName() + ": " + result.errorMsg;
+					match (pastResult) {
+						case ErrObjectType {
+							newObjectError(pastResult.errorMsg + ", " + errString);
+						}
+						default {
+							newObjectError(errString); 
+						}
+					}
+				}
+				default {
+					pastResult
+				}
+			}
+		},getUnitType());
 	}
 	
 	method visitDereference(node) {
@@ -203,7 +221,7 @@ state TypeFetchVisitor case of ASTVisitor {
 	}
 	
 	method void visitFieldDecl(node) {
-		node.e.accept(this);
+		node.e.accept(this);	
 	}
 	
 	method visitGroupDecl(node) {
@@ -280,7 +298,7 @@ state TypeFetchVisitor case of ASTVisitor {
 												case Some {
 													makePair(lub.value,mergedContextOption.value)
 												}
-												case None { makePair(newObjectError("contexts could not be merged"),z.snd); }
+												case None { makePair(newObjectError("contexts could not be merged"),z.snd) }
 											}	
 										}
 										case None { makePair(newObjectError("types returned from different cases not from same hierarchy"),z.snd); }
@@ -443,13 +461,13 @@ state TypeFetchVisitor case of ASTVisitor {
 							}
 							default {
 								//not a lambda type
-								newObjectError("ID " + node.f.name + " not a lambda");
+								newObjectError("ID " + node.f.name + " not a lambda: " + functionType.toString());
 							}
 						}
 					}
 					case None {
 						//lambda not in context
-						newObjectError("ID " + node.f.name + " not a lambda");
+						newObjectError("ID " + node.f.name + " not in the context");
 					}
 				}
 			}
@@ -464,10 +482,17 @@ state TypeFetchVisitor case of ASTVisitor {
 		match (node.arguments.length() == node.methodType.argTypes.length() ) { //redundantly checked? 
 			case True {
 				val methodContext = new Context;
+				//CLUDGE!!!!  TODO: handle top level better
+				match (node.getName() == "main") {
+					case True { //main functions are special and should include the top level declarations
+						methodContext.addAll(this.context);
+					}
+					case False { /* Do Nothing */ }
+				};
 				node.arguments.zip(node.methodType.argTypes).map(fn (p) => {
 					methodContext.put(p.fst.copy(), p.snd.inputBinding().getObjectType())
 				});
-				methodContext.put(makeID(makeToken(),"this"),methodType.receiverType.inputBinding().getObjectType());
+				methodContext.put(makeID(makeToken(),"this$plaid"),node.methodType.receiverType.inputBinding().getObjectType());
 				//TODO: add environment
 				node.body.accept(new TypeFetchVisitor { val st = this.st; val context = methodContext; })
 			}
@@ -481,10 +506,27 @@ state TypeFetchVisitor case of ASTVisitor {
 		match (node.arguments.length() == node.lambdaType.argTypes.length() ) { //redundantly checked? 
 			case True {
 				val lambdaContext = new Context;
+				match (node.recursiveName) {
+					case Some { //look for recursive name in the context and add it if it exists
+						val recursiveTypeOption = this.context.getOption(node.recursiveName.value);
+						match (recursiveTypeOption) {
+							case Some {
+								lambdaContext.put(node.recursiveName.value.copy(), recursiveTypeOption.value)
+							}
+							case None { /* Do Nothing */ }
+						}
+					}
+					case None { /* do nothing */ }
+				};
 				node.arguments.zip(node.lambdaType.argTypes).map(fn (p) => {
 					lambdaContext.put(p.fst.copy(), p.snd.inputBinding().getObjectType())
 				});
-				//TODO: add environment
+				val iterator = node.lambdaType.environmentTypes.keySet().iterator();
+				while { iterator.hasNext() } {
+					val envId = iterator.next();
+					val envType = node.lambdaType.environmentTypes.get(envId).inputBinding().getObjectType();
+					lambdaContext.put(envId.copy(), envType);
+				};
 				val /*unique Option<immutable ObjectType>*/ returnType = 
 					node.body.accept(new TypeFetchVisitor { val st = this.st; val context = lambdaContext; });
 				match (returnType) {
@@ -497,7 +539,14 @@ state TypeFetchVisitor case of ASTVisitor {
 						val immutable Token newToken = node.token;
 						val /*unique List<unique ID>*/ newArgs = node.arguments;
 						val unique Expression newBody = node.body;
-						val /*unique Option<unique ID>*/ newRecName = node.recursiveName;
+						val /*unique Option<unique ID>*/ newRecName = match(node.recursiveName) {
+								case Some {
+									createSome(node.recursiveName.value.copy())
+								}
+								case None {
+									new None
+								}
+							};
 						node <<- Lambda { //udpate the lambda type for future use - more elegant way?
 							val /*Token*/ token = newToken;
 							val /*List<ID>*/ arguments = newArgs;
@@ -523,63 +572,9 @@ state TypeFetchVisitor case of ASTVisitor {
 		newObjectError("Split Block not implemented");
 	}
 	
-	//TODO : update
+
 	method visitStateDecl(node) {
-		node.name.accept(this); //no use
-		var oldContext = context.copy();
-		
-		context.put(makeID(makeToken(), "this$plaid"), createTakeType(IMM, createNominalType(node.name)));	//TODO perm??
-		
-		var /*Option StateType*/ statetype = st.get(node.name);	//TODO: NOT SURE IF I CAN USE node.stateType directly
-		match (statetype) {
-			case Some {				
-			} 
-			default {
-				java.lang.System.err("Cannot find State in State Table: " + node.name.toString());
-			}
-		};
-		
-		//iterate all the field
-		var iter = statetype.value.providedTypes.entrySet().iterator();
-		while {iter.hasNext(); } {
-			var entry = iter.next();
-			val /*ID*/ name = entry.getKey();
-			val /*DeclType*/ decltype = entry.getValue();
-			match (decltype) {
-				case FieldType {					
-					val /*ObjectType*/ type = decltype.binding.type;
-					context.put(name, createTakeType(IMM, type));	//TODO : add perm	
-				}
-				case MethodType {
-					//TODO, check if method could be use as var x = x.m;  m is a method in x.
-				}
-			};
-		};
-					
 		node.stateDef.accept(this);
-		match (node.caseOf) {
-            case plaid.lang.Some {
-			    node.caseOf.value.accept(this);
-            }
-            default {}
-		};
-//		
-//		match (node.stateDef) {
-//			case DeclList {
-//				node.stateDef.accept(this);
-//			}
-//			case QI {
-//				//inheritQI(node.stateDef);
-//			}
-//			case With {
-//				node.stateDef.accept(this);
-//			}
-//			default {
-//				
-//			}
-//		};
-//				
-		context = oldContext;
 	}
 	
 	method visitUnpackInnerGroups(node) {

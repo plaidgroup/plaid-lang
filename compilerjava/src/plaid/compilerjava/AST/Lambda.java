@@ -40,6 +40,8 @@ public final class Lambda implements Expression {
 	private Expression body;
 	private final LambdaType type;
 	private List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
+	private boolean isNamed = false;
+	private ID recursiveName = null;
 	
 	
 	// TODO: I'm not sure that this is a very good constructor...
@@ -159,6 +161,19 @@ public final class Lambda implements Expression {
 
 	public LambdaType getType() {
 		return type;
+	}
+
+	public ID getRecursiveName() {
+		return recursiveName;
+	}
+
+	public void setRecursiveName(ID recursiveName) {
+		this.recursiveName = recursiveName;
+		this.isNamed = true;
+	}
+
+	public boolean isNamed() {
+		return isNamed;
 	}
 
 	@Override
