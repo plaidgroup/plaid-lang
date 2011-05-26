@@ -1,0 +1,60 @@
+package plaid.typechecker.rewriting;
+
+import plaid.lang.*;
+import plaid.ast.visitor.*;
+import plaid.ast.*;
+import plaid.ast.stateTable.StateTable;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.typechecker.context.*;
+
+state PermissionAnalysisVisitor case of ASTVisitor {
+  var unique Context context = new Context;
+	val unique NeedsContext needsContext = new NeedsContext;
+	val unique StateTable st = new StateTable;
+	var unique Permission neededPerm = NONEP;
+	
+	method visitTakeBinding(node) {
+		val oldContext = this.context;
+		val typeFetchVisitor = new TypeFetchVisitor{st=this.st; context=this.context.copy();};
+		node.exp.accept(typeFetchVisitor);
+		this.context = typeFetchVisitor.context;
+		match(node) {
+			case NoTypeAnnotation {
+				// TODO:  Throw an error here
+			}
+			default {
+				match(node) {
+					case PermTypeAnnotation {
+					  this.context.put(node.x.copy(), node.pType.type);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					}
+					case ObjectTypeAnnotation {
+						this.context.put(node.x.copy(), node.oType);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					  val need = needsContext.get(node.x.copy()).second();
+					  node.addPermission(need);
+					}
+				};
+				this.neededPerm = node.pType.perm;
+				this.needsContext.remove(node.x.copy());
+				this.context = oldContext;
+				node.exp.accept(this);
+			}
+		}
+	}
+	
+	method visitID(node) {
+	  val contextNeed = needsContext.get(node.copy());
+	  val newNeed = neededPerm.leastUpperBound(contextNeed.second());
+	  needsContext.update(node.copy(), makePair(contextNeed.first(), newNeed));
+	}
+	
+	method visitNewInstance(node) {
+		
+	}
+	method visitUnitLiteral(node) {
+	}
+}
