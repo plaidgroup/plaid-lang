@@ -1,0 +1,116 @@
+/**
+ * Simple linear list example with internal and external iteration
+ */
+package LinearList;
+
+state Cell/*<type T, refgroup G>*/ {
+}
+
+state Nil/*<type T, refgroup G>*/ case of Cell/*<T,G>*/ {
+	method append(/* unique(G) T */ elem) {
+		this <- Cons with {
+			var data = elem;
+			var next = new Nil;
+		};
+	}	
+}
+
+state Cons/*<type T, refgroup G>*/ case of Cell/*<T,G>*/ {
+	var /*unique(G) T*/ data;
+	
+	method append(/*unique(G) T */ elem) {
+		this.next.append(elem);
+	}
+}
+
+state List/*<type T, refgroup G>*/ {
+	var /*Cell<T,G>*/ head;
+	
+	method append(/*unique(G) T*/ elem) {
+		this.head.append(elem);
+	}	
+
+	method apply(function) {
+		this.applyHelper(function, this.head);
+	}
+	
+	method applyHelper(function, cell) {
+		match (cell) {
+			case Cons {
+				function(cell.data);
+				this.applyHelper(function, cell.next);
+			}
+			case Nil {
+			}
+		};
+	}
+	
+	method /*<refgroup G1>List<T,G1>*/ map(function) {
+		new List/*<T,G1>*/ with { 
+			var head = this./*<G1>*/mapHelper(function, this.head); 
+		}
+	}
+	
+	method /*<refgroup G1>*/
+	mapHelper(/*clean unique(G) T -> unique(G) T*/ function, 
+	          /*Cell<T,G>*/ cell) {
+		match (cell) {
+			case Cons {
+				val /*unique(G1) T*/ mappedData = 
+					function(cell.data);
+				new Cons/*<T,G1>*/ with { 
+					var data = mappedData; 
+					var next = this./*<G1>*/mapHelper(function, cell.next); 
+				}
+			}
+			case Nil {
+				cell
+			}
+		};
+	}
+
+	method asString() {
+		var string = "[ ";
+		var cell = this.head;
+		while { match (cell) { case Cons { true } case Nil { false } } } {
+			string = string + cell.data.asString() + " ";
+			cell = cell.next;
+		}; 		
+		string = string + "]";
+		string;
+	}
+
+}
+
+method for(lower, upper, body) {
+	var i = lower;
+	while { i < upper; } {
+		body(i);
+		i = i + 1;
+	};
+}
+
+val print = java.lang.System.out.print;
+val println = java.lang.System.out.println;
+
+method main() {
+	
+	print("Initializing list with fresh data...");
+	/* refgroup Group */
+	var /*List<Data,Group>*/ list = new List/*<Data,Group>*/ { 
+		var head = new Nil; 
+	};
+	for(0, 5, fn (i) => list.append(new Data { var data = i; } ));
+	println(list.asString());
+	
+	print("Incrementing each element by one...");
+	list.apply(fn (data) => { data.data = data.data+1; }); 
+	println(list.asString());
+
+	print("Cloning the list...");
+	/* refgroup Group2 */
+	var /*List<Data,Group2>*/ list2 = 
+		list./*<Group2>*/map(fn (data) => data);
+	println(list2.asString());
+
+}

@@ -53,6 +53,38 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 	}
 	
 	method visitBorrowBinding(node) {
+		val oldContext = this.context;
+		val typeFetchVisitor = new TypeFetchVisitor {
+			st = this.st; 
+			context = this.context.copy();
+		};
+		node.exp.accept(typeFetchVisitor);
+		this.context = typeFetchVisitor.context;
+		match(node) {
+			case NoTypeAnnotation {
+				// TODO:  Throw an error
+			}
+			default {
+				match(node) {
+					case PermTypeAnnotation {
+					  this.context.put(node.x.copy(), node.pType.type);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					}
+					case ObjectTypeAnnotation {
+						this.context.put(node.x.copy(), node.oType);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					  val need = needsContext.get(node.x.copy()).second();
+					  node.addPermission(need);
+					}
+				};
+				this.neededPerm = node.pType.perm;
+				this.needsContext.remove(node.x.copy());
+				this.context = oldContext;
+				node.exp.accept(this);
+			}
+		}
 		// TODO:  Implement BORROW-VAR-PRED
 		// TODO:  Implement BORROW-VAR-ADD
 		// TODO:  Implement BORROW-FIELD-PRED
