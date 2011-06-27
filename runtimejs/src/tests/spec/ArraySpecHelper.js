@@ -30,6 +30,7 @@ beforeEach(function() {
       }
       for (var i = 0; i < this.actual.length; i++) {
         var countNum = count(testArr,this.actual[i]);
+        jasmine.log(countNum);
         if(countNum!=1) {
           return false;
         }
