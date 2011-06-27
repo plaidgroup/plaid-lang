@@ -4,9 +4,9 @@ beforeEach(function() {
 
   this.addMatchers({
     toContainSameElementsAs: function(testArr) {
-      if (this.length !== testArr.length) return false;
-	for (var i = 0; i < this.length; i++) {
-          var idx = testArr.indexOf(this[i]);
+      if (this.actual.length !== testArr.length) return false;
+	for (var i = 0; i < this.actual.length; i++) {
+          var idx = testArr.indexOf(this.actual[i]);
           if(idx!=-1) {
             testArr.splice(idx, 1);
           }
@@ -24,21 +24,12 @@ beforeEach(function() {
   });
 
   this.addMatchers({
-    toHaveSameContentsAs: function(testArr) {
-      if (this[0]==testArr[0]){
-        return true;
-      }
-      return false;
-    }
-  });
-
-  this.addMatchers({
     toHaveSameElementsAs: function(testArr) {
-      if (this.length !== testArr.length) {
+      if (this.actual.length !== testArr.length) {
         return false;
       }
-      for (var i = 0; i < this.length; i++) {
-        var countNum = count(testArr,this[i]);
+      for (var i = 0; i < this.actual.length; i++) {
+        var countNum = count(testArr,this.actual[i]);
         if(countNum!=1) {
           return false;
         }
