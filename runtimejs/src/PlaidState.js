@@ -83,7 +83,7 @@ PlaidState.prototype.instantiate = function() {
 PlaidState.prototype.remove = function(member) {
    var obj=this.instantiate();
    if(s_remove(obj.tree,member)===false){
-      document.write("Error: attempt to remove a member "+member+" that does not exist in the state.<br>");
+      throw "Error: attempt to remove a member "+member+" that does not exist in the state.<br>";
       return;
    }
    delete obj[member];
@@ -94,11 +94,11 @@ PlaidState.prototype.remove = function(member) {
 PlaidState.prototype.rename = function(member, newName) {
    var currMembers=this.members();
    if (has(currMembers,newName)){
-      document.write("Error: attempt to rename a member with name "+newName+" which already names a member.<br>");
+      throw "Error: attempt to rename a member with name "+newName+" which already names a member.<br>";
    }
    var obj=this.instantiate();
    if(s_rename(obj.tree,member,newName)===false){
-      document.write("Error: attempt to rename a member "+member+" that does not exist in the state.<br>");
+      throw "Error: attempt to rename a member "+member+" that does not exist in the state.<br>";
       return;
    }
    addMember(obj, newName, obj[member]);

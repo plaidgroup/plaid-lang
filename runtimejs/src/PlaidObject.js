@@ -156,8 +156,6 @@ function m_stateChange(obj1,obj2){
       }
       returnItem.membersToAdd=obj2.members;
    }
-   document.write(returnItem.membersToAdd+"<BR>");
-   document.write(returnItem.membersToRemove+"<BR>");
 
    var add=returnItem.membersToAdd;
    var remove=returnItem.membersToRemove;
@@ -166,11 +164,16 @@ function m_stateChange(obj1,obj2){
    var removeLength=remove.length;
    var membersLength=returnItem.members1.length;
 
+   //document.write(md1);
+   //document.write(md2);
+   //document.write(remove);
+   //document.write(add);
+
    //check unique members
    for (var j=0;j<addLength;j++){
       if (has(members,add[j])){
          if (!has(remove,add[j])){
-            document.write("Error: state change violates unique members by attempting to add "+add[j]+" to item that already contains "+add[j]+"<br>");
+            throw "Error: state change violates unique members by attempting to add "+add[j]+" to item that already contains "+add[j]+"<br>";
          }
       }
    }
@@ -180,7 +183,7 @@ function m_stateChange(obj1,obj2){
    var tagsLength=tags.length;
    for (var j=0;j<tagsLength;j++){
       if(count(tags,tags[j])>1){
-         document.write("Error: state change violates unique tags by containing tag "+tags[j]+" twice.<br>");
+         throw "Error: state change violates unique tags by containing tag "+tags[j]+" twice.<br>";
       }
    }
 
