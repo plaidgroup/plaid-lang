@@ -164,11 +164,6 @@ function m_stateChange(obj1,obj2){
    var removeLength=remove.length;
    var membersLength=returnItem.members1.length;
 
-   //document.write(md1);
-   //document.write(md2);
-   //document.write(remove);
-   //document.write(add);
-
    //check unique members
    for (var j=0;j<addLength;j++){
       if (has(members,add[j])){

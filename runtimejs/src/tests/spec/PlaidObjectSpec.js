@@ -38,9 +38,9 @@ describe("PlaidObject", function() {
 
 
   beforeEach(function() {
-    obj1 = new PlaidObject(md1);
-    obj2 = new PlaidObject(md2);
-    obj3 = new PlaidObject(md3);
+    obj1 = new PlaidObject(md1.clone());
+    obj2 = new PlaidObject(md2.clone());
+    obj3 = new PlaidObject(md3.clone());
     var length1=membersAtStart1.length;
     for (var i=0;i<length1;i++){
       obj1[membersAtStart1[i]]=10;
@@ -77,14 +77,10 @@ describe("PlaidObject", function() {
     expect(result).toHaveSameElementsAs(membersAtStart1);
   });
 
-  it("should have correct tree after replace", function() {
-    obj1.replace(obj2);
+  it("should have correct tree and members after replace", function() {
+    obj1.replace(obj2); 
     var result=obj1.tree;
-    expect(result).toEqual(obj2.tree);
-  });
-
-  it("should have correct members after replace", function() {
-    obj1.replace(obj2);    
+    expect(result).toEqual(obj2.tree);   
     var obj1Members=[]
     for (var item in obj1){
       obj1Members.push(item);
@@ -96,30 +92,13 @@ describe("PlaidObject", function() {
     expect(obj1Members).toEqual(obj2Members);
   });
 
-  it("should have correct tree after state change", function() {
+  it("should have correct tree and members after state change", function() {
     obj1.stateChange(obj2);
     var result=obj1.tree;
     expect(result).toEqual(obj3.tree);
     var obj1Members=[]
     for (var item in obj1){
       obj1Members.push(item);
-      jasmine.log(item);
-    }
-    var obj3Members=[]
-    for (var item in obj3){
-      obj3Members.push(item);
-    }
-    expect(obj1Members).toHaveSameElementsAs(obj3Members);
-  });
-
-  it("should have correct members after state change", function() {
-    jasmine.log(obj1.tree);
-    obj1.stateChange(obj2);
-    jasmine.log(obj1.tree);
-    var obj1Members=[]
-    for (var item in obj1){
-      obj1Members.push(item);
-      jasmine.log(item);
     }
     var obj3Members=[]
     for (var item in obj3){
