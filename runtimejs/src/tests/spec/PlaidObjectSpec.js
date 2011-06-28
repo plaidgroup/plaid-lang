@@ -4,32 +4,32 @@ describe("PlaidObject", function() {
   var obj3;
 
   var treeBuilder=new Tree();
-  var car = new Node("car",[],"with",treeBuilder.root);
-  var drivingStatus = new Node("drivingStatus",[],"with",car);
-  var driving = new Node("driving",["speed","acceleration","stopDriving"],"case of",drivingStatus);
-  var brakingStatus = new Node("brakingStatus",[],"with",driving);
-  var braking = new Node("braking",["stopBraking"],"case of",brakingStatus);
-  var directionStatus = new Node("directionStatus",[],"with",driving);
-  var turningLeft = new Node("turningLeft",["straight","turnRight"], "case of", directionStatus);
-  var cleanStatus = new Node("cleanStatus",[],"with",car);
-  var clean = new Node("clean",["getDirty"],"case of",cleanStatus);
+  var car = new WithNode("car",[],treeBuilder.root);
+  var drivingStatus = new WithNode("drivingStatus",[],car);
+  var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
+  var brakingStatus = new WithNode("brakingStatus",[],driving);
+  var braking = new CaseOfNode("braking",["stopBraking"],brakingStatus);
+  var directionStatus = new WithNode("directionStatus",[],driving);
+  var turningLeft = new CaseOfNode("turningLeft",["straight","turnRight"], directionStatus);
+  var cleanStatus = new WithNode("cleanStatus",[],car);
+  var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
   var md1 = treeBuilder.toMetadata();
 
   var treeBuilder2=new Tree();
-  var brakingStatus = new Node("brakingStatus",[],"with",treeBuilder2.root);
-  var braking = new Node("notBraking",["startBraking"],"case of",brakingStatus);
+  var brakingStatus = new WithNode("brakingStatus",[],treeBuilder2.root);
+  var braking = new CaseOfNode("notBraking",["startBraking"],brakingStatus);
   var md2 = treeBuilder2.toMetadata();
 
   var treeBuilder3=new Tree();
-  var car = new Node("car",[],"with",treeBuilder3.root);
-  var drivingStatus = new Node("drivingStatus",[],"with",car);
-  var driving = new Node("driving",["speed","acceleration","stopDriving"],"case of",drivingStatus);
-  var brakingStatus = new Node("brakingStatus",[],"with",driving);
-  var braking = new Node("notBraking",["startBraking"],"case of",brakingStatus);
-  var directionStatus = new Node("directionStatus",[],"with",driving);
-  var turningLeft = new Node("turningLeft",["straight","turnRight"], "case of", directionStatus);
-  var cleanStatus = new Node("cleanStatus",[],"with",car);
-  var clean = new Node("clean",["getDirty"],"case of",cleanStatus);
+  var car = new WithNode("car",[],treeBuilder3.root);
+  var drivingStatus = new WithNode("drivingStatus",[],car);
+  var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
+  var brakingStatus = new WithNode("brakingStatus",[],driving);
+  var braking = new CaseOfNode("notBraking",["startBraking"],brakingStatus);
+  var directionStatus = new WithNode("directionStatus",[],driving);
+  var turningLeft = new CaseOfNode("turningLeft",["straight","turnRight"], directionStatus);
+  var cleanStatus = new WithNode("cleanStatus",[],car);
+  var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
   var md3 = treeBuilder3.toMetadata();
 
   var membersAtStart1=["speed","acceleration","stopDriving","stopBraking","straight","turnRight","getDirty"];
