@@ -1,7 +1,17 @@
-function Node(tag,memberList,withOrCaseOfType,parentNode){
+function CaseOfNode(tag,memberList,parentNode){
   this.tag=tag;
   this.memberList=memberList;
-  this.type=withOrCaseOfType;
+  this.isWith=false;
+  this.children=[];
+  if (typeof(parentNode)!='undefined'){
+    parentNode.children.push(this);
+  }
+}
+
+function WithNode(tag,memberList,parentNode){
+  this.tag=tag;
+  this.memberList=memberList;
+  this.isWith=true;
   this.children=[];
   if (typeof(parentNode)!='undefined'){
     parentNode.children.push(this);
@@ -9,14 +19,17 @@ function Node(tag,memberList,withOrCaseOfType,parentNode){
 }
 
 function Tree(){
-  this.root=new Node("",[],"with");
+  this.root=new WithNode("",[]);
 }
 
 Tree.prototype.toMetadata = function(currRoot) {
   currRoot = typeof(currRoot) != 'undefined' ? currRoot : this.root;
-  var type="";
-  if (currRoot.type=="with"){
+  var type;
+  if (currRoot.isWith==true){
     type="with";
+  }
+  else {
+    type="";
   }
   var listToReturn=[[currRoot.tag,currRoot.memberList,type]];
   var length=currRoot.children.length;
