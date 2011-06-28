@@ -61,7 +61,7 @@ function m_members(md1){
    return memberList;
 }
 
-/*returns an array of all the tags of the state that is reflected in the current metadata; currently does not include and-state tags*/
+/*returns an array of all the tags of the state that is reflected in the current metadata*/
 function m_tags(md1){
    var tagList=[];
    if (md1[0][0]!==""){
@@ -248,15 +248,16 @@ PlaidObject.prototype.replace=function(state) {
    for (var j=0;j<removeLength;j++){
       delete this[remove[j]];
    }
-  this.tree=state.tree;
+  this.tree=state.tree.clone();
 }
 
 /*Returns a PlaidState object with the same tree and members as the object on which it is called*/
 PlaidObject.prototype.freeze=function() {
    var obj=new PlaidState(this.tree.clone());
    var i;
+   //right now this copies any method that is not the ones listed in the first condition below
    for (i in this) {
-      if (!obj.hasOwnProperty(i) || i==="tree") {
+      if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="stateChange" || i==="replace" || i==="freeze" || i==="clone") {
          continue;
       }
       if (this[i] && typeof this[i] == "object") {
