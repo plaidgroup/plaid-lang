@@ -144,7 +144,7 @@ function m_stateChange(obj1,obj2){
       membersToAdd:[],
       membersToRemove:[],
       tree:md1,
-      members1:obj1.members
+      members1:obj1.members()
    }
 
    var returnItem=stateChangeFindParent(md1,md2,returnItem);
@@ -154,7 +154,7 @@ function m_stateChange(obj1,obj2){
       for (var i=1;i<md2Length;i++){
          returnItem.tree.push(md2.clone());
       }
-      returnItem.membersToAdd=obj2.members;
+      returnItem.membersToAdd=obj2.members();
    }
 
    var add=returnItem.membersToAdd;
@@ -168,17 +168,17 @@ function m_stateChange(obj1,obj2){
    for (var j=0;j<addLength;j++){
       if (has(members,add[j])){
          if (!has(remove,add[j])){
-            throw "Error: state change violates unique members by attempting to add "+add[j]+" to item that already contains "+add[j]+"<br>";
+            throw "Error: state change violates unique members by attempting to add "+add[j]+" to item that already contains "+add[j];
          }
       }
    }
 
    //check unique tags
-   var tags=obj1.tags;
+   var tags=obj1.tags();
    var tagsLength=tags.length;
    for (var j=0;j<tagsLength;j++){
       if(count(tags,tags[j])>1){
-         throw "Error: state change violates unique tags by containing tag "+tags[j]+" twice.<br>";
+         throw "Error: state change violates unique tags by containing tag "+tags[j]+" twice";
       }
    }
 

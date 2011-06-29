@@ -84,7 +84,7 @@ PlaidState.prototype.remove = function(member) {
    var obj=new PlaidState(this.tree.clone());
    copyMembers(obj,this);
    if(s_remove(obj.tree,member)===false){
-      throw "Error: attempt to remove a member "+member+" that does not exist in the state.<br>";
+      throw "Error: attempt to remove a member "+member+" that does not exist in the state";
       return;
    }
    delete obj[member];
@@ -95,12 +95,12 @@ PlaidState.prototype.remove = function(member) {
 PlaidState.prototype.rename = function(member, newName) {
    var currMembers=this.members();
    if (has(currMembers,newName)){
-      throw "Error: attempt to rename a member with name "+newName+" which already names a member.<br>";
+      throw "Error: attempt to rename a member with name "+newName+" which already names a member";
    }
    var obj=new PlaidState(this.tree.clone());
    copyMembers(obj,this);
    if(s_rename(obj.tree,member,newName)===false){
-      throw "Error: attempt to rename a member "+member+" that does not exist in the state.<br>";
+      throw "Error: attempt to rename a member "+member+" that does not exist in the state";
       return;
    }
    addMember(obj, newName, obj[member]);
@@ -133,7 +133,7 @@ PlaidState.prototype.with = function(state) {
    var tags1Length=tags1.length;
    for (var j=0;j<tags1Length;j++){
       if(has(tags2,tags1[j])){
-         throw "Error: with operation violates unique tags by containing tag "+tags[j]+" in both component states.<br>";
+         throw "Error: with operation violates unique tags by containing tag "+tags1[j]+" in both component states";
       }
    } 
 
@@ -143,7 +143,7 @@ PlaidState.prototype.with = function(state) {
    var members1Length=members1.length;
    for (var j=0;j<members1Length;j++){
       if(has(members2,members1[j])){
-         throw "Error: with operation violates unique members by containing member "+tags[j]+" in both component states.<br>";
+         throw "Error: with operation violates unique members by containing member "+members1[j]+" in both component states";
       }
    } 
 
