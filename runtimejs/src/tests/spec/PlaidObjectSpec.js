@@ -316,24 +316,24 @@ describe("PlaidObject Errors", function() {
   var md1 = treeBuilder.toMetadata();
 
   var treeBuilder2=new Tree();
-  var brakingStatus = new WithNode("brakingStatus",[],treeBuilder2.root);
-  var braking = new CaseOfNode("notBraking",["startBraking"],brakingStatus);
+  var brakingStatus2 = new WithNode("brakingStatus2",[],treeBuilder2.root);
+  var braking = new CaseOfNode("braking",["stopBraking2"],brakingStatus2);
   var md2 = treeBuilder2.toMetadata();
 
   var treeBuilder3=new Tree();
   var car2 = new WithNode("car2",[],treeBuilder3.root);
-  var drivingStatus = new WithNode("drivingStatus",[],car);
+  var drivingStatus = new WithNode("drivingStatus",[],car2);
   var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
   var brakingStatus = new WithNode("brakingStatus",[],driving);
   var braking = new CaseOfNode("notBraking",["startBraking"],brakingStatus);
   var directionStatus = new WithNode("directionStatus",[],driving);
   var turningLeft = new CaseOfNode("turningLeft",["straight","turnRight"], directionStatus);
-  var cleanStatus = new WithNode("cleanStatus",[],car);
+  var cleanStatus = new WithNode("cleanStatus",[],car2);
   var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
   var md3 = treeBuilder3.toMetadata();
 
   var membersAtStart1=["speed","acceleration","stopDriving","stopBraking","straight","turnRight","getDirty"];
-  var membersAtStart2=["startBraking"];
+  var membersAtStart2=["startBraking2"];
   var membersAtStart3=["speed","acceleration","stopDriving","startBraking","straight","turnRight","getDirty"];
 
 
@@ -358,9 +358,149 @@ describe("PlaidObject Errors", function() {
     
   });
 
-  it("should throw an error if state change would violate unique members", function() {
-    var result=obj1.match("turningLeft");
-    expect(result).toBe(true);
+  it("should throw an error if state change would violate unique members", function() {    
+    expect(function() {
+        obj1.stateChange(obj3);
+      }).toThrow("Error: state change violates unique members by attempting to add speed to item that already contains speed");
+  });
+
+  it("should throw an error if state change would violate unique tags", function() {    
+    expect(function() {
+        obj1.stateChange(obj2);
+      }).toThrow("Error: state change violates unique tags by containing tag braking twice");
+  });
+  
+});
+
+describe("PlaidState Errors", function() {
+  var state1;
+  var state2;
+  var state3;
+  var state4;
+  var state6;
+  var obj1;
+
+  var treeBuilder=new Tree();
+  var car = new WithNode("car",[],treeBuilder.root);
+  var drivingStatus = new WithNode("drivingStatus",[],car);
+  var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
+  var brakingStatus = new WithNode("brakingStatus",[],driving);
+  var braking = new CaseOfNode("braking",["stopBraking"],brakingStatus);
+  var directionStatus = new WithNode("directionStatus",[],driving);
+  var turningLeft = new CaseOfNode("turningLeft",["straight","turnRight"], directionStatus);
+  var cleanStatus = new WithNode("cleanStatus",[],car);
+  var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
+  var md1 = treeBuilder.toMetadata();
+
+  var treeBuilder2=new Tree();
+  var car = new WithNode("car",[],treeBuilder2.root);
+  var drivingStatus = new WithNode("drivingStatus",[],car);
+  var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
+  var brakingStatus = new WithNode("brakingStatus",[],driving);
+  var braking = new CaseOfNode("braking",[],brakingStatus);
+  var directionStatus = new WithNode("directionStatus",[],driving);
+  var turningLeft = new CaseOfNode("turningLeft",["straight","turnRight"], directionStatus);
+  var cleanStatus = new WithNode("cleanStatus",[],car);
+  var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
+  var md2 = treeBuilder2.toMetadata();
+
+  var treeBuilder3=new Tree();
+  var car = new WithNode("car2",[],treeBuilder3.root);
+  var drivingStatus = new WithNode("drivingStatus2",[],car);
+  var driving = new CaseOfNode("driving2",["speed","acceleration","stopDriving"],drivingStatus);
+  var brakingStatus = new WithNode("brakingStatus2",[],driving);
+  var braking = new CaseOfNode("braking2",["stopBraking2"],brakingStatus);
+  var directionStatus = new WithNode("directionStatus2",[],driving);
+  var turningLeft = new CaseOfNode("turningLeft2",["straight","turnRight"], directionStatus);
+  var cleanStatus = new WithNode("cleanStatus2",[],car);
+  var clean = new CaseOfNode("clean2",["getDirty"],cleanStatus);
+  var md3 = treeBuilder3.toMetadata();
+
+  var treeBuilder4=new Tree();
+  var trailer = new WithNode("trailer",[],treeBuilder4.root);
+  var twoWheeled = new CaseOfNode("twoWheeled",["addWheels"],trailer);
+  var md4 = treeBuilder4.toMetadata();
+
+  var treeBuilder6=new Tree();
+  var car = new WithNode("car",[],treeBuilder6.root);
+  var drivingStatus = new WithNode("drivingStatus",[],car);
+  var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
+  var brakingStatus = new WithNode("brakingStatus",[],driving);
+  var braking = new CaseOfNode("braking",["stopBraking"],brakingStatus);
+  var directionStatus = new WithNode("directionStatus",[],driving);
+  var turningLeft = new CaseOfNode("turningLeft",["straight","turnRight"], directionStatus);
+  var cleanStatus = new WithNode("cleanStatus",[],car);
+  var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
+  var trailer = new WithNode("trailer",[],treeBuilder6.root);
+  var twoWheeled = new CaseOfNode("twoWheeled",["addWheels"],trailer);
+  var md6 = treeBuilder6.toMetadata();
+
+  var membersAtStart1=["speed","acceleration","stopDriving","stopBraking","straight","turnRight","getDirty"];
+  var membersAtStart2=["speed","acceleration","stopDriving","straight","turnRight","getDirty"];
+  var membersAtStart3=["speed","acceleration","stopDriving","stopBraking2","straight","turnRight","getDirty"];
+  var membersAtStart4=["addWheels"];
+  var membersAtStart6=["speed","acceleration","stopDriving","stopBraking","straight","turnRight","getDirty","addWheels"];
+
+
+  beforeEach(function() {
+    state1 = new PlaidState(md1.clone());
+    state2 = new PlaidState(md2.clone());
+    state3 = new PlaidState(md3.clone());
+    state4 = new PlaidState(md4.clone());
+    state6 = new PlaidState(md6.clone());
+    obj1 = new PlaidObject(md1.clone());
+    var length1=membersAtStart1.length;
+    for (var i=0;i<length1;i++){
+      state1[membersAtStart1[i]]=10;
+      obj1[membersAtStart1[i]]=10;
+    }   
+    var length2=membersAtStart2.length;
+    for (var i=0;i<length2;i++){
+      state2[membersAtStart2[i]]=10;
+    }
+    var length3=membersAtStart3.length;
+    for (var i=0;i<length3;i++){
+      state3[membersAtStart3[i]]=10;
+    }    
+    var length4=membersAtStart4.length;
+    for (var i=0;i<length4;i++){
+      state4[membersAtStart4[i]]=10;
+    }
+    var length6=membersAtStart6.length;
+    for (var i=0;i<length6;i++){
+      state6[membersAtStart6[i]]=10;
+    }
+    
+  });
+
+  it("should throw an error if with operation would violate unique members", function() {    
+    expect(function() {
+        state1.with(state2);
+      }).toThrow("Error: with operation violates unique tags by containing tag car in both component states");
+  });
+
+  it("should throw an error if with operation would violate unique tags", function() {    
+    expect(function() {
+        state1.with(state3);
+      }).toThrow("Error: with operation violates unique members by containing member speed in both component states");
+  });
+
+  it("should throw an error if rename call attempts to give member a name already used in the state", function() {    
+    expect(function() {
+        state1.rename("speed","getDirty");
+      }).toThrow("Error: attempt to rename a member with name getDirty which already names a member");
+  });
+
+  it("should throw an error if rename call attempts to rename a member that does not exist in the state", function() {    
+    expect(function() {
+        state1.rename("speed2","getDirty2");
+      }).toThrow("Error: attempt to rename a member speed2 that does not exist in the state");
+  });
+
+  it("should throw an error if remove call attempts to remove a member that does not exist in the state", function() {    
+    expect(function() {
+        state1.remove("speed2");
+      }).toThrow("Error: attempt to remove a member speed2 that does not exist in the state");
   });
   
 });

@@ -126,7 +126,7 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 		} catch (IllegalAccessException e) {
 			throw new PlaidIllegalAccessException("Cannot call constructor.");
 		} catch (InvocationTargetException e) {
-			throw new PlaidIllegalAccessException("Cannot call constructor.");
+			throw new PlaidIllegalAccessException("Cannot call constructor. Original error message:" + e.getCause().toString());
 		} catch (InstantiationException e) {
 			throw new PlaidIllegalAccessException("Cannot call constructor.");
 		}
