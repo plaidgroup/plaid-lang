@@ -1,0 +1,232 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker;
+
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.ast.*;
+import plaid.ast.types.*;
+
+var counter = 0;
+
+/**
+ * Helper functions for typechecking
+ */
+
+val createError= fn (message, node) => {
+	new Error{val message = message; val node=node;};
+};
+
+val createOuterError = fn (message, node, innerError) => {
+	new OuterError{val message = message; val node=node; val innerError = innerError;};
+};
+
+val typeCheckExpression = fn (unique Context c, 
+	unique StateTable st, 
+	unique Expression e, 
+	unique PermType pt) => {
+		match(e) {
+			case UnitLiteral {
+				match(pt==getVoidType()) {
+					case True { makePair(createSome(c), new None); }
+					case False { 
+						returnError("Unit literals must have type void.", e);
+					}
+				}
+			}
+			case BorrowBinding {
+				match(e.exp) {
+					case ID {
+						val yTypeOption = c.getOption(e.exp);
+						match(yTypeOption) {
+							case Some {
+								val immutable TypeBinding yType = yTypeOption.value;
+								val leftoverOption = yType.splitBinding(e.pType, st); //TODO: change pType to typeBinding
+								match(leftoverOption) {
+									case Some {
+										val immutable TypeBinding leftoverType = leftoverOption.value;
+										c.update(e.exp.copy(), leftoverType);
+										c.put(e.x.copy(), e.pType);
+										val checkResult = typeCheckExpression(c, st, e.body, pt);
+										match(checkResult.first()) {
+											case Some {
+												val outgoingContext = checkResult.first().value;
+												val xNewType = outgoingContext.remove(e.x.copy());
+												val yNewType = outgoingContext.remove(e.exp.copy());
+												val joinOption = xNewType.joinBinding(yNewType, yType);
+												match (joinOption) {
+													case Some {
+														outgoingContext.put(e.exp.copy(), joinOption.value);
+														makePair(createSome(outgoingContext), new None); // typechecked!
+													}
+													case None {
+														returnError("Type join failed.", e);
+													}
+												}
+											} 
+											case None {
+												makePair(new None, 
+													createSome(createOuterError(
+																			"Typechecking binding body failed.", 
+																			e, checkResult.second().value)));
+											}
+										}
+									}
+									case None {
+										returnError("Type split failed.", e);
+									}
+								}
+							} case None {
+								returnError("ID not found in context.", e.exp);
+							}
+						}
+					}
+					default {
+						returnError("Unsupported expression type", e);
+					}
+				}
+			}
+			case MethodCall {
+				// look up the type of the receiver in the context
+				match(e.receiver) {
+					case ID {
+						val xTypeOption = c.getOption(e.receiver.copy());
+						match(xTypeOption) {
+							case Some {
+								val immutable TypeBinding xType = xTypeOption.value;
+								// look up the method signature in the type of the receiver
+								val methodTypeOption = xType.declaredType(e.methodName.copy(), st);
+								match(methodTypeOption) {
+									case Some {
+										val methodType = methodTypeOption.value;
+										match(methodType) {
+											case MethodType {
+												val receiverType = methodType.receiverType.copy();
+												val argTypes = methodType.argTypes.map(fn(c) => c.copy());
+												argTypes.prepend(receiverType);
+												val args = e.arguments.map(fn(a) => a.copy());
+												args.prepend(e.receiver);
+												match(argTypes.length() == args.length()) {
+													case True {
+														val argsWithTypes = args.zip(argTypes);
+														var argsOkay = true;
+														val outgoingTypes = argsWithTypes.map(
+															fn(p) => {
+																val typeOption = c.getOption(p.first().copy());
+																match(typeOption) {
+																	case Some {
+																		val type = typeOption.value;
+																		val sigType = p.second().inputBinding();
+																		val leftoverTypeOption = type.splitBinding(sigType, st);
+																		match(leftoverTypeOption) {
+																			case Some {
+																				val leftoverType = leftoverTypeOption.value;
+																				//c.update(p.first().copy(),leftoverType);
+																				val outgoingTypeOption = leftoverType.
+																														joinBinding(p.second().outputBinding(), type);
+																				match(outgoingTypeOption) {
+																					case Some { makePair(p.first(), outgoingTypeOption.value); }
+																					case None { argsOkay = false; }
+																				}
+																			}
+																			case None {
+																				argsOkay = false;
+																			}
+																		}
+																	}
+																	case None {
+																		argsOkay = false;
+																	}
+																}
+															}
+														);
+														match(argsOkay) {
+															case True {
+																c.downgrade();
+																//TODO: update context with outgoing types
+															}
+															case False {
+																returnError("One of the arguments failed to typecheck.",e);
+															}
+														}
+													}
+													case False {
+														returnError("Wrong number of arguments provided.",e);
+													} 
+												}
+											}
+											default { returnError("Member type is not MethodType",e); }
+										}
+									}
+									case None {
+										returnError("Method not found in receiver type.", e);
+									}
+								}
+							}
+							case None {
+								returnError("ID not found in context.", e);
+							}
+						}
+					}
+					default {
+						returnError("MethodCall.receiver must be an ID at typechecking", e);
+					}
+				}
+			}
+			default {
+				returnError("Unsupported expression type", e);
+			}
+		}
+};
+
+val returnError = fn(msg, e) => {
+	makePair(new None, createSome(createError(msg, e)));
+};
+
+val typeCheckDecl = fn (unique Decl d, unique StateTable st) => {
+	match(d) {
+		case FieldDecl {
+			match(d.abstractField) {
+				case True { makePair(createSome(d.fieldType), new None); }
+				case False {
+					val expCheck = typeCheckExpression(
+						new Context, st, d.e, d.fieldType.binding);
+					match(expCheck.second()) {
+						case None {
+							makePair(createSome(d.fieldType), new None);
+						}
+						case Some {
+							makePair(new None, createSome(
+								createOuterError("Field initialization expression has wrong type.", d, 
+									expCheck.second().value)));
+						}
+					}
+				}
+			}
+		}
+		case MethodDecl {
+		}
+		case StateDecl {
+		}
+		default {
+			new None;
+		}
+	}
+};
