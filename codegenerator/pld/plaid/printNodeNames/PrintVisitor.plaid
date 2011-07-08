@@ -10,6 +10,7 @@ state PrintVisitor = ASTVisitor {
 	var debug=true;
 	var newVariableNameNumber = 0;
 	var states = new plaid.lang.List { var head = new plaid.lang.Nil;};
+	var firstCase = false;
 	
 	method getState(name){
 		var returnVal="";
@@ -30,6 +31,17 @@ state PrintVisitor = ASTVisitor {
 	method generateNewStateName(str) {
 		"$plaidNewState_"+str;
 	}
+	
+	method handleAddWithState(qiToAdd,parentNode){				
+		//the string name of the state that is a with state for the current state
+		var withState = qiToAdd.accept(this);
+		//the object that bundles the node and tree corresponding to the state name above
+		var withEntry = this.getState(withState);
+		var withRoot = withEntry.tree.root;
+		withRoot.children.map(fn (c) => {
+			parentNode.children.add(c);
+		});
+	}
 
 	method visitApplication(node) {
 		if (debug) {
@@ -46,9 +58,24 @@ state PrintVisitor = ASTVisitor {
 			nMinusOneArguments.map(fn (a) => argumentsString=argumentsString+a.accept(this)+",");
 			argumentsString=argumentsString+(node.arguments.get(node.arguments.length() - 1).accept(this));
 		};
+		
+		var mn = node.f.name;
+		
+		//------------------------------------------------------------
+		//this is temporary while we figure out packages.  fix this later!
+		var extraArgumentToRemoveLater = "";	
+		if (mn=="printLine"){
+			extraArgumentToRemoveLater = "+\"<BR>\"";
+		};
+		if (mn=="printLine" || mn=="print"){
+			mn="document.write";
+		};	
+		//---------------------------------------------------------------
+		
 		//immediately emit code that assigns method call's value to the newVarName generated below
+		
 		var newVarName = generateNewVariableName();
-		var funcCallString = "var "+newVarName+" = "+node.f.name+"("+argumentsString+");";
+		var funcCallString = "var "+newVarName+" = "+mn+"("+argumentsString+extraArgumentToRemoveLater+");";
 		//print the function call
 		java.lang.System.out.println (funcCallString);
 		//return the newVarName so that method call's value can be used by the method that called this one (this can be used just like an ID name)
@@ -80,10 +107,29 @@ state PrintVisitor = ASTVisitor {
 	method visitCase(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a Case");
+			java.lang.System.out.println ("   //qi: " + node.qi.toString());
+			java.lang.System.out.println ("   //x: " + node.x.toString());
+			java.lang.System.out.println ("   //e: " + node.e.toString());
+			java.lang.System.out.println ("   //defaultCase: " + node.defaultCase.toString());
+			java.lang.System.out.println ("   //boundVar: " + node.boundVar.toString());
 		};
 		//the one called below should only be called if this case is not the default case
-		node.qi.value.accept(this); 
+		
+		ifElse(this.firstCase){
+			java.lang.System.out.println("if (matchVar.match(\""+node.qi.value.accept(this)+"\")) {"); 
+			this.firstCase=false;	
+		}
+		{
+			ifElse(node.defaultCase){
+				java.lang.System.out.println("else {");
+			}
+			{
+				java.lang.System.out.println("else if (matchVar.match(\""+node.qi.value.accept(this)+"\")) {"); 
+			};
+		};
 		node.e.accept(this); 
+		java.lang.System.out.println("}");
+		"matchVar";
 	}
 	method visitCast(node) {
 		if (debug) {
@@ -106,7 +152,6 @@ state PrintVisitor = ASTVisitor {
 		node.decls.map(fn (d) => {
 			d.accept(this);
 		});
-		java.lang.System.out.println("main();");
 	}
 	method visitDeclList(node) {
 		if (debug) {
@@ -210,11 +255,15 @@ state PrintVisitor = ASTVisitor {
 	method visitMatch(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a Match");
+			java.lang.System.out.println ("   //e: " + node.e.toString());
+			java.lang.System.out.println ("   //caseList: " + node.caseList.toString());
 		};
-		node.e.accept(this);
+		java.lang.System.out.println("var matchVar = "+node.e.accept(this)+";");
+		this.firstCase = true;
 		node.caseList.map(fn (c) => {
 			c.accept(this);
 		});
+		node.e.accept(this);
 	}
 	method visitMetaDereference(node) {
 		if (debug) {
@@ -250,11 +299,12 @@ state PrintVisitor = ASTVisitor {
 		var newVarName = generateNewVariableName();
 		var mn = node.methodName.name;
 		var funcCallString = "";
+		
 		ifElse ( mn=="+" || mn=="-" || mn=="*" ||mn=="/" ){
-			funcCallString = "var "+newVarName+" = "+node.receiver.accept(this)+" "+node.methodName.name+" "+argumentsString+";";
+			funcCallString = "var "+newVarName+" = "+node.receiver.accept(this)+" "+mn+" "+argumentsString+";";
 		}
 		{
-			funcCallString = "var "+newVarName+" = "+node.receiver.accept(this)+"."+node.methodName.name+"("+argumentsString+");";
+			funcCallString = "var "+newVarName+" = "+node.receiver.accept(this)+"."+mn+"("+argumentsString+");";
 		};
 		//print the function call
 		java.lang.System.out.println (funcCallString);
@@ -284,6 +334,9 @@ state PrintVisitor = ASTVisitor {
 		java.lang.System.out.println ("function "+node.name+" ("+argumentsString+") {");
 		java.lang.System.out.println ("return "+node.body.accept(this)+";"); 
 		java.lang.System.out.println ("}");
+		if(node.name=="main"){
+			java.lang.System.out.println("main();");
+		}
 	}
 	method visitNewInstance(node) {
 		if (debug) {
@@ -321,9 +374,12 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //isCaseOf: " + node.isCaseOf.toString());
 			java.lang.System.out.println ("   //stateType: " + node.stateType.toString());
 			java.lang.System.out.println ("   //metaCaseOfArgs: " + node.metaCaseOfArgs.toString());
+			java.lang.System.out.println ("   //stateDef can be DeclList Freeze QI With");
 			java.lang.System.out.println ("   //stateDef can be all kinds of things");
 		};
 		var currStateName = generateNewStateName(node.name.name);
+		var tree = "";
+		var treeNode = "";
 		match(node.caseOf) { 
 			case Some { 
 				//the state is a case of some other state, stored in caseOf.value.toString()
@@ -338,13 +394,12 @@ state PrintVisitor = ASTVisitor {
 				//the node in the above tree that corresponds to the state of which the current state is a case
 				var caseOfEntryNode = caseOfEntryTree.targetNode;
 				//the node that will reflect the current state
-				var treeNode = new Node;
+				treeNode = new Node;
 				var emptyList = new plaid.lang.List { var head = new plaid.lang.Nil;};
 				
 				//add members to the previously empty list
 				match(node.stateDef){
 					case DeclList{
-					    java.lang.System.out.println("I should have decls!");
 						node.stateDef.decls.map(fn (d) => {
 							match(d) {
 								case MethodDecl {
@@ -360,23 +415,18 @@ state PrintVisitor = ASTVisitor {
 				};
 				
 				treeNode.setData(node.name.name, emptyList, false, caseOfEntryNode);
-				var entry=new StateTableEntry with { name = node.name.name; node = treeNode; tree = caseOfEntryTree; };
-				this.states.add(entry);
-				var md = caseOfEntryTree.toMetadata(caseOfEntryTree.root);
-				//emit code for creating a new Plaid state
-				java.lang.System.out.println("var "+currStateName+" = new PlaidState("+md+");");
+				tree=caseOfEntryTree;
 			} 
 			case None { 
 				//the state is not a case of any other state
 				//create metadata string for creating Plaid state object in Javascript runtime
-				var tree=new Tree;
-				var treeNode = new Node;
+				tree=new Tree;
+				treeNode = new Node;
 				var emptyList = new plaid.lang.List { var head = new plaid.lang.Nil;};
 				
 				//add members to the previously empty list
 				match(node.stateDef){
 					case DeclList{
-					    java.lang.System.out.println("I should have decls!");
 						node.stateDef.decls.map(fn (d) => {
 							match(d) {
 								case MethodDecl {
@@ -391,30 +441,47 @@ state PrintVisitor = ASTVisitor {
 					}
 				};
 				treeNode.setData(node.name.name, emptyList, true, tree.root);
-				var entry=new StateTableEntry with { name = node.name.name; node = treeNode; tree = tree; };
-				this.states.add(entry);
-				var md = tree.toMetadata(tree.root);
-				//emit code for creating a new Plaid state
-				java.lang.System.out.println("var "+currStateName+" = new PlaidState("+md+");");
 			} 
 		};
 		
+		match(node.stateDef){
+			case DeclList{
+				node.stateDef.decls.map(fn (d) => {
+					match(d) {
+						case MethodDecl{
+							java.lang.System.out.print(currStateName+"['"+d.name+"'] = "); 
+							d.accept(this);
+						}
+						case FieldDecl{
+							java.lang.System.out.print(currStateName+"['"+d.f.name+"'] = "); 
+							d.accept(this);
+						}
+						default{
+							d.accept(this);
+						}
+					};
+				});
+			}
+			case QI{
+				//the state in this QI should be a component of the state being added (a with state for it)
+				handleAddWithState(node.stateDef,treeNode);
+			}
+			case With{
+				//both states in the QIs in this With should be components of the state being added (a with state for it)
+				handleAddWithState(node.stateDef.s1,treeNode);
+				handleAddWithState(node.stateDef.s2,treeNode);
+			}
+			default{
+				java.lang.System.out.println("//ACCEPT LOOP "+currStateName);
+				node.stateDef.accept(this);
+			}
+		};
 		
-		node.stateDef.decls.map(fn (d) => {
-			match(d) {
-				case MethodDecl{
-					java.lang.System.out.print(currStateName+"['"+d.name+"'] = "); 
-					d.accept(this);
-				}
-				case FieldDecl{
-					java.lang.System.out.print(currStateName+"['"+d.f.name+"'] = "); 
-					d.accept(this);
-				}
-				default{
-					d.accept(this);
-				}
-			};
-		});
+		var entry=new StateTableEntry with { name = node.name.name; node = treeNode; tree = tree; };
+		this.states.add(entry);
+		var md = tree.toMetadata(tree.root);
+		//emit code for creating a new Plaid state
+		java.lang.System.out.println("var "+currStateName+" = new PlaidState("+md+");");
 		
 		//node.caseOf.value.accept(this);
         
@@ -422,7 +489,9 @@ state PrintVisitor = ASTVisitor {
 	method visitStringLiteral(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a StringLiteral");
+			java.lang.System.out.println ("   //string: " + node.string);
 		};
+		("\"")+node.string+("\"");
 	}
 	method visitsplitPerm(node) {
 		if (debug) {
