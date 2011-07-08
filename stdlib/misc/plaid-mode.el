@@ -8,7 +8,7 @@
 (provide 'plaid-mode)
 
 
-(defvar plaid-mode-hook nil)
+(defvar emacs-plaid-mode-hook nil)
 (defvar plaid-mode-map
   (let ((map (make-keymap)))
     (define-key map "\C-j" 'newline-and-indent)
@@ -62,7 +62,7 @@
   (set (make-local-variable 'font-lock-defaults) '(plaid-font-lock-keywords))
   (setq major-mode 'plaid-mode)
   (setq mode-name "Plaid")
-  (run-hooks 'plaid-mode-hook))
+  (run-hooks 'emacs-plaid-mode-hook))
 
 ;; always activate this mode with Plaid files 
 (add-to-list 'auto-mode-alist '("\\.plaid\\'" . plaid-mode))
