@@ -4,15 +4,27 @@ import plaid.ast.*;
 import plaid.ast.visitor.ASTVisitor;
 import plaid.metadataCreation.Node;
 import plaid.metadataCreation.Tree;
+import plaid.printNodeNames.StateTableEntry;
 
 state PrintVisitor = ASTVisitor {
-
-	var debug=false;
+	var debug=true;
 	var newVariableNameNumber = 0;
+	var states = new plaid.lang.List { var head = new plaid.lang.Nil;};
+	
+	method getState(name){
+		var returnVal="";
+		this.states.map(fn (a) => {
+			if(a.name==name){
+				returnVal=a;
+			}
+		});
+		//if return is never given a value, this is an error (trying to be case of a state that has not been declared)
+		returnVal;
+	}
 	
 	method generateNewVariableName() {
-		newVariableNameNumber = newVariableNameNumber+1;
-		"$plaidNewVar"+newVariableNameNumber;
+		this.newVariableNameNumber = this.newVariableNameNumber+1;
+		"$plaidNewVar"+this.newVariableNameNumber;
 	}
 	
 	method generateNewStateName(str) {
@@ -45,9 +57,13 @@ state PrintVisitor = ASTVisitor {
 	method visitAssignment(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am an Assignment");
+			java.lang.System.out.println ("   //target: " + node.target.toString());
+			java.lang.System.out.println ("   //field: " + node.field.toString());
+			java.lang.System.out.println ("   //value: " + node.value.toString());
 		};
-		node.value.accept(this); 
-		node.target.value.accept(this); 
+		java.lang.System.out.println (node.field.name+" = "+node.value.accept(this)+";");
+		//node.target.value.accept(this); 
+		node.field.name;
 	}
 	method visitAtomicBlock(node) {
 		if (debug) {
@@ -101,7 +117,7 @@ state PrintVisitor = ASTVisitor {
 			//java.lang.System.out.println ("   //decls: " + node.decls.toString());
 			*/
 		};
-		node.decls.map(fn (d) => d.accept(this));
+		node.decls.map(fn (d) => {d.accept(this);});
 	}
 	method visitDereference(node) {
 		if (debug) {
@@ -126,8 +142,13 @@ state PrintVisitor = ASTVisitor {
 	method visitFieldDecl(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a FieldDecl");
+			java.lang.System.out.println ("   //f: " + node.f.toString());
+			java.lang.System.out.println ("   //e: " + node.e.toString());
+			java.lang.System.out.println ("   //abstractField: " + node.abstractField.toString());
+			java.lang.System.out.println ("   //overrides: " + node.overrides.toString());
+			java.lang.System.out.println ("   //fieldType: " + node.fieldType.toString());
 		};
-		node.e.accept(this);
+		java.lang.System.out.println("var "+node.f.name+" = "+node.e.accept(this)+";");
 	}
 	method visitGroupDecl(node) {
 		if (debug) {
@@ -267,17 +288,23 @@ state PrintVisitor = ASTVisitor {
 	method visitNewInstance(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a NewInstance");
+			java.lang.System.out.println ("   //s: " + node.s.toString());
 		};
-		node.s.accept(this); 
+		var newVarName = generateNewVariableName();
+		java.lang.System.out.println("var "+newVarName+" = "+generateNewStateName(node.s.accept(this))+".instantiate();");
+		newVarName;
 	}
 	method visitQI(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a QI");
+			java.lang.System.out.println ("   //qid: " + node.qid.toString());
+			java.lang.System.out.println ("   //initState: " + node.initState.toString());
 		};
 		//if node.initState is Some
 		//node.initState.value.accept(this);
 		//if node.initState is DeclList
 		//node.initState.accept(this); 
+		node.qid.toString();
 	}
 	method visitSplitBlock(node) {
 		if (debug) {
@@ -294,13 +321,50 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //isCaseOf: " + node.isCaseOf.toString());
 			java.lang.System.out.println ("   //stateType: " + node.stateType.toString());
 			java.lang.System.out.println ("   //metaCaseOfArgs: " + node.metaCaseOfArgs.toString());
-			java.lang.System.out.println ("   //stateDef has decls");
+			java.lang.System.out.println ("   //stateDef can be all kinds of things");
 		};
 		var currStateName = generateNewStateName(node.name.name);
 		match(node.caseOf) { 
 			case Some { 
 				//the state is a case of some other state, stored in caseOf.value.toString()
-				"case of " + this.caseOf.value.toString() + " " 
+				//create metadata string for creating Plaid state object in Javascript runtime
+				
+				//the string name of the state of which the current state is a case
+				var caseOfState = node.caseOf.value.accept(this);
+				//the object that bundles the node and tree corresponding to the state name above
+				var caseOfEntry = this.getState(caseOfState);
+				//the tree to which the current state will be added
+				var caseOfEntryTree = caseOfEntry.tree.copyTree(caseOfEntry.node);
+				//the node in the above tree that corresponds to the state of which the current state is a case
+				var caseOfEntryNode = caseOfEntryTree.targetNode;
+				//the node that will reflect the current state
+				var treeNode = new Node;
+				var emptyList = new plaid.lang.List { var head = new plaid.lang.Nil;};
+				
+				//add members to the previously empty list
+				match(node.stateDef){
+					case DeclList{
+					    java.lang.System.out.println("I should have decls!");
+						node.stateDef.decls.map(fn (d) => {
+							match(d) {
+								case MethodDecl {
+									emptyList.add("'"+d.name+"'");
+								}
+								default {
+								}
+							};
+						});
+					}
+					default{
+					}
+				};
+				
+				treeNode.setData(node.name.name, emptyList, false, caseOfEntryNode);
+				var entry=new StateTableEntry with { name = node.name.name; node = treeNode; tree = caseOfEntryTree; };
+				this.states.add(entry);
+				var md = caseOfEntryTree.toMetadata(caseOfEntryTree.root);
+				//emit code for creating a new Plaid state
+				java.lang.System.out.println("var "+currStateName+" = new PlaidState("+md+");");
 			} 
 			case None { 
 				//the state is not a case of any other state
@@ -308,7 +372,27 @@ state PrintVisitor = ASTVisitor {
 				var tree=new Tree;
 				var treeNode = new Node;
 				var emptyList = new plaid.lang.List { var head = new plaid.lang.Nil;};
+				
+				//add members to the previously empty list
+				match(node.stateDef){
+					case DeclList{
+					    java.lang.System.out.println("I should have decls!");
+						node.stateDef.decls.map(fn (d) => {
+							match(d) {
+								case MethodDecl {
+									emptyList.add("'"+d.name+"'");
+								}
+								default {
+								}
+							};
+						});
+					}
+					default{
+					}
+				};
 				treeNode.setData(node.name.name, emptyList, true, tree.root);
+				var entry=new StateTableEntry with { name = node.name.name; node = treeNode; tree = tree; };
+				this.states.add(entry);
 				var md = tree.toMetadata(tree.root);
 				//emit code for creating a new Plaid state
 				java.lang.System.out.println("var "+currStateName+" = new PlaidState("+md+");");
@@ -316,27 +400,23 @@ state PrintVisitor = ASTVisitor {
 		};
 		
 		
-		node.stateDef.decls.map(fn (d) => {java.lang.System.out.print(currStateName+"['"+d.name+"'] = "); d.accept(this);});
+		node.stateDef.decls.map(fn (d) => {
+			match(d) {
+				case MethodDecl{
+					java.lang.System.out.print(currStateName+"['"+d.name+"'] = "); 
+					d.accept(this);
+				}
+				case FieldDecl{
+					java.lang.System.out.print(currStateName+"['"+d.f.name+"'] = "); 
+					d.accept(this);
+				}
+				default{
+					d.accept(this);
+				}
+			};
+		});
 		
-		node.caseOf.value.accept(this);
-		
-		
-		/*
-		java.lang.System.out.println("StateDecl");
-		node.name.accept(this);
-		java.lang.System.out.println("MetaParameters");
-        node.metaParams.map(fn (p) => p.accept(this));
-        
-		match (node.caseOf) {
-            case plaid.lang.Some {
-                java.lang.System.out.println("CaseOf");
-			    node.caseOf.value.accept(this);
-			    node.metaCaseOfArgs.map(fn (p) => p.accept(this));
-            }
-            default {}
-		};
-        node.stateDef.accept(this);
-        */
+		//node.caseOf.value.accept(this);
         
 	}
 	method visitStringLiteral(node) {
@@ -375,6 +455,8 @@ state PrintVisitor = ASTVisitor {
 	method visitWith(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a With");
+			java.lang.System.out.println ("   //s1: " + node.s1.toString());			
+			java.lang.System.out.println ("   //s2: " + node.s2.toString());
 		};
 		node.s1.accept(this);
 		node.s2.accept(this); 
