@@ -1,0 +1,534 @@
+package plaid.printNodeNames;
+
+import plaid.ast.*;
+import plaid.ast.visitor.ASTVisitor;
+import plaid.metadataCreation.Node;
+import plaid.metadataCreation.Tree;
+import plaid.printNodeNames.StateTableEntry;
+
+state PrintVisitor = ASTVisitor {
+	var debug=true;
+	var newVariableNameNumber = 0;
+	var states = new plaid.lang.List { var head = new plaid.lang.Nil;};
+	var firstCase = false;
+	
+	method getState(name){
+		var returnVal="";
+		this.states.map(fn (a) => {
+			if(a.name==name){
+				returnVal=a;
+			}
+		});
+		//if return is never given a value, this is an error (trying to be case of a state that has not been declared)
+		returnVal;
+	}
+	
+	method generateNewVariableName() {
+		this.newVariableNameNumber = this.newVariableNameNumber+1;
+		"$plaidNewVar"+this.newVariableNameNumber;
+	}
+	
+	method generateNewStateName(str) {
+		"$plaidNewState_"+str;
+	}
+	
+	method handleAddWithState(qiToAdd,parentNode){				
+		//the string name of the state that is a with state for the current state
+		var withState = qiToAdd.accept(this);
+		//the object that bundles the node and tree corresponding to the state name above
+		var withEntry = this.getState(withState);
+		var withRoot = withEntry.tree.root;
+		withRoot.children.map(fn (c) => {
+			parentNode.children.add(c);
+		});
+	}
+
+	method visitApplication(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am an Application");
+			java.lang.System.out.println ("   //f: " + node.f.toString());
+			java.lang.System.out.println ("   //arguments: " + node.arguments.toString());
+			java.lang.System.out.println ("   //isTailCall: " + node.isTailCall.toString());
+		};
+		
+		//make a string (with argument values) from list of argument objects	
+		var argumentsString="";
+		if (node.arguments.length() > 0) {
+			var nMinusOneArguments = node.arguments.subList(0,node.arguments.length() - 2);
+			nMinusOneArguments.map(fn (a) => argumentsString=argumentsString+a.accept(this)+",");
+			argumentsString=argumentsString+(node.arguments.get(node.arguments.length() - 1).accept(this));
+		};
+		
+		var mn = node.f.name;
+		
+		//------------------------------------------------------------
+		//this is temporary while we figure out packages.  fix this later!
+		var extraArgumentToRemoveLater = "";	
+		if (mn=="printLine"){
+			extraArgumentToRemoveLater = "+\"<BR>\"";
+		};
+		if (mn=="printLine" || mn=="print"){
+			mn="document.write";
+		};	
+		//---------------------------------------------------------------
+		
+		//immediately emit code that assigns method call's value to the newVarName generated below
+		
+		var newVarName = generateNewVariableName();
+		var funcCallString = "var "+newVarName+" = "+mn+"("+argumentsString+extraArgumentToRemoveLater+");";
+		//print the function call
+		java.lang.System.out.println (funcCallString);
+		//return the newVarName so that method call's value can be used by the method that called this one (this can be used just like an ID name)
+		newVarName;
+	}
+	method visitAssignment(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am an Assignment");
+			java.lang.System.out.println ("   //target: " + node.target.toString());
+			java.lang.System.out.println ("   //field: " + node.field.toString());
+			java.lang.System.out.println ("   //value: " + node.value.toString());
+		};
+		java.lang.System.out.println (node.field.name+" = "+node.value.accept(this)+";");
+		//node.target.value.accept(this); 
+		node.field.name;
+	}
+	method visitAtomicBlock(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am an AtomicBlock");
+		};
+	}
+	method visitBorrowBinding(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a BorrowBinding");
+		};
+		node.exp.accept(this); 
+		node.body.accept(this); 
+	}
+	method visitCase(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a Case");
+			java.lang.System.out.println ("   //qi: " + node.qi.toString());
+			java.lang.System.out.println ("   //x: " + node.x.toString());
+			java.lang.System.out.println ("   //e: " + node.e.toString());
+			java.lang.System.out.println ("   //defaultCase: " + node.defaultCase.toString());
+			java.lang.System.out.println ("   //boundVar: " + node.boundVar.toString());
+		};
+		//the one called below should only be called if this case is not the default case
+		
+		ifElse(this.firstCase){
+			java.lang.System.out.println("if (matchVar.match(\""+node.qi.value.accept(this)+"\")) {"); 
+			this.firstCase=false;	
+		}
+		{
+			ifElse(node.defaultCase){
+				java.lang.System.out.println("else {");
+			}
+			{
+				java.lang.System.out.println("else if (matchVar.match(\""+node.qi.value.accept(this)+"\")) {"); 
+			};
+		};
+		node.e.accept(this); 
+		java.lang.System.out.println("}");
+		"matchVar";
+	}
+	method visitCast(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a Cast");
+		};
+		node.body.accept(this);
+	}
+	method visitChangeState(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a ChangeState");
+		};
+		node.e.accept(this); 
+		node.s.accept(this); 
+	}
+	method visitCompilationUnit(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a CompilationUnit");	
+		};
+		node.imports.accept(this);
+		node.decls.map(fn (d) => {
+			d.accept(this);
+		});
+	}
+	method visitDeclList(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a DeclList");
+			/*
+			node.decls.map(fn (d) => java.lang.System.out.println(d.toString()));
+			java.lang.System.out.println("hi");
+			//java.lang.System.out.println ("   //decls: " + node.decls.toString());
+			*/
+		};
+		node.decls.map(fn (d) => {d.accept(this);});
+	}
+	method visitDereference(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a Dereference");
+			java.lang.System.out.println ("   //left: " + node.left.toString());
+			java.lang.System.out.println ("   //right: " + node.right.toString());
+		};
+		node.left.accept(this); 
+	}
+	method visitDestructiveDereference(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a DestructiveDereference");
+		};
+	}
+	method visitDoubleLiteral(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a DoubleLiteral");
+			java.lang.System.out.println ("   //double: " + node.double);
+		};
+		node.double;
+	}
+	method visitFieldDecl(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a FieldDecl");
+			java.lang.System.out.println ("   //f: " + node.f.toString());
+			java.lang.System.out.println ("   //e: " + node.e.toString());
+			java.lang.System.out.println ("   //abstractField: " + node.abstractField.toString());
+			java.lang.System.out.println ("   //overrides: " + node.overrides.toString());
+			java.lang.System.out.println ("   //fieldType: " + node.fieldType.toString());
+		};
+		java.lang.System.out.println("var "+node.f.name+" = "+node.e.accept(this)+";");
+	}
+	method visitGroupDecl(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a GroupDecl");
+		};
+	}
+	method visitGroupParameter(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a GroupParameter");
+		};
+	}
+	method visitID(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am an ID");
+			java.lang.System.out.println ("   //name: " + node.name);
+		};
+		node.name;
+	}
+	method visitImportList(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am an ImportList");
+		};
+	}
+	method visitIntLiteral(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am an IntLiteral");
+			java.lang.System.out.println ("   //integer: " + node.integer);
+		};
+		node.integer;
+	}
+	method visitJoin(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a Join");
+		};
+		node.body.accept(this);
+	}
+	method visitLambda(node) {
+	
+		if (debug) {
+			java.lang.System.out.println("//I am a Lambda");
+			java.lang.System.out.println ("   //arguments: " + node.arguments.toString());
+			java.lang.System.out.println ("   //body: " + node.body.toString());
+			java.lang.System.out.println ("   //lambdaType: " + node.lambdaType.toString());
+			java.lang.System.out.println ("   //recursiveName: " + node.recursiveName.toString());
+		};
+		node.body.accept(this); 
+	}
+	method visitLetBinding(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a LetBinding");
+			java.lang.System.out.println ("   //x: " + node.x.toString());
+			java.lang.System.out.println ("   //exp: " + node.exp.toString());
+			java.lang.System.out.println ("   //body: " + node.body.toString());
+			java.lang.System.out.println ("   //mutable: " + node.mutable.toString());
+		};
+		java.lang.System.out.println("var "+node.x.accept(this)+" = "+node.exp.accept(this)+";"); 
+		node.body.accept(this); 
+	}
+	method visitMatch(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a Match");
+			java.lang.System.out.println ("   //e: " + node.e.toString());
+			java.lang.System.out.println ("   //caseList: " + node.caseList.toString());
+		};
+		java.lang.System.out.println("var matchVar = "+node.e.accept(this)+";");
+		this.firstCase = true;
+		node.caseList.map(fn (c) => {
+			c.accept(this);
+		});
+		node.e.accept(this);
+	}
+	method visitMetaDereference(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a MetaDereference");
+		};
+	}
+	method visitMetaTypeArgument(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a MetaTypeArgument");
+		};
+	}
+	method visitMetaVariable(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a MetaVariable");
+		};
+	}
+	method visitMethodCall(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a MethodCall");
+			java.lang.System.out.println ("   //receiver: " + node.receiver.toString());
+			java.lang.System.out.println ("   //methodName: " + node.methodName.toString());
+			java.lang.System.out.println ("   //arguments: " + node.arguments.toString());
+			java.lang.System.out.println ("   //isTailCall: " + node.isTailCall.toString());
+		};
+		//make a string (with argument values) from list of argument objects	
+		var argumentsString="";
+		if (node.arguments.length() > 0) {
+			var nMinusOneArguments = node.arguments.subList(0,node.arguments.length() - 2);
+			nMinusOneArguments.map(fn (a) => argumentsString=argumentsString+a.accept(this)+",");
+			argumentsString=argumentsString+(node.arguments.get(node.arguments.length() - 1).accept(this));
+		};
+		//immediately emit code that assigns method call's value to the newVarName generated below
+		var newVarName = generateNewVariableName();
+		var mn = node.methodName.name;
+		var funcCallString = "";
+		
+		ifElse ( mn=="+" || mn=="-" || mn=="*" ||mn=="/" ){
+			funcCallString = "var "+newVarName+" = "+node.receiver.accept(this)+" "+mn+" "+argumentsString+";";
+		}
+		{
+			funcCallString = "var "+newVarName+" = "+node.receiver.accept(this)+"."+mn+"("+argumentsString+");";
+		};
+		//print the function call
+		java.lang.System.out.println (funcCallString);
+		node.receiver.accept(this);
+		//return the newVarName so that method call's value can be used by the method that called this one (this can be used just like an ID name)
+		newVarName;
+		
+	}
+	method visitMethodDecl(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a MethodDecl");
+			java.lang.System.out.println ("   //name: " + node.name);
+			java.lang.System.out.println ("   //body: " + node.body.toString());
+			java.lang.System.out.println ("   //arguments: " + node.arguments.toString());
+			java.lang.System.out.println ("   //abstractMethod: " + node.abstractMethod.toString());
+			java.lang.System.out.println ("   //overrrides: " + node.overrides.toString());
+			java.lang.System.out.println ("   //methodType: " + node.methodType.toString());
+		};
+		
+		//make a strings (with argument values) from list of argument objects	
+		var argumentsString="";
+		if (node.arguments.length() > 0) {
+			var nMinusOneArguments = node.arguments.subList(0,node.arguments.length() - 2);
+			nMinusOneArguments.map(fn (a) => argumentsString=argumentsString+a.accept(this)+",");
+			argumentsString=argumentsString+(node.arguments.get(node.arguments.length() - 1).accept(this));
+		};
+		java.lang.System.out.println ("function "+node.name+" ("+argumentsString+") {");
+		java.lang.System.out.println ("return "+node.body.accept(this)+";"); 
+		java.lang.System.out.println ("}");
+		if(node.name=="main"){
+			java.lang.System.out.println("main();");
+		}
+	}
+	method visitNewInstance(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a NewInstance");
+			java.lang.System.out.println ("   //s: " + node.s.toString());
+		};
+		var newVarName = generateNewVariableName();
+		java.lang.System.out.println("var "+newVarName+" = "+generateNewStateName(node.s.accept(this))+".instantiate();");
+		newVarName;
+	}
+	method visitQI(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a QI");
+			java.lang.System.out.println ("   //qid: " + node.qid.toString());
+			java.lang.System.out.println ("   //initState: " + node.initState.toString());
+		};
+		//if node.initState is Some
+		//node.initState.value.accept(this);
+		//if node.initState is DeclList
+		//node.initState.accept(this); 
+		node.qid.toString();
+	}
+	method visitSplitBlock(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a SplitBlock");
+		};
+	}
+	method visitStateDecl(node) {
+	
+		if (debug) {
+			java.lang.System.out.println("//I am a StateDecl");	
+			java.lang.System.out.println ("   //name: " + node.name.toString());
+			java.lang.System.out.println ("   //metaParams: " + node.metaParams.toString());
+			java.lang.System.out.println ("   //caseOf: " + node.caseOf.toString());
+			java.lang.System.out.println ("   //isCaseOf: " + node.isCaseOf.toString());
+			java.lang.System.out.println ("   //stateType: " + node.stateType.toString());
+			java.lang.System.out.println ("   //metaCaseOfArgs: " + node.metaCaseOfArgs.toString());
+			java.lang.System.out.println ("   //stateDef can be DeclList Freeze QI With");
+			java.lang.System.out.println ("   //stateDef can be all kinds of things");
+		};
+		var currStateName = generateNewStateName(node.name.name);
+		var tree = "";
+		var treeNode = "";
+		match(node.caseOf) { 
+			case Some { 
+				//the state is a case of some other state, stored in caseOf.value.toString()
+				//create metadata string for creating Plaid state object in Javascript runtime
+				
+				//the string name of the state of which the current state is a case
+				var caseOfState = node.caseOf.value.accept(this);
+				//the object that bundles the node and tree corresponding to the state name above
+				var caseOfEntry = this.getState(caseOfState);
+				//the tree to which the current state will be added
+				var caseOfEntryTree = caseOfEntry.tree.copyTree(caseOfEntry.node);
+				//the node in the above tree that corresponds to the state of which the current state is a case
+				var caseOfEntryNode = caseOfEntryTree.targetNode;
+				//the node that will reflect the current state
+				treeNode = new Node;
+				var emptyList = new plaid.lang.List { var head = new plaid.lang.Nil;};
+				
+				//add members to the previously empty list
+				match(node.stateDef){
+					case DeclList{
+						node.stateDef.decls.map(fn (d) => {
+							match(d) {
+								case MethodDecl {
+									emptyList.add("'"+d.name+"'");
+								}
+								default {
+								}
+							};
+						});
+					}
+					default{
+					}
+				};
+				
+				treeNode.setData(node.name.name, emptyList, false, caseOfEntryNode);
+				tree=caseOfEntryTree;
+			} 
+			case None { 
+				//the state is not a case of any other state
+				//create metadata string for creating Plaid state object in Javascript runtime
+				tree=new Tree;
+				treeNode = new Node;
+				var emptyList = new plaid.lang.List { var head = new plaid.lang.Nil;};
+				
+				//add members to the previously empty list
+				match(node.stateDef){
+					case DeclList{
+						node.stateDef.decls.map(fn (d) => {
+							match(d) {
+								case MethodDecl {
+									emptyList.add("'"+d.name+"'");
+								}
+								default {
+								}
+							};
+						});
+					}
+					default{
+					}
+				};
+				treeNode.setData(node.name.name, emptyList, true, tree.root);
+			} 
+		};
+		
+		match(node.stateDef){
+			case DeclList{
+				node.stateDef.decls.map(fn (d) => {
+					match(d) {
+						case MethodDecl{
+							java.lang.System.out.print(currStateName+"['"+d.name+"'] = "); 
+							d.accept(this);
+						}
+						case FieldDecl{
+							java.lang.System.out.print(currStateName+"['"+d.f.name+"'] = "); 
+							d.accept(this);
+						}
+						default{
+							d.accept(this);
+						}
+					};
+				});
+			}
+			case QI{
+				//the state in this QI should be a component of the state being added (a with state for it)
+				handleAddWithState(node.stateDef,treeNode);
+			}
+			case With{
+				//both states in the QIs in this With should be components of the state being added (a with state for it)
+				handleAddWithState(node.stateDef.s1,treeNode);
+				handleAddWithState(node.stateDef.s2,treeNode);
+			}
+			default{
+				java.lang.System.out.println("//ACCEPT LOOP "+currStateName);
+				node.stateDef.accept(this);
+			}
+		};
+		
+		var entry=new StateTableEntry with { name = node.name.name; node = treeNode; tree = tree; };
+		this.states.add(entry);
+		var md = tree.toMetadata(tree.root);
+		//emit code for creating a new Plaid state
+		java.lang.System.out.println("var "+currStateName+" = new PlaidState("+md+");");
+		
+		//node.caseOf.value.accept(this);
+        
+	}
+	method visitStringLiteral(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a StringLiteral");
+			java.lang.System.out.println ("   //string: " + node.string);
+		};
+		("\"")+node.string+("\"");
+	}
+	method visitsplitPerm(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a Split");
+		};
+		node.body.accept(this);
+	}
+	method visitTakeBinding(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a TakeBinding");
+		};
+		node.exp.accept(this); 
+		node.body.accept(this); 
+	}
+	method visitTypeParameter(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a TypeParameter");
+		};
+	}
+	method visitUnitLiteral(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a UnitLiteral");
+		};
+	}
+	method visitUnpackerInnerGroups(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am an UnpackerInnerGroups");
+		};
+	}
+	method visitWith(node) {
+		if (debug) {
+			java.lang.System.out.println("//I am a With");
+			java.lang.System.out.println ("   //s1: " + node.s1.toString());			
+			java.lang.System.out.println ("   //s2: " + node.s2.toString());
+		};
+		node.s1.accept(this);
+		node.s2.accept(this); 
+	}
+
+}
