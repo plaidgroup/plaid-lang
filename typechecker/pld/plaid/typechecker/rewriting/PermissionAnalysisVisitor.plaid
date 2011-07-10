@@ -7,9 +7,10 @@ import plaid.ast.stateTable.StateTable;
 import plaid.ast.types.*;
 import plaid.ast.types.permissions.*;
 import plaid.typechecker.context.*;
+import java.lang.System;
 
 state PermissionAnalysisVisitor case of ASTVisitor {
-  var unique Context context = new Context;
+    var unique Context context = new Context;
 	val unique NeedsContext needsContext = new NeedsContext;
 	val unique StateTable st = new StateTable;
 	var unique Permission neededPerm = NONEP;
@@ -31,20 +32,39 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 			// TODO: Add support for function bindings
 			default {
 				match(node) {
-					case PermTypeAnnotation {
+					case PermTypeAnnotation {					  
 					  this.context.put(node.x.copy(), node.pType.type);
 					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
 					  node.body.accept(this);
 					}
 					case ObjectTypeAnnotation {
-						this.context.put(node.x.copy(), node.oType);
+					  this.context.put(node.x.copy(), node.oType);
 					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
 					  node.body.accept(this);
 					  val need = needsContext.get(node.x.copy()).second();
-					  node.addPermission(need);
+					  match(node.oType) {
+					    case LambdaType {
+					      val newRetType = createPermType(need,node.oType.returnType.type);
+					      node.oType.returnType = newRetType;
+					      node.addPermission(IMM);
+					    }
+					    default {
+					      node.addPermission(need);
+					    }
+					  }
 					}
 				};
-				this.neededPerm = node.pType.perm;
+				
+				//in the case of a function, the needed type is the return permission
+				//otherwise it is the permission from the binding
+				match (node.pType.type) {
+				  case LambdaType {
+				    this.neededPerm = node.pType.type.returnType.perm
+				  }
+				  default {
+				  	this.neededPerm = node.pType.perm
+				  }
+				};
 				this.needsContext.remove(node.x.copy());
 				this.context = oldContext;
 				node.exp.accept(this);
@@ -167,7 +187,28 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 	}
 	
 	method visitLambda(node) {
-		// TODO:  Implement FUNCTION
+		val fnVisitor = new PermissionAnalysisVisitor { 
+				override val st = this.st; 
+				override var neededPerm = this.neededPerm;
+			};
+		val idTypeList = node.arguments.zip(node.lambdaType.argTypes);
+		idTypeList.map(fn(idType) => {
+			fnVisitor.context.put(idType.fst.copy(),idType.snd.input.type);
+			fnVisitor.needsContext.put(idType.fst.copy(),
+									   makePair(idType.snd.strongBorrow,idType.snd.output.perm));
+		});
+		
+		val iterator = node.lambdaType.environmentTypes.keySet().iterator();
+		while { iterator.hasNext() } {
+		  val envId = iterator.next();
+		  val envChange = node.lambdaType.environmentTypes.get(envId);
+		  val envInType = envChange.input.type;
+		  fnVisitor.context.put(envId.copy(), envInType);
+		  val envOutPerm = envChange.output.perm;
+		  fnVisitor.needsContext.put(envId.copy(), makePair(envChange.strongBorrow,envOutPerm));
+		};
+		
+		node.body.accept(fnVisitor);
 	}
 	
 	method visitSplitBlock(node) {
