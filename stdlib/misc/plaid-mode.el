@@ -17,8 +17,8 @@
 
 
 ;; keywords 
-(defvar plaid-builtin      '("type" "method" "var" "val" "package" "state" "override" "case of"  "with""fn"))
-(defvar plaid-keywords     '("if" "ifElse" "while" "match" "default" "case" "new"))
+(defvar plaid-builtin      '("type" "method" "var" "val" "package" "state" "override" "with" "fn"))
+(defvar plaid-keywords     '("if" "ifElse" "while" "match" "default" "case" "new" "of"))
 (defvar plaid-vars         '("this"))
 (defvar plaid-preprocessor '("import" "package"))
 (defvar plaid-types        '("unique" "immutable" "shared" "none" "void" "Integer" "String"))
