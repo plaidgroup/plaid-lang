@@ -85,7 +85,7 @@ public class Match implements Expression {
 			c.codegen(out, y, toMatch, localVars, stateVars);
 			out.elseCase(); out.openBlock();
 		}
-		out.append("throw new RuntimeException(\"Pattern match exhausted.\");");
+		out.append("throw new plaid.runtime.PlaidRuntimeException(\"Pattern match exhausted.\");");
 		for (int i=0; i<caseList.size();i++) {
 			out.closeBlock();
 		}
