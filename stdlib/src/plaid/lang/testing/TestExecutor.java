@@ -73,8 +73,6 @@ public class TestExecutor {
 		return tests;
 	}
 	
-
-	
 	protected static Collection<TestCase> findTestFactories() throws IOException {
 		Collection<TestCase> tests = new ArrayList<TestCase>();
 		
@@ -190,6 +188,7 @@ public class TestExecutor {
 					return false;
 				}
 			} catch (Exception ex) {
+				System.out.println(ex.toString());
 				return false;
 			}
 		}
