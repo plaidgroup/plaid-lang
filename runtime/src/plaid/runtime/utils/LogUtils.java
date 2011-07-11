@@ -30,6 +30,7 @@ public class LogUtils {
 			super(name, null);
 			setUseParentHandlers(false);
 			addHandler(new SimpleConsoleHandler());
+			setLevel(Level.ALL);
 		}
 		
 	}
