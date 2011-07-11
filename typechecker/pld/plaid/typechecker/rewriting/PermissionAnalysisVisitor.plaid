@@ -1,0 +1,191 @@
+package plaid.typechecker.rewriting;
+
+import plaid.lang.*;
+import plaid.ast.visitor.*;
+import plaid.ast.*;
+import plaid.ast.stateTable.StateTable;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.typechecker.context.*;
+
+state PermissionAnalysisVisitor case of ASTVisitor {
+  var unique Context context = new Context;
+	val unique NeedsContext needsContext = new NeedsContext;
+	val unique StateTable st = new StateTable;
+	var unique Permission neededPerm = NONEP;
+	
+	method visitTakeBinding(node) {
+		val oldContext = this.context;
+		val typeFetchVisitor = new TypeFetchVisitor {
+			st = this.st; 
+			context = this.context.copy();
+		};
+		node.exp.accept(typeFetchVisitor);
+		this.context = typeFetchVisitor.context;
+		match(node) {
+			case NoTypeAnnotation {
+				// TODO:  Throw an error here
+				// we need an error strategy for permission analysis
+				// another comment
+			}
+			// TODO: Add support for function bindings
+			default {
+				match(node) {
+					case PermTypeAnnotation {
+					  this.context.put(node.x.copy(), node.pType.type);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					}
+					case ObjectTypeAnnotation {
+						this.context.put(node.x.copy(), node.oType);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					  val need = needsContext.get(node.x.copy()).second();
+					  node.addPermission(need);
+					}
+				};
+				this.neededPerm = node.pType.perm;
+				this.needsContext.remove(node.x.copy());
+				this.context = oldContext;
+				node.exp.accept(this);
+			}
+		}
+	}
+	
+	method visitBorrowBinding(node) {
+		val oldContext = this.context;
+		val typeFetchVisitor = new TypeFetchVisitor {
+			st = this.st; 
+			context = this.context.copy();
+		};
+		node.exp.accept(typeFetchVisitor);
+		this.context = typeFetchVisitor.context;
+		match(node) {
+			case NoTypeAnnotation {
+				// TODO:  Throw an error
+			}
+			default {
+				match(node) {
+					case PermTypeAnnotation {
+					  this.context.put(node.x.copy(), node.pType.type);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					}
+					case ObjectTypeAnnotation {
+						this.context.put(node.x.copy(), node.oType);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					  val need = needsContext.get(node.x.copy()).second();
+					  node.addPermission(need);
+					}
+				};
+				this.neededPerm = node.pType.perm;
+				this.needsContext.remove(node.x.copy());
+				this.context = oldContext;
+				node.exp.accept(this);
+			}
+		}
+		// TODO:  Implement BORROW-VAR-PRED
+		// TODO:  Implement BORROW-VAR-ADD
+		// TODO:  Implement BORROW-FIELD-PRED
+		// TODO:  Implement BORROW-FIELD-ADD
+	}
+	
+	method visitID(node) {
+	  val contextNeed = needsContext.get(node.copy());
+	  val newNeed = neededPerm.leastUpperBound(contextNeed.second());
+	  needsContext.update(node.copy(), makePair(contextNeed.first(), newNeed));
+	}
+	
+	method visitNewInstance(node) {
+		
+	}
+	method visitUnitLiteral(node) {
+	}
+	
+	method visitAtomicBlock(node) {
+	}
+
+	method visitCase(node) {				
+	}
+	
+	method visitChangeState(node) {		
+	}
+	
+	method visitCompilationUnit(node) {
+	}
+	
+	method visitDeclList(node) {
+	}
+	
+	method declListHelper(/* immutable List<Decl>*/ decls) {
+	}
+	
+	method visitDereference(node) {
+		// TODO:  Implement FIELD-READ
+	}
+	
+	method visitDestructiveDereference(node) {
+		newObjectError("Destructive Dereferences not allowed in Internal LNF");
+	}
+	
+	method visitAssignment(node) {
+		// TODO:  Implement FIELD-WRITE
+	}
+	
+	method visitQI(node) {
+	}
+	
+	method visitDoubleLiteral(node) {
+    }
+    
+	method visitIntLiteral(node) {
+	}
+	
+	method visitStringLiteral(node) {
+	}
+	
+	method void visitFieldDecl(node) {
+	}
+	
+	method visitGroupDecl(node) {
+	}
+	
+	method visitMatch(node) {			
+		// TODO:  Implement MATCH
+	}
+	
+	method visitMethodCall(node) {
+		// TODO:  Implement CALL
+	}
+	
+	method visitApplication(node) {
+		// TODO:  Implement APP
+	}
+	
+	method void visitMethodDecl(node) {
+	}
+	
+	method visitLambda(node) {
+		// TODO:  Implement FUNCTION
+	}
+	
+	method visitSplitBlock(node) {
+		newObjectError("Split Block not implemented");
+	}
+	
+
+	method visitStateDecl(node) {
+	}
+	
+	method visitUnpackInnerGroups(node) {
+		java.lang.System.err.println("I don't know how to deal with you");
+	}
+	
+	method visitWith(node) {
+		node.s1.accept(this);
+		node.s2.accept(this);
+		//TODO: add composition
+		newObjectError("non Nominal States not implemented");
+	}
+}
