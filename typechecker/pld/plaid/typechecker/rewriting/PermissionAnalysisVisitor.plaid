@@ -44,7 +44,7 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 					  val need = needsContext.get(node.x.copy()).second();
 					  match(node.oType) {
 					    case LambdaType {
-					      val newRetType = createPermType(need,node.oType.returnType.type);
+					      val newRetType = createPermType(need,node.oType.returnType); //at this point return type is just a object type, not yet a permType
 					      node.oType.returnType = newRetType;
 					      node.addPermission(IMM);
 					    }
@@ -133,6 +133,7 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 	}
 	
 	method visitCompilationUnit(node) {
+		node.decls.map(fn(d) => d.accept(this))
 	}
 	
 	method visitDeclList(node) {
@@ -166,6 +167,19 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 	}
 	
 	method void visitFieldDecl(node) {
+		val fieldVisitor = new PermissionAnalysisVisitor {
+				override val st = this.st; 
+			};
+		val fieldPermType = node.fieldType.binding.currentType.copy();
+		match (fieldPermType.type) {
+			case LambdaType {
+				fieldVisitor.neededPerm = fieldPermType.type.returnType.perm;
+			}
+			default {
+				fieldVisitor.neededPerm = fieldPermType.perm;
+			}
+		};
+		node.e.accept(fieldVisitor);
 	}
 	
 	method visitGroupDecl(node) {
@@ -217,6 +231,7 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 	
 
 	method visitStateDecl(node) {
+		node.stateDef.accept(this);
 	}
 	
 	method visitUnpackInnerGroups(node) {
@@ -226,7 +241,5 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 	method visitWith(node) {
 		node.s1.accept(this);
 		node.s2.accept(this);
-		//TODO: add composition
-		newObjectError("non Nominal States not implemented");
 	}
 }
