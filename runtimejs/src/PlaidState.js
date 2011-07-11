@@ -17,6 +17,15 @@ function PlaidState(t){
    this.tree=t;
 }
 
+/*Constructor*/
+function PlaidState(){
+}
+
+/*set the tree equal to the argument passed in*/
+PlaidState.prototype.setTree = function(t) {
+   this.tree=t;
+}
+
 /*Deletes the member that was passed in from the tree of the object on which method was called*/
 function s_remove(md1, member){
    var memberList=md1[0][1];
@@ -121,7 +130,7 @@ function s_tags(md1){
    return tagList;
 }
 
-/*returns a new state composed of both the state on which the function was called and the state that was passed in*/
+/*returns a new OBJECT composed of both the state on which the function was called and the state that was passed in (should be object?)*/
 PlaidState.prototype.with = function(state) {
 
    var md1=this.tree;
@@ -147,7 +156,7 @@ PlaidState.prototype.with = function(state) {
       }
    } 
 
-   var obj=new PlaidState(this.tree.clone());
+   var obj=new PlaidObject(this.tree.clone());
    var i;
    copyMembers(obj,this);
    copyMembers(obj,state);

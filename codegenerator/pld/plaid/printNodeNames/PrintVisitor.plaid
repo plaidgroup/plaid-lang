@@ -25,11 +25,11 @@ state PrintVisitor = ASTVisitor {
 	
 	method generateNewVariableName() {
 		this.newVariableNameNumber = this.newVariableNameNumber+1;
-		"$plaidNewVar"+this.newVariableNameNumber;
+		"plaidNewVar"+this.newVariableNameNumber;
 	}
 	
 	method generateNewStateName(str) {
-		"$plaidNewState_"+str;
+		"plaidNewState_"+str;
 	}
 	
 	method handleAddWithState(qiToAdd,parentNode){				
@@ -140,9 +140,44 @@ state PrintVisitor = ASTVisitor {
 	method visitChangeState(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a ChangeState");
+			java.lang.System.out.println ("   //e: " + node.e.toString());
+			java.lang.System.out.println ("   //s: " + node.s.toString());
 		};
-		node.e.accept(this); 
-		node.s.accept(this); 
+		var toChange=node.e.accept(this);
+		match(node.s){
+			case ID{
+			java.lang.System.out.println(toChange+".stateChange("+node.s.accept(this)+");");
+			}
+			case DeclList{
+				node.s.decls.map(fn (d) => {
+					match(d) {
+						case MethodDecl{
+							java.lang.System.out.print(toChange+"['"+d.name+"'] = "); 
+							d.accept(this);
+						}
+						case FieldDecl{			
+							match(d.e){
+								case UnitLiteral{
+									java.lang.System.out.println(toChange+"['"+d.f.name+"'];");
+								}
+								default {
+									java.lang.System.out.println(toChange+"['"+d.f.name+"'] = "+d.e.accept(this)+";");
+								}
+							};
+						
+						}
+						default{
+							d.accept(this);
+						}
+					};
+				});
+			}
+			default{
+				java.lang.System.out.println("problem");
+				node.s.accept(this);
+			}
+		};
+		toChange;
 	}
 	method visitCompilationUnit(node) {
 		if (debug) {
@@ -156,11 +191,6 @@ state PrintVisitor = ASTVisitor {
 	method visitDeclList(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a DeclList");
-			/*
-			node.decls.map(fn (d) => java.lang.System.out.println(d.toString()));
-			java.lang.System.out.println("hi");
-			//java.lang.System.out.println ("   //decls: " + node.decls.toString());
-			*/
 		};
 		node.decls.map(fn (d) => {d.accept(this);});
 	}
@@ -193,11 +223,13 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //overrides: " + node.overrides.toString());
 			java.lang.System.out.println ("   //fieldType: " + node.fieldType.toString());
 		};
-		ifElse(node.e.toString()=="UNIT")
-			{java.lang.System.out.println("var "+node.f.name+";");
-		}
-		{
-			java.lang.System.out.println("var "+node.f.name+" = "+node.e.accept(this)+";");
+		match(node.e){
+			case UnitLiteral{
+				java.lang.System.out.println("var "+node.f.name+";");
+			}
+			default {
+				java.lang.System.out.println("var "+node.f.name+" = "+node.e.accept(this)+";");
+			}
 		};
 	}
 	method visitGroupDecl(node) {
@@ -349,7 +381,14 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //s: " + node.s.toString());
 		};
 		var newVarName = generateNewVariableName();
-		java.lang.System.out.println("var "+newVarName+" = "+generateNewStateName(node.s.accept(this))+".instantiate();");
+		match(node.s){
+			case QI{
+				java.lang.System.out.println("var "+newVarName+" = "+generateNewStateName(node.s.accept(this))+".instantiate();");
+			}
+			case With{
+				java.lang.System.out.println("var "+newVarName+" = "+generateNewStateName(node.s.s1.accept(this))+".with("+generateNewStateName(node.s.s2.accept(this))+");");
+			}
+		};
 		newVarName;
 	}
 	method visitQI(node) {
@@ -383,6 +422,9 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //stateDef can be all kinds of things");
 		};
 		var currStateName = generateNewStateName(node.name.name);
+		//emit code for creating a new Plaid state
+		java.lang.System.out.println("var "+currStateName+" = new PlaidState();");
+		
 		var tree = "";
 		var treeNode = "";
 		match(node.caseOf) { 
@@ -409,6 +451,9 @@ state PrintVisitor = ASTVisitor {
 							match(d) {
 								case MethodDecl {
 									emptyList.add("'"+d.name+"'");
+								}
+								case FieldDecl {
+									emptyList.add("'"+d.f.name+"'");
 								}
 								default {
 								}
@@ -437,6 +482,9 @@ state PrintVisitor = ASTVisitor {
 								case MethodDecl {
 									emptyList.add("'"+d.name+"'");
 								}
+								case FieldDecl {
+									emptyList.add("'"+d.f.name+"'");
+								}
 								default {
 								}
 							};
@@ -457,9 +505,15 @@ state PrintVisitor = ASTVisitor {
 							java.lang.System.out.print(currStateName+"['"+d.name+"'] = "); 
 							d.accept(this);
 						}
-						case FieldDecl{
-							java.lang.System.out.print(currStateName+"['"+d.f.name+"'] = "); 
-							d.accept(this);
+						case FieldDecl{			
+							match(d.e){
+								case UnitLiteral{
+									java.lang.System.out.println(currStateName+"['"+d.f.name+"'];");
+								}
+								default {
+									java.lang.System.out.println(currStateName+"['"+d.f.name+"'] = "+d.e.accept(this)+";");
+								}
+							};
 						}
 						default{
 							d.accept(this);
@@ -485,11 +539,11 @@ state PrintVisitor = ASTVisitor {
 		var entry=new StateTableEntry with { name = node.name.name; node = treeNode; tree = tree; };
 		this.states.add(entry);
 		var md = tree.toMetadata(tree.root);
-		//emit code for creating a new Plaid state
-		java.lang.System.out.println("var "+currStateName+" = new PlaidState("+md+");");
+		//emit code for setting the tree of the new Plaid state
+		java.lang.System.out.println(currStateName+".tree = "+md+";");
 		
 		//node.caseOf.value.accept(this);
-        
+        currStateName;
 	}
 	method visitStringLiteral(node) {
 		if (debug) {
