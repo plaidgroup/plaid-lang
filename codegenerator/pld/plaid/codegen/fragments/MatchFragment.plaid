@@ -1,0 +1,76 @@
+package plaid.codegen.fragments;
+
+state MatchFragment {
+	var toMatch;
+	
+	method visitMatch(node) {
+		this.setLocation(node.token);
+		val /*ID*/ toMatch = this.idgen.getId();
+
+		this.out.declareFinalVar(this.jCodeGen.plaidObjectType, toMatch.name);
+
+		val /*ID*/ y = this.y;
+		this.y = toMatch;
+		node.e.accept(this);
+		this.y = y;
+
+		node.caseList.map(fn (c) => {
+			this.toMatch = toMatch;
+			this.y = y;
+			c.accept(this);
+			this.out.elseCase();
+			this.out.openBlock();
+		});
+		
+		this.out.append("throw new PlaidRuntimeException(\"Pattern match exhausted.\");");
+		
+		node.caseList.map(fn (c) => {
+			this.out.closeBlock();
+		});
+	}
+	
+	method visitCase(node) {
+		this.setLocation(node.token);
+		
+		// if this is the default case
+		ifElse (node.defaultCase) {
+			this.out.ifCondition("true");
+			this.out.openBlock();
+			node.e.accept(this);
+			this.out.closeBlock();
+		} {
+			// otherwise generate to check this case matches
+			val /*ID*/ potentialMatch = this.idgen.getId();
+			val /*ID*/ potentialMatchTagString = this.idgen.getId();
+			
+			// generate code to get the state to match against
+			this.out.declareFinalVar(this.jCodeGen.plaidStateType, potentialMatch.name);
+			val y = this.y;
+			this.y = potentialMatch;
+			node.qi.value.accept(this);
+			this.y = y;
+			
+			this.out.declareFinalVar("String", potentialMatchTagString.name);
+			this.out.assignToQIDString(potentialMatchTagString.name, potentialMatch.name);
+			
+			// test if the toMatch object has the tag 
+			this.out.ifCondition(this.jCodeGen.objectMatchesTag(toMatch.name, potentialMatchTagString.name));  // if (toMatch.hasState(potentialMatch))
+			this.out.openBlock(); // {
+			
+			if (node.boundVar) { //if there is a bound variable
+				match (node.x) {
+					case None {
+						java.lang.System.err.println("error in match fragment");
+					}
+					default {
+						this.out.declareFinalVar(this.jCodeGen.plaidObjectType, node.x.value.name); //PlaidObject x;
+						this.out.assignToID(node.x.value.name, this.toMatch.name); // x = toMatch
+					}
+				}
+			};
+			node.e.accept(this);
+			
+			this.out.closeBlock(); // }
+		};
+	}
+}
