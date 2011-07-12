@@ -2,6 +2,7 @@ describe("PlaidObject", function() {
   var obj1;
   var obj2;
   var obj3;
+  var obj4;
   var state1;
 
   var treeBuilder=new Tree();
@@ -33,16 +34,32 @@ describe("PlaidObject", function() {
   var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
   var md3 = treeBuilder3.toMetadata();
 
+  var treeBuilder4=new Tree();
+  var car = new WithNode("car",[],treeBuilder4.root);
+  var drivingStatus = new WithNode("drivingStatus",[],car);
+  var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
+  var brakingStatus = new WithNode("brakingStatus",[],driving);
+  var braking = new CaseOfNode("braking",["stopBraking"],brakingStatus);
+  var directionStatus = new WithNode("directionStatus",[],driving);
+  var turningLeft = new CaseOfNode("turningLeft",["straight","turnRight"], directionStatus);
+  var cleanStatus = new WithNode("cleanStatus",[],car);
+  var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
+  var car = new WithNode("",["three"],treeBuilder4.root);
+  var md4 = treeBuilder4.toMetadata();
+
   var membersAtStart1=["speed","acceleration","stopDriving","stopBraking","straight","turnRight","getDirty"];
   var membersAtStart2=["startBraking"];
   var membersAtStart3=["speed","acceleration","stopDriving","startBraking","straight","turnRight","getDirty"];
+  var membersAtStart4=["speed","acceleration","stopDriving","stopBraking","straight","turnRight","getDirty","three"];
 
 
   beforeEach(function() {
     obj1 = new PlaidObject(md1.clone());
     obj2 = new PlaidObject(md2.clone());
     obj3 = new PlaidObject(md3.clone());
-    state1 = new PlaidState(md1.clone());
+    obj4 = new PlaidObject(md4.clone());
+    state1 = new PlaidState();
+    state1.setTree(md1.clone());
     var length1=membersAtStart1.length;
     for (var i=0;i<length1;i++){
       obj1[membersAtStart1[i]]=10;
@@ -55,6 +72,10 @@ describe("PlaidObject", function() {
     var length3=membersAtStart3.length;
     for (var i=0;i<length3;i++){
       obj3[membersAtStart3[i]]=10;
+    }
+    var length4=membersAtStart4.length;
+    for (var i=0;i<length4;i++){
+      obj4[membersAtStart4[i]]=10;
     }
     
   });
@@ -108,6 +129,21 @@ describe("PlaidObject", function() {
       obj3Members.push(item);
     }
     expect(obj1Members).toHaveSameElementsAs(obj3Members);
+  });
+
+  it("should have correct tree and members after state change passing in only a member", function() {
+    obj1.stateChangeMember("three",3);
+    var result=obj1.tree;
+    expect(result).toEqual(obj4.tree);
+    var obj1Members=[]
+    for (var item in obj1){
+      obj1Members.push(item);
+    }
+    var obj4Members=[]
+    for (var item in obj4){
+      obj4Members.push(item);
+    }
+    expect(obj1Members).toHaveSameElementsAs(obj4Members);
   });
 
   it("should produce PlaidState with correct tree and members after freeze", function() {
@@ -192,6 +228,18 @@ describe("PlaidState", function() {
   var twoWheeled = new CaseOfNode("twoWheeled",["addWheels"],trailer);
   var md6 = treeBuilder6.toMetadata();
 
+  var treeBuilder7=new Tree();
+  var car = new WithNode("car",[],treeBuilder7.root);
+  var drivingStatus = new WithNode("drivingStatus",[],car);
+  var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
+  var brakingStatus = new WithNode("brakingStatus",[],driving);
+  var braking = new CaseOfNode("braking",["stopBraking","hi"],brakingStatus);
+  var directionStatus = new WithNode("directionStatus",[],driving);
+  var turningLeft = new CaseOfNode("turningLeft",["straight","turnRight"], directionStatus);
+  var cleanStatus = new WithNode("cleanStatus",[],car);
+  var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
+  var md7 = treeBuilder7.toMetadata();
+
   var membersAtStart1=["speed","acceleration","stopDriving","stopBraking","straight","turnRight","getDirty"];
   var membersAtStart2=["speed","acceleration","stopDriving","straight","turnRight","getDirty"];
   var membersAtStart3=["speed","acceleration","stopDriving","stopBraking2","straight","turnRight","getDirty"];
@@ -200,11 +248,16 @@ describe("PlaidState", function() {
 
 
   beforeEach(function() {
-    state1 = new PlaidState(md1.clone());
-    state2 = new PlaidState(md2.clone());
-    state3 = new PlaidState(md3.clone());
-    state4 = new PlaidState(md4.clone());
-    state6 = new PlaidState(md6.clone());
+    state1 = new PlaidState();
+    state1.setTree(md1.clone());
+    state2 = new PlaidState();
+    state2.setTree(md2.clone());
+    state3 = new PlaidState();
+    state3.setTree(md3.clone());
+    state4 = new PlaidState();
+    state4.setTree(md4.clone());
+    state6 = new PlaidState();
+    state6.setTree(md6.clone());
     obj1 = new PlaidObject(md1.clone());
     var length1=membersAtStart1.length;
     for (var i=0;i<length1;i++){
@@ -295,6 +348,18 @@ describe("PlaidState", function() {
     expect(state5Members).toHaveSameElementsAs(state6Members);
   });
 
+  it("should produce PlaidState with correct tree and member values after specialize", function() {
+    var result = state1.specialize("braking","hi",3);
+    var tree=result.tree;
+    expect(tree).toEqual(md7);
+    expect(result['hi']).toEqual(3);
+
+    var result = state1.specialize("braking","stopBraking",3);
+    var tree=result.tree;
+    expect(tree).toEqual(state1.tree);
+    expect(result['stopBraking']).toEqual(3);
+  });
+
 });
 
 describe("PlaidObject Errors", function() {
@@ -341,7 +406,8 @@ describe("PlaidObject Errors", function() {
     obj1 = new PlaidObject(md1.clone());
     obj2 = new PlaidObject(md2.clone());
     obj3 = new PlaidObject(md3.clone());
-    state1 = new PlaidState(md1.clone());
+    state1 = new PlaidState();
+    state1.setTree(md1.clone());
     var length1=membersAtStart1.length;
     for (var i=0;i<length1;i++){
       obj1[membersAtStart1[i]]=10;
@@ -362,6 +428,12 @@ describe("PlaidObject Errors", function() {
     expect(function() {
         obj1.stateChange(obj3);
       }).toThrow("Error: state change violates unique members by attempting to add speed to item that already contains speed");
+  });
+
+  it("should throw an error if state change would violate unique members passing in only a member", function() {    
+    expect(function() {
+        obj1.stateChangeMember("getDirty",3);
+      }).toThrow("Error: state change violates unique members by attempting to add getDirty to item that already contains getDirty");
   });
 
   it("should throw an error if state change would violate unique tags", function() {    
@@ -443,12 +515,17 @@ describe("PlaidState Errors", function() {
 
 
   beforeEach(function() {
-    state1 = new PlaidState(md1.clone());
-    state2 = new PlaidState(md2.clone());
-    state3 = new PlaidState(md3.clone());
-    state4 = new PlaidState(md4.clone());
-    state6 = new PlaidState(md6.clone());
-    obj1 = new PlaidObject(md1.clone());
+    state1 = new PlaidState();
+    state1.setTree(md1.clone());
+    state2 = new PlaidState();
+    state2.setTree(md2.clone());
+    state3 = new PlaidState();
+    state3.setTree(md3.clone());
+    state4 = new PlaidState();
+    state4.setTree(md4.clone());
+    state6 = new PlaidState();
+    state6.setTree(md6.clone());
+    obj1 = new PlaidObject();
     var length1=membersAtStart1.length;
     for (var i=0;i<length1;i++){
       state1[membersAtStart1[i]]=10;
@@ -503,4 +580,10 @@ describe("PlaidState Errors", function() {
       }).toThrow("Error: attempt to remove a member speed2 that does not exist in the state");
   });
   
+  it("should throw an error if specialize call attempts to add a member that already exists in the state, but for a different tag", function() {
+    expect(function() {
+        state1.specialize("braking","getDirty",3);
+      }).toThrow("Error: attempt to associate member getDirty with tag braking which already names a member of another tag");
+  });
+
 });
