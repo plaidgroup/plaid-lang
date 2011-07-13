@@ -182,14 +182,36 @@ function m_stateChange(obj1,obj2){
       }
    }
 
+   for (var j=0;j<removeLength;j++){
+      delete obj1[remove[j]];
+   }
+
    for (var j=0;j<addLength;j++){
       //addMember(obj1,add[j],obj2[add[j]]);
       obj1[add[j]]=obj2[add[j]];
    }
-   for (var j=0;j<removeLength;j++){
-      delete obj1[remove[j]];
-   }
+
 }
+
+/*Enacts state change in accordance with Plaid semantics, transitioning obj1 to obj2, essentially obj1 <- obj2; fixes trees and members both; checks unique tags and unique members; no return value; this method handles the case where a member and not a state is passed in*/
+function m_stateChangeMember(obj1,member, value){
+   var members = obj1.members();
+   if (has(members,member)){
+      throw "Error: state change violates unique members by attempting to add "+member+" to item that already contains "+member;
+   }
+   addMember(obj1,member,value);
+   obj1.tree.push([["",[member],"with"]]); 
+}
+
+/*Enacts state change in accordance with Plaid semantics, transitioning obj1 to obj2, essentially obj1 <- obj2; fixes trees and members both; checks unique tags and unique members; no return value; this method handles the case where a member and not a state is passed in, and the member is given no value, and is only declared*/
+function m_stateChangeMember(obj1,member, value){
+   var members = obj1.members();
+   if (has(members,member)){
+      throw "Error: state change violates unique members by attempting to add "+member+" to item that already contains "+member;
+   }
+   obj1.tree.push([["",[member],"with"]]); 
+}
+
 
 /*Returns true if item is contained in array, false if it is not*/
 function has(array, item){
@@ -234,6 +256,16 @@ PlaidObject.prototype.stateChange=function(state) {
    return m_stateChange(this,state);
 }
 
+/*Enacts state change according to current Plaid semantics (June 2011), equivalent to this <- state ;  transitions the object on which it is called to the state that is passed in; this method handles state transition when only a member and not a state is passed in*/
+PlaidObject.prototype.stateChangeMember=function(member, value) {
+   return m_stateChangeMember(this,member,value);
+}
+
+/*Enacts state change according to current Plaid semantics (June 2011), equivalent to this <- state ;  transitions the object on which it is called to the state that is passed in; this method handles state transition when only a member and not a state is passed in, and the member is declared without a value*/
+PlaidObject.prototype.stateChangeMemberNoValue=function(member) {
+   return m_stateChangeMemberNoValue(this,member);
+}
+
 /*Transitions the object on which it is called into exactly the state of the state that is passed in; removes all current members and tags, adds all members and tags of state*/
 PlaidObject.prototype.replace=function(state) {
    var add=state.members();
@@ -253,11 +285,12 @@ PlaidObject.prototype.replace=function(state) {
 
 /*Returns a PlaidState object with the same tree and members as the object on which it is called*/
 PlaidObject.prototype.freeze=function() {
-   var obj=new PlaidState(this.tree.clone());
+   var obj=new PlaidState();
+   obj.setTree(this.tree.clone());
    var i;
    //right now this copies any method that is not the ones listed in the first condition below
    for (i in this) {
-      if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="stateChange" || i==="replace" || i==="freeze" || i==="clone") {
+      if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="stateChange" || i==="stateChangeMember" || i==="stateChangeMemberNoValue" || i==="replace" || i==="freeze" || i==="clone") {
          continue;
       }
       if (this[i] && typeof this[i] == "object") {

@@ -7,7 +7,7 @@ import plaid.metadataCreation.Tree;
 import plaid.printNodeNames.StateTableEntry;
 
 state PrintVisitor = ASTVisitor {
-	var debug=true;
+	var debug=false;
 	var newVariableNameNumber = 0;
 	var states = new plaid.lang.List { var head = new plaid.lang.Nil;};
 	var firstCase = false;
@@ -32,12 +32,75 @@ state PrintVisitor = ASTVisitor {
 		"plaidNewState_"+str;
 	}
 	
-	method handleAddWithState(qiToAdd,parentNode){				
+	method checkUniqueMembers(root1,root2){
+		var originalMembers = root1.members();
+		var withMembers = root2.members();
+		checkUniqueMembersHelper(originalMembers,withMembers);
+	}
+	method checkUniqueMembersHelper(originalMembers,withMembers){
+		
+		/*
+		java.lang.System.out.println("-----------------------------------");
+		originalMembers.map(fn (c) => {
+			java.lang.System.out.println(c);
+		});	
+		withMembers.map(fn (c) => {
+			java.lang.System.out.println(c);
+		});	
+		java.lang.System.out.println("-----------------------------------");
+		*/
+		
+		originalMembers.map(fn (c) => {
+			withMembers.map(fn (d) => {
+				if (c==d){
+					java.lang.System.out.println("Error: Attempt to compose state from two states containing member with same name");
+				};
+			});
+		});		
+	}
+	
+	method checkUniqueTags(root1,root2){
+		var originalTags = root1.tags();
+		var withTags = root2.tags();
+		checkUniqueTagsHelper(originalTags,withTags);
+	}
+	method checkUniqueTagsHelper(originalTags,withTags){
+		
+		/*
+		java.lang.System.out.println("-----------------------------------");
+		originalTags.map(fn (c) => {
+			java.lang.System.out.println(c);
+		});	
+		withTags.map(fn (c) => {
+			java.lang.System.out.println(c);
+		});	
+		java.lang.System.out.println("-----------------------------------");
+		*/
+		
+		originalTags.map(fn (c) => {
+			withTags.map(fn (d) => {
+				if (c==d){
+					java.lang.System.out.println("Error: Attempt to compose state from two states containing tag with same name");
+				};
+			});
+		});	
+	}
+	
+	method handleAddWithState(qiToAdd,parentNode,parentTree){				
 		//the string name of the state that is a with state for the current state
 		var withState = qiToAdd.accept(this);
 		//the object that bundles the node and tree corresponding to the state name above
 		var withEntry = this.getState(withState);
 		var withRoot = withEntry.tree.root;
+		
+		
+		//ensure the members being added by the with state are not already present in the state to which they are added
+		checkUniqueMembers(parentTree.root,withRoot);
+		
+		
+		//ensure the tags being added by the with state are not already present in the state to which they are added
+		checkUniqueTags(parentTree.root,withRoot);
+		
 		withRoot.children.map(fn (c) => {
 			parentNode.children.add(c);
 		});
@@ -145,23 +208,24 @@ state PrintVisitor = ASTVisitor {
 		};
 		var toChange=node.e.accept(this);
 		match(node.s){
-			case ID{
-			java.lang.System.out.println(toChange+".stateChange("+node.s.accept(this)+");");
+			case QI{
+			java.lang.System.out.println(toChange+".stateChange("+generateNewStateName(node.s.accept(this))+");");
 			}
 			case DeclList{
 				node.s.decls.map(fn (d) => {
 					match(d) {
 						case MethodDecl{
-							java.lang.System.out.print(toChange+"['"+d.name+"'] = "); 
-							d.accept(this);
-						}
+							//java.lang.System.out.print(toChange+"['"+d.name+"'] = "); 
+							//d.accept(this);
+							java.lang.System.out.println(toChange+".stateChangeMember('"+d.name+"', '"+d.accept(this)+"');");
+							}
 						case FieldDecl{			
 							match(d.e){
 								case UnitLiteral{
-									java.lang.System.out.println(toChange+"['"+d.f.name+"'];");
+									java.lang.System.out.println(toChange+".stateChangeMemberNoValue('"+d.f.name+"');");
 								}
 								default {
-									java.lang.System.out.println(toChange+"['"+d.f.name+"'] = "+d.e.accept(this)+";");
+									java.lang.System.out.println(toChange+".stateChangeMember('"+d.f.name+"', '"+d.e.accept(this)+"');");
 								}
 							};
 						
@@ -200,7 +264,7 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //left: " + node.left.toString());
 			java.lang.System.out.println ("   //right: " + node.right.toString());
 		};
-		node.left.accept(this); 
+		node.left.accept(this)+"."+node.right.accept(this); 
 	}
 	method visitDestructiveDereference(node) {
 		if (debug) {
@@ -386,7 +450,7 @@ state PrintVisitor = ASTVisitor {
 				java.lang.System.out.println("var "+newVarName+" = "+generateNewStateName(node.s.accept(this))+".instantiate();");
 			}
 			case With{
-				java.lang.System.out.println("var "+newVarName+" = "+generateNewStateName(node.s.s1.accept(this))+".with("+generateNewStateName(node.s.s2.accept(this))+");");
+				java.lang.System.out.println("var "+newVarName+" = ("+generateNewStateName(node.s.s1.accept(this))+".with("+generateNewStateName(node.s.s2.accept(this))+").instantiate());");
 			}
 		};
 		newVarName;
@@ -442,7 +506,7 @@ state PrintVisitor = ASTVisitor {
 				var caseOfEntryNode = caseOfEntryTree.targetNode;
 				//the node that will reflect the current state
 				treeNode = new Node;
-				var emptyList = new plaid.lang.List { var head = new plaid.lang.Nil;};
+				var memberList = new plaid.lang.List { var head = new plaid.lang.Nil;};
 				
 				//add members to the previously empty list
 				match(node.stateDef){
@@ -450,10 +514,10 @@ state PrintVisitor = ASTVisitor {
 						node.stateDef.decls.map(fn (d) => {
 							match(d) {
 								case MethodDecl {
-									emptyList.add("'"+d.name+"'");
+									memberList.add("'"+d.name+"'");
 								}
 								case FieldDecl {
-									emptyList.add("'"+d.f.name+"'");
+									memberList.add("'"+d.f.name+"'");
 								}
 								default {
 								}
@@ -464,7 +528,16 @@ state PrintVisitor = ASTVisitor {
 					}
 				};
 				
-				treeNode.setData(node.name.name, emptyList, false, caseOfEntryNode);
+				//create a list with the tag of the new state, to check unique tags
+				var nameList = new plaid.lang.List { var head = new plaid.lang.Nil;};
+				nameList.add(node.name.name);
+				
+				//ensure the members being added by the current state are not already present in the state to which they are added
+				checkUniqueMembersHelper(caseOfEntryTree.root.members(),memberList);
+				//ensure the tag being added by the current state is not already present in the state to which it is added
+				checkUniqueTagsHelper(caseOfEntryTree.root.tags(),nameList);
+				
+				treeNode.setData(node.name.name, memberList, false, caseOfEntryNode);
 				tree=caseOfEntryTree;
 			} 
 			case None { 
@@ -523,12 +596,12 @@ state PrintVisitor = ASTVisitor {
 			}
 			case QI{
 				//the state in this QI should be a component of the state being added (a with state for it)
-				handleAddWithState(node.stateDef,treeNode);
+				handleAddWithState(node.stateDef,treeNode,tree);
 			}
 			case With{
 				//both states in the QIs in this With should be components of the state being added (a with state for it)
-				handleAddWithState(node.stateDef.s1,treeNode);
-				handleAddWithState(node.stateDef.s2,treeNode);
+				handleAddWithState(node.stateDef.s1,treeNode,tree);
+				handleAddWithState(node.stateDef.s2,treeNode,tree);
 			}
 			default{
 				java.lang.System.out.println("//ACCEPT LOOP "+currStateName);
