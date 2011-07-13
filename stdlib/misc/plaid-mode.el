@@ -21,7 +21,7 @@
 (defvar plaid-keywords     '("if" "ifElse" "while" "match" "default" "case" "new" "of"))
 (defvar plaid-vars         '("this"))
 (defvar plaid-preprocessor '("import" "package"))
-(defvar plaid-types        '("unique" "immutable" "shared" "none" "void" "Integer" "String"))
+(defvar plaid-types        '("unique" "immutable" "shared" "none" "void" "Integer" "String" "Double"))
 (defvar plaid-constants    '("true" "false")) 
 (defvar plaid-builtin-regexp      (regexp-opt plaid-builtin      'words))
 (defvar plaid-keywords-regexp     (regexp-opt plaid-keywords     'words))
