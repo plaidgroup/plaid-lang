@@ -77,6 +77,26 @@ function m_tags(md1){
 /*Once a matching tag has been found, descends the two trees to find any tags that do not match, make appropriate modifications to state*/
 function stateChangeDescend(md1,md2, returnItem){
    //becuase this function has been called, we know that md1[0][0]=md2[0][0]
+
+   //must check if the members of the current tag are the same, add or remove any that are inconsistent
+   var members1 = md1[0][1];
+   var members2 = md2[0][1];
+   var membersLength1 = members1.length;
+   var membersLength2 = members2.length;
+   for (var i=0;i<membersLength1;i++){
+      if (count(members2,members1[i])==0){
+         //a member present in md1 is not present in md2, and should be removed
+         returnItem.membersToRemove.push(members1[i]);
+      }
+   }
+   for (var i=0;i<membersLength2;i++){
+      if (count(members1,members2[i])==0){
+         //a member present in md2 is not present in md1, and should be added
+         returnItem.membersToAdd.push(members2[i]);
+      }
+   }
+   md1[0][1]=(md2[0][1]).clone();
+
    var length1=md1.length;
    var length2=md2.length;
    if(length1===1 && length2===1){
@@ -186,9 +206,16 @@ function m_stateChange(obj1,obj2){
       delete obj1[remove[j]];
    }
 
+/*
    for (var j=0;j<addLength;j++){
-      //addMember(obj1,add[j],obj2[add[j]]);
-      obj1[add[j]]=obj2[add[j]];
+      addMember(obj1,add[j],obj2[add[j]]);
+   }
+*/
+
+   var md2Members=obj2.members();
+   var md2MembersLength=md2Members.length;
+   for (var j=0;j<md2MembersLength;j++){
+      addMember(obj1,md2Members[j],obj2[md2Members[j]]);
    }
 
 }
@@ -204,7 +231,7 @@ function m_stateChangeMember(obj1,member, value){
 }
 
 /*Enacts state change in accordance with Plaid semantics, transitioning obj1 to obj2, essentially obj1 <- obj2; fixes trees and members both; checks unique tags and unique members; no return value; this method handles the case where a member and not a state is passed in, and the member is given no value, and is only declared*/
-function m_stateChangeMember(obj1,member, value){
+function m_stateChangeMemberNoValue(obj1,member){
    var members = obj1.members();
    if (has(members,member)){
       throw "Error: state change violates unique members by attempting to add "+member+" to item that already contains "+member;
@@ -274,8 +301,7 @@ PlaidObject.prototype.replace=function(state) {
    var removeLength=remove.length;
 
    for (var j=0;j<addLength;j++){
-      //addMember(this,add[j],state[add[j]]);
-      this[add[j]]=state[add[j]];
+      addMember(this,add[j],state[add[j]]);
    }
    for (var j=0;j<removeLength;j++){
       delete this[remove[j]];
@@ -293,12 +319,19 @@ PlaidObject.prototype.freeze=function() {
       if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="stateChange" || i==="stateChangeMember" || i==="stateChangeMemberNoValue" || i==="replace" || i==="freeze" || i==="clone") {
          continue;
       }
-      if (this[i] && typeof this[i] == "object") {
-         obj[i] = this[i].clone();
-      } 
       else {
-         obj[i] = this[i];
+         addMember(obj,i,this[i]);
       }
    }
    return obj;
+}
+
+/*a helper function that adds member to obj1, giving it the name memberName;  currently just copies all members and adds the copy;  in future, could be made more efficient*/
+function addMember(obj1,memberName,member){
+      if (typeof member == "object") {
+         obj1[memberName]=member.clone();
+      } 
+      else {
+         obj1[memberName] = member;
+      }
 }
