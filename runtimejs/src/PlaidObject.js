@@ -184,6 +184,9 @@ function m_stateChange(obj1,obj2){
    var removeLength=remove.length;
    var membersLength=returnItem.members1.length;
 
+   document.write("add"+add+"<br>");
+   document.write("remove"+remove+"<BR>");
+
    //check unique members
    for (var j=0;j<addLength;j++){
       if (has(members,add[j])){
@@ -219,26 +222,6 @@ function m_stateChange(obj1,obj2){
    }
 
 }
-
-/*Enacts state change in accordance with Plaid semantics, transitioning obj1 to obj2, essentially obj1 <- obj2; fixes trees and members both; checks unique tags and unique members; no return value; this method handles the case where a member and not a state is passed in*/
-function m_stateChangeMember(obj1,member, value){
-   var members = obj1.members();
-   if (has(members,member)){
-      throw "Error: state change violates unique members by attempting to add "+member+" to item that already contains "+member;
-   }
-   addMember(obj1,member,value);
-   obj1.tree.push([["",[member],"with"]]); 
-}
-
-/*Enacts state change in accordance with Plaid semantics, transitioning obj1 to obj2, essentially obj1 <- obj2; fixes trees and members both; checks unique tags and unique members; no return value; this method handles the case where a member and not a state is passed in, and the member is given no value, and is only declared*/
-function m_stateChangeMemberNoValue(obj1,member){
-   var members = obj1.members();
-   if (has(members,member)){
-      throw "Error: state change violates unique members by attempting to add "+member+" to item that already contains "+member;
-   }
-   obj1.tree.push([["",[member],"with"]]); 
-}
-
 
 /*Returns true if item is contained in array, false if it is not*/
 function has(array, item){
@@ -316,7 +299,7 @@ PlaidObject.prototype.freeze=function() {
    var i;
    //right now this copies any method that is not the ones listed in the first condition below
    for (i in this) {
-      if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="stateChange" || i==="stateChangeMember" || i==="stateChangeMemberNoValue" || i==="replace" || i==="freeze" || i==="clone") {
+      if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="stateChange" || i==="replace" || i==="freeze" || i==="clone") {
          continue;
       }
       else {
