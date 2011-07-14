@@ -152,9 +152,19 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //field: " + node.field.toString());
 			java.lang.System.out.println ("   //value: " + node.value.toString());
 		};
-		java.lang.System.out.println (node.field.name+" = "+node.value.accept(this)+";");
+		var fieldName = node.field.accept(this);
+		var fullName = "";
+		match (node.target) {
+			case None{
+				fullName = fieldName;
+			}
+			case Some{
+				fullName = node.target.value.accept(this)+"."+fieldName;
+			}
+		};
+		java.lang.System.out.println (fullName+" = "+node.value.accept(this)+";");
 		//node.target.value.accept(this); 
-		node.field.name;
+		fullName;
 	}
 	method visitAtomicBlock(node) {
 		if (debug) {
@@ -222,15 +232,15 @@ state PrintVisitor = ASTVisitor {
 						case MethodDecl{
 							//java.lang.System.out.print(toChange+"['"+d.name+"'] = "); 
 							//d.accept(this);
-							java.lang.System.out.println(toChange+".stateChangeMember('"+d.name+"', '"+d.accept(this)+"');");
+							java.lang.System.out.println(toChange+".stateChange("+toChange+".withMember('"+d.name+"', '"+d.accept(this)+"'));");
 							}
 						case FieldDecl{			
 							match(d.e){
 								case UnitLiteral{
-									java.lang.System.out.println(toChange+".stateChangeMemberNoValue('"+d.f.name+"');");
+									java.lang.System.out.println(toChange+".stateChange("+toChange+".withMemberNoValue('"+d.f.name+"'));");
 								}
 								default {
-									java.lang.System.out.println(toChange+".stateChangeMember('"+d.f.name+"', '"+d.e.accept(this)+"');");
+									java.lang.System.out.println(toChange+".stateChange("+toChange+".withMember('"+d.f.name+"', '"+d.e.accept(this)+"'));");
 								}
 							};
 						
@@ -242,7 +252,7 @@ state PrintVisitor = ASTVisitor {
 				});
 			}
 			default{
-				java.lang.System.out.println("problem");
+				java.lang.System.out.println("problem at changeState's s");
 				node.s.accept(this);
 			}
 		};
@@ -472,7 +482,7 @@ state PrintVisitor = ASTVisitor {
 		var newVarName = generateNewVariableName();
 		match(node.s){
 			case QI{
-				java.lang.System.out.println("var "+newVarName+" = "+generateNewStateName(node.s.accept(this))+".instantiate();");
+				java.lang.System.out.println("var "+newVarName+" = "+(node.s.accept(this))+".instantiate();");
 			}
 			case With{
 				java.lang.System.out.println("var "+newVarName+" = ("+node.s.accept(this)+").instantiate();");
@@ -486,11 +496,35 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //qid: " + node.qid.toString());
 			java.lang.System.out.println ("   //initState: " + node.initState.toString());
 		};
+		var returnString = node.qid.toString();
+		match (node.initState) {
+			case Some{
+				node.initState.value.accept(this);
+				match (node.initState.value) {
+					case DeclList{
+						var tagName = returnString;
+						returnString=generateNewStateName(tagName);
+						node.initState.value.decls.map(fn (d) => {
+							var newMember = d.accept(this);
+							returnString=returnString+".specialize('"+tagName+"', '"+newMember+"', "+newMember+")";
+						});
+					}
+					default{
+						java.lang.System.out.println("//problem in visitQI - initState exists but is not DeclList");
+					}
+				};
+			}
+			case None{
+				returnString = generateNewStateName(returnString);
+			}
+			default{
+			}
+		};
 		//if node.initState is Some
 		//node.initState.value.accept(this);
 		//if node.initState is DeclList
 		//node.initState.accept(this); 
-		node.qid.toString();
+		returnString;
 	}
 	method visitSplitBlock(node) {
 		if (debug) {
@@ -551,11 +585,13 @@ state PrintVisitor = ASTVisitor {
 									};
 								}
 								default {
+									java.lang.System.out.println("problem at StateDecl's DeclList, one of the decls");
 								}
 							};
 						});
 					}
 					default{
+						//no methods or fields
 					}
 				};
 				
@@ -596,11 +632,13 @@ state PrintVisitor = ASTVisitor {
 									};
 								}
 								default {
+									java.lang.System.out.println("problem at StateDecl's DeclList, one of the decls");
 								}
 							};
 						});
 					}
 					default{
+						//no methods or fields
 					}
 				};
 				treeNode.setData(node.name.name, memberList, true, tree.root);
@@ -625,6 +663,7 @@ state PrintVisitor = ASTVisitor {
 							};
 						}
 						default{
+							java.lang.System.out.println("//StateDecl's DeclList has something that's not MethodDecl or FieldDecl");
 							d.accept(this);
 						}
 					};
@@ -640,7 +679,7 @@ state PrintVisitor = ASTVisitor {
 				handleAddWithState(node.stateDef.s2,treeNode,tree);
 			}
 			default{
-				java.lang.System.out.println("//ACCEPT LOOP "+currStateName);
+				java.lang.System.out.println("//problem in StateDecl's stateDef, not QI, With, or DeclList");
 				node.stateDef.accept(this);
 			}
 		};
@@ -683,6 +722,7 @@ state PrintVisitor = ASTVisitor {
 		if (debug) {
 			java.lang.System.out.println("//I am a UnitLiteral");
 		};
+		"undefined";
 	}
 	method visitUnpackerInnerGroups(node) {
 		if (debug) {
@@ -704,7 +744,8 @@ state PrintVisitor = ASTVisitor {
 				var returnString=generateNewStateName(tagName);
 				node.s2.decls.map(fn (d) => {
 					var newMember = d.accept(this);
-					returnString=returnString+".specialize('"+tagName+"', '"+newMember+"', "+newMember+")";
+					//returnString=returnString+".specialize('"+tagName+"', '"+newMember+"', "+newMember+")";
+					returnString=returnString+".withMember('"+newMember+"', "+newMember+")";
 				});
 				returnString;
 			}
