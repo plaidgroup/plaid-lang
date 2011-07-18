@@ -89,7 +89,8 @@ state PrintVisitor = ASTVisitor {
 	
 	method handleAddWithState(qiToAdd,parentNode,parentTree){				
 		//the string name of the state that is a with state for the current state
-		var withState = qiToAdd.accept(this);
+		java.lang.System.out.println(qiToAdd.toString());
+		var withState = qiToAdd.qid.toString();
 		//the object that bundles the node and tree corresponding to the state name above
 		var withEntry = this.getState(withState);
 		var withRoot = withEntry.tree.root;
@@ -190,7 +191,7 @@ state PrintVisitor = ASTVisitor {
 		//the one called below should only be called if this case is not the default case
 		
 		ifElse(this.firstCase){
-			java.lang.System.out.println("if (matchVar.match(\""+node.qi.value.accept(this)+"\")) {"); 
+			java.lang.System.out.println("if (matchVar.match(\""+node.qi.value.qid.toString()+"\")) {"); 
 			this.firstCase=false;	
 		}
 		{
@@ -198,7 +199,7 @@ state PrintVisitor = ASTVisitor {
 				java.lang.System.out.println("else {");
 			}
 			{
-				java.lang.System.out.println("else if (matchVar.match(\""+node.qi.value.accept(this)+"\")) {"); 
+				java.lang.System.out.println("else if (matchVar.match(\""+node.qi.value.qid.toString()+"\")) {"); 
 			};
 		};
 		node.e.accept(this); 
@@ -221,7 +222,7 @@ state PrintVisitor = ASTVisitor {
 		
 		match(node.s){
 			case QI{
-				java.lang.System.out.println(toChange+".stateChange("+generateNewStateName(node.s.accept(this))+");");
+				java.lang.System.out.println(toChange+".stateChange("+node.s.accept(this)+");");
 			}
 			case With{
 				java.lang.System.out.println(toChange+".stateChange("+node.s.accept(this)+");");
@@ -237,10 +238,12 @@ state PrintVisitor = ASTVisitor {
 						case FieldDecl{			
 							match(d.e){
 								case UnitLiteral{
-									java.lang.System.out.println(toChange+".stateChange("+toChange+".withMemberNoValue('"+d.f.name+"'));");
+									//java.lang.System.out.println(toChange+".stateChange("+toChange+".withMemberNoValue('"+d.f.name+"'));");
+									java.lang.System.out.println(toChange+".stateChangeMemberNoValue('"+d.f.name+"');");
 								}
 								default {
-									java.lang.System.out.println(toChange+".stateChange("+toChange+".withMember('"+d.f.name+"', '"+d.e.accept(this)+"'));");
+									//java.lang.System.out.println(toChange+".stateChange("+toChange+".withMember('"+d.f.name+"', '"+d.e.accept(this)+"'));");
+									java.lang.System.out.println(toChange+".stateChangeMember('"+d.f.name+"', '"+d.e.accept(this)+"');");
 								}
 							};
 						
@@ -499,7 +502,7 @@ state PrintVisitor = ASTVisitor {
 		var returnString = node.qid.toString();
 		match (node.initState) {
 			case Some{
-				node.initState.value.accept(this);
+				//node.initState.value.accept(this);
 				match (node.initState.value) {
 					case DeclList{
 						var tagName = returnString;
@@ -556,7 +559,7 @@ state PrintVisitor = ASTVisitor {
 				//create metadata string for creating Plaid state object in Javascript runtime
 				
 				//the string name of the state of which the current state is a case
-				var caseOfState = node.caseOf.value.accept(this);
+				var caseOfState = node.caseOf.value.qid.toString();
 				//the object that bundles the node and tree corresponding to the state name above
 				var caseOfEntry = this.getState(caseOfState);
 				//the tree to which the current state will be added
@@ -674,9 +677,16 @@ state PrintVisitor = ASTVisitor {
 				handleAddWithState(node.stateDef,treeNode,tree);
 			}
 			case With{
-				//both states in the QIs in this With should be components of the state being added (a with state for it)
-				handleAddWithState(node.stateDef.s1,treeNode,tree);
-				handleAddWithState(node.stateDef.s2,treeNode,tree);
+				match (node.stateDef.s2) {
+					case QI {
+						//both states in the QIs in this With should be components of the state being added (a with state for it)
+						handleAddWithState(node.stateDef.s1,treeNode,tree);
+						handleAddWithState(node.stateDef.s2,treeNode,tree);
+					}
+					default{
+						java.lang.System.out.println(node.stateDef.s2.accept(this));
+					}
+				};
 			}
 			default{
 				java.lang.System.out.println("//problem in StateDecl's stateDef, not QI, With, or DeclList");
@@ -735,24 +745,25 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //s1: " + node.s1.toString());			
 			java.lang.System.out.println ("   //s2: " + node.s2.toString());
 		};
+		var returnString="";
 		match (node.s2) {
 			case QI{
-				generateNewStateName(node.s1.accept(this))+".with("+generateNewStateName(node.s2.accept(this))+")"; 
+				returnString = node.s1.accept(this)+".with("+node.s2.accept(this)+")"; 
 			}
 			case DeclList{
-				var tagName = node.s1.accept(this);
-				var returnString=generateNewStateName(tagName);
+				var tagName = node.s1.qid.toString();
+				returnString=node.s1.accept(this);
 				node.s2.decls.map(fn (d) => {
 					var newMember = d.accept(this);
 					//returnString=returnString+".specialize('"+tagName+"', '"+newMember+"', "+newMember+")";
 					returnString=returnString+".withMember('"+newMember+"', "+newMember+")";
 				});
-				returnString;
 			}
 			default{
 				java.lang.System.out.println("problem at With");
 			}
 		};
+		returnString;
 	}
 
 }
