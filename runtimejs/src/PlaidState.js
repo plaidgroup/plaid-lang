@@ -172,7 +172,7 @@ function s_tags(md1){
    return tagList;
 }
 
-/*returns a new OBJECT composed of both the state on which the function was called and the state that was passed in (should be object?)*/
+/*returns a new state composed of both the state on which the function was called and the state that was passed in (should be object?)*/
 PlaidState.prototype.with = function(state) {
 
    var md1=this.tree;
@@ -211,6 +211,51 @@ PlaidState.prototype.with = function(state) {
    return obj;
 }
 
+/*returns a new state composed of both the state on which the function was called and the member passed in, assigns memberName's value to be memberValue; this method handles the case where a member and not a state is passed in*/
+PlaidState.prototype.withMember = function(memberName,memberValue) {
+   //check unique tags
+   var members1=this.members();
+   var members1Length=members1.length;
+   for (var j=0;j<members1Length;j++){
+      if(members1[j]===memberName){
+         throw "Error: with operation violates unique members by containing member "+members1[j]+" in both component states";
+      }
+   } 
+
+   var obj=new PlaidState();
+   obj.setTree(this.tree.clone());
+   var i;
+   copyMembers(obj,this);
+   addMember(obj,memberName,memberValue);
+
+   obj.tree.push([["",[memberName],"with"]]);  
+
+   return obj;
+}
+
+/*returns a new state composed of both the state on which the function was called and the member passed in; this method handles the case where a member and not a state is passed in, and the member is given no value, and is only declared*/
+PlaidState.prototype.withMemberNoValue = function(memberName) {
+   var md1=this.tree;
+
+   //check unique tags
+   var members1=s_members(md1);
+   var members1Length=members1.length;
+   for (var j=0;j<members1Length;j++){
+      if(members1[j]===memberName){
+         throw "Error: with operation violates unique members by containing member "+members1[j]+" in both component states";
+      }
+   } 
+
+   var obj=new PlaidState();
+   obj.setTree(this.tree.clone());
+   var i;
+   copyMembers(obj,this);
+
+   obj.tree.push([["",[memberName],"with"]]);  
+
+   return obj;
+}
+
 /*Returns true if item is contained in array, false if it is not*/
 function has(array, item){
    var length=array.length;
@@ -226,7 +271,7 @@ function has(array, item){
 function copyMembers(obj1,obj2){
    var i;
    for (i in obj2) {
-      if (i==="tree" || i==="instantiate" || i==="members" || i==="remove" || i==="rename" || i==="with" || i==="specialize" || i==="setTree" || i==="clone") {
+      if (i==="tree" || i==="instantiate" || i==="members" || i==="remove" || i==="rename" || i==="with" || i==="specialize" || i==="withMember" || i==="withMemberNoValue" || i==="setTree" || i==="clone") {
          continue;
       }
       else {
