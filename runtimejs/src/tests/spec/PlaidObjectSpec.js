@@ -433,7 +433,7 @@ describe("PlaidObject Errors", function() {
   it("should throw an error if state change would violate unique members passing in only a member", function() {    
     expect(function() {
         obj1.stateChangeMember("getDirty",3);
-      }).toThrow("Error: state change violates unique members by attempting to add getDirty to item that already contains getDirty");
+      }).toThrow("Error: state change operation violates unique members by attempting to add member getDirty to state that already contains getDirty");
   });
 
   it("should throw an error if state change would violate unique tags", function() {    
