@@ -285,7 +285,7 @@ public class CompilerCore {
 			// Set compiler's classpath to be same as the runtime's
 			optionList.addAll(Arrays.asList("-classpath", System.getProperty("java.class.path")));
 			// TODO: Add a separate compiler flag for this.
-			optionList.addAll(Arrays.asList("-d", cc.getOutputDir() + "/../bin"));
+			optionList.addAll(Arrays.asList("-d", cc.getOutputDir()));
 //			optionList.add("-verbose");
 			
 			// Invoke the compiler
@@ -557,7 +557,9 @@ public class CompilerCore {
 			else
 				directoryPackage += dir + ".";
 		}
-		directoryPackage = directoryPackage.substring(0, directoryPackage.length()-1);
+		if ( directoryPackage.length() >= 1 ) {
+			directoryPackage = directoryPackage.substring(0, directoryPackage.length()-1);
+		}
 		if (filename == null) throw new RuntimeException("No Plaid file found");
 		
 		String declaredPackage = cu.getPackageString();
