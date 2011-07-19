@@ -20,6 +20,7 @@ function PlaidState(t){
 
 /*Constructor*/
 function PlaidState(){
+   this.tree=[["",[],"with"]];
 }
 
 /*set the tree equal to the argument passed in*/

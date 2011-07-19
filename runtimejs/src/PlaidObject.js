@@ -183,7 +183,7 @@ function m_stateChange(obj1,obj2){
       //target dimension does not yet exist in the object to be changed
       var md2Length=md2.length;
       for (var i=1;i<md2Length;i++){
-         returnItem.tree.push(md2.clone());
+         returnItem.tree.push(md2[i].clone());
       }
       returnItem.membersToAdd=obj2.members();
    }

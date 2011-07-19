@@ -7,7 +7,7 @@ import plaid.metadataCreation.Tree;
 import plaid.printNodeNames.StateTableEntry;
 
 state PrintVisitor = ASTVisitor {
-	var debug=true;
+	var debug=false;
 	var newVariableNameNumber = 0;
 	var states = new plaid.lang.List { var head = new plaid.lang.Nil;};
 	var firstCase = false;
@@ -112,11 +112,11 @@ state PrintVisitor = ASTVisitor {
 		};
 	}
 	
-	method handleAddWithState(qiToAdd,parentNode,parentTree){	
+	method handleAddWithState(qiToAdd,parentNode,parentTree){
 		match (qiToAdd) {	
-			case QI {		
+			case QI {			
 				//the string name of the state that is a with state for the current state
-				var withState = qiToAdd.qid.toString();
+				var withState = qiToAdd.qid.toString();	
 				//the object that bundles the node and tree corresponding to the state name above
 				var withEntry = this.getState(withState);
 				var withRoot = withEntry.tree.root;
@@ -165,39 +165,7 @@ state PrintVisitor = ASTVisitor {
 				};
 				
 			}
-			case DeclList {
-				var treeW=new Tree;
-				var treeNodeW = new Node;
-				var memberList = new plaid.lang.List { var head = new plaid.lang.Nil;};
-				var sName = generateNewStateName(parentNode.tag);
-				
-				//add members to the previously empty list
-				qiToAdd.decls.map(fn (d) => {
-					match(d) {
-						case MethodDecl {
-							memberList.add("'"+d.name+"'");
-							java.lang.System.out.print(sName+"['"+d.name+"'] = "); 
-							d.accept(this);
-						}
-						case FieldDecl {		
-							match(d.e){
-								case UnitLiteral{
-								}
-								default {
-									memberList.add("'"+d.f.name+"'");
-									java.lang.System.out.println(sName+"['"+d.f.name+"'] = "+d.e.accept(this)+";");
-								}
-							};
-						}
-						default {
-							java.lang.System.out.println("problem at StateDecl's DeclList, one of the decls");
-						}
-					};
-				});
-				treeNodeW.setData(parentNode.tag, memberList, true, treeW.root);
-				var withEntry=new StateTableEntry with { name = parentNode.tag; node = treeNodeW; tree = treeW; };
-				var withRoot = treeW.root;
-			}
+			
 			default{
 				java.lang.System.out.println("problem");
 			}
@@ -572,7 +540,8 @@ state PrintVisitor = ASTVisitor {
 		java.lang.System.out.println ("}");
 		if(node.name=="main"){
 			java.lang.System.out.println("main();");
-		}
+		};
+		node.name;
 	}
 	method visitNewInstance(node) {
 		if (debug) {
@@ -820,7 +789,6 @@ state PrintVisitor = ASTVisitor {
 						handleAddWithState(node.stateDef.s2,treeNode,tree);
 					}
 					case DeclList{
-						handleAddWithState(node.stateDef.s1,treeNode,tree);
 						var memberList3 = new plaid.lang.List { var head = new plaid.lang.Nil;};
 						node.stateDef.s2.decls.map(fn (d) => {
 							match(d) {
@@ -861,7 +829,6 @@ state PrintVisitor = ASTVisitor {
 				node.stateDef.accept(this);
 			}
 		};
-		java.lang.System.out.println("here");
 		var entry=new StateTableEntry with { name = node.name.name; node = treeNode; tree = tree; };
 		this.states.add(entry);
 		var md = tree.toMetadata(tree.root);
@@ -914,21 +881,44 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println ("   //s2: " + node.s2.toString());
 		};
 		var returnString="";
-		match (node.s2) {
+		var tagName="";
+		match (node.s1) {
 			case QI{
-				returnString = node.s1.accept(this)+".with("+node.s2.accept(this)+")"; 
+				tagName = node.s1.qid.toString();
+				returnString=node.s1.accept(this);
 			}
 			case DeclList{
-				var tagName = node.s1.qid.toString();
-				returnString=node.s1.accept(this);
+				tagName = generateNewVariableName();
+				//java.lang.System.out.println("var plaidNewState_"+tagName+" = new PlaidState();");
+				//returnString = generateNewStateName(tagName);
+				returnString = "(new PlaidState())";
+				node.s1.decls.map(fn (d) => {
+					var newMember = d.accept(this);
+					returnString=returnString+".withMember('"+newMember+"', "+newMember+")";
+				});
+			}
+			default{
+				java.lang.System.out.println("problem at With");
+			}
+		};
+		match (node.s2) {
+			case QI{
+				returnString = returnString+".with("+node.s2.accept(this)+")"; 
+			}
+			case DeclList{
 				node.s2.decls.map(fn (d) => {
 					var newMember = d.accept(this);
 					//returnString=returnString+".specialize('"+tagName+"', '"+newMember+"', "+newMember+")";
 					returnString=returnString+".withMember('"+newMember+"', "+newMember+")";
 				});
 			}
+			case With{
+				returnString = returnString+".with("+node.s2.accept(this)+")";
+			}
 			default{
 				java.lang.System.out.println("problem at With");
+				this.debug=true;
+				node.s2.accept(this);
 			}
 		};
 		returnString;
