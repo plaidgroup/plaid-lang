@@ -77,6 +77,29 @@ function m_tags(md1){
 /*Once a matching tag has been found, descends the two trees to find any tags that do not match, make appropriate modifications to state*/
 function stateChangeDescend(md1,md2, returnItem){
    //becuase this function has been called, we know that md1[0][0]=md2[0][0]
+
+   //do not do the following, because if the tag matches, the members associated with the tag should remain unchanged, even if the members are different in the two states
+   /*
+   //must check if the members of the current tag are the same, add or remove any that are inconsistent
+   var members1 = md1[0][1];
+   var members2 = md2[0][1];
+   var membersLength1 = members1.length;
+   var membersLength2 = members2.length;
+   for (var i=0;i<membersLength1;i++){
+      if (count(members2,members1[i])==0){
+         //a member present in md1 is not present in md2, and should be removed
+         returnItem.membersToRemove.push(members1[i]);
+      }
+   }
+   for (var i=0;i<membersLength2;i++){
+      if (count(members1,members2[i])==0){
+         //a member present in md2 is not present in md1, and should be added
+         returnItem.membersToAdd.push(members2[i]);
+      }
+   }
+   md1[0][1]=(md2[0][1]).clone();
+   */
+
    var length1=md1.length;
    var length2=md2.length;
    if(length1===1 && length2===1){
@@ -113,11 +136,17 @@ function stateChangeDescend(md1,md2, returnItem){
 function stateChangeFindParent(md1,md2, returnItem)
 /*TO DO: make sure we don't have to check for md2 having multiple components, check all of them against all of md1*/
 {  
+   if (md1[0][0]===""){
+      //the members for this tag, if there are any, were added using the with operator
+      returnItem.withMembers1 = returnItem.withMembers1.concat(md1[0][1]);
+   }
    if (md2[0][0]===""){
       var length=md2.length;
       for (var i=1;i<length;i++){
           stateChangeFindParent(md1,md2[i],returnItem);
       }
+      //the members for this tag, if there are any, were added using the with operator
+      returnItem.withMembers2 = returnItem.withMembers2.concat(md2[0][1]);
    }
    else if (md1[0][0]===md2[0][0]){
       //matched the parent tag, must descend the trees
@@ -144,7 +173,9 @@ function m_stateChange(obj1,obj2){
       membersToAdd:[],
       membersToRemove:[],
       tree:md1,
-      members1:obj1.members()
+      members1:obj1.members(),
+      withMembers1:[],
+      withMembers2:[]
    }
 
    var returnItem=stateChangeFindParent(md1,md2,returnItem);
@@ -152,7 +183,7 @@ function m_stateChange(obj1,obj2){
       //target dimension does not yet exist in the object to be changed
       var md2Length=md2.length;
       for (var i=1;i<md2Length;i++){
-         returnItem.tree.push(md2.clone());
+         returnItem.tree.push(md2[i].clone());
       }
       returnItem.membersToAdd=obj2.members();
    }
@@ -182,13 +213,72 @@ function m_stateChange(obj1,obj2){
       }
    }
 
-   for (var j=0;j<addLength;j++){
-      //addMember(obj1,add[j],obj2[add[j]]);
-      obj1[add[j]]=obj2[add[j]];
+   //check that members not associated with tags are not present in both states, throw error if they are
+   var wm1 = returnItem.withMembers1;
+   var wm2 = returnItem.withMembers2;
+
+   if (wm2.length>0) {
+      var wm1Length=wm1.length;
+      for (var j=0;j<wm1Length;j++){
+         if (has(wm2,wm1[j])){
+            throw "Error: state change violates unique members by attempting to add "+wm1[j]+" to item that already contains "+wm1[j];
+         }
+      }
+      //since no error, the members from md2 should be added
+      add=add.concat(wm2);
+      //must also add these members to the tree 
+      md1.push([["",wm2,"with"]]); 
    }
+
+   //remove the members that need to be removed
    for (var j=0;j<removeLength;j++){
       delete obj1[remove[j]];
    }
+
+   //add the members that need to be added
+   for (var j=0;j<addLength;j++){
+      addMember(obj1,add[j],obj2[add[j]]);
+   }
+
+/*
+   var md2Members=obj2.members();
+   var md2MembersLength=md2Members.length;
+   for (var j=0;j<md2MembersLength;j++){
+      addMember(obj1,md2Members[j],obj2[md2Members[j]]);
+   }
+*/
+
+}
+
+/*adds memberName as a member to obj, assigns memberName's value to be memberValue; this method handles the case where a member and not a state is passed in*/
+m_stateChangeMember = function(obj, memberName,memberValue) {
+   //check unique tags
+   var members1=obj.members();
+   var members1Length=members1.length;
+   for (var j=0;j<members1Length;j++){
+      if(members1[j]===memberName){
+         throw "Error: state change operation violates unique members by attempting to add member "+members1[j]+" to state that already contains "+members1[j];
+      }
+   } 
+   addMember(obj,memberName,memberValue);
+
+   obj.tree.push([["",[memberName],"with"]]);  
+}
+
+/*adds memberName as a member to obj, assigns memberName's value to be memberValue; this method handles the case where a member and not a state is passed in, and the member is given no value, and is only declared*/
+m_stateChangeMemberNoValue = function(obj, memberName) {
+   var md1=obj.tree;
+
+   //check unique tags
+   var members1=obj.members();
+   var members1Length=members1.length;
+   for (var j=0;j<members1Length;j++){
+      if(members1[j]===memberName){
+         throw "Error: state change operation violates unique members by attempting to add member "+members1[j]+" to state that already contains "+members1[j];
+      }
+   } 
+
+   obj.tree.push([["",[memberName],"with"]]);
 }
 
 /*Returns true if item is contained in array, false if it is not*/
@@ -234,6 +324,16 @@ PlaidObject.prototype.stateChange=function(state) {
    return m_stateChange(this,state);
 }
 
+/*Enacts state change according to current Plaid semantics (June 2011), equivalent to this <- state ;  transitions the object on which it is called to the state that is passed in; this method handles state transition when only a member and not a state is passed in*/
+PlaidObject.prototype.stateChangeMember=function(member, value) {
+   return m_stateChangeMember(this,member,value);
+}
+
+/*Enacts state change according to current Plaid semantics (June 2011), equivalent to this <- state ;  transitions the object on which it is called to the state that is passed in; this method handles state transition when only a member and not a state is passed in, and the member is declared without a value*/
+PlaidObject.prototype.stateChangeMemberNoValue=function(member) {
+   return m_stateChangeMemberNoValue(this,member);
+}
+
 /*Transitions the object on which it is called into exactly the state of the state that is passed in; removes all current members and tags, adds all members and tags of state*/
 PlaidObject.prototype.replace=function(state) {
    var add=state.members();
@@ -242,8 +342,7 @@ PlaidObject.prototype.replace=function(state) {
    var removeLength=remove.length;
 
    for (var j=0;j<addLength;j++){
-      //addMember(this,add[j],state[add[j]]);
-      this[add[j]]=state[add[j]];
+      addMember(this,add[j],state[add[j]]);
    }
    for (var j=0;j<removeLength;j++){
       delete this[remove[j]];
@@ -253,19 +352,27 @@ PlaidObject.prototype.replace=function(state) {
 
 /*Returns a PlaidState object with the same tree and members as the object on which it is called*/
 PlaidObject.prototype.freeze=function() {
-   var obj=new PlaidState(this.tree.clone());
+   var obj=new PlaidState();
+   obj.setTree(this.tree.clone());
    var i;
    //right now this copies any method that is not the ones listed in the first condition below
    for (i in this) {
-      if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="stateChange" || i==="replace" || i==="freeze" || i==="clone") {
+      if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="stateChange" || i==="stateChangeMember" || i==="stateChangeMemberNoValue" || i==="replace" || i==="freeze" || i==="clone") {
          continue;
       }
-      if (this[i] && typeof this[i] == "object") {
-         obj[i] = this[i].clone();
-      } 
       else {
-         obj[i] = this[i];
+         addMember(obj,i,this[i]);
       }
    }
    return obj;
+}
+
+/*a helper function that adds member to obj1, giving it the name memberName;  currently just copies all members and adds the copy;  in future, could be made more efficient*/
+function addMember(obj1,memberName,member){
+      if (typeof member == "object") {
+         obj1[memberName]=member.clone();
+      } 
+      else {
+         obj1[memberName] = member;
+      }
 }
