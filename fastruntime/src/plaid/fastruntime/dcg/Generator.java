@@ -57,7 +57,7 @@ public final class Generator implements Opcodes {
 				//System.out.println("  add receiver");
 				mv.visitVarInsn(Opcodes.ALOAD, 0);
 				// add parameters
-				for (int x = 1; x < m.getParameterTypes().length ; x++ ) {
+				for (int x = 1; x <= m.getParameterTypes().length ; x++ ) {
 					//System.out.println("  add parameter: " + m.getParameterTypes()[x-1]);
 					mv.visitVarInsn(Opcodes.ALOAD, x);
 				}
