@@ -35,7 +35,7 @@ public class TestFooBar extends SimpleBenchmark {
 	public void timeFooBarBaz(int reps) {
 		for (int i = 0; i < reps; i++) {
 			Generator gen = new Generator();
-			fo = (Foo)gen.createClass(map);
+			fo = (Foo)gen.createClass(map2);
 		}
 	}
 	
