@@ -22,17 +22,20 @@ public class TestFooBar extends SimpleBenchmark {
 		map2.put(Foo.class, FooImpl.class);
 		map2.put(Bar.class, BarImpl.class);
 		map2.put(Baz.class, BazImpl.class);
+		
 	}
 	
 	public void timeFooBar(int reps) {
 		for (int i = 0; i < reps; i++) {
-			fo = (Foo)Generator.createClass(map);
+			Generator gen = new Generator();
+			fo = (Foo)gen.createClass(map);
 		}
 	}
 	
 	public void timeFooBarBaz(int reps) {
 		for (int i = 0; i < reps; i++) {
-			fo = (Foo)Generator.createClass(map2);
+			Generator gen = new Generator();
+			fo = (Foo)gen.createClass(map);
 		}
 	}
 	

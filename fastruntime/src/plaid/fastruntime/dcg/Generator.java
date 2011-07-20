@@ -13,10 +13,10 @@ import org.objectweb.asm.Type;
 
 
 public final class Generator implements Opcodes {
-	private static int classCounter = 0;
-	private static DynClassLoader cl = new DynClassLoader();
+	private int classCounter = 0;
+	private final DynClassLoader cl = new DynClassLoader();
 	
-	public static Object createClass(final Map<Class<? extends MethodSpecification>, Class<? extends MethodImplementation>> map) {
+	public Object createClass(final Map<Class<? extends MethodSpecification>, Class<? extends MethodImplementation>> map) {
 		final String name = "plaid/innerClass"+classCounter++;
 		Object result = null;
 					
@@ -96,7 +96,7 @@ public final class Generator implements Opcodes {
 	}
 	
 
-	private static class DynClassLoader extends ClassLoader {
+	private class DynClassLoader extends ClassLoader {
 		public Class<?> createClass(String name, ClassWriter cw) {
 			byte[] b = cw.toByteArray();
 			return defineClass(name.replace("/", "."), b, 0, b.length);
