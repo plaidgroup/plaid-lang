@@ -59,7 +59,7 @@ state PrintVisitor = ASTVisitor {
 		originalMembers.map(fn (c) => {
 			withMembers.map(fn (d) => {
 				if (c==d){
-					java.lang.System.out.println("Error: Attempt to compose state from two states containing member with same name");
+					java.lang.System.out.println("Error: Attempt to compose state from two states containing member with same name"+c);
 				};
 			});
 		});		
@@ -85,8 +85,8 @@ state PrintVisitor = ASTVisitor {
 		
 		originalTags.map(fn (c) => {
 			withTags.map(fn (d) => {
-				if (c==d){
-					java.lang.System.out.println("Error: Attempt to compose state from two states containing tag with same name");
+				if (c==d && !(c=="")){
+					java.lang.System.out.println("Error: Attempt to compose state from two states containing tag with same name"+c);
 				};
 			});
 		});	
@@ -120,6 +120,8 @@ state PrintVisitor = ASTVisitor {
 				//the object that bundles the node and tree corresponding to the state name above
 				var withEntry = this.getState(withState);
 				var withRoot = withEntry.tree.root;
+				var tagStateName = generateNewStateName(parentNode.tag);
+				var withTagStateName = generateNewStateName(withEntry.name);
 				
 				//ensure the members being added by the with state are not already present in the state to which they are added
 				checkUniqueMembers(parentTree.root,withRoot);
@@ -129,6 +131,11 @@ state PrintVisitor = ASTVisitor {
 		
 				withRoot.children.map(fn (c) => {
 					parentNode.children.add(c);
+				});
+				
+				var withMembersList = withRoot.members();
+				withMembersList.map(fn (d) => {
+					java.lang.System.out.println(tagStateName+"["+d+"] = "+withTagStateName+"["+d+"];");
 				});
 				
 				match (qiToAdd.initState) {
@@ -542,7 +549,7 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println("main();");
 		};
 		node.name;
-	}
+	}	
 	method visitNewInstance(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a NewInstance");
@@ -555,6 +562,15 @@ state PrintVisitor = ASTVisitor {
 			}
 			case With{
 				java.lang.System.out.println("var "+newVarName+" = ("+node.s.accept(this)+").instantiate();");
+			}			
+			case DeclList{
+				var tagName = generateNewVariableName();
+				var returnString = "(new PlaidState())";
+				node.s.decls.map(fn (d) => {
+					var newMember = d.accept(this);
+					returnString=returnString+".withMember('"+newMember+"', "+newMember+")";
+				});
+				java.lang.System.out.println("var "+newVarName+" = ("+returnString+").instantiate();");
 			}
 		};
 		newVarName;
@@ -673,6 +689,14 @@ state PrintVisitor = ASTVisitor {
 				//ensure the tag being added by the current state is not already present in the state to which it is added
 				checkUniqueTagsHelper(caseOfEntryTree.root.tags(),nameList);
 				
+				//add the appropriate members to the new state
+				var tagSN = generateNewStateName(node.name.name);
+				var caseOfTagStateName = generateNewStateName(caseOfEntryNode.tag);
+				var caseOfMembersList = caseOfEntry.tree.root.members();
+				caseOfMembersList.map(fn (d) => {
+					java.lang.System.out.println(tagSN+"["+d+"] = "+caseOfTagStateName+"["+d+"];");
+				});
+				
 				treeNode.setData(node.name.name, memberList, false, caseOfEntryNode);
 				tree=caseOfEntryTree;
 			} 
@@ -743,86 +767,8 @@ state PrintVisitor = ASTVisitor {
 				handleAddWithState(node.stateDef,treeNode,tree);
 			}
 			case With{
-				match (node.stateDef.s1) {
-					case QI {
-						//the QI s1 in this With should be a component of the state being added (a with state for it)
-						handleAddWithState(node.stateDef.s1,treeNode,tree);
-					}
-					case DeclList{
-						var memberList2 = new plaid.lang.List { var head = new plaid.lang.Nil;};
-						node.stateDef.s1.decls.map(fn (d) => {
-							match(d) {
-								case MethodDecl{
-									memberList2.add("'"+d.name+"'");
-									java.lang.System.out.print(currStateName+"['"+d.name+"'] = "); 
-									d.accept(this);
-								}
-								case FieldDecl{			
-									match(d.e){
-										case UnitLiteral{
-										}
-										default {
-											memberList2.add("'"+d.f.name+"'");
-											java.lang.System.out.println(currStateName+"['"+d.f.name+"'] = "+d.e.accept(this)+";");
-										}
-									};
-								}
-								default{
-									java.lang.System.out.println("//StateDecl's DeclList has something that's not MethodDecl or FieldDecl");
-									d.accept(this);
-								}
-							};
-						});	
-						//ensure the members being added by the current state are not already present in the state to which they are added
-						checkUniqueMembersHelper(tree.root.members(),memberList2);
-						var treeNode2 = new Node;
-						treeNode2.setData("", memberList2, true, tree.root);
-					}
-					default{
-					    java.lang.System.out.println("//possible problem at With in stateDecl");
-						java.lang.System.out.println(node.stateDef.s2.accept(this));
-					}
-				};
-				match (node.stateDef.s2) {
-					case QI {
-						//QI s2 in this With should be a component of the state being added (a with state for it)
-						handleAddWithState(node.stateDef.s2,treeNode,tree);
-					}
-					case DeclList{
-						var memberList3 = new plaid.lang.List { var head = new plaid.lang.Nil;};
-						node.stateDef.s2.decls.map(fn (d) => {
-							match(d) {
-								case MethodDecl{
-									memberList3.add("'"+d.name+"'");
-									java.lang.System.out.print(currStateName+"['"+d.name+"'] = "); 
-									d.accept(this);
-								}
-								case FieldDecl{			
-									match(d.e){
-										case UnitLiteral{
-										}
-										default {
-											memberList3.add("'"+d.f.name+"'");
-											java.lang.System.out.println(currStateName+"['"+d.f.name+"'] = "+d.e.accept(this)+";");
-										}
-									};
-								}
-								default{
-									java.lang.System.out.println("//StateDecl's DeclList has something that's not MethodDecl or FieldDecl");
-									d.accept(this);
-								}
-							};
-						});	
-						//ensure the members being added by the current state are not already present in the state to which they are added
-						checkUniqueMembersHelper(tree.root.members(),memberList3);
-						var treeNode3 = new Node;
-						treeNode3.setData("", memberList3, true, tree.root);
-					}
-					default{
-					    java.lang.System.out.println("//possible problem at With in stateDecl");
-						java.lang.System.out.println(node.stateDef.s2.accept(this));
-					}
-				};
+				handleWithStateDecl(node.stateDef.s1,treeNode,tree,currStateName);
+				handleWithStateDecl(node.stateDef.s2,treeNode,tree,currStateName);
 			}
 			default{
 				java.lang.System.out.println("//problem in StateDecl's stateDef, not QI, With, or DeclList");
@@ -838,6 +784,54 @@ state PrintVisitor = ASTVisitor {
 		//node.caseOf.value.accept(this);
         currStateName;
 	}
+	
+	method handleWithStateDecl(stateDesc,treeNode,tree,currStateName){
+		match (stateDesc) {
+			case QI {
+				//the QI s1 in this With should be a component of the state being added (a with state for it)
+				handleAddWithState(stateDesc,treeNode,tree);
+			}
+			case DeclList{
+				var memberList2 = new plaid.lang.List { var head = new plaid.lang.Nil;};
+				stateDesc.decls.map(fn (d) => {
+					match(d) {
+						case MethodDecl{
+							memberList2.add("'"+d.name+"'");
+							java.lang.System.out.print(currStateName+"['"+d.name+"'] = "); 
+							d.accept(this);
+						}
+						case FieldDecl{			
+							match(d.e){
+								case UnitLiteral{
+								}
+								default {
+									memberList2.add("'"+d.f.name+"'");
+									java.lang.System.out.println(currStateName+"['"+d.f.name+"'] = "+d.e.accept(this)+";");
+								}
+							};
+						}
+						default{
+							java.lang.System.out.println("//StateDecl's DeclList has something that's not MethodDecl or FieldDecl");
+							d.accept(this);
+						}
+					};
+				});	
+				//ensure the members being added by the current state are not already present in the state to which they are added
+				checkUniqueMembersHelper(tree.root.members(),memberList2);
+				var treeNode2 = new Node;
+				treeNode2.setData("", memberList2, true, treeNode);
+			}
+			case With {
+				handleWithStateDecl(stateDesc.s1,treeNode,tree,currStateName);
+				handleWithStateDecl(stateDesc.s2,treeNode,tree,currStateName);
+			}
+			default{
+			    java.lang.System.out.println("//possible problem at With in stateDecl");
+				java.lang.System.out.println(node.stateDef.s2.accept(this));
+			}
+		};
+	}
+	
 	method visitStringLiteral(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am a StringLiteral");
@@ -913,11 +907,47 @@ state PrintVisitor = ASTVisitor {
 				});
 			}
 			case With{
-				returnString = returnString+".with("+node.s2.accept(this)+")";
+				returnString = returnString+withHelper(node.s2);
 			}
 			default{
 				java.lang.System.out.println("problem at With");
-				this.debug=true;
+				node.s2.accept(this);
+			}
+		};
+		returnString;
+	}
+	method withHelper(node){
+		var returnString="";
+		match (node.s1) {
+			case QI{
+				returnString = ".with("+node.s1.accept(this)+")"; 
+			}
+			case DeclList{
+				node.s1.decls.map(fn (d) => {
+					var newMember = d.accept(this);
+					returnString=returnString+".withMember('"+newMember+"', "+newMember+")";
+				});
+			}
+			default{
+				java.lang.System.out.println("problem at With");
+				node.s1.accept(this);
+			}
+		};
+		match (node.s2) {
+			case QI{
+				returnString = returnString+".with("+node.s2.accept(this)+")"; 
+			}
+			case DeclList{
+				node.s2.decls.map(fn (d) => {
+					var newMember = d.accept(this);
+					returnString=returnString+".withMember('"+newMember+"', "+newMember+")";
+				});
+			}
+			case With{
+				returnString = returnString+this.withHelper(node.s2);
+			}
+			default{
+				java.lang.System.out.println("problem at With");
 				node.s2.accept(this);
 			}
 		};
