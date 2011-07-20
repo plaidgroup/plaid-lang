@@ -1,7 +1,7 @@
 package plaid.ast.types;
 
 import plaid.lang.*;
-import plaid.ast.ID;
+import plaid.ast.*;
 
 /**
  * 	represents the type of a state in Plaid.  Currently designed to contain
@@ -203,6 +203,34 @@ state StateType case of DeclType {
 			}
 		};
 		unit;
+	}
+	
+	method unique UnpackedType createUnpackedType()[immutable StateType] {
+		val unpackedType = new UnpackedType {
+			val typeName = this.name.copy();
+			val members = java.util.HashMap.new();
+		};
+		
+		val iter = this.declaredTypes.keySet().iterator();
+		while { iter.hasNext() } {
+			val memberID = iter.next().copy();
+			val memberDecl = this.declaredTypes.get(memberID);
+			match (memberDecl) {
+				case FieldDecl {
+					val declaredFieldType = memberDecl.fieldType;
+					val unpackedBinding = declaredFieldType.getBinding();
+					
+					if (!this.providedTypes.contains(memberID)) {
+						unpackedBinding.pType = createPermType(NONEP, unpackedBinding.pType.type)
+					};
+					
+					val unpackedFieldType = makeFieldType(memberID.copy(), unpackedBinding, memberDecl.fieldType.isImmutable);
+					unpackedType.members.put(memberID.copy(), unpackedFieldType);
+				}
+				default { /* no op */ }
+			}
+		};
+		unpackedType;
 	}
 	
 	method toString() {
