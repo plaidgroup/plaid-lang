@@ -61,6 +61,45 @@ function m_members(md1){
    return memberList;
 }
 
+/*returns an array of all the fields and methods of the state that is reflected in the current metadata, bundled in items containing both member name and the tag name with which it is associated*/
+function m_membersUnique(md1){
+   var members = md1[0][1];
+   var length=members.length;
+   var memberList = [];
+   for (var i=0;i<length;i++) {
+      var itemToAdd={
+         memberName:members[i],
+         tag:md1[0][0]
+      }
+      memberList.push(itemToAdd);
+   }
+   var length=md1.length;
+   for (var i=1;i<length;i++){
+      memberList=memberList.concat(m_membersUnique(md1[i]));
+   }
+   return memberList;
+}
+
+/*returns an array of all the fields and methods of the state that is reflected in the current metadata, bundled in items containing both member name and the tag names in its hierarchy*/
+function m_membersHierarchy(md1,hierarchy){
+   hierarchy.push(md1[0][0]);
+   var members = md1[0][1];
+   var length=members.length;
+   var memberList = [];
+   for (var i=0;i<length;i++) {
+      var itemToAdd={
+         memberName:members[i],
+         hierarchy:hierarchy
+      }
+      memberList.push(itemToAdd);
+   }
+   var length=md1.length;
+   for (var i=1;i<length;i++){
+      memberList=memberList.concat(m_membersHierarchy(md1[i],hierarchy));
+   }
+   return memberList;
+}
+
 /*returns an array of all the tags of the state that is reflected in the current metadata*/
 function m_tags(md1){
    var tagList=[];
@@ -75,8 +114,9 @@ function m_tags(md1){
 }
 
 /*Once a matching tag has been found, descends the two trees to find any tags that do not match, make appropriate modifications to state*/
-function stateChangeDescend(md1,md2, returnItem){
+function stateChangeDescend(md1,md2, returnItem, hierarchy){
    //becuase this function has been called, we know that md1[0][0]=md2[0][0]
+   hierarchy.push(md1[0][0]);
 
    var length1=md1.length;
    var length2=md2.length;
@@ -94,7 +134,7 @@ function stateChangeDescend(md1,md2, returnItem){
          for (var j=1;j<length1;j++){
             if (md2[i][0][0]===md1[j][0][0]){
                foundMatches[i-1]=true;
-               returnItem=stateChangeDescend(md1[j],md2[i],returnItem);
+               returnItem=stateChangeDescend(md1[j],md2[i],returnItem, hierarchy);
                break;
             }
          }
@@ -103,7 +143,7 @@ function stateChangeDescend(md1,md2, returnItem){
       for (var i=1;i<length2;i++){
          for (var j=1;j<length1;j++){
             if (md2[i][0][2]===md1[j][0][2] && md2[i][0][2]==="" && md2[i][0][0]!==md1[j][0][0]){
-               returnItem.membersToAdd=returnItem.membersToAdd.concat(m_members(md2[i]));
+               returnItem.membersToAdd=returnItem.membersToAdd.concat(m_membersHierarchy(md2[i],hierarchy));
                returnItem.membersToRemove=returnItem.membersToRemove.concat(m_members(md1[j]));
                md1[j]=md2[i].clone();
                /*if an or-state was found that needs to be changed, it is not possible for an or-state to have to be added, since a state can only be in one or state at any given time*/
@@ -115,7 +155,7 @@ function stateChangeDescend(md1,md2, returnItem){
       for (var i=0;i<length2-1;i++){
          if (foundMatches[i]==false) {
             md1.push(md2[i+1].clone());
-            returnItem.membersToAdd=returnItem.membersToAdd.concat(m_members(md2[i+1]));
+            returnItem.membersToAdd=returnItem.membersToAdd.concat(m_membersHierarchy(md2[i+1],hierarchy));
             return returnItem;
          }
       }
@@ -125,9 +165,10 @@ function stateChangeDescend(md1,md2, returnItem){
 }
 
 /*As long as no tags in md1 and md2 have yet been found to match, continues to search for a matching tag*/
-function stateChangeFindParent(md1,md2, returnItem)
+function stateChangeFindParent(md1,md2, returnItem, hierarchy)
 /*TO DO: make sure we don't have to check for md2 having multiple components, check all of them against all of md1*/
 {  
+   hierarchy.push(md1[0][0]);
    if (md1[0][0]===""){
       //the members for this tag, if there are any, were added using the with operator
       returnItem.withMembers1 = returnItem.withMembers1.concat(md1[0][1]);
@@ -135,7 +176,7 @@ function stateChangeFindParent(md1,md2, returnItem)
    if (md2[0][0]===""){
       var length=md2.length;
       for (var i=1;i<length;i++){
-          stateChangeFindParent(md1,md2[i],returnItem);
+          stateChangeFindParent(md1,md2[i],returnItem,hierarchy);
       }
       //the members for this tag, if there are any, were added using the with operator
       returnItem.withMembers2 = returnItem.withMembers2.concat(md2[0][1]);
@@ -143,14 +184,14 @@ function stateChangeFindParent(md1,md2, returnItem)
    else if (md1[0][0]===md2[0][0]){
       //matched the parent tag, must descend the trees
       returnItem.matched=true;
-      returnItem = stateChangeDescend(md1,md2,returnItem);
+      returnItem = stateChangeDescend(md1,md2,returnItem,hierarchy);
       return returnItem;
    }
    else{
       //have not yet found any matching tag
       var length=md1.length;
       for (var i=1;i<length;i++){
-          stateChangeFindParent(md1[i],md2,returnItem);
+          stateChangeFindParent(md1[i],md2,returnItem,hierarchy);
       }
    }
    return returnItem;
@@ -165,19 +206,19 @@ function m_stateChange(obj1,obj2){
       membersToAdd:[],
       membersToRemove:[],
       tree:md1,
-      members1:obj1.members(),
+      members1:obj1.membersUnique(),
       withMembers1:[],
-      withMembers2:[]
+      withMembers2:[],
    }
 
-   var returnItem=stateChangeFindParent(md1,md2,returnItem);
+   var returnItem=stateChangeFindParent(md1,md2,returnItem,[]);
    if (returnItem.matched===false){
       //target dimension does not yet exist in the object to be changed
       var md2Length=md2.length;
       for (var i=1;i<md2Length;i++){
          returnItem.tree.push(md2[i].clone());
       }
-      returnItem.membersToAdd=obj2.members();
+      returnItem.membersToAdd=m_membersHierarchy(md2,[]);
    }
 
    var add=returnItem.membersToAdd;
@@ -189,9 +230,18 @@ function m_stateChange(obj1,obj2){
 
    //check unique members
    for (var j=0;j<addLength;j++){
-      if (has(members,add[j])){
-         if (!has(remove,add[j])){
-            throw "Error: state change violates unique members by attempting to add "+add[j]+" to item that already contains "+add[j];
+      for (var i=0;i<membersLength;i++){
+         for(var k in members[i]){
+            document.write(k+" "+members[i][k]+"<BR>");
+         }
+         if (add[j]['memberName']===members[i]['memberName']){
+            //a member to be added is already present in the object; this is appropriate if the member is present in the member's own hierarchy, or if the member is being removed
+            //because both md1 and md2 must be well-formed at the start, if memberName is on the remove list, we know that it is appropriate to add it, because it can only be removed if the current branch is removing all old x members, or if it is itself in a path that is permitted to have x
+            if (!has(remove,add[j][memberName])){
+               if (!has(add[j]['hierarchy'],members[i]['tag'])) {
+                  throw "Error: state change violates unique members by attempting to add "+add[j]+" to item that already contains "+add[j];
+               }
+            }
          }
       }
    }
@@ -302,6 +352,11 @@ PlaidObject.prototype.tags=function() {
 /*Returns an array of the members of the object on which the function is called*/
 PlaidObject.prototype.members=function() {
    return m_members(this.tree);
+}
+
+/*Returns an array of the members of the object on which the function is called; each member is stored in a memberItem, containing the member's name and a list of the tags in the hierarchy called tagList*/
+PlaidObject.prototype.membersUnique=function() {
+   return m_membersUnique(this.tree);
 }
 
 /*Enacts state change according to current Plaid semantics (June 2011), equivalent to this <- state ;  transitions the object on which it is called to the state that is passed in*/
