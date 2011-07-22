@@ -82,14 +82,19 @@ function m_membersUnique(md1){
 
 /*returns an array of all the fields and methods of the state that is reflected in the current metadata, bundled in items containing both member name and the tag names in its hierarchy*/
 function m_membersHierarchy(md1,hierarchy){
-   hierarchy.push(md1[0][0]);
+   if (md1[0][2]==="with"){
+      hierarchy=[md1[0][0]];
+   }
+   else{
+      hierarchy.push(md1[0][0]);
+   }
    var members = md1[0][1];
    var length=members.length;
    var memberList = [];
    for (var i=0;i<length;i++) {
       var itemToAdd={
          memberName:members[i],
-         hierarchy:hierarchy
+         hierarchy:hierarchy.clone()
       }
       memberList.push(itemToAdd);
    }
@@ -116,7 +121,12 @@ function m_tags(md1){
 /*Once a matching tag has been found, descends the two trees to find any tags that do not match, make appropriate modifications to state*/
 function stateChangeDescend(md1,md2, returnItem, hierarchy){
    //becuase this function has been called, we know that md1[0][0]=md2[0][0]
-   hierarchy.push(md1[0][0]);
+   if (md1[0][2]==="with"){
+      hierarchy=[md1[0][0]];
+   }
+   else{
+      hierarchy.push(md1[0][0]);
+   }
 
    var length1=md1.length;
    var length2=md2.length;
@@ -168,7 +178,12 @@ function stateChangeDescend(md1,md2, returnItem, hierarchy){
 function stateChangeFindParent(md1,md2, returnItem, hierarchy)
 /*TO DO: make sure we don't have to check for md2 having multiple components, check all of them against all of md1*/
 {  
-   hierarchy.push(md1[0][0]);
+   if (md1[0][2]==="with"){
+      hierarchy=[md1[0][0]];
+   }
+   else{
+      hierarchy.push(md1[0][0]);
+   }
    if (md1[0][0]===""){
       //the members for this tag, if there are any, were added using the with operator
       returnItem.withMembers1 = returnItem.withMembers1.concat(md1[0][1]);
@@ -231,15 +246,12 @@ function m_stateChange(obj1,obj2){
    //check unique members
    for (var j=0;j<addLength;j++){
       for (var i=0;i<membersLength;i++){
-         for(var k in members[i]){
-            document.write(k+" "+members[i][k]+"<BR>");
-         }
          if (add[j]['memberName']===members[i]['memberName']){
             //a member to be added is already present in the object; this is appropriate if the member is present in the member's own hierarchy, or if the member is being removed
             //because both md1 and md2 must be well-formed at the start, if memberName is on the remove list, we know that it is appropriate to add it, because it can only be removed if the current branch is removing all old x members, or if it is itself in a path that is permitted to have x
-            if (!has(remove,add[j][memberName])){
-               if (!has(add[j]['hierarchy'],members[i]['tag'])) {
-                  throw "Error: state change violates unique members by attempting to add "+add[j]+" to item that already contains "+add[j];
+            if (has(remove,add[j]['memberName'])===false){
+               if (has(add[j]['hierarchy'],members[i]['tag'])===false) {
+                  throw "Error: state change violates unique members by attempting to add "+add[j]['memberName']+" to item that already contains "+add[j]['memberName'];
                }
             }
          }
@@ -279,7 +291,8 @@ function m_stateChange(obj1,obj2){
 
    //add the members that need to be added
    for (var j=0;j<addLength;j++){
-      addMember(obj1,add[j],obj2[add[j]]);
+      var mn = add[j]['memberName'];
+      addMember(obj1,mn,obj2[mn]);
    }
 
 
@@ -318,12 +331,17 @@ m_stateChangeMemberNoValue = function(obj, memberName) {
 
 /*Returns true if item is contained in array, false if it is not*/
 function has(array, item){
+   return false;
    var length=array.length;
    for (var i=0;i<length;i++){
       if (array[i]===item){
          return true;
       }
    }
+   return false;
+}
+
+function hasFalse(array, item){
    return false;
 }
 
@@ -397,7 +415,7 @@ PlaidObject.prototype.freeze=function() {
    var i;
    //right now this copies any method that is not the ones listed in the first condition below
    for (i in this) {
-      if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="stateChange" || i==="stateChangeMember" || i==="stateChangeMemberNoValue" || i==="replace" || i==="freeze" || i==="clone") {
+      if ( i==="tree" || i==="match" || i==="tags" || i==="members" || i=="membersUnique" || i=="stateChange" || i==="stateChangeMember" || i==="stateChangeMemberNoValue" || i==="replace" || i==="freeze" || i==="clone") {
          continue;
       }
       else {
