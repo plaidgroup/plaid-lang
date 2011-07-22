@@ -146,7 +146,7 @@ public class FieldDecl implements Decl {
 		out.insertIntoScope(CodeGen.globalScope, f.getName(), this.immutable);
 		out.closeBlock(); out.closeBlock(); //}}
 		
-		return FileGen.createOutputFile(f.getName(), cc.getOutputDir(), out.formatFile(), qid);
+		return FileGen.createOutputFile(f.getName(), cc.getTempDir(), out.formatFile(), qid);
 		
 	}
 

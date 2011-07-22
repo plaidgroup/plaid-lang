@@ -305,7 +305,7 @@ public class StateDecl implements Decl {
 		
 		out.closeBlock(); // } (for class Def)
 		
-		return FileGen.createOutputFile(name.getName(), cc.getOutputDir(), out.formatFile(), qid);
+		return FileGen.createOutputFile(name.getName(), cc.getTempDir(), out.formatFile(), qid);
 		
 	}
 

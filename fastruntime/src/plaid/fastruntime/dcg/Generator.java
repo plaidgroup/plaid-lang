@@ -64,8 +64,7 @@ public final class Generator implements Opcodes {
 				mv.visitMethodInsn(INVOKESTATIC, Type.getInternalName(entry.getValue()), target.getName(), Type.getMethodDescriptor(target));
 				mv.visitInsn(RETURN);
 				mv.visitMaxs(1+m.getParameterTypes().length, 1+m.getParameterTypes().length);
-				mv.visitEnd();
-			
+				mv.visitEnd();			
 			}
 		}
 		
