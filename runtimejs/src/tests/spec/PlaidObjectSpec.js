@@ -387,7 +387,7 @@ describe("PlaidObject Errors", function() {
 
   var treeBuilder3=new Tree();
   var car2 = new WithNode("car2",[],treeBuilder3.root);
-  var drivingStatus = new WithNode("drivingStatus",[],car2);
+  var drivingStatus = new WithNode("drivingStatus",["speed"],car2);
   var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
   var brakingStatus = new WithNode("brakingStatus",[],driving);
   var braking = new CaseOfNode("notBraking",["startBraking"],brakingStatus);
