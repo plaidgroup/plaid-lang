@@ -142,7 +142,7 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 						node.addLowerBound(boundNeed); 
 					}
 					case False { 
-						node.toNotStringBorrow();
+						node.toNotStrongBorrow();
 						node.addLowerBound(NONEP) 
 					}
 				};
@@ -191,7 +191,7 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 						node.addLowerBound(boundNeed); 
 					}
 					case False { 
-						node.toNotStringBorrow();
+						node.toNotStrongBorrow();
 						node.addLowerBound(NONEP) 
 					}
 				};
@@ -222,7 +222,14 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 	}
 	
 	method visitNewInstance(node) {
-		/* no op */
+		match(node.s) {
+			case QI {
+				node.s.accept(this);
+			}
+			default { 
+				//only nominal states supported
+			}
+		}
 	}
 	method visitUnitLiteral(node) {
 	}
@@ -236,11 +243,17 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 	}
 	
 	method visitChangeState(node) {		
-		//error if neededPerm is not none
-		val immutable ID targetID = node.e.copy(); //must be ID in LNF
-		val targetNeedIn = this.needsContext.get(targetID);
-		this.needsContext.update(targetID.copy(),makePair(targetNeedIn.fst,UNIQUE));
-		
+		match(node.s) {
+			case QI {
+				node.s.accept(this);
+				val immutable ID targetID = node.e.copy(); //must be ID in LNF
+				val targetNeedIn = this.needsContext.get(targetID);
+				this.needsContext.update(targetID.copy(),makePair(targetNeedIn.fst,UNIQUE));
+			}
+			default { 
+				//only nominal states supported
+			}
+		}
 	}
 	
 	method visitCompilationUnit(node) {
@@ -259,8 +272,8 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 		val immutable NominalType objType = this.context.get(baseObj); 
 		val immutable Permission fieldPerm = 
 			objType.declaredType(field, this.st).value.getBinding().getPerm();
-		val objPermToPull = fieldReadPermision(fieldPerm, this.neededPerm, false);
-		val baseObjNeedOut = objPermToPull.leastUpperBound(baseObjNeedIn.snd);
+		val objPermToPull = fieldReadPermission(fieldPerm, this.neededPerm, false);
+		val baseObjNeedOut = objPermToPull.value.leastUpperBound(baseObjNeedIn.snd);
 		this.needsContext.update(baseObj.copy(),makePair(baseObjNeedIn.fst,baseObjNeedOut));
 	}
 	
@@ -279,12 +292,43 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 			objType.declaredType(field, this.st).value.getBinding().getPerm();
 		val immutable ID valueID = node.value.copy(); //ID in let normal form
 		val valueNeedIn = this.needsContext.get(valueID);
-		val valueNeedOut = valueNeedIn.leastUpperBound(fieldPerm);
+		val valueNeedOut = valueNeedIn.snd.leastUpperBound(fieldPerm);
 		this.needsContext.update(valueID.copy(),makePair(valueNeedIn.fst,valueNeedOut));
 		this.needsContext.update(baseObj.copy(),makePair(baseObjNeedIn.fst,UNIQUE));
 	}
 	
 	method visitQI(node) {
+		//run on the initializers in reverse order, using this context
+		match (node.initState) {
+			case Some {
+				val savedNeed = this.neededPerm;
+				node.initState.value.decls.foldr(fn (d,e) => {
+					match (d) {
+						case FieldDecl { //for field initializers, allow the use of outside variables
+							val fieldPermType = d.fieldType.binding.currentType.copy();
+							match (fieldPermType.type) {
+								case LambdaType {
+									this.neededPerm = fieldPermType.type.returnType.perm;
+								}
+								default {
+									this.neededPerm = fieldPermType.perm;
+								}
+							};
+							d.e.accept(this);
+							new None;
+						}
+						default { //nothing from outside should be in scope for non-field decls
+							val dVisitor = new PermissionAnalysisVisitor {
+								override val st = this.st;
+							};
+							d.accept(dVisitor);
+							new None;
+						}
+					}
+				},new None);
+			}
+			case None { /* no op */ }
+		}
 	}
 	
 	method visitDoubleLiteral(node) {
@@ -379,10 +423,10 @@ state PermissionAnalysisVisitor case of ASTVisitor {
 		val iterator = fnType.environmentTypes.keySet().iterator();
 		while { iterator.hasNext() } {
 		  val envId = iterator.next().copy();
-		  val envNeedIn = this.needsContext.get(envID);
+		  val envNeedIn = this.needsContext.get(envId);
 		  val envChange = fnType.environmentTypes.get(envId);
 		  val envNeedOut = envChange.input.perm;
-		  this.needsContext.update(envID.copy(),makePair(envNeedIn.fst, envNeedOut));
+		  this.needsContext.update(envId.copy(),makePair(envNeedIn.fst, envNeedOut));
 		};
 	}
 	

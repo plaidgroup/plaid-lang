@@ -106,17 +106,17 @@ val typeCheckExpression = fn (unique Context c,
 									case Some {
 										val baseObjBinding = baseObjBindingOption.value;
 										val immutable ID field = e.exp.right.copy();
-										val fieldBindingOption = baseObjBinding.getObjectType().contains(field,st);
-										match (fieldTypeOption) {
+										val fieldDeclOption = baseObjBinding.getObjectType().contains(field,st);
+										match (fieldDeclOption) {
 											case Some{
-												val fieldBinding = fieldBindingOption.value;
+												val fieldBinding = fieldDeclOption.value.getBinding();
 												val neededFieldBinding = e.getBinding();
 												val fieldPullPermOption = fieldReadPermB(fieldBinding,neededFieldBinding);
 												match (fieldPullPermOption) {
 													case Some {
 														match (baseObjBinding.getPerm().isSubPermOf(fieldPullPermOption.value)) {
 															case True {
-																val leftoverFieldBindingOption = fieldBinding.splitBinding(neededFieldBinding);
+																val leftoverFieldBindingOption = fieldBinding.splitBinding(neededFieldBinding,st);
 																match (leftoverFieldBindingOption) {
 																	case Some {
 																		baseObjBinding.memberUpdate(field,leftoverFieldBindingOption.value,st);
@@ -129,11 +129,11 @@ val typeCheckExpression = fn (unique Context c,
 																				match (newBaseObjBindingOption) {
 																					case Some {
 																					  val newBaseObjBinding = newBaseObjBindingOption.value;
-																						val newFieldBindingOption = newBaseObjBinding.getObjectType().declaredType(field,st);
+																						val newFieldBinding = newBaseObjBinding.getObjectType().contains(field,st).value.getBinding();
 																						val remainingBoundVarBindingOption = outgoingContext.getOption(e.x);
 																						match (remainingBoundVarBindingOption) {
 																							case Some {
-																								val joinedFieldBindingOption = remainingBoundVarBindingOption.value.joinBinding(newFieldBindingOption.value, fieldBinding);
+																								val joinedFieldBindingOption = remainingBoundVarBindingOption.value.joinBinding(newFieldBinding, fieldBinding);
 																								match (joinedFieldBindingOption) {
 																									case Some {
 																										newBaseObjBinding.memberUpdate(field,joinedFieldBindingOption.value, st);
@@ -142,7 +142,7 @@ val typeCheckExpression = fn (unique Context c,
 																									}
 																									case None {
 																										returnError("Failed to join " + remainingBoundVarBindingOption.value.toString() +
-																															  " with " + newFieldBindingOption.value.toString());
+																															  " with " + newFieldBinding.toString(),e);
 																									}
 																								}
 																							}
@@ -239,18 +239,18 @@ val typeCheckExpression = fn (unique Context c,
 												val immutable ID baseObjID = e.target.value.copy();
 												val immutable ID fieldID = e.field.copy();
 												val immutable ID valueID = e.value.copy();
-												val baseObjBindingOption = c.get(baseObjID);
-												match (baseObjBingingOption) {
+												val baseObjBindingOption = c.getOption(baseObjID);
+												match (baseObjBindingOption) {
 													case Some {
-														val valueBindingOption = c.get(valueID);
+														val valueBindingOption = c.getOption(valueID);
 														match (valueBindingOption) {
 															case Some {
 																val baseObjBinding = baseObjBindingOption.value;
 																val valueBinding = valueBindingOption.value;
-																val fieldDeclaredBindingOption = baseObjBinding.getObjectType().declaredType(fieldID,st);
-																match (fieldDeclaredBindingOption) {
+																val fieldDeclaredTypeOption = baseObjBinding.getObjectType().declaredType(fieldID,st);
+																match (fieldDeclaredTypeOption) {
 																	case Some {
-																		val fieldDeclaredBinding = fieldDeclaredBindingOption.value;
+																		val fieldDeclaredBinding = fieldDeclaredTypeOption.value.getBinding();
 																		match (baseObjBinding.getPerm() == UNIQUE) {
 																			case True {
 																				val valueBindingRemainderOption = valueBinding.splitBinding(fieldDeclaredBinding,st);
@@ -435,84 +435,99 @@ val typeCheckExpression = fn (unique Context c,
 				}
 			}
 			case NewInstance { //new
-				match (e.s) {
-					case QI {
-						val stateName = makeID(makeToken(),e.s.toShortName());
-						val stateTypeOption = st.get(stateName); //TODO: implement packages
-						match (stateTypeOption) {
-							case Some {  
-								val newType = stateTypeOption.value.createUnpackedType();
-								match (newType == neededBinding.getObjectType()) {
-									case True {
-										makePair(createSome(c), new None);
+				val stateResult = typeCheckState(e.s,c,st);
+				match (stateResult.first()) {
+					case Some {
+						match (e.s) {
+							case QI {
+								val stateName = makeID(makeToken(),e.s.toShortName());
+								val stateTypeOption = st.get(stateName); //TODO: implement packages
+								match (stateTypeOption) {
+									case Some {  //Typechecked!
+										match (createNominalType(stateTypeOption.value.name.copy()).isSubObjectTypeOf(neededBinding.getObjectType(),st)) {
+											case True {
+												stateResult
+											}
+											case False {
+												returnError("new " + stateName.name + " cannot provide type " + 
+													neededBinding.toString(),e)
+											}
+										}
 									}
-									case False {
-										returnError("new cannot provide requested type",e)
+									case None {
+										returnError("State " + stateName.name + " not declared", e)
 									}
 								}
 							}
-							case None {
-								returnError("State " + stateName.name + " not declared", e)
+							default {
+								returnError("Only single nominal types implemented", e)
 							}
 						}
 					}
-					default {
-						returnError("Only single nominal types implemented", e)
+					case None {
+						returnOuterError("State in New instance did not typecheck",e, stateResult.second().value);
 					}
 				}
 			}
 			case ChangeState { //state change
-				match (e.e) {
-					case ID {
-						val targetTypeOption = c.getOption(e.e.copy());
-						match (targetTypeOption) {
-							case Some {
-								val targetType = targetTypeOption.value;
-								match (targetType.getPerm() == UNIQUE) {
-									case True {
-										match(targetTypeOption.getObjectType().notBorrowed()) {
+				val stateResult = typeCheckState(e.s, c, st);
+				match (stateResult.first()) {
+					case Some {
+						val theContext = stateResult.first().value;
+						match (e.e) {
+							case ID {
+								val targetTypeOption = theContext.getOption(e.e.copy());
+								match (targetTypeOption) {
+									case Some {
+										val targetType = targetTypeOption.value;
+										match (targetType.getPerm() == UNIQUE) {
 											case True {
-												match (e.s) {
-													case QI {
-														val stateName = makeID(makeToken(),e.s.toShortName());
-														val stateTypeOption = st.get(stateName); //TODO: implement packages
-														match (stateTypeOption) {
-															case Some {  //Typechecked!
-																val newType = stateTypeOption.value.createUnpackedType();
-																targetType.updateObjectType(newType);
-																c.downgrade();
-																makePair(createSome(c), new None);
+												match(targetType.getObjectType().notBorrowed()) {
+													case True {
+														match (e.s) {
+															case QI {
+																val stateName = makeID(makeToken(),e.s.toShortName());
+																val stateTypeOption = st.get(stateName); //TODO: implement packages
+																match (stateTypeOption) {
+																	case Some {  //Typechecked!
+																		targetType.updateObjectType(createNominalType(stateTypeOption.value.name.copy()));
+																		theContext.downgrade();
+																		makePair(createSome(theContext), new None);
+																	}
+																	case None {
+																		returnError("State " + stateName.name + " not declared", e)
+																	}
+																}
 															}
-															case None {
-																returnError("State " + stateName.name + " not declared", e)
+															default {
+																returnError("Only single nominal types implemented", e)
 															}
 														}
 													}
-													default {
-														returnError("Only single nominal types implemented", e)
+													case False {
+														returnError("Cannot state change an object with currently borrowed fields", e);
 													}
 												}
 											}
 											case False {
-												returnError("Cannot state change an object with currently borrowed fields", e);
+												returnError("Can only state change a unique object",e);
 											}
 										}
 									}
-									case False {
-										returnError("Can only state change a unique object",e);
+									case None {
+										returnError("State change target " + e.e.name + " not in scope",e);
 									}
 								}
 							}
-							case None {
-								returnError("State change target " + e.e.name + " not in scope",e);
+							default {
+								returnError("Not in LNF", e);
 							}
 						}
 					}
-					default {
-						returnError("Not in LNF", e);
+					case None {
+						returnOuterError("State in state change did not typecheck",e, stateResult.second().value);
 					}
-				}
-			
+				}	
 			}
 			case Match { //match
 				match (e.e) {
@@ -729,7 +744,7 @@ val typeCheckExpression = fn (unique Context c,
 												case Some {
 													val postEnvType = postEnvTypeOption.value;
 													postEnvType.pack(st);
-													match (postEnvType.currentType.isSubPermTypeOf(envOutType)) {
+													match (postEnvType.currentType.isSubPermTypeOf(envOutType, st)) {
 														case True {
 															//no errors to add - no op
 														}
@@ -815,16 +830,16 @@ val typeCheckExpression = fn (unique Context c,
 												while { envPreIterator.hasNext() } {
 													val envID = envPreIterator.next();
 													val envTypeOption = c.getOption(envID);
-													match (evnTypeOption) {
+													match (envTypeOption) {
 														case Some {
-															val envType = envType.value;
+															val envType = envTypeOption.value;
 															val envChangeType = lambdaType.environmentTypes.get(envID);
 															val envSigType = envChangeType.inputBinding();
 															val leftoverTypeOption = envType.splitBinding(envSigType,st);
 															match(leftoverTypeOption) {
 																case Some {
 																	c.update(envID.copy(),leftoverTypeOption.value);
-																	val types = makePair(type, envChangeType.outputBinding());
+																	val types = makePair(envType, envChangeType.outputBinding());
 																	envSaved.put(envID.copy(),types);
 																}
 																case None {
@@ -844,17 +859,17 @@ val typeCheckExpression = fn (unique Context c,
 														while { envPostIterator.hasNext() } {
 															val envID = envPostIterator.next();
 															val envLeftoverTypeOption = c.getOption(envID);
-															match (evnLeftoverTypeOption) {
+															match (envLeftoverTypeOption) {
 																case Some {
-																	val envLeftoverType = envType.value;
+																	val envLeftoverType = envLeftoverTypeOption.value;
 																	val saved = envSaved.get(envID);
 																	val lOutputType = saved.second();
-																	val origlType = saved.first();
+																	val origType = saved.first();
 																	
 																	val outEnvBindingOption = envLeftoverType.joinBinding(lOutputType,origType);
 																	match(outEnvBindingOption) {
 																		case Some {
-																			c.update(argID, outEnvBindingOption.value); 
+																			c.update(envID, outEnvBindingOption.value); 
 																		}
 																		case None {
 																			argsOkay = false;
@@ -958,6 +973,73 @@ val typeCheckExpression = fn (unique Context c,
 					}
 				}
 			}
+			case Dereference {
+				match (e.left) {
+					case ID {
+					  val baseObjID = e.left;
+					  val baseObjBindingOption = c.getOption(baseObjID);
+					  match (baseObjBindingOption) {
+					  	case Some {
+					  		val baseObjBinding = baseObjBindingOption.value;
+					  		val fieldTypeOption = baseObjBinding.contains(e.right.copy(), st);
+					  		match (fieldTypeOption) {
+					  			case Some {
+					  				val fieldType = fieldTypeOption.value;
+					  				match (fieldType) {
+					  					case FieldType {
+					  						val curFieldBinding = fieldType.getBinding();
+					  						val neededBaseObjBindingOption = fieldReadPermB(curFieldBinding, neededBinding);
+					  						match (neededBaseObjBindingOption) {
+					  							case Some {
+					  								match (baseObjBinding.getPerm().isSubPermOf(neededBaseObjBindingOption.value)) {
+					  									case True {
+					  										val leftoverBindingOption = curFieldBinding.splitBinding(neededBinding,st);
+					  										match (leftoverBindingOption) {
+					  											case Some {
+					  												fieldType.binding.memberUpdate(e.right.copy(), leftoverBindingOption.value, st);
+					  												makePair(createSome(c), new None);
+					  											}
+					  											case None {
+					  												returnError("Cannot pull permission " + neededBinding.getPerm().toString() +
+					  													" from Permission " + curFieldBinding.getPerm().toString(),e)
+					  											}
+					  										}
+					  									}
+					  									case False {
+					  										returnError("Cannot pull permission " + neededBinding.getPerm().toString() +
+					  											" from field with Permission " + curFieldBinding.getPerm().toString() + 
+					  											" in object with permission " + baseObjBinding.getPerm().toString(),e)
+					  									}
+					  								}
+					  							}
+					  							case None {
+					  								returnError("Cannot pull permission " + neededBinding.getPerm().toString() +
+					  									" from field with Permission " + curFieldBinding.getPerm().toString(),e)
+					  							}
+					  						}
+					  					}
+					  					default {
+					  						returnError(e.right.name + " declared as a method instead of" +
+					  						" a field in type " + baseObjBinding.getObjectType().toString(),e)
+					  					}
+					  				}
+					  			}
+					  			case None {
+					  				returnError("field " + e.right.name + " not declared in type " + 
+					  						baseObjBinding.getObjectType().toString(),e);
+					  			}
+					  		}
+					  	}
+					  	case None {
+					  		returnError("ID " + baseObjID.name + " not in scope",e)
+					  	}
+					  }
+					}
+					default {
+						returnError("Dereference not in LNF",e);
+					}
+				}
+			}
 			case IntLiteral {
 				match(neededBinding.currentType == createPermType(IMMUTABLE, getIntegerType())) {
 					case True {
@@ -1003,18 +1085,22 @@ val returnOuterError = fn(msg,e, innerError) =>
 val typeCheckDecl = fn (unique Decl d, /*unique Option<unique Context>*/ topLevelContext, unique StateTable st) => {
 	match(d) {
 		case FieldDecl {
+			val theContext = match (topLevelContext) {
+				case Some { topLevelContext.value }
+				case None { new Context }
+			};
 			match(d.abstractField) {
-				case True { makePair(createSome(d.fieldType), new None); }
+				case True { makePair(createSome(theContext), new None); }
 				case False {
 					val expCheck = typeCheckExpression(
-						new Context, st, d.e, d.fieldType.binding);
+						theContext, st, d.e, d.fieldType.binding);
 					match(expCheck.second()) {
 						case None {
-							makePair(createSome(d.fieldType), new None);
+							makePair(expCheck.first(), new None);
 						}
 						case Some {
 							makePair(new None, createSome(
-								createOuterError("Field initialization expression failed to type.", d, 
+								createOuterError("Field initialization expression for field " + d.f.name + " failed to type.", d, 
 									expCheck.second().value)));
 						}
 					}
@@ -1030,62 +1116,184 @@ val typeCheckDecl = fn (unique Decl d, /*unique Option<unique Context>*/ topLeve
 					new Context;
 				}
 			};	
-			val argTypesList = d.arguments.zip(d.methodType.argTypes);
-			argTypesList.add(makePair(makeID(makeToken(),"this$plaid"),d.methodType.receiverType));
-			
-			argTypesList.map(fn (p) => {
-				methodContext.put(p.fst.copy(), p.snd.inputBinding().copy())
-			});
-			
-			val bodyResult = typeCheckExpression(methodContext, st, d.body,d.methodType.returnType);
-			
-			match(bodyResult.first()) {
-				case Some {
-					val outContext = bodyResult.first().value;
-					val errListOption = argTypesList.foldl(fn (p,err) => {
-						val postArgTypeOption = outContext.getOption(p.fst.copy());
-						match (postArgTypeOption) {
-							case Some {
-								val postArgType = postArgTypeOption.value;
-								postArgType.pack(st);
-								val argOutType = p.snd.outputBinding().currentType;
-								match (postArgType.currentType.isSubPermTypeOf(argOutType,st)) {
-									case True {
-										err //no errors to add
+			match (d.abstractMethod) {
+				case False {
+					val argTypesList = d.arguments.zip(d.methodType.argTypes);
+					argTypesList.add(makePair(makeID(makeToken(),"this$plaid"),d.methodType.receiverType));
+					
+					argTypesList.map(fn (p) => {
+						methodContext.put(p.fst.copy(), p.snd.inputBinding().copy())
+					});
+					
+					val bodyResult = typeCheckExpression(methodContext, st, d.body,d.methodType.returnType);
+					
+					match(bodyResult.first()) {
+						case Some {
+							val outContext = bodyResult.first().value;
+							val errListOption = argTypesList.foldl(fn (p,err) => {
+								val postArgTypeOption = outContext.getOption(p.fst.copy());
+								match (postArgTypeOption) {
+									case Some {
+										val postArgType = postArgTypeOption.value;
+										postArgType.pack(st);
+										val argOutType = p.snd.outputBinding().currentType;
+										match (postArgType.currentType.isSubPermTypeOf(argOutType,st)) {
+											case True {
+												err //no errors to add
+											}
+											case False {
+												manageErrorList(err, createError("argument contract for " + p.fst.name + " not fulfilled: " +
+													postArgType.currentType.toString() + " not a subtype of " + argOutType.toString(),d.body));
+											}
+										}
 									}
-									case False {
-										manageErrorList(err, createError("argument contract for " + p.fst.name + " not fulfilled: " +
-											postArgType.currentType.toString() + " not a subtype of " + argOutType.toString(),e));
+									case None {
+										createError("How bizarre - " + p.first().name + " disappeared",d.body)
 									}
 								}
+							}, new None);
+							match(errListOption) {
+								case Some {
+									returnOuterError("Method body did not fulfill outgoing types", d.body, errListOption.value)
+								}
+								case None {
+									makePair(topLevelContext,new None);  //TODO: Decls maybe should not return a context?
+								}
 							}
-							case None {
-								createError("How bizarre - " + p.first().name + " disappeared",e)
-							}
-						}
-					}, new None);
-					match(errListOption) {
-						case Some {
-							returnOuterError("Method body did not fulfill outgoing types", e, errListOption.value)
 						}
 						case None {
-							makePair(topLevelContext,new None);  //TODO: Decls maybe should not return a context?
+							returnOuterError("body of method " + d.name + " failed to typecheck", d.body, bodyResult.second().value);
 						}
 					}
 				}
-				case None {
-					returnOuterError("body of method failed to typecheck", e, bodyResult.second().value);
+				case True {
+					makePair(createSome(methodContext),new None)
 				}
 			} 
 		}
 		case StateDecl {
-			returnError("state decl not implemented",d)
+			match (d.stateDef) {
+				case DeclList {
+					val errorOption = d.stateDef.decls.foldl(fn(decl,errOp) => {
+						val declResult = typeCheckDecl(decl,new None, st);
+						match (declResult.second()) {
+							case Some {
+								manageErrorList(errOp,declResult.second().value);
+							}
+							case None { 
+								//No error to add
+								errOp
+							}
+						}
+					}, new None);
+					match (errorOption) {
+						case Some {
+							returnOuterError("state " + d.name.name + " failed to typecheck", d, errorOption.value);
+						}
+						case None {
+							makePair(createSome(new Context),new None);
+						}
+					}
+				}
+				default {
+					returnError("only nominal states implemented",d)
+				}
+			}
 		}
 		default {
 			new None;
 		}
 	}
 };	
+
+val typeCheckState = fn (s, c, st) => {
+	match (s) {
+		case QI {
+			val stateName = makeID(makeToken(),s.toShortName());
+			val stateTypeOption = st.get(stateName); //TODO: implement packages
+			match (stateTypeOption) {
+				case Some {  
+					val initDecls = java.util.HashMap.new();
+					val initResult = match (s.initState) {
+						case Some { //typecheck decls in initializer, keeping track of them
+							s.initState.value.decls.foldl(fn (d,r) => {
+								match(d) {
+									case FieldDecl { //use same context for fields
+										match (r.first()) {
+											case Some {
+												val fResult = typeCheckDecl(d, r.first(), st);
+												match(fResult.first()) {
+													case Some {
+														initDecls.put(d.f.copy(),d); // this field was provided by the initializer
+														fResult
+													}
+													case None {
+														makePair(new None, manageErrorList(r.second(),fResult.second().value));
+													}
+												}
+											}
+											case None {
+												r  //do nothing since context mucked up from previous error
+											}
+										}
+									}
+									default { //otherwise, don't give it a context
+										val dResult = typeCheckDecl(d, new None, st);
+										match (dResult.second()) {
+											case Some {
+												makePair(new None, manageErrorList(r.second(),dResult.second().value));
+											}
+											case None {
+												r
+											}
+										}
+									}
+								}
+							}, makePair(createSome(c), new None) ); 
+						}
+						case None {
+							makePair(createSome(c),new None);
+						}
+					};
+					val stateType = stateTypeOption.value;
+					match (initResult.second()) {
+						case None {
+						  val iterator = stateType.declaredTypes.keySet().iterator();
+							var err = new None;
+							while { iterator.hasNext() } {
+								val declName = iterator.next();
+								if (!stateType.providedTypes.containsKey(declName) && !initDecls.containsKey(declName)) {
+									err = manageErrorList(err, createError("decl " + declName.name + " declared in state " +
+										stateType.name.name + " is still abstract",s));
+								};
+							};
+							match (err) {
+								case None {
+									makePair(initResult.first(), new None)
+								}
+								case Some {
+									returnOuterError("Not all members of state " + stateType.name.name + 
+										" provided",s, err.value)
+								}
+							}
+						}
+						case Some{
+							returnOuterError("Typing of initizers to state " + 
+								stateType.name.name + " failed",s,initResult.second().value); 
+						}
+					}			
+				}
+				case None {
+					returnError("State " + stateName.name + " not declared", s)
+				}
+			}
+		}
+		default {
+			//only nominal states implemented
+			returnError("only nominal state implemented",s);
+		}
+	}
+};
 	
 val typeCheckCU = fn (unique CompilationUnit cu, unique StateTable st) => {
 	val cuTopContext = new Context;
