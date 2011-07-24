@@ -154,7 +154,7 @@ public class CompilerCore {
 			handleClassInPlaidPath(classRep, className, plaidpath);
 		}
 		catch (NoClassDefFoundError e) {
-			if (!className.equals("uk.ac.lkl.common.util.testing.LabelledParameterized")) //KLULDGE
+			//if (!className.equals("uk.ac.lkl.common.util.testing.LabelledParameterized")) //KLULDGE
 				System.err.println("Warning: Loading class \"" + className + "\" failed.");
 		}
 	}
