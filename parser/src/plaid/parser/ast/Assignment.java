@@ -24,12 +24,12 @@ import plaid.parser.Token;
 public class Assignment extends Expression {
 
 	private Expression target;
-	private ID field;
+	private Identifier field;
 	private Expression value;
 	private final boolean hasTarget;
 	
 
-	public Assignment(Token t, Expression target, ID field, Expression value) {
+	public Assignment(Token t, Expression target, Identifier field, Expression value) {
 		super(t);
 		this.target = target;
 		this.hasTarget = target != null;
@@ -49,11 +49,11 @@ public class Assignment extends Expression {
 		return this.hasTarget;
 	}
 
-	public ID getField() {
+	public Identifier getField() {
 		return field;
 	}
 
-	public void setField(ID field) {
+	public void setField(Identifier field) {
 		this.field = field;
 	}
 

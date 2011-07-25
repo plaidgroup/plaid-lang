@@ -2,9 +2,9 @@ package plaid.parser.ast;
 
 public class GroupParameter implements MetaParameter {
 	private final GroupPermission permission;
-	private final ID id;
+	private final Identifier id;
 	
-	public GroupParameter(GroupPermission permission, ID id) {
+	public GroupParameter(GroupPermission permission, Identifier id) {
 		super();
 		this.permission = permission;
 		this.id = id;
@@ -14,7 +14,7 @@ public class GroupParameter implements MetaParameter {
 		return permission;
 	}
 	
-	public ID getId() {
+	public Identifier getId() {
 		return id;
 	}
 	

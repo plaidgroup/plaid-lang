@@ -27,7 +27,7 @@ import plaid.parser.Token;
 
 public final class MethodDecl extends Decl {
 	private final Expression body;
-	private final List<ID> arguments;
+	private final List<Identifier> arguments;
 	private final boolean hasArgs;
 	private final boolean abstractMethod;
 	private final MethodType methodType;
@@ -37,11 +37,11 @@ public final class MethodDecl extends Decl {
 		return overrides;
 	}
 
-	public MethodDecl(Token token, ID name, Expression body, ID arg, boolean abstractMethod, MethodType methodType, boolean overrides) {
+	public MethodDecl(Token token, Identifier name, Expression body, Identifier arg, boolean abstractMethod, MethodType methodType, boolean overrides) {
 		this(token, name, body, Collections.singletonList(arg), abstractMethod, methodType, overrides);
 	}
 	
-	public MethodDecl(Token token, ID name, Expression body, List<ID> args, boolean abstractMethod, MethodType methodType, boolean overrides) {
+	public MethodDecl(Token token, Identifier name, Expression body, List<Identifier> args, boolean abstractMethod, MethodType methodType, boolean overrides) {
 		super(token, name);
 		this.body = body;
 		this.arguments = args;
@@ -65,7 +65,7 @@ public final class MethodDecl extends Decl {
 		return hasArgs;
 	}
 
-	public List<ID> getArguments() {
+	public List<Identifier> getArguments() {
 		return Collections.unmodifiableList(this.arguments);
 	}
 

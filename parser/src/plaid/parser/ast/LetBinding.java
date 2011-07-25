@@ -23,22 +23,22 @@ import plaid.parser.Token;
 
 public class LetBinding extends Expression {
 
-	private ID x;
+	private Identifier x;
 	private Expression exp, body;
 	private boolean mutable;
 	private final PermType permType;
 	private final boolean annotated;
 	private final boolean take;
 
-	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable) {
+	public LetBinding(Token t, Identifier x, Expression e1, Expression e2, boolean mutable) {
 		this(t, x, e1, e2, mutable, null, false);
 	}
 	
-	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable, PermType permType) {
+	public LetBinding(Token t, Identifier x, Expression e1, Expression e2, boolean mutable, PermType permType) {
 		this(t, x, e1, e2, mutable, permType, false);
 	}
 	
-	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable, PermType permType, boolean take) {
+	public LetBinding(Token t, Identifier x, Expression e1, Expression e2, boolean mutable, PermType permType, boolean take) {
 		super(t);
 		this.x = x;
 		this.exp = e1;
@@ -65,7 +65,7 @@ public class LetBinding extends Expression {
 		return permType;
 	}
 
-	public ID getX() {
+	public Identifier getX() {
 		return x;
 	}
 

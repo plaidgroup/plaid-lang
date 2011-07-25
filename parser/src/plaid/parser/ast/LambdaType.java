@@ -9,12 +9,12 @@ import plaid.parser.Token;
 public class LambdaType extends Type {
 	
 	private final List<ChangeType> argTypes;
-	private final Map<ID,ChangeType> environmentTypes;
+	private final Map<Identifier,ChangeType> environmentTypes;
 	private final List<MetaType> metaTypes;
 	private final PermType returnType;
 
 	
-	public LambdaType(Token t, List<ChangeType> argTypes, Map<ID,ChangeType> sideEffects, List<MetaType> metaTypes, PermType returnType) {
+	public LambdaType(Token t, List<ChangeType> argTypes, Map<Identifier,ChangeType> sideEffects, List<MetaType> metaTypes, PermType returnType) {
 		super(t);
 		this.argTypes = argTypes;
 		this.environmentTypes = sideEffects;
@@ -26,7 +26,7 @@ public class LambdaType extends Type {
 		return Collections.unmodifiableList(argTypes);
 	}
 
-	public Map<ID,ChangeType> getEnvironmentTypes() {
+	public Map<Identifier,ChangeType> getEnvironmentTypes() {
 		return environmentTypes;
 	}
 
@@ -39,7 +39,7 @@ public class LambdaType extends Type {
 		StringBuilder s = new StringBuilder("(");
 		for ( ChangeType c : argTypes) s.append(c.toString() + ", "); //TODO: remove trailing comma
 		s.append(")[");
-		for (ID eVar : environmentTypes.keySet()) s.append(environmentTypes.get(eVar).toString() + " " + eVar.getName() + ","); //TODO: remove ending comma
+		for (Identifier eVar : environmentTypes.keySet()) s.append(environmentTypes.get(eVar).toString() + " " + eVar.getName() + ","); //TODO: remove ending comma
 		
 		s.append("] -> " + returnType.toString());
 		

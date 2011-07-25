@@ -1,20 +1,20 @@
 package plaid.parser.ast;
 
 public class MetaDereference implements MetaArgument {
-	private final ID var;
-	private final ID selector;
+	private final Identifier var;
+	private final Identifier selector;
 	
-	public MetaDereference(ID var, ID selector) {
+	public MetaDereference(Identifier var, Identifier selector) {
 		super();
 		this.var = var;
 		this.selector = selector;
 	}
 
-	public ID getVariable() {
+	public Identifier getVariable() {
 		return var;
 	}
 
-	public ID getSelector() {
+	public Identifier getSelector() {
 		return selector;
 	}
 	

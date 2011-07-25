@@ -28,7 +28,7 @@ public class CompilationUnit extends ASTNode {
 	private List<Decl> decls;
 	private List<String> packageName;
 	private String packageString;
-	private ImportList imports;
+	private List<Import> imports;
 	private File sourceFile = new File(">>UNKNOWN<<");
 
 	public CompilationUnit() {
@@ -48,7 +48,7 @@ public class CompilationUnit extends ASTNode {
 		this.packageName = name;
 	}
 	
-	public void setImports(ImportList imports) {
+	public void setImports(List<Import> imports) {
 		this.imports = imports;
 	}
 	
@@ -66,7 +66,7 @@ public class CompilationUnit extends ASTNode {
 		return packageString;
 	}
 	
-	public ImportList getImports() {
+	public List<Import> getImports() {
 		return imports;
 	}
 	
