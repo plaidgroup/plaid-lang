@@ -10,9 +10,9 @@ public class PermType extends ASTNode {
 	private final Permission perm;
 	private final Type type;
 	private boolean borrowed = false;
-	private ID group;
+	private Identifier group;
 
-	public PermType(Token token, Permission perm, ID group, Type type) {
+	public PermType(Token token, Permission perm, Identifier group, Type type) {
 		super(token);
 		if (perm == null || type == null) {
 			throw new RuntimeException("Perm and type must not be null!");
@@ -39,7 +39,7 @@ public class PermType extends ASTNode {
 		return (group==null)?false:true;
 	}
 	
-	public ID getGroup() {
+	public Identifier getGroup() {
 		return group;
 	}
 	

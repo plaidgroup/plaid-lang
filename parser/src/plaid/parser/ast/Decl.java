@@ -23,14 +23,14 @@ import plaid.parser.Token;
 
 public abstract class Decl extends ASTNode {
 	
-	protected final ID name;
+	protected final Identifier name;
 	
-	public Decl(Token t, ID name) {
+	public Decl(Token t, Identifier name) {
 		super(t);
 		this.name = name;
 	}
 	
-	public ID getName() {
+	public Identifier getName() {
 		return this.name;
 	}
 }

@@ -7,11 +7,11 @@ import java.util.Map;
 
 public class MethodType implements TypeDecl {
 	//private final Token token;
-	private final ID name;
+	private final Identifier name;
 	private final PermType returnType;
 	private final List<ChangeType> argTypes; //Order matters
 	private final ChangeType receiverType;
-	private final Map<ID,ChangeType> environmentTypes;
+	private final Map<Identifier,ChangeType> environmentTypes;
 	private final List<MetaType> metaTypes;
 	
 	//TODO: do we need this, or is there another way to signal this?
@@ -23,12 +23,12 @@ public class MethodType implements TypeDecl {
 	// to true if we need to infer any typestate changes in the method.
 	//private final boolean needTypeTransInference;
 	
-	public MethodType(ID name, 
+	public MethodType(Identifier name, 
 				      PermType returnType, 
 				      List<MetaType> metaTypes,
 				      List<ChangeType> argTypes, 
 				      ChangeType receiverType, 
-				      Map<ID,ChangeType> environmentTypes) {
+				      Map<Identifier,ChangeType> environmentTypes) {
 		this.name = name;
 		this.returnType = returnType;
 		this.metaTypes = metaTypes;
@@ -37,11 +37,11 @@ public class MethodType implements TypeDecl {
 		this.environmentTypes = environmentTypes;	
 	}
 	
-	public MethodType(ID name, 
+	public MethodType(Identifier name, 
 		      PermType returnType, 
 		      List<ChangeType> argTypes, 
 		      ChangeType receiverType, 
-		      Map<ID,ChangeType> environmentTypes) {
+		      Map<Identifier,ChangeType> environmentTypes) {
 		this(name, returnType, new ArrayList<MetaType>(), argTypes, receiverType, environmentTypes);
 	}
 
@@ -65,7 +65,7 @@ public class MethodType implements TypeDecl {
 //		}
 //	}
 
-	public ID getName() {
+	public Identifier getName() {
 		return name;
 	}
 	
@@ -85,7 +85,7 @@ public class MethodType implements TypeDecl {
 		return metaTypes;
 	}
 	
-	public Map<ID, ChangeType> getEnvironmentTypes() {
+	public Map<Identifier, ChangeType> getEnvironmentTypes() {
 		return Collections.unmodifiableMap(environmentTypes);
 	}
 
@@ -96,7 +96,7 @@ public class MethodType implements TypeDecl {
 			sb.append(argType.toString() + ", "); //TODO : remove trailing comma
 		}
 		sb.append(")[" + receiverType.toString());
-		for (ID eVar : environmentTypes.keySet()) {
+		for (Identifier eVar : environmentTypes.keySet()) {
 			sb.append(", " + environmentTypes.get(eVar).toString() + " " + eVar.getName());
 		}
 		sb.append("]");

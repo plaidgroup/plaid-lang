@@ -22,82 +22,27 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public class Case extends ASTNode {
-	private QI qi;
-	private ID x;
-	private Expression e;
-	private boolean defaultCase;
-	private boolean boundVar;
+	private final QualifiedIdentifier pattern;
+	private final Expression body;
+	private final boolean defaultCase;
 
 
-	public Case(Token t, QI qi, ID x, Expression e) {
+	public Case(Token t, QualifiedIdentifier pattern, Expression body) {
 		super(t);
-		this.qi = qi;
-		this.x = x;
-		this.e = e;
-		boundVar = true;
+		this.pattern = pattern;
+		this.body = body;
 		defaultCase = false;
 	}
 	
-	public Case(Token t, QI qi, Expression e) {
-		super(t);
-		this.qi = qi;
-		this.e = e;
-		boundVar = false;
-		defaultCase = false;
-	}
-	
-	public Case(Token t, Expression e) {
-		super(t);
-		this.e = e;
-		boundVar = false;
-		defaultCase = true;
-	}
 	public boolean isDefaultCase() {
 		return defaultCase;
 	}
-
-	public void setDefaultCase(boolean defaultCase) {
-		this.defaultCase = defaultCase;
-	}
-
-	public boolean isBoundVar() {
-		return boundVar;
-	}
-
-	public void setBoundVar(boolean boundVar) {
-		this.boundVar = boundVar;
-	}
-
 	
-	public QI getQi() {
-		return qi;
+	public QualifiedIdentifier getPattern() {
+		return pattern;
 	}
 
-	public void setQi(QI qi) {
-		this.qi = qi;
-	}
-	
-	public boolean hasQi() {
-		return qi != null;
-	}
-
-	public ID getX() {
-		return x;
-	}
-
-	public void setX(ID x) {
-		this.x = x;
-	}
-	
-	public boolean hasX() {
-		return x != null;
-	}
-
-	public Expression getE() {
-		return e;
-	}
-
-	public void setE(Expression e) {
-		this.e = e;
+	public Expression getBody() {
+		return body;
 	}
 }

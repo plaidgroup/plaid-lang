@@ -1,14 +1,14 @@
 package plaid.parser.ast;
 
 public class MetaVariable implements MetaArgument {
-	private final ID id;
+	private final Identifier id;
 	
-	public MetaVariable(ID id) {
+	public MetaVariable(Identifier id) {
 		super();
 		this.id = id;
 	}
 	
-	public ID getID() {
+	public Identifier getID() {
 		return id;
 	}
 

@@ -23,9 +23,9 @@ import plaid.parser.Token;
 
 public class Dereference extends Expression {
 	private final Expression left;
-	private final ID right;
+	private final Identifier right;
 	
-	public Dereference(Token t, Expression left, ID right) {
+	public Dereference(Token t, Expression left, Identifier right) {
 		super(t);
 		this.left = left;
 		this.right = right;
@@ -35,7 +35,7 @@ public class Dereference extends Expression {
 		return left;
 	}
 	
-	public ID getRight() {
+	public Identifier getRight() {
 		return right;
 	}
 }

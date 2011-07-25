@@ -1,11 +1,11 @@
 package plaid.parser.ast;
 
 public class GroupType implements TypeDecl, MetaType {
-	private final ID id;
+	private final Identifier id;
 	private final GroupPermission groupPermission;
 	private final boolean isAbstract;
 
-	public GroupType(GroupPermission groupPermission, ID id, boolean isAbstract) {
+	public GroupType(GroupPermission groupPermission, Identifier id, boolean isAbstract) {
 		this.groupPermission = groupPermission;
 		this.isAbstract = isAbstract;
 		this.id = id;
@@ -33,7 +33,7 @@ public class GroupType implements TypeDecl, MetaType {
 	//      }
 
 
-	public ID getID() {
+	public Identifier getID() {
 		return this.id;
 	}
 

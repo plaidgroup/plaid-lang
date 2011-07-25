@@ -11,10 +11,10 @@ public class MethodCall extends Expression {
 	private final List<Expression> arguments = new ArrayList<Expression>();
 	private final boolean hasArgs;
 	private final Expression receiver;
-	private final ID method;
+	private final Identifier method;
 	private final List<MetaArgument> metaArgs;
 	
-	public MethodCall(Token token, Expression receiver, ID method, Expression argument) {
+	public MethodCall(Token token, Expression receiver, Identifier method, Expression argument) {
 		super(token);
 		if (argument instanceof UnitLiteral) {
 			hasArgs = false;
@@ -27,7 +27,7 @@ public class MethodCall extends Expression {
 		this.metaArgs = new ArrayList<MetaArgument>();
 	}
 	
-	public MethodCall(Token token, Expression receiver, ID method, List<MetaArgument> metaArgs, Expression argument) {
+	public MethodCall(Token token, Expression receiver, Identifier method, List<MetaArgument> metaArgs, Expression argument) {
 		super(token);
 		if (argument instanceof UnitLiteral) {
 			hasArgs = false;
@@ -40,7 +40,7 @@ public class MethodCall extends Expression {
 		this.metaArgs = metaArgs;
 	}
 	
-	public MethodCall(Token token, Expression receiver, ID method, List<Expression> arguments) {
+	public MethodCall(Token token, Expression receiver, Identifier method, List<Expression> arguments) {
 		super(token);
 		this.arguments.addAll(arguments);
 		if (arguments.size() == 1 && arguments.get(0) instanceof UnitLiteral) {
@@ -54,7 +54,7 @@ public class MethodCall extends Expression {
 		this.metaArgs = null;
 	}
 	
-	public MethodCall(Token token, Expression receiver, ID method, List<MetaArgument> metaArgs, List<Expression> arguments) {
+	public MethodCall(Token token, Expression receiver, Identifier method, List<MetaArgument> metaArgs, List<Expression> arguments) {
 		super(token);
 		this.arguments.addAll(arguments);
 		if (arguments.size() == 1 && arguments.get(0) instanceof UnitLiteral) {
@@ -80,7 +80,7 @@ public class MethodCall extends Expression {
 		return receiver;
 	}
 	
-	public ID getMethod() {
+	public Identifier getMethod() {
 		return method;
 	}
 

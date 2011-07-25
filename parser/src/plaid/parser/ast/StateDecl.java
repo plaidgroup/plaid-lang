@@ -27,18 +27,18 @@ import plaid.parser.Token;
 public class StateDecl extends Decl {
 	
 	private final State stateDef;
-	private final QI caseOf;
+	private final QualifiedIdentifier caseOf;
 	private final boolean isCaseOf;
 	private final boolean typedef; // typedefs do not have tags associated with them
 	private final Permission defaultPerm;
 	private final List<MetaParameter> metaParams;
 	private final List<MetaArgument> metaCaseOfArgs;
 	
-	public StateDecl(Token t, ID name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, Permission defaultPerm, boolean typedef) {
+	public StateDecl(Token t, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, Permission defaultPerm, boolean typedef) {
 		this(t, name, metaParams, metaCaseOfArgs, stateDef, null, defaultPerm, typedef);
 	}
 	
-	public StateDecl(Token t, ID name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, QI caseOf, Permission defaultPerm, boolean typedef) {
+	public StateDecl(Token t, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, QualifiedIdentifier caseOf, Permission defaultPerm, boolean typedef) {
 		super(t, name);
 		this.metaParams = metaParams;
 		this.stateDef = stateDef;
@@ -55,7 +55,7 @@ public class StateDecl extends Decl {
 		this.typedef = typedef;
 	}
 
-	public ID getID() {
+	public Identifier getID() {
 		return name;
 	}
 
@@ -63,7 +63,7 @@ public class StateDecl extends Decl {
 		return stateDef;
 	}
 	
-	public QI getCaseOf() {
+	public QualifiedIdentifier getCaseOf() {
 		return caseOf;
 	}
 

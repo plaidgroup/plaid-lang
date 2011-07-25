@@ -9,9 +9,9 @@ package plaid.parser.ast;
  */
 public class Arg {
 	private final ChangeType changeType;
-	private final ID arg;
+	private final Identifier arg;
 	
-	public Arg(ChangeType changeType, ID arg) {
+	public Arg(ChangeType changeType, Identifier arg) {
 		this.changeType = changeType;
 		this.arg = arg;
 	}
@@ -20,7 +20,7 @@ public class Arg {
 		return changeType;
 	}
 
-	public ID getArg() {
+	public Identifier getArg() {
 		return arg;
 	}
 }
