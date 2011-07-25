@@ -4,7 +4,7 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class ConcreteFieldDecl extends AbstractFieldDecl {
+public class ConcreteFieldDecl extends FieldDecl {
 	private final Expression expr;
 
 	public ConcreteFieldDecl(Token t, List<Modifier> modifiers,
