@@ -34,12 +34,12 @@ public class StateDecl extends Decl {
 	private final List<MetaParameter> metaParams;
 	private final List<MetaArgument> metaCaseOfArgs;
 	
-	public StateDecl(Token t, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, Permission defaultPerm, boolean typedef) {
-		this(t, name, metaParams, metaCaseOfArgs, stateDef, null, defaultPerm, typedef);
+	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, Permission defaultPerm, boolean typedef) {
+		this(t, modifiers, name, metaParams, metaCaseOfArgs, stateDef, null, defaultPerm, typedef);
 	}
 	
-	public StateDecl(Token t, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, QualifiedIdentifier caseOf, Permission defaultPerm, boolean typedef) {
-		super(t, name);
+	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, QualifiedIdentifier caseOf, Permission defaultPerm, boolean typedef) {
+		super(t, modifiers, name);
 		this.metaParams = metaParams;
 		this.stateDef = stateDef;
 		if (caseOf == null) {

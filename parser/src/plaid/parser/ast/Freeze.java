@@ -5,14 +5,14 @@ import plaid.parser.Token;
 
 public class Freeze extends StatePrim {
 
-	private final Identifier frozenVar;
+	private final Expression frozenExpr;
 	
-	public Freeze(Token t, Identifier frozenVar) {
+	public Freeze(Token t, Expression frozenExpr) {
 		super(t);
-		this.frozenVar = frozenVar;
+		this.frozenExpr = frozenExpr;
 	}
 
-	public Identifier getFrozenVar() {
-		return frozenVar;
+	public Expression getFrozenExpr() {
+		return frozenExpr;
 	}	
 }
