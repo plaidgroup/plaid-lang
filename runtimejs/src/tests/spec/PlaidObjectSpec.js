@@ -404,29 +404,28 @@ describe("PlaidObject Errors", function() {
 
   beforeEach(function() {
     obj1 = new PlaidObject(md1.clone());
-    obj2 = new PlaidObject(md2.clone());
-    obj3 = new PlaidObject(md3.clone());
-    state1 = new PlaidState();
-    state1.setTree(md1.clone());
+    state2 = new PlaidState();
+    state2.setTree(md2.clone());
+    state3 = new PlaidState();
+    state3.setTree(md3.clone());
     var length1=membersAtStart1.length;
     for (var i=0;i<length1;i++){
       obj1[membersAtStart1[i]]=10;
-      state1[membersAtStart1[i]]=10;
     }   
     var length2=membersAtStart2.length;
     for (var i=0;i<length2;i++){
-      obj2[membersAtStart2[i]]=10;
+      state2[membersAtStart2[i]]=10;
     }
     var length3=membersAtStart3.length;
     for (var i=0;i<length3;i++){
-      obj3[membersAtStart3[i]]=10;
+      state3[membersAtStart3[i]]=10;
     }
     
   });
 
   it("should throw an error if state change would violate unique members", function() {    
     expect(function() {
-        obj1.stateChange(obj3);
+        obj1.stateChange(state3);
       }).toThrow("Error: state change violates unique members by attempting to add speed to item that already contains speed");
   });
 
@@ -438,7 +437,7 @@ describe("PlaidObject Errors", function() {
 
   it("should throw an error if state change would violate unique tags", function() {    
     expect(function() {
-        obj1.stateChange(obj2);
+        obj1.stateChange(state2);
       }).toThrow("Error: state change violates unique tags by containing tag braking twice");
   });
   
@@ -550,16 +549,16 @@ describe("PlaidState Errors", function() {
     
   });
 
-  it("should throw an error if with operation would violate unique members", function() {    
+  it("should throw an error if with operation would violate unique tags", function() {    
     expect(function() {
         state1.with(state2);
       }).toThrow("Error: with operation violates unique tags by containing tag car in both component states");
   });
 
-  it("should throw an error if with operation would violate unique tags", function() {    
+  it("should not throw an error if with operation would violate unique members", function() {    
     expect(function() {
         state1.with(state3);
-      }).toThrow("Error: with operation violates unique members by containing member speed in both component states");
+      }).not.toThrow();
   });
 
   it("should throw an error if rename call attempts to give member a name already used in the state", function() {    
@@ -586,4 +585,133 @@ describe("PlaidState Errors", function() {
       }).toThrow("Error: attempt to associate member getDirty with tag braking which already names a member of another tag");
   });
 
+});
+
+
+describe("State Change", function() {
+  var obj1;
+  var state1;
+  var state2;
+  var state3;
+  var state4;
+  var state5;
+  var state6;
+  var basicA;
+  var BCaseOfA;
+  var DWithOfA;
+
+  var treeBuilder=new Tree();
+  var car = new WithNode("car",[],treeBuilder.root);
+  var drivingStatus = new WithNode("drivingStatus",[],car);
+  var driving = new CaseOfNode("driving",["speed","acceleration","stopDriving"],drivingStatus);
+  var brakingStatus = new WithNode("brakingStatus",[],driving);
+  var braking = new CaseOfNode("braking",["stopBraking"],brakingStatus);
+  var directionStatus = new WithNode("directionStatus",[],driving);
+  var turningLeft = new CaseOfNode("turningLeft",["straight","turnRight"], directionStatus);
+  var cleanStatus = new WithNode("cleanStatus",[],car);
+  var clean = new CaseOfNode("clean",["getDirty"],cleanStatus);
+  var md1 = treeBuilder.toMetadata();
+
+  var treeBuilder2 = new Tree();
+  var a = new WithNode("a",[],treeBuilder2.root);
+  var b = new CaseOfNode("b",["x"],a);
+  var c = new CaseOfNode("c",["x"],b);
+  var md2 = treeBuilder2.toMetadata();
+
+  var treeBuilder3 = new Tree();
+  var a = new WithNode("a",["x"],treeBuilder3.root);
+  var b = new CaseOfNode("b",[],a);
+  var c = new CaseOfNode("c",["x"],b);
+  var md3 = treeBuilder3.toMetadata();
+
+  var treeBuilder4 = new Tree();
+  var a = new WithNode("a",[],treeBuilder4.root);
+  var b = new CaseOfNode("b",["x"],a);
+  var c = new WithNode("c",["x"],a);
+  var md4 = treeBuilder4.toMetadata();
+
+  var treeBuilder5 = new Tree();
+  var a = new WithNode("a",["x"],treeBuilder5.root);
+  var b = new CaseOfNode("b",[],a);
+  var c = new WithNode("c",["x"],a);
+  var md5 = treeBuilder5.toMetadata();
+
+  var treeBuilder6 = new Tree();
+  var a = new WithNode("a",[],treeBuilder6.root);
+  var b = new WithNode("b",["x"],a);
+  var c = new WithNode("c",["x"],a);
+  var md6 = treeBuilder6.toMetadata();
+
+  var treeBuilder7 = new Tree();
+  var a = new WithNode("a",["x"],treeBuilder7.root);
+  var md7 = treeBuilder7.toMetadata();
+
+  var treeBuilder8 = new Tree();
+  var a = new WithNode("a",["x"],treeBuilder8.root);
+  var b = new CaseOfNode("b",["x"],a);
+  var md8 = treeBuilder8.toMetadata();
+
+  var treeBuilder9 = new Tree();
+  var a = new WithNode("a",["x"],treeBuilder9.root);
+  var b = new WithNode("c",["x"],a);
+  var md9 = treeBuilder9.toMetadata();
+
+  beforeEach(function() {
+    obj1 = new PlaidObject(md1.clone());
+    state2 = new PlaidState();
+    state2.setTree(md2.clone());
+    state3 = new PlaidState();
+    state3.setTree(md3.clone());
+    state4 = new PlaidState();
+    state4.setTree(md4.clone());
+    state5 = new PlaidState();
+    state5.setTree(md5.clone());
+    state6 = new PlaidState();
+    state6.setTree(md6.clone());
+    basicA = new PlaidObject(md7.clone());
+    BCaseOfA = new PlaidState();
+    BCaseOfA.setTree(md8.clone());
+    DWithOfA = new PlaidObject(md9.clone());
+    
+  });
+
+  it("should not throw an error if state change to a state with A{x}<:B{x}", function() { 
+    expect(function() {
+        obj1.stateChange(state2);
+      }).not.toThrow();
+  });
+  it("should not throw an error if state change from B{x} <- A{x}<:B{x}", function() { 
+    expect(function() {
+        basicA.stateChange(BCaseOfA);
+      }).not.toThrow();
+  });
+  it("should not throw an error if state change to a state with A{x}<:B{}<:C{x}", function() {  
+    expect(function() {
+        obj1.stateChange(state3);
+      }).not.toThrow();
+  });
+  it("should throw an error if state change to a state with A{x}<:B{C{x}}", function() {   
+    expect(function() {
+        obj1.stateChange(state4);
+      }).toThrow("Error: State change violates unique members by attempting to change to a state that contains x twice.");
+  });
+  it("should throw an error if state change from B{C{x}} <- A{x}<:B{C{x}}", function() { 
+    expect(function() {
+        DWithOfA.stateChange(BCaseOfA);
+      }).toThrow("Error: state change violates unique members by attempting to add x to item that already contains x");
+  });
+  it("should throw an error if state change to a state with A{}<:B{x,C{x}}", function() {    
+    expect(function() {
+        obj1.stateChange(state5);
+      }).toThrow("Error: State change violates unique members by attempting to change to a state that contains x twice.");
+  });
+  it("should throw an error if state change to a state with A{x} with B{x}", function() {    
+    expect(function() {
+        obj1.stateChange(state6);
+      }).toThrow("Error: State change violates unique members by attempting to change to a state that contains x twice.");
+  });
+
+
+
+  
 });
