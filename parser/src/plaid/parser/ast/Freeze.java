@@ -3,37 +3,16 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 
-public class Freeze implements State {
+public class Freeze extends State {
 
-	private Token token;
-	private ID frozenVar;
-	
-	public Freeze(ID frozenVar) {
-		this(null,frozenVar);
-	}
+	private final ID frozenVar;
 	
 	public Freeze(Token t, ID frozenVar) {
-		this.token = t;
+		super(t);
 		this.frozenVar = frozenVar;
-	}
-
-	@Override
-	public Token getToken() {
-		return this.token;
-	}
-
-	@Override
-	public boolean hasToken() {
-		return this.token != null;
 	}
 
 	public ID getFrozenVar() {
 		return frozenVar;
-	}
-
-	public void setFrozenVar(ID frozenVar) {
-		this.frozenVar = frozenVar;
-	}
-	
-	
+	}	
 }

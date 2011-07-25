@@ -21,35 +21,17 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class ID implements Expression{
-	public static final ID DEFAULTPARAMID = new ID("_");
+public class ID extends Expression{
+	public static final ID DEFAULTPARAMID = new ID(DEFAULT_TOKEN, "_");
 	
-	private Token token;
-	private String name;
-
-	public ID(String name) {
-		this.name = name;
-	}
+	private final String name;
 	
 	public ID(Token t, String name) {
+		super(t);
 		this.name = name;
-		this.token = t;
 	}
 	
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
-	}
-	
-	public String getName() { return name; }	
-	
-	@Override
-	public String toString() {
-		return this.name;
+	public String getName() {
+		return name;
 	}
 }

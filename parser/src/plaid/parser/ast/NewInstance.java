@@ -19,70 +19,18 @@
  
 package plaid.parser.ast;
 
-import java.util.Set;
+import plaid.parser.Token;
 
-public class NewInstance implements Expression{
+public class NewInstance extends Expression{
 
-	private Token token;
-	private State st;
-	
-	public NewInstance() {
-		super();
-	}
-
-	public NewInstance(State st) {
-		super();
-		this.st = st;
-	}
-
-	public State getSt() {
-		return st;
-	}
+	private final State st;	
 
 	public NewInstance(Token t, State st) {
-		super();
-		this.token = t;
+		super(t);
 		this.st = st;
 	}
 
-	public State getSt(Token t) {
+	public State getState() {
 		return st;
-	}
-	
-	public void setSt(State st) {
-		this.st = st;
-	}
-
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
-	}
-	
-	@Override
-
-	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
-
-		out.setLocation(token);
-		ID r = IdGen.getId();
-		out.declareFinalVar(CodeGen.plaidStateType, r.getName()); 
-
-		st.codegenState(out, r, localVars, stateVars, null);
-
-		out.assignToInstantiation(y.getName(),r.getName()); //y = r.instantiate();
-	}
-
-	@Override
-	public <T> void visitChildren(ASTVisitor<T> visitor) {
-		st.accept(visitor);
-	}
-	
-	@Override
-	public <T> T accept(ASTVisitor<T> visitor) {
-		return visitor.visitNode(this);
 	}
 }

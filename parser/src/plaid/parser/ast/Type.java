@@ -1,8 +1,19 @@
 package plaid.parser.ast;
 
-public interface Type extends ASTNode{
-	public static final Type DYN = new ObjectType(new ID("dyn"));
-	public static final Type UNIT = new ObjectType(new ID("unit"));
+import java.util.Collections;
+
+import plaid.parser.Token;
+
+public abstract class Type extends ASTNode{
+	
+	public Type(Token t) {
+		super(t);
+	}
+	
+	public static final Type DYNAMIC = 
+		new ObjectType(DEFAULT_TOKEN, new QI(DEFAULT_TOKEN, Collections.singletonList("dynamic")));
+	public static final Type UNIT = 
+		new ObjectType(DEFAULT_TOKEN, new QI(DEFAULT_TOKEN, Collections.singletonList("unit")));
 	
 	
 }

@@ -21,26 +21,12 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Dereference implements Expression {
-	private Token token;
-	private Expression left;
-	private ID right;
-	
-	public Dereference() {}
-
-	public Dereference(Token t) {
-		this.token = t;
-	}
-	
-	public Dereference(Expression left, ID right) {
-		super();
-		this.left = left;
-		this.right = right;
-	}
+public class Dereference extends Expression {
+	private final Expression left;
+	private final ID right;
 	
 	public Dereference(Token t, Expression left, ID right) {
-		super();
-		this.token = t;
+		super(t);
 		this.left = left;
 		this.right = right;
 	}
@@ -52,23 +38,4 @@ public class Dereference implements Expression {
 	public ID getRight() {
 		return right;
 	}
-	
-	public void setLeft(Expression e) {
-		this.left = e;
-	}
-
-	public void setRight(ID e) {
-		this.right = e;
-	}
-	
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
-	}
-
 }

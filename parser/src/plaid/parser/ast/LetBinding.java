@@ -19,11 +19,10 @@
  
 package plaid.parser.ast;
 
-import java.util.Set;
+import plaid.parser.Token;
 
-public class LetBinding implements Expression {
+public class LetBinding extends Expression {
 
-	private Token token;
 	private ID x;
 	private Expression exp, body;
 	private boolean mutable;
@@ -32,32 +31,15 @@ public class LetBinding implements Expression {
 	private final boolean take;
 
 	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable) {
-		super();
-		this.token = t;
-		this.x = x;
-		this.exp = e1;
-		this.body = e2;
-		this.mutable = mutable;
-		this.permType = PermType.getDynPT();
-		this.annotated = false;
-		this.take = false;
+		this(t, x, e1, e2, mutable, null, false);
 	}
 	
 	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable, PermType permType) {
-		super();
-		this.token = t;
-		this.x = x;
-		this.exp = e1;
-		this.body = e2;
-		this.mutable = mutable;
-		this.permType = permType;
-		this.annotated = true;
-		this.take = false;
+		this(t, x, e1, e2, mutable, permType, false);
 	}
 	
 	public LetBinding(Token t, ID x, Expression e1, Expression e2, boolean mutable, PermType permType, boolean take) {
-		super();
-		this.token = t;
+		super(t);
 		this.x = x;
 		this.exp = e1;
 		this.body = e2;
@@ -69,16 +51,6 @@ public class LetBinding implements Expression {
 
 	public boolean isMutable() {
 		return mutable;
-	}
-
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
 	}
 	
 	public boolean isAnnotated() {
@@ -93,45 +65,12 @@ public class LetBinding implements Expression {
 		return permType;
 	}
 
-	@Override
-	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
-		out.setLocation(token);
-		out.openBlock(); //{
-		out.declareFinalVar(CodeGen.plaidObjectType, x.getName());
-		exp.codegenExpr(out, x, localVars, stateVars);
-
-		if (!x.getName().contains("$plaid")) {
-			// set the immutability of the variable
-			out.insertIntoScope(CodeGen.localScope, x.getName(), !this.mutable);
-		}
-		
-		// remove the variable if it's in the set of state vars
-		stateVars.remove(x);
-		
-		localVars = localVars.add(x);
-		body.codegenExpr(out, y, localVars, stateVars);
-
-		
-		out.closeBlock(); // }
-		
-		// add the state variable back
-		stateVars.add(x);
-	}
-
 	public ID getX() {
 		return x;
 	}
 
-	public void setX(ID x) {
-		this.x = x;
-	}
-
 	public Expression getExp() {
 		return exp;
-	}
-
-	public void setExp(Expression exp) {
-		this.exp = exp;
 	}
 
 	public Expression getBody() {
@@ -140,17 +79,5 @@ public class LetBinding implements Expression {
 
 	public void setBody(Expression body) {
 		this.body = body;
-	}
-
-	@Override
-	public <T> void visitChildren(ASTVisitor<T> visitor) {
-		x.accept(visitor);
-		exp.accept(visitor);
-		body.accept(visitor);
-	}
-
-	@Override
-	public <T> T accept(ASTVisitor<T> visitor) {
-		return visitor.visitNode(this);
 	}
 }

@@ -1,9 +1,6 @@
 package plaid.parser.ast;
 
 public class ChangeType {
-
-	public static final ChangeType DEFAULTPARAMTYPE = new ChangeType(PermType.getVoidPT(), PermType.getVoidPT(), true);
-	public static final ChangeType DYN = new ChangeType(PermType.getDynPT(), PermType.getDynPT(), false);
 	
 	private final PermType input;
 	private final PermType output;

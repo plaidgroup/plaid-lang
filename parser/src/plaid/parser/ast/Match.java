@@ -20,22 +20,16 @@
 package plaid.parser.ast;
 
 import java.util.List;
-import java.util.Set;
 
-public class Match implements Expression {
-	private Token token;
-	private Expression e;
-	private List<Case> caseList;
+import plaid.parser.Token;
+
+public class Match extends Expression {
+	private final Expression e;
+	private final List<Case> caseList;
 	
-	public Match(Expression e, List<Case> caseList) {
-		super();
-		this.e = e;
-		this.caseList = caseList;
-	}
 	
 	public Match(Token t, Expression e, List<Case> caseList) {
-		super();
-		this.token = t;
+		super(t);
 		this.e = e;
 		this.caseList = caseList;
 	}
@@ -44,57 +38,7 @@ public class Match implements Expression {
 		return e;
 	}
 
-	public void setE(Expression e) {
-		this.e = e;
-	}
-
 	public List<Case> getCaseList() {
 		return caseList;
-	}
-
-	public void setCaseList(List<Case> caseList) {
-		this.caseList = caseList;
-	}
-
-	@Override
-	public Token getToken() {
-		return token;
-	}
-
-	@Override
-	public boolean hasToken() {
-		return token != null;
-	}
-
-	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
-		out.setLocation(token);
-		ID toMatch = IdGen.getId();
-		out.declareFinalVar(CodeGen.plaidObjectType, toMatch.getName());
-
-		if (e instanceof ID && !localVars.contains((ID)e) && stateVars.contains(e)) {
-			e = new Dereference(new ID("this$plaid"), (ID)e);
-		}
-		e.codegenExpr(out, toMatch, localVars, stateVars);
-		
-		for (Case c : caseList) {
-			c.codegen(out, y, toMatch, localVars, stateVars);
-			out.elseCase(); out.openBlock();
-		}
-		out.append("throw new plaid.runtime.PlaidRuntimeException(\"Pattern match exhausted.\");");
-		for (int i=0; i<caseList.size();i++) {
-			out.closeBlock();
-		}
-	}
-
-	@Override
-	public <T> void visitChildren(ASTVisitor<T> visitor) {
-		e.accept(visitor);
-		for (Case c : caseList)
-			c.accept(visitor);
-	}
-	
-	@Override
-	public <T> T accept(ASTVisitor<T> visitor) {
-		return visitor.visitNode(this);
 	}
 }

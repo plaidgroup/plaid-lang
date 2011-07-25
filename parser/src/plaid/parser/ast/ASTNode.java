@@ -23,6 +23,8 @@ import plaid.parser.Token;
 
 public abstract class ASTNode {
 	
+	public static final Token DEFAULT_TOKEN = new Token();
+	
 	public ASTNode(Token token) {
 		this.token = token;
 	}
