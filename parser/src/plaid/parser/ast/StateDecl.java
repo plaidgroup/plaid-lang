@@ -19,7 +19,6 @@
  
 package plaid.parser.ast;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import plaid.parser.Token;
@@ -31,24 +30,16 @@ public class StateDecl extends Decl {
 	private final boolean isCaseOf;
 	private final boolean typedef; // typedefs do not have tags associated with them
 	private final Permission defaultPerm;
-	private final List<MetaParameter> metaParams;
-	private final List<MetaArgument> metaCaseOfArgs;
 	
-	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, Permission defaultPerm, boolean typedef) {
-		this(t, modifiers, name, metaParams, metaCaseOfArgs, stateDef, null, defaultPerm, typedef);
-	}
 	
-	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, QualifiedIdentifier caseOf, Permission defaultPerm, boolean typedef) {
+	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, State stateDef, QualifiedIdentifier caseOf, Permission defaultPerm, boolean typedef) {
 		super(t, modifiers, name);
-		this.metaParams = metaParams;
 		this.stateDef = stateDef;
 		if (caseOf == null) {
 			this.caseOf = null;
-			this.metaCaseOfArgs = new ArrayList<MetaArgument>();
 			isCaseOf = false;
 		} else {
 			this.caseOf = caseOf;
-			this.metaCaseOfArgs = metaCaseOfArgs;
 			isCaseOf = true;
 		}
 		this.defaultPerm = defaultPerm;
@@ -73,14 +64,6 @@ public class StateDecl extends Decl {
 	
 	public boolean isTypedef() {
 		return this.typedef;
-	}
-
-	public List<MetaParameter> getMetaParameters() {
-		return metaParams;
-	}
-	
-	public List<MetaArgument> getMetaCaseOfArguments() {
-		return metaCaseOfArgs;
 	}
 
 	public Permission getDefaultPerm() {

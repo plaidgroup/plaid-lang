@@ -22,7 +22,6 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public class Identifier extends Expression{
-	public static final Identifier DEFAULTPARAMID = new Identifier(DEFAULT_TOKEN, "_");
 	
 	private final String name;
 	
@@ -33,5 +32,14 @@ public class Identifier extends Expression{
 	
 	public String getName() {
 		return name;
+	}
+	
+	public boolean equivalent(ASTNode other) {
+		if (other instanceof Identifier) {
+			Identifier otherID = (Identifier) other;
+			return this.name.equals(otherID.name);
+		} else {
+			return false;
+		}
 	}
 }

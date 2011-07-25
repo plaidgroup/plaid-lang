@@ -15,4 +15,15 @@ public class Freeze extends StatePrim {
 	public Expression getFrozenExpr() {
 		return frozenExpr;
 	}	
+	
+	@Override
+	public boolean equivalent(ASTNode other) {
+		if(other instanceof Freeze) {
+			Freeze otherFreeze = (Freeze) other;
+			return frozenExpr.equivalent(otherFreeze.frozenExpr);
+		}
+		else {
+			return false;
+		}
+	}
 }

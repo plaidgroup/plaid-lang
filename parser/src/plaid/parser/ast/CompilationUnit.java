@@ -52,4 +52,30 @@ public class CompilationUnit extends ASTNode {
 	public List<Decl> getDecls() {
 		return decls;
 	}
+
+	@Override
+	public boolean equivalent(ASTNode other) {
+		if(other instanceof CompilationUnit) {
+			CompilationUnit otherCU = (CompilationUnit) other;
+			if(!sourceFile.equals(otherCU.sourceFile)) {
+				return false;
+			}
+			for(int i=0; i<packageName.size(); i++) {
+				if(!packageName.get(i).equals(otherCU.packageName.get(i)))
+					return false;
+			}
+			for(int i=0; i<imports.size(); i++) {
+				if(!imports.get(i).equivalent(otherCU.imports.get(i)))
+					return false;
+			}
+			for(int i=0; i<decls.size(); i++) {
+				if(!decls.get(i).equivalent(otherCU.decls.get(i)))
+					return false;
+			}
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 }

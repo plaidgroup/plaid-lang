@@ -37,5 +37,19 @@ public abstract class Decl extends ASTNode implements DeclOrStateOp{
 	public Identifier getName() {
 		return this.name;
 	}
+	
+	public boolean equivalent(ASTNode other) {
+		if(other instanceof Decl) {
+			Decl otherDecl = (Decl)other;
+			for(int i=0; i<modifiers.size();i++) {
+				if(!modifiers.get(i).equivalent(otherDecl.modifiers.get(i))) {
+					return false;
+				}
+			}
+			return name.equivalent(otherDecl.name);
+		} else {
+			return false;
+		}
+	}
 }
 

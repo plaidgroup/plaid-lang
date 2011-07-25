@@ -10,16 +10,14 @@ public class LambdaType extends Type {
 	
 	private final List<ArgSpec> argTypes;
 	private final Map<Identifier,ArgSpec> environmentTypes;
-	private final List<MetaType> metaTypes;
 	private final Type returnType;
 
 	
-	public LambdaType(Token t, List<ArgSpec> argTypes, Map<Identifier,ArgSpec> sideEffects, List<MetaType> metaTypes, Type returnType) {
+	public LambdaType(Token t, List<ArgSpec> argTypes, Map<Identifier,ArgSpec> sideEffects, Type returnType) {
 		super(t);
 		this.argTypes = argTypes;
 		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
-		this.metaTypes = metaTypes;
 	}
 	
 	public List<ArgSpec> getArgTypes() {
@@ -34,8 +32,24 @@ public class LambdaType extends Type {
 		return returnType;
 	}
 
-	public List<MetaType> getMetaTypes() {
-		return metaTypes;
+	@Override
+	public boolean equivalent(ASTNode other) {
+		if (other instanceof LambdaType) {
+			LambdaType otherLambda = (LambdaType)other;
+			for(int i=0; i<argTypes.size(); i++) {
+				if(!this.argTypes.get(i).equivalent(otherLambda.argTypes.get(i))) {
+					return false;
+				}
+			}
+			for (Identifier key : environmentTypes.keySet()) {
+				if(!this.environmentTypes.get(key).equivalent(otherLambda.environmentTypes.get(key))) {
+					return false;
+				}
+			}
+			return true;
+		} else {
+			return false;
+		}
 	}
 	
 }

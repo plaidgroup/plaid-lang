@@ -38,4 +38,16 @@ public class Dereference extends Expression {
 	public Identifier getRight() {
 		return right;
 	}
+	
+	@Override
+	public boolean equivalent(ASTNode other) {
+		if (other instanceof Dereference) {
+			Dereference otherDeref = (Dereference) other;
+			return 
+				this.left.equivalent(otherDeref.left) &&
+				this.right.equivalent(otherDeref.right);
+		} else {
+			return false;
+		}
+	}
 }

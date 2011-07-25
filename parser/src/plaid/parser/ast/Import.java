@@ -20,5 +20,14 @@ public class Import extends ASTNode {
 	public QualifiedIdentifier getQualifiedIdentifier() {
 		return qi;
 	}
+	
+	public boolean equivalent(ASTNode other) {
+		if(other instanceof Import) {
+			Import otherImport = (Import)other;
+			return qi.equivalent(otherImport.qi) && star == otherImport.star;
+		} else {
+			return false;
+		}
+	}
 
 }

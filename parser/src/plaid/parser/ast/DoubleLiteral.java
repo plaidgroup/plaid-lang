@@ -33,4 +33,14 @@ public class DoubleLiteral extends Expression {
 	public double getValue() {
 		return value;
 	}
+	
+	@Override
+	public boolean equivalent(ASTNode other) {
+		if (other instanceof DoubleLiteral) {
+			DoubleLiteral otherDouble = (DoubleLiteral) other;
+			return this.value == otherDouble.value;
+		} else {
+			return false;
+		}
+	}
 }

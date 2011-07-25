@@ -45,4 +45,17 @@ public class Case extends ASTNode {
 	public Expression getBody() {
 		return body;
 	}
+	
+	@Override
+	public boolean equivalent(ASTNode other) {
+		if (other instanceof Case) {
+			Case other2 = (Case) other;
+			return 
+				this.body.equivalent(other2.body) &&
+				this.pattern.equivalent(other2.pattern) &&
+				this.defaultCase == other2.defaultCase;
+		} else {
+			return false;
+		}
+	}
 }

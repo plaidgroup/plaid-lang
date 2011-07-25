@@ -19,9 +19,6 @@
  
 package plaid.parser.ast;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import plaid.parser.Token;
 
 public final class Lambda extends Expression {
@@ -29,28 +26,17 @@ public final class Lambda extends Expression {
 	private final boolean hasArgs;
 	private final Expression body;
 	private final LambdaType type;
-	private final List<MetaParameter> metaParams;
-
-	public Lambda(Token token, Expression body, LambdaType type) {
-		this(token, body, new ArrayList<MetaParameter>(), type);
-	}
 	
-	public Lambda(Token token, Expression body,  List<MetaParameter> metaParams, LambdaType type) {
+	public Lambda(Token token, Expression body, LambdaType type) {
 		super(token);
 		
 		this.body = body;
 		this.type = type;
 		this.hasArgs = false;
-		this.metaParams = metaParams;
-	
 	}
 	
 	public boolean hasArg() {
 		return this.hasArgs;
-	}
-
-	public List<MetaParameter> getMetaParamaters() {
-		return metaParams;
 	}
 	
 	public Expression getBody() {
@@ -59,5 +45,17 @@ public final class Lambda extends Expression {
 
 	public LambdaType getType() {
 		return type;
+	}
+	
+	public boolean equivalent(ASTNode other) {
+		if (other instanceof Lambda) {
+			Lambda otherLambda = (Lambda) other;
+			return 
+				this.hasArgs == otherLambda.hasArgs &&
+				this.body.equivalent(otherLambda.body) &&
+				this.type.equivalent(otherLambda.type);
+		} else {
+			return false;
+		}
 	}
 }

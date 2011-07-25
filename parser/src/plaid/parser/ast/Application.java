@@ -29,7 +29,6 @@ public class Application extends Expression {
 	private final Expression f;
 	private final List<Expression> arguments = new ArrayList<Expression>();
 	private final boolean hasArgs;
-	private final List<MetaArgument> metaArgs;
 
 
 	public Application(Token t, Expression function, Expression argument) {
@@ -41,45 +40,6 @@ public class Application extends Expression {
 			this.arguments.add(argument);
 			hasArgs = true;
 		}
-		this.metaArgs = new ArrayList<MetaArgument>();
-	}
-	
-	public Application(Token t, Expression function, List<MetaArgument>  metaArgs, Expression argument) {
-		super(t);
-		this.f = function;
-		if (argument instanceof UnitLiteral) {
-			hasArgs = false;
-		} else {
-			this.arguments.add(argument);
-			hasArgs = true;
-		}
-		this.metaArgs = metaArgs;
-	}
-	
-	public Application(Token t, Expression function, List<Expression> arguments) {
-		super(t);
-		this.f = function;
-		this.arguments.addAll(arguments);
-		if (this.arguments.size() == 1 && this.arguments.get(0) instanceof UnitLiteral) {
-			this.hasArgs = false;
-			this.arguments.clear();
-		} else {
-			this.hasArgs = true;
-		}
-		this.metaArgs = new ArrayList<MetaArgument>();
-	}
-	
-	public Application(Token t, Expression function, List<MetaArgument> metaArgs, List<Expression> arguments) {
-		super(t);
-		this.f = function;
-		this.arguments.addAll(arguments);
-		if (this.arguments.size() == 1 && this.arguments.get(0) instanceof UnitLiteral) {
-			this.hasArgs = false;
-			this.arguments.clear();
-		} else {
-			this.hasArgs = true;
-		}
-		this.metaArgs = metaArgs;
 	}
 	
 	public Expression getFunction() {
@@ -93,8 +53,21 @@ public class Application extends Expression {
 	public boolean hasArgs() {
 		return this.hasArgs;
 	}
-	
-	List<MetaArgument> getMetaArgs() {
-		return metaArgs;
+
+	@Override
+	public boolean equivalent(ASTNode other) {
+		if (other instanceof Application) {
+			Application otherApp = (Application) other;
+			for (int i = 0; i < this.arguments.size(); i++) {
+				if(!arguments.get(i).equivalent(otherApp.arguments.get(i))) {
+					return false;
+				}
+			}
+			return 
+				this.f.equivalent(otherApp.f) &&
+				this.hasArgs == otherApp.hasArgs;
+		} else {
+			return false;
+		}
 	}
 }

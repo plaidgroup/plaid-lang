@@ -23,14 +23,24 @@ import plaid.parser.Token;
 
 public class IntLiteral extends Expression {
 
-	private final int integer;
+	private final int value;
 
-	public IntLiteral(Token t, int integer) {
+	public IntLiteral(Token t, int value) {
 		super(t);
-		this.integer = integer;
+		this.value = value;
 	}
 	
 	public int getValue() {
-		return integer;
+		return value;
+	}
+	
+	@Override
+	public boolean equivalent(ASTNode other) {
+		if (other instanceof IntLiteral) {
+			IntLiteral otherInt = (IntLiteral) other;
+			return this.value == otherInt.value;
+		} else {
+			return false;
+		}
 	}
 }
