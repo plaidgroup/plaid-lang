@@ -291,7 +291,19 @@ public class Integer$plaid {
 					return Util.falseObject();
 			}
 		});
-		foo.addMember(gteq, gteqProtoMethod);	
+		foo.addMember(gteq, gteqProtoMethod);
+		
+		PlaidMemberDef toString = Util.memberDef("toString", Integer$Tag$plaid, false, false);
+		@RepresentsMethod(name = "toString", toplevel = false)
+		PlaidObject toStringProtoMethod = Util.protoMethod("plaid.lang.Integer.toString", new Delegate() {
+			@Override
+			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+				return Util.string(((Integer)((PlaidJavaObject)thisVar).getJavaObject()).toString());
+			}
+		});
+		foo.addMember(toString, toStringProtoMethod);
 	}
 	static {
 		foo.addTopTag(Integer$Tag$plaid);	

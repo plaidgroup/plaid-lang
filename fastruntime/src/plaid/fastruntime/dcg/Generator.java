@@ -63,9 +63,8 @@ public final class Generator implements Opcodes {
 				}
 				mv.visitMethodInsn(INVOKESTATIC, Type.getInternalName(entry.getValue()), target.getName(), Type.getMethodDescriptor(target));
 				mv.visitInsn(RETURN);
-				mv.visitMaxs(1+m.getParameterTypes().length, 1+m.getParameterTypes().length);
-				mv.visitEnd();
-			
+				mv.visitMaxs(0,0);
+				mv.visitEnd();			
 			}
 		}
 		
@@ -76,7 +75,7 @@ public final class Generator implements Opcodes {
 		mv.visitVarInsn(Opcodes.ALOAD, 0);
 		mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object","<init>", "()V");
 		mv.visitInsn(Opcodes.RETURN);
-		mv.visitMaxs(1, 1);
+		mv.visitMaxs(0,0);
 		mv.visitEnd();
 
 		// done

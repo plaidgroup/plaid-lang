@@ -321,6 +321,18 @@ public class Double$plaid {
                                         }
                                 });
                 foo.addMember(gteq, gteqProtoMethod);
+                
+                PlaidMemberDef toString = Util.memberDef("toString", Double$Tag$plaid, false, false);
+        		@RepresentsMethod(name = "toString", toplevel = false)
+        		PlaidObject toStringProtoMethod = Util.protoMethod("plaid.lang.Double.toString", new Delegate() {
+        			@Override
+        			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
+//        				@SuppressWarnings("unused")
+//        				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+        				return Util.string(((Double)((PlaidJavaObject)thisVar).getJavaObject()).toString());
+        			}
+        		});
+        		foo.addMember(toString, toStringProtoMethod);
         }
     	static {
     		foo.addTopTag(Double$Tag$plaid);	

@@ -543,6 +543,19 @@ public class PlaidObjectMap implements PlaidObject {
 	}
 
 	public String toString() {
+		
+		String objectString= "";
+		if (members != null && members.containsKey("toString")) {
+			PlaidObject toStringMethod = members.get("toString").getValue();
+			if (toStringMethod instanceof PlaidMethodMap) {
+				PlaidObject result = Util.call(toStringMethod,Util.unit());
+				
+				if (result instanceof PlaidJavaObjectMap) {
+					objectString = ((PlaidJavaObjectMap) result).getJavaObject().toString() + "\n\n";
+				}
+			}
+		}
+		
 		StringBuilder sb = new StringBuilder();
 		
 		//members
@@ -573,7 +586,7 @@ public class PlaidObjectMap implements PlaidObject {
 			sb.deleteCharAt(sb.length()-1);
 		
 		sb.append("})");
-		return sb.toString();
+		return objectString + sb.toString();
 	}
 
 	@Override

@@ -31,7 +31,6 @@ public class FileGen {
 		try {
 			directory = outputDirectory + System.getProperty("file.separator")+ qid;
 			file = name + ".java";
-			
 			File outputDir = new File(directory);
 			outputDir.mkdirs();
 			File output = new File(directory + file);
