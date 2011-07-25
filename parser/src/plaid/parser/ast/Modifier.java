@@ -3,22 +3,17 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public class Modifier extends ASTNode {
+	public enum ModifierKind {OVERRIDE,REQUIRES,IMMUTABLE};
 
-	public static final Modifier OVERRIDE = new Modifier("override");
-	public static final Modifier REQUIRES = new Modifier("requires");
-	public static final Modifier IMMUTABLE = new Modifier("immutable");
+	private final ModifierKind modiferKind;
 	
-	protected final String name;
-	
-	protected Modifier(String name) {
-		super(new Token());
-		// TODO: fix me 
-		this.name = name;
+	protected Modifier(Token t, ModifierKind modiferKind) {
+		super(t);
+		this.modiferKind = modiferKind;
 	}
-	
-	@Override
-	public String toString() {
-		return name;
+
+	public ModifierKind getModiferKind() {
+		return modiferKind;
 	}
 	
 }
