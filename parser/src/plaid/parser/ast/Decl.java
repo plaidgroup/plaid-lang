@@ -21,7 +21,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public abstract class Decl extends ASTNode {
+public abstract class Decl extends ASTNode implements DeclOrStateOp{
 	
 	protected final Identifier name;
 	
