@@ -17,27 +17,21 @@
  *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
  */
  
-package plaid.compilerjava;
+package plaid.parser;
 
 
 import java.io.InputStream;
 
-import plaid.compilerjava.AST.CompilationUnit;
-import plaid.compilerjava.coreparser.ParseException;
-import plaid.compilerjava.coreparser.PlaidCoreParser;
-import plaid.runtime.PlaidException;
+import plaid.parser.ast.CompilationUnit;
 
 public class ParserCore {
-	public static CompilationUnit parse(InputStream toParse) throws PlaidException, ParseException {
+	public static CompilationUnit parse(InputStream toParse) throws ParseException {
 		//System.out.println("parsing...");
 		try {
 			PlaidCoreParser pp = new PlaidCoreParser(toParse);
 			
-			return pp.DeclsStart();
+			return pp.CompilationUnit();
 			
-		} catch (PlaidException e) {
-			e.printStackTrace();
-			throw e;
 		} catch (RuntimeException e) {
 			e.printStackTrace();
 			throw e;
