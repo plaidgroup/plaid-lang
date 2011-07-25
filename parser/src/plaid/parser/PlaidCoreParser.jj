@@ -249,7 +249,7 @@ TOKEN :
 		< ID : ([ "A"-"Z", "a"-"z" ]) ([ "A"-"Z", "a"-"z", "0"-"9", "_" ])* >
 }
 
-CompilationUnit DeclsStart() :
+CompilationUnit CompilationUnit() :
 {
 		Decl d;
 		List < Token > p;
@@ -278,7 +278,7 @@ CompilationUnit DeclsStart() :
 		}
 }
 
-List < Token > Package() :
+List <Token> Package() :
 {
 		List < Token > dn;
 }
@@ -588,17 +588,17 @@ Token ID() : {
     { return t; }  
 }
 
-ImportList Imports() :
+List<Import> Imports() :
 {
 		Token t;
-		List < Token > qi;
-		List < QualifiedID > imports = new ArrayList < QualifiedID > ();
+		List <Token> qi;
+		List <Import> imports = new ArrayList <Import> ();
 }
 {
 		(
 				< IMPORT > qi = DotName() [<DOT> t = <STAR> { qi.add(t); }]
 				{
-						imports.add(new QualifiedID(tokenToStringList(qi)));
+						imports.add(new Import(qi));
 				}
 				< SEMICOLON >
 		)+
@@ -607,27 +607,44 @@ ImportList Imports() :
 		}
 }
 
+
+List<Modifier> Modifiers() : {
+    Token t;
+    List<Modifer> modifiers = new ArrayList<Modifier>();
+}{
+    (
+            t = <OVERRIDE>   { modifiers.add(Modifier.OVERRIDE); }
+        |   t = <REQUIRES>   { modifiers.add(Modifier.REQUIRES); }
+        |   t = <IMMUTABLE>  { modifiers.add(Modifier.IMMUTABLE); }
+    )*
+    {
+        return modifers;
+    }
+}
+
 Decl Decl() :
 {
 		Decl d;
+		List<Modifier> modifiers;
 }
 {
-		LOOKAHEAD([Permission()] [<STATEVAL>] <STATE>) d = DeclState()
+        [ modifiers = Modifiers() ]         
+		LOOKAHEAD([<STATEVAL>] <STATE>) d = DeclState()
 		{
-				return d;
+		      return d.setModifiers(modifiers);
 		}
 |       d = DeclGroup()
         {
-                return d;
+                return d.setModifiers(modifiers);
         }
 | 		(LOOKAHEAD(2) //Because of 'overrides val ...' vs 'overrides method ...' 
 		d = DeclField()
 		{
-				return d;
+				return d.setModifiers(modifiers);
 		}
 |		d = DeclMethod()
 		{
-				return d;
+				return d.setModifiers(modifiers);
 		}
 		)
 }
@@ -635,16 +652,18 @@ Decl Decl() :
 Decl DeclState() :
 {
 	Token t, s, c = null;
-	boolean typedef = false;
+	boolean stateval = false;
 	State stateDef;
 	List<Token> qi = null;
-	Permission defaultPerm = Permission.DYN;
-	List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
+	List<MetaArgument> metaArgsSpec = new ArrayList<MetaParameter>();
 	List<MetaArgument> metaCaseOfArgs = new ArrayList<MetaArgument>();
 }
-{	[defaultPerm = Permission()] [ < STATEVAL > { typedef = true; } ]
-		s = <STATE> t = <ID>
-			[ metaParams = MetaParameters(false) ]
+{	[
+	     s = <STATEVAL> { typedef = true; } 
+	   | s = <STATE>
+	] 
+	   t = <ID>
+			[ metaArgsSpec = MetaArgumentSpecs(false) ]
 			[ c = <CASE> <OF> qi = DotName() [ metaCaseOfArgs = MetaArguments() ] ]
 	(
 		<EQUALS> stateDef = State()
@@ -661,6 +680,13 @@ Decl DeclState() :
 	}
 }
 
+Specifier Specifier() : {
+    
+}{
+        <VAL> { return Specifier.VAL(); }
+    |   <VAR> { return Specifier.VAR(); }
+}
+
 Decl DeclField() :
 {
 		Token idToken;
@@ -671,71 +697,29 @@ Decl DeclField() :
 		boolean immutable = true;
 		boolean overrides = false;
 		FieldType type;
+		List<Modifier> modifiers;
+		Specifier specifier = Specifier.VAR();
 }
 {
-		[
-			< OVERRIDE > { overrides = true; }
-		]
-		[
-				<VAR> { immutable = false; }
-		|		<VAL>
-		]
-		(LOOKAHEAD(PermType() ID()) permType = PermType() idToken = ID() | idToken = ID())
-		{
-		  	// TODO: Add inference (probably not here, but maybe add an indicator that inference should be done later)
-			name = new ID(idToken, idToken.image);
-			type = new FieldType(name, permType, immutable);
-		}
-		(
-			<EQUALS> e = Exp() <SEMICOLON>
-			{
-				d = new FieldDecl(idToken, name, e, false, immutable, type, overrides);
-				if (e instanceof Lambda) { // set recursive name TODO: should this only be at the top level?
-					Lambda l = (Lambda) e;
-					l.setRecursiveName(name);
-				}
-			}
-		|	<SEMICOLON>
-			{
-				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, type, overrides);
-			}
-		)
-		{
-			return d;
-		}
-}
+        // concrete field decl
+        [ specifier = Specifier() ] [ type = PermType() ] name = ID() <EQUALS> e = Exp() <SEMICOLON> 
 
+        // abstract fields
+        specifier = Specifier() name = ID() <SEMICOLON>
+        [ specifier = Specifier() ] type = PermType() name = ID() <SEMICOLON> 
+        
 
-MetaArgument MetaArgument() :
-{
-    Token var;
-    Token selector = null;
-    PermType permType;
-}{
-    (LOOKAHEAD(2)
-        (var = ID() | var = <THIS>) [<DOT> selector=ID()]
-        {
-            if ( selector == null ) {
-                return new MetaVariable(new ID(var.image));
-            } else {
-                return new MetaDereference(new ID(var.image), new ID(selector.image));
-            }
-        }
-    |   permType = PermType() 
-        {
-            return new MetaTypeArgument(permType);
-        }
-    )
+//		[//				<VAR> { immutable = false; }//		|		<VAL>//		]//		(LOOKAHEAD(PermType() ID()) permType = PermType() idToken = ID() | idToken = ID())//		{//		  	// TODO: Add inference (probably not here, but maybe add an indicator that inference should be done later)//			name = new ID(idToken, idToken.image);//			type = new FieldType(name, permType, immutable);//		}//		(//			<EQUALS> e = Exp() <SEMICOLON>//			{//				d = new FieldDecl(idToken, name, e, false, immutable, type, overrides);//				if (e instanceof Lambda) { // set recursive name TODO: should this only be at the top level?//					Lambda l = (Lambda) e;//					l.setRecursiveName(name);//				}//			}//		|	<SEMICOLON>//			{//				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, type, overrides);//			}//		)//		{//			return d;//		}
 }
 
 
 List<MetaArgument> MetaArguments() :{
   MetaArgument arg;
-  List<MetaArgument> args = new ArrayList<MetaArgument>();}{
-  < LT >
-    arg =  MetaArgument() {  args.add(arg); }    (
-      < COMMA > arg =  MetaArgument() {  args.add(arg); }    )* 
-  < GT >
+  List<SimpleExp> args = new ArrayList<SimpleExp>();}{
+  <LT>
+    arg =  SimpleExp() {  args.add(arg); }    (
+      <COMMA> arg =  SimpleExp() { args.add(arg); }    )* 
+  <GT>
   {    return args;
   }}
 
@@ -745,8 +729,8 @@ List<MetaArgument> MetaArguments() :{
 
 Decl DeclGroup() :{
   Token id;
-  boolean isAbstract = true;}{    < GROUP > id = < ID > [ < EQUALS > < NEW >  < GROUP > { isAbstract = false; } ] < SEMICOLON > 
-    {        return new GroupDecl(id, new ID(id.image), isAbstract);
+}{    < GROUP > id = < ID > < EQUALS > < NEW >  < GROUP > < SEMICOLON > 
+    {        return new GroupDecl(id);
     }
 }
 
@@ -770,14 +754,15 @@ GroupPermission GroupPermission() :{}{
 
 
 
-MetaParameter MetaParameter(boolean isMethod) :
+List<MetaArgumentSpec> MetaArgumentSpec(boolean isMethod) :
 {
   Token id;
   GroupPermission gp = GroupPermission.UNDEFINED;
   ObjectType type = ObjectType.UNIT;
+  List<MetaArgumentSpec> args = new ArrayList<MetaArgumentSpec>();
 }{
   (
-    [<GROUP>] [gp = GroupPermission()] id = <ID>
+    <GROUP> [gp = GroupPermission()] id = <ID>
     {
         if ( isMethod && gp == GroupPermission.UNDEFINED ) {
             throw new ParseException("Need to specify group permission");
@@ -794,9 +779,9 @@ MetaParameter MetaParameter(boolean isMethod) :
 }
 
 
-List<MetaParameter> MetaParameters(boolean isMethod) :
+List<MetaArgument> MetaArguments(boolean isMethod) :
 {
-    List<MetaParameter> params = new ArrayList<MetaParameter>();
+    List<MetaArgumentSpec> params = new ArrayList<MetaPa>();
     MetaParameter param; 
 }
 {
