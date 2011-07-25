@@ -154,7 +154,8 @@ public class CompilerCore {
 			handleClassInPlaidPath(classRep, className, plaidpath);
 		}
 		catch (NoClassDefFoundError e) {
-			System.err.println("Warning: Loading class \"" + className + "\" failed.");
+			//if (!className.equals("uk.ac.lkl.common.util.testing.LabelledParameterized")) //KLULDGE
+				System.err.println("Warning: Loading class \"" + className + "\" failed.");
 		}
 	}
 	
@@ -224,7 +225,7 @@ public class CompilerCore {
 						packageName.append(s);
 						packageName.append(System.getProperty("file.separator"));
 					}
-					File targetFile = new File(cc.getOutputDir() + System.getProperty("file.separator") + packageName + d.getName() + ".java");
+					File targetFile = new File(cc.getTempDir() + System.getProperty("file.separator") + packageName + d.getName() + ".java");
 					if ( !targetFile.exists() || targetFile.lastModified() < cu.getSourceFile().lastModified()) {
 						rebuild = true;
 						break;
@@ -447,8 +448,9 @@ public class CompilerCore {
 		System.out.println("");
 		System.out.println("Options:");
 		System.out.println(" -h|--help             This message.");
-		System.out.println(" -v|--version          This message.");
+		System.out.println(" -v|--version          Current version of the plaidc.");
 		System.out.println(" -o|--output           The directory to put generated files.");
+		System.out.println(" -t|--temp             The directory to put temporary generated files.");
 		System.out.println(" -k|--keepTempFiles    Do not delete temporary files.");
 		System.out.println(" -n|--nocompile        Do not compile generated Java source.");
 		System.out.println(" -g|--debug            Generate debugging information.");
@@ -499,6 +501,14 @@ public class CompilerCore {
 					cc.setInvokeCompiler(false);
 				} else if (value.equals("-f") || value.equals("--force-recompile")) {
 					cc.setForceRecompile(true);
+				} else if (value.equals("-t") || value.equals("--temp")) {
+					if ( it.hasNext()) {
+						cc.setTempDir(it.next());
+					} else {
+						System.out.println("ERROR: you must specify the input directory.");
+						usage();
+						System.exit(-1);
+					}
 				} else if ( value.equals("-d") || value.equals("--directory")) {
 					if ( it.hasNext()) {
 						cc.setInputDir(it.next());

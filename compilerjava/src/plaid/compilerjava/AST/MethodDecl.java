@@ -179,7 +179,7 @@ public final class MethodDecl implements Decl {
 		out.closeBlock(); // }  (for static block)
 		out.closeBlock(); // }  (for class declaration)
 		
-		return FileGen.createOutputFile(newName, cc.getOutputDir(), out.formatFile(), qid);
+		return FileGen.createOutputFile(newName, cc.getTempDir(), out.formatFile(), qid);
 	}
 
 	@Override
