@@ -23,7 +23,7 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class DeclList extends State {
+public class DeclList extends StatePrim {
 
 	private List<Decl> decls;
 

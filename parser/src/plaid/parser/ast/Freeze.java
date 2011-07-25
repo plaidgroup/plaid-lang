@@ -3,7 +3,7 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 
-public class Freeze extends State {
+public class Freeze extends StatePrim {
 
 	private final Identifier frozenVar;
 	
