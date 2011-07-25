@@ -1,6 +1,6 @@
-package plaid.parser;
+package plaid.parser.ast;
 
-import plaid.parser.ast.Identifier;
+import plaid.parser.Token;
 
 public class StateOpRename extends StateOp {
 	protected final Identifier from;

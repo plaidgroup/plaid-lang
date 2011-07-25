@@ -1,6 +1,6 @@
-package plaid.parser;
+package plaid.parser.ast;
 
-import plaid.parser.ast.ASTNode;
+import plaid.parser.Token;
 
 public class StateOp extends ASTNode {
 
