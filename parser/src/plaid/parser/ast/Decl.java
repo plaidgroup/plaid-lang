@@ -19,14 +19,18 @@
  
 package plaid.parser.ast;
 
+import java.util.List;
+
 import plaid.parser.Token;
 
 public abstract class Decl extends ASTNode implements DeclOrStateOp{
 	
 	protected final Identifier name;
+	protected final List<Modifier> modifiers;
 	
-	public Decl(Token t, Identifier name) {
+	public Decl(Token t, List<Modifier> modifiers, Identifier name) {
 		super(t);
+		this.modifiers = modifiers;
 		this.name = name;
 	}
 	
