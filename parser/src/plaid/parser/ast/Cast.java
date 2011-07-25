@@ -3,17 +3,17 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public class Cast extends Expression {
-	private PermType pt;
+	private Type type;
 	private Expression exp;
 	
-	public Cast(Token t, PermType pt, Expression exp) {
+	public Cast(Token t, Type type, Expression exp) {
 		super(t);
-		this.pt = pt;
+		this.type = type;
 		this.exp = exp;
 	}
 	
-	public PermType getPermType() {
-		return this.pt;
+	public Type getType() {
+		return this.type;
 	}
 	
 	public Expression getExp() {
