@@ -1,37 +1,25 @@
 package plaid.parser.ast;
 
 import java.util.List;
-import java.util.Set;
 
-public class SplitBlock implements Expression {
-		private final Token token;
-        private final List<MetaArgument> metaArgs;
+import plaid.parser.Token;
+
+public class SplitBlock extends Expression {
+        
+	private final List<MetaArgument> metaArgs;
         private final List<Expression> body;
 
         public SplitBlock(Token token, List<MetaArgument> metaArgs, List<Expression> body) {
-                super();
-                this.token = token;
+                super(token);
                 this.metaArgs = metaArgs;
                 this.body = body;
                 if ( this.body.isEmpty() ) {
-                	this.body.add(new UnitLiteral());
+                	this.body.add(new UnitLiteral(DEFAULT_TOKEN));
                 }
         }
         
         public List<MetaArgument> getMetaArguments() {
         	return metaArgs;
-        }
-
-        @Override
-        public void codegenExpr(CodeGen out, ID y, IDList localVars,  Set<ID> stateVars) {
-            for (Expression e : body ) {
-           	 e.codegenExpr(out, y, localVars, stateVars);
-            }
-        }
-
-        @Override
-        public boolean hasToken() {
-                return true;
         }
 
         @Override
@@ -46,20 +34,6 @@ public class SplitBlock implements Expression {
 		public List<Expression> getBody() {
 			return body;
 		}
-
-		@Override
-        public <T> T accept(ASTVisitor<T> visitor) {
-        	return visitor.visitNode(this);
-        }
-        
-        @Override
-        public <T> void visitChildren(ASTVisitor<T> visitor) {
-             //id.accept(visitor);
-             for (Expression e : body ) {
-            	 e.accept(visitor);
-             }
-        }
-
 }
         
         

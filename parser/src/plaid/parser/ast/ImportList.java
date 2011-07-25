@@ -19,50 +19,19 @@
  
 package plaid.parser.ast;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import plaid.parser.Token;
 
-public class ImportList implements ASTNode {
-	private List<Import> imports;
-	private Token token;
+public class ImportList extends ASTNode {
+	private final List<Import> imports;
 	
 	public ImportList(Token t, List<Import> imports) {
-		super();
-		token = t;
+		super(t);
 		this.imports = imports;
-	}
-	
-	public ImportList(List<Import> imports) {
-		super();
-		this.imports = imports;
-	}
-
-	public ImportList() {
-		imports = new ArrayList<Import>();
-	}
-	
-	public ImportList(Token t) {
-		imports = new ArrayList<Import>();
-		token = t;
-	}
-	
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
 	}
 	
 	public List<Import> getImports() {
 		return imports;
-	}
-
-	public void setImports(List<Import> imports) {
-		this.imports = imports;
 	}
 }

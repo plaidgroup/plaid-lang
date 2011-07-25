@@ -23,9 +23,8 @@ package plaid.parser.ast;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import plaid.parser.Token;
 
-public class CompilationUnit implements ASTNode {
+public class CompilationUnit extends ASTNode {
 	private List<Decl> decls;
 	private List<String> packageName;
 	private String packageString;
@@ -33,6 +32,7 @@ public class CompilationUnit implements ASTNode {
 	private File sourceFile = new File(">>UNKNOWN<<");
 
 	public CompilationUnit() {
+		super(DEFAULT_TOKEN);
 		decls = new ArrayList<Decl>();
 	}
 	
@@ -56,11 +56,6 @@ public class CompilationUnit implements ASTNode {
 		return packageName; 
 	}
 	
-	@Override
-	public boolean hasToken() {
-		return false;
-	}
-	
 	public String getPackageString() {
 		if (packageString == null){
 			String temp = "";
@@ -81,13 +76,6 @@ public class CompilationUnit implements ASTNode {
 	
 	public List<Decl> getDecls() { return this.decls; }
 	
-
-	@Override
-	public Token getToken() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
 	
 	@Override
 	public String toString() {

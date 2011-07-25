@@ -19,8 +19,19 @@
  
 package plaid.parser.ast;
 
-public interface Decl extends ASTNode {
+import plaid.parser.Token;
+
+public abstract class Decl extends ASTNode {
 	
-	public String getName();
+	protected final ID name;
+	
+	public Decl(Token t, ID name) {
+		super(t);
+		this.name = name;
+	}
+	
+	public ID getName() {
+		return this.name;
+	}
 }
 

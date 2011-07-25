@@ -23,27 +23,13 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class DeclList implements State {
+public class DeclList extends State {
 
-	private Token token;
 	private List<Decl> decls;
 
-	public DeclList(List<Decl> decls) {
-		super();
-		this.decls = decls;
-	}
-
-	public DeclList() {
-	}
-
 	public DeclList(Token t, List<Decl> decls) {
-		super();
-		this.token = t;
+		super(t);
 		this.decls = decls;
-	}
-
-	public DeclList(Token t) {
-		this.token = t;
 	}
 
 	public List<Decl> getDecls() {
@@ -52,15 +38,5 @@ public class DeclList implements State {
 
 	public void setDecls(List<Decl> decls) {
 		this.decls = decls;
-	}
-
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
 	}
 }

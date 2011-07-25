@@ -21,36 +21,18 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class ChangeState implements Expression {
+public class ChangeState extends Expression {
 	
-	private Token token;
 	private Expression e;
 	private State st;
 	private boolean wipe;
 
-	public ChangeState(Expression e, State st, boolean wipe) {
-		super();
-		this.e = e;
-		this.st = st;
-		this.wipe = wipe;
-	}
 
 	public ChangeState(Token t, Expression e, State st, boolean wipe) {
-		super();
-		this.token = t;
+		super(t);
 		this.e = e;
 		this.st = st;
 		this.wipe = wipe;
-	}
-	
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
 	}
 	
 	public Expression getE() {

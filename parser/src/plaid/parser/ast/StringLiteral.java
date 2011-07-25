@@ -19,55 +19,18 @@
  
 package plaid.parser.ast;
 
-import java.util.Set;
+import plaid.parser.Token;
 
-public class StringLiteral implements Expression{
+public class StringLiteral extends Expression{
 
-	private Token token;
-	private String string;
+	private final String value;
 	
 	public StringLiteral(Token t,String string) {
-		this.string = string;
-		this.token = t;
-	}
-	
-	public StringLiteral(String string) {
-		this.string = string;
+		super(t);
+		this.value = string; 
 	}
 
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
-	}
-	
-	@Override
-	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
-		out.setLocation(token);
-		
-		//wrap String as a PlaidObject
-		out.assign(y.getName());
-		out.plaidString(string);
-		out.append(";");  
-		out.updateVarDebugInfo(y.getName());
-	}
-
-	@Override
-	public String toString() {
-		return string;
-	}
-
-	@Override
-	public <T> void visitChildren(ASTVisitor<T> visitor) {
-		// do nothing (no children)
-	}
-	
-	@Override
-	public <T> T accept(ASTVisitor<T> visitor) {
-		return visitor.visitNode(this);
+	public String getValue() {
+		return value;
 	}
 }

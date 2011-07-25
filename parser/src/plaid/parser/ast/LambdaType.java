@@ -1,59 +1,25 @@
 package plaid.parser.ast;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import plaid.parser.Token;
 
-public class LambdaType implements Type {
+public class LambdaType extends Type {
 	
-	public static final LambdaType DEFAULTLAMBDATYPE = 
-		new LambdaType(null, ChangeType.DYN, new HashMap<ID,ChangeType>(), PermType.getDynPT());
-	
-	private final Token t;
 	private final List<ChangeType> argTypes;
 	private final Map<ID,ChangeType> environmentTypes;
 	private final List<MetaType> metaTypes;
 	private final PermType returnType;
-	
-	public LambdaType(Token t, List<ChangeType> argTypes, Map<ID,ChangeType> sideEffects,
-			PermType returnType) {
-		super();
-		this.t = t;
-		this.argTypes = argTypes;
-		this.environmentTypes = sideEffects;
-		this.returnType = returnType;
-		this.metaTypes = new ArrayList<MetaType>();
-	}
+
 	
 	public LambdaType(Token t, List<ChangeType> argTypes, Map<ID,ChangeType> sideEffects, List<MetaType> metaTypes, PermType returnType) {
-		super();
-		this.t = t;
+		super(t);
 		this.argTypes = argTypes;
 		this.environmentTypes = sideEffects;
 		this.returnType = returnType;
 		this.metaTypes = metaTypes;
-	}
-	
-	public LambdaType(Token t, ChangeType argType, Map<ID, ChangeType> sideEffects, PermType returnType) {
-		this.t = t;
-		this.argTypes = new ArrayList<ChangeType>();
-		argTypes.add(argType);
-		this.environmentTypes = sideEffects;
-		this.returnType = returnType;
-		this.metaTypes = new ArrayList<MetaType>();		
-	}
-
-	public LambdaType(Token t, ChangeType argType, Map<ID, ChangeType> sideEffects, List<MetaType> metaTypes, PermType returnType) {
-		this.t = t;
-		this.argTypes = new ArrayList<ChangeType>();
-		argTypes.add(argType);
-		this.environmentTypes = sideEffects;
-		this.returnType = returnType;
-		this.metaTypes = metaTypes;		
 	}
 	
 	public List<ChangeType> getArgTypes() {
@@ -78,6 +44,10 @@ public class LambdaType implements Type {
 		s.append("] -> " + returnType.toString());
 		
 		return s.toString();
+	}
+
+	public List<MetaType> getMetaTypes() {
+		return metaTypes;
 	}
 	
 }

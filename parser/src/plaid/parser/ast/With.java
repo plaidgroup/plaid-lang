@@ -19,91 +19,24 @@
  
 package plaid.parser.ast;
 
-import java.util.Set;
+import plaid.parser.Token;
 
-public class With implements State {
+public class With extends State {
 
-	private Token token;
-	private State r1,r2;
-	
-	public With(State r1, State r2) {
-		this(null, r1, r2);
-	}
-
-	public With(Token t) {
-		token = t;
-	}
+	private final State r1,r2;
 
 	public With(Token t, State r1, State r2) {
-		super();
-		this.token = t;
+		super(t);
 		this.r1 = r1;
 		this.r2 = r2;
-	}
-	
-	public With() {
 	}
 	
 	public State getR1() {
 		return r1;
 	}
 
-	public void setR1(State r1) {
-		this.r1 = r1;
-	}
 
 	public State getR2() {
 		return r2;
 	}
-
-	public void setR2(State r2) {
-		this.r2 = r2;
-	}
-
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
-	}
-	
-	@Override
-	public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, ID tagContext) {
-
-		out.setLocation(token);
-		
-		ID fresh1 = IdGen.getId();
-		ID fresh2 = IdGen.getId();
-		
-		out.declareFinalVar(CodeGen.plaidStateType, fresh1.getName());
-		out.declareFinalVar(CodeGen.plaidStateType, fresh2.getName());
-		
-		r1.codegenState(out, fresh1, localVars, stateVars, tagContext);
-
-		r2.codegenState(out, fresh2, localVars, stateVars, tagContext);
-
-		
-		out.assignToWith(y.getName(),fresh1.getName(),fresh2.getName());  //y = fresh1.with(fresh2); 
-	}
-	
-	@Override
-	public <T> void visitChildren(ASTVisitor<T> visitor) {
-		r1.accept(visitor);
-		r2.accept(visitor);
-	}
-	
-	@Override
-	public <T> T accept(ASTVisitor<T> visitor) {
-		return visitor.visitNode(this);
-	}
-
-//	@Override
-//	public void codegen(CodeGen out, ID y, IDList localVars) {
-//		// TODO Auto-generated method stub
-//		
-//	}
-
 }

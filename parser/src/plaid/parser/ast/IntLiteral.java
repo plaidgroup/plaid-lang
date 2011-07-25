@@ -21,46 +21,16 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class IntLiteral implements Expression {
+public class IntLiteral extends Expression {
 
-	private Token token;
-	private int integer;
-	
-	public IntLiteral(int integer) {
-		super();
-		this.integer = integer;
-	}
+	private final int integer;
 
 	public IntLiteral(Token t, int integer) {
-		super();
-		this.token = t;
+		super(t);
 		this.integer = integer;
-	}
-	
-	@Override
-	public Token getToken() {
-		return token;
-	}
-	
-	@Override
-	public boolean hasToken() {
-		return token != null;
 	}
 	
 	public int getValue() {
 		return integer;
-	}
-
-	public void setValue(int integer) {
-		this.integer = integer;
-	}
-
-	public void setToken(Token token) {
-		this.token = token;
-	}
-
-	@Override
-	public String toString() {
-		return ""+integer;
 	}
 }

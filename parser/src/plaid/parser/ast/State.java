@@ -19,6 +19,11 @@
  
 package plaid.parser.ast;
 
+import plaid.parser.Token;
 
-public interface State extends ASTNode {
+
+public abstract class State extends ASTNode {
+	public State(Token t) {
+		super(t);
+	}
 }

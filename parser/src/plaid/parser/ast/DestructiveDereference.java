@@ -10,9 +10,6 @@ import plaid.parser.Token;
  *
  */
 public class DestructiveDereference extends Dereference {
-	public DestructiveDereference(Expression left, ID right) {
-		super(left, right);
-	}
 	
 	public DestructiveDereference(Token t, Expression left, ID right) {
 		super(t, left, right);
