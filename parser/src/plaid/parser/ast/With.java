@@ -23,20 +23,20 @@ import plaid.parser.Token;
 
 public class With extends State {
 
-	private final State r1,r2;
+	private final StatePrim r1,r2;
 
-	public With(Token t, State r1, State r2) {
+	public With(Token t, StatePrim r1, StatePrim r2) {
 		super(t);
 		this.r1 = r1;
 		this.r2 = r2;
 	}
 	
-	public State getR1() {
+	public StatePrim getR1() {
 		return r1;
 	}
 
 
-	public State getR2() {
+	public StatePrim getR2() {
 		return r2;
 	}
 }

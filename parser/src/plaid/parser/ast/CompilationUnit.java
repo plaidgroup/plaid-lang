@@ -21,69 +21,35 @@ package plaid.parser.ast;
 
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 
 public class CompilationUnit extends ASTNode {
-	private List<Decl> decls;
-	private List<String> packageName;
-	private String packageString;
-	private List<Import> imports;
-	private File sourceFile = new File(">>UNKNOWN<<");
+	private final List<Decl> decls;
+	private final List<String> packageName;
+	private final List<Import> imports;
+	private final File sourceFile;
 
-	public CompilationUnit() {
+	public CompilationUnit(List<Decl> decls, File sourceFile, List<Import> imports, List<String> packageName) {
 		super(DEFAULT_TOKEN);
-		decls = new ArrayList<Decl>();
+		this.decls=decls;
+		this.sourceFile = sourceFile;
+		this.imports = imports;
+		this.packageName = packageName;
 	}
 	
 	public File getSourceFile() {
 		return sourceFile;
-	}
-
-	public void setSourceFile(File sourceFile) {
-		this.sourceFile = sourceFile;
-	}
-
-	public void setPackageName(List<String> name) {
-		this.packageName = name;
-	}
-	
-	public void setImports(List<Import> imports) {
-		this.imports = imports;
 	}
 	
 	public List<String> getPackageName() { 
 		return packageName; 
 	}
 	
-	public String getPackageString() {
-		if (packageString == null){
-			String temp = "";
-			for (String s : packageName) 
-				temp += s + ".";
-			packageString = temp.substring(0,temp.length() - 1);
-		}
-		return packageString;
-	}
-	
 	public List<Import> getImports() {
 		return imports;
 	}
-	
-	public void addDecl(Decl d) {
-		decls.add(d);
-	}
-	
-	public List<Decl> getDecls() { return this.decls; }
-	
-	
-	@Override
-	public String toString() {
-		StringBuilder toRet = new StringBuilder("package: ");
-		toRet.append(getPackageString());
-		toRet.append("\n declares:\n");
-		for(Decl d : decls) toRet.append("\t" + d.getName() + "\n");
-		
-		return toRet.toString();
+
+	public List<Decl> getDecls() {
+		return decls;
 	}
 }

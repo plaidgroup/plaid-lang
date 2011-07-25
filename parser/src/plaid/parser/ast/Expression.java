@@ -22,7 +22,7 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 
-public abstract class Expression extends ASTNode{
+public abstract class Expression extends Stmt{
 
 	public Expression(Token token) {
 		super(token);

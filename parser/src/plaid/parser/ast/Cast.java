@@ -3,8 +3,8 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public class Cast extends Expression {
-	private Type type;
-	private Expression exp;
+	private final Type type;
+	private final Expression exp;
 	
 	public Cast(Token t, Type type, Expression exp) {
 		super(t);

@@ -23,9 +23,9 @@ import plaid.parser.Token;
 
 public class Assignment extends Expression {
 
-	private Expression target;
-	private Identifier field;
-	private Expression value;
+	private final Expression target;
+	private final Identifier field;
+	private final Expression value;
 	private final boolean hasTarget;
 	
 
@@ -40,10 +40,6 @@ public class Assignment extends Expression {
 	public Expression getTarget() {
 		return target;
 	}
-
-	public void setTarget(Expression target) {
-		this.target = target;
-	}
 	
 	public boolean hasTarget() {
 		return this.hasTarget;
@@ -53,15 +49,7 @@ public class Assignment extends Expression {
 		return field;
 	}
 
-	public void setField(Identifier field) {
-		this.field = field;
-	}
-
 	public Expression getValue() {
 		return value;
-	}
-
-	public void setValue(Expression value) {
-		this.value = value;
 	}
 }
