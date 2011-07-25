@@ -25,23 +25,22 @@ import java.util.List;
 
 public class CompilationUnit extends ASTNode {
 	private final List<Decl> decls;
-	private final List<String> packageName;
+	private final QualifiedIdentifier packageName;
 	private final List<Import> imports;
-	private final File sourceFile;
+	//private final File sourceFile;
 
-	public CompilationUnit(List<Decl> decls, File sourceFile, List<Import> imports, List<String> packageName) {
+	public CompilationUnit(List<Decl> decls, List<Import> imports, QualifiedIdentifier packageName) {
 		super(DEFAULT_TOKEN);
 		this.decls=decls;
-		this.sourceFile = sourceFile;
 		this.imports = imports;
 		this.packageName = packageName;
 	}
 	
-	public File getSourceFile() {
-		return sourceFile;
-	}
+//	public File getSourceFile() {
+//		return sourceFile;
+//	}
 	
-	public List<String> getPackageName() { 
+	public QualifiedIdentifier getPackageName() { 
 		return packageName; 
 	}
 	
@@ -57,13 +56,10 @@ public class CompilationUnit extends ASTNode {
 	public boolean equivalent(ASTNode other) {
 		if(other instanceof CompilationUnit) {
 			CompilationUnit otherCU = (CompilationUnit) other;
-			if(!sourceFile.equals(otherCU.sourceFile)) {
-				return false;
-			}
-			for(int i=0; i<packageName.size(); i++) {
-				if(!packageName.get(i).equals(otherCU.packageName.get(i)))
-					return false;
-			}
+//			if(!sourceFile.equals(otherCU.sourceFile)) {
+//				return false;
+//			}
+			
 			for(int i=0; i<imports.size(); i++) {
 				if(!imports.get(i).equivalent(otherCU.imports.get(i)))
 					return false;
@@ -72,7 +68,7 @@ public class CompilationUnit extends ASTNode {
 				if(!decls.get(i).equivalent(otherCU.decls.get(i)))
 					return false;
 			}
-			return true;
+			return this.packageName.equivalent(otherCU.packageName);
 		}
 		else {
 			return false;
