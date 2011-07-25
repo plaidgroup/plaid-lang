@@ -8,13 +8,13 @@ import plaid.parser.Token;
 
 public class LambdaType extends Type {
 	
-	private final List<ChangeType> argTypes;
-	private final Map<Identifier,ChangeType> environmentTypes;
+	private final List<ArgSpec> argTypes;
+	private final Map<Identifier,ArgSpec> environmentTypes;
 	private final List<MetaType> metaTypes;
-	private final PermType returnType;
+	private final Type returnType;
 
 	
-	public LambdaType(Token t, List<ChangeType> argTypes, Map<Identifier,ChangeType> sideEffects, List<MetaType> metaTypes, PermType returnType) {
+	public LambdaType(Token t, List<ArgSpec> argTypes, Map<Identifier,ArgSpec> sideEffects, List<MetaType> metaTypes, Type returnType) {
 		super(t);
 		this.argTypes = argTypes;
 		this.environmentTypes = sideEffects;
@@ -22,28 +22,16 @@ public class LambdaType extends Type {
 		this.metaTypes = metaTypes;
 	}
 	
-	public List<ChangeType> getArgTypes() {
+	public List<ArgSpec> getArgTypes() {
 		return Collections.unmodifiableList(argTypes);
 	}
 
-	public Map<Identifier,ChangeType> getEnvironmentTypes() {
+	public Map<Identifier,ArgSpec> getEnvironmentTypes() {
 		return environmentTypes;
 	}
 
-	public PermType getReturnType() {
+	public Type getReturnType() {
 		return returnType;
-	}
-	
-	@Override
-	public String toString() {
-		StringBuilder s = new StringBuilder("(");
-		for ( ChangeType c : argTypes) s.append(c.toString() + ", "); //TODO: remove trailing comma
-		s.append(")[");
-		for (Identifier eVar : environmentTypes.keySet()) s.append(environmentTypes.get(eVar).toString() + " " + eVar.getName() + ","); //TODO: remove ending comma
-		
-		s.append("] -> " + returnType.toString());
-		
-		return s.toString();
 	}
 
 	public List<MetaType> getMetaTypes() {

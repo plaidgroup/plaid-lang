@@ -26,7 +26,7 @@ public class LetBinding extends Expression {
 	private Identifier x;
 	private Expression exp, body;
 	private boolean mutable;
-	private final PermType permType;
+	private final Type type;
 	private final boolean annotated;
 	private final boolean take;
 
@@ -34,17 +34,17 @@ public class LetBinding extends Expression {
 		this(t, x, e1, e2, mutable, null, false);
 	}
 	
-	public LetBinding(Token t, Identifier x, Expression e1, Expression e2, boolean mutable, PermType permType) {
-		this(t, x, e1, e2, mutable, permType, false);
+	public LetBinding(Token t, Identifier x, Expression e1, Expression e2, boolean mutable, Type type) {
+		this(t, x, e1, e2, mutable, type, false);
 	}
 	
-	public LetBinding(Token t, Identifier x, Expression e1, Expression e2, boolean mutable, PermType permType, boolean take) {
+	public LetBinding(Token t, Identifier x, Expression e1, Expression e2, boolean mutable, Type type, boolean take) {
 		super(t);
 		this.x = x;
 		this.exp = e1;
 		this.body = e2;
 		this.mutable = mutable;
-		this.permType = permType;
+		this.type = type;
 		this.annotated = true;
 		this.take = take;
 	}
@@ -61,8 +61,8 @@ public class LetBinding extends Expression {
 		return take;
 	}
 	
-	public PermType getPermType() {
-		return permType;
+	public Type getType() {
+		return type;
 	}
 
 	public Identifier getX() {

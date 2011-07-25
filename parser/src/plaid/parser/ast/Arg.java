@@ -1,26 +1,31 @@
 package plaid.parser.ast;
 
-/**
- * This is just a convenience class for moving type/arg pairs around
- * in the parser.
- * 
- * @author mhahnenberg
- *
- */
-public class Arg {
-	private final ChangeType changeType;
-	private final Identifier arg;
+import plaid.parser.Token;
+
+
+public class Arg extends ASTNode{
 	
-	public Arg(ChangeType changeType, Identifier arg) {
-		this.changeType = changeType;
-		this.arg = arg;
+	private final Identifier name;
+	private final ArgSpec argSpec;
+	
+	
+	public Arg(Token token, Identifier name, ArgSpec argSpec) {
+		super(token);
+		this.name = name;
+		this.argSpec = argSpec;
+	}
+	
+
+	public Identifier getName() {
+		return name;
 	}
 
-	public ChangeType getChangeType() {
-		return changeType;
-	}
 
-	public Identifier getArg() {
-		return arg;
+	public ArgSpec getArgSpec() {
+		return argSpec;
 	}
+	
+	
+	
+	
 }

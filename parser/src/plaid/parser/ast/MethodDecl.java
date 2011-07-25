@@ -30,18 +30,18 @@ public final class MethodDecl extends Decl {
 	private final List<Identifier> arguments;
 	private final boolean hasArgs;
 	private final boolean abstractMethod;
-	private final MethodType methodType;
+	private final Type methodType;
 	private final boolean overrides;
 	
 	public boolean isOverrides() {
 		return overrides;
 	}
 
-	public MethodDecl(Token token, Identifier name, Expression body, Identifier arg, boolean abstractMethod, MethodType methodType, boolean overrides) {
+	public MethodDecl(Token token, Identifier name, Expression body, Identifier arg, boolean abstractMethod, Type methodType, boolean overrides) {
 		this(token, name, body, Collections.singletonList(arg), abstractMethod, methodType, overrides);
 	}
 	
-	public MethodDecl(Token token, Identifier name, Expression body, List<Identifier> args, boolean abstractMethod, MethodType methodType, boolean overrides) {
+	public MethodDecl(Token token, Identifier name, Expression body, List<Identifier> args, boolean abstractMethod, Type methodType, boolean overrides) {
 		super(token, name);
 		this.body = body;
 		this.arguments = args;
@@ -57,7 +57,7 @@ public final class MethodDecl extends Decl {
 		return abstractMethod;
 	}
 	
-	public MethodType getMethodType() {
+	public Type getMethodType() {
 		return this.methodType;
 	}
 	
