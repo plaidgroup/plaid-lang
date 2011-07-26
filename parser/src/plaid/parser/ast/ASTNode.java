@@ -20,6 +20,7 @@
 package plaid.parser.ast;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 
@@ -39,31 +40,36 @@ public abstract class ASTNode {
 		return this.token;
 	}
 	
-	@SuppressWarnings("unchecked")
 	/***
 	 * This method assumes that all fields of the receiver object are of type ASTNode, List<ASTNode>, Map<?, ASTNode>. 
 	 * Equivalence checking will fail for all other types of fields.
 	 * @author jssunshi
 	 */
 	public boolean equivalent(ASTNode other) {
-		Field[] fields = this.getClass().getFields();
+		Class<?> thisClass = this.getClass();
+		Method[] methods = thisClass.getMethods();
 		try { 
-			for (int i = 0; i < fields.length; i++) {
-				Field field = fields[i];
-				if (!field.getName().equals("token")) { //ignore tokens
-					Object myField = field.get(this);
-					Object otherField = field.get(other);
+			for (int i = 0; i < methods.length; i++) {
+				Method method = methods[i];
+				if (!method.getName().equals("getToken") && //ignore tokens
+						!method.getName().equals("getClass") && //ignore getClass
+						method.getName().startsWith("get")) {  //ignore all other non-getters
+					Object myField = method.invoke(this);
+					Object otherField = method.invoke(this);
 					if (myField instanceof ASTNode) {
 						if (!(((ASTNode) myField)).equivalent((ASTNode)otherField)) {
 							return false;
 						}
 					} else if (myField instanceof List) {
 						//TODO: This will fail if the field is a list of something other than ASTNodes
-						List<ASTNode> myList = (List<ASTNode>) myField;
-						List<ASTNode> otherList = (List<ASTNode>) otherField;
+						List<?> myList = (List<?>) myField;
+						List<?> otherList = (List<?>) otherField;
 						for (int j = 0; j < myList.size(); j++) {
-							if(myList.get(i).equivalent(otherList.get(i))) 
+							ASTNode myItem = (ASTNode)myList.get(j);
+							ASTNode otherItem = (ASTNode)otherList.get(j);
+							if(!myItem.equivalent(otherItem)) { 
 								return false;
+							}
 						}
 					} else if (myField instanceof Map) {
 						Map<Object,ASTNode> myMap = (Map<Object,ASTNode>)myField;
