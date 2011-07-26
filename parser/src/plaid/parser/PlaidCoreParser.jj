@@ -29,22 +29,66 @@ import plaid.parser.ast.*;
 
 public class PlaidCoreParser
 {
-		private CompilationUnit cu;
-		
-		private Expression foldToDeref(Expression target, List < Token > dotName) throws ParseException
-		{
-				Expression deref = target;
-				for (Token id : dotName) deref = new Dereference(id, deref, new Identifier(ASTNode.DEFAULT_TOKEN, id.image));
-				return deref;
-		}
+    protected Expression combineSimpleExp1(List<Expression> exps) throws ParseException {
+        Expression result = null;
+        
+        // reverse list 
+        Collections.reverse(exps);
+        
+        if ( exps.size() == 1 ) {
+            result = exps.get(0);
+        } else {
+            Expression left = exps.get(0);
+            for ( int i = 1; i < exps.size(); i++) {
+                Expression right = exps.get(i);
+                if ( right instanceof Application ) {
+                    Application app = (Application)right;
+                    left = new Application(app.getToken(),
+                                           left,
+                                           app.getMetaArguments(),
+                                           app.getArgument());
+                } else if ( right instanceof DestructiveDereference ) {
+                    DestructiveDereference ddref = (DestructiveDereference) right;
+                    left = new DestructiveDereference(ddref.getToken(), 
+                                                      left, 
+                                                      ddref.getRight());
+                } else if ( right instanceof Dereference ) {
+                    Dereference dref = (Dereference) right;
+                    left = new Dereference(dref.getToken(), 
+                                           left, 
+                                           dref.getRight());
+                } else {
+                    throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+                }
+            }
+            result = left;
+        }
+        
+        return result;                       
+    }
 
-		private List < String > tokenToStringList(List < Token > tokenList)
-		{
-				List < String > stringList = new ArrayList < String > ();
-				for (Token t : tokenList) stringList.add(t.image);
-				return stringList;
-		}
-
+    protected Expression combineSimpleExp2(List<Expression> exps) throws ParseException {
+        Expression result = null;
+        
+        // reverse list
+        Collections.reverse(exps);
+        
+        Expression left = exps.get(0);
+        for (int i = 0; i < exps.size(); i++ ) {
+            Expression right = exps.get(i);
+            if ( right instanceof Application ) {
+                Application app = (Application)right;
+                left = new Application(app.getToken(),
+                                       left,
+                                       app.getMetaArguments(),
+                                       app.getArgument());
+            } else {
+                throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+            }
+        }
+        
+        return result;
+    }
 }
 
 PARSER_END(PlaidCoreParser)
@@ -877,8 +921,12 @@ Expression Expr1() :
     List<Expression> datagroups;
     List<Stmt> stmtList = new ArrayList<Stmt>();}
 {
+     LOOKAHEAD(Identifier() <EQUALS> )
+     id = Identifier() t = <EQUALS> e = Exp()
+     {        return new Assignment(t, null, id, e);
+     }
     //TODO:Optional SimpleExpr
-    LOOKAHEAD(SimpleExpr()<DOT>Identifier()<EQUALS>) 
+|     LOOKAHEAD(SimpleExpr()<DOT>Identifier()<EQUALS>) 
     target = SimpleExpr() <DOT> id =Identifier() t = <EQUALS> e = Exp()
     {
         return new Assignment(t, target, id, e);
@@ -937,41 +985,110 @@ Expression SimpleExpr() : {
     State st;
     List<Expression> exps = new ArrayList<Expression>();
 }{
-    t = <NEW> st = State()
+
+    e = BlockExpression()
+    {
+        return e;
+    }
+|   t = <NEW> st = State()
     {
         return new NewInstance(t, st);
     }
-|     (LOOKAHEAD(2) e = SimpleExpr1() {exps.add(e);})* 
-{
-    if (exps.size() == 1) {
-        return exps.get(0);
-    } else {
-        Application app = 
-            new Application(exps.get(0).getToken(), exps.get(0), exps.get(1));
-        for(int i=2; i<exps.size()-1; i++) {
-               app = new Application(exps.get(i).getToken(), app, exps.get(i));
-        }
-        return app;
+|   e = SimpleExpr2()
+    {
+        return e;
     }
 }
+
+
+Expression SimpleExpr2() : {
+    Expression e;
+    List<Expression> rest;
+}{
+    e = SimpleExpr1() rest = SimpleExpr2Rest()
+    {
+        rest.add(e);
+        return combineSimpleExp2(rest);
+    }
 }
+
+
+List<Expression> SimpleExpr2Rest() : {
+    Expression block;
+    List<Expression> rest;
+}{
+    block = BlockExpression() rest = SimpleExpr2Rest()
+    {
+        rest.add(new Application(ASTNode.DEFAULT_TOKEN, null, null, block));
+        return rest;
+    }
+  | { return new ArrayList<Expression>(); }
+}
+
 
 Expression SimpleExpr1() : {
     Expression e;
+    List<Expression> rest;
+    Token t = ASTNode.DEFAULT_TOKEN;
 }{
-    e = BlockExpression()    {        return e;    }
-|   e = Literal()
-    {
-        return e;
-    }
-|   e = Identifier()
-    {
-        return e;
+
+(
+    e = Literal() rest = SimpleExp1Rest()
+    { rest.add (e); }
+|   e = Identifier() rest = SimpleExp1Rest()
+    { rest.add (e); }
+|   e = THIS() rest = SimpleExp1Rest()
+    { rest.add (e); }
+|   e = ArgumentExpression() rest = SimpleExp1Rest()
+    { rest.add (e); }
+)
+    { 
+        return combineSimpleExp1(rest); 
     }
 }
 
 
+List<Expression> SimpleExp1Rest() : {
+    Token t = ASTNode.DEFAULT_TOKEN;
+    Expression e;
+    Identifier id;
+    List<Expression> metaArgs = new ArrayList<Expression>();
+    List<Expression> args;
+    List<Expression> rest;
+}{
+     t = <DOT> id = Identifier() rest = SimpleExp1Rest()
+     {
+        rest.add(new Dereference(t, null, id));
+        return rest; 
+     } 
+  |  t = <BANG> id = Identifier() rest = SimpleExp1Rest()
+     {
+        rest.add(new DestructiveDereference(t, null, id));
+        return rest; 
+     } 
+  |  [ metaArgs = MetaArgs()] e = ArgumentExpression() rest = SimpleExp1Rest()
+     {
+        rest.add(new Application(t, null, metaArgs, e));
+        return rest;
+     }
+  |  { return new ArrayList<Expression>() ;}
+}
 
+Identifier THIS() : {
+    Token t;
+}{
+    t = <THIS> { return new Identifier(t, t.image); }
+}
+
+ArgumentExpression ArgumentExpression() : {
+    Token t;
+    List<Expression> args = new ArrayList<Expression>();
+}{
+    t = <LPAREN> [args = ExprList()] <RPAREN>
+    {
+        return new ArgumentExpression(t, args);
+    }
+}
 
 Expression ConditionalExpression() : 
 {

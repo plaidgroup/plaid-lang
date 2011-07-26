@@ -19,16 +19,20 @@
  
 package plaid.parser.ast;
 
+import java.util.List;
+
 import plaid.parser.Token;
 
 public class Application extends Expression {
 	private final Expression f;
 	private final Expression argument;
+	private final List<Expression> metaArgs; 
 
 
-	public Application(Token t, Expression function, Expression argument) {
+	public Application(Token t, Expression function, List<Expression> metaArgs, Expression argument) {
 		super(t);
 		this.f = function;
+		this.metaArgs = metaArgs;
 		this.argument = argument;
 	}
 	
@@ -38,5 +42,9 @@ public class Application extends Expression {
 
 	public Expression getArgument() {
 		return argument;
+	}
+	
+	public List<Expression> getMetaArguments() {
+		return metaArgs;
 	}
 }
