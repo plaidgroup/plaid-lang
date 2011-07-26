@@ -181,4 +181,14 @@ public class ParseExpressionTest {
 		assertTrue(e instanceof Application );
 		assertTrue( code.equals(e.toString()));
 	}
+	
+	@Test
+	public void parseMultipleBlocksAsApplication() throws ParseException, UnsupportedEncodingException {
+		String code = "foo{}{}{}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr2();
+		assertTrue(e instanceof Application );
+		System.out.println(e);
+		assertTrue( code.equals(e.toString()));
+	}
 }
