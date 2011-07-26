@@ -3,7 +3,7 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 
-public class Arg extends ASTNode{
+public class Arg extends ASTNode {
 	
 	private final Identifier name;
 	private final ArgSpec argSpec;
