@@ -73,18 +73,23 @@ public class PlaidCoreParser
         // reverse list
         Collections.reverse(exps);
         
-        Expression left = exps.get(0);
-        for (int i = 0; i < exps.size(); i++ ) {
-            Expression right = exps.get(i);
-            if ( right instanceof Application ) {
-                Application app = (Application)right;
-                left = new Application(app.getToken(),
-                                       left,
-                                       app.getMetaArguments(),
-                                       app.getArgument());
-            } else {
-                throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+        if ( exps.size() == 1 ) {
+            result = exps.get(0);
+        } else {
+	        Expression left = exps.get(0);
+	        for (int i = 1; i < exps.size(); i++ ) {
+	            Expression right = exps.get(i);
+	            if ( right instanceof Application ) {
+	                Application app = (Application)right;
+	                left = new Application(app.getToken(),
+	                                       left,
+	                                       app.getMetaArguments(),
+	                                       app.getArgument());
+	            } else {
+	                throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+	            }
             }
+            result = left;
         }
         
         return result;
@@ -349,7 +354,7 @@ Type Type() :
 	}
 	// TODO: Default permission?
 	// KBN - 2010-11-4 permission no longer optional - currently causes parser conflict
-| 	perm = Permission() qi = QualifiedIdentifier() [LOOKAHEAD(MetaTypes()) metaTypes = MetaTypes(false)]
+| 	[perm = Permission()] qi = QualifiedIdentifier() [LOOKAHEAD(MetaTypes()) metaTypes = MetaTypes(false)]
 	{
 		return new NominalObjectType(ASTNode.DEFAULT_TOKEN, perm, qi, metaTypes);
 	}
@@ -493,9 +498,9 @@ List<Expression> MetaArgs() :
   List<Expression> args = new ArrayList<Expression>();
 }{
   <LT>
-    arg =  SimpleExpr() {  args.add(arg); }
+    arg =  SimpleExpr1() {  args.add(arg); }
     (
-      <COMMA> arg =  SimpleExpr() { args.add(arg); }
+      <COMMA> arg =  SimpleExpr1() { args.add(arg); }
     )* 
   <GT>
   {
@@ -552,7 +557,7 @@ List<Modifier> Modifiers() : {
     (
             t = <OVERRIDE>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.OVERRIDE));  }
         |   t = <REQUIRES>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.REQUIRES));  }
-//        |   t = <IMMUTABLE>  { modifiers.add(new Modifier(t, Modifier.ModifierKind.IMMUTABLE)); }
+        // immutable is handled by directly associating it to states to avoid conflicts with types
     )+
     {
         return modifiers;
@@ -599,6 +604,7 @@ Decl Decl() :
 {
         [ modifiers = Modifiers() ]     
 
+(LOOKAHEAD(2) // check for 'immutable' field vs state
 		d = StateDecl(modifiers)
 		{
 		    return d;
@@ -607,7 +613,7 @@ Decl Decl() :
         {
             return d;
         }
-| 		
+|
 		d = FieldDecl(modifiers)
 		{
 		    return d;
@@ -616,6 +622,7 @@ Decl Decl() :
 		{
 		    return d;
 		}
+)
 }
 
 Decl StateDecl(List< Modifier > modifiers) :
@@ -629,6 +636,7 @@ Decl StateDecl(List< Modifier > modifiers) :
 	QualifiedIdentifier qi = null;
 }
 {
+    [ t = <IMMUTABLE>  { modifiers.add(new Modifier(t, Modifier.ModifierKind.IMMUTABLE)); } ]
     t= <STATE> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [ <CASE> <OF> qi = QualifiedIdentifier() [LOOKAHEAD(MetaArgsSpec(false)) metaCaseOfArgs = MetaArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {        return new StateDecl(t, modifiers, name, metaArgsSpec, qi, metaCaseOfArgs, stb);       }    | 
     t = <STATEVAL> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [stb = StateBinding()] // <SEMICOLON>    {        return new StateValDecl(t, modifiers, name, metaArgsSpec, stb);    }
 }
@@ -700,7 +708,7 @@ Decl FieldDecl(List<Modifier> modifiers) :
 {
   (  LOOKAHEAD([Specifier()] [Type()] Identifier() <EQUALS>)
      // concrete field decl
-     [ specifier = Specifier() ] [ type = Type() ] name = Identifier() <EQUALS> e = Expr() <SEMICOLON> 
+     [ specifier = Specifier() ] [LOOKAHEAD(Type()) type = Type() ] name = Identifier() <EQUALS> e = Expr() <SEMICOLON> 
      {
         return new ConcreteFieldDecl
             (ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name, e);

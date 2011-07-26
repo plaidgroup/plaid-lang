@@ -5,6 +5,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.Collections;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -22,7 +24,11 @@ import plaid.parser.ast.StringLiteral;
 
 public class ParseExpressionTest {
 
-	@Test
+	/************************************************************
+	 **                      SimpleExpr1                       **
+	 ************************************************************/
+	 
+ 	@Test
 	public void parseIntLiteral() throws ParseException, UnsupportedEncodingException {
 		String code = "1234";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
@@ -133,6 +139,45 @@ public class ParseExpressionTest {
 		String code = "m()";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.SimpleExpr1();
+		assertTrue(e instanceof Application );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseApplicationWithArgumentList() throws ParseException, UnsupportedEncodingException {
+		String code = "m(1,2,3)";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr1();
+		assertTrue(e instanceof Application );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseApplicationWithMetaArgs() throws ParseException, UnsupportedEncodingException {
+		String code = "m<a,b,c>()";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr1();
+		assertTrue(e instanceof Application );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseApplicationWithMetaArgsIncludingThis() throws ParseException, UnsupportedEncodingException {
+		String code = "this.m<a,this.c>(1,2,3)";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr1();
+		assertTrue(e instanceof Application );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	/************************************************************
+	 **                      SimpleExpr2                       **
+	 ************************************************************/
+	@Test
+	public void parseSingleBlockAsApplication() throws ParseException, UnsupportedEncodingException {
+		String code = "foo{}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr2();
 		assertTrue(e instanceof Application );
 		assertTrue( code.equals(e.toString()));
 	}

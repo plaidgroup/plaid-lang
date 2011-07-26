@@ -19,6 +19,7 @@
  
 package plaid.parser.ast;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import plaid.parser.Token;
@@ -32,7 +33,11 @@ public class Application extends Expression {
 	public Application(Token t, Expression function, List<Expression> metaArgs, Expression argument) {
 		super(t);
 		this.f = function;
-		this.metaArgs = metaArgs;
+		if ( metaArgs == null ) {
+			this.metaArgs = new ArrayList<Expression>();
+		} else {
+			this.metaArgs = metaArgs;			
+		}
 		this.argument = argument;
 	}
 	
@@ -46,5 +51,14 @@ public class Application extends Expression {
 	
 	public List<Expression> getMetaArguments() {
 		return metaArgs;
+	}
+	
+	@Override 
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		if (f != null) sb.append(f.toString());
+		if (metaArgs.size() > 0) sb.append("<" + exprListToString(metaArgs) + ">");
+		if (argument != null ) sb.append(argument.toString());
+		return sb.toString();
 	}
 }
