@@ -105,6 +105,50 @@ function m_membersHierarchy(md1,hierarchy){
    return memberList;
 }
 
+/*returns an object with true in field 'unique' if the tree passed in reflects a state that has unique members, false otherwise; if unique members is false, the member that caused the conflict is in field 'member'*/
+function m_checkUniqueMembers(md1,hierarchy,memberList){
+   if (md1[0][2]==="with"){
+      hierarchy=[md1[0][0]];
+   }
+   else{
+      hierarchy.push(md1[0][0]);
+   }
+   var members = md1[0][1];
+   var length=members.length;
+   for (var i=0;i<length;i++) {
+      //check if this member is already in the memberList
+      var memberListLength=memberList.length;
+      for (var j=0; j<memberListLength; j++){
+         if(memberList[j]['memberName']===members[i]){
+               if (has(hierarchy,memberList[j]['tag'])===false) {
+                  var itemToReturn={
+                     unique: false,
+                     member: memberList[j]['memberName']
+                  }
+                  return itemToReturn;
+               }
+         }
+      }
+      var itemToAdd={
+         memberName:members[i],
+         tag:md1[0][0]
+      }
+      memberList.push(itemToAdd);
+   }
+   var length=md1.length;
+   for (var i=1;i<length;i++){
+      var unique = m_checkUniqueMembers(md1[i],hierarchy, memberList);
+      if (unique['unique']===false) {
+         return unique;
+      }
+   }
+   var itemToReturn={
+      unique: true,
+      member: ""
+   }
+   return itemToReturn;
+}
+
 /*returns an array of all the tags of the state that is reflected in the current metadata*/
 function m_tags(md1){
    var tagList=[];
@@ -226,6 +270,12 @@ function m_stateChange(obj1,obj2){
       withMembers2:[],
    }
 
+   //ensure that the state (to which the object is changing) has unique members
+   var unique = m_checkUniqueMembers(md2,[],[]);
+   if (unique['unique']===false) {
+      throw "Error: State change violates unique members by attempting to change to a state that contains "+unique['member']+" twice.";
+   }
+
    var returnItem=stateChangeFindParent(md1,md2,returnItem,[]);
    if (returnItem.matched===false){
       //target dimension does not yet exist in the object to be changed
@@ -300,7 +350,8 @@ function m_stateChange(obj1,obj2){
 
 /*adds memberName as a member to obj, assigns memberName's value to be memberValue; this method handles the case where a member and not a state is passed in*/
 m_stateChangeMember = function(obj, memberName,memberValue) {
-   //check unique tags
+   //check unique members
+   //because this member is being added at the top level, there is no way for it to share a hierarchy with any other member, and thus this must be the only member in the object with its name
    var members1=obj.members();
    var members1Length=members1.length;
    for (var j=0;j<members1Length;j++){
@@ -317,7 +368,8 @@ m_stateChangeMember = function(obj, memberName,memberValue) {
 m_stateChangeMemberNoValue = function(obj, memberName) {
    var md1=obj.tree;
 
-   //check unique tags
+   //check unique members
+   //because this member is being added at the top level, there is no way for it to share a hierarchy with any other member, and thus this must be the only member in the object with its name
    var members1=obj.members();
    var members1Length=members1.length;
    for (var j=0;j<members1Length;j++){
@@ -394,6 +446,22 @@ PlaidObject.prototype.stateChangeMemberNoValue=function(member) {
 
 /*Transitions the object on which it is called into exactly the state of the state that is passed in; removes all current members and tags, adds all members and tags of state*/
 PlaidObject.prototype.replace=function(state) {
+
+   //ensure that the state (to which the object is changing) has unique members
+   var unique = m_checkUniqueMembers(state.tree,[],[]);
+   if (unique['unique']===false) {
+      throw "Error: Replace operation violates unique members by attempting to change to a state that contains "+unique['member']+" twice.";
+   }
+
+   //check unique tags
+   var tags=state.tags();
+   var tagsLength=tags.length;
+   for (var j=0;j<tagsLength;j++){
+      if(count(tags,tags[j])>1){
+         throw "Error: Replace operation violates unique tags by containing tag "+tags[j]+" twice";
+      }
+   }
+
    var add=state.members();
    var remove=this.members();
    var addLength=add.length;
