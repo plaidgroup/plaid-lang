@@ -32,7 +32,6 @@ public class ParserCore {
 		//System.out.println("parsing...");
 		try {
 			PlaidCoreParser pp = new PlaidCoreParser(toParse);
-			pp.init();
 			
 			return pp.DeclsStart();
 			

@@ -12,12 +12,6 @@ Object.prototype.clone = function() {
   } return obj;
 }
 
-/*Constructor
-function PlaidState(t){
-   this.tree=t;
-}
-*/
-
 /*Constructor*/
 function PlaidState(){
    this.tree=[["",[],"with"]];
@@ -76,6 +70,50 @@ function s_members(md1){
       memberList=memberList.concat(s_members(md1[i]));
    }
    return memberList;
+}
+
+/*returns an object with true in field 'unique' if the tree passed in reflects a state that has unique members, false otherwise; if unique members is false, the member that caused the conflict is in field 'member'*/
+function s_checkUniqueMembers(md1,hierarchy,memberList){
+   if (md1[0][2]==="with"){
+      hierarchy=[md1[0][0]];
+   }
+   else{
+      hierarchy.push(md1[0][0]);
+   }
+   var members = md1[0][1];
+   var length=members.length;
+   for (var i=0;i<length;i++) {
+      //check if this member is already in the memberList
+      var memberListLength=memberList.length;
+      for (var j=0; j<memberListLength; j++){
+         if(memberList[j]['memberName']===members[i]){
+               if (has(hierarchy,memberList[j]['tag'])===false) {
+                  var itemToReturn={
+                     unique: false,
+                     member: memberList[j]['memberName']
+                  }
+                  return itemToReturn;
+               }
+         }
+      }
+      var itemToAdd={
+         memberName:members[i],
+         tag:md1[0][0]
+      }
+      memberList.push(itemToAdd);
+   }
+   var length=md1.length;
+   for (var i=1;i<length;i++){
+      var unique = m_checkUniqueMembers(md1[i],hierarchy, memberList);
+      if (unique['unique']===false) {
+         return unique;
+      }
+   }
+   var itemToReturn={
+      unique: true,
+      member: ""
+   }
+   return itemToReturn;
 }
 
 /*returns an array of all the fields and methods of the object on which the function is called*/
