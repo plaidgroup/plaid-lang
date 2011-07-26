@@ -2,9 +2,10 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public abstract class Type extends ASTNode{
+public class UnitType extends Type {
 
-	public Type(Token t) {
+	public UnitType(Token t) {
 		super(t);
 	}
+
 }
