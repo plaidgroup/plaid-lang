@@ -5,8 +5,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
-import java.util.Collections;
-import java.util.List;
 
 import org.junit.Test;
 
@@ -18,8 +16,10 @@ import plaid.parser.ast.Dereference;
 import plaid.parser.ast.DestructiveDereference;
 import plaid.parser.ast.DoubleLiteral;
 import plaid.parser.ast.Expression;
+import plaid.parser.ast.Freeze;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.IntLiteral;
+import plaid.parser.ast.StatePrim;
 import plaid.parser.ast.StringLiteral;
 
 public class ParseExpressionTest {
@@ -188,7 +188,18 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.SimpleExpr2();
 		assertTrue(e instanceof Application );
-		System.out.println(e);
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	/************************************************************
+	 **                      StatePrim                         **
+	 ************************************************************/
+	@Test
+	public void parseFreeze() throws ParseException, UnsupportedEncodingException {
+		String code = "freeze x;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		StatePrim e = pp.StatePrim();
+		assertTrue(e instanceof Freeze );
 		assertTrue( code.equals(e.toString()));
 	}
 }
