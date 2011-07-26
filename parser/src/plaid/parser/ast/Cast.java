@@ -6,7 +6,7 @@ public class Cast extends Expression {
 	private final Type type;
 	private final Expression exp;
 	
-	public Cast(Token t, Type type, Expression exp) {
+	public Cast(Token t, Expression exp, Type type) {
 		super(t);
 		this.type = type;
 		this.exp = exp;

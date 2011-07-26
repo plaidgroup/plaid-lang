@@ -7,9 +7,10 @@ import plaid.parser.Token;
 public class ConcreteFieldDecl extends FieldDecl {
 	private final Expression expr;
 
-	public ConcreteFieldDecl(Token t, List<Modifier> modifiers, Specifier specifier,
+	public ConcreteFieldDecl(Token t, List<Modifier> modifiers, 
+			Specifier specifier, Type type,
 			Identifier name,  Expression expr) {
-		super(t, modifiers, specifier, name);
+		super(t, modifiers, specifier, type, name);
 		this.expr = expr;
 	}
 

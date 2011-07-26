@@ -19,55 +19,24 @@
  
 package plaid.parser.ast;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
 import plaid.parser.Token;
 
 public class Application extends Expression {
 	private final Expression f;
-	private final List<Expression> arguments = new ArrayList<Expression>();
-	private final boolean hasArgs;
+	private final Expression argument;
 
 
 	public Application(Token t, Expression function, Expression argument) {
 		super(t);
 		this.f = function;
-		if (argument instanceof UnitLiteral) {
-			hasArgs = false;
-		} else {
-			this.arguments.add(argument);
-			hasArgs = true;
-		}
+		this.argument = argument;
 	}
 	
 	public Expression getFunction() {
 		return f;
 	}
 
-	public List<Expression> getArguments() {
-		return Collections.unmodifiableList(arguments);
-	}
-	
-	public boolean hasArgs() {
-		return this.hasArgs;
-	}
-
-	@Override
-	public boolean equivalent(ASTNode other) {
-		if (other instanceof Application) {
-			Application otherApp = (Application) other;
-			for (int i = 0; i < this.arguments.size(); i++) {
-				if(!arguments.get(i).equivalent(otherApp.arguments.get(i))) {
-					return false;
-				}
-			}
-			return 
-				this.f.equivalent(otherApp.f) &&
-				this.hasArgs == otherApp.hasArgs;
-		} else {
-			return false;
-		}
+	public Expression getArgument() {
+		return argument;
 	}
 }
