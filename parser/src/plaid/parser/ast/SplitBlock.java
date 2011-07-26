@@ -7,9 +7,9 @@ import plaid.parser.Token;
 public class SplitBlock extends Expression {
 
 	private final List<Expression> datagroups;
-	private final List<Expression> body;
+	private final List<Stmt> body;
 	
-	public SplitBlock(Token token, List<Expression> datagroups, List<Expression> body) {
+	public SplitBlock(Token token, List<Expression> datagroups, List<Stmt> body) {
 		super(token);
 		this.datagroups = datagroups;
 		this.body = body;
@@ -22,7 +22,7 @@ public class SplitBlock extends Expression {
 		return datagroups;
 	}
 
-	public List<Expression> getBody() {
+	public List<Stmt> getBody() {
 		return body;
 	}
 }
