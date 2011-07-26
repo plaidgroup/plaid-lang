@@ -7,7 +7,7 @@ public class Modifier extends ASTNode {
 
 	private final ModifierKind modiferKind;
 	
-	protected Modifier(Token t, ModifierKind modiferKind) {
+	public Modifier(Token t, ModifierKind modiferKind) {
 		super(t);
 		this.modiferKind = modiferKind;
 	}

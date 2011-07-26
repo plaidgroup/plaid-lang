@@ -19,6 +19,8 @@
  
 package plaid.parser.ast;
 
+import java.util.List;
+
 import plaid.parser.Token;
 
 public final class Lambda extends Expression {
@@ -27,7 +29,7 @@ public final class Lambda extends Expression {
 	private final Expression body;
 	private final LambdaType type;
 	
-	public Lambda(Token token, Expression body, LambdaType type) {
+	public Lambda(Token token, List<MetaArgSpec> metaArgsSpec, Expression body, LambdaType type) {
 		super(token);
 		
 		this.body = body;

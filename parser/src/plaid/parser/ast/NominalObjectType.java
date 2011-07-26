@@ -1,6 +1,8 @@
 package plaid.parser.ast;
 
 
+import java.util.List;
+
 import plaid.parser.Token;
 
 public class NominalObjectType extends Type {
@@ -10,11 +12,13 @@ public class NominalObjectType extends Type {
 	 */
 	private final Permission permission;
 	private final QualifiedIdentifier state;
+	private final List<MetaType> metaTypes;
 	
-	public NominalObjectType(Token t, Permission permission, QualifiedIdentifier state) {
+	public NominalObjectType(Token t, Permission permission, QualifiedIdentifier state, List<MetaType> metaTypes) {
 		super(t);
 		this.permission=permission;
 		this.state = state;
+		this.metaTypes = metaTypes;
 	}
 	
 	public Permission getPermission() {
@@ -23,5 +27,9 @@ public class NominalObjectType extends Type {
 
 	public QualifiedIdentifier getState() {
 		return state;
+	}
+	
+	public List<MetaType> getMetaTypes() {
+		return metaTypes;
 	}
 }

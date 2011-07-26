@@ -7,7 +7,7 @@ import plaid.parser.Token;
 public class QualifiedIdentifier extends ASTNode {
 	private final List<Identifier> ids;
 
-	QualifiedIdentifier(Token t, List<Identifier> ids) {
+	public QualifiedIdentifier(Token t, List<Identifier> ids) {
 		super(t);
 		this.ids = ids;
 	}
