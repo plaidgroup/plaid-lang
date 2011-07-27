@@ -14,5 +14,8 @@ public final class PatternCase extends Case{
 		return pattern;
 	}
 	
-	
+	@Override
+	public String toString() {
+		return "case " + pattern.toString() + getBody();
+	}
 }

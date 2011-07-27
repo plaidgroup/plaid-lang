@@ -41,4 +41,17 @@ public class Match extends Expression {
 	public List<Case> getCaseList() {
 		return caseList;
 	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("match(" + e.toString()+"){");
+		for(Case c : caseList ) {
+			sb.append(c.toString());
+		}
+		sb.append("}");
+		
+		return sb.toString();
+	}
 }
