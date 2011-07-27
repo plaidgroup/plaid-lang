@@ -28,6 +28,7 @@ import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.MethodCall;
 import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
+import plaid.parser.ast.StateChange;
 import plaid.parser.ast.StateOp;
 import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
@@ -508,7 +509,15 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Expr1();
 		assertTrue(e instanceof Assignment );
-		System.out.println(e);
+		assertTrue(e.toString().equals("this.x=1"));		
+	}
+
+	@Test
+	public void parseStateChange() throws ParseException, UnsupportedEncodingException {
+		String code = "x <- Foo;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr1();
+		assertTrue(e instanceof StateChange );
 		assertTrue(e.toString().equals("this.x=1"));		
 	}
 	
@@ -521,7 +530,6 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		StateOp e = pp.StateOp();
 		assertTrue(e instanceof StateOpRemove );
-		assertTrue( code.equals(e.toString()));
 	}
 	
 	
