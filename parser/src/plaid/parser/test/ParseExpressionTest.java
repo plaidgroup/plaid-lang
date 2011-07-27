@@ -242,7 +242,7 @@ public class ParseExpressionTest {
 	public void parseUnaryMinus() throws ParseException, UnsupportedEncodingException {
 		String code = "-x";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.UnaryExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.-()"));		
 	}
@@ -251,7 +251,7 @@ public class ParseExpressionTest {
 	public void parseUnaryPlus() throws ParseException, UnsupportedEncodingException {
 		String code = "+x";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.UnaryExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.+()"));		
 	}
@@ -260,7 +260,7 @@ public class ParseExpressionTest {
 	public void parseUnaryNot() throws ParseException, UnsupportedEncodingException {
 		String code = "!x";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.UnaryExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.!()"));		
 	}
@@ -269,7 +269,7 @@ public class ParseExpressionTest {
 	public void parseUnaryTilde() throws ParseException, UnsupportedEncodingException {
 		String code = "~x";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.UnaryExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.~()"));		
 	}
@@ -281,7 +281,7 @@ public class ParseExpressionTest {
 	public void parseMultiply() throws ParseException, UnsupportedEncodingException {
 		String code = "x * y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.MultiplicativeExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.*(y)"));		
 	}
@@ -290,7 +290,7 @@ public class ParseExpressionTest {
 	public void parseDivide() throws ParseException, UnsupportedEncodingException {
 		String code = "x / y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.MultiplicativeExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x./(y)"));		
 	}
@@ -299,7 +299,7 @@ public class ParseExpressionTest {
 	public void parseModulo() throws ParseException, UnsupportedEncodingException {
 		String code = "x % y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.MultiplicativeExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.%(y)"));		
 	}	
@@ -312,7 +312,7 @@ public class ParseExpressionTest {
 	public void parseAdd() throws ParseException, UnsupportedEncodingException {
 		String code = "x + y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.AdditiveExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.+(y)"));		
 	}	
@@ -321,7 +321,7 @@ public class ParseExpressionTest {
 	public void parseSubstract() throws ParseException, UnsupportedEncodingException {
 		String code = "x - y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.AdditiveExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.-(y)"));		
 	}
@@ -333,7 +333,7 @@ public class ParseExpressionTest {
 	public void parseLeftShift() throws ParseException, UnsupportedEncodingException {
 		String code = "x << y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.ShiftExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.<<(y)"));		
 	}
@@ -342,7 +342,7 @@ public class ParseExpressionTest {
 	public void parseRightShift() throws ParseException, UnsupportedEncodingException {
 		String code = "x >> y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.ShiftExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.>>(y)"));		
 	}
@@ -351,9 +351,48 @@ public class ParseExpressionTest {
 	public void parseRightRightShift() throws ParseException, UnsupportedEncodingException {
 		String code = "x >>> y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.InfixExpr();
+		Expression e = pp.ShiftExpression();
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.>>>(y)"));		
+	}
+	
+	/************************************************************
+	 **                RelationalExpression                    **
+	 ************************************************************/
+	@Test
+	public void parseSmaller() throws ParseException, UnsupportedEncodingException {
+		String code = "x < y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.RelationalExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.<(y)"));		
+	}
+	
+	@Test
+	public void parseSmallerEquals() throws ParseException, UnsupportedEncodingException {
+		String code = "x <= y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.RelationalExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.<=(y)"));		
+	}
+
+	@Test
+	public void parseBigger() throws ParseException, UnsupportedEncodingException {
+		String code = "x > y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.RelationalExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.>(y)"));		
+	}
+	
+	@Test
+	public void parseBiggerEquals() throws ParseException, UnsupportedEncodingException {
+		String code = "x >= y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.RelationalExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.>=(y)"));		
 	}
 	
 	/************************************************************
