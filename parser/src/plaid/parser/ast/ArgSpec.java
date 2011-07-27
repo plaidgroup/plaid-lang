@@ -10,7 +10,12 @@ public class ArgSpec extends ASTNode {
 	public ArgSpec(Token t, Type preType, Type postType) {
 		super(t);
 		this.preType = preType;
-		this.postType = postType;
+		if (postType == null) {
+			this.postType = preType;
+		} 
+		else {
+			this.postType = postType;
+		}
 	}
 	
 	public Type getPreType() {

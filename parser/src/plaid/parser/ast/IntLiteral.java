@@ -23,14 +23,19 @@ import plaid.parser.Token;
 
 public class IntLiteral extends Expression {
 
-	private final int integer;
+	private final int value;
 
-	public IntLiteral(Token t, int integer) {
+	public IntLiteral(Token t, int value) {
 		super(t);
-		this.integer = integer;
+		this.value = value;
 	}
 	
 	public int getValue() {
-		return integer;
+		return value;
+	}
+
+	@Override
+	public String toString() {
+		return Integer.toString(value);		
 	}
 }

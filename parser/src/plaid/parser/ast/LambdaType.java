@@ -1,6 +1,5 @@
 package plaid.parser.ast;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -8,34 +7,31 @@ import plaid.parser.Token;
 
 public class LambdaType extends Type {
 	
-	private final List<ArgSpec> argTypes;
-	private final Map<Identifier,ArgSpec> environmentTypes;
 	private final List<MetaType> metaTypes;
+	private final List<ArgSpec> argTypes;
+	private final Map<Identifier,ArgSpec> env;
 	private final Type returnType;
-
 	
-	public LambdaType(Token t, List<ArgSpec> argTypes, Map<Identifier,ArgSpec> sideEffects, List<MetaType> metaTypes, Type returnType) {
+	public LambdaType(Token t, List<MetaType> metaTypes,
+			List<ArgSpec> argTypes, Map<Identifier, ArgSpec> env,
+			Type returnType) {
 		super(t);
-		this.argTypes = argTypes;
-		this.environmentTypes = sideEffects;
-		this.returnType = returnType;
 		this.metaTypes = metaTypes;
+		this.argTypes = argTypes;
+		this.env = env;
+		this.returnType = returnType;
 	}
 	
-	public List<ArgSpec> getArgTypes() {
-		return Collections.unmodifiableList(argTypes);
-	}
-
-	public Map<Identifier,ArgSpec> getEnvironmentTypes() {
-		return environmentTypes;
-	}
-
-	public Type getReturnType() {
-		return returnType;
-	}
-
 	public List<MetaType> getMetaTypes() {
 		return metaTypes;
 	}
-	
+	public List<ArgSpec> getArgTypes() {
+		return argTypes;
+	}
+	public Map<Identifier, ArgSpec> getEnv() {
+		return env;
+	}
+	public Type getReturnType() {
+		return returnType;
+	}
 }

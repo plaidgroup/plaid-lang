@@ -21,8 +21,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Identifier extends Expression{
-	public static final Identifier DEFAULTPARAMID = new Identifier(DEFAULT_TOKEN, "_");
+public class Identifier extends Expression {
 	
 	private final String name;
 	
@@ -32,6 +31,11 @@ public class Identifier extends Expression{
 	}
 	
 	public String getName() {
+		return name;
+	}
+
+	@Override
+	public String toString() {
 		return name;
 	}
 }

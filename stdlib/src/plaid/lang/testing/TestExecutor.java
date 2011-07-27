@@ -98,6 +98,7 @@ public class TestExecutor {
 	
 	protected static void findTestFactories(final File root, File file, Collection<TestCase> tests) throws IOException {
 		if ( file.isDirectory() ) {
+			System.out.println("checking directory " + file.getCanonicalPath());
 			for ( File f : file.listFiles() ) {
 				findTestFactories(root, f, tests);
 			}
@@ -111,6 +112,7 @@ public class TestExecutor {
 	}
 
 	protected static Collection<TestCase> getTestsFromFactory(String klazzName) {
+		System.out.println("checking " + klazzName + " for tests");
 		try {
 			Class<?> klazz = cl.loadClass(klazzName);
 			if ( klazz != null && klazz.getAnnotation(RepresentsState.class) != null ) {
@@ -120,12 +122,20 @@ public class TestExecutor {
 					PlaidTag fieldTag = (PlaidTag) klazz.getField(tagField).get(null);
 					for ( PlaidTag tag : fieldTag.getHierarchy()) {
 						if ( tag.getPath().equals("plaid.lang.testing.TestFactory")) {
-							//System.out.println("found test factory : " + klazzName);
+							System.out.println("\tfound test factory : " + klazzName);
 							return loadTestCases(klazzName);
 						}
 					}
+					System.out.println("\tTestFactory is not in state hierarchy");
+				} else {
+					System.out.println("\tNo $Tag$plaid field, or is not static");
 				}
+			} else {
+				System.out.println("\tCould not load class or no RepresentsState annotation");
 			}
+		} catch (NoSuchFieldException e) {
+			// no tag?
+			System.out.println("no $Tag$plaid for class " + klazzName);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -154,13 +164,20 @@ public class TestExecutor {
 						if ( poName instanceof PlaidJavaObject ) {
 							tests.add(new TestCase(((PlaidJavaObject)poName).getJavaObject().toString(), po));
 							//System.out.println("found TestCase : " + ((PlaidJavaObject)poName).getJavaObject().toString());
+						} else {
+							System.out.println("\tCould not convert object in test list into a TestCase, it was a " + poName.getClass().getName());
 						}
 					}
+				} else {
+					System.out.println("\tCould not convert result of calling createTests to a list");
 				}
+			} else {
+				System.out.println(klazzName + " could not be loaded as a plaid type");
 			}
 		} catch (Exception ex) {
 			System.out.println(ex);
 		}
+		System.out.println("\t found " + tests.size() + " tests");
 		return tests;
 	}
 	

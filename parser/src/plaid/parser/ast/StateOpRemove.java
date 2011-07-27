@@ -13,5 +13,9 @@ public class StateOpRemove extends StateOp {
 	public Identifier getName() {
 		return name;
 	}
-	
+
+	@Override
+	public String toString() {
+		return "remove " + name + ";";
+	}
 }

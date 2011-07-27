@@ -40,4 +40,12 @@ public class StateChange extends Expression {
 	public State getState() {
 		return st;
 	}
+
+	
+	@Override
+	public String toString() {
+		return e.toString()+"<-"+st.toString();
+	}
+
+	
 }
