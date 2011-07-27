@@ -24,6 +24,14 @@ public class StateRef extends StatePrim {
 	}
 	
 	
-	
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(state.toString());
+		for(DeclOrStateOp dop : specializations ) {
+			sb.append(dop);
+		}
+		return sb.toString();
+	}
 	
 }

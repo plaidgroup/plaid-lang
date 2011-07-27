@@ -33,4 +33,9 @@ public class NewInstance extends Expression{
 	public State getState() {
 		return st;
 	}
+
+	@Override
+	public String toString() {
+		return "new " + st.toString();
+	}
 }
