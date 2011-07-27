@@ -20,81 +20,45 @@
 package plaid.parser.ast;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import plaid.parser.Token;
 
 public class Application extends Expression {
 	private final Expression f;
-	private final List<Expression> arguments = new ArrayList<Expression>();
-	private final boolean hasArgs;
-	private final List<MetaArgument> metaArgs;
+	private final Expression argument;
+	private final List<Expression> metaArgs; 
 
 
-	public Application(Token t, Expression function, Expression argument) {
+	public Application(Token t, Expression function, List<Expression> metaArgs, Expression argument) {
 		super(t);
 		this.f = function;
-		if (argument instanceof UnitLiteral) {
-			hasArgs = false;
+		if ( metaArgs == null ) {
+			this.metaArgs = new ArrayList<Expression>();
 		} else {
-			this.arguments.add(argument);
-			hasArgs = true;
+			this.metaArgs = metaArgs;			
 		}
-		this.metaArgs = new ArrayList<MetaArgument>();
-	}
-	
-	public Application(Token t, Expression function, List<MetaArgument>  metaArgs, Expression argument) {
-		super(t);
-		this.f = function;
-		if (argument instanceof UnitLiteral) {
-			hasArgs = false;
-		} else {
-			this.arguments.add(argument);
-			hasArgs = true;
-		}
-		this.metaArgs = metaArgs;
-	}
-	
-	public Application(Token t, Expression function, List<Expression> arguments) {
-		super(t);
-		this.f = function;
-		this.arguments.addAll(arguments);
-		if (this.arguments.size() == 1 && this.arguments.get(0) instanceof UnitLiteral) {
-			this.hasArgs = false;
-			this.arguments.clear();
-		} else {
-			this.hasArgs = true;
-		}
-		this.metaArgs = new ArrayList<MetaArgument>();
-	}
-	
-	public Application(Token t, Expression function, List<MetaArgument> metaArgs, List<Expression> arguments) {
-		super(t);
-		this.f = function;
-		this.arguments.addAll(arguments);
-		if (this.arguments.size() == 1 && this.arguments.get(0) instanceof UnitLiteral) {
-			this.hasArgs = false;
-			this.arguments.clear();
-		} else {
-			this.hasArgs = true;
-		}
-		this.metaArgs = metaArgs;
+		this.argument = argument;
 	}
 	
 	public Expression getFunction() {
 		return f;
 	}
 
-	public List<Expression> getArguments() {
-		return Collections.unmodifiableList(arguments);
+	public Expression getArgument() {
+		return argument;
 	}
 	
-	public boolean hasArgs() {
-		return this.hasArgs;
-	}
-	
-	List<MetaArgument> getMetaArgs() {
+	public List<Expression> getMetaArguments() {
 		return metaArgs;
+	}
+	
+	@Override 
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		if (f != null) sb.append(f.toString());
+		if (metaArgs.size() > 0) sb.append("<" + exprListToString(metaArgs) + ">");
+		if (argument != null ) sb.append(argument.toString());
+		return sb.toString();
 	}
 }

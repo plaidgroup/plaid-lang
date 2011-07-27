@@ -15,4 +15,9 @@ public class BlockExpr extends Expression {
 	public List<Stmt> getStatements() {
 		return statements;
 	}
+
+	@Override
+	public String toString() {
+		return "{" + stmtListToString(statements) + "}";
+	}
 }

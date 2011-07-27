@@ -9,7 +9,7 @@ public class Permission extends ASTNode {
 	private final PermissionKind permissionKind;
 	private final Expression datagroup;
 	
-	private Permission(Token token, PermissionKind permissionKind, Expression datagroup) {
+	public Permission(Token token, PermissionKind permissionKind, Expression datagroup) {
 		super(token);
 		this.permissionKind = permissionKind;
 		this.datagroup = datagroup;

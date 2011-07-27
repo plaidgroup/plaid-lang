@@ -1,5 +1,11 @@
 package plaid.parser.ast;
 
-public interface MetaType extends TypeDecl {
+import plaid.parser.Token;
+
+public class MetaType extends Type {
+
+	public MetaType(Token token) {
+		super(token);
+	}
 
 }

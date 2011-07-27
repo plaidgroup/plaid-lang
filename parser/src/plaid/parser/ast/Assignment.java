@@ -52,4 +52,13 @@ public class Assignment extends Expression {
 	public Expression getValue() {
 		return value;
 	}
+
+	@Override
+	public String toString() {
+		if ( target == null ) {
+			return field.toString() + "=" + value.toString();			
+		} else {
+			return target.toString() + "." + field.toString() + "=" + value.toString();
+		}
+	}
 }

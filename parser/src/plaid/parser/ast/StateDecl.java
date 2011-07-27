@@ -19,71 +19,58 @@
  
 package plaid.parser.ast;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import plaid.parser.Token;
 
 public class StateDecl extends Decl {
 	
-	private final State stateDef;
+	private final State stateBinding;
 	private final QualifiedIdentifier caseOf;
 	private final boolean isCaseOf;
-	private final boolean typedef; // typedefs do not have tags associated with them
-	private final Permission defaultPerm;
-	private final List<MetaParameter> metaParams;
-	private final List<MetaArgument> metaCaseOfArgs;
+	private final List<MetaArgSpec> metaArgsSpec;
+	private final List<Expression> metaCaseOfArgs;
 	
-	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, Permission defaultPerm, boolean typedef) {
-		this(t, modifiers, name, metaParams, metaCaseOfArgs, stateDef, null, defaultPerm, typedef);
-	}
-	
-	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, List<MetaParameter> metaParams, List<MetaArgument> metaCaseOfArgs, State stateDef, QualifiedIdentifier caseOf, Permission defaultPerm, boolean typedef) {
+	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, 
+			List<MetaArgSpec> metaArgsSpec, QualifiedIdentifier caseOf, 
+			List<Expression> metaCaseOfArgs,
+			State stateBinding) {
 		super(t, modifiers, name);
-		this.metaParams = metaParams;
-		this.stateDef = stateDef;
+		this.metaArgsSpec = metaArgsSpec;
 		if (caseOf == null) {
 			this.caseOf = null;
-			this.metaCaseOfArgs = new ArrayList<MetaArgument>();
 			isCaseOf = false;
 		} else {
 			this.caseOf = caseOf;
-			this.metaCaseOfArgs = metaCaseOfArgs;
 			isCaseOf = true;
 		}
-		this.defaultPerm = defaultPerm;
-		this.typedef = typedef;
+		this.metaCaseOfArgs = metaCaseOfArgs;
+		this.stateBinding = stateBinding;
 	}
 
-	public Identifier getID() {
-		return name;
+
+	public State getStateBinding() {
+		return stateBinding;
 	}
 
-	public State getStateDef() {
-		return stateDef;
-	}
-	
+
 	public QualifiedIdentifier getCaseOf() {
 		return caseOf;
 	}
 
-	public boolean getIsCaseOf() {
+
+	public boolean isCaseOf() {
 		return isCaseOf;
 	}
-	
-	public boolean isTypedef() {
-		return this.typedef;
+
+
+	public List<MetaArgSpec> getMetaArgsSpec() {
+		return metaArgsSpec;
 	}
 
-	public List<MetaParameter> getMetaParameters() {
-		return metaParams;
-	}
-	
-	public List<MetaArgument> getMetaCaseOfArguments() {
+
+	public List<Expression> getMetaCaseOfArgs() {
 		return metaCaseOfArgs;
 	}
-
-	public Permission getDefaultPerm() {
-		return defaultPerm;
-	}
+	
 }

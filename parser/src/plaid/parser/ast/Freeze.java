@@ -15,4 +15,9 @@ public class Freeze extends StatePrim {
 	public Expression getFrozenExpr() {
 		return frozenExpr;
 	}	
+	
+	@Override
+	public String toString() {
+		return "freeze " + frozenExpr.toString() + ";"; 
+	}
 }

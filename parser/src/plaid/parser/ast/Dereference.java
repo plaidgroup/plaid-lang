@@ -38,4 +38,13 @@ public class Dereference extends Expression {
 	public Identifier getRight() {
 		return right;
 	}
+	
+	@Override
+	public String toString() {
+		String result = "";
+		if ( left != null ) result += left.toString();
+		result += ".";
+		if ( right != null ) result += right.toString();
+		return result;
+	}
 }

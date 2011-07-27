@@ -20,57 +20,37 @@
 package plaid.parser.ast;
 
 
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import plaid.parser.Token;
 
-public final class MethodDecl extends Decl {
-	private final Expression body;
-	private final List<Identifier> arguments;
-	private final boolean hasArgs;
-	private final boolean abstractMethod;
-	private final Type methodType;
-	private final boolean overrides;
+public abstract class MethodDecl extends Decl {
+	private final Type type;
+	private final List<MetaArgSpec> metaArgsSpec;
+	private final List<Arg> arguments;
+	private final Map<Identifier, ArgSpec> env;
 	
-	public boolean isOverrides() {
-		return overrides;
+	public MethodDecl(Token t, List<Modifier> modifiers, 
+			Type type, Identifier name,
+			List<MetaArgSpec> metaArgsSpec, List<Arg> arguments,
+			Map<Identifier, ArgSpec> env) {
+		super(t, modifiers, name);
+		this.type = type;
+		this.metaArgsSpec = metaArgsSpec;
+		this.arguments = arguments;
+		this.env = env;
 	}
-
-	public MethodDecl(Token token, List<Modifier> modifiers, Identifier name, Expression body, Identifier arg, boolean abstractMethod, Type methodType, boolean overrides) {
-		this(token, modifiers, name, body, Collections.singletonList(arg), abstractMethod, methodType, overrides);
+	public Type getType() {
+		return type;
 	}
-	
-	public MethodDecl(Token token, List<Modifier> modifiers, Identifier name, Expression body, List<Identifier> args, boolean abstractMethod, Type methodType, boolean overrides) {
-		super(token, modifiers, name);
-		this.body = body;
-		this.arguments = args;
-		this.hasArgs = this.arguments.size() > 0;
-		if (methodType == null)
-			throw new RuntimeException("Method type is not allowed to be null.");
-		this.methodType = methodType;
-		this.abstractMethod = abstractMethod;
-		this.overrides = overrides;
+	public List<MetaArgSpec> getMetaArgsSpec() {
+		return metaArgsSpec;
 	}
-
-	public boolean isAbstractMethod() {
-		return abstractMethod;
+	public List<Arg> getArguments() {
+		return arguments;
 	}
-	
-	public Type getMethodType() {
-		return this.methodType;
+	public Map<Identifier, ArgSpec> getEnv() {
+		return env;
 	}
-	
-	public boolean hasArg() {
-		return hasArgs;
-	}
-
-	public List<Identifier> getArguments() {
-		return Collections.unmodifiableList(this.arguments);
-	}
-
-	public Expression getBody() {
-		return body;
-	}
-
 }
