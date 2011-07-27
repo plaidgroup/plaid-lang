@@ -19,16 +19,4 @@ public class Cast extends Expression {
 	public Expression getExp() {
 		return this.exp;
 	}
-	
-	@Override
-	public boolean equivalent(ASTNode other) {
-		if (other instanceof Cast) {
-			Cast otherCast = (Cast) other;
-			return 
-				this.type.equivalent(otherCast.type) &&
-				this.exp.equivalent(otherCast.type);
-		} else {
-			return false;
-		}
-	}
 }

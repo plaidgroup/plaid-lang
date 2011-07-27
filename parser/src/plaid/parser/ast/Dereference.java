@@ -40,18 +40,6 @@ public class Dereference extends Expression {
 	}
 	
 	@Override
-	public boolean equivalent(ASTNode other) {
-		if (other instanceof Dereference) {
-			Dereference otherDeref = (Dereference) other;
-			return 
-				this.left.equivalent(otherDeref.left) &&
-				this.right.equivalent(otherDeref.right);
-		} else {
-			return false;
-		}
-	}
-	
-	@Override
 	public String toString() {
 		String result = "";
 		if ( left != null ) result += left.toString();

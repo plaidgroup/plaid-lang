@@ -6,7 +6,6 @@ public class MetaType extends Type {
 
 	public MetaType(Token token) {
 		super(token);
-		// TODO Auto-generated constructor stub
 	}
 
 }

@@ -21,18 +21,6 @@ public class AtomicBlock extends Expression {
 		public Expression getBody() {
 			return body;
 		}
-		
-		@Override
-		public boolean equivalent(ASTNode other) {
-			if (other instanceof AtomicBlock) {
-				AtomicBlock otherAtomic = (AtomicBlock) other;
-				return 
-					this.body.equivalent(otherAtomic.body);
-					
-			} else {
-				return false;
-			}
-		}
 
 }
         

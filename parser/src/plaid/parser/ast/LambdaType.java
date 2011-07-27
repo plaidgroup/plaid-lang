@@ -1,6 +1,5 @@
 package plaid.parser.ast;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
