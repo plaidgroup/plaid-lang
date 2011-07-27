@@ -1,0 +1,136 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package coreExamples.overrideTests;
+
+
+/* Protocol hierarchy of depth 1 */
+
+state ToOverride {
+ 	val x = 5;
+ 	method m() { this.x }
+}
+
+state Overriding case of ToOverride {
+ 	override val x = 7;
+ 	override method m() { this.x - 3 }
+ 	method transition() { this <- AnotherOverride }
+}
+
+state AnotherOverride case of ToOverride {	
+	override method m() { this.x - 2 }
+}
+
+method testBasicOverriding() {
+	val toO = new ToOverride;
+ 	printLine("This should be '5': ");
+ 	printLine(toO.m());
+ 	
+ 	val o = new Overriding;
+ 	printLine("This should be '4': ");
+ 	printLine(o.m());
+ 	
+ 	o.transition();
+ 	printLine("This should be '3' but is actually an exception - rewrite tests: ");
+ 	printLine(o.m());
+}
+
+/* two level protocol test */
+
+state L0 {
+	val a = 1;
+	method m() { this.a }
+}
+
+state L1C1 case of L0 {
+	val b = 2;
+	method n() { this.b }
+	method toL1C2() { this <- L1C2 }
+}
+
+state L1C2 case of L0 {
+	override method m() { this.a - 1 }  // 0
+}
+
+state L2C1 case of L1C1 {
+	override val a = 99;
+	override method n() { this.b + 98 }  // 100
+	override method toL1C2() { this <- L2C2 }
+}
+
+state L2C2 case of L1C1 {
+	val c = 1;
+	method o() { this.b - this.a - this.c } // 0
+}
+
+method testTwoLevelProtocol() {
+	val test = new L0;
+	// a = 1 (defined in L0)
+	// m() { a } (defined in L0)
+	print("This should be 1: ");
+	printLine(test.m());
+	
+	test <- L1C1;
+	// a = 1 (defined in L0)
+	// m() { a } (defined in L0)
+	// b = 2 (defined in L1C1)
+	// n() { b } (defined in L1C1)
+	// toL1C2 { this <- L1C2 } (defined in L1C1)
+	print("This should be 3: ");
+	printLine(test.m() + test.n());
+	
+	test <- L2C1;  //start the actual protocol
+	// a = 99 (originally defined in L0, overriden in L2C1)
+	// m() { a } (defined in L0)
+	// b = 2 (defined in L1C1)
+	// n() { b + 98 } (originally defined in L1C1, overriden in L2C1)
+	// toL1C2 { this <- L2C2 } (originally defined in L1C1, overriden in L2C1)
+	print("This should be 99: ");
+	printLine(test.m());
+	print("This should be 100: ");
+	printLine(test.n());
+	
+	test.toL1C2();  //
+	// a = 1 (defined in L0)
+	// m() { a } (defined in L0)
+	// b = 2 (defined in L1C1)
+	// n() { b } (defined in L1C1)
+	// toL1C2 { this <- L1C2 } (defined in L1C1)
+	// c = 1 (defined in L2C2)
+	// o() { b - a -c } (defined in L2C2)
+	print("This should be 3210: ");
+	print(test.m() + test.n());
+	print(test.b);
+	print(test.a);
+	printLine(test.o());
+	
+	test.toL1C2();
+	
+	match(test) {
+		case L1C2 { printLine("success"); }
+		default { printLine("failure"); }
+	};
+
+}
+
+
+method main() {
+	testBasicOverriding();
+	testTwoLevelProtocol();
+}

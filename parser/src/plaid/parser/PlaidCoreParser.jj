@@ -1,0 +1,1554 @@
+ /**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* *** global configuration options *** */
+options{	STATIC=false;
+}
+
+/* *** Specification of the parser class *** */
+PARSER_BEGIN(PlaidCoreParser)
+package plaid.parser;
+import java.util.*;
+import plaid.parser.ast.*;
+
+public class PlaidCoreParser
+{
+    protected Expression combineSimpleExp1(List<Expression> exps) throws ParseException {
+        Expression result = null;
+        
+        // reverse list 
+        Collections.reverse(exps);
+        
+        if ( exps.size() == 1 ) {
+            result = exps.get(0);
+        } else {
+            Expression left = exps.get(0);
+            for ( int i = 1; i < exps.size(); i++) {
+                Expression right = exps.get(i);
+                if ( right instanceof Application ) {
+                    Application app = (Application)right;
+                    left = new Application(app.getToken(),
+                                           left,
+                                           app.getMetaArguments(),
+                                           app.getArgument());
+                } else if ( right instanceof DestructiveDereference ) {
+                    DestructiveDereference ddref = (DestructiveDereference) right;
+                    left = new DestructiveDereference(ddref.getToken(), 
+                                                      left, 
+                                                      ddref.getRight());
+                } else if ( right instanceof Dereference ) {
+                    Dereference dref = (Dereference) right;
+                    left = new Dereference(dref.getToken(), 
+                                           left, 
+                                           dref.getRight());
+                } else {
+                    throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+                }
+            }
+            result = left;
+        }
+        
+        return result;                       
+    }
+
+    protected Expression combineSimpleExp2(List<Expression> exps) throws ParseException {
+        Expression result = null;
+        
+        // reverse list
+        Collections.reverse(exps);
+        
+        if ( exps.size() == 1 ) {
+            result = exps.get(0);
+        } else {
+	        Expression left = exps.get(0);
+	        for (int i = 1; i < exps.size(); i++ ) {
+	            Expression right = exps.get(i);
+	            if ( right instanceof Application ) {
+	                Application app = (Application)right;
+	                left = new Application(app.getToken(),
+	                                       left,
+	                                       app.getMetaArguments(),
+	                                       app.getArgument());
+	            } else {
+	                throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+	            }
+            }
+            result = left;
+        }
+        
+        return result;
+    }
+}
+
+PARSER_END(PlaidCoreParser)
+
+/* *** Token specification *** */
+/* Skip whitespace */
+SKIP :
+{
+		" "
+|		"\t"
+|		"\n"
+|		"\r"
+}
+
+SKIP :
+{
+		"/*" : WithinComment
+|		"/**" : WithinComment
+}
+
+< WithinComment >
+SKIP :
+{
+		"*/" : DEFAULT
+}
+
+< WithinComment >
+MORE :
+{
+		< ~[ ] >
+}
+
+// Single-line comments
+SPECIAL_TOKEN :
+{
+		< SINGLE_LINE_COMMENT :
+				"//" (~[ "\n", "\r" ])*
+				(
+						"\n"
+				|		"\r"
+				|		"\r\n"
+				) >
+}
+
+/* Keywords */
+TOKEN /*[IGNORE_CASE]*/:
+{
+	< AS : "as" >
+|   < ATOMIC : "atomic" >
+| 	< CASE : "case">
+|	< DEF : "default" >
+|	< DYN : "dyn">
+|	< DYNAMIC : "dynamic" >
+|   < EXCLUSIVE : "exclusive" >
+|	< FN : "fn" >
+|   < FREEZE : "freeze" >
+| 	< FULL : "full" >
+|   < GROUP : "group" >
+|	< IMMUTABLE : "immutable" >
+|	< IMPORT : "import" > 
+|	< MATCH : "match" >
+|	< METHOD : "method">
+| 	< MUTABLE : "mutable" >
+|	< NEW : "new">
+|	< NONE : "none" >
+|	< OF : "of" >
+|	< OVERRIDE : "override" >
+|	< PACKAGE : "package" >
+|   < PROTECTED : "protected" >
+| 	< PURE : "pure" >
+| 	< READONLY : "readonly" >
+|	< REMOVE : "remove" >
+|	< RENAME : "rename" >
+|	< REQUIRES : "requires" >
+| 	< SHARED : "shared" >
+|	< STATE : "state" >
+|   < STATEVAL : "stateval" >
+|   < SPLIT : "split" >
+|	< TAKE : "take" >
+|	< THIS : "this" >
+| 	< TYPE : "type" >
+|	< UNIQUE : "unique" >
+| 	< UNIT : "unit" >
+|   < UNPACKINNERGROUPS : "unpackInnerGroups" >
+|	< VAL : "val" >
+|	< VAR : "var" >	
+|	< VOID : "void" >
+|	< WITH : "with" > 
+}
+
+
+/* Literals */
+TOKEN :
+{
+		< STRING_LITERAL :
+				"\""
+				(
+						(~[ "\"", "\\", "\n", "\r" ])
+				|
+						(
+								"\\"
+								(
+										[ "n", "t", "b", "r", "f", "\\", "'", "\"" ]
+								|		[ "0"-"7" ] ([ "0"-"7" ])?
+								|		[ "0"-"3" ] [ "0"-"7" ] [ "0"-"7" ]
+								)
+						)
+				)*
+				"\"" >
+|       < INTEGER:
+            <DECIMAL_LITERAL> 
+          | <HEX_LITERAL> 
+          | <OCTAL_LITERAL> 
+        >
+|
+        < #DECIMAL_LITERAL: ("-")? ["1"-"9"] (["0"-"9"])* >
+|
+        < #HEX_LITERAL: "0" ["x","X"] (["0"-"9","a"-"f","A"-"F"])+ >
+|
+        < #OCTAL_LITERAL: "0" (["0"-"7"])* >
+
+|       < FLOATING_POINT_LITERAL:
+          ("-")? (["0"-"9"])+ "." (["0"-"9"])* (<EXPONENT>)? 
+          | "." (["0"-"9"])+ (<EXPONENT>)? 
+          | ("-")? (["0"-"9"])+ <EXPONENT> 
+          | ("-")? (["0"-"9"])+ (<EXPONENT>)? 
+        >
+|
+        < #EXPONENT: ["e","E"] (["+","-"])? (["0"-"9"])+ >
+
+}
+
+/* Language Operators and Separators */
+TOKEN :
+{
+		< LPAREN : "(" >
+|		< RPAREN : ")" >
+|		< LBRACE : "{" >
+|		< RBRACE : "}" >
+|		< LBRACK : "[" >
+|		< RBRACK : "]" >
+|		< EQUALS : "=" >
+|		< RARROW : "->" >
+|		< LARROW : "<-" >
+| 		< DLARROW : "<<-" >
+|		< DARROW : "=>" >
+|		< MARROW : ">>" >
+|       < DOT : "." > 
+|		< SEMICOLON : ";">
+| 		< COMMA : "," >
+}
+
+/* Operators with Java Precedence */
+TOKEN : 
+{
+		< QST : "?" >
+| 		< COLON : ":" >
+|		< OR : "||" >
+|		< AND : "&&">
+|		< IOR : "|" >
+|		< XOR : "^" >
+|		< BITAND : "&" >
+|		< EQ : "==" >
+|		< NEQ : "!=" >
+|       < GT : ">" >
+|		< LT : "<" >
+|		< GEQ : ">=" >
+|		< LEQ : "<=" >
+|		< LSHIFT : "<<" >
+// | 	< RSHIFT : ">>" > duplicate of MARROW
+|		< RUNSIGNEDSHIFT : ">>>"> 
+|		< PLUS : "+" >
+| 		< MINUS : "-">
+|		< STAR : "*" >
+| 		< SLASH : "/" >
+|		< PERCENT : "%" >
+|		< BANG : "!" >
+|		< TILDE : "~" >
+}
+
+/* User operators */
+/* Do not allow comment-like things (// or /*) as user operators */
+/* Does not need to account for single character operators */
+TOKEN :
+{
+	< OP : 
+	(
+		( "/" [ "=", "<", ">", "!", "~", "?", ":", "&", "|", "+", "-", "^", "%" ]) |
+		( [ "=", "<", ">", "!", "~", "?", ":", "&", "|", "+", "-", "*", "^", "%" ] )
+	)+
+	("/")?>
+}
+
+/* Identifiers */
+TOKEN :
+{
+		< ID : ([ "A"-"Z", "a"-"z" ]) ([ "A"-"Z", "a"-"z", "0"-"9", "_" ])* >
+}
+
+CompilationUnit CompilationUnit() :
+{
+		Decl d;
+		QualifiedIdentifier p;
+		List <Decl> decls = new ArrayList<Decl>();
+		List<Import> imports = new ArrayList<Import>();
+}
+{
+		p = Package()
+		(
+				imports = Imports()
+		)?
+		(
+				d = Decl()
+				{
+						decls.add(d);
+				}
+		)+
+		< EOF >
+		{
+				return new CompilationUnit(decls, imports, p);
+		}
+}
+
+QualifiedIdentifier Package() :
+{
+		QualifiedIdentifier dn;
+}
+{
+		< PACKAGE > dn = QualifiedIdentifier() < SEMICOLON >
+		{
+				return dn;
+		}
+}
+
+/*****************************************************************************/
+/*								TYPING RULES	 							 */
+/*****************************************************************************/
+
+Type Type() :
+{	Type type = null;
+	Permission perm = null;
+	LambdaType l = null;
+	Expression group = null;
+    QualifiedIdentifier qi;
+    List<MetaType> metaTypes = new ArrayList<MetaType>();
+}
+{   (	<UNIT>
+	{
+	  	return Type.UNIT;	}
+|	<VOID>
+	{
+		return Type.VOID;
+	}
+	//TODO: should this be moved up higher so you cannot write fn >> fn?
+|	l = LambdaType()
+	{
+		return l;
+	}
+	// TODO: Default permission?
+	// KBN - 2010-11-4 permission no longer optional - currently causes parser conflict
+| 	[perm = Permission()] qi = QualifiedIdentifier() [LOOKAHEAD(MetaTypes()) metaTypes = MetaTypes(false)]
+	{
+		return new NominalObjectType(ASTNode.DEFAULT_TOKEN, perm, qi, metaTypes);
+	}
+	)
+}
+
+Permission Permission() :
+{
+    Token t;	Permission perm;
+	Expression datagroup = new UnitLiteral(ASTNode.DEFAULT_TOKEN);
+}
+{	(	t = <FULL>	{
+	  	return new Permission(t, Permission.PermissionKind.FULL, null);	}
+| 	t = <IMMUTABLE>	{
+	  	return new Permission(t, Permission.PermissionKind.IMMUTABLE, null);	}
+| 	t = <PURE>	{
+	  	return new Permission(t, Permission.PermissionKind.PURE, null);	}
+| 	t = <SHARED> [<LT> datagroup = SimpleExpr() <GT>]
+	{
+		return new Permission(t, Permission.PermissionKind.SHARED, datagroup);
+	}
+| 	t = <UNIQUE>
+	{
+	  	return new Permission(t, Permission.PermissionKind.UNIQUE, null);	}  
+|	t = <NONE>
+	{
+		return new Permission(t, Permission.PermissionKind.UNIQUE, null);
+	}
+	)
+}
+
+
+List<ArgSpec> ArgSpecList() :{  List<ArgSpec> cl = new ArrayList<ArgSpec>();  ArgSpec c;}{  c = ArgSpec() { cl.add(c); }  ( <COMMA> c = ArgSpec() { cl.add(c); } )*  {  return cl;  }}
+
+//List<ChangeType> ChangeTypeList() ://{//	List<ChangeType> cl = new ArrayList<ChangeType>();//	ChangeType c;////}//{//	c = ChangeType() { cl.add(c); }//	( <COMMA> c = ChangeType() { cl.add(c); } )*//	{//	return cl;//	}//}
+
+ArgSpec ArgSpec() :
+{
+	Type input;
+	Type output = null;
+	boolean borrow = false;
+}
+{
+	input = Type() [ <MARROW> output = Type() ] //TODO: add more flexibility in what can enter as outgoing type (permType/permission/Objectype)
+	{
+		return new ArgSpec(ASTNode.DEFAULT_TOKEN, input,output);
+	}
+}
+
+//ObjectType StructuralType() ://{//  	Token typeAbbrevTok;//	ObjectType right = null;//	List<TypeDecl> typeDecls;//	List<MetaArg> metaArgs = new ArrayList<MetaArg>();//}//{//  	(//  	// type abbreviation//	typeAbbrevTok = <ID> [ LOOKAHEAD(MetaArgs()) metaArgs = MetaArgs() ][<WITH> right = StructuralType()]//	{//		return (new ObjectType(new Identifier(typeAbbrevTok.image), metaArgs)).compose(right);//	}//	// type declarations//| 	typeDecls = TypeDecls() [<WITH> right = StructuralType()]//	{//	  	return (new ObjectType(typeDecls)).compose(right);//	}//	)//}
+
+//Map<ID,ChangeType> Environment() ://{//	Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();//	ChangeType c = null;//	Token var = null;//}//{//// T x [, T x]* where E = pT or pT >> pT// ( c = ChangeType() var = <ID> // 	{ 		// 		env.put(new Identifier(var, var.image),c);// 	}// )//// ( <COMMA> c = ChangeType() var = <ID> // 	{// 		env.put(new Identifier(var, var.image),c);// 	}// // )*////{//	return env;//}
+
+//}
+
+LambdaType LambdaType() :
+{
+	Token t;
+	Map<Identifier,ArgSpec> env = new HashMap<Identifier, ArgSpec>();
+	Type returnType;
+	List<ArgSpec> argTypes = new ArrayList<ArgSpec>();
+	List<MetaType> metaTypes = new ArrayList<MetaType>();
+}
+{
+	// <meta>( c )[E] -> pT
+	[metaTypes = MetaTypes(true)]
+	t = <LPAREN> [ argTypes = ArgSpecList() ] <RPAREN> [ <LBRACK> [ env = Environment() ] <RBRACK> ]
+		<RARROW> returnType = Type()
+	{
+		//if (argTynullpes.size() == 0) argTypes.add(ChangeType.DEFAULTPARAMTYPE); //do we need this default - I think so
+		return new LambdaType(t, metaTypes, argTypes, env, returnType); 
+	
+	}
+
+}
+
+//List<TypeDecl> TypeDecls() ://{//	List<TypeDecl> decls = new ArrayList<TypeDecl>();//	TypeDecl currDecl;//}//{//  	<LBRACE> (currDecl = TypeDecl() { decls.add(currDecl); })+ <RBRACE>//  	{//		return decls;//  	}//}
+
+//TypeDecl TypeDecl() ://{//	TypeDecl decl;//}//{//  	decl = MethodType() <SEMICOLON> { return decl; }//| 	decl = FieldType() { return decl; }//|   decl = MetaType(false) <SEMICOLON> { return decl; }//}
+
+//MethodType MethodType() ://{//		Token m;//		ID methodName;//		PermType returnType = PermType.getDynPT(); //default return is dyn//		List<ChangeType> argTypes = new ArrayList<ChangeType>();//		ChangeType receiverType = ChangeType.DYN; //default receiver types are Dyn >> Dyn//		Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();//		ChangeType envType;//		Token envVar;//		List<MetaType> metaTypes = new ArrayList<MetaType>();//}//{//		//method [T] m[<g>]([T>>T])[T >> T, E ]//			m = <METHOD>//			( LOOKAHEAD(PermType() IdOrOperator())    //				returnType = PermType() methodName = IdOrOperator() [metaTypes = MetaTypes(true) { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type//				| methodName = IdOrOperator()  //only method name//			)//			<LPAREN> [ argTypes = ChangeTypeList() ] <RPAREN>	//optional arguments with optional types//			[ //optional environment - if you put brakets you have to have at least one entry//				<LBRACK>//				(LOOKAHEAD(ChangeType() [<THIS>] (<COMMA> | <RBRACK> )) //'this' must be first, either w/o var or with <this>//					receiverType = ChangeType() [<THIS>]//					| envType = ChangeType() envVar = <ID>//						{//					 		env.put(new Identifier(envVar,envVar.image), envType);//					 	}//				)//				( //some number of environments//					<COMMA> envType = ChangeType() envVar = <ID> { env.put(new Identifier(envVar, envVar.image), envType); }//				)*//				<RBRACK>//			]//		{	//			//if (argTypes.size() == 0) {//			//	argTypes.add(ChangeType.DEFAULTPARAMTYPE); //fake argument (NEED?)//			//}//			//			return new MethodType(methodName, returnType, metaTypes, argTypes, receiverType, env);//		}////}////////FieldType FieldType() ://{//  	// there could be no type annotation//  	PermType fieldPermType = PermType.getDynPT(); //default is dyn//  	Token fieldNameToken;//  	boolean immutable = true;//}//{//  	// val T f;//  	( <VAL> | <VAR> { immutable = false; } )  //  	(LOOKAHEAD(PermType()) fieldPermType = PermType() fieldNameToken = <ID> | fieldNameToken = <ID> )//  	<SEMICOLON>//  	{//  	  	return new FieldType(new Identifier(fieldNameToken, fieldNameToken.image), fieldPermType, immutable);//  	}//}
+
+MetaType MetaType(boolean isMethod) : {    Token t;
+    Identifier id;    boolean isAbstract = true;    Type type = Type.UNIT;    GroupPermission gp = GroupPermission.UNDEFINED;
+    List<Expression> metaArgs = new ArrayList<Expression>();
+    List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
+    QualifiedIdentifier qi = null;}{    (        t = <GROUP> [gp = GroupPermission()] id = Identifier() [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]        {            if ( !isMethod && gp != GroupPermission.UNDEFINED ) {                throw new ParseException("Cannot specify group permissions in states.");            } else if ( isMethod && gp == null ) {                throw new ParseException("Need to specify group permission.");            }            return new GroupType(t, gp, id, isAbstract);        }    |   t = <TYPE> id = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false) ] [ <CASE> <OF> qi = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaArgs = MetaArgs()] ]         {            return new TypeParameterType(t, id, metaArgsSpec, qi, metaArgs);        }    )}List<MetaType> MetaTypes(boolean isMethod) :{  MetaType type;  List<MetaType> types = new ArrayList<MetaType>();}{    < LT >        type =  MetaType(isMethod) {  types.add(type); }        (            < COMMA > type =  MetaType(isMethod) {  types.add(type); }        )*     < GT >    {        return types;    }}
+
+/*****************************************************************************/
+/*							END OF TYPING RULES								 */
+/*****************************************************************************/
+
+
+Identifier Identifier() : {
+    Token t;
+}{
+    (
+        t = <ID>
+//      | t = <TYPE>//      | t = <MUTABLE>//      | t = <EXCLUSIVE>//      | t = <SHARED>//      | t = <READONLY>
+    )
+    { return new Identifier(t, t.image); }  
+}
+
+
+QualifiedIdentifier QualifiedIdentifier() : {
+    Identifier id;
+    List<Identifier> ids = new ArrayList<Identifier>(); 
+}{
+    id = Identifier() { ids.add(id) ; }
+    (LOOKAHEAD(2)
+        <DOT> id = Identifier() 
+            { ids.add(id); } 
+    )*
+    { return new QualifiedIdentifier(ASTNode.DEFAULT_TOKEN, ids); }   
+}
+
+List<Import> Imports() :
+{
+	Token tImp, tStar;
+	QualifiedIdentifier qi;
+	boolean hasStar = false;
+	List <Import> imports = new ArrayList <Import> ();
+}
+{
+		(       { hasStar = false; }
+				tImp = <IMPORT>  qi = QualifiedIdentifier() [<DOT> tStar = <STAR> { hasStar= true; } ] < SEMICOLON >
+				{
+						imports.add(new Import(tImp, qi, hasStar));
+				}
+				
+		)+
+		{
+				return imports;
+		}
+}
+
+
+List<Expression> MetaArgs() :
+{
+  Expression arg;
+  List<Expression> args = new ArrayList<Expression>();
+}{
+  <LT>
+    arg =  SimpleExpr1() {  args.add(arg); }
+    (
+      <COMMA> arg =  SimpleExpr1() { args.add(arg); }
+    )* 
+  <GT>
+  {
+    return args;
+  }
+}
+
+
+MetaArgSpec MetaArgSpec(boolean isMethod) :
+{
+  Token t;
+  Identifier id;
+  GroupPermission gp = GroupPermission.UNDEFINED;
+  QualifiedIdentifier qi = null;
+}{
+  (
+    t=<GROUP> [gp = GroupPermission()] id = Identifier()
+    {
+        if ( isMethod && gp == GroupPermission.UNDEFINED ) {
+            throw new ParseException("Need to specify group permission");
+        } else if ( !isMethod && gp != GroupPermission.UNDEFINED ) {
+            throw new ParseException("Group permissions are not allowed at statet level");
+        }
+        return new MetaGroupArgSpec(t, gp, id);
+    }
+  | t= <TYPE> id = Identifier() [ <CASE> <OF> qi = QualifiedIdentifier() ]     {        return new TypeParameter(t, id, qi);    }
+  )
+}
+
+
+List<MetaArgSpec> MetaArgsSpec(boolean isMethod) :
+{
+    List<MetaArgSpec> args = new ArrayList<MetaArgSpec>();
+    MetaArgSpec arg; 
+}
+{
+    < LT >
+        arg = MetaArgSpec(isMethod) { args.add(arg); }
+        (
+          < COMMA > arg = MetaArgSpec(isMethod) { args.add(arg); }          
+        )*
+    < GT >
+    {
+        return args;
+    }
+}
+
+
+
+List<Modifier> Modifiers() : {
+    Token t;
+    List<Modifier> modifiers = new ArrayList<Modifier>();
+}{
+    (
+            t = <OVERRIDE>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.OVERRIDE));  }
+        |   t = <REQUIRES>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.REQUIRES));  }
+        // immutable is handled by directly associating it to states to avoid conflicts with types
+    )+
+    {
+        return modifiers;
+    }
+}
+
+
+Specifier Specifier() : {
+    Token t;  
+}{
+        t = <VAL> { return new Specifier(t, Specifier.SpecifierKind.VAL); }
+    |   t = <VAR> { return new Specifier(t, Specifier.SpecifierKind.VAR); }
+}
+
+
+DeclOrStateOp DeclOrStateOp() : {
+    DeclOrStateOp dop;
+}{
+     dop = Decl()
+  |  dop = StateOp()
+  {
+      return dop;
+  } 
+}
+
+List<DeclOrStateOp> DeclOrStateOpList() : {
+    DeclOrStateOp dop;
+    List<DeclOrStateOp> list = new ArrayList<DeclOrStateOp>();
+}{
+    <LBRACE>
+        dop = DeclOrStateOp() { list.add(dop); } 
+        (
+            <COMMA> dop = DeclOrStateOp() { list.add(dop); }
+        )*
+    <RBRACE>
+    { return list; } 
+}
+
+Decl Decl() :
+{
+		Decl d;
+		List<Modifier> modifiers = new ArrayList<Modifier>();
+}
+{
+        [ modifiers = Modifiers() ]     
+
+(LOOKAHEAD(2) // check for 'immutable' field vs state
+		d = StateDecl(modifiers)
+		{
+		    return d;
+		}
+|       d = GroupDecl(modifiers)
+        {
+            return d;
+        }
+|
+		d = FieldDecl(modifiers)
+		{
+		    return d;
+		}
+|		d = MethodDecl(modifiers)
+		{
+		    return d;
+		}
+)
+}
+
+Decl StateDecl(List< Modifier > modifiers) :
+{
+    Identifier name;
+	Token t;
+	boolean stateval = false;
+	State stb = null;
+	List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
+	List<Expression> metaCaseOfArgs = new ArrayList<Expression>();
+	QualifiedIdentifier qi = null;
+}
+{
+    [ t = <IMMUTABLE>  { modifiers.add(new Modifier(t, Modifier.ModifierKind.IMMUTABLE)); } ]
+    t= <STATE> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [ <CASE> <OF> qi = QualifiedIdentifier() [LOOKAHEAD(MetaArgsSpec(false)) metaCaseOfArgs = MetaArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {        return new StateDecl(t, modifiers, name, metaArgsSpec, qi, metaCaseOfArgs, stb);       }    | 
+    t = <STATEVAL> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [stb = StateBinding()] // <SEMICOLON>    {        return new StateValDecl(t, modifiers, name, metaArgsSpec, stb);    }
+}
+
+
+State StateBinding() : {
+    State state;
+}{
+    <EQUALS> state = State()
+  | state = DeclList()
+  { return state; }
+}
+
+
+State State() : {
+    StatePrim stpLeft = null;
+    StatePrim stpRight = null;
+    Token t = null;
+}{
+    stpLeft = StatePrim() [ t = <WITH> stpRight = StatePrim() ]
+    {
+        if ( stpRight != null  ) {
+            return new With(t, stpLeft, stpRight);
+        } else {
+            return stpLeft;
+        }
+    }
+}
+
+
+StatePrim StatePrim() : {
+    Token t;
+    Expression e;
+    DeclList decls;
+    List<DeclOrStateOp> dops = new ArrayList<DeclOrStateOp>();
+    StatePrim stp;
+}{
+  (
+     LOOKAHEAD(3)
+     e = SimpleExpr() ( dops = DeclOrStateOpList() | <SEMICOLON>)
+     {
+         return new StateRef(e.getToken(), e, dops);
+     }
+  |  stp = DeclList() 
+     {
+        return stp;
+     }
+  | t =  <FREEZE> e = SimpleExpr() <SEMICOLON>
+     {
+         return new Freeze(t, e);
+     }
+  )
+}
+
+
+StateOp StateOp () : {
+    Token t; 
+    Identifier id, to;
+}{
+     t = <REMOVE> id = Identifier() <SEMICOLON>
+     {
+         return new StateOpRemove(t, id);
+     } 
+  |  t = <RENAME> id = Identifier() <AS> to = Identifier() <SEMICOLON> 
+     {
+         return new StateOpRename(t, id, to);
+     }
+}
+
+Decl FieldDecl(List<Modifier> modifiers) :
+{
+	Expression e;
+	Identifier name;
+	Type type = null;
+	Specifier specifier = new Specifier(ASTNode.DEFAULT_TOKEN, Specifier.SpecifierKind.VAL);
+}
+{
+  (  LOOKAHEAD([Specifier()] [Type()] Identifier() <EQUALS>)
+     // concrete field decl
+     [ specifier = Specifier() ] [LOOKAHEAD(Type()) type = Type() ] name = Identifier() <EQUALS> e = Expr() <SEMICOLON> 
+     {
+        return new ConcreteFieldDecl
+            (ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name, e);
+     }
+     // abstract fields
+  |  LOOKAHEAD(Specifier() Identifier())
+     specifier = Specifier() name = Identifier() <SEMICOLON>
+     {
+        return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, modifiers, specifier, null, name);
+     }
+  |  [ specifier = Specifier() ] type = Type() name = Identifier() <SEMICOLON>
+     {
+        return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name);
+     }
+  ) 
+}
+
+
+Decl GroupDecl(List<Modifier> modifiers) :{
+    Token t;
+    Identifier id;
+}{    t = <GROUP> id = Identifier() <EQUALS> <NEW> <GROUP> <SEMICOLON> 
+    {        return new GroupDecl(t, modifiers, id);
+    }
+}
+
+GroupPermission GroupPermission() : {}{
+   < EXCLUSIVE >   {
+     return GroupPermission.EXCLUSIVE;   }
+ | < SHARED >
+   {
+     return GroupPermission.SHARED;
+   }
+ | < PROTECTED >
+   {     return GroupPermission.PROTECTED;   }   }
+
+
+Decl MethodDecl(List<Modifier> modifiers) :
+{
+        Token t;
+		Identifier methodName;
+		Type returnType = Type.DYNAMIC; //default return is dyn
+		List<Arg> argList = new ArrayList<Arg>();
+		List<ArgSpec> argTypes = new ArrayList<ArgSpec>();
+		//List<ID> argNames = new ArrayList<ID>();
+		//ArgSpec receiverType = ChangeType.DYN; //default receiver types are Dyn >> Dyn
+		Map<Identifier,ArgSpec> env = new HashMap<Identifier, ArgSpec>();
+		Expression e = null;
+		MethodDecl d;
+		List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
+}
+{
+//      //[override] method [T] m([T>>T x])[T >> T, E ] ( {e} | ; )
+        t = <METHOD> [LOOKAHEAD(Type()) returnType = Type() ] 
+                 methodName = IdOrOperator()[ metaArgsSpec = MetaArgsSpec(true) ]              
+                 <LPAREN> [ argList = DeclArgs() ] <RPAREN>  //optional arguments with optional types
+                 [ env = Environment() ]
+                 (e = BlockExpression() | <SEMICOLON>)
+         {
+             return new MethodDecl(t, 
+                                   modifiers, 
+                                   returnType,
+                                   methodName, 
+                                   metaArgsSpec,
+                                   argList,
+                                   env,
+                                   e);
+         }
+
+
+//		[<OVERRIDE>{ override = true; }] /*methodType = MethodTypeDecl()*///			m = <METHOD>//			( LOOKAHEAD(PermType() IdOrOperator())    //				returnType = PermType() methodName = IdOrOperator() [metaParams = MetaParameters(true) { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type//				| methodName = IdOrOperator() [metaParams = MetaParameters(true) { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] //only method name//			)//			<LPAREN> [ argList = DeclArgs() ] <RPAREN>	//optional arguments with optional types//			[ //optional environment - if you put brakets you have to have at least one entry//				<LBRACK>//				(LOOKAHEAD(ChangeType() [<THIS>] (<COMMA> | <RBRACK> )) //'this' must be first, either w/o var or with <this>//					receiverType = ChangeType() [<THIS>]//					| envType = ChangeType() envVar = <ID>//						{ //							envID = new Identifier(envVar, envVar.image);//							if (env.containsKey(envID)) {//								throw new ParseException("duplicate environment variable " + envID.getName());//							} else {//								env.put(envID, envType);//							} //						}//				)//				( //some number of environments//					<COMMA> envType = ChangeType() envVar = <ID> { env.put(new Identifier(envVar, envVar.image), envType); }//				)*//				<RBRACK>//			]//		 	(e = BlockExpression(false) | <SEMICOLON>)//		{	//			if (argList.size() > 0) {//				//transform ArgList into a list of ChangeTypes and a list of Names//				for (Arg a : argList) {//					argTypes.add(a.getChangeType());//					//					argID = a.getArg();//					if (argNames.contains(argID)) {//						throw new ParseException("duplicate arg name " + argID.getName() + " in method " + methodName.getName());//					} else if (env.containsKey(argID)) {//						throw new ParseException("arg and environment variable share the name " + argID.getName() + " in method " + methodName.getName());//					} else {//						argNames.add(a.getArg());//					}//				}//			}//			List<MetaType> metaTypes = new ArrayList<MetaType>();//			if ( metaParams.size() > 0 ) {//			    for (MetaParameter mp : metaParams ) {//			        if ( mp instanceof GroupParameter ) {//			            GroupParameter groupParam = (GroupParameter) mp;//			            metaTypes.add(new GroupType(groupParam.getPermission(), groupParam.getId(), true));//			        } else if ( mp instanceof TypeParameter ) {//			            TypeParameter typeParam = (TypeParameter)mp;//			            metaTypes.add(new TypeParameterType(typeParam.getId(), typeParam.getCaseOf()));//			        } else {//			            throw new ParseException("Unsupported meta paramter " + mp);//			        }//			    }//			}//			mType = new MethodType(methodName, returnType, metaTypes, argTypes, receiverType, env);//			//			if (e == null) {//				//default method body is unit//				d = new MethodDecl(m, methodName.getName(), new UnitLiteral(ASTNode.DEFAULT_TOKEN), argNames, true, mType, override);//			} else {//				d = new MethodDecl(m, methodName.getName(), e, argNames, false, mType, override);//			}//		}//		{//			return d;//		}
+
+}
+
+List<Arg> DeclArgs() :
+{
+		Arg arg;
+		List<Arg> args = new ArrayList<Arg>();
+}
+{		  arg = Arg()
+		  {
+			args.add(arg);
+		  }
+		  (
+			<COMMA> arg = Arg()
+			{
+				args.add(arg);
+			}
+		  )*
+		{
+			return args;
+		}
+}
+
+Arg Arg() :
+{
+	ArgSpec c = null;
+	Identifier argId = null;
+}
+{
+  	(LOOKAHEAD(ArgSpec() Identifier()) c = ArgSpec() argId = Identifier() | argId = Identifier()) 
+	{
+		return new Arg(ASTNode.DEFAULT_TOKEN, argId, c);
+	}
+}
+
+//State State() ://{//		State s, with;//		DeclList init = null;//		List<Token> dotName;//		List<MetaArgument> metaArgs = null;//		Token toFreeze = null;//		Token t = null;//}//{//		(//				s = DeclList()//		|		dotName = DotName() [ LOOKAHEAD(2) metaArgs = MetaArguments() ] [init = DeclList() ]//				{//						if (init == null ) {//							s = new QI(tokenToStringList(dotName), metaArgs);//						} else {//							s = new QI(tokenToStringList(dotName), metaArgs, init);//						}//				}//		|       t = <FREEZE> <LPAREN> toFreeze = <ID> <RPAREN> //				{//					s = new Freeze(t, new Identifier(toFreeze, toFreeze.image));//				}		//		)//		[//				<WITH> with = State()//				{//						s = new With(s, with);//				}//		]//		{//				return s;//		}//}
+
+DeclList DeclList() :
+{
+        Token t;
+		List<Decl> declList = new ArrayList<Decl>();
+		Decl d;
+}
+{
+		t = <LBRACE>
+		(
+				d = Decl()
+				{
+						declList.add(d);
+				}
+		)*
+		<RBRACE>
+		{
+				return new DeclList(t, declList);
+		}
+}
+
+List<Token> DotName() :
+{
+		Token t;
+		List < Token > dn = new ArrayList < Token > ();
+}
+{
+		t = < ID >
+		{
+				dn.add(t);
+		}
+		(
+				LOOKAHEAD(2)
+				< DOT > (t = < ID >)
+				{
+						dn.add(t);
+				}
+		)*
+		{
+				return dn;
+		}
+}
+
+Expression BlockExpression() :
+{
+    Token t;
+	List<Stmt > stmts = new ArrayList<Stmt>();
+}
+{
+		t = <LBRACE> [ stmts = StmtList() ] <RBRACE>
+		{
+		  return new BlockExpr(t, stmts);
+		}
+}
+
+List<Stmt> StmtList() :
+{
+    ArrayList < Stmt > stmtList = new ArrayList < Stmt > ();
+	Stmt s;	
+}
+{
+		
+		s = Stmt() { stmtList.add(s); }
+		(LOOKAHEAD(2)	< SEMICOLON > s = Stmt() { stmtList.add(s); }
+				
+		)*
+		[<SEMICOLON>]
+		{
+            return stmtList;
+		}
+}
+
+Stmt Stmt() :
+{
+		Stmt stmt;
+}
+{(
+			stmt = Expr()
+	|		stmt = LocalVarDecl()
+	|       stmt = LocalStateValDecl()
+)
+{  return stmt;
+}
+}
+
+
+
+Expression Expr() :
+{
+	Expression e;
+}
+{ 		e = Function()
+		{
+				return e;
+		}
+|		e = Expr1()
+        {          return e;
+        }
+}
+
+Expression Expr1() :
+{
+    Token t;
+    List<Expression > metaArgs = new ArrayList<Expression>();
+    List<Case > cl;
+    Expression pattern;
+    Identifier id;
+    Expression target;
+    Expression e;
+    State st;
+    List<Expression> datagroups;
+    List<Stmt> stmtList = new ArrayList<Stmt>();}
+{
+     LOOKAHEAD(Identifier() <EQUALS> )
+     id = Identifier() t = <EQUALS> e = Expr()
+     {        return new Assignment(t, null, id, e);
+     }
+    //TODO:Optional SimpleExpr
+|     LOOKAHEAD(SimpleExpr()<DOT>Identifier()<EQUALS>) 
+    target = SimpleExpr() <DOT> id =Identifier() t = <EQUALS> e = Expr()
+    {
+        return new Assignment(t, target, id, e);
+    } 
+|   LOOKAHEAD(SimpleExpr()<LARROW>)
+    e = SimpleExpr() t=<LARROW> st = State()
+    {
+        new StateChange(t, e,st);
+    }
+|   LOOKAHEAD(SimpleExpr()<DARROW>)
+    e = SimpleExpr() t=<DLARROW> st = State()
+    {
+        new Replace(t, e,st);
+    }               
+|   t = < MATCH > pattern = InfixExpr() < LBRACE > cl = CaseList() < RBRACE >
+    {
+      return new Match(t, pattern, cl);
+    }
+|   t = <ATOMIC> datagroups = MetaArgs() e = BlockExpression()
+    {
+      return new AtomicBlock(t, datagroups, e);
+    }
+|   t = <SPLIT> datagroups = MetaArgs() <LBRACE> [ stmtList = StmtList() ] <RBRACE>
+    {
+      return new SplitBlock(t, metaArgs, stmtList);
+    }
+|   t = <UNPACKINNERGROUPS> e = BlockExpression() 
+    {
+      return new UnpackInnerGroups(t, e);
+  }
+|   e = InfixExpr()
+{
+  return e;}}
+
+Expression InfixExpr() :
+{
+		Expression e;
+		Token t;
+		Type type;
+}
+{
+    LOOKAHEAD(2)
+    e = SimpleExpr() t=<AS> type=Type()
+    {
+        return new Cast(t, e, type);
+    }
+|   e = ConditionalExpression()
+    {
+        return e;
+    }
+}
+
+Expression SimpleExpr() : {
+    Expression e;
+    Token t;
+    State st;
+    List<Expression> exps = new ArrayList<Expression>();
+}{
+
+    e = BlockExpression()
+    {
+        return e;
+    }
+|   t = <NEW> st = State()
+    {
+        return new NewInstance(t, st);
+    }
+|   e = SimpleExpr2()
+    {
+        return e;
+    }
+}
+
+
+Expression SimpleExpr2() : {
+    Expression e;
+    List<Expression> rest;
+}{
+    e = SimpleExpr1() rest = SimpleExpr2Rest()
+    {
+        rest.add(e);
+        return combineSimpleExp2(rest);
+    }
+}
+
+
+List<Expression> SimpleExpr2Rest() : {
+    Expression block;
+    List<Expression> rest;
+}{
+    block = BlockExpression() rest = SimpleExpr2Rest()
+    {
+        rest.add(new Application(ASTNode.DEFAULT_TOKEN, null, null, block));
+        return rest;
+    }
+  | { return new ArrayList<Expression>(); }
+}
+
+
+Expression SimpleExpr1() : {
+    Expression e;
+    List<Expression> rest;
+    Token t = ASTNode.DEFAULT_TOKEN;
+}{
+
+(
+    e = Literal() rest = SimpleExp1Rest()
+    { rest.add (e); }
+|   e = Identifier() rest = SimpleExp1Rest()
+    { rest.add (e); }
+|   e = THIS() rest = SimpleExp1Rest()
+    { rest.add (e); }
+|   e = ArgumentExpression() rest = SimpleExp1Rest()
+    { rest.add (e); }
+)
+    { 
+        return combineSimpleExp1(rest); 
+    }
+}
+
+
+List<Expression> SimpleExp1Rest() : {
+    Token t = ASTNode.DEFAULT_TOKEN;
+    Expression e;
+    Identifier id;
+    List<Expression> metaArgs = new ArrayList<Expression>();
+    List<Expression> args;
+    List<Expression> rest;
+}{
+     t = <DOT> id = Identifier() rest = SimpleExp1Rest()
+     {
+        rest.add(new Dereference(t, null, id));
+        return rest; 
+     } 
+  |  t = <BANG> id = Identifier() rest = SimpleExp1Rest()
+     {
+        rest.add(new DestructiveDereference(t, null, id));
+        return rest; 
+     } 
+  |  LOOKAHEAD([MetaArgs()] ArgumentExpression()) 
+     [ metaArgs = MetaArgs()] e = ArgumentExpression() rest = SimpleExp1Rest()
+     {
+        rest.add(new Application(t, null, metaArgs, e));
+        return rest;
+     }
+  |  { return new ArrayList<Expression>() ;}
+}
+
+Identifier THIS() : {
+    Token t;
+}{
+    t = <THIS> { return new Identifier(t, t.image); }
+}
+
+ArgumentExpression ArgumentExpression() : {
+    Token t;
+    List<Expression> args = new ArrayList<Expression>();
+}{
+    t = <LPAREN> [args = ExprList()] <RPAREN>
+    {
+        return new ArgumentExpression(t, args);
+    }
+}
+
+Expression ConditionalExpression() : 
+{
+		Expression e;
+		Expression arg;
+		Expression arg2;
+		Token t;
+		Token t2;
+}
+{
+		e = ConditionalOrExpression()
+		(
+				t = "?" arg = Expr() t2 =  ":" arg2 = ConditionalExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+						e = new MethodCall(t2, e, new Identifier(t,t.image), arg2);
+				}
+		)?
+		{
+				return e;
+		}
+}
+
+Expression ConditionalOrExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = ConditionalAndExpression()
+		(
+				t = "||" arg = ConditionalAndExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression ConditionalAndExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = InclusiveOrExpression()
+		(
+				t = "&&" arg = InclusiveOrExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression InclusiveOrExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = ExclusiveOrExpression()
+		(
+				t = "|" arg = ExclusiveOrExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression ExclusiveOrExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = AndExpression()
+		(
+				t = "^" arg = AndExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression AndExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = EqualityExpression()
+		(
+				t = "&" arg = EqualityExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+
+Expression EqualityExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = RelationalExpression()
+		(
+				(
+						t = "=="
+				|		t = "!="
+				)
+				arg = RelationalExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression RelationalExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+		List<Expression> argList = new ArrayList<Expression>();
+}
+{
+		e = ShiftExpression() 
+		(   
+				(
+						t = "<"
+				|		t = ">"
+				|		t = "<="
+				|		t = ">="
+				)
+				arg = ShiftExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		  )*
+		{
+				return e;
+		}
+}
+
+Expression ShiftExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = AdditiveExpression()
+		(
+				(
+						t = "<<"
+				|		t = ">>"
+				|		t = ">>>"
+				)
+				arg = AdditiveExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression AdditiveExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = MultiplicativeExpression()
+		(
+				(
+						t = "+"
+				|		t = "-"
+				)
+				arg = MultiplicativeExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression MultiplicativeExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = UnaryExpression()
+		(
+				(
+						t = "*"
+				|		t = "/"
+				|		t = "%"
+				)
+				arg = UnaryExpression()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression UnaryExpression() :
+{
+		Expression e;
+		Token t;
+}
+{
+		(
+				(
+						t = "~"
+				|		t = "+"		
+				|		t = "-"
+				|		t = "!"
+				)
+				e = SimpleExpr1()
+				{
+						e = new MethodCall(t, e, new Identifier(t,t.image), new UnitLiteral(ASTNode.DEFAULT_TOKEN));
+				}
+		|		e = SimpleExpr1()
+		)
+		{
+				return e;
+		}
+}
+
+
+Stmt LocalVarDecl() :
+{
+		Specifier spec;
+		Identifier id;
+		Expression e;
+		Type type = null;
+}
+{
+		(
+				spec = Specifier()
+		)
+		( LOOKAHEAD( Type() ) type = Type() id = Identifier() | id = Identifier() ) 
+		<EQUALS> e = Expr() //local var declarations must be initialized
+		{
+			return new VarDecl(spec.getToken(), spec, type, id, e);
+		}
+}
+
+Stmt LocalStateValDecl() :
+{
+        Token t;
+        Identifier id;
+        State st;
+}
+{
+        (
+            t = < STATEVAL > id = Identifier() st = StateBinding()
+        )
+        {
+            return new LocalStateValDecl(t, id, st);
+        }
+}
+
+List <Case> CaseList() :
+{
+		Token t,caseToken;
+		Expression body;
+		List < Case > cl = new ArrayList < Case > ();
+		QualifiedIdentifier qi;
+}
+{
+		(
+				LOOKAHEAD(2)
+				caseToken = < CASE > qi = QualifiedIdentifier()
+				body = BlockExpression()
+				{
+				    cl.add(new Case(caseToken, qi, body)); // no bound variable	
+				}
+		)*
+		[
+				caseToken = < DEF > body = BlockExpression()
+				{
+						cl.add(new Case(caseToken, null, body));
+				}
+		]
+		{
+				return cl;
+		}
+}
+
+Identifier IdOrOperator() :
+{
+	Identifier id;
+}{
+	id = Identifier()  { return id; }
+ |  id = Operator()    { return id; }
+    
+}
+
+List<Expression> ExprList() :
+{
+		Expression e, nextExp;
+		List < Expression > expList = new ArrayList < Expression > ();
+}
+{
+	e = Expr()
+	{
+		expList.add(e);
+	}
+	(
+		< COMMA > nextExp = Expr()
+		{
+			expList.add(nextExp);
+		}
+	)*
+	{
+		return expList; //foldToPairs(expList);
+	}
+}
+
+Identifier Operator() :
+{
+		Token op;
+}
+{
+		(
+				op = < QST >
+		|		op = < COLON >
+		|		op = < OR >
+		|		op = < AND >
+		|		op = < IOR >
+		|		op = < XOR >
+		|		op = < BITAND >
+		|		op = < EQ >
+		|		op = < NEQ >
+		|		op = < GT >
+		|		op = < LT >
+		|		op = < GEQ >
+		|		op = < LEQ >
+		|		op = < LSHIFT >
+		|		op = < MARROW >
+		|		op = < RUNSIGNEDSHIFT >
+		|		op = < PLUS >
+		|		op = < MINUS >
+		|		op = < STAR >
+		|		op = < SLASH >
+		|		op = < PERCENT >
+		|		op = < BANG >
+		|		op = < TILDE >
+		
+		|		op = < OP > /* User defined operator */
+		)
+		{
+				return new Identifier(op, op.image);
+		}}
+
+Map<Identifier, ArgSpec> Environment() : {
+    Identifier envVar;
+    ArgSpec envType; 
+    Map<Identifier, ArgSpec> env = new HashMap<Identifier, ArgSpec>();
+}{
+    <LBRACK> 
+    envType = ArgSpec() envVar = Identifier() { env.put(envVar, envType); }
+    ( 
+        <COMMA> envType = ArgSpec() envVar = Identifier() 
+            { env.put(envVar, envType); } 
+    )*
+    <RBRACK>
+    { return env; }
+}
+
+Expression Function() :
+{
+		Token t;
+		List<Arg> argList = new ArrayList<Arg>();
+		List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
+		Map<Identifier, ArgSpec> env = new HashMap<Identifier, ArgSpec>();
+		Expression body;
+}
+{
+		t = <FN> [metaArgsSpec = MetaArgsSpec(true)] <LPAREN> [argList = DeclArgs()] <RPAREN>
+		[ env = Environment() ]
+		<DARROW>
+		(
+				body = Expr()
+		)
+		{
+			return new Lambda(t, metaArgsSpec, argList, env, body);
+		}
+}
+
+Expression Literal() :
+{
+		Token t;
+}
+{
+		t = < STRING_LITERAL >
+		{
+				return new StringLiteral(t, t.image.substring(1, t.image.length() - 1));
+		}
+|		t = < INTEGER >
+		{
+		        return new IntLiteral(t, Integer.decode(t.image));     
+		}
+|       t = <  FLOATING_POINT_LITERAL >
+        {                return new DoubleLiteral(t, Double.valueOf(t.image));
+        }
+|		t = < UNIT >
+		{
+				return new UnitLiteral(t);
+		}
+}
