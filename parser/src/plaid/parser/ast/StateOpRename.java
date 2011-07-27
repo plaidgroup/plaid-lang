@@ -20,4 +20,8 @@ public class StateOpRename extends StateOp {
 		return to;
 	}
 
+	@Override
+	public String toString() {
+		return "rename " + from + " as " + to + ";";
+	}
 }
