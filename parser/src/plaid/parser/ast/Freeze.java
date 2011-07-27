@@ -26,4 +26,9 @@ public class Freeze extends StatePrim {
 			return false;
 		}
 	}
+	
+	@Override
+	public String toString() {
+		return "freeze " + frozenExpr.toString() + ";"; 
+	}
 }
