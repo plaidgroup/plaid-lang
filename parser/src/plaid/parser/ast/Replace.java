@@ -2,7 +2,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Replace extends ASTNode {
+public class Replace extends Expression {
 
 	private final Expression e;
 	private final State st;
