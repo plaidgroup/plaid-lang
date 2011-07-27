@@ -13,6 +13,7 @@ import plaid.parser.ParseException;
 import plaid.parser.PlaidCoreParser;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.ArgumentExpression;
+import plaid.parser.ast.Assignment;
 import plaid.parser.ast.BlockExpr;
 import plaid.parser.ast.Cast;
 import plaid.parser.ast.Decl;
@@ -396,6 +397,120 @@ public class ParseExpressionTest {
 	}
 	
 	/************************************************************
+	 **                EqualityExpression                     **
+	 ************************************************************/
+	@Test
+	public void parseEqualsEquals() throws ParseException, UnsupportedEncodingException {
+		String code = "x == y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.EqualityExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.==(y)"));		
+	}
+	
+	@Test
+	public void parseNotEquals() throws ParseException, UnsupportedEncodingException {
+		String code = "x != y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.EqualityExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.!=(y)"));		
+	}
+	
+	/************************************************************
+	 **                AndExpression                     **
+	 ************************************************************/
+	@Test
+	public void parseAnd() throws ParseException, UnsupportedEncodingException {
+		String code = "x & y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.AndExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.&(y)"));		
+	}
+	
+	/************************************************************
+	 **                ExclusiveOrxpression                    **
+	 ************************************************************/
+	@Test
+	public void parseExclusiveOr() throws ParseException, UnsupportedEncodingException {
+		String code = "x ^ y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.ExclusiveOrExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.^(y)"));		
+	}
+	
+	/************************************************************
+	 **                InclusiveOrExpression                    **
+	 ************************************************************/
+	@Test
+	public void parseInclusiveOr() throws ParseException, UnsupportedEncodingException {
+		String code = "x | y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InclusiveOrExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.|(y)"));		
+	}
+	
+	/************************************************************
+	 **                 ConditionalAndExpression               **
+	 ************************************************************/
+	@Test
+	public void parseConditionalAnd() throws ParseException, UnsupportedEncodingException {
+		String code = "x && y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.ConditionalAndExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.&&(y)"));		
+	}
+	
+	/************************************************************
+	 **                 ConditionalOrExpression               **
+	 ************************************************************/
+	@Test
+	public void parseConditionalOr() throws ParseException, UnsupportedEncodingException {
+		String code = "x || y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.ConditionalOrExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.||(y)"));		
+	}
+	
+	/************************************************************
+	 **                 ConditionalExpression               **
+	 ************************************************************/
+	@Test
+	public void parseConditional() throws ParseException, UnsupportedEncodingException {
+		String code = "x?y:z";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.ConditionalExpression();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.?(y).?(z)"));		
+	}
+	
+	/************************************************************
+	 **                        Exp1                            **
+	 ************************************************************/
+	@Test
+	public void parseAssignmentVar() throws ParseException, UnsupportedEncodingException {
+		String code = "x = 1";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr1();
+		assertTrue(e instanceof Assignment );
+		assertTrue(e.toString().equals("x=1"));		
+	}
+	
+	@Test
+	public void parseAssignmentField() throws ParseException, UnsupportedEncodingException {
+		String code = "this.x = 1";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr1();
+		assertTrue(e instanceof Assignment );
+		assertTrue(e.toString().equals("this.x=1"));		
+	}
+	
+	/************************************************************
 	 **                      StateOP                           **
 	 ************************************************************/
 	@Test
@@ -407,6 +522,7 @@ public class ParseExpressionTest {
 		assertTrue( code.equals(e.toString()));
 	}
 	
+	
 	@Test
 	public void parseStateRenameOp() throws ParseException, UnsupportedEncodingException {
 		String code = "rename foo as bar;";
@@ -415,6 +531,7 @@ public class ParseExpressionTest {
 		assertTrue(e instanceof StateOpRename );
 		assertTrue( code.equals(e.toString()));
 	}
+	
 
 	/************************************************************
 	 **                      GroupDecl                         **
@@ -427,6 +544,7 @@ public class ParseExpressionTest {
 		assertTrue(e instanceof GroupDecl );
 		assertTrue( code.equals(e.toString()));
 	}
+	
 	
 	/************************************************************
 	 **                      StatePrim                         **
