@@ -13,6 +13,7 @@ import plaid.parser.ParseException;
 import plaid.parser.PlaidCoreParser;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.ArgumentExpression;
+import plaid.parser.ast.BlockExpr;
 import plaid.parser.ast.Decl;
 import plaid.parser.ast.Dereference;
 import plaid.parser.ast.DestructiveDereference;
@@ -23,6 +24,7 @@ import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Modifier;
+import plaid.parser.ast.NewInstance;
 import plaid.parser.ast.StateOp;
 import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
@@ -198,6 +200,27 @@ public class ParseExpressionTest {
 		assertTrue( code.equals(e.toString()));
 	}
 
+	/************************************************************
+	 **                      SimpleExpr                        **
+	 ************************************************************/
+	@Test
+	public void parseEmptyBlock() throws ParseException, UnsupportedEncodingException {
+		String code = "{}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr();
+		assertTrue(e instanceof BlockExpr );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseNew() throws ParseException, UnsupportedEncodingException {
+		String code = "new foo;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr();
+		assertTrue(e instanceof NewInstance );
+		assertTrue( code.equals(e.toString()+";"));
+	}
+	
 	/************************************************************
 	 **                      StateOP                           **
 	 ************************************************************/
