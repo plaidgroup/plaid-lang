@@ -32,4 +32,21 @@ public class NominalObjectType extends Type {
 	public List<MetaType> getMetaTypes() {
 		return metaTypes;
 	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		
+		if ( permission != Permission.EMPTY ) sb.append(permission.toString()+" ");
+		sb.append(state.toString());
+		if ( metaTypes.size() > 0 ) {
+			sb.append("<");
+			sb.append(metaTypes.toString());
+			for (int i = 1; i < metaTypes.size(); i++) {
+				sb.append(","+metaTypes.toString());
+			}
+			sb.append(">");
+		}
+		return sb.toString();
+	}
 }
