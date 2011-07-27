@@ -4,6 +4,7 @@ import plaid.parser.Token;
 
 public class ArgSpec extends ASTNode {
 	
+	public static final ArgSpec EMPTY = EmptyArgSpec.getEmptyArgSpec();
 	private final Type preType;
 	private final Type postType;
 	

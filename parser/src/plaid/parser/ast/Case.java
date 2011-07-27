@@ -21,25 +21,12 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Case extends ASTNode {
-	private final QualifiedIdentifier pattern;
+public abstract class Case extends ASTNode {
 	private final Expression body;
-	private final boolean defaultCase;
 
-
-	public Case(Token t, QualifiedIdentifier pattern, Expression body) {
-		super(t);
-		this.pattern = pattern;
+	public Case(Token token, Expression body) {
+		super(token);
 		this.body = body;
-		defaultCase = false;
-	}
-	
-	public boolean isDefaultCase() {
-		return defaultCase;
-	}
-	
-	public QualifiedIdentifier getPattern() {
-		return pattern;
 	}
 
 	public Expression getBody() {

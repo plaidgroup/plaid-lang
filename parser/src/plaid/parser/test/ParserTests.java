@@ -36,7 +36,7 @@ public class ParserTests {
 		Decl field = 
 			new ConcreteFieldDecl(null, new ArrayList<Modifier>(), 
 					new Specifier(null,SpecifierKind.VAL),
-					null,
+					Type.EMPTY,
 					new Identifier(null,"foo"), 
 					new IntLiteral(null,5));
 		QualifiedIdentifier packageName = 
