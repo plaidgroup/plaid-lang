@@ -1,0 +1,167 @@
+package plaid.ast.types;
+
+import plaid.ast.ID;
+import plaid.ast.types.permissions.*;
+
+
+val immutable NoObjectType noType = new NoObjectType;
+val immutable ErrObjectType errType = new ErrObjectType;
+
+val (immutable TypeBinding, immutable TypeBinding) -> /*unique Option<immutable Permission>*/ void
+fieldReadPermB =
+	fn (immutable TypeBinding fieldBinding,
+		immutable TypeBinding >> void neededBinding) => 
+	{
+		val strongBorrow = match (neededBinding) {
+			case TakeType {
+				false	
+			}
+			case BorrowType {
+			  neededBinding.stronglyBorrowed
+			}
+		};
+		fieldReadPermission(fieldBinding.currentType.perm, neededBinding.currentType.perm, strongBorrow)
+	};
+
+val () -> unique NominalType getUnitType = fn () => {
+	new NominalType { val typeName = new ID { val name = "unit"; }; }
+};
+
+val () -> unique NominalType getStringType = fn () => {
+	new NominalType { val typeName = new ID { val name = "String"; }; }
+};
+
+val () -> unique NominalType getDoubleType = fn () => {
+	new NominalType { val typeName = new ID { val name = "Double"; }; }
+};
+
+val () -> unique NominalType getIntegerType = fn () => {
+	new NominalType { val typeName = new ID { val name = "Integer"; }; }
+};
+
+val () -> unique NominalType getBooleanType = fn () => {
+	new NominalType { val typeName = new ID { val name = "Boolean"; }; }
+};
+
+val () -> unique Dyn getDynObjectType = fn () => new Dyn;
+
+val () -> unique PermType getDynPermType = fn () => createPermType(DYNP, getDynObjectType());
+
+val () -> unique PermType getVoidType = fn () => {
+	createPermType(NONEP, getUnitType())
+};
+
+val (immutable Permission >> void, unique ObjectType >> void) -> unique TakeType createTakeType =
+	fn (immutable Permission >> void p, unique ObjectType >> void t) => {
+		new TakeType {
+			var unique PermType currentType = createPermType(p,t);
+		}
+	};
+
+val (unique PermType >> void) -> unique TakeType createTakeTypeFromPT =
+	fn (unique PermType >> void pt) => {
+		new TakeType {
+			var unique PermType currentType = pt;
+		}
+	};
+	
+val (immutable Permission >> void, unique ObjectType >> void, 
+	 immutable Permission >> void, immutable Boolean >> void) -> unique BorrowType createBorrowType =
+	fn (immutable Permission >> void p, unique ObjectType >> void t,
+		immutable Permission >> void lb, immutable Boolean >> void sb) => {
+		new BorrowType {
+			var unique PermType currentType = createPermType(p,t);
+			val immutable Permission lowerBound = lb;
+			val immutable Boolean stronglyBorrowed = sb;
+		}
+	};
+	
+val (immutable Permission >> void, unique ObjectType >> void) -> unique PermType createPermType =
+	fn (immutable Permission >> void p, unique ObjectType >> void t) => {
+		new PermType {
+			val immutable Permission perm = p;
+			val unique ObjectType type = t;
+		}
+	};
+
+val immutable PermType VOID = new PermType {
+	val perm = NONEP;
+	val type = new NominalType { val typeName = new ID { val name = "unit"; }; };
+};
+
+val (immutable ID >> void) -> unique NominalType createNominalType = 
+	fn (immutable ID >> void name) => {
+		new NominalType { val immutable ID typeName = name; }; 
+	};
+	
+val createChangeType = 
+	fn (immutable PermType >> void input, immutable PermType >> void output, immutable Boolean >> void strongBorrow) => {
+		new ChangeType {
+			val input = input;
+			val output = output;
+			val strongBorrow = strongBorrow;
+		}
+	};
+	
+val createLambdaType =
+	fn (immutable PermType >> void returnType, /*unique List<immutable ChangeType> >> void */ argTypes,
+			/*unique Map<unique ID,immutable ChangeType>*/ envTypes) => {
+		new	LambdaType {
+			var immutable PermType returnType = returnType;
+			val /*unique List<immutable ChangeType>*/ argTypes = argTypes;
+			val /*unique Map<immutable ID,immutable ChangeType>*/ environmentTypes = envTypes;
+		}
+	};
+	
+//type to indicate an error
+val /*(immutable String >> immutable String) -> FailedTypecheck*/ newErrorType = 
+	fn (msg) => new ErrorType { val errorMsg = msg; };
+	
+//type to indicate an object Inference error
+val /*(immutable String >> immutable String) -> ErrObjectType*/ newObjectError = 
+	fn (msg) => new ErrObjectType { override val errorMsg = msg; };
+	
+//change a node with a type field to indicate an error in typechecking
+val /*({ val Type type }, String, boolean) -> void*/ typeError = fn (node, msg, local) =>
+	node.type <- ErrorType { 
+		val errorMsg = msg;
+		val isLocal	= local;
+	};
+	
+val makeFieldType = fn (unique ID >> void name, unique TypeBinding >> void binding, immutable Boolean >> void isImmutable) => {
+	new FieldType {
+		val unique ID name = name;
+		val immutable TypeBinding binding = binding;
+		val immutable Boolean isImmutable = isImmutable;
+	}
+};
+
+val makeMethodType = fn (unique ID >> void name, unique TakeBinding >> void returnType , /*unique List<unique ChangeType> >> void*/ argTypes,
+						 unique ChangeType >> void receiverType, /*unique Map<unique ID, unique ChangeType> >> void*/ envTypes) => {
+	new MethodType {
+		val unique ID name = name;
+		val unique TakeBinding returnType = returnType;
+		val /*unique List<unqiue ChangeType>*/ argTypes = argTypes;
+		val unique ChangeType receiverType = receiverType;
+		val /*unique Map<unique ID,unique ChangeType>*/ environmentTypes = envTypes;
+	}
+};
+
+//NOTE: this test shows that state change for restricted updated is somewhat broken:
+// without the change to None first, a is not updated because they are the same state
+// and restricted update tries to do something I'm not sure what right now.
+//TODO: fix restricted update when we understand it better
+method maintest() {
+	val a = new PermType {
+		val perm = DYNP;
+		val type = new NominalType { val typeName = new ID { val name = "unit"; }; };
+	};
+	java.lang.System.out.println(a.toString());
+	//a <- None;
+	a <<- PermType {  //fix with blow away here, but eventually with better structure	
+		override val perm = UNIQUE;
+		override val type = new NominalType { val typeName = new ID { val name = "changed"; }; };
+	};
+	java.lang.System.out.println(a.toString());
+	
+}

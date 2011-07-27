@@ -1,0 +1,94 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker.standalone;
+
+import plaid.ast.*;
+import plaid.ast.visitor.*;
+import plaid.ast.stateTable.*;
+import plaid.testing.*;
+import plaid.typechecker.context.*;
+import plaid.typechecker.rewriting.*;
+import plaid.typechecker.StateTableBuilderVisitor;
+import plaid.typechecker.typeCheckCU;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+
+method void main(args) {
+    ifElse ( args.isEmpty() ) {
+        printLine("usage: plaidchecker FILES");        
+    }{
+        args.map(fn (fileName) => {
+            printLine("checking file: " + fileName);
+            val file = java.io.File.new(fileName);
+            ifElse (!file.exists()) {
+                printLine("  ERROR: '" + fileName + "' does not exist");
+            }{
+                //parse into Java AST
+                val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(file));
+								
+								//translate into Plaid AST
+								val unique ASTTranslator translator = new ASTTranslator;
+								val unique ASTNode plaidAST = translator.translateAST(javaAST);	
+	
+								//build state table
+								val stateTableVisitor = new StateTableBuilderVisitor;
+								plaidAST.accept(stateTableVisitor);
+	
+								//translate to LNF
+								val unique ASTNode newAST = plaidAST.accept(new LetNormalFormVisitor);
+								
+								//top level context
+								val ct = createObjContextFromCU(newAST);
+	
+								//infer object types
+								val typefetcher = new TypeFetchVisitor { val context = ct; val st = stateTableVisitor.stateTable; };
+								val result = newAST.accept(typefetcher);
+	
+								match( result) {
+									case ErrObjectType {
+										printLine("Typechecking failed: ");
+										printLine(result.errorMsg);
+									}
+									default {
+										//run permission analysis
+										val permAnalysis = new PermissionAnalysisVisitor {
+															override var context = ct;
+															override val st = stateTableVisitor.stateTable; 
+										};
+										newAST.accept(permAnalysis);
+			
+										//typecheck
+										val checked = typeCheckCU(newAST,stateTableVisitor.stateTable);
+			
+										match(checked) {
+											case Some {
+												printLine("Typechecking failed: ");
+												printLine(checked.value.toString());
+											}
+											case None {
+												printLine("Typechecking succeeded");
+											}
+										}
+									}
+								}
+            }
+        });
+    }
+}
