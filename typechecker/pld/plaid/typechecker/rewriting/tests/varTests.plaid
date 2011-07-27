@@ -1,0 +1,93 @@
+package plaid.typechecker.rewriting.tests;
+
+import plaid.ast.*;
+import plaid.ast.visitor.*;
+import plaid.testing.*;
+import java.lang.System;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.rewriting.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.types.*;
+
+val varTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	
+	System.out.println("Testing Variable LNF transformation");
+	
+	oldAst = makeID(makeToken(),"x");
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),makeID(makeToken(),"x"),
+					   makeTempID(makeToken(),"t1"), false);
+	
+	testName("lnf-var");
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	System.out.println("");
+	
+	var typefetcher = unit;
+	var ast = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
+	
+	System.out.println("Testing Variable ObjectType Inference");
+	testName("obj-var succeed");
+	st = new StateTable;
+	cIn = new Context; 
+	cIn.put(makeID(makeToken(),"x"), getIntegerType());
+	cOut = cIn.copy();
+	ast = makeID(makeToken(),"x");
+	typefetcher = new TypeFetchVisitor { val context = cIn; val st = st; };
+	result = ast.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,"object inference failed: " + result.errorMsg);
+		}
+		default {
+			match (result == getIntegerType() ) {
+				case True {
+					match (cIn == cOut) {
+						case True {
+							tester.testPassed(true)
+						}
+						case False {
+							tester.testPassedMsg(false, "context Incorrect")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "unexpected ObjectType");
+				}
+			}
+		}
+
+	};
+	testName("obj-var - variable not in context");
+	st = new StateTable;
+	cIn = new Context; 
+	cIn.put(makeID(makeToken(),"y"), getIntegerType());
+	ast = makeID(makeToken(),"x");
+	typefetcher = new TypeFetchVisitor { val context = cIn; val stateTable = st; };
+	result = ast.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg);
+		}
+		default {
+			tester.testPassed(false);
+		}
+		
+	};
+};
