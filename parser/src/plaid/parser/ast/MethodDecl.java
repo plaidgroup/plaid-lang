@@ -25,7 +25,7 @@ import java.util.Map;
 
 import plaid.parser.Token;
 
-public class MethodDecl extends Decl {
+public abstract class MethodDecl extends Decl {
 	private final Type type;
 	private final List<MetaArgSpec> metaArgsSpec;
 	private final List<Arg> arguments;
