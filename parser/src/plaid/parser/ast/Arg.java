@@ -24,18 +24,4 @@ public class Arg extends ASTNode {
 	public ArgSpec getArgSpec() {
 		return argSpec;
 	}
-
-
-	@Override
-	public boolean equivalent(ASTNode other) {
-		if (other instanceof Arg) {
-			Arg argOther = (Arg) other;
-			return 
-				this.name.equivalent(argOther.name) &&
-				this.argSpec.equivalent(argOther.argSpec);
-		} else {
-			return false;
-		}
-	}
-	
 }

@@ -33,15 +33,6 @@ public class Identifier extends Expression {
 	public String getName() {
 		return name;
 	}
-	
-	public boolean equivalent(ASTNode other) {
-		if (other instanceof Identifier) {
-			Identifier otherID = (Identifier) other;
-			return this.name.equals(otherID.name);
-		} else {
-			return false;
-		}
-	}
 
 	@Override
 	public String toString() {
