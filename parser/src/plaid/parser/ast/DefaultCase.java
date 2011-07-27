@@ -8,4 +8,9 @@ public final class DefaultCase extends Case {
 		super(token, body);
 	}
 
+	
+	@Override
+	public String toString() {
+		return "default"+getBody().toString();		
+	}
 }

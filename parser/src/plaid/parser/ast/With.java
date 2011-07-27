@@ -35,8 +35,12 @@ public class With extends State {
 		return r1;
 	}
 
-
 	public StatePrim getR2() {
 		return r2;
+	}
+
+	@Override
+	public String toString() {
+		return r1.toString() + " with " + r2.toString();
 	}
 }
