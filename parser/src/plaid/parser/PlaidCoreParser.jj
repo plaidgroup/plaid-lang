@@ -947,21 +947,29 @@ Expression Expr1() :
     List<Expression> datagroups;
     List<Stmt> stmtList = new ArrayList<Stmt>();}
 {
-    LOOKAHEAD(Identifier() <EQUALS>)
-    id = Identifier() t = <EQUALS> e = Expr()
-    {       return new Assignment(t, null, id, e);
-    }
-|   LOOKAHEAD(SimpleExpr() <DOT> Identifier() <EQUALS>) 
-    target = SimpleExpr() <DOT> id =Identifier() t = <EQUALS> e = Expr()
-    {
-        return new Assignment(t, target, id, e);
+    LOOKAHEAD(SimpleExpr() <EQUALS>) 
+    target = SimpleExpr()  t = <EQUALS> e = Expr()
+    {   
+        if ( target instanceof Identifier ) {
+            return new Assignment(t, null, (Identifier)target, e);
+        } else if ( target instanceof Dereference ) {
+           Dereference dref = (Dereference)target;
+           if ( dref.getRight() instanceof Identifier ) {
+               return new Assignment(t, dref.getLeft(), (Identifier)dref.getRight(), e);
+           } else {
+               throw new ParseException("Cannot assing value to expression");
+           }
+            
+        } else {
+            throw new ParseException("Cannot assing value to expression");
+        }
     } 
-|   LOOKAHEAD(SimpleExpr()<LARROW>)
+|   LOOKAHEAD(SimpleExpr() <LARROW>)
     e = SimpleExpr() t=<LARROW> st = State()
     {
         new StateChange(t, e,st);
     }
-|   LOOKAHEAD(SimpleExpr()<DARROW>)
+|   LOOKAHEAD(SimpleExpr() <DARROW>)
     e = SimpleExpr() t=<DLARROW> st = State()
     {
         new Replace(t, e,st);

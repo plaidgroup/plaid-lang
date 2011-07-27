@@ -498,6 +498,7 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Expr1();
 		assertTrue(e instanceof Assignment );
+		System.out.println(e);
 		assertTrue(e.toString().equals("x=1"));		
 	}
 	
@@ -507,6 +508,7 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Expr1();
 		assertTrue(e instanceof Assignment );
+		System.out.println(e);
 		assertTrue(e.toString().equals("this.x=1"));		
 	}
 	
