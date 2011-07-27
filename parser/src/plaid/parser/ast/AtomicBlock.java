@@ -22,6 +22,10 @@ public class AtomicBlock extends Expression {
 			return body;
 		}
 
+		@Override
+		public String toString() {
+			return "atomic<"+exprListToString(datagroups)+">" + body.toString();			
+		}
 }
         
         

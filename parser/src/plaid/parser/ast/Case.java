@@ -26,7 +26,6 @@ public class Case extends ASTNode {
 	private final Expression body;
 	private final boolean defaultCase;
 
-
 	public Case(Token t, QualifiedIdentifier pattern, Expression body) {
 		super(t);
 		this.pattern = pattern;
@@ -44,5 +43,10 @@ public class Case extends ASTNode {
 
 	public Expression getBody() {
 		return body;
+	}
+
+	@Override
+	public String toString() {
+		return "case " + ((pattern!=null)?pattern.toString():"") + body.toString();		
 	}
 }
