@@ -23,13 +23,16 @@ public class StateRef extends StatePrim {
 		return specializations;
 	}
 	
-	
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(state.toString());
-		for(DeclOrStateOp dop : specializations ) {
-			sb.append(dop);
+		if ( specializations.size() > 0 ) {
+			sb.append("{" + specializations.get(0));
+			for(int i = 1; i<specializations.size(); i++) {
+				sb.append(specializations.get(i));
+			}
+			sb.append("}");
 		}
 		return sb.toString();
 	}
