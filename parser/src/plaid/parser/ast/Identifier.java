@@ -21,7 +21,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Identifier extends Expression{
+public class Identifier extends Expression {
 	
 	private final String name;
 	
@@ -41,5 +41,10 @@ public class Identifier extends Expression{
 		} else {
 			return false;
 		}
+	}
+
+	@Override
+	public String toString() {
+		return name;
 	}
 }

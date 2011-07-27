@@ -29,22 +29,71 @@ import plaid.parser.ast.*;
 
 public class PlaidCoreParser
 {
-		private CompilationUnit cu;
-		
-		private Expression foldToDeref(Expression target, List < Token > dotName) throws ParseException
-		{
-				Expression deref = target;
-				for (Token id : dotName) deref = new Dereference(id, deref, new Identifier(ASTNode.DEFAULT_TOKEN, id.image));
-				return deref;
-		}
+    protected Expression combineSimpleExp1(List<Expression> exps) throws ParseException {
+        Expression result = null;
+        
+        // reverse list 
+        Collections.reverse(exps);
+        
+        if ( exps.size() == 1 ) {
+            result = exps.get(0);
+        } else {
+            Expression left = exps.get(0);
+            for ( int i = 1; i < exps.size(); i++) {
+                Expression right = exps.get(i);
+                if ( right instanceof Application ) {
+                    Application app = (Application)right;
+                    left = new Application(app.getToken(),
+                                           left,
+                                           app.getMetaArguments(),
+                                           app.getArgument());
+                } else if ( right instanceof DestructiveDereference ) {
+                    DestructiveDereference ddref = (DestructiveDereference) right;
+                    left = new DestructiveDereference(ddref.getToken(), 
+                                                      left, 
+                                                      ddref.getRight());
+                } else if ( right instanceof Dereference ) {
+                    Dereference dref = (Dereference) right;
+                    left = new Dereference(dref.getToken(), 
+                                           left, 
+                                           dref.getRight());
+                } else {
+                    throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+                }
+            }
+            result = left;
+        }
+        
+        return result;                       
+    }
 
-		private List < String > tokenToStringList(List < Token > tokenList)
-		{
-				List < String > stringList = new ArrayList < String > ();
-				for (Token t : tokenList) stringList.add(t.image);
-				return stringList;
-		}
-
+    protected Expression combineSimpleExp2(List<Expression> exps) throws ParseException {
+        Expression result = null;
+        
+        // reverse list
+        Collections.reverse(exps);
+        
+        if ( exps.size() == 1 ) {
+            result = exps.get(0);
+        } else {
+	        Expression left = exps.get(0);
+	        for (int i = 1; i < exps.size(); i++ ) {
+	            Expression right = exps.get(i);
+	            if ( right instanceof Application ) {
+	                Application app = (Application)right;
+	                left = new Application(app.getToken(),
+	                                       left,
+	                                       app.getMetaArguments(),
+	                                       app.getArgument());
+	            } else {
+	                throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+	            }
+            }
+            result = left;
+        }
+        
+        return result;
+    }
 }
 
 PARSER_END(PlaidCoreParser)
@@ -305,7 +354,7 @@ Type Type() :
 	}
 	// TODO: Default permission?
 	// KBN - 2010-11-4 permission no longer optional - currently causes parser conflict
-| 	perm = Permission() qi = QualifiedIdentifier() [LOOKAHEAD(MetaTypes()) metaTypes = MetaTypes(false)]
+| 	[perm = Permission()] qi = QualifiedIdentifier() [LOOKAHEAD(MetaTypes()) metaTypes = MetaTypes(false)]
 	{
 		return new NominalObjectType(ASTNode.DEFAULT_TOKEN, perm, qi, metaTypes);
 	}
@@ -449,9 +498,9 @@ List<Expression> MetaArgs() :
   List<Expression> args = new ArrayList<Expression>();
 }{
   <LT>
-    arg =  SimpleExpr() {  args.add(arg); }
+    arg =  SimpleExpr1() {  args.add(arg); }
     (
-      <COMMA> arg =  SimpleExpr() { args.add(arg); }
+      <COMMA> arg =  SimpleExpr1() { args.add(arg); }
     )* 
   <GT>
   {
@@ -508,7 +557,7 @@ List<Modifier> Modifiers() : {
     (
             t = <OVERRIDE>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.OVERRIDE));  }
         |   t = <REQUIRES>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.REQUIRES));  }
-//        |   t = <IMMUTABLE>  { modifiers.add(new Modifier(t, Modifier.ModifierKind.IMMUTABLE)); }
+        // immutable is handled by directly associating it to states to avoid conflicts with types
     )+
     {
         return modifiers;
@@ -555,6 +604,7 @@ Decl Decl() :
 {
         [ modifiers = Modifiers() ]     
 
+(LOOKAHEAD(2) // check for 'immutable' field vs state
 		d = StateDecl(modifiers)
 		{
 		    return d;
@@ -563,7 +613,7 @@ Decl Decl() :
         {
             return d;
         }
-| 		
+|
 		d = FieldDecl(modifiers)
 		{
 		    return d;
@@ -572,6 +622,7 @@ Decl Decl() :
 		{
 		    return d;
 		}
+)
 }
 
 Decl StateDecl(List< Modifier > modifiers) :
@@ -585,6 +636,7 @@ Decl StateDecl(List< Modifier > modifiers) :
 	QualifiedIdentifier qi = null;
 }
 {
+    [ t = <IMMUTABLE>  { modifiers.add(new Modifier(t, Modifier.ModifierKind.IMMUTABLE)); } ]
     t= <STATE> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [ <CASE> <OF> qi = QualifiedIdentifier() [LOOKAHEAD(MetaArgsSpec(false)) metaCaseOfArgs = MetaArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {        return new StateDecl(t, modifiers, name, metaArgsSpec, qi, metaCaseOfArgs, stb);       }    | 
     t = <STATEVAL> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [stb = StateBinding()] // <SEMICOLON>    {        return new StateValDecl(t, modifiers, name, metaArgsSpec, stb);    }
 }
@@ -616,9 +668,11 @@ State State() : {
 
 
 StatePrim StatePrim() : {
+    Token t;
     Expression e;
     DeclList decls;
     List<DeclOrStateOp> dops = new ArrayList<DeclOrStateOp>();
+    StatePrim stp;
 }{
   (
      LOOKAHEAD(3)
@@ -626,8 +680,14 @@ StatePrim StatePrim() : {
      {
          return new StateRef(e.getToken(), e, dops);
      }
-  |  DeclList()
-  |  <FREEZE> e = SimpleExpr() <SEMICOLON>
+  |  stp = DeclList() 
+     {
+        return stp;
+     }
+  | t =  <FREEZE> e = SimpleExpr() <SEMICOLON>
+     {
+         return new Freeze(t, e);
+     }
   )
 }
 
@@ -656,7 +716,7 @@ Decl FieldDecl(List<Modifier> modifiers) :
 {
   (  LOOKAHEAD([Specifier()] [Type()] Identifier() <EQUALS>)
      // concrete field decl
-     [ specifier = Specifier() ] [ type = Type() ] name = Identifier() <EQUALS> e = Exp() <SEMICOLON> 
+     [ specifier = Specifier() ] [LOOKAHEAD(Type()) type = Type() ] name = Identifier() <EQUALS> e = Expr() <SEMICOLON> 
      {
         return new ConcreteFieldDecl
             (ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name, e);
@@ -841,7 +901,7 @@ Stmt Stmt() :
 		Stmt stmt;
 }
 {(
-			stmt = Exp()
+			stmt = Expr()
 	|		stmt = LocalVarDecl()
 	|       stmt = LocalStateValDecl()
 )
@@ -851,7 +911,7 @@ Stmt Stmt() :
 
 
 
-Expression Exp() :
+Expression Expr() :
 {
 	Expression e;
 }
@@ -877,9 +937,13 @@ Expression Expr1() :
     List<Expression> datagroups;
     List<Stmt> stmtList = new ArrayList<Stmt>();}
 {
+     LOOKAHEAD(Identifier() <EQUALS> )
+     id = Identifier() t = <EQUALS> e = Expr()
+     {        return new Assignment(t, null, id, e);
+     }
     //TODO:Optional SimpleExpr
-    LOOKAHEAD(SimpleExpr()<DOT>Identifier()<EQUALS>) 
-    target = SimpleExpr() <DOT> id =Identifier() t = <EQUALS> e = Exp()
+|     LOOKAHEAD(SimpleExpr()<DOT>Identifier()<EQUALS>) 
+    target = SimpleExpr() <DOT> id =Identifier() t = <EQUALS> e = Expr()
     {
         return new Assignment(t, target, id, e);
     } 
@@ -937,41 +1001,110 @@ Expression SimpleExpr() : {
     State st;
     List<Expression> exps = new ArrayList<Expression>();
 }{
-    t = <NEW> st = State()
+
+    e = BlockExpression()
+    {
+        return e;
+    }
+|   t = <NEW> st = State()
     {
         return new NewInstance(t, st);
     }
-|     (LOOKAHEAD(2) e = SimpleExpr1() {exps.add(e);})* 
-{
-    if (exps.size() == 1) {
-        return exps.get(0);
-    } else {
-        Application app = 
-            new Application(exps.get(0).getToken(), exps.get(0), exps.get(1));
-        for(int i=2; i<exps.size()-1; i++) {
-               app = new Application(exps.get(i).getToken(), app, exps.get(i));
-        }
-        return app;
+|   e = SimpleExpr2()
+    {
+        return e;
     }
 }
+
+
+Expression SimpleExpr2() : {
+    Expression e;
+    List<Expression> rest;
+}{
+    e = SimpleExpr1() rest = SimpleExpr2Rest()
+    {
+        rest.add(e);
+        return combineSimpleExp2(rest);
+    }
 }
+
+
+List<Expression> SimpleExpr2Rest() : {
+    Expression block;
+    List<Expression> rest;
+}{
+    block = BlockExpression() rest = SimpleExpr2Rest()
+    {
+        rest.add(new Application(ASTNode.DEFAULT_TOKEN, null, null, block));
+        return rest;
+    }
+  | { return new ArrayList<Expression>(); }
+}
+
 
 Expression SimpleExpr1() : {
     Expression e;
+    List<Expression> rest;
+    Token t = ASTNode.DEFAULT_TOKEN;
 }{
-    e = BlockExpression()    {        return e;    }
-|   e = Literal()
-    {
-        return e;
-    }
-|   e = Identifier()
-    {
-        return e;
+
+(
+    e = Literal() rest = SimpleExp1Rest()
+    { rest.add (e); }
+|   e = Identifier() rest = SimpleExp1Rest()
+    { rest.add (e); }
+|   e = THIS() rest = SimpleExp1Rest()
+    { rest.add (e); }
+|   e = ArgumentExpression() rest = SimpleExp1Rest()
+    { rest.add (e); }
+)
+    { 
+        return combineSimpleExp1(rest); 
     }
 }
 
 
+List<Expression> SimpleExp1Rest() : {
+    Token t = ASTNode.DEFAULT_TOKEN;
+    Expression e;
+    Identifier id;
+    List<Expression> metaArgs = new ArrayList<Expression>();
+    List<Expression> args;
+    List<Expression> rest;
+}{
+     t = <DOT> id = Identifier() rest = SimpleExp1Rest()
+     {
+        rest.add(new Dereference(t, null, id));
+        return rest; 
+     } 
+  |  t = <BANG> id = Identifier() rest = SimpleExp1Rest()
+     {
+        rest.add(new DestructiveDereference(t, null, id));
+        return rest; 
+     } 
+  |  [ metaArgs = MetaArgs()] e = ArgumentExpression() rest = SimpleExp1Rest()
+     {
+        rest.add(new Application(t, null, metaArgs, e));
+        return rest;
+     }
+  |  { return new ArrayList<Expression>() ;}
+}
 
+Identifier THIS() : {
+    Token t;
+}{
+    t = <THIS> { return new Identifier(t, t.image); }
+}
+
+ArgumentExpression ArgumentExpression() : {
+    Token t;
+    List<Expression> args = new ArrayList<Expression>();
+}{
+    t = <LPAREN> [args = ExprList()] <RPAREN>
+    {
+        return new ArgumentExpression(t, args);
+    }
+}
 
 Expression ConditionalExpression() : 
 {
@@ -984,7 +1117,7 @@ Expression ConditionalExpression() :
 {
 		e = ConditionalOrExpression()
 		(
-				t = "?" arg = Exp() t2 =  ":" arg2 = ConditionalExpression()
+				t = "?" arg = Expr() t2 =  ":" arg2 = ConditionalExpression()
 				{
 						e = new MethodCall(t, e, new Identifier(t,t.image), arg);
 						e = new MethodCall(t2, e, new Identifier(t,t.image), arg2);
@@ -1248,7 +1381,7 @@ Stmt LocalVarDecl() :
 				spec = Specifier()
 		)
 		( LOOKAHEAD( Type() ) type = Type() id = Identifier() | id = Identifier() ) 
-		<EQUALS> e = Exp() //local var declarations must be initialized
+		<EQUALS> e = Expr() //local var declarations must be initialized
 		{
 			return new VarDecl(spec.getToken(), spec, type, id, e);
 		}
@@ -1311,12 +1444,12 @@ List<Expression> ExprList() :
 		List < Expression > expList = new ArrayList < Expression > ();
 }
 {
-	e = Exp()
+	e = Expr()
 	{
 		expList.add(e);
 	}
 	(
-		< COMMA > nextExp = Exp()
+		< COMMA > nextExp = Expr()
 		{
 			expList.add(nextExp);
 		}
@@ -1390,7 +1523,7 @@ Expression Function() :
 		[ env = Environment() ]
 		<DARROW>
 		(
-				body = Exp()
+				body = Expr()
 		)
 		{
 			return new Lambda(t, metaArgsSpec, argList, env, body);

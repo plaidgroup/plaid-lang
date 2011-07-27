@@ -30,4 +30,9 @@ public class BlockExpr extends Expression {
 			return false;
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "{" + stmtListToString(statements) + "}";
+	}
 }

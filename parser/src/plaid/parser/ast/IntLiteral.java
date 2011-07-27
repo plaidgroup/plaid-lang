@@ -43,4 +43,9 @@ public class IntLiteral extends Expression {
 			return false;
 		}
 	}
+
+	@Override
+	public String toString() {
+		return Integer.toString(value);		
+	}
 }
