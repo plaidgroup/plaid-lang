@@ -29,6 +29,10 @@ public abstract class ASTNode {
 	
 	public static final Token DEFAULT_TOKEN = new Token();
 	
+	/**
+	 * All arguments to the constructor of any ASTNode must be non-null.
+	 * @param token
+	 */
 	public ASTNode(Token token) {
 		this.token = token;
 	}

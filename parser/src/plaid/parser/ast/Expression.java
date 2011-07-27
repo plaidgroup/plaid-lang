@@ -25,6 +25,8 @@ import plaid.parser.Token;
 
 
 public abstract class Expression extends Stmt {
+	
+	public static final Expression EMPTY = EmptyExpression.getEmptyExpression();
 
 	public Expression(Token token) {
 		super(token);

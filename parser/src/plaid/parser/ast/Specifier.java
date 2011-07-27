@@ -4,7 +4,8 @@ import plaid.parser.Token;
 
 public class Specifier extends ASTNode {
 	
-	public enum SpecifierKind {VAR, VAL};
+	public enum SpecifierKind {VAR, VAL, EMPTY};
+	public static final Specifier EMPTY = EmptySpecifier.getEmptySpecifier();
 	
 	private final SpecifierKind sk;
 

@@ -4,7 +4,8 @@ import plaid.parser.Token;
 
 public class Permission extends ASTNode {
 	
-	public enum PermissionKind {FULL, IMMUTABLE, PURE, DYN, UNIQUE, SHARED, NONE};
+	public enum PermissionKind {FULL, IMMUTABLE, PURE, DYN, UNIQUE, SHARED, NONE, EMPTY};
+	public static final Permission EMPTY = EmptyPermission.getEmptyPermission();
 	
 	private final PermissionKind permissionKind;
 	private final Expression datagroup;
