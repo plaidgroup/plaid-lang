@@ -52,6 +52,13 @@ public final class Lambda extends Expression {
 	public Expression getBody() {
 		return body;
 	}
-	
-	
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("fn ");
+		if ( metaArgsSpec.size() > 0) sb.append("<IMPLEMENTME>");
+		return sb.toString();
+	}	
 }
