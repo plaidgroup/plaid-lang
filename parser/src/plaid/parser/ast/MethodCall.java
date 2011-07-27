@@ -40,4 +40,15 @@ public class MethodCall extends Expression {
 	public boolean hasArgs() {
 		return hasArgs;
 	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb= new StringBuilder();
+		
+		if ( receiver != null ) sb.append(receiver.toString() + ".");
+		sb.append(method.toString());
+		sb.append("(" + exprListToString(arguments) + ")");
+		
+		return sb.toString();
+	}
 }
