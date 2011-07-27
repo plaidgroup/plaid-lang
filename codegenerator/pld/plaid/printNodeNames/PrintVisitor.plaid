@@ -7,12 +7,13 @@ import plaid.metadataCreation.Tree;
 import plaid.printNodeNames.StateTableEntry;
 
 state PrintVisitor = ASTVisitor {
-	var debug=true;
+	var debug=false;
 	var newVariableNameNumber = 0;
 	var states = new plaid.lang.List { var head = new plaid.lang.Nil;};
 	var firstCase = false;
 	var currState = "";
 	var browser=true;
+	var mainFile = true;
 	
 	method getState(name){
 		var returnVal="";
@@ -343,34 +344,63 @@ state PrintVisitor = ASTVisitor {
 			java.lang.System.out.println("//I am a CompilationUnit");	
 		};
 		ifElse (browser==true) {
-			java.lang.System.out.println("
-				<html>
-				<body>  
-				<script src="Tree.js" type="text/javascript"></script>
-				<script src="PlaidObject.js" type="text/javascript"></script>
-				<script src="PlaidState.js" type="text/javascript"></script>
-				<script type="text/javascript">
-				<!--
-			");
+		    if(mainFile==true){
+				java.lang.System.out.println("<html>");
+				java.lang.System.out.println("<body>");
+				java.lang.System.out.println("<script src=\"prototype.js\" type=\"text/javascript\"></script>");
+				java.lang.System.out.println("<script src=\"Tree.js\" type=\"text/javascript\"></script>");
+				java.lang.System.out.println("<script src=\"PlaidObject.js\" type=\"text/javascript\"></script>");
+				java.lang.System.out.println("<script src=\"PlaidState.js\" type=\"text/javascript\"></script>");
+				java.lang.System.out.println("<script type=\"text/javascript\">");
+				java.lang.System.out.println("<!--");
+			
+				java.lang.System.out.println("var Script = {");
+				java.lang.System.out.println("loadedScripts: [],");
+				java.lang.System.out.println("has: function(array, item) {");
+				java.lang.System.out.println("var length=array.length;");
+				java.lang.System.out.println("for (var i=0;i<length;i++){");
+				java.lang.System.out.println("if (array[i]===item){");
+				java.lang.System.out.println("return true;");
+				java.lang.System.out.println("}");
+				java.lang.System.out.println("}");
+				java.lang.System.out.println("return false;");
+				java.lang.System.out.println("},");
+				java.lang.System.out.println("include: function(script){");
+				java.lang.System.out.println("if (Script.has(this.loadedScripts,script)){");
+				java.lang.System.out.println("return false;");
+				java.lang.System.out.println("}");
+				java.lang.System.out.println("var code = new Ajax.Request(script, {");
+				java.lang.System.out.println("asynchronous: false, method: \"GET\",");
+				java.lang.System.out.println("evalJS: false, evalJSON: false");
+				java.lang.System.out.println("}).transport.responseText;");
+				java.lang.System.out.println("if (Prototype.Browser.IE) {");
+				java.lang.System.out.println("window.execScript(code);");
+				java.lang.System.out.println("} else if (Prototype.Browser.WebKit){");
+				java.lang.System.out.println("$$(\"head\").first().insert(Object.extend(");
+				java.lang.System.out.println("new Element(\"script\", {type: \"text/javascript\"}), {text: code}");
+				java.lang.System.out.println("));");
+				java.lang.System.out.println("} else {");
+				java.lang.System.out.println("window.eval((code));");
+				java.lang.System.out.println("}");
+				java.lang.System.out.println("this.loadedScripts.push(script);");
+				java.lang.System.out.println("}");
+				java.lang.System.out.println("};");
+			};
 		}
 		{
-			java.lang.System.out.println('
-				load("PlaidObject2.js");
-				load("PlaidState2.js");
-				load("Tree.js");
-			');
+			java.lang.System.out.println("load(\"PlaidObject.js\");");
+			java.lang.System.out.println("load(\"PlaidState.js\");");
+			java.lang.System.out.println("load(\"Tree.js\");");
 		};
 		node.imports.accept(this);
 		node.decls.map(fn (d) => {
 			d.accept(this);
 		});
-		if (browser==true){
-			java.lang.System.out.println("
-				//-->
-				</script>
-				</body>
-				</html>
-			");
+		if (browser==true && mainFile==true){
+			java.lang.System.out.println("//-->");
+			java.lang.System.out.println("</script>");
+			java.lang.System.out.println("</body>");
+			java.lang.System.out.println("</html>");
 		};
 	}
 	method visitDeclList(node) {
@@ -446,12 +476,18 @@ state PrintVisitor = ASTVisitor {
 	method visitImportList(node) {
 		if (debug) {
 			java.lang.System.out.println("//I am an ImportList");
-			java.lang.System.out.println("   //imports: "+node.imports.toString());
 			java.lang.System.out.println("   //token: "+node.token.toString());
 		};
-		node.imports.map(fn (d) => {
-			d.accept(this);
-		});
+		ifElse(browser==true) {
+			node.imports.map(fn (d) => {
+				java.lang.System.out.println("Script.include(\""+d.qid.toString()+".js\");");
+			});
+		}
+		{
+			node.imports.map(fn (d) => {
+				java.lang.System.out.println("load(\""+d.qid.toString()+".js\");");
+			});
+		};
 	}
 	method visitIntLiteral(node) {
 		if (debug) {
