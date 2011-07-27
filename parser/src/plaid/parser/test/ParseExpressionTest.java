@@ -35,6 +35,7 @@ import plaid.parser.ast.MethodCall;
 import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
 import plaid.parser.ast.PatternCase;
+import plaid.parser.ast.QualifiedIdentifier;
 import plaid.parser.ast.Replace;
 import plaid.parser.ast.SplitBlock;
 import plaid.parser.ast.StateChange;
@@ -49,8 +50,20 @@ public class ParseExpressionTest {
 
 	/************************************************************
 	 **                      SimpleExpr1                       **
-	 ************************************************************/
-	 
+	 ************************************************************/	 
+ 	@Test
+	public void parseQualifiedIdentifier() throws ParseException, UnsupportedEncodingException {
+		String code = "foo.bar.baz";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		QualifiedIdentifier qi = pp.QualifiedIdentifier();
+		assertTrue(qi instanceof QualifiedIdentifier );
+		assertTrue( code.equals(qi.toString()));
+	}
+
+	
+	/************************************************************
+	 **                      SimpleExpr1                       **
+	 ************************************************************/	 
  	@Test
 	public void parseIntLiteral() throws ParseException, UnsupportedEncodingException {
 		String code = "1234";
@@ -576,6 +589,20 @@ public class ParseExpressionTest {
 		Expression e = pp.Expr1();
 		assertTrue(e instanceof UnpackInnerGroups );
 		assertTrue(e.toString().equals("unpackInnerGroups{}"));
+	}
+	
+	
+	/************************************************************
+	 **                       Expr                             **
+	 ************************************************************/
+	@Test
+	public void parseExprLambda() throws ParseException, UnsupportedEncodingException {
+		String code = "fn () => {}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr();
+		assertTrue(e instanceof Lambda );
+		System.out.println(e);
+		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
 	}
 	
 	/************************************************************
