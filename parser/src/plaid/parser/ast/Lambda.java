@@ -52,6 +52,5 @@ public final class Lambda extends Expression {
 	public Expression getBody() {
 		return body;
 	}
-	
-	
+
 }
