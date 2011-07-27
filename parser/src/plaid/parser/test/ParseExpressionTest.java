@@ -28,6 +28,7 @@ import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.IntLiteral;
+import plaid.parser.ast.Lambda;
 import plaid.parser.ast.Match;
 import plaid.parser.ast.MethodCall;
 import plaid.parser.ast.Modifier;
@@ -573,6 +574,18 @@ public class ParseExpressionTest {
 		Expression e = pp.Expr1();
 		assertTrue(e instanceof UnpackInnerGroups );
 		assertTrue(e.toString().equals("unpackInnerGroups{}"));
+	}
+	
+	/************************************************************
+	 **                       Expr                             **
+	 ************************************************************/
+	@Test
+	public void parseLambda() throws ParseException, UnsupportedEncodingException {
+		String code = "fn () => {}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr();
+		assertTrue(e instanceof Lambda );
+		assertTrue(e.toString().equals("fn <>()[]=>{}"));
 	}
 	
 	/************************************************************
