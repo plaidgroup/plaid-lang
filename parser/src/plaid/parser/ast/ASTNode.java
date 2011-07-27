@@ -44,7 +44,7 @@ public abstract class ASTNode {
 	 * Equivalence checking will fail for all other types of fields.
 	 * @author jssunshi
 	 */
-	public boolean equivalent(ASTNode other) {
+	public final boolean equivalent(ASTNode other) {
 		Class<?> thisClass = this.getClass();
 		Method[] methods = thisClass.getMethods();
 		try { 
@@ -60,7 +60,6 @@ public abstract class ASTNode {
 							return false;
 						}
 					} else if (myField instanceof List) {
-						//TODO: This will fail if the field is a list of something other than ASTNodes
 						List<?> myList = (List<?>) myField;
 						List<?> otherList = (List<?>) otherField;
 						for (int j = 0; j < myList.size(); j++) {
@@ -71,16 +70,20 @@ public abstract class ASTNode {
 							}
 						}
 					} else if (myField instanceof Map) {
-						Map<Object,ASTNode> myMap = (Map<Object,ASTNode>)myField;
-						Map<Object,ASTNode> otherMap = (Map<Object,ASTNode>)otherField;
+						
+						Map<?,?> myMap = (Map<?,?>)myField;
+						Map<?,?> otherMap = (Map<?,?>)otherField;
 						for(Object key : myMap.keySet()) {
-							if(!myMap.get(key).equivalent(otherMap.get(key))) {
+							ASTNode myItem = (ASTNode)myMap.get(key);
+							ASTNode otherItem = (ASTNode)otherMap.get(key);
+							if(myItem.equivalent(otherItem)) {
 								return false;
 							}
 						}
 						return true;
 					} else {
-						throw new IllegalArgumentException("Default ASTNode.equivalent method only supports maps, lists, or ASTNode fields.");
+						throw new IllegalArgumentException("Default ASTNode.equivalent method only " +
+								"supports maps, lists, or ASTNode fields.");
 					}
 				}
 			}
