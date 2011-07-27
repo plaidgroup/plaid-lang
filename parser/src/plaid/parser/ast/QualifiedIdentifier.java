@@ -25,7 +25,8 @@ public class QualifiedIdentifier extends ASTNode {
 			return ids.get(0).toString();
 		} else {
 			StringBuilder sb = new StringBuilder();
-			for(int i = 0; i < ids.size(); i++ ) {
+			sb.append(ids.get(0));
+			for(int i = 1; i < ids.size(); i++ ) {
 				sb.append(".");
 				sb.append(ids.get(i).toString());
 			}
