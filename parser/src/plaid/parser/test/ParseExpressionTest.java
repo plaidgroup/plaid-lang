@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 
 import org.junit.Test;
 
@@ -12,17 +13,23 @@ import plaid.parser.ParseException;
 import plaid.parser.PlaidCoreParser;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.ArgumentExpression;
+import plaid.parser.ast.Decl;
 import plaid.parser.ast.Dereference;
 import plaid.parser.ast.DestructiveDereference;
 import plaid.parser.ast.DoubleLiteral;
 import plaid.parser.ast.Expression;
 import plaid.parser.ast.Freeze;
+import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.IntLiteral;
+import plaid.parser.ast.Modifier;
+import plaid.parser.ast.StateOp;
+import plaid.parser.ast.StateOpRemove;
+import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
 import plaid.parser.ast.StringLiteral;
 
-public class ParseRuleTest {
+public class ParseExpressionTest {
 
 	/************************************************************
 	 **                      SimpleExpr1                       **
@@ -188,6 +195,39 @@ public class ParseRuleTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.SimpleExpr2();
 		assertTrue(e instanceof Application );
+		assertTrue( code.equals(e.toString()));
+	}
+
+	/************************************************************
+	 **                      StateOP                           **
+	 ************************************************************/
+	@Test
+	public void parseStateRemoveOp() throws ParseException, UnsupportedEncodingException {
+		String code = "remove foo;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		StateOp e = pp.StateOp();
+		assertTrue(e instanceof StateOpRemove );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseStateRenameOp() throws ParseException, UnsupportedEncodingException {
+		String code = "rename foo as bar;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		StateOp e = pp.StateOp();
+		assertTrue(e instanceof StateOpRename );
+		assertTrue( code.equals(e.toString()));
+	}
+
+	/************************************************************
+	 **                      GroupDecl                         **
+	 ************************************************************/
+	@Test
+	public void parseGroupDecl() throws ParseException, UnsupportedEncodingException {
+		String code = "group foo = new group;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.GroupDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof GroupDecl );
 		assertTrue( code.equals(e.toString()));
 	}
 	
