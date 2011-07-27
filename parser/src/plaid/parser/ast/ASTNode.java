@@ -52,6 +52,9 @@ public abstract class ASTNode {
 		Class<?> thisClass = this.getClass();
 		Method[] methods = thisClass.getMethods();
 		boolean matches = true; // assume true
+		if (!(other instanceof ASTNode)) {
+			return false;
+		}
 		try { 
 			for (int i = 0; i < methods.length; i++) {
 				Method method = methods[i];
@@ -67,6 +70,9 @@ public abstract class ASTNode {
 					} else if (myField instanceof List) {
 						List<?> myList = (List<?>) myField;
 						List<?> otherList = (List<?>) otherField;
+						if (myList.size() != otherList.size()) {
+							matches = false;
+						}
 						for (int j = 0; j < myList.size(); j++) {
 							ASTNode myItem = (ASTNode)myList.get(j);
 							ASTNode otherItem = (ASTNode)otherList.get(j);
@@ -78,6 +84,9 @@ public abstract class ASTNode {
 						
 						Map<?,?> myMap = (Map<?,?>)myField;
 						Map<?,?> otherMap = (Map<?,?>)otherField;
+						if (myMap.size() != otherMap.size()) {
+							matches = false;
+						}
 						for(Object key : myMap.keySet()) {
 							ASTNode myItem = (ASTNode)myMap.get(key);
 							ASTNode otherItem = (ASTNode)otherMap.get(key);
