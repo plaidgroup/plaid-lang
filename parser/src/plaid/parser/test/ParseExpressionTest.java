@@ -25,6 +25,7 @@ import plaid.parser.ast.Dereference;
 import plaid.parser.ast.DestructiveDereference;
 import plaid.parser.ast.DoubleLiteral;
 import plaid.parser.ast.Expression;
+import plaid.parser.ast.FieldDecl;
 import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.Identifier;
@@ -38,6 +39,7 @@ import plaid.parser.ast.PatternCase;
 import plaid.parser.ast.QualifiedIdentifier;
 import plaid.parser.ast.Replace;
 import plaid.parser.ast.SplitBlock;
+import plaid.parser.ast.State;
 import plaid.parser.ast.StateChange;
 import plaid.parser.ast.StateOp;
 import plaid.parser.ast.StateOpRemove;
@@ -45,6 +47,7 @@ import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
 import plaid.parser.ast.StringLiteral;
 import plaid.parser.ast.UnpackInnerGroups;
+import plaid.parser.ast.With;
 
 public class ParseExpressionTest {
 
@@ -53,7 +56,7 @@ public class ParseExpressionTest {
 	 ************************************************************/	 
  	@Test
 	public void parseQualifiedIdentifier() throws ParseException, UnsupportedEncodingException {
-		String code = "foo.bar.baz";
+		String code = "foobar.baz";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		QualifiedIdentifier qi = pp.QualifiedIdentifier();
 		assertTrue(qi instanceof QualifiedIdentifier );
@@ -673,7 +676,49 @@ public class ParseExpressionTest {
 		assertTrue( code.equals(e.toString()));
 	}
 	
+	/************************************************************
+	 **                      StatePrim                         **
+	 ************************************************************/
+	@Test
+	public void parseFreeze() throws ParseException, UnsupportedEncodingException {
+		String code = "freeze x;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		StatePrim e = pp.StatePrim();
+		assertTrue(e instanceof Freeze );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseStatePrimState() throws ParseException, UnsupportedEncodingException {
+		String code = "Foo";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		StatePrim e = pp.StatePrim();
+		assertTrue(e instanceof StatePrim );
+		assertTrue( code.equals(e.toString()));
+	}	
 
+	@Test
+	public void parseStatePrimStateOps() throws ParseException, UnsupportedEncodingException {
+		String code = "Foo{remove Bar;rename Baz as Fogo;}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		StatePrim e = pp.StatePrim();
+		assertTrue(e instanceof StatePrim );
+		System.out.println(e);
+		assertTrue( code.equals(e.toString()));
+	}	
+	
+	/************************************************************
+	 **                      State                             **
+	 ************************************************************/	
+	@Test
+	public void parseWith() throws ParseException, UnsupportedEncodingException {
+		String code = "x with y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		State e = pp.State();
+		assertTrue(e instanceof With );
+		assertTrue( code.equals(e.toString()));
+	}
+	
 	/************************************************************
 	 **                      GroupDecl                         **
 	 ************************************************************/
@@ -686,16 +731,21 @@ public class ParseExpressionTest {
 		assertTrue( code.equals(e.toString()));
 	}
 	
-	
 	/************************************************************
-	 **                      StatePrim                         **
+	 **                      FieldDecl                         **
 	 ************************************************************/
 	@Test
-	public void parseFreeze() throws ParseException, UnsupportedEncodingException {
-		String code = "freeze x;";
+	public void parseAbstractField() throws ParseException, UnsupportedEncodingException {
+		String code = "x;";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		StatePrim e = pp.StatePrim();
-		assertTrue(e instanceof Freeze );
+		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof FieldDecl );
 		assertTrue( code.equals(e.toString()));
 	}
 }
+
+
+
+
+
+

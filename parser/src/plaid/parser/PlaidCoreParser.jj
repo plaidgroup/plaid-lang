@@ -575,10 +575,10 @@ List<DeclOrStateOp> DeclOrStateOpList() : {
     <LBRACE>
         dop = DeclOrStateOp() { list.add(dop); } 
         (
-            <COMMA> dop = DeclOrStateOp() { list.add(dop); }
+            dop = DeclOrStateOp() { list.add(dop); }
         )*
     <RBRACE>
-    { return list; } 
+    { return list; }
 }
 
 Decl Decl() :
@@ -649,7 +649,7 @@ State State() : {
     StatePrim stpRight = null;
     Token t = null;
 }{
-    stpLeft = StatePrim() [ t = <WITH> stpRight = StatePrim() ]
+    stpLeft = StatePrim() [LOOKAHEAD(<WITH>) t = <WITH> stpRight = StatePrim() ]
     {
         if ( stpRight != null  ) {
             return new With(t, stpLeft, stpRight);
@@ -663,13 +663,12 @@ State State() : {
 StatePrim StatePrim() : {
     Token t;
     Expression e;
-    DeclList decls;
     List<DeclOrStateOp> dops = new ArrayList<DeclOrStateOp>();
     StatePrim stp;
 }{
   (
-     LOOKAHEAD(3)
-     e = SimpleExpr() ( dops = DeclOrStateOpList() | <SEMICOLON>)
+     LOOKAHEAD(SimpleExpr())
+     e = SimpleExpr() [ LOOKAHEAD(2) dops = DeclOrStateOpList()]
      {
          return new StateRef(e.getToken(), e, dops);
      }
@@ -677,7 +676,7 @@ StatePrim StatePrim() : {
      {
         return stp;
      }
-  | t =  <FREEZE> e = SimpleExpr() <SEMICOLON>
+  | t =  <FREEZE> e = SimpleExpr() 
      {
          return new Freeze(t, e);
      }
@@ -693,7 +692,7 @@ StateOp StateOp () : {
      {
          return new StateOpRemove(t, id);
      } 
-  |  t = <RENAME> id = Identifier() <AS> to = Identifier() <SEMICOLON> 
+  |  t = <RENAME> id = Identifier() <AS> to = Identifier() <SEMICOLON>
      {
          return new StateOpRename(t, id, to);
      }
@@ -834,28 +833,6 @@ DeclList DeclList() :
 		<RBRACE>
 		{
 				return new DeclList(t, declList);
-		}
-}
-
-List<Token> DotName() :
-{
-		Token t;
-		List < Token > dn = new ArrayList < Token > ();
-}
-{
-		t = < ID >
-		{
-				dn.add(t);
-		}
-		(
-				LOOKAHEAD(2)
-				< DOT > (t = < ID >)
-				{
-						dn.add(t);
-				}
-		)*
-		{
-				return dn;
 		}
 }
 
@@ -1043,6 +1020,7 @@ List<Expression> SimpleExpr2Rest() : {
     Expression block;
     List<Expression> rest;
 }{
+    LOOKAHEAD(BlockExpression())
     block = BlockExpression() rest = SimpleExpr2Rest()
     {
         rest.add(new Application(ASTNode.DEFAULT_TOKEN, Expression.EMPTY, new ArrayList<Expression>(), block));
