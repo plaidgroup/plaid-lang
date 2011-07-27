@@ -14,6 +14,7 @@ import plaid.parser.PlaidCoreParser;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.ArgumentExpression;
 import plaid.parser.ast.BlockExpr;
+import plaid.parser.ast.Cast;
 import plaid.parser.ast.Decl;
 import plaid.parser.ast.Dereference;
 import plaid.parser.ast.DestructiveDereference;
@@ -23,6 +24,7 @@ import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.IntLiteral;
+import plaid.parser.ast.MethodCall;
 import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
 import plaid.parser.ast.StateOp;
@@ -219,6 +221,139 @@ public class ParseExpressionTest {
 		Expression e = pp.SimpleExpr();
 		assertTrue(e instanceof NewInstance );
 		assertTrue( code.equals(e.toString()+";"));
+	}
+	
+	/************************************************************
+	 **                      InfixExpr                        **
+	 ************************************************************/
+	@Test
+	public void parseCast() throws ParseException, UnsupportedEncodingException {
+		String code = "x as Foo";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof Cast );
+		// TODO: add check for equality
+	}
+	
+	/************************************************************
+	 **                      UnaryExp                          **
+	 ************************************************************/
+	@Test
+	public void parseUnaryMinus() throws ParseException, UnsupportedEncodingException {
+		String code = "-x";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.-()"));		
+	}
+	
+	@Test
+	public void parseUnaryPlus() throws ParseException, UnsupportedEncodingException {
+		String code = "+x";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.+()"));		
+	}
+	
+	@Test
+	public void parseUnaryNot() throws ParseException, UnsupportedEncodingException {
+		String code = "!x";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.!()"));		
+	}
+
+	@Test
+	public void parseUnaryTilde() throws ParseException, UnsupportedEncodingException {
+		String code = "~x";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.~()"));		
+	}
+
+	/************************************************************
+	 **            MultiplicativeExpression                     **
+	 ************************************************************/
+	@Test
+	public void parseMultiply() throws ParseException, UnsupportedEncodingException {
+		String code = "x * y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.*(y)"));		
+	}
+	
+	@Test
+	public void parseDivide() throws ParseException, UnsupportedEncodingException {
+		String code = "x / y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x./(y)"));		
+	}
+	
+	@Test
+	public void parseModulo() throws ParseException, UnsupportedEncodingException {
+		String code = "x % y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.%(y)"));		
+	}	
+
+	
+	/************************************************************
+	 **                AdditiveExpression                      **
+	 ************************************************************/
+	@Test
+	public void parseAdd() throws ParseException, UnsupportedEncodingException {
+		String code = "x + y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.+(y)"));		
+	}	
+
+	@Test
+	public void parseSubstract() throws ParseException, UnsupportedEncodingException {
+		String code = "x - y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.-(y)"));		
+	}
+	
+	/************************************************************
+	 **                   ShiftExpression                      **
+	 ************************************************************/
+	@Test
+	public void parseLeftShift() throws ParseException, UnsupportedEncodingException {
+		String code = "x << y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.<<(y)"));		
+	}
+	
+	@Test
+	public void parseRightShift() throws ParseException, UnsupportedEncodingException {
+		String code = "x >> y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.>>(y)"));		
+	}
+	
+	@Test
+	public void parseRightRightShift() throws ParseException, UnsupportedEncodingException {
+		String code = "x >>> y";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.InfixExpr();
+		assertTrue(e instanceof MethodCall );
+		assertTrue(e.toString().equals("x.>>>(y)"));		
 	}
 	
 	/************************************************************
