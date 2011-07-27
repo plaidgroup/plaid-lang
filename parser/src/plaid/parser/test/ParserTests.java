@@ -5,35 +5,23 @@ package plaid.parser.test;
 
 
 import java.io.StringBufferInputStream;
+import java.util.ArrayList;
+import java.util.Collections;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import junit.framework.Assert;
+
 import org.junit.Test;
 
 import plaid.parser.ParseException;
 import plaid.parser.ParserCore;
+import plaid.parser.ast.*;
+import plaid.parser.ast.Specifier.SpecifierKind;
 
 /**
  * @author jssunshi
  *
  */
 public class ParserTests {
-
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@BeforeClass
-	public static void setUpBeforeClass() throws Exception {
-	}
-
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@AfterClass
-	public static void tearDownAfterClass() throws Exception {
-	}
 	
 	@Test(expected=ParseException.class)
 	public void noPackage() throws ParseException {
@@ -41,19 +29,22 @@ public class ParserTests {
 		ParserCore.parse(new StringBufferInputStream(program));
 	}
 	
-
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@Before
-	public void setUp() throws Exception {
+	@Test
+	public void intField() throws ParseException {
+		String program = "package plaid;\n val foo = 5;";
+		CompilationUnit parsedCU = ParserCore.parse(new StringBufferInputStream(program));
+		Decl field = 
+			new ConcreteFieldDecl(null, new ArrayList<Modifier>(), 
+					new Specifier(null,SpecifierKind.VAL),
+					null,
+					new Identifier(null,"foo"), 
+					new IntLiteral(null,5));
+		QualifiedIdentifier packageName = 
+			new QualifiedIdentifier(null,Collections.singletonList(new Identifier(null, "plaid")));
+		CompilationUnit goalCU = new CompilationUnit(Collections.singletonList(field),
+				new ArrayList<Import>(), packageName);
+		Assert.assertNotNull("Parsed CU is null", parsedCU);
+		boolean match = goalCU.equivalent(parsedCU);
+		Assert.assertTrue("Parsed and goal CUs are not equivalent.", match);
 	}
-
-	/**
-	 * @throws java.lang.Exception
-	 */
-	@After
-	public void tearDown() throws Exception {
-	}
-
 }

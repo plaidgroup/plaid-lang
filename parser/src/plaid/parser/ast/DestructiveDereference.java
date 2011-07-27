@@ -14,4 +14,13 @@ public class DestructiveDereference extends Dereference {
 	public DestructiveDereference(Token t, Expression left, Identifier right) {
 		super(t, left, right);
 	}
+	
+	@Override
+	public String toString() {
+		String result = "";
+		if ( getLeft() != null ) result += getLeft().toString();
+		result += "!";
+		if ( getRight() != null ) result += getRight().toString();
+		return result;
+	}
 }

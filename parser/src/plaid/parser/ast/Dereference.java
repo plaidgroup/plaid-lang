@@ -50,4 +50,13 @@ public class Dereference extends Expression {
 			return false;
 		}
 	}
+	
+	@Override
+	public String toString() {
+		String result = "";
+		if ( left != null ) result += left.toString();
+		result += ".";
+		if ( right != null ) result += right.toString();
+		return result;
+	}
 }
