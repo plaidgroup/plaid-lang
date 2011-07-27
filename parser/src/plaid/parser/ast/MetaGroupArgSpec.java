@@ -4,9 +4,19 @@ import plaid.parser.Token;
 
 public class MetaGroupArgSpec extends MetaArgSpec {
 
+	private final GroupPermission gp;
+	private final Identifier id;
+
 	public MetaGroupArgSpec(Token token, GroupPermission gp, Identifier id) {
 		super(token);
-		// TODO Auto-generated constructor stub
+		this.gp = gp;
+		this.id = id;
 	}
 
+	public GroupPermission getGp() {
+		return gp;
+	}
+	public Identifier getId() {
+		return id;
+	}
 }

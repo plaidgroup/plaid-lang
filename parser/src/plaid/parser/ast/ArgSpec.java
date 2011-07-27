@@ -25,16 +25,4 @@ public class ArgSpec extends ASTNode {
 	public Type getPostType() {
 		return postType;
 	}
-	
-	@Override
-	public boolean equivalent(ASTNode other) {
-		if (other instanceof ArgSpec) {
-			ArgSpec other2 = (ArgSpec) other;
-			return 
-				this.preType.equivalent(other2.preType) &&
-				this.postType.equivalent(other2.postType);
-		} else {
-			return false;
-		}
-	}
 }

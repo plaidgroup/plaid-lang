@@ -39,19 +39,4 @@ public class DeclList extends StatePrim {
 	public void setDecls(List<Decl> decls) {
 		this.decls = decls;
 	}
-	
-	@Override
-	public boolean equivalent(ASTNode other) {
-		if(other instanceof DeclList) {
-			DeclList otherDL = (DeclList) other;
-			for(int i=0; i<decls.size(); i++) {
-				if(!decls.get(i).equivalent(otherDL.decls.get(i)))
-					return false;
-			}
-			return true;
-		}
-		else {
-			return false;
-		}
-	}
 }

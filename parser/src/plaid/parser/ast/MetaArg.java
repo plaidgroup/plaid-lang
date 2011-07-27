@@ -6,7 +6,6 @@ public class MetaArg extends ASTNode {
 
 	public MetaArg(Token token) {
 		super(token);
-		// TODO Auto-generated constructor stub
 	}
 
 }
