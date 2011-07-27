@@ -947,25 +947,39 @@ Expression Expr1() :
     List<Expression> datagroups;
     List<Stmt> stmtList = new ArrayList<Stmt>();}
 {
-     LOOKAHEAD(Identifier() <EQUALS> )
-     id = Identifier() t = <EQUALS> e = Expr()
-     {        return new Assignment(t, null, id, e);
-     }
-    //TODO:Optional SimpleExpr
-|     LOOKAHEAD(SimpleExpr()<DOT>Identifier()<EQUALS>) 
-    target = SimpleExpr() <DOT> id =Identifier() t = <EQUALS> e = Expr()
-    {
-        return new Assignment(t, target, id, e);
+    // This rule corresponds to the following rule:
+    // 
+    // [SimpleExp <DOT>] Identifier <EQUALS> Expr
+    // 
+    // Because SimpleExp.Identifier is itself an 
+    // Expression we simply parse a SimpleExpression 
+    // and check that we have a correct receiver. 
+    LOOKAHEAD(SimpleExpr() <EQUALS>) 
+    target = SimpleExpr()  t = <EQUALS> e = Expr()
+    {   
+        if ( target instanceof Identifier ) {
+            return new Assignment(t, null, (Identifier)target, e);
+        } else if ( target instanceof Dereference ) {
+           Dereference dref = (Dereference)target;
+           if ( dref.getRight() instanceof Identifier ) {
+               return new Assignment(t, dref.getLeft(), (Identifier)dref.getRight(), e);
+           } else {
+               throw new ParseException("Cannot assing value to expression");
+           }
+            
+        } else {
+            throw new ParseException("Cannot assing value to expression");
+        }
     } 
-|   LOOKAHEAD(SimpleExpr()<LARROW>)
+|   LOOKAHEAD(SimpleExpr() <LARROW>)
     e = SimpleExpr() t=<LARROW> st = State()
     {
-        new StateChange(t, e,st);
+        return new StateChange(t, e,st);
     }
-|   LOOKAHEAD(SimpleExpr()<DARROW>)
+|   LOOKAHEAD(SimpleExpr() <DARROW>)
     e = SimpleExpr() t=<DLARROW> st = State()
     {
-        new Replace(t, e,st);
+        return new Replace(t, e, st);
     }               
 |   t = < MATCH > pattern = InfixExpr() < LBRACE > cl = CaseList() < RBRACE >
     {
@@ -1092,7 +1106,8 @@ List<Expression> SimpleExp1Rest() : {
         rest.add(new DestructiveDereference(t, null, id));
         return rest; 
      } 
-  |  [ metaArgs = MetaArgs()] e = ArgumentExpression() rest = SimpleExp1Rest()
+  |  LOOKAHEAD([MetaArgs()] ArgumentExpression()) 
+     [ metaArgs = MetaArgs()] e = ArgumentExpression() rest = SimpleExp1Rest()
      {
         rest.add(new Application(t, null, metaArgs, e));
         return rest;
