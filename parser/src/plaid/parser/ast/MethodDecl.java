@@ -25,22 +25,21 @@ import java.util.Map;
 
 import plaid.parser.Token;
 
-public final class MethodDecl extends Decl {
+public class MethodDecl extends Decl {
 	private final Type type;
 	private final List<MetaArgSpec> metaArgsSpec;
 	private final List<Arg> arguments;
 	private final Map<Identifier, ArgSpec> env;
-	private final Expression body;
+	
 	public MethodDecl(Token t, List<Modifier> modifiers, 
 			Type type, Identifier name,
 			List<MetaArgSpec> metaArgsSpec, List<Arg> arguments,
-			Map<Identifier, ArgSpec> env, Expression body) {
+			Map<Identifier, ArgSpec> env) {
 		super(t, modifiers, name);
 		this.type = type;
 		this.metaArgsSpec = metaArgsSpec;
 		this.arguments = arguments;
 		this.env = env;
-		this.body = body;
 	}
 	public Type getType() {
 		return type;
@@ -53,8 +52,5 @@ public final class MethodDecl extends Decl {
 	}
 	public Map<Identifier, ArgSpec> getEnv() {
 		return env;
-	}
-	public Expression getBody() {
-		return body;
 	}
 }
