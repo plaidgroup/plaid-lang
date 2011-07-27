@@ -20,6 +20,7 @@ import plaid.parser.ast.BlockExpr;
 import plaid.parser.ast.Case;
 import plaid.parser.ast.Cast;
 import plaid.parser.ast.Decl;
+import plaid.parser.ast.DefaultCase;
 import plaid.parser.ast.Dereference;
 import plaid.parser.ast.DestructiveDereference;
 import plaid.parser.ast.DoubleLiteral;
@@ -33,6 +34,7 @@ import plaid.parser.ast.Match;
 import plaid.parser.ast.MethodCall;
 import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
+import plaid.parser.ast.PatternCase;
 import plaid.parser.ast.Replace;
 import plaid.parser.ast.SplitBlock;
 import plaid.parser.ast.StateChange;
@@ -545,7 +547,7 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Expr1();
 		assertTrue(e instanceof Match );
-		assertTrue(e.toString().equals("match(x){case Foo{}default{}"));		
+		assertTrue(e.toString().equals("match(x){case Foo{}default{}}"));		
 		
 	}
 
@@ -577,15 +579,16 @@ public class ParseExpressionTest {
 	}
 	
 	/************************************************************
-	 **                       Expr                             **
+	 **                       Function                         **
 	 ************************************************************/
 	@Test
 	public void parseLambda() throws ParseException, UnsupportedEncodingException {
 		String code = "fn () => {}";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Expression e = pp.Expr();
+		Expression e = pp.Function();
 		assertTrue(e instanceof Lambda );
-		assertTrue(e.toString().equals("fn <>()[]=>{}"));
+		System.out.println(e);
+		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
 	}
 	
 	/************************************************************
@@ -596,7 +599,7 @@ public class ParseExpressionTest {
 		String code = "case Foo{}";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		List<Case> e = pp.CaseList();
-		assertTrue(e.get(0) instanceof Case );
+		assertTrue(e.get(0) instanceof PatternCase );
 		assertTrue(e.get(0).toString().equals("case Foo{}"));
 	}
 	
@@ -618,9 +621,8 @@ public class ParseExpressionTest {
 		String code = "default {}";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		List<Case> e = pp.CaseList();
-		assertTrue(e.get(0) instanceof Case );
-		System.out.println(e);
-		assertTrue(e.get(0).toString().equals("default {}"));
+		assertTrue(e.get(0) instanceof DefaultCase );
+		assertTrue(e.get(0).toString().equals("default{}"));
 	}
 	
 	/************************************************************
