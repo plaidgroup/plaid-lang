@@ -47,6 +47,7 @@ public abstract class ASTNode {
 	public final boolean equivalent(ASTNode other) {
 		Class<?> thisClass = this.getClass();
 		Method[] methods = thisClass.getMethods();
+		boolean matches = true; // assume true
 		try { 
 			for (int i = 0; i < methods.length; i++) {
 				Method method = methods[i];
@@ -54,10 +55,10 @@ public abstract class ASTNode {
 						!method.getName().equals("getClass") && //ignore getClass
 						method.getName().startsWith("get")) {  //ignore all other non-getters
 					Object myField = method.invoke(this);
-					Object otherField = method.invoke(this);
+					Object otherField = method.invoke(other);
 					if (myField instanceof ASTNode) {
 						if (!(((ASTNode) myField)).equivalent((ASTNode)otherField)) {
-							return false;
+							matches = false;
 						}
 					} else if (myField instanceof List) {
 						List<?> myList = (List<?>) myField;
@@ -66,7 +67,7 @@ public abstract class ASTNode {
 							ASTNode myItem = (ASTNode)myList.get(j);
 							ASTNode otherItem = (ASTNode)otherList.get(j);
 							if(!myItem.equivalent(otherItem)) { 
-								return false;
+								matches = false;
 							}
 						}
 					} else if (myField instanceof Map) {
@@ -77,17 +78,23 @@ public abstract class ASTNode {
 							ASTNode myItem = (ASTNode)myMap.get(key);
 							ASTNode otherItem = (ASTNode)otherMap.get(key);
 							if(myItem.equivalent(otherItem)) {
-								return false;
+								matches = false;
 							}
 						}
-						return true;
-					} else {
+					} 
+					else if (myField instanceof Enum || myField instanceof String || 
+							myField instanceof Double || myField instanceof Integer) {
+						matches = matches && (myField.equals(otherField));
+					} else if (myField == null) {
+						matches = matches && otherField == null;
+					}
+					else {
 						throw new IllegalArgumentException("Default ASTNode.equivalent method only " +
 								"supports maps, lists, or ASTNode fields.");
 					}
 				}
 			}
-			return true;
+			return matches;
 		} catch (Exception e) {
 			return false;
 		}
