@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.junit.Test;
 
@@ -14,7 +15,9 @@ import plaid.parser.PlaidCoreParser;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.ArgumentExpression;
 import plaid.parser.ast.Assignment;
+import plaid.parser.ast.AtomicBlock;
 import plaid.parser.ast.BlockExpr;
+import plaid.parser.ast.Case;
 import plaid.parser.ast.Cast;
 import plaid.parser.ast.Decl;
 import plaid.parser.ast.Dereference;
@@ -25,15 +28,20 @@ import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.IntLiteral;
+import plaid.parser.ast.Lambda;
+import plaid.parser.ast.Match;
 import plaid.parser.ast.MethodCall;
 import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
+import plaid.parser.ast.Replace;
+import plaid.parser.ast.SplitBlock;
 import plaid.parser.ast.StateChange;
 import plaid.parser.ast.StateOp;
 import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
 import plaid.parser.ast.StringLiteral;
+import plaid.parser.ast.UnpackInnerGroups;
 
 public class ParseExpressionTest {
 
@@ -499,7 +507,6 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Expr1();
 		assertTrue(e instanceof Assignment );
-		System.out.println(e);
 		assertTrue(e.toString().equals("x=1"));		
 	}
 	
@@ -518,7 +525,102 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Expr1();
 		assertTrue(e instanceof StateChange );
-		assertTrue(e.toString().equals("this.x=1"));		
+		assertTrue(e.toString().equals("x<-Foo"));		
+		
+	}
+	
+	@Test
+	public void parseReplace() throws ParseException, UnsupportedEncodingException {
+		String code = "x <<- Foo;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr1();
+		assertTrue(e instanceof Replace );
+		assertTrue(e.toString().equals("x<<-Foo"));		
+		
+	}
+	
+	@Test
+	public void parseMatch() throws ParseException, UnsupportedEncodingException {
+		String code = "match (x) { case Foo{} default{} }";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr1();
+		assertTrue(e instanceof Match );
+		assertTrue(e.toString().equals("match(x){case Foo{}default{}"));		
+		
+	}
+
+	@Test
+	public void parseAtomicBlock() throws ParseException, UnsupportedEncodingException {
+		String code = "atomic<a>{}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr1();
+		assertTrue(e instanceof AtomicBlock );
+		assertTrue(e.toString().equals("atomic<a>{}"));
+	}
+	
+	@Test
+	public void parseSplitBlock() throws ParseException, UnsupportedEncodingException {
+		String code = "split<a>{}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr1();
+		assertTrue(e instanceof SplitBlock );
+		assertTrue(e.toString().equals("split<a>{}"));
+	}
+	
+	@Test
+	public void parseUnpackInnerGroups() throws ParseException, UnsupportedEncodingException {
+		String code = "unpackInnerGroups{}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr1();
+		assertTrue(e instanceof UnpackInnerGroups );
+		assertTrue(e.toString().equals("unpackInnerGroups{}"));
+	}
+	
+	/************************************************************
+	 **                       Expr                             **
+	 ************************************************************/
+	@Test
+	public void parseLambda() throws ParseException, UnsupportedEncodingException {
+		String code = "fn () => {}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Expr();
+		assertTrue(e instanceof Lambda );
+		assertTrue(e.toString().equals("fn <>()[]=>{}"));
+	}
+	
+	/************************************************************
+	 **                       CaseList                         **
+	 ************************************************************/
+	@Test
+	public void parseSingleCase() throws ParseException, UnsupportedEncodingException {
+		String code = "case Foo{}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		List<Case> e = pp.CaseList();
+		assertTrue(e.get(0) instanceof Case );
+		assertTrue(e.get(0).toString().equals("case Foo{}"));
+	}
+	
+	@Test
+	public void parseMultipleCases() throws ParseException, UnsupportedEncodingException {
+		String code = "case Foo{} case Bar{} case Baz{}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		List<Case> e = pp.CaseList();
+		assertTrue(e.get(0) instanceof Case );
+		assertTrue(e.get(1) instanceof Case );
+		assertTrue(e.get(2) instanceof Case );
+		assertTrue(e.get(0).toString().equals("case Foo{}"));
+		assertTrue(e.get(1).toString().equals("case Bar{}"));
+		assertTrue(e.get(2).toString().equals("case Baz{}"));
+	}
+
+	@Test
+	public void parseDefaultCase() throws ParseException, UnsupportedEncodingException {
+		String code = "default {}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		List<Case> e = pp.CaseList();
+		assertTrue(e.get(0) instanceof Case );
+		System.out.println(e);
+		assertTrue(e.get(0).toString().equals("default {}"));
 	}
 	
 	/************************************************************

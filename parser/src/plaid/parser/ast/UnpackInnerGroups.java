@@ -13,6 +13,11 @@ public class UnpackInnerGroups extends Expression {
         public Expression getBody() {
 			return body;
 		}
+
+        @Override
+        public String toString() {
+        	return "unpackInnerGroups" + body.toString();        	
+        }
 }
         
         

@@ -20,5 +20,9 @@ public class Replace extends Expression {
 	public State getSt() {
 		return st;
 	}
-	
+
+	@Override
+	public String toString() {
+		return e.toString()+"<<-"+st.toString();
+	}
 }
