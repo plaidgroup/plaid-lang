@@ -20,14 +20,12 @@
 package plaid.parser.ast;
 
 
-import java.io.File;
 import java.util.List;
 
 public class CompilationUnit extends ASTNode {
 	private final List<Decl> decls;
 	private final QualifiedIdentifier packageName;
 	private final List<Import> imports;
-	//private final File sourceFile;
 
 	public CompilationUnit(List<Decl> decls, List<Import> imports, QualifiedIdentifier packageName) {
 		super(DEFAULT_TOKEN);
@@ -35,10 +33,6 @@ public class CompilationUnit extends ASTNode {
 		this.imports = imports;
 		this.packageName = packageName;
 	}
-	
-//	public File getSourceFile() {
-//		return sourceFile;
-//	}
 	
 	public QualifiedIdentifier getPackageName() { 
 		return packageName; 
@@ -50,28 +44,5 @@ public class CompilationUnit extends ASTNode {
 
 	public List<Decl> getDecls() {
 		return decls;
-	}
-
-	@Override
-	public boolean equivalent(ASTNode other) {
-		if(other instanceof CompilationUnit) {
-			CompilationUnit otherCU = (CompilationUnit) other;
-//			if(!sourceFile.equals(otherCU.sourceFile)) {
-//				return false;
-//			}
-			
-			for(int i=0; i<imports.size(); i++) {
-				if(!imports.get(i).equivalent(otherCU.imports.get(i)))
-					return false;
-			}
-			for(int i=0; i<decls.size(); i++) {
-				if(!decls.get(i).equivalent(otherCU.decls.get(i)))
-					return false;
-			}
-			return this.packageName.equivalent(otherCU.packageName);
-		}
-		else {
-			return false;
-		}
 	}
 }

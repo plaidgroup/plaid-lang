@@ -33,16 +33,6 @@ public class IntLiteral extends Expression {
 	public int getValue() {
 		return value;
 	}
-	
-	@Override
-	public boolean equivalent(ASTNode other) {
-		if (other instanceof IntLiteral) {
-			IntLiteral otherInt = (IntLiteral) other;
-			return this.value == otherInt.value;
-		} else {
-			return false;
-		}
-	}
 
 	@Override
 	public String toString() {

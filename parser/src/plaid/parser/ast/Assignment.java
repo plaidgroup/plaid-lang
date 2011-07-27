@@ -52,18 +52,4 @@ public class Assignment extends Expression {
 	public Expression getValue() {
 		return value;
 	}
-	
-	@Override
-	public boolean equivalent(ASTNode other) {
-		if (other instanceof Assignment) {
-			Assignment otherAssign = (Assignment) other;
-			return 
-				this.target.equivalent(otherAssign.target) &&
-				this.field.equivalent(otherAssign.field) &&
-				this.value.equivalent(otherAssign.value) &&
-				this.hasTarget == otherAssign.hasTarget;
-		} else {
-			return false;
-		}
-	}
 }
