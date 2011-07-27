@@ -22,7 +22,7 @@ import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.StatePrim;
 import plaid.parser.ast.StringLiteral;
 
-public class ParseExpressionTest {
+public class ParseRuleTest {
 
 	/************************************************************
 	 **                      SimpleExpr1                       **
