@@ -23,4 +23,17 @@ public class Permission extends ASTNode {
 	public Expression getDatagroup() {
 		return datagroup;
 	}
+
+	@Override
+	public String toString() {
+		if ( permissionKind == PermissionKind.SHARED ) {
+			if ( datagroup != Expression.EMPTY ) {
+				return permissionKind.toString().toLowerCase() + "<" + datagroup.toString() + ">";
+			} else {
+				return permissionKind.toString().toLowerCase();
+			}
+		} else {
+			return permissionKind.toString().toLowerCase();
+		}
+	}
 }

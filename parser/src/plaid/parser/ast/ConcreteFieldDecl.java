@@ -18,5 +18,17 @@ public class ConcreteFieldDecl extends FieldDecl {
 		return expr;
 	}
 	
-	
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		
+		if (getSpecifier().getSpecifierKind() != Specifier.SpecifierKind.EMPTY ) sb.append(getSpecifier().getSpecifierKind().toString().toLowerCase() + " ");
+		if (getType() != Type.EMPTY ) sb.append(getType().toString()+ " ");
+		sb.append(getName());
+		sb.append("=");
+		sb.append(expr.toString());
+		sb.append(";");
+		
+		return sb.toString();
+	}
 }
