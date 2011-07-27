@@ -1,7 +1,7 @@
 package plaid.parser.ast;
 
 public enum GroupPermission {
-	UNDEFINED,
+	EMPTY,
 	EXCLUSIVE,
 	SHARED,
 	PROTECTED,

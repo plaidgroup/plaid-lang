@@ -23,44 +23,24 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class StateDecl extends Decl {
+public abstract class StateDecl extends Decl {
 	
-	private final State stateBinding;
 	private final QualifiedIdentifier caseOf;
-	private final boolean isCaseOf;
 	private final List<MetaArgSpec> metaArgsSpec;
 	private final List<Expression> metaCaseOfArgs;
 	
 	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, 
 			List<MetaArgSpec> metaArgsSpec, QualifiedIdentifier caseOf, 
-			List<Expression> metaCaseOfArgs,
-			State stateBinding) {
+			List<Expression> metaCaseOfArgs) {
 		super(t, modifiers, name);
 		this.metaArgsSpec = metaArgsSpec;
-		if (caseOf == null) {
-			this.caseOf = null;
-			isCaseOf = false;
-		} else {
-			this.caseOf = caseOf;
-			isCaseOf = true;
-		}
+		this.caseOf = caseOf;
 		this.metaCaseOfArgs = metaCaseOfArgs;
-		this.stateBinding = stateBinding;
-	}
-
-
-	public State getStateBinding() {
-		return stateBinding;
 	}
 
 
 	public QualifiedIdentifier getCaseOf() {
 		return caseOf;
-	}
-
-
-	public boolean isCaseOf() {
-		return isCaseOf;
 	}
 
 

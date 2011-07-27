@@ -1,0 +1,18 @@
+package plaid.parser.ast;
+
+import plaid.parser.Token;
+
+public final class PatternCase extends Case{
+	private final QualifiedIdentifier pattern;
+
+	public PatternCase(Token token, QualifiedIdentifier pattern, Expression body) {
+		super(token, body);
+		this.pattern = pattern;
+	}
+
+	public QualifiedIdentifier getPattern() {
+		return pattern;
+	}
+	
+	
+}
