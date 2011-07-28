@@ -31,7 +31,7 @@ public class ParserTests {
 	
 	@Test
 	public void intField() throws ParseException {
-		String program = "package plaid;\n val foo = 5;";
+		String program = "package plaid; val foo = 5;";
 		CompilationUnit parsedCU = ParserCore.parse(new StringBufferInputStream(program));
 		Decl field = 
 			new ConcreteFieldDecl(null, new ArrayList<Modifier>(), 

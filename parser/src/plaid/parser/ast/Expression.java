@@ -32,7 +32,7 @@ public abstract class Expression extends Stmt {
 		super(token);
 	}
 
-	 protected String exprListToString(List<Expression> exprs) {
+	public static String exprListToString(List<Expression> exprs) {
 		 StringBuilder sb = new StringBuilder();
 		 
 		 if ( exprs.size() == 1 ) {

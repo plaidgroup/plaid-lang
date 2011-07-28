@@ -24,4 +24,9 @@ public class Arg extends ASTNode {
 	public ArgSpec getArgSpec() {
 		return argSpec;
 	}
+
+	@Override
+	public String toString() {
+		return argSpec + " " + name;
+	}
 }

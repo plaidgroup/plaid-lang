@@ -26,4 +26,13 @@ public class ArgSpec extends ASTNode {
 	public Type getPostType() {
 		return postType;
 	}
+
+	@Override
+	public String toString() {
+		if ( this == EMPTY ) {
+			return "";
+		} else {
+			return preType +">>"+postType;
+		}
+	}
 }
