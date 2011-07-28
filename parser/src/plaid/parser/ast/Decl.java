@@ -38,6 +38,24 @@ public abstract class Decl extends ASTNode implements DeclOrStateOp{
 		return this.name;
 	}
 
+	public List<Modifier> getModifiers() {
+		return modifiers;
+	}
+	
+	public static String modifiersToString(List<Modifier> modifiers) {
+		StringBuilder sb = new StringBuilder();
+		
+		if ( modifiers.size() > 0 ) {
+			sb.append(modifiers.get(0));
+			for ( int i = 1; i < modifiers.size(); i++ ) {
+				sb.append(" ");
+				sb.append(modifiers.get(i));
+			}
+		}
+		
+		return sb.toString();
+	}
+	
 	public static String argsToString(List<Arg> args) {
 		StringBuilder sb = new StringBuilder();
 		

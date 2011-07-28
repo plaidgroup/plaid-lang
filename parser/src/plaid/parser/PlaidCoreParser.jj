@@ -310,7 +310,7 @@ CompilationUnit CompilationUnit() :
 				{
 						decls.add(d);
 				}
-		)+
+		)*
 		< EOF >
 		{
 				return new CompilationUnit(decls, imports, p);
@@ -423,7 +423,7 @@ LambdaType LambdaType() :
 }
 
 MetaType MetaType(boolean isMethod) : {    Token t;
-    Identifier id;    boolean isAbstract = true;    Type type = Type.UNIT;    GroupPermission gp = GroupPermission.EMPTY;
+    Identifier id;    boolean isAbstract = true;    Type type = Type.EMPTY;    GroupPermission gp = GroupPermission.EMPTY;
     List<Expression> metaArgs = new ArrayList<Expression>();
     List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
     QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;}{    (        t = <GROUP> [gp = GroupPermission()] id = Identifier() [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]        {            if ( !isMethod && gp != GroupPermission.EMPTY ) {                throw new ParseException("Cannot specify group permissions in states.");            } else if ( isMethod && gp == GroupPermission.EMPTY ) {                throw new ParseException("Need to specify group permission.");            }            return new GroupType(t, gp, id, isAbstract);        }    |   t = <TYPE> id = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false) ] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaArgs = MetaArgs()] ]         {            return new TypeParameterType(t, id, metaArgsSpec, caseof, metaArgs);        }    )}List<MetaType> MetaTypes(boolean isMethod) :{  MetaType type;  List<MetaType> types = new ArrayList<MetaType>();}{    < LT >        type =  MetaType(isMethod) {  types.add(type); }        (            < COMMA > type =  MetaType(isMethod) {  types.add(type); }        )*     < GT >    {        return types;    }}
@@ -638,8 +638,10 @@ Decl StateDecl(List< Modifier > modifiers) :
 State StateBinding() : {
     State state;
 }{
-    <EQUALS> state = State()
-  | state = DeclList()
+  (
+      <EQUALS> state = State()
+    | state = DeclList()
+  )
   { return state; }
 }
 
@@ -775,7 +777,7 @@ Decl MethodDecl(List<Modifier> modifiers) :
 {
     Token t;
 	Identifier methodName;
-	Type returnType = Type.EMPTY;
+	Type returnType = Type.EMPTY; 
 	List<Arg> argList = new ArrayList<Arg>();
 	List<ArgSpec> argTypes = new ArrayList<ArgSpec>();
 	Map<Identifier,ArgSpec> env = new HashMap<Identifier, ArgSpec>();
@@ -1002,16 +1004,15 @@ Expression InfixExpr() :
 		Type type = Type.EMPTY;
 }
 {
-    LOOKAHEAD(2)
-    e = SimpleExpr() [ t=<AS> type=Type() ]
+
+    LOOKAHEAD(SimpleExpr() <AS> Type() )
+    e = SimpleExpr() t=<AS> type=Type()
     {
-        if ( type == Type.EMPTY ) {
-            return e;
-        } else {
-            return new Cast(t, e, type);
-        }
+        return new Cast(t, e, type);
     }
-|   e = ConditionalExpression()
+  |
+    LOOKAHEAD(ConditionalExpression())
+    e = ConditionalExpression()
     {
         return e;
     }
@@ -1381,11 +1382,11 @@ Expression UnaryExpression() :
 				|		t = "-"
 				|		t = "!"
 				)
-				e = SimpleExpr1()
+				e = SimpleExpr()
 				{
 						e = new MethodCall(t, e, new Identifier(t,t.image), new UnitLiteral(ASTNode.DEFAULT_TOKEN));
 				}
-		|		e = SimpleExpr1()
+		|		e = SimpleExpr()
 		)
 		{
 				return e;

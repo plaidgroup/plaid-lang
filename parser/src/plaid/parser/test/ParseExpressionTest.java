@@ -14,6 +14,8 @@ import plaid.parser.ParseException;
 import plaid.parser.PlaidCoreParser;
 import plaid.parser.ast.AbstractFieldDecl;
 import plaid.parser.ast.AbstractMethodDecl;
+import plaid.parser.ast.AbstractStateDecl;
+import plaid.parser.ast.AbstractStateValDecl;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.ArgumentExpression;
 import plaid.parser.ast.Assignment;
@@ -21,8 +23,11 @@ import plaid.parser.ast.AtomicBlock;
 import plaid.parser.ast.BlockExpr;
 import plaid.parser.ast.Case;
 import plaid.parser.ast.Cast;
+import plaid.parser.ast.CompilationUnit;
 import plaid.parser.ast.ConcreteFieldDecl;
 import plaid.parser.ast.ConcreteMethodDecl;
+import plaid.parser.ast.ConcreteStateDecl;
+import plaid.parser.ast.ConcreteStateValDecl;
 import plaid.parser.ast.Decl;
 import plaid.parser.ast.DefaultCase;
 import plaid.parser.ast.Dereference;
@@ -32,6 +37,7 @@ import plaid.parser.ast.Expression;
 import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.Identifier;
+import plaid.parser.ast.Import;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Lambda;
 import plaid.parser.ast.Match;
@@ -246,6 +252,26 @@ public class ParseExpressionTest {
 	}
 	
 	@Test
+	public void parseSingleExpressionBlock() throws ParseException, UnsupportedEncodingException {
+		String code = "{1+1}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr();
+		assertTrue(e instanceof BlockExpr );
+		System.out.println(e);
+		assertTrue( e.toString().equals("{1.+(1)}"));
+	}
+	
+	@Test
+	public void parseMultipleStmtsBlock() throws ParseException, UnsupportedEncodingException {
+		String code = "{1+1;2+2}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr();
+		assertTrue(e instanceof BlockExpr );
+		System.out.println(e);
+		assertTrue( e.toString().equals("{1.+(1);2.+(2)}"));
+	}
+	
+	@Test
 	public void parseNew() throws ParseException, UnsupportedEncodingException {
 		String code = "new foo;";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
@@ -334,7 +360,6 @@ public class ParseExpressionTest {
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.%(y)"));		
 	}	
-
 	
 	/************************************************************
 	 **                AdditiveExpression                      **
@@ -812,7 +837,7 @@ public class ParseExpressionTest {
 		assertTrue(e instanceof AbstractMethodDecl );
 		assertTrue( code.equals(e.toString()));
 	}
-
+	
 	@Test
 	public void parseAbstractMethodReturnType() throws ParseException, UnsupportedEncodingException {
 		String code = "method immutable Boolean foo();";
@@ -824,11 +849,174 @@ public class ParseExpressionTest {
 	
 	@Test
 	public void parseAbstractMethodReturnTypeArgs() throws ParseException, UnsupportedEncodingException {
-		String code = "method immutable Boolean foo(immutable Boolean >> immutable Boolean x);";
+		String code = "method immutable Boolean foo(immutable Boolean>>immutable Boolean x,String y);";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
 		System.out.println(e);
 		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractMethodEnvironment() throws ParseException, UnsupportedEncodingException {
+		String code = "method foo()[unique Bar >> none Bar x];";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof AbstractMethodDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseConcreteMethodFullDynamic() throws ParseException, UnsupportedEncodingException {
+		String code = "method foo() {1}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof ConcreteMethodDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseConcreteMethodReturnTypeArgs() throws ParseException, UnsupportedEncodingException {
+		String code = "method immutable Boolean foo(immutable Boolean>>immutable Boolean x,String y)[Boolean global] {1+1}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof ConcreteMethodDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	/************************************************************
+	 **                      Decl                         **
+	 ************************************************************/
+	@Test
+	public void parseModifierlDecl() throws ParseException, UnsupportedEncodingException {
+		String code = "requires override method foo();";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.Decl();
+		assertTrue(e instanceof AbstractMethodDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractStateValEmpty() throws ParseException, UnsupportedEncodingException {
+		String code = "stateval Foo;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.Decl();
+		assertTrue(e instanceof AbstractStateValDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseConcreteStateVal() throws ParseException, UnsupportedEncodingException {
+		String code = "stateval Foo = Bar";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.Decl();
+		assertTrue(e instanceof ConcreteStateValDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractStateValEmptyMetaArgs() throws ParseException, UnsupportedEncodingException {
+		String code = "stateval Foo<group A, type T>;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.Decl();
+		assertTrue(e instanceof AbstractStateValDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractStateEmpty() throws ParseException, UnsupportedEncodingException {
+		String code = "state Foo;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.Decl();
+		assertTrue(e instanceof AbstractStateDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractStateCaseOf() throws ParseException, UnsupportedEncodingException {
+		String code = "state Foo case of Bar.Baz;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.Decl();
+		assertTrue(e instanceof AbstractStateDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractStateCaseOfMetaArgs() throws ParseException, UnsupportedEncodingException {
+		String code = "state Foo<group A, group B> case of Bar.Baz<A,B>;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.Decl();
+		assertTrue(e instanceof AbstractStateDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseConcreteStateWith() throws ParseException, UnsupportedEncodingException {
+		String code = "state Foo = Bar with Baz;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.Decl();
+		assertTrue(e instanceof ConcreteStateDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseConcreteStateDecls() throws ParseException, UnsupportedEncodingException {
+		String code = "state Foo = { method foo(); val x;}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.Decl();
+		assertTrue(e instanceof ConcreteStateDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+
+	/************************************************************
+	 **                      Imports                           **
+	 ************************************************************/
+	@Test
+	public void parseSingleImport() throws ParseException, UnsupportedEncodingException {
+		String code = "import foo.bar.baz;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		List<Import> e = pp.Imports();
+		assertTrue(e.get(0) instanceof Import);
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseMultipleImport() throws ParseException, UnsupportedEncodingException {
+		String code = "import foo.bar.baz; import bob.karl;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		List<Import> e = pp.Imports();
+		assertTrue(e.get(0) instanceof Import);
+		assertTrue(e.get(1) instanceof Import);
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	/************************************************************
+	 **                      package                           **
+	 ************************************************************/
+	@Test
+	public void parseEmptyPackage() throws ParseException, UnsupportedEncodingException {
+		String code = "package foo.bar.baz;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		CompilationUnit e = pp.CompilationUnit();
+		assertTrue(e instanceof CompilationUnit);
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parsePackageImports() throws ParseException, UnsupportedEncodingException {
+		String code = "package foo.bar.baz; import foo.bar;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		CompilationUnit e = pp.CompilationUnit();
+		assertTrue(e instanceof CompilationUnit);
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parsePackageImportsDelcs() throws ParseException, UnsupportedEncodingException {
+		String code = "package foo.bar.baz; import foo.bar; val x = 1; method foo(){} state Karl { val bob = \"ML\"; }";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		CompilationUnit e = pp.CompilationUnit();
+		assertTrue(e instanceof CompilationUnit);
+		//assertTrue( code.equals(e.toString()));
 	}
 }
 
