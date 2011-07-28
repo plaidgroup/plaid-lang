@@ -1,10 +1,14 @@
 package plaid.parser.test;
 
+import static plaid.parser.test.astfactory.ASTFactory.ArgSpec;
+import static plaid.parser.test.astfactory.ASTFactory.LambdaType;
+import static plaid.parser.test.astfactory.ASTFactory.NominalObjectType;
+import static plaid.parser.test.astfactory.ASTFactory.QualifiedIdentifier;
+
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -13,10 +17,17 @@ import org.junit.Test;
 
 import plaid.parser.ParseException;
 import plaid.parser.PlaidCoreParser;
-
-import plaid.parser.ast.*;
+import plaid.parser.ast.Arg;
+import plaid.parser.ast.ArgSpec;
+import plaid.parser.ast.Expression;
+import plaid.parser.ast.Identifier;
+import plaid.parser.ast.LambdaType;
+import plaid.parser.ast.MetaType;
+import plaid.parser.ast.NominalObjectType;
+import plaid.parser.ast.Permission;
 import plaid.parser.ast.Permission.PermissionKind;
-import static plaid.parser.test.astfactory.ASTFactory.*;
+import plaid.parser.ast.QualifiedIdentifier;
+import plaid.parser.ast.Type;
 
 public class ParseTypeTest {
 	private PlaidCoreParser parserFromString(String code) {

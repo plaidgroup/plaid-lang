@@ -10,6 +10,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
+import plaid.parser.Token;
 import plaid.parser.ast.ASTNode;
 
 public class TransliterateToPlaid<T> {
@@ -62,6 +63,8 @@ public class TransliterateToPlaid<T> {
 			} else if(field.getType().isPrimitive()
 					|| field.getType() == String.class) {
 				sb.append("root." + getter(field.getName()) + "();");
+			} else if (field.getType() == Token.class) {
+				sb.append("createToken(root." + getter(field.getName()) + "());");
 			}
 			else {
 				sb.append("this.translateAST(root." + 
