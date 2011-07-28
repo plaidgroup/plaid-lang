@@ -300,7 +300,6 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.UnaryExpression();
 		assertTrue(e instanceof UnaryOperator );
-		System.out.println(e);
 		assertTrue(e.toString().equals("-x"));		
 	}
 	
@@ -662,7 +661,15 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Function();
 		assertTrue(e instanceof Lambda );
-		System.out.println(e);
+		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
+	}
+
+	@Test
+	public void parseLambdaMetaArgsEnvironment() throws ParseException, UnsupportedEncodingException {
+		String code = "fn <group protected A>(x)[shared<A> Integer y, Integer z] => x + y + z";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Function();
+		assertTrue(e instanceof Lambda );
 		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
 	}
 	
