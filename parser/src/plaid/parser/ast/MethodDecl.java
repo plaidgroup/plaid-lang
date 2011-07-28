@@ -41,12 +41,15 @@ public abstract class MethodDecl extends Decl {
 		this.arguments = arguments;
 		this.env = env;
 	}
+
 	public Type getType() {
 		return type;
 	}
+
 	public List<MetaArgSpec> getMetaArgsSpec() {
 		return metaArgsSpec;
 	}
+
 	public List<Arg> getArguments() {
 		return arguments;
 	}
