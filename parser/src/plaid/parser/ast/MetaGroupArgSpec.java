@@ -16,7 +16,16 @@ public class MetaGroupArgSpec extends MetaArgSpec {
 	public GroupPermission getGp() {
 		return gp;
 	}
+
 	public Identifier getId() {
 		return id;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("group ");
+		sb.append(id.toString());
+		return sb.toString();
 	}
 }
