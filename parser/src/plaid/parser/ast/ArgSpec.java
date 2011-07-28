@@ -32,7 +32,7 @@ public class ArgSpec extends ASTNode {
 		if ( this == EMPTY ) {
 			return "";
 		} else {
-			return preType +">>"+postType;
+			return preType + ((postType!=Type.EMPTY)?">>"+postType:"");
 		}
 	}
 }

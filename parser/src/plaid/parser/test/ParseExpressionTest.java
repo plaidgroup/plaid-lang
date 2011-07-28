@@ -246,6 +246,16 @@ public class ParseExpressionTest {
 	}
 	
 	@Test
+	public void parseSingleExpressionBlock() throws ParseException, UnsupportedEncodingException {
+		String code = "{1+1}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.SimpleExpr();
+		assertTrue(e instanceof BlockExpr );
+		System.out.println(e);
+		assertTrue( e.toString().equals("{1.+(1)}"));
+	}
+	
+	@Test
 	public void parseNew() throws ParseException, UnsupportedEncodingException {
 		String code = "new foo;";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
@@ -334,7 +344,6 @@ public class ParseExpressionTest {
 		assertTrue(e instanceof MethodCall );
 		assertTrue(e.toString().equals("x.%(y)"));		
 	}	
-
 	
 	/************************************************************
 	 **                AdditiveExpression                      **
@@ -812,7 +821,7 @@ public class ParseExpressionTest {
 		assertTrue(e instanceof AbstractMethodDecl );
 		assertTrue( code.equals(e.toString()));
 	}
-
+	
 	@Test
 	public void parseAbstractMethodReturnType() throws ParseException, UnsupportedEncodingException {
 		String code = "method immutable Boolean foo();";
@@ -824,9 +833,37 @@ public class ParseExpressionTest {
 	
 	@Test
 	public void parseAbstractMethodReturnTypeArgs() throws ParseException, UnsupportedEncodingException {
-		String code = "method immutable Boolean foo(immutable Boolean >> immutable Boolean x);";
+		String code = "method immutable Boolean foo(immutable Boolean>>immutable Boolean x,String y);";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		System.out.println(e);
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractMethodEnvironment() throws ParseException, UnsupportedEncodingException {
+		String code = "method foo()[unique Bar >> none Bar x];";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof AbstractMethodDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseConcreteMethodFullDynamic() throws ParseException, UnsupportedEncodingException {
+		String code = "method foo() {1}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof ConcreteMethodDecl );
+		//assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseConcreteMethodReturnTypeArgs() throws ParseException, UnsupportedEncodingException {
+		String code = "method immutable Boolean foo(immutable Boolean>>immutable Boolean x,String y)[Boolean global] {1+1}";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof ConcreteMethodDecl );
 		System.out.println(e);
 		assertTrue( code.equals(e.toString()));
 	}

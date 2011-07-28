@@ -22,7 +22,7 @@ public final class AbstractMethodDecl extends MethodDecl {
 		sb.append(getName());
 		if ( getMetaArgsSpec().size() > 0) sb.append(metaArgSpecsToString(getMetaArgsSpec()));
 		sb.append("(");
-		if ( getArguments().size() > 0 ) argsToString(getArguments());
+		if ( getArguments().size() > 0 ) sb.append(argsToString(getArguments()));
 		sb.append(")");
 		sb.append(";");
 		return sb.toString();
