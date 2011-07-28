@@ -20,7 +20,6 @@
 package plaid.parser.ast;
 
 import java.util.List;
-import java.util.Map;
 
 import plaid.parser.Token;
 
@@ -28,12 +27,12 @@ public final class Lambda extends Expression {
 	
 	private final List<Arg> argList;
 	private final List<MetaArgSpec> metaArgsSpec;
-	private final Map<Identifier, ArgSpec> env ;
+	private final List<Arg> env ;
 	private final Expression body;
 	public Lambda(Token token, 
 			List<MetaArgSpec> metaArgsSpec,
 			List<Arg> argList,
-			Map<Identifier, ArgSpec> env, Expression body) {
+			List<Arg> env, Expression body) {
 		super(token);
 		this.argList = argList;
 		this.metaArgsSpec = metaArgsSpec;
@@ -46,7 +45,7 @@ public final class Lambda extends Expression {
 	public List<MetaArgSpec> getMetaArgsSpec() {
 		return metaArgsSpec;
 	}
-	public Map<Identifier, ArgSpec> getEnv() {
+	public List<Arg> getEnv() {
 		return env;
 	}
 	public Expression getBody() {

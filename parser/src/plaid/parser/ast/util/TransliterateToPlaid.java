@@ -2,14 +2,13 @@ package plaid.parser.ast.util;
 
 import static plaid.parser.ast.util.ClassDiscovery.DiscoverClasses;
 
-import java.util.List;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.List;
 
 import plaid.parser.ast.ASTNode;
 
@@ -54,46 +53,46 @@ public class TransliterateToPlaid<T> {
 		StringBuilder sb = new StringBuilder();
 		sb.append("case " + clazz.getName() + "{ \n");
 		sb.append("\tnew " + clazz.getName() + " {\n");
-		List<String> allFields = getAllFields(clazz);
-		for (String field : allFields) {
-			sb.append("\t\t" + field + " = this.translateAST(root.get" + 
-					field.substring(0,1).toUpperCase() + 
-					field.substring(1,field.length()) + "());\n");
+		List<Field> allFields = getAllFields(clazz);
+		for (Field field : allFields) {
+			sb.append("\t\t" + field.getName() + " = ");
+			if(field.getType().getSimpleName().startsWith("List")) {
+				sb.append("this.map(fn(a) => this.translateAST(a), root." +
+						getter(field.getName()) + "());");
+			} else if(field.getType().isPrimitive()
+					|| field.getType() == String.class) {
+				sb.append("root." + getter(field.getName()) + "();");
+			}
+			else {
+				sb.append("this.translateAST(root." + 
+						getter(field.getName()) + "());");
+			}
+			sb.append("\n");
 		}
 		sb.append("\t}\n");
 		sb.append("}\n");
 		return sb.toString();
 	}
 	
-	private static List<String> getAllFields(Class<?> clazz) {
-		List<String> fields = new ArrayList<String>();
+	private static String getter(String field) {
+		return "get" + field.substring(0,1).toUpperCase() + 
+		field.substring(1,field.length());
+	}
+	
+	private static List<Field> getAllFields(Class<?> clazz) {
+		List<Field> fields = new ArrayList<Field>();
 		Class<?> supr = clazz;
 		while (supr != Object.class) {
 			Field[] fs = supr.getDeclaredFields();
 			for (Field field : fs) {
 				if (!Modifier.isStatic(field.getModifiers())) {
-					fields.add(field.getName());
+					fields.add(field);
 				}
 			}
 			supr = supr.getSuperclass();
 		}
 		return fields;
 	}
-	
-//	private static <T> T[] concatAll(T[][] arrays) {
-//		int totalLength = 0;
-//		for (T[] array : arrays) {
-//			totalLength += array.length;
-//		}
-//		T[] result = Arrays.copyOf(arrays[0], totalLength);
-//		int offset = arrays[0].length;
-//		for (int i=1; i<arrays.length; i++) {
-//			T[] array = arrays[i];
-//			System.arraycopy(array, 0, result, offset, array.length);
-//			offset += array.length;
-//		}
-//		return result;
-//	}
 	
 	public static void main(String[] args) throws IOException {
 		Class<? extends ASTNode>[] classes = getASTClasses();

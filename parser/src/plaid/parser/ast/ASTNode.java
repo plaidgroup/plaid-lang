@@ -21,7 +21,6 @@ package plaid.parser.ast;
 
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Map;
 
 import plaid.parser.Token;
 
@@ -47,6 +46,10 @@ public abstract class ASTNode {
 	 * This method assumes that all fields of the receiver object are of type ASTNode, List<ASTNode>, Map<?, ASTNode>. 
 	 * Equivalence checking will fail for all other types of fields.
 	 * @author jssunshi
+	 */
+	/**
+	 * @param other
+	 * @return
 	 */
 	public final boolean equivalent(ASTNode other) {
 		Class<?> thisClass = this.getClass();
@@ -77,20 +80,6 @@ public abstract class ASTNode {
 							ASTNode myItem = (ASTNode)myList.get(j);
 							ASTNode otherItem = (ASTNode)otherList.get(j);
 							if(!myItem.equivalent(otherItem)) { 
-								matches = false;
-							}
-						}
-					} else if (myField instanceof Map) {
-						
-						Map<?,?> myMap = (Map<?,?>)myField;
-						Map<?,?> otherMap = (Map<?,?>)otherField;
-						if (myMap.size() != otherMap.size()) {
-							matches = false;
-						}
-						for(Object key : myMap.keySet()) {
-							ASTNode myItem = (ASTNode)myMap.get(key);
-							ASTNode otherItem = (ASTNode)otherMap.get(key);
-							if(myItem.equivalent(otherItem)) {
 								matches = false;
 							}
 						}

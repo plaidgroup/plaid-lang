@@ -1,7 +1,6 @@
 package plaid.parser.ast;
 
 import java.util.List;
-import java.util.Map;
 
 import plaid.parser.Token;
 
@@ -10,7 +9,7 @@ public final class ConcreteMethodDecl extends MethodDecl {
 
 	public ConcreteMethodDecl(Token t, List<Modifier> modifiers, Type type,
 			Identifier name, List<MetaArgSpec> metaArgsSpec,
-			List<Arg> arguments, Map<Identifier, ArgSpec> env, Expression body) {
+			List<Arg> arguments, List<Arg> env, Expression body) {
 		super(t, modifiers, type, name, metaArgsSpec, arguments, env);
 		this.body = body;
 	}

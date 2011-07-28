@@ -21,7 +21,6 @@ package plaid.parser.ast;
 
 
 import java.util.List;
-import java.util.Map;
 
 import plaid.parser.Token;
 
@@ -29,12 +28,12 @@ public abstract class MethodDecl extends Decl {
 	private final Type type;
 	private final List<MetaArgSpec> metaArgsSpec;
 	private final List<Arg> arguments;
-	private final Map<Identifier, ArgSpec> env;
+	private final List<Arg> env;
 	
 	public MethodDecl(Token t, List<Modifier> modifiers, 
 			Type type, Identifier name,
 			List<MetaArgSpec> metaArgsSpec, List<Arg> arguments,
-			Map<Identifier, ArgSpec> env) {
+			List<Arg> env) {
 		super(t, modifiers, name);
 		this.type = type;
 		this.metaArgsSpec = metaArgsSpec;
@@ -53,7 +52,7 @@ public abstract class MethodDecl extends Decl {
 	public List<Arg> getArguments() {
 		return arguments;
 	}
-	public Map<Identifier, ArgSpec> getEnv() {
+	public List<Arg> getEnv() {
 		return env;
 	}
 }
