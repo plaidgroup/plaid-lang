@@ -7,7 +7,7 @@ import plaid.parser.Token;
 public final class AbstractMethodDecl extends MethodDecl {
 
 	public AbstractMethodDecl(Token t, List<Modifier> modifiers, Type type,
-			Identifier name, List<MetaArgSpec> metaArgsSpec,
+			Identifier name, List<MetaArg> metaArgsSpec,
 			List<Arg> arguments, List<Arg> env) {
 		super(t, modifiers, type, name, metaArgsSpec, arguments, env);
 	}
