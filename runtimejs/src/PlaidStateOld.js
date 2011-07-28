@@ -123,22 +123,6 @@ PlaidState.prototype.members=function() {
 
 /*returns a PlaidObject created from the PlaidState on which the function is called*/
 PlaidState.prototype.instantiate = function() {
-
-   //ensure that the state being instantiated has unique members
-   var unique = m_checkUniqueMembers(this.tree,[],[]);
-   if (unique['unique']===false) {
-      throw "Error: Instantiate violates unique members by attempting to create a state that contains "+unique['member']+" twice.";
-   }
-
-   //check unique tags
-   var tags=s_tags(this.tree);
-   var tagsLength=tags.length;
-   for (var j=0;j<tagsLength;j++){
-      if(count(tags,tags[j])>1){
-         throw "Error: Attempt to instantiate violates unique tags by containing tag "+tags[j]+" twice";
-      }
-   }
-
    var obj=new PlaidObject(this.tree.clone());
    copyMembers(obj,this);
    return obj;
@@ -160,11 +144,9 @@ PlaidState.prototype.remove = function(member) {
 /*returns a copy of the state on which it was called, in copy member has the name newName*/
 PlaidState.prototype.rename = function(member, newName) {
    var currMembers=this.members();
-   /*
    if (has(currMembers,newName)){
       throw "Error: attempt to rename a member with name "+newName+" which already names a member";
    }
-   */
    var obj=new PlaidState();
    obj.setTree(this.tree.clone());
    copyMembers(obj,this);
@@ -196,22 +178,21 @@ function membersByTag(md1,tag){
 
 /*returns a copy of the state on which it was called, in copy member has the value passed in; the member is associated with the tag passed in*/
 PlaidState.prototype.specialize = function(tag, member, value) {
-   //var currMembers=this.members();
+   var currMembers=this.members();
    var obj=new PlaidState();
    obj.setTree(this.tree.clone());
    var tagMembers=membersByTag(obj.tree,tag);
    copyMembers(obj,this);
 
    if (!has(tagMembers,member)){
-      /*if the member is already in the object and associated with any tag but the target tag, this is an error
+      //if the member is already in the object and associated with any tag but the target tag, this is an error
       if(has(currMembers,member)){
          throw "Error: attempt to associate member "+member+" with tag "+tag+" which already names a member of another tag";  
       }
-      */
       //the member is not yet associated with the given tag and must be added to the tree
-      //else{
+      else{
          tagMembers.push(member);
-      //}
+      }
    }
    addMember(obj,member,value);
    return obj;
@@ -236,7 +217,7 @@ PlaidState.prototype.with = function(state) {
    var md1=this.tree;
    var md2=state.tree;
 
-   /*check unique tags
+   //check unique tags
    var tags1=s_tags(md1);
    var tags2=s_tags(md2);
    var tags1Length=tags1.length;
@@ -245,9 +226,8 @@ PlaidState.prototype.with = function(state) {
          throw "Error: with operation violates unique tags by containing tag "+tags1[j]+" in both component states";
       }
    } 
-   */
 
-   /*
+   //check unique members
    var members1=s_members(md1);
    var members2=s_members(md2);
    var members1Length=members1.length;
@@ -256,7 +236,6 @@ PlaidState.prototype.with = function(state) {
          throw "Error: with operation violates unique members by containing member "+members1[j]+" in both component states";
       }
    } 
-   */
 
    var obj=new PlaidState();
    obj.setTree(this.tree.clone());
@@ -273,7 +252,7 @@ PlaidState.prototype.with = function(state) {
 
 /*returns a new state composed of both the state on which the function was called and the member passed in, assigns memberName's value to be memberValue; this method handles the case where a member and not a state is passed in*/
 PlaidState.prototype.withMember = function(memberName,memberValue) {
-   /*
+   //check unique tags
    var members1=this.members();
    var members1Length=members1.length;
    for (var j=0;j<members1Length;j++){
@@ -281,7 +260,6 @@ PlaidState.prototype.withMember = function(memberName,memberValue) {
          throw "Error: with operation violates unique members by containing member "+members1[j]+" in both component states";
       }
    } 
-   */
 
    var obj=new PlaidState();
    obj.setTree(this.tree.clone());
@@ -298,7 +276,7 @@ PlaidState.prototype.withMember = function(memberName,memberValue) {
 PlaidState.prototype.withMemberNoValue = function(memberName) {
    var md1=this.tree;
 
-   /*
+   //check unique tags
    var members1=s_members(md1);
    var members1Length=members1.length;
    for (var j=0;j<members1Length;j++){
@@ -306,7 +284,6 @@ PlaidState.prototype.withMemberNoValue = function(memberName) {
          throw "Error: with operation violates unique members by containing member "+members1[j]+" in both component states";
       }
    } 
-   */
 
    var obj=new PlaidState();
    obj.setTree(this.tree.clone());
