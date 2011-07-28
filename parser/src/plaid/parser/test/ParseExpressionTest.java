@@ -655,10 +655,11 @@ public class ParseExpressionTest {
 	
 	@Test
 	public void parseLambdaEnvironment() throws ParseException, UnsupportedEncodingException {
-		String code = "fn (x)[Integer y] => x + y";
+		String code = "fn (x)[Integer y, Integer z] => x + y + z";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Function();
 		assertTrue(e instanceof Lambda );
+		System.out.println(e);
 		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
 	}
 	

@@ -27,6 +27,9 @@ public class Arg extends ASTNode {
 
 	@Override
 	public String toString() {
+		if ( argSpec.toString().length() == 0) {
+			return name.toString();
+		}
 		return argSpec + " " + name;
 	}
 }
