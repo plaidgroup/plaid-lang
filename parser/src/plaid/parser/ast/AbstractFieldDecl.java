@@ -12,4 +12,16 @@ public class AbstractFieldDecl extends FieldDecl {
 		super(t, modifiers, specifier, type, name);
 	}
 
+	
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		
+		if (getSpecifier().getSpecifierKind() != Specifier.SpecifierKind.EMPTY ) sb.append(getSpecifier().getSpecifierKind().toString().toLowerCase() + " ");
+		if (getType() != Type.EMPTY ) sb.append(getType().toString()+ " ");
+		sb.append(getName());
+		sb.append(";");
+		
+		return sb.toString();
+	}
 }

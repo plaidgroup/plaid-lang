@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import plaid.parser.ParseException;
 import plaid.parser.PlaidCoreParser;
+import plaid.parser.ast.AbstractFieldDecl;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.ArgumentExpression;
 import plaid.parser.ast.Assignment;
@@ -19,13 +20,13 @@ import plaid.parser.ast.AtomicBlock;
 import plaid.parser.ast.BlockExpr;
 import plaid.parser.ast.Case;
 import plaid.parser.ast.Cast;
+import plaid.parser.ast.ConcreteFieldDecl;
 import plaid.parser.ast.Decl;
 import plaid.parser.ast.DefaultCase;
 import plaid.parser.ast.Dereference;
 import plaid.parser.ast.DestructiveDereference;
 import plaid.parser.ast.DoubleLiteral;
 import plaid.parser.ast.Expression;
-import plaid.parser.ast.FieldDecl;
 import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.Identifier;
@@ -735,11 +736,66 @@ public class ParseExpressionTest {
 	 **                      FieldDecl                         **
 	 ************************************************************/
 	@Test
-	public void parseAbstractField() throws ParseException, UnsupportedEncodingException {
-		String code = "x;";
+	public void parseAbstractFieldSpecifier() throws ParseException, UnsupportedEncodingException {
+		String code = "val f;";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
-		assertTrue(e instanceof FieldDecl );
+		assertTrue(e instanceof AbstractFieldDecl );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractFieldSpecifierType() throws ParseException, UnsupportedEncodingException {
+		String code = "val Foo f;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof AbstractFieldDecl );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractFieldType() throws ParseException, UnsupportedEncodingException {
+		String code = "Foo f;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof AbstractFieldDecl );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseConcretetFieldSpecifierType() throws ParseException, UnsupportedEncodingException {
+		String code = "val Foo f=0;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		System.out.println(e);
+		assertTrue(e instanceof ConcreteFieldDecl );
+		assertTrue( code.equals(e.toString()));
+	}
+
+	@Test
+	public void parseConcretetFieldSpecifier() throws ParseException, UnsupportedEncodingException {
+		String code = "val f=0;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof ConcreteFieldDecl );
+		assertTrue( code.equals(e.toString()));
+	}
+
+	@Test
+	public void parseConcretetFieldType() throws ParseException, UnsupportedEncodingException {
+		String code = "Foo f=0;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof ConcreteFieldDecl );
+		assertTrue( code.equals(e.toString()));
+	}
+
+	@Test
+	public void parseConcretetField() throws ParseException, UnsupportedEncodingException {
+		String code = "f=0;";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof ConcreteFieldDecl );
 		assertTrue( code.equals(e.toString()));
 	}
 }
