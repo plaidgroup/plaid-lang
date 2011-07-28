@@ -13,6 +13,7 @@ import org.junit.Test;
 import plaid.parser.ParseException;
 import plaid.parser.PlaidCoreParser;
 import plaid.parser.ast.AbstractFieldDecl;
+import plaid.parser.ast.AbstractMethodDecl;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.ArgumentExpression;
 import plaid.parser.ast.Assignment;
@@ -21,6 +22,7 @@ import plaid.parser.ast.BlockExpr;
 import plaid.parser.ast.Case;
 import plaid.parser.ast.Cast;
 import plaid.parser.ast.ConcreteFieldDecl;
+import plaid.parser.ast.ConcreteMethodDecl;
 import plaid.parser.ast.Decl;
 import plaid.parser.ast.DefaultCase;
 import plaid.parser.ast.Dereference;
@@ -796,6 +798,36 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	/************************************************************
+	 **                      MethodDecl                        **
+	 ************************************************************/
+	@Test
+	public void parseAbstractMethodFullDynamic() throws ParseException, UnsupportedEncodingException {
+		String code = "method foo();";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof AbstractMethodDecl );
+		assertTrue( code.equals(e.toString()));
+	}
+
+	@Test
+	public void parseAbstractMethodReturnType() throws ParseException, UnsupportedEncodingException {
+		String code = "method immutable Boolean foo();";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof AbstractMethodDecl );
+		assertTrue( code.equals(e.toString()));
+	}
+	
+	@Test
+	public void parseAbstractMethodReturnTypeArgs() throws ParseException, UnsupportedEncodingException {
+		String code = "method immutable Boolean foo(immutable Boolean >> immutable Boolean x);";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		System.out.println(e);
 		assertTrue( code.equals(e.toString()));
 	}
 }

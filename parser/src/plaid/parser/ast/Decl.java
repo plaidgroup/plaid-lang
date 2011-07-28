@@ -37,5 +37,35 @@ public abstract class Decl extends ASTNode implements DeclOrStateOp{
 	public Identifier getName() {
 		return this.name;
 	}
+
+	public static String argsToString(List<Arg> args) {
+		StringBuilder sb = new StringBuilder();
+		
+		if ( args.size() > 0 ) {
+			sb.append(args.get(0));
+			for ( int i = 1; i < args.size(); i++ ) {
+				sb.append(",");
+				sb.append(args.get(i));
+			}
+		}
+		
+		return sb.toString();
+	}
+	
+	public static String metaArgSpecsToString(List<MetaArgSpec> metaArgsSpec) {
+		StringBuilder sb = new StringBuilder();
+		
+		if ( metaArgsSpec.size() > 0 ) {
+			sb.append("<");
+			sb.append(metaArgsSpec.get(0));
+			for ( int i = 1; i < metaArgsSpec.size(); i++ ) {
+				sb.append(",");
+				sb.append(metaArgsSpec.get(i));
+			}
+			sb.append(">");			
+		}
+		
+		return sb.toString();
+	}
 }
 
