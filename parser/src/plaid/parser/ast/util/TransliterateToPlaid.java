@@ -38,6 +38,16 @@ public class TransliterateToPlaid<T> {
 		for (int i = 0; i < fs.length; i++) {
 			sb.append("\tval immutable " + fs[i].getType().getSimpleName() + " " + fs[i].getName() + ";\n");
 		}
+		sb.append("\n");
+		sb.append("\tmethod immutable String toString() {\n");
+		sb.append("\t\treturn ");
+		for(Field field:getAllFields(clazz)) {
+			sb.append("\n\t\t\t");
+			sb.append("\"" + field.getName() + ":\" + " + field.getName() + ".toString()");
+			sb.append(" + \"\\n\" +");
+		}
+		sb.replace(sb.length()-1, sb.length(), ";"); //remove last plus
+		sb.append("\n\t}\n");
 		sb.append("\n}");
 		return sb.toString();
 	}
