@@ -55,6 +55,7 @@ import plaid.parser.ast.StateOp;
 import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
+import plaid.parser.ast.Stmt;
 import plaid.parser.ast.StringLiteral;
 import plaid.parser.ast.UnaryOperator;
 import plaid.parser.ast.UnpackInnerGroups;
@@ -621,6 +622,17 @@ public class ParseExpressionTest {
 		assertTrue(e.toString().equals("unpackInnerGroups{}"));
 	}
 	
+	
+	/************************************************************
+	 **                      LocalVarDecl                       **
+	 ************************************************************/	
+	@Test
+	public void parseLocalVarDel() throws ParseException, UnsupportedEncodingException {
+		String code = "var x = 1";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Stmt e = pp.LocalVarDecl();
+		assertTrue(e instanceof Stmt );
+	}
 	
 	/************************************************************
 	 **                       Expr                             **
