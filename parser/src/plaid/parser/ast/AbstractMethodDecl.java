@@ -16,12 +16,13 @@ public final class AbstractMethodDecl extends MethodDecl {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		
+		if ( getModifiers().size() > 0 ) sb.append(modifiersToString(getModifiers())+" ");
 		sb.append("method ");
 		if ( getType() != Type.EMPTY ) sb.append(getType().toString()+ " ");
 		sb.append(getName());
 		if ( getMetaArgsSpec().size() > 0) sb.append(metaArgSpecsToString(getMetaArgsSpec()));
 		sb.append("(");
-		if ( getArguments().size() > 0 ) argsToString(getArguments());
+		if ( getArguments().size() > 0 ) sb.append(argsToString(getArguments()));
 		sb.append(")");
 		sb.append(";");
 		return sb.toString();
