@@ -38,6 +38,7 @@ import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.Import;
+import plaid.parser.ast.InfixOperator;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Lambda;
 import plaid.parser.ast.Match;
@@ -55,6 +56,7 @@ import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
 import plaid.parser.ast.StringLiteral;
+import plaid.parser.ast.UnaryOperator;
 import plaid.parser.ast.UnpackInnerGroups;
 import plaid.parser.ast.With;
 
@@ -257,8 +259,7 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.SimpleExpr();
 		assertTrue(e instanceof BlockExpr );
-		System.out.println(e);
-		assertTrue( e.toString().equals("{1.+(1)}"));
+		assertTrue( e.toString().equals("{1+1}"));
 	}
 	
 	@Test
@@ -267,8 +268,7 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.SimpleExpr();
 		assertTrue(e instanceof BlockExpr );
-		System.out.println(e);
-		assertTrue( e.toString().equals("{1.+(1);2.+(2)}"));
+		assertTrue( e.toString().equals("{1+1;2+2}"));
 	}
 	
 	@Test
@@ -288,8 +288,7 @@ public class ParseExpressionTest {
 		String code = "x as Foo";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.InfixExpr();
-		assertTrue(e instanceof Cast );
-		// TODO: add check for equality
+		assertTrue(e instanceof Cast );		
 	}
 	
 	/************************************************************
@@ -300,8 +299,8 @@ public class ParseExpressionTest {
 		String code = "-x";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.UnaryExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.-()"));		
+		assertTrue(e instanceof UnaryOperator );
+		assertTrue(e.toString().equals("-x"));		
 	}
 	
 	@Test
@@ -309,8 +308,8 @@ public class ParseExpressionTest {
 		String code = "+x";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.UnaryExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.+()"));		
+		assertTrue(e instanceof UnaryOperator );
+		assertTrue(e.toString().equals("+x"));		
 	}
 	
 	@Test
@@ -318,8 +317,8 @@ public class ParseExpressionTest {
 		String code = "!x";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.UnaryExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.!()"));		
+		assertTrue(e instanceof UnaryOperator );
+		assertTrue(e.toString().equals("!x"));		
 	}
 
 	@Test
@@ -327,8 +326,8 @@ public class ParseExpressionTest {
 		String code = "~x";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.UnaryExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.~()"));		
+		assertTrue(e instanceof UnaryOperator );
+		assertTrue(e.toString().equals("~x"));		
 	}
 
 	/************************************************************
@@ -339,8 +338,8 @@ public class ParseExpressionTest {
 		String code = "x * y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.MultiplicativeExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.*(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x*y"));		
 	}
 	
 	@Test
@@ -348,8 +347,8 @@ public class ParseExpressionTest {
 		String code = "x / y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.MultiplicativeExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x./(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x/y"));		
 	}
 	
 	@Test
@@ -357,8 +356,8 @@ public class ParseExpressionTest {
 		String code = "x % y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.MultiplicativeExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.%(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x%y"));		
 	}	
 	
 	/************************************************************
@@ -369,8 +368,8 @@ public class ParseExpressionTest {
 		String code = "x + y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.AdditiveExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.+(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x+y"));		
 	}	
 
 	@Test
@@ -378,8 +377,8 @@ public class ParseExpressionTest {
 		String code = "x - y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.AdditiveExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.-(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x-y"));		
 	}
 	
 	/************************************************************
@@ -390,8 +389,8 @@ public class ParseExpressionTest {
 		String code = "x << y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.ShiftExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.<<(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x<<y"));		
 	}
 	
 	@Test
@@ -399,8 +398,8 @@ public class ParseExpressionTest {
 		String code = "x >> y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.ShiftExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.>>(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x>>y"));		
 	}
 	
 	@Test
@@ -408,8 +407,8 @@ public class ParseExpressionTest {
 		String code = "x >>> y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.ShiftExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.>>>(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x>>>y"));		
 	}
 	
 	/************************************************************
@@ -420,8 +419,8 @@ public class ParseExpressionTest {
 		String code = "x < y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.RelationalExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.<(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x<y"));		
 	}
 	
 	@Test
@@ -429,8 +428,8 @@ public class ParseExpressionTest {
 		String code = "x <= y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.RelationalExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.<=(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x<=y"));		
 	}
 
 	@Test
@@ -438,8 +437,8 @@ public class ParseExpressionTest {
 		String code = "x > y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.RelationalExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.>(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x>y"));		
 	}
 	
 	@Test
@@ -447,8 +446,8 @@ public class ParseExpressionTest {
 		String code = "x >= y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.RelationalExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.>=(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x>=y"));		
 	}
 	
 	/************************************************************
@@ -459,8 +458,8 @@ public class ParseExpressionTest {
 		String code = "x == y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.EqualityExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.==(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x==y"));		
 	}
 	
 	@Test
@@ -468,8 +467,8 @@ public class ParseExpressionTest {
 		String code = "x != y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.EqualityExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.!=(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x!=y"));		
 	}
 	
 	/************************************************************
@@ -480,8 +479,8 @@ public class ParseExpressionTest {
 		String code = "x & y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.AndExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.&(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x&y"));		
 	}
 	
 	/************************************************************
@@ -492,8 +491,8 @@ public class ParseExpressionTest {
 		String code = "x ^ y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.ExclusiveOrExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.^(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x^y"));		
 	}
 	
 	/************************************************************
@@ -504,8 +503,8 @@ public class ParseExpressionTest {
 		String code = "x | y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.InclusiveOrExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.|(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x|y"));		
 	}
 	
 	/************************************************************
@@ -516,8 +515,8 @@ public class ParseExpressionTest {
 		String code = "x && y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.ConditionalAndExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.&&(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x&&y"));		
 	}
 	
 	/************************************************************
@@ -528,8 +527,8 @@ public class ParseExpressionTest {
 		String code = "x || y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.ConditionalOrExpression();
-		assertTrue(e instanceof MethodCall );
-		assertTrue(e.toString().equals("x.||(y)"));		
+		assertTrue(e instanceof InfixOperator );
+		assertTrue(e.toString().equals("x||y"));		
 	}
 	
 	/************************************************************
@@ -632,7 +631,6 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Expr();
 		assertTrue(e instanceof Lambda );
-		System.out.println(e);
 		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
 	}
 	
@@ -645,7 +643,33 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.Function();
 		assertTrue(e instanceof Lambda );
-		System.out.println(e);
+		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
+	}
+	
+	@Test
+	public void parseLambdaIdentity() throws ParseException, UnsupportedEncodingException {
+		String code = "fn (x) => x";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Function();
+		assertTrue(e instanceof Lambda );
+		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
+	}
+	
+	@Test
+	public void parseLambdaEnvironment() throws ParseException, UnsupportedEncodingException {
+		String code = "fn (x)[Integer y, Integer z] => x + y + z";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Function();
+		assertTrue(e instanceof Lambda );
+		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
+	}
+
+	@Test
+	public void parseLambdaMetaArgsEnvironment() throws ParseException, UnsupportedEncodingException {
+		String code = "fn <group protected A>(x)[shared<A> Integer y, Integer z] => x + y + z";
+		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expression e = pp.Function();
+		assertTrue(e instanceof Lambda );
 		//assertTrue(e.toString().equals("fn <>()[]=>{}"));
 	}
 	
@@ -656,7 +680,7 @@ public class ParseExpressionTest {
 	public void parseSingleCase() throws ParseException, UnsupportedEncodingException {
 		String code = "case Foo{}";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		List<Case> e = pp.CaseList();
+		List<?> e = pp.CaseList();
 		assertTrue(e.get(0) instanceof PatternCase );
 		assertTrue(e.get(0).toString().equals("case Foo{}"));
 	}
@@ -665,7 +689,7 @@ public class ParseExpressionTest {
 	public void parseMultipleCases() throws ParseException, UnsupportedEncodingException {
 		String code = "case Foo{} case Bar{} case Baz{}";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		List<Case> e = pp.CaseList();
+		List<?> e = pp.CaseList();
 		assertTrue(e.get(0) instanceof Case );
 		assertTrue(e.get(1) instanceof Case );
 		assertTrue(e.get(2) instanceof Case );
@@ -678,7 +702,7 @@ public class ParseExpressionTest {
 	public void parseDefaultCase() throws ParseException, UnsupportedEncodingException {
 		String code = "default {}";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		List<Case> e = pp.CaseList();
+		List<?> e = pp.CaseList();
 		assertTrue(e.get(0) instanceof DefaultCase );
 		assertTrue(e.get(0).toString().equals("default{}"));
 	}
@@ -731,7 +755,6 @@ public class ParseExpressionTest {
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		StatePrim e = pp.StatePrim();
 		assertTrue(e instanceof StatePrim );
-		System.out.println(e);
 		assertTrue( code.equals(e.toString()));
 	}	
 	
@@ -794,7 +817,6 @@ public class ParseExpressionTest {
 		String code = "val Foo f=0;";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
-		System.out.println(e);
 		assertTrue(e instanceof ConcreteFieldDecl );
 		assertTrue( code.equals(e.toString()));
 	}
@@ -852,7 +874,6 @@ public class ParseExpressionTest {
 		String code = "method immutable Boolean foo(immutable Boolean>>immutable Boolean x,String y);";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
-		System.out.println(e);
 		assertTrue( code.equals(e.toString()));
 	}
 	
@@ -974,7 +995,7 @@ public class ParseExpressionTest {
 	public void parseSingleImport() throws ParseException, UnsupportedEncodingException {
 		String code = "import foo.bar.baz;";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		List<Import> e = pp.Imports();
+		List<?> e = pp.Imports();
 		assertTrue(e.get(0) instanceof Import);
 		//assertTrue( code.equals(e.toString()));
 	}
@@ -983,7 +1004,7 @@ public class ParseExpressionTest {
 	public void parseMultipleImport() throws ParseException, UnsupportedEncodingException {
 		String code = "import foo.bar.baz; import bob.karl;";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		List<Import> e = pp.Imports();
+		List<?> e = pp.Imports();
 		assertTrue(e.get(0) instanceof Import);
 		assertTrue(e.get(1) instanceof Import);
 		//assertTrue( code.equals(e.toString()));

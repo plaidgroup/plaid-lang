@@ -25,6 +25,9 @@ public class MetaGroupArgSpec extends MetaArgSpec {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append("group ");
+		if ( gp != GroupPermission.EMPTY ) {
+			sb.append(gp.toString().toLowerCase() + " ");
+		}
 		sb.append(id.toString());
 		return sb.toString();
 	}

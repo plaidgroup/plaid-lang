@@ -25,31 +25,54 @@ import plaid.parser.Token;
 
 public final class Lambda extends Expression {
 	
-	private final List<Arg> argList;
+	private final List<Arg> arguments;
 	private final List<MetaArgSpec> metaArgsSpec;
 	private final List<Arg> env ;
 	private final Expression body;
+	
 	public Lambda(Token token, 
 			List<MetaArgSpec> metaArgsSpec,
-			List<Arg> argList,
+			List<Arg> arguments,
 			List<Arg> env, Expression body) {
 		super(token);
-		this.argList = argList;
+		this.arguments = arguments;
 		this.metaArgsSpec = metaArgsSpec;
 		this.env = env;
 		this.body = body;
 	}
-	public List<Arg> getArgList() {
-		return argList;
+	
+	public List<Arg> getArguments() {
+		return arguments;
 	}
+	
 	public List<MetaArgSpec> getMetaArgsSpec() {
 		return metaArgsSpec;
 	}
+	
 	public List<Arg> getEnv() {
 		return env;
 	}
+	
 	public Expression getBody() {
 		return body;
 	}
 
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("fn ");
+		if ( getMetaArgsSpec().size() > 0) sb.append(Decl.metaArgSpecsToString(getMetaArgsSpec()));
+		sb.append("(");
+		if ( getArguments().size() > 0 ) sb.append(Decl.argsToString(getArguments()));
+		sb.append(")");
+		if ( getEnv().size() > 0 ) {
+			sb.append("[");
+			sb.append(Decl.argsToString(getEnv()));
+			sb.append("]");
+		}
+		sb.append("=>");
+		sb.append(body.toString());
+		return sb.toString();
+	}
 }
