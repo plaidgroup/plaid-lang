@@ -16,4 +16,8 @@ public class Modifier extends ASTNode {
 		return modiferKind;
 	}
 	
+	@Override
+	public String toString() {
+		return modiferKind.name().toLowerCase();		
+	}
 }
