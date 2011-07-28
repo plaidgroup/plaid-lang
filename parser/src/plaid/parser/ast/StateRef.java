@@ -5,18 +5,18 @@ import java.util.List;
 import plaid.parser.Token;
 
 public class StateRef extends StatePrim {
-	private final Expression state;
+	private final Expression st;
 	private final List<DeclOrStateOp> specializations;
 	
-	public StateRef(Token t, Expression state,
+	public StateRef(Token t, Expression st,
 			List<DeclOrStateOp> specializations) {
 		super(t);
-		this.state = state;
+		this.st = st;
 		this.specializations = specializations;
 	}
 
-	public Expression getState() {
-		return state;
+	public Expression getSt() {
+		return st;
 	}
 
 	public List<DeclOrStateOp> getSpecializations() {
@@ -26,7 +26,7 @@ public class StateRef extends StatePrim {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(state.toString());
+		sb.append(st.toString());
 		if ( specializations.size() > 0 ) {
 			sb.append("{" + specializations.get(0));
 			for(int i = 1; i<specializations.size(); i++) {
