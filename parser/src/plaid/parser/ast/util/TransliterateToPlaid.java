@@ -10,6 +10,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
+import plaid.parser.Token;
 import plaid.parser.ast.ASTNode;
 
 public class TransliterateToPlaid<T> {
@@ -51,17 +52,20 @@ public class TransliterateToPlaid<T> {
 	
 	private static String matchCase(Class<?> clazz) {
 		StringBuilder sb = new StringBuilder();
-		sb.append("case " + clazz.getName() + "{ \n");
-		sb.append("\tnew " + clazz.getName() + " {\n");
+		sb.append("\t\t\tcase " + clazz.getName() + "{ \n");
+		sb.append("\t\t\t\tnew " + clazz.getName() + " {\n");
 		List<Field> allFields = getAllFields(clazz);
 		for (Field field : allFields) {
-			sb.append("\t\t" + field.getName() + " = ");
+			sb.append("\t\t\t\t\t" + field.getName() + " = ");
 			if(field.getType().getSimpleName().startsWith("List")) {
-				sb.append("this.map(fn(a) => this.translateAST(a), root." +
-						getter(field.getName()) + "());");
+				sb.append("makeListFromJavaCollection(root." +
+						getter(field.getName()) + "()).map(" +
+								"fn(a) => this.translateAST(a));");
 			} else if(field.getType().isPrimitive()
 					|| field.getType() == String.class) {
 				sb.append("root." + getter(field.getName()) + "();");
+			} else if (field.getType() == Token.class) {
+				sb.append("createToken(root." + getter(field.getName()) + "());");
 			}
 			else {
 				sb.append("this.translateAST(root." + 
@@ -69,8 +73,8 @@ public class TransliterateToPlaid<T> {
 			}
 			sb.append("\n");
 		}
-		sb.append("\t}\n");
-		sb.append("}\n");
+		sb.append("\t\t\t\t}\n");
+		sb.append("\t\t\t}\n");
 		return sb.toString();
 	}
 	
@@ -98,13 +102,25 @@ public class TransliterateToPlaid<T> {
 		Class<? extends ASTNode>[] classes = getASTClasses();
 		File outputDir = new File("../ast/pld/plaid/ast/parsed");
 		outputDir.mkdir();
+		StringBuilder sbTranslator = new StringBuilder();
+		sbTranslator.append("package plaid.ast.translator;\n\n");
+		sbTranslator.append("import plaid.ast.parsed.*;\n");
+		sbTranslator.append("import plaid.ast.util.makeListFromJavaCollection;\n");
+		sbTranslator.append("import plaid.ast.util.makeTokenFromJavaToken;\n\n");
+		sbTranslator.append("state ASTTranslator {\n");
+		sbTranslator.append("\t method immutable CompilationUnit translateAST(immutable ASTNode node){\n");
+		sbTranslator.append("\t\t match(node){\n");
 		for (Class<?> clazz : classes) {
 			String code = plaidCodeFromJavaClass(clazz, "plaid.ast.parsed");
 			writePlaidFile(outputDir, code, clazz.getSimpleName());
 			if(!Modifier.isAbstract(clazz.getModifiers())) {
-				System.out.println(matchCase(clazz));
+				sbTranslator.append(matchCase(clazz));
 			}
 		}
+		sbTranslator.append("\t\t}\n");
+		sbTranslator.append("\t}\n");
+		sbTranslator.append("}\n");
+		System.out.println(sbTranslator.toString());
 		
 	}
 }

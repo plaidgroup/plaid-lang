@@ -20,6 +20,7 @@
 package plaid.compilerjava;
 
 
+import java.io.File;
 import java.io.InputStream;
 
 import plaid.compilerjava.AST.CompilationUnit;
@@ -29,13 +30,15 @@ import plaid.runtime.PlaidException;
 
 public class ParserCore {
 	public static CompilationUnit parse(InputStream toParse) throws PlaidException, ParseException {
+		return parse(toParse,null);
+	}
+	
+	public static CompilationUnit parse(InputStream toParse, File sourceFile) throws PlaidException, ParseException {
 		//System.out.println("parsing...");
 		try {
 			PlaidCoreParser pp = new PlaidCoreParser(toParse);
-			pp.init();
-			
-			return pp.DeclsStart();
-			
+			pp.init(sourceFile);	
+			return pp.DeclsStart();		
 		} catch (PlaidException e) {
 			e.printStackTrace();
 			throw e;
