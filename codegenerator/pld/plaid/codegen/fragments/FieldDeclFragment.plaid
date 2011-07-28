@@ -1,0 +1,106 @@
+package plaid.codegen.fragments;
+
+state FieldDeclFragment {
+	method handleTopLevelFieldDecl(node) {
+		
+		this.out = this.jCodeGen.new(this.cc);
+		var freshImports = this.idgen.getId();
+		
+		// package qid;
+		val qid = new QI {val qid = this.packageName;};
+		val thePackage = qid.toString();
+		this.out.declarePackage(thePackage);
+		
+		// @plaid.runtime.annotations (...)
+		this.out.topFieldAnnotation(node.getName(), thePackage);
+		
+		// public class c {
+		this.out.declarePublicClass(node.getName()); 
+		this.out.openBlock();
+		
+		// Get imports, define scopes
+		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
+		
+		this.y = freshImports;
+		this.imports.accept(this);
+		
+		this.out.declareGlobalScope(thePackage, freshImports.name);
+		
+		this.out.fieldAnnotation(node.getName());
+		this.out.declarePublicStaticVar(this.out.plaidObjectType, node.getName());
+		this.out.openStaticBlock(); //static {
+		this.out.declareLocalScope(this.out.globalScope);
+		
+		// Generate the expr
+		this.y = node.f;
+		node.e.accept(this);
+		
+		this.out.insertIntoScope(this.out.globalScope, node.getName(), node.immutableField);
+		
+		this.out.closeBlock(); this.out.closeBlock(); //}}
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(node.getName(), 
+			this.cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+	}
+	
+	method handleNestedFieldDecl(node) {
+		//java.lang.System.out.println("Handling nested field decl");
+
+		this.setLocation(node.token);
+		
+		val /*ID*/ fresh1 = this.idgen.getId();
+		val /*ID*/ freshFieldName = this.idgen.getId();
+		val /*ID*/ x = this.idgen.getId();
+		
+		// @representsField(... toplevel = false)
+		this.out.fieldAnnotation(node.f.name);
+		this.out.declareFinalVar(this.jCodeGen.plaidObjectType, freshFieldName.name);
+		
+		val /*ID*/ y = this.y;
+		
+		
+		ifElse (node.abstractField) {
+			this.y = freshFieldName;
+			node.e.accept(this);
+		} {
+			// freshFieldName = new protoField... {
+			this.out.assignToProtoField(freshFieldName.name, x.name);
+			
+			// protofield body
+			this.out.declareFinalVar(this.jCodeGen.plaidObjectType, fresh1.name);
+			this.y = fresh1;
+			// field initializer code
+			node.e.accept(this);
+			this.out.ret(fresh1.name);
+			this.out.closeAnonymousDeclaration();
+		};
+		
+		this.y = y;
+		
+		// define the PlaidMemberDef
+		val /*ID*/ memberDef = this.idgen.getId();
+		
+		this.out.declareFinalVar(this.jCodeGen.plaidMemberDefType, memberDef.name);
+		// TODO:  Do this right.
+		//var stateContext = this.packageName.foldr(fn (x, y) => x + "." + y, "");
+		//stateContext = stateContext.substring(0, stateContext.length() - 1);
+		ifElse (this.stateContext.equals(this.jCodeGen.anonymousDeclaration)){
+			//this.debugToConsole();
+			this.out.assignToAnonymousMemberDef(memberDef.name, node.f.name, !node.immutableField, node.overrides);
+		}
+		{
+			this.out.assignToNewMemberDef(memberDef.name, node.f.name, this.stateContext, !node.immutableField, node.overrides);
+		};	
+		
+		this.out.addMember(this.y.name, memberDef.name, freshFieldName.name);
+	}
+		
+	method visitFieldDecl(node) {
+		ifElse (this.top) {
+			this.top = false;
+			this.handleTopLevelFieldDecl(node);
+		} {
+			this.handleNestedFieldDecl(node);
+		};
+	}
+}
