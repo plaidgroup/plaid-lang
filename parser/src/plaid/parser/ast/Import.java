@@ -21,4 +21,8 @@ public class Import extends ASTNode {
 		return qi;
 	}
 
+	@Override
+	public String toString() {
+		return "import " + qi.toString() + ((star)?".*":"");
+	}
 }

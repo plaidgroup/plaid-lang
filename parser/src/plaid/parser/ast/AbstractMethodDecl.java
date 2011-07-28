@@ -17,6 +17,7 @@ public final class AbstractMethodDecl extends MethodDecl {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		
+		if ( getModifiers().size() > 0 ) sb.append(modifiersToString(getModifiers())+" ");
 		sb.append("method ");
 		if ( getType() != Type.EMPTY ) sb.append(getType().toString()+ " ");
 		sb.append(getName());
