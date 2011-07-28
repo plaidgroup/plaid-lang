@@ -9,7 +9,7 @@ public class Arg extends ASTNode {
 	private final ArgSpec argSpec;
 	
 	
-	public Arg(Token token, Identifier name, ArgSpec argSpec) {
+	public Arg(Token token, ArgSpec argSpec, Identifier name) {
 		super(token);
 		this.name = name;
 		this.argSpec = argSpec;

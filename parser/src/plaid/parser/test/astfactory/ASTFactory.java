@@ -32,6 +32,6 @@ public class ASTFactory {
 	}
 	public static LambdaType LambdaType(List<ArgSpec>argsSpec, Type returnType) {
 		return new LambdaType(null,new ArrayList<MetaType>(),argsSpec,
-				new HashMap<Identifier,ArgSpec>(), returnType);
+				new ArrayList<Arg>(), returnType);
 	}
 }

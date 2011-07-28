@@ -132,7 +132,7 @@ public class ParseTypeTest {
 	private void testLambdaType(String code, List<ArgSpec> argsSpec, Type returnType) 
 	throws ParseException{
 		Type goalType = new LambdaType(null,new ArrayList<MetaType>(),argsSpec,
-				new HashMap<Identifier,ArgSpec>(), returnType);
+				new ArrayList<Arg>(), returnType);
 		testLambdaType(code, goalType);
 	}
 	
