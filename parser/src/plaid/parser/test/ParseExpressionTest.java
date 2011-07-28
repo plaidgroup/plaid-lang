@@ -930,36 +930,36 @@ public class ParseExpressionTest {
 		assertTrue( goal.equivalent(e) );
 	}
 
-//	@Test
-//	public void parseLambdaMetaArgsEnvironment() throws ParseException, UnsupportedEncodingException {
-//		final String code = "fn <group protected A>(x)[shared<A> Integer y, Integer z] => x + y + z";
-//		final Lambda goal = 
-//			Lambda(
-//					Arrays.asList(
-//							GroupArg(GroupPermission.PROTECTED, Identifier("A"))
-//					), 
-//					Arrays.asList(
-//							Arg(EmptyArgSpec.EMPTY, Identifier("x"))
-//					),
-//					Arrays.asList(
-//							Arg(ArgSpec(NominalObjectType(Shared(Identifier("A")), QualifiedIdentifier("Integer"))), Identifier("y")),
-//							Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("z"))
-//					), 
-//					InfixOperator(
-//							InfixOperator(
-//									Identifier("x"), 
-//									Identifier("+"), 
-//									Identifier("y")
-//							),
-//							Identifier("+"),
-//							Identifier("z")
-//					)
-//			);
-//		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-//		final Expression e = pp.Function();
-//		assertTrue(e instanceof Lambda );
-//		assertTrue( goal.equivalent(e) );
-//	}
+	@Test
+	public void parseLambdaMetaArgsEnvironment() throws ParseException, UnsupportedEncodingException {
+		final String code = "fn <group protected A>(x)[shared<A> Integer y, Integer z] => x + y + z";
+		final Lambda goal = 
+			Lambda(
+					Arrays.asList(
+							GroupArg(GroupPermission.PROTECTED, Identifier("A"))
+					), 
+					Arrays.asList(
+							Arg(EmptyArgSpec.EMPTY, Identifier("x"))
+					),
+					Arrays.asList(
+							Arg(ArgSpec(NominalObjectType(Shared(Identifier("A")), QualifiedIdentifier("Integer"))), Identifier("y")),
+							Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("z"))
+					), 
+					InfixOperator(
+							InfixOperator(
+									Identifier("x"), 
+									Identifier("+"), 
+									Identifier("y")
+							),
+							Identifier("+"),
+							Identifier("z")
+					)
+			);
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final Expression e = pp.Function();
+		assertTrue(e instanceof Lambda );
+		assertTrue( goal.equivalent(e) );
+	}
 	
 	/************************************************************
 	 **                       CaseList                         **
@@ -1308,7 +1308,7 @@ public class ParseExpressionTest {
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteMethodDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	/************************************************************
@@ -1317,10 +1317,22 @@ public class ParseExpressionTest {
 	@Test
 	public void parseModifierlDecl() throws ParseException, UnsupportedEncodingException {
 		final String code = "requires override method foo();";
+		final MethodDecl goal = 
+			AbstractMethodDecl(
+					Arrays.asList(
+						REQUIRES(),
+						OVERRIDE()
+					),
+					Type.EMPTY, 
+					Identifier("foo"), 
+					MetaArg.EMPTY, 
+					Arg.EMPTY, 
+					Arg.EMPTY
+			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.Decl();
 		assertTrue(e instanceof AbstractMethodDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test

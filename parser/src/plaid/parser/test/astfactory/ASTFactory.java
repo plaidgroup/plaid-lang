@@ -1,4 +1,5 @@
 package plaid.parser.test.astfactory;
+import java.awt.Dialog.ModalityType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -40,6 +41,7 @@ import plaid.parser.ast.Match;
 import plaid.parser.ast.MetaArg;
 import plaid.parser.ast.MetaType;
 import plaid.parser.ast.MethodDecl;
+import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
 import plaid.parser.ast.NominalObjectType;
 import plaid.parser.ast.PatternCase;
@@ -49,8 +51,8 @@ import plaid.parser.ast.QualifiedIdentifier;
 import plaid.parser.ast.Replace;
 import plaid.parser.ast.Specifier;
 import plaid.parser.ast.SplitBlock;
-import plaid.parser.ast.StateExpression;
 import plaid.parser.ast.StateChange;
+import plaid.parser.ast.StateExpression;
 import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
@@ -253,9 +255,22 @@ public class ASTFactory {
 		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, type, name, metaArgs, args, env);
 	}
 
+	public static MethodDecl AbstractMethodDecl(List<Modifier> modifiers, Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env) {
+		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, modifiers, type, name, metaArgs, args, env);
+	}
+	
 	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env, Expression body) {
 		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, type, name, metaArgs, args, env, body);
-	}	
+	}
+	
+	public static Modifier OVERRIDE() {
+		return new Modifier(ASTNode.DEFAULT_TOKEN, Modifier.ModifierKind.OVERRIDE);
+	}
+	
+	public static Modifier REQUIRES() {
+		return new Modifier(ASTNode.DEFAULT_TOKEN, Modifier.ModifierKind.REQUIRES);
+	}
+	
 	// types 
 	public static ArgSpec ArgSpec(Type preType) {
 		return new ArgSpec(null, preType, Type.EMPTY);
