@@ -108,7 +108,8 @@ public class TransliterateToPlaid<T> {
 		sbTranslator.append("import plaid.ast.util.makeListFromJavaCollection;\n");
 		sbTranslator.append("import plaid.ast.util.makeTokenFromJavaToken;\n\n");
 		sbTranslator.append("state ASTTranslator {\n");
-		sbTranslator.append("\t method immutable CompilationUnit translateAST(immutable ASTNode node){\n");
+		sbTranslator.append("\t method immutable CompilationUnit translateAST(" +
+				"immutable " + ASTNode.class.getName() + " node){\n");
 		sbTranslator.append("\t\t match(node){\n");
 		for (Class<?> clazz : classes) {
 			String code = plaidCodeFromJavaClass(clazz, "plaid.ast.parsed");
@@ -120,7 +121,9 @@ public class TransliterateToPlaid<T> {
 		sbTranslator.append("\t\t}\n");
 		sbTranslator.append("\t}\n");
 		sbTranslator.append("}\n");
-		writePlaidFile(new File("../ast/pld/plaid/ast/translator"), 
+		File translateDir =  new File("../ast/pld/plaid/ast/translator");
+		translateDir.mkdir();
+		writePlaidFile(translateDir, 
 				sbTranslator.toString(), "ASTTranslator");
 		
 	}
