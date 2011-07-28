@@ -10,7 +10,7 @@ public final class ConcreteStateValDecl extends StateValDecl {
 	
 	
 	public ConcreteStateValDecl(Token t, List<Modifier> modifiers,
-			Identifier name, List<MetaArgSpec> metaArgsSpec, State stateBinding) {
+			Identifier name, List<MetaArg> metaArgsSpec, State stateBinding) {
 		super(t, modifiers, name, metaArgsSpec);
 		this.stateBinding = stateBinding;
 	}
