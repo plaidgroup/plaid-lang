@@ -26,12 +26,12 @@ import plaid.parser.Token;
 public final class Lambda extends Expression {
 	
 	private final List<Arg> arguments;
-	private final List<MetaArgSpec> metaArgsSpec;
+	private final List<MetaArg> metaArgsSpec;
 	private final List<Arg> env ;
 	private final Expression body;
 	
 	public Lambda(Token token, 
-			List<MetaArgSpec> metaArgsSpec,
+			List<MetaArg> metaArgsSpec,
 			List<Arg> arguments,
 			List<Arg> env, Expression body) {
 		super(token);
@@ -45,7 +45,7 @@ public final class Lambda extends Expression {
 		return arguments;
 	}
 	
-	public List<MetaArgSpec> getMetaArgsSpec() {
+	public List<MetaArg> getMetaArgsSpec() {
 		return metaArgsSpec;
 	}
 	

@@ -8,7 +8,7 @@ public final class ConcreteStateDecl extends StateDecl {
 	private final StateExpression stateBinding;
 
 	public ConcreteStateDecl(Token t, List<Modifier> modifiers,
-			Identifier name, List<MetaArgSpec> metaArgsSpec,
+			Identifier name, List<MetaArg> metaArgsSpec,
 			QualifiedIdentifier caseOf, List<Expression> metaCaseOfArgs,
 			StateExpression stateBinding) {
 		super(t, modifiers, name, metaArgsSpec, caseOf, metaCaseOfArgs);

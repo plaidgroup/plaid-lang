@@ -2,11 +2,11 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class TypeParameter extends MetaArgSpec {
+public class TypeArg extends MetaArg {
 	private final Identifier id;
 	private final QualifiedIdentifier caseof;
 	
-	public TypeParameter(Token token, Identifier id, QualifiedIdentifier caseof) {
+	public TypeArg(Token token, Identifier id, QualifiedIdentifier caseof) {
 		super(token);
 		this.id = id;
 		this.caseof = caseof;

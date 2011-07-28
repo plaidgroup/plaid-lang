@@ -2,12 +2,12 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class MetaGroupArgSpec extends MetaArgSpec {
+public class GroupArg extends MetaArg {
 
 	private final GroupPermission gp;
 	private final Identifier id;
 
-	public MetaGroupArgSpec(Token token, GroupPermission gp, Identifier id) {
+	public GroupArg(Token token, GroupPermission gp, Identifier id) {
 		super(token);
 		this.gp = gp;
 		this.id = id;

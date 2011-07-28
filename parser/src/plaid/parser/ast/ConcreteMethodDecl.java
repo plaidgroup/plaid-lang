@@ -8,7 +8,7 @@ public final class ConcreteMethodDecl extends MethodDecl {
 	private final Expression body;
 
 	public ConcreteMethodDecl(Token t, List<Modifier> modifiers, Type type,
-			Identifier name, List<MetaArgSpec> metaArgsSpec,
+			Identifier name, List<MetaArg> metaArgsSpec,
 			List<Arg> arguments, List<Arg> env, Expression body) {
 		super(t, modifiers, type, name, metaArgsSpec, arguments, env);
 		this.body = body;
