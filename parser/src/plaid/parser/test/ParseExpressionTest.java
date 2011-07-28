@@ -49,7 +49,7 @@ import plaid.parser.ast.PatternCase;
 import plaid.parser.ast.QualifiedIdentifier;
 import plaid.parser.ast.Replace;
 import plaid.parser.ast.SplitBlock;
-import plaid.parser.ast.State;
+import plaid.parser.ast.StateExpression;
 import plaid.parser.ast.StateChange;
 import plaid.parser.ast.StateOp;
 import plaid.parser.ast.StateOpRemove;
@@ -777,7 +777,7 @@ public class ParseExpressionTest {
 	public void parseWith() throws ParseException, UnsupportedEncodingException {
 		String code = "x with y";
 		PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		State e = pp.State();
+		StateExpression e = pp.State();
 		assertTrue(e instanceof With );
 		assertTrue( code.equals(e.toString()));
 	}

@@ -4,8 +4,8 @@ import plaid.parser.Token;
 
 public class LocalStateValDecl extends Stmt {
 	private final Identifier id;
-	private final State st;
-	public LocalStateValDecl(Token token, Identifier id, State st) {
+	private final StateExpression st;
+	public LocalStateValDecl(Token token, Identifier id, StateExpression st) {
 		super(token);
 		this.id = id;
 		this.st = st;
@@ -13,7 +13,7 @@ public class LocalStateValDecl extends Stmt {
 	public Identifier getId() {
 		return id;
 	}
-	public State getState() {
+	public StateExpression getState() {
 		return st;
 	}
 }

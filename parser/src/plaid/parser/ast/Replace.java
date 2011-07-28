@@ -5,9 +5,9 @@ import plaid.parser.Token;
 public class Replace extends Expression {
 
 	private final Expression e;
-	private final State st;
+	private final StateExpression st;
 	
-	public Replace(Token token, Expression e, State st) {
+	public Replace(Token token, Expression e, StateExpression st) {
 		super(token);
 		this.e = e;
 		this.st = st;
@@ -17,7 +17,7 @@ public class Replace extends Expression {
 		return e;
 	}
 	
-	public State getSt() {
+	public StateExpression getSt() {
 		return st;
 	}
 

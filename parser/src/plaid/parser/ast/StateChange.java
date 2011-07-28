@@ -24,10 +24,10 @@ import plaid.parser.Token;
 public class StateChange extends Expression {
 	
 	private final Expression e;
-	private final State st;
+	private final StateExpression st;
 
 
-	public StateChange(Token t, Expression e, State st) {
+	public StateChange(Token t, Expression e, StateExpression st) {
 		super(t);
 		this.e = e;
 		this.st = st;
@@ -37,7 +37,7 @@ public class StateChange extends Expression {
 		return e;
 	}
 
-	public State getState() {
+	public StateExpression getState() {
 		return st;
 	}
 

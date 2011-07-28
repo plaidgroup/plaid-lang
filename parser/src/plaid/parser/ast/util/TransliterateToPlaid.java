@@ -120,7 +120,8 @@ public class TransliterateToPlaid<T> {
 		sbTranslator.append("\t\t}\n");
 		sbTranslator.append("\t}\n");
 		sbTranslator.append("}\n");
-		System.out.println(sbTranslator.toString());
+		writePlaidFile(new File("../ast/pld/plaid/ast/translator"), 
+				sbTranslator.toString(), "ASTTranslator");
 		
 	}
 }

@@ -21,7 +21,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class With extends State {
+public class With extends StateExpression {
 
 	private final StatePrim r1,r2;
 

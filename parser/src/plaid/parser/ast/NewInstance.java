@@ -23,14 +23,14 @@ import plaid.parser.Token;
 
 public class NewInstance extends Expression{
 
-	private final State st;	
+	private final StateExpression st;	
 
-	public NewInstance(Token t, State st) {
+	public NewInstance(Token t, StateExpression st) {
 		super(t);
 		this.st = st;
 	}
 
-	public State getState() {
+	public StateExpression getState() {
 		return st;
 	}
 

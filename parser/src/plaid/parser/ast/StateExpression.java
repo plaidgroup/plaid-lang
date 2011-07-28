@@ -22,8 +22,8 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 
-public abstract class State extends ASTNode {
-	public State(Token t) {
+public abstract class StateExpression extends ASTNode {
+	public StateExpression(Token t) {
 		super(t);
 	}
 }
