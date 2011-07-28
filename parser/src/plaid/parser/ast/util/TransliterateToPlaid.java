@@ -44,10 +44,12 @@ public class TransliterateToPlaid<T> {
 	
 	private static void writePlaidFile(File outputDirectory, String code, String stateName) throws IOException{
 		File outputFile = new File(outputDirectory, stateName+".plaid");
+		outputFile.delete();
 		outputFile.createNewFile();
 		FileWriter fw = new FileWriter(outputFile);
 		fw.write(code);
 		fw.close();
+		outputFile.setReadOnly();
 	}
 	
 	private static String matchCase(Class<?> clazz) {
