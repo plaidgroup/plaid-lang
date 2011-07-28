@@ -11,9 +11,9 @@ public class MethodCall extends Expression {
 	private final List<Expression> arguments = new ArrayList<Expression>();
 	private final boolean hasArgs;
 	private final Expression receiver;
-	private final Identifier method;
+	private final Identifier methodId;
 	
-	public MethodCall(Token token, Expression receiver, Identifier method, Expression argument) {
+	public MethodCall(Token token, Expression receiver, Identifier methodId, Expression argument) {
 		super(token);
 		if (argument instanceof UnitLiteral) {
 			hasArgs = false;
@@ -22,7 +22,7 @@ public class MethodCall extends Expression {
 			hasArgs = true;
 		}
 		this.receiver = receiver;
-		this.method = method;
+		this.methodId = methodId;
 	}
 
 	public List<Expression> getArguments() {
@@ -34,7 +34,7 @@ public class MethodCall extends Expression {
 	}
 	
 	public Identifier getMethod() {
-		return method;
+		return methodId;
 	}
 
 	public boolean hasArgs() {
@@ -46,7 +46,7 @@ public class MethodCall extends Expression {
 		StringBuilder sb= new StringBuilder();
 		
 		if ( receiver != null ) sb.append(receiver.toString() + ".");
-		sb.append(method.toString());
+		sb.append(methodId.toString());
 		sb.append("(" + exprListToString(arguments) + ")");
 		
 		return sb.toString();

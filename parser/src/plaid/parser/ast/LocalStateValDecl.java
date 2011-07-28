@@ -3,17 +3,17 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public class LocalStateValDecl extends Stmt {
-	private final Identifier var;
-	private final State state;
-	public LocalStateValDecl(Token token, Identifier var, State state) {
+	private final Identifier id;
+	private final State st;
+	public LocalStateValDecl(Token token, Identifier id, State st) {
 		super(token);
-		this.var = var;
-		this.state = state;
+		this.id = id;
+		this.st = st;
 	}
-	public Identifier getVar() {
-		return var;
+	public Identifier getId() {
+		return id;
 	}
 	public State getState() {
-		return state;
+		return st;
 	}
 }
