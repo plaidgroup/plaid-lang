@@ -26,23 +26,17 @@ public class Assignment extends Expression {
 	private final Expression target;
 	private final Identifier field;
 	private final Expression value;
-	private final boolean hasTarget;
 	
 
 	public Assignment(Token t, Expression target, Identifier field, Expression value) {
 		super(t);
 		this.target = target;
-		this.hasTarget = target != null;
 		this.field = field;
 		this.value = value;
 	}
 	
 	public Expression getTarget() {
 		return target;
-	}
-	
-	public boolean hasTarget() {
-		return this.hasTarget;
 	}
 
 	public Identifier getField() {
