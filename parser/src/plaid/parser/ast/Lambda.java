@@ -29,6 +29,7 @@ public final class Lambda extends Expression {
 	private final List<MetaArgSpec> metaArgsSpec;
 	private final List<Arg> env ;
 	private final Expression body;
+	
 	public Lambda(Token token, 
 			List<MetaArgSpec> metaArgsSpec,
 			List<Arg> argList,
@@ -39,15 +40,19 @@ public final class Lambda extends Expression {
 		this.env = env;
 		this.body = body;
 	}
+	
 	public List<Arg> getArgList() {
 		return argList;
 	}
+	
 	public List<MetaArgSpec> getMetaArgsSpec() {
 		return metaArgsSpec;
 	}
+	
 	public List<Arg> getEnv() {
 		return env;
 	}
+	
 	public Expression getBody() {
 		return body;
 	}
