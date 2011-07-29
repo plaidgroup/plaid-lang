@@ -21,17 +21,17 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Dereference extends Expression {
-	private final Expression left;
+public class Dereference extends Expr {
+	private final Expr left;
 	private final Identifier right;
 	
-	public Dereference(Token t, Expression left, Identifier right) {
+	public Dereference(Token t, Expr left, Identifier right) {
 		super(t);
 		this.left = left;
 		this.right = right;
 	}
 	
-	public Expression getLeft() {
+	public Expr getLeft() {
 		return left;
 	}
 	

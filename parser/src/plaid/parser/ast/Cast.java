@@ -2,11 +2,11 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Cast extends Expression {
+public class Cast extends Expr {
 	private final Type type;
-	private final Expression exp;
+	private final Expr exp;
 	
-	public Cast(Token t, Expression exp, Type type) {
+	public Cast(Token t, Expr exp, Type type) {
 		super(t);
 		this.type = type;
 		this.exp = exp;
@@ -16,7 +16,7 @@ public class Cast extends Expression {
 		return this.type;
 	}
 	
-	public Expression getExp() {
+	public Expr getExp() {
 		return this.exp;
 	}
 

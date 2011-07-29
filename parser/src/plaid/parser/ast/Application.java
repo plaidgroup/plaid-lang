@@ -24,32 +24,32 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class Application extends Expression {
-	private final Expression f;
-	private final Expression argument;
-	private final List<Expression> metaArgs; 
+public class Application extends Expr {
+	private final Expr f;
+	private final Expr argument;
+	private final List<Expr> metaArgs; 
 
 
-	public Application(Token t, Expression function, List<Expression> metaArgs, Expression argument) {
+	public Application(Token t, Expr function, List<Expr> metaArgs, Expr argument) {
 		super(t);
 		this.f = function;
 		if ( metaArgs == null ) {
-			this.metaArgs = new ArrayList<Expression>();
+			this.metaArgs = new ArrayList<Expr>();
 		} else {
 			this.metaArgs = metaArgs;			
 		}
 		this.argument = argument;
 	}
 	
-	public Expression getFunction() {
+	public Expr getFunction() {
 		return f;
 	}
 
-	public Expression getArgument() {
+	public Expr getArgument() {
 		return argument;
 	}
 	
-	public List<Expression> getMetaArguments() {
+	public List<Expr> getMetaArguments() {
 		return metaArgs;
 	}
 	

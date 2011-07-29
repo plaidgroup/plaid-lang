@@ -23,17 +23,17 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public final class Lambda extends Expression {
+public final class Lambda extends Expr {
 	
 	private final List<Arg> arguments;
 	private final List<MetaArg> metaArgsSpec;
 	private final List<Arg> env ;
-	private final Expression body;
+	private final Expr body;
 	
 	public Lambda(Token token, 
 			List<MetaArg> metaArgsSpec,
 			List<Arg> arguments,
-			List<Arg> env, Expression body) {
+			List<Arg> env, Expr body) {
 		super(token);
 		this.arguments = arguments;
 		this.metaArgsSpec = metaArgsSpec;
@@ -53,7 +53,7 @@ public final class Lambda extends Expression {
 		return env;
 	}
 	
-	public Expression getBody() {
+	public Expr getBody() {
 		return body;
 	}
 

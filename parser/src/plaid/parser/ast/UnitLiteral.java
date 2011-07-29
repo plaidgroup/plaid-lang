@@ -21,7 +21,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class UnitLiteral extends Expression {
+public class UnitLiteral extends Expr {
 
 	public UnitLiteral(Token t) {
 		super(t);

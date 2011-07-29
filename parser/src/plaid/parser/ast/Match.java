@@ -23,18 +23,18 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class Match extends Expression {
-	private final Expression e;
+public class Match extends Expr {
+	private final Expr e;
 	private final List<Case> caseList;
 	
 	
-	public Match(Token t, Expression e, List<Case> caseList) {
+	public Match(Token t, Expr e, List<Case> caseList) {
 		super(t);
 		this.e = e;
 		this.caseList = caseList;
 	}
 	
-	public Expression getE() {
+	public Expr getE() {
 		return e;
 	}
 

@@ -21,21 +21,21 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Assignment extends Expression {
+public class Assignment extends Expr {
 
-	private final Expression target;
+	private final Expr target;
 	private final Identifier field;
-	private final Expression value;
+	private final Expr value;
 	
 
-	public Assignment(Token t, Expression target, Identifier field, Expression value) {
+	public Assignment(Token t, Expr target, Identifier field, Expr value) {
 		super(t);
 		this.target = target;
 		this.field = field;
 		this.value = value;
 	}
 	
-	public Expression getTarget() {
+	public Expr getTarget() {
 		return target;
 	}
 
@@ -43,7 +43,7 @@ public class Assignment extends Expression {
 		return field;
 	}
 
-	public Expression getValue() {
+	public Expr getValue() {
 		return value;
 	}
 

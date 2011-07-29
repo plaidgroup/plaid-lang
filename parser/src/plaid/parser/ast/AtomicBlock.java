@@ -4,21 +4,21 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class AtomicBlock extends Expression {
-        private final List<Expression> datagroups;
-        private final Expression body;
+public class AtomicBlock extends Expr {
+        private final List<Expr> datagroups;
+        private final Expr body;
 
-		public AtomicBlock(Token token, List<Expression> datagroups, Expression body) {
+		public AtomicBlock(Token token, List<Expr> datagroups, Expr body) {
                 super(token);
                 this.datagroups = datagroups;
                 this.body = body;
         }
 
-        public List<Expression> getDataGroups() {
+        public List<Expr> getDataGroups() {
 			return datagroups;
 		}
 
-		public Expression getBody() {
+		public Expr getBody() {
 			return body;
 		}
 
