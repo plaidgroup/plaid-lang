@@ -7,8 +7,8 @@ import java.lang.System;
 state ConsoleReporter case of AbstractReporter {
     val immutable String lineSuffix = "| ";
     val immutable String errorPrefix = "***Error: ";
-    val immutable String warningPrefix = "***Error: ";
-    val immutable String infoPrefix = "***Error: ";
+    val immutable String warningPrefix = "***Warning: ";
+    val immutable String infoPrefix = "***Info: ";
 
 
 
@@ -20,10 +20,17 @@ state ConsoleReporter case of AbstractReporter {
         val immutable Integer warningCount = warnings.length();
         
         if ( (errorCount + warningCount) > 0 ) {
-            System.out.println("Found " + errorCount + " errors and " + warningCount + " warnings.");
-            
             // show errors first
             errors.map( fn (msg) => reportMessage(errorPrefix, msg) );
+
+            // show warnings 
+            warnings.map( fn (msg) => reportMessage(warningPrefix, msg) );
+
+            // show infos
+            infos.map( fn (msg) => reportMessage(infoPrefix, msg) );
+
+            // summary
+            displayLine("Found " + errorCount + " errors and " + warningCount + " warnings.");
         }
     }
     
@@ -38,14 +45,16 @@ state ConsoleReporter case of AbstractReporter {
                 val line = sourceCode.get(msg.beginLine - 1 );
                 val lineString = formatLineNumber(msg.beginLine);
                 displayLine( lineString + line.toString());
+                displayLine( getMarker(lineString, msg.beginColumn, msg.endColumn) );
             }{
                 var current = msg.beginLine;
                 while { current < msg.endLine} {
-                    val line = sourceCode.get(msg.beginLine - 1 );
-                    val lineString = formatLineNumber(msg.beginLine);
+                    val line = sourceCode.get(current - 1 );
+                    val lineString = formatLineNumber(current);
                     displayLine( lineString + line.toString());
+                    current = current + 1;  
                 };
-            }
+            };
         }{
             displayLine(warningPrefix + "Cannot find file: " + msg.file.getAbsolutePath());
         };
@@ -60,18 +69,19 @@ state ConsoleReporter case of AbstractReporter {
                                       immutable Integer beginColumn, 
                                       immutable Integer endColumn) {
         val unique StringBuilder sb = java.lang.StringBuilder.new();
-        val immutable Integer skip = prefix.length() + beginColumn - 1;
+        val immutable Integer skip  = prefix.length() + beginColumn - 1;
 
-        var i = 0; 
-        while { i < skip } { sb.append(" ") };
+        var s = 0; 
+        while { s < skip }{ sb.append(" "); s = s + 1; };
         
         ifElse ( beginColumn + 1 == endColumn ) {
             sb.append("^");
         }{
             sb.append("<");
+            var l = skip + 1;
+            while { l < (prefix.length() + endColumn - 1) }{ sb.append("-"); l = l + 1; };
             sb.append(">");
-        };
-        
+        };        
 
         sb.toString()
     }
