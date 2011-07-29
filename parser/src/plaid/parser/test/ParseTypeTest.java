@@ -19,7 +19,7 @@ import plaid.parser.ParseException;
 import plaid.parser.PlaidCoreParser;
 import plaid.parser.ast.Arg;
 import plaid.parser.ast.ArgSpec;
-import plaid.parser.ast.Expression;
+import plaid.parser.ast.Expr;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.LambdaType;
 import plaid.parser.ast.MetaType;
@@ -43,7 +43,7 @@ public class ParseTypeTest {
 		try { 
 			PlaidCoreParser pp = parserFromString(permString);
 			Permission parsedAST = pp.Permission();
-			Permission goalAST = new Permission(null, permKind, Expression.EMPTY);
+			Permission goalAST = new Permission(null, permKind, Expr.EMPTY);
 			Assert.assertTrue(parsedAST.equivalent(goalAST));
 		} catch (ParseException e) {
 			Assert.fail("ParseException: " + e.getMessage());
@@ -122,7 +122,7 @@ public class ParseTypeTest {
 		ids.add(new Identifier(null, "max"));
 		QualifiedIdentifier qi = 
 			new QualifiedIdentifier(null, ids);
-		Permission p = new Permission(null, PermissionKind.IMMUTABLE, Expression.EMPTY);
+		Permission p = new Permission(null, PermissionKind.IMMUTABLE, Expr.EMPTY);
 		testNominalType("immutable hello.world.mighty.max",p,qi);
 	}
 	
@@ -135,7 +135,7 @@ public class ParseTypeTest {
 		ids.add(new Identifier(null, "max"));
 		QualifiedIdentifier qi = 
 			new QualifiedIdentifier(null, ids);
-		Permission p = new Permission(null, PermissionKind.UNIQUE, Expression.EMPTY);
+		Permission p = new Permission(null, PermissionKind.UNIQUE, Expr.EMPTY);
 		testNominalType("unique hello.world.mighty.max",p,qi);
 	}
 	

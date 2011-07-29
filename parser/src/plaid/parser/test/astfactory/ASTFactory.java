@@ -12,7 +12,7 @@ import plaid.parser.ast.AbstractStateValDecl;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.Arg;
 import plaid.parser.ast.ArgSpec;
-import plaid.parser.ast.ArgumentExpression;
+import plaid.parser.ast.ArgumentExpr;
 import plaid.parser.ast.Assignment;
 import plaid.parser.ast.AtomicBlock;
 import plaid.parser.ast.BlockExpr;
@@ -30,7 +30,7 @@ import plaid.parser.ast.DefaultCase;
 import plaid.parser.ast.Dereference;
 import plaid.parser.ast.DestructiveDereference;
 import plaid.parser.ast.DoubleLiteral;
-import plaid.parser.ast.Expression;
+import plaid.parser.ast.Expr;
 import plaid.parser.ast.FieldDecl;
 import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupArg;
@@ -59,7 +59,7 @@ import plaid.parser.ast.Specifier;
 import plaid.parser.ast.SplitBlock;
 import plaid.parser.ast.StateChange;
 import plaid.parser.ast.StateDecl;
-import plaid.parser.ast.StateExpression;
+import plaid.parser.ast.StateExpr;
 import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
@@ -87,7 +87,7 @@ public class ASTFactory {
 		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, type, name, metaArgs, args, env);
 	}
 	
-	public static StateDecl AbstractStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expression> metaCaseOfArgs) {
+	public static StateDecl AbstractStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs) {
 		return new AbstractStateDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, name, metaArgsSpec, caseOf, metaCaseOfArgs);
 	}
 	
@@ -95,11 +95,11 @@ public class ASTFactory {
 		return new AbstractStateValDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec);
 	}
 	
-	public static Application Application(Expression left, Expression right) {
+	public static Application Application(Expr left, Expr right) {
 		return new Application(ASTNode.DEFAULT_TOKEN, left, null, right);
 	}
 	
-	public static Application Application(Expression left, List<Expression> metaArgs, Expression right) {
+	public static Application Application(Expr left, List<Expr> metaArgs, Expr right) {
 		return new Application(ASTNode.DEFAULT_TOKEN, left, metaArgs, right);
 	}
 	
@@ -115,23 +115,23 @@ public class ASTFactory {
 		return new ArgSpec(null, preType, postType);
 	}
 	
-	public static ArgumentExpression ArgumentExpression(Expression ...es) {
-		return new ArgumentExpression(ASTNode.DEFAULT_TOKEN, Arrays.asList(es));
+	public static ArgumentExpr ArgumentExpr(Expr ...es) {
+		return new ArgumentExpr(ASTNode.DEFAULT_TOKEN, Arrays.asList(es));
 	}
 	
-	public static Assignment Assignment(Expression target, Identifier field, Expression value) {
+	public static Assignment Assignment(Expr target, Identifier field, Expr value) {
 		return new Assignment(ASTNode.DEFAULT_TOKEN, target, field, value);
 	}
 	
-	public static AtomicBlock AtomicBlock(Expression e, Expression ...datagroups) {
+	public static AtomicBlock AtomicBlock(Expr e, Expr ...datagroups) {
 		return new AtomicBlock(ASTNode.DEFAULT_TOKEN,  Arrays.asList(datagroups), e);
 	}
 	
-	public static BlockExpr BlockExpression(Stmt ...args) {
+	public static BlockExpr BlockExpr(Stmt ...args) {
 		return new BlockExpr(ASTNode.DEFAULT_TOKEN, Arrays.asList(args));
 	}
 	
-	public static Cast Cast(Expression e, Type type) {
+	public static Cast Cast(Expr e, Type type) {
 		return new Cast(ASTNode.DEFAULT_TOKEN, e, type);
 	}
 
@@ -139,19 +139,19 @@ public class ASTFactory {
 		return new CompilationUnit(packageName, imports, decls);
 	}
 	
-	public static FieldDecl ConcreteFieldDecl(Specifier specifier, Type type, Identifier name, Expression body) {
+	public static FieldDecl ConcreteFieldDecl(Specifier specifier, Type type, Identifier name, Expr body) {
 		return new ConcreteFieldDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, specifier, type, name, body);
 	}
 	
-	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env, Expression body) {
+	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env, Expr body) {
 		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, type, name, metaArgs, args, env, body);
 	}
 	
-	public static StateDecl ConcreteStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expression> metaCaseOfArgs, StateExpression statebinding) {
+	public static StateDecl ConcreteStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs, StateExpr statebinding) {
 		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
 	}
 	
-	public static StateValDecl ConcreteStateValDecl(Identifier name, List<MetaArg> metaArgsSpec, StateExpression stateBinding) {
+	public static StateValDecl ConcreteStateValDecl(Identifier name, List<MetaArg> metaArgsSpec, StateExpr stateBinding) {
 		return new ConcreteStateValDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, stateBinding);
 	}
 	
@@ -159,15 +159,15 @@ public class ASTFactory {
 		return new DeclList(ASTNode.DEFAULT_TOKEN, Arrays.asList(decls));
 	}
 	
-	public static Case DefaultCase(Expression e) {
+	public static Case DefaultCase(Expr e) {
 		return new DefaultCase(ASTNode.DEFAULT_TOKEN, e);
 	}
 	
-	public static Dereference Dereference(Expression left, Identifier right) {
+	public static Dereference Dereference(Expr left, Identifier right) {
 		return new Dereference(ASTNode.DEFAULT_TOKEN, left, right);
 	}
 	
-	public static DestructiveDereference DestructiveDereference(Expression left, Identifier right) {
+	public static DestructiveDereference DestructiveDereference(Expr left, Identifier right) {
 		return new DestructiveDereference(ASTNode.DEFAULT_TOKEN, left, right);
 	}
 	
@@ -175,7 +175,7 @@ public class ASTFactory {
 		return new DoubleLiteral(ASTNode.DEFAULT_TOKEN, value);
 	}
 	
-	public static Freeze Freeze(Expression e) {
+	public static Freeze Freeze(Expr e) {
 		return new Freeze(ASTNode.DEFAULT_TOKEN, e);
 	}
 	
@@ -192,14 +192,14 @@ public class ASTFactory {
 	}
 	
 	public static Permission  Immutable() {
-		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.IMMUTABLE, Expression.EMPTY);
+		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.IMMUTABLE, Expr.EMPTY);
 	}
 	
 	public static Import Import(QualifiedIdentifier qi, boolean star) {
 		return new Import(ASTNode.DEFAULT_TOKEN, qi, star);
 	}
 	
-	public static InfixOperator InfixOperator(Expression left, Identifier op, Expression right) {
+	public static InfixOperator InfixOperator(Expr left, Identifier op, Expr right) {
 		return new InfixOperator(ASTNode.DEFAULT_TOKEN, left, op, right);
 	}
 	
@@ -207,7 +207,7 @@ public class ASTFactory {
 		return new IntLiteral(ASTNode.DEFAULT_TOKEN, value);
 	}
 
-	public static Lambda Lambda(List<MetaArg> metaArgsSpec, List<Arg> args, List<Arg> env, Expression body) {
+	public static Lambda Lambda(List<MetaArg> metaArgsSpec, List<Arg> args, List<Arg> env, Expr body) {
 		return new Lambda(ASTNode.DEFAULT_TOKEN, metaArgsSpec, args, env, body);
 	}
 	
@@ -220,15 +220,15 @@ public class ASTFactory {
 		return LambdaType(new ArrayList<ArgSpec>(), returnType);
 	}
 	
-	public static Match Match(Expression e, Case ...cases) {
+	public static Match Match(Expr e, Case ...cases) {
 		return new Match(ASTNode.DEFAULT_TOKEN,  e, Arrays.asList(cases));
 	}
 
-	public static List<Expression> MetaArgs(Expression ...args) {
+	public static List<Expr> MetaArgs(Expr ...args) {
 		return Arrays.asList(args);
 	}
 
-	public static NewInstance NewInstance(StateExpression state) {
+	public static NewInstance NewInstance(StateExpr state) {
 		return new NewInstance(ASTNode.DEFAULT_TOKEN, state);
 	}
 
@@ -247,7 +247,7 @@ public class ASTFactory {
 	}
 	
 	public static Permission  None() {
-		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.NONE, Expression.EMPTY);
+		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.NONE, Expr.EMPTY);
 	}
 	
 	public static Modifier OVERRIDE() {
@@ -258,7 +258,7 @@ public class ASTFactory {
 		return QualifiedIdentifier(names);
 	}
 	
-	public static Case PatternCase(QualifiedIdentifier qi, Expression e) {
+	public static Case PatternCase(QualifiedIdentifier qi, Expr e) {
 		return new PatternCase(ASTNode.DEFAULT_TOKEN, qi, e);
 	}
 	
@@ -274,7 +274,7 @@ public class ASTFactory {
 		return new QualifiedIdentifier(null, ids);
 	}
 
-	public static Replace Replace(Expression e, StateExpression state) {
+	public static Replace Replace(Expr e, StateExpr state) {
 		return new Replace(ASTNode.DEFAULT_TOKEN, e, state);
 	}
 	
@@ -282,15 +282,15 @@ public class ASTFactory {
 		return new Modifier(ASTNode.DEFAULT_TOKEN, Modifier.ModifierKind.REQUIRES);
 	}
 	
-	public static Permission  Shared(Expression datagroup) {
+	public static Permission  Shared(Expr datagroup) {
 		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.SHARED, datagroup);
 	}
 	
-	public static SplitBlock SplitBlock(Expression e, Expression ...datagroups) {
+	public static SplitBlock SplitBlock(Expr e, Expr ...datagroups) {
 		return new SplitBlock(ASTNode.DEFAULT_TOKEN,  Arrays.asList(datagroups), e);
 	}
 	
-	public static StateChange StateChange(Expression e, StateExpression state) {
+	public static StateChange StateChange(Expr e, StateExpr state) {
 		return new StateChange(ASTNode.DEFAULT_TOKEN, e, state);
 	}
 
@@ -302,12 +302,12 @@ public class ASTFactory {
 		return new StateOpRename(ASTNode.DEFAULT_TOKEN, from, to );
 	}
 	
-	public static StateRef StateRef(Expression e) {
+	public static StateRef StateRef(Expr e) {
 		return new StateRef(ASTNode.DEFAULT_TOKEN, e, new ArrayList<DeclOrStateOp>());
 	}
 	
 	
-	public static StateRef StateRef(Expression e, DeclOrStateOp ...dops) {
+	public static StateRef StateRef(Expr e, DeclOrStateOp ...dops) {
 		return new StateRef(ASTNode.DEFAULT_TOKEN, e, Arrays.asList(dops));
 	}
 	
@@ -319,15 +319,15 @@ public class ASTFactory {
 		return new TypeArg(ASTNode.DEFAULT_TOKEN, id, caseof);
 	}
 	
-	public static UnaryOperator UnaryOperator(Identifier op, Expression e) {
+	public static UnaryOperator UnaryOperator(Identifier op, Expr e) {
 		return new UnaryOperator(ASTNode.DEFAULT_TOKEN, op, e);
 	}
 	
 	public static Permission  Unique() {
-		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.UNIQUE, Expression.EMPTY);
+		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.UNIQUE, Expr.EMPTY);
 	}
 
-	public static UnpackInnerGroups UnpackInnerGroups(Expression e) {
+	public static UnpackInnerGroups UnpackInnerGroups(Expr e) {
 		return new UnpackInnerGroups(ASTNode.DEFAULT_TOKEN, e);
 	}
 
@@ -339,7 +339,7 @@ public class ASTFactory {
 		return new Specifier(ASTNode.DEFAULT_TOKEN, Specifier.SpecifierKind.VAR);
 	}
 
-	public static VarDecl VarDecl(Specifier specifier, Type type, Identifier field, Expression value) {
+	public static VarDecl VarDecl(Specifier specifier, Type type, Identifier field, Expr value) {
 		return new VarDecl(ASTNode.DEFAULT_TOKEN, specifier, type, field, value);
 	}
 

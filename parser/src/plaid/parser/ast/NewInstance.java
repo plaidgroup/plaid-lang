@@ -21,16 +21,16 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class NewInstance extends Expression{
+public class NewInstance extends Expr{
 
-	private final StateExpression st;	
+	private final StateExpr st;	
 
-	public NewInstance(Token t, StateExpression st) {
+	public NewInstance(Token t, StateExpr st) {
 		super(t);
 		this.st = st;
 	}
 
-	public StateExpression getState() {
+	public StateExpr getState() {
 		return st;
 	}
 

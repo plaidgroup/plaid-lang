@@ -22,14 +22,14 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public abstract class Case extends ASTNode {
-	private final Expression body;
+	private final Expr body;
 
-	public Case(Token token, Expression body) {
+	public Case(Token token, Expr body) {
 		super(token);
 		this.body = body;
 	}
 
-	public Expression getBody() {
+	public Expr getBody() {
 		return body;
 	}
 }
