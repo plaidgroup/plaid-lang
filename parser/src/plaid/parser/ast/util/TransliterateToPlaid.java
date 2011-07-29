@@ -46,8 +46,8 @@ public class TransliterateToPlaid<T> {
 		sb.append("\n");
 		sb.append("\tmethod immutable String toString()");
 		if (isConcrete) {
-			sb.append("\n\t\t{");
-		
+			sb.append(" {\n\t\t");
+			sb.append("\"" +clazz.getSimpleName() + "\\n\" + ");
 			for(Field field:getAllFields(clazz)) {
 				sb.append("\n\t\t");
 				sb.append("\"" + field.getName() + ":\" + " + field.getName() + ".toString()");
