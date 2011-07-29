@@ -1,6 +1,7 @@
 package plaid.compiler.reporter;
 
 import plaid.lang.globals.*;
+import plaid.compiler.reporter.Error;
 
 import java.lang.System;
 
@@ -16,19 +17,18 @@ state ConsoleReporter case of AbstractReporter {
     // report
     //=======================================================================
     method void report() {
-        val immutable Integer errorCount   = errors.length();
-        val immutable Integer warningCount = warnings.length();
-        
-        if ( (errorCount + warningCount) > 0 ) {
-            // show errors first
-            errors.map( fn (msg) => reportMessage(errorPrefix, msg) );
+        var errorCount   = 0;
+        var warningCount = 0;
 
-            // show warnings 
-            warnings.map( fn (msg) => reportMessage(warningPrefix, msg) );
-
-            // show infos
-            infos.map( fn (msg) => reportMessage(infoPrefix, msg) );
-
+        if ( !messages.isEmpty() ) {
+            messages.map( fn (msg) => {
+                 match(msg) {
+                     case Error   { reportMessage(errorPrefix, msg);   errorCount = errorCount + 1; }
+                     case Warning { reportMessage(warningPrefix, msg); warningCount = warningCount + 1;}
+                     case Info    { reportMessage(errorPrefix, msg);   }
+                     default { displayLine("Unsupported message.");}
+                 }
+            });
             // summary
             displayLine("Found " + errorCount + " errors and " + warningCount + " warnings.");
         }
@@ -44,10 +44,14 @@ state ConsoleReporter case of AbstractReporter {
             ifElse ( msg.beginLine == msg.endLine ) {
                 val line = sourceCode.get(msg.beginLine - 1 );
                 val lineString = formatLineNumber(msg.beginLine);
+                displayLine( "File: " + msg.file.getAbsolutePath() + " (line:" + msg.beginLine +", column:" + msg.beginColumn+")");
+                displayLine( "...");
                 displayLine( lineString + line.toString());
                 displayLine( getMarker(lineString, msg.beginColumn, msg.endColumn) );
             }{
                 var current = msg.beginLine;
+                displayLine( "File: " + msg.file.getAbsolutePath() + " (line:" + msg.beginLine +", column:" + msg.beginColumn+")");
+                displayLine( "...");
                 while { current < msg.endLine} {
                     val line = sourceCode.get(current - 1 );
                     val lineString = formatLineNumber(current);
