@@ -1,5 +1,4 @@
 package plaid.parser.test.astfactory;
-import java.awt.Dialog.ModalityType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -46,6 +45,7 @@ import plaid.parser.ast.NewInstance;
 import plaid.parser.ast.NominalObjectType;
 import plaid.parser.ast.PatternCase;
 import plaid.parser.ast.Permission;
+import plaid.parser.ast.GroupPermission.GroupPermissionKind;
 import plaid.parser.ast.Permission.PermissionKind;
 import plaid.parser.ast.QualifiedIdentifier;
 import plaid.parser.ast.Replace;
@@ -233,6 +233,10 @@ public class ASTFactory {
 	
 	public static Permission  None() {
 		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.NONE, Expression.EMPTY);
+	}
+	
+	public static GroupPermission Protected() {
+		return new GroupPermission(ASTNode.DEFAULT_TOKEN, GroupPermissionKind.PROTECTED);
 	}
 	
 	public static MetaArg GroupArg(GroupPermission gp, Identifier name) {
