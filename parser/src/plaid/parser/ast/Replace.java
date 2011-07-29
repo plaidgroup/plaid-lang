@@ -2,22 +2,22 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Replace extends Expression {
+public class Replace extends Expr {
 
-	private final Expression e;
-	private final StateExpression st;
+	private final Expr e;
+	private final StateExpr st;
 	
-	public Replace(Token token, Expression e, StateExpression st) {
+	public Replace(Token token, Expr e, StateExpr st) {
 		super(token);
 		this.e = e;
 		this.st = st;
 	}
 	
-	public Expression getE() {
+	public Expr getE() {
 		return e;
 	}
 	
-	public StateExpression getSt() {
+	public StateExpr getSt() {
 		return st;
 	}
 

@@ -70,7 +70,7 @@ public abstract class Decl extends ASTNode implements DeclOrStateOp{
 		return sb.toString();
 	}
 	
-	public static String metaArgSpecsToString(List<MetaArgSpec> metaArgsSpec) {
+	public static String metaArgSpecsToString(List<MetaArg> metaArgsSpec) {
 		StringBuilder sb = new StringBuilder();
 		
 		if ( metaArgsSpec.size() > 0 ) {

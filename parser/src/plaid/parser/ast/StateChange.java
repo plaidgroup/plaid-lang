@@ -21,23 +21,23 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class StateChange extends Expression {
+public class StateChange extends Expr {
 	
-	private final Expression e;
-	private final StateExpression st;
+	private final Expr e;
+	private final StateExpr st;
 
 
-	public StateChange(Token t, Expression e, StateExpression st) {
+	public StateChange(Token t, Expr e, StateExpr st) {
 		super(t);
 		this.e = e;
 		this.st = st;
 	}
 	
-	public Expression getExpression() {
+	public Expr getExpression() {
 		return e;
 	}
 
-	public StateExpression getState() {
+	public StateExpr getState() {
 		return st;
 	}
 

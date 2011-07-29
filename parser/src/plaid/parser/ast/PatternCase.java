@@ -5,7 +5,7 @@ import plaid.parser.Token;
 public final class PatternCase extends Case{
 	private final QualifiedIdentifier pattern;
 
-	public PatternCase(Token token, QualifiedIdentifier pattern, Expression body) {
+	public PatternCase(Token token, QualifiedIdentifier pattern, Expr body) {
 		super(token, body);
 		this.pattern = pattern;
 	}

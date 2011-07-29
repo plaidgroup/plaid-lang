@@ -23,11 +23,11 @@ package plaid.parser.ast;
 import java.util.List;
 
 public class CompilationUnit extends ASTNode {
-	private final List<Decl> decls;
 	private final QualifiedIdentifier packageName;
 	private final List<Import> imports;
+	private final List<Decl> decls;
 
-	public CompilationUnit(List<Decl> decls, List<Import> imports, QualifiedIdentifier packageName) {
+	public CompilationUnit(QualifiedIdentifier packageName, List<Import> imports, List<Decl> decls) {
 		super(DEFAULT_TOKEN);
 		this.decls=decls;
 		this.imports = imports;

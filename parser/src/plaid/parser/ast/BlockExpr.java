@@ -4,7 +4,7 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class BlockExpr extends Expression {
+public class BlockExpr extends Expr {
 	private final List<Stmt> statements;
 
 	public BlockExpr(Token token, List<Stmt> statements) {
