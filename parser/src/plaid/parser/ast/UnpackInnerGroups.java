@@ -2,15 +2,15 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class UnpackInnerGroups extends Expression {
-        private final Expression body;
+public class UnpackInnerGroups extends Expr {
+        private final Expr body;
 
-        public UnpackInnerGroups(Token token, Expression body) {
+        public UnpackInnerGroups(Token token, Expr body) {
                 super(token);
                 this.body = body;
         }
 
-        public Expression getBody() {
+        public Expr getBody() {
 			return body;
 		}
 

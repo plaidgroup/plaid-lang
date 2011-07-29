@@ -5,17 +5,17 @@ import java.util.List;
 import plaid.parser.Token;
 
 public class StateRef extends StatePrim {
-	private final Expression st;
+	private final Expr st;
 	private final List<DeclOrStateOp> specializations;
 	
-	public StateRef(Token t, Expression st,
+	public StateRef(Token t, Expr st,
 			List<DeclOrStateOp> specializations) {
 		super(t);
 		this.st = st;
 		this.specializations = specializations;
 	}
 
-	public Expression getSt() {
+	public Expr getSt() {
 		return st;
 	}
 

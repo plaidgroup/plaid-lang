@@ -3,14 +3,14 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public class UnaryOperator extends Operator {
-	protected final Expression e;
+	protected final Expr e;
 	
-	public UnaryOperator(Token token, Identifier op, Expression e) {
+	public UnaryOperator(Token token, Identifier op, Expr e) {
 		super(token, op);
 		this.e = e;
 	}
 	
-	public Expression getExpression() {
+	public Expr getExpression() {
 		return e;
 	}
 

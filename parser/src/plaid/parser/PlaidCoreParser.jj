@@ -29,8 +29,8 @@ import plaid.parser.ast.*;
 
 public class PlaidCoreParser
 {
-    protected Expression combineSimpleExp1(List<Expression> exps) throws ParseException {
-        Expression result;
+    protected Expr combineSimpleExp1(List<Expr> exps) throws ParseException {
+        Expr result;
         
         // reverse list 
         Collections.reverse(exps);
@@ -38,9 +38,9 @@ public class PlaidCoreParser
         if ( exps.size() == 1 ) {
             result = exps.get(0);
         } else {
-            Expression left = exps.get(0);
+            Expr left = exps.get(0);
             for ( int i = 1; i < exps.size(); i++) {
-                Expression right = exps.get(i);
+                Expr right = exps.get(i);
                 if ( right instanceof Application ) {
                     Application app = (Application)right;
                     left = new Application(app.getToken(),
@@ -67,8 +67,8 @@ public class PlaidCoreParser
         return result;                       
     }
 
-    protected Expression combineSimpleExp2(List<Expression> exps) throws ParseException {
-        Expression result;
+    protected Expr combineSimpleExp2(List<Expr> exps) throws ParseException {
+        Expr result;
         
         // reverse list
         Collections.reverse(exps);
@@ -76,9 +76,9 @@ public class PlaidCoreParser
         if ( exps.size() == 1 ) {
             result = exps.get(0);
         } else {
-	        Expression left = exps.get(0);
+	        Expr left = exps.get(0);
 	        for (int i = 1; i < exps.size(); i++ ) {
-	            Expression right = exps.get(i);
+	            Expr right = exps.get(i);
 	            if ( right instanceof Application ) {
 	                Application app = (Application)right;
 	                left = new Application(app.getToken(),
@@ -304,7 +304,7 @@ CompilationUnit CompilationUnit() :
 	( imports = Imports() )?
 	( d = Decl() { decls.add(d); } )*
 	< EOF >
-	{ return new CompilationUnit(decls, imports, p); }
+	{ return new CompilationUnit(p, imports, decls); }
 }
 
 QualifiedIdentifier Package() :
@@ -340,14 +340,13 @@ Type Type() :
 Permission Permission() :
 {
     Token t;	Permission perm;
-	Expression datagroup = Expression.EMPTY;
+	Expr datagroup = Expr.EMPTY;
 }
-{(	t = <FULL>       { return new Permission(t, Permission.PermissionKind.FULL, datagroup); }
- |  t = <IMMUTABLE>  { return new Permission(t, Permission.PermissionKind.IMMUTABLE, datagroup); }
- |  t = <PURE>       { return new Permission(t, Permission.PermissionKind.PURE, datagroup); }
- |  t = <SHARED> [ <LT> datagroup = SimpleExpr() <GT>] {	return new Permission(t, Permission.PermissionKind.SHARED, datagroup); }
- |  t = <UNIQUE>     { return new Permission(t, Permission.PermissionKind.UNIQUE, datagroup); }  
- |  t = <NONE>       { return new Permission(t, Permission.PermissionKind.NONE, datagroup); }
+{(	t = <IMMUTABLE>  { return new ImmutablePermission(t); }
+ |  t = <SHARED> [ <LT> datagroup = SimpleExpr() <GT>] 
+        {return new SharedPermission(t, datagroup); }
+ |  t = <UNIQUE>     { return new UniquePermission(t); }  
+ |  t = <NONE>       { return new NonePermission(t); }
 )
 }
 
@@ -390,9 +389,9 @@ LambdaType LambdaType() :
 
 MetaType MetaType(boolean isMethod) : {    Token t;
     Identifier id;    boolean isAbstract = true;    Type type = Type.EMPTY;    GroupPermission gp = GroupPermission.EMPTY;
-    List<Expression> metaArgs = new ArrayList<Expression>();
-    List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
-    QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;}{    (        t = <GROUP> [gp = GroupPermission()] id = Identifier() [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]        {            if ( !isMethod && gp != GroupPermission.EMPTY ) {                throw new ParseException("Cannot specify group permissions in states.");            } else if ( isMethod && gp == GroupPermission.EMPTY ) {                throw new ParseException("Need to specify group permission.");            }            return new GroupType(t, gp, id, isAbstract);        }    |   t = <TYPE> id = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false) ] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaArgs = MetaArgs()] ]         {            return new TypeParameterType(t, id, metaArgsSpec, caseof, metaArgs);        }    )}List<MetaType> MetaTypes(boolean isMethod) :{  MetaType type;  List<MetaType> types = new ArrayList<MetaType>();}{    < LT >        type =  MetaType(isMethod) {  types.add(type); }        ( 
+    List<Expr> metaArgs = new ArrayList<Expr>();
+    List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
+    QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;}{    (        t = <GROUP> [gp = GroupPermission()] id = Identifier() [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]        {            if ( !isMethod && gp != GroupPermission.EMPTY ) {                throw new ParseException("Cannot specify group permissions in states.");            } else if ( isMethod && gp == GroupPermission.EMPTY ) {                throw new ParseException("Need to specify group permission.");            }            return new GroupType(t, gp, id, isAbstract);        }    |   t = <TYPE> id = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false) ] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaArgs = MetaArgs()] ]         {            return new TypeArgType(t, id, metaArgsSpec, caseof, metaArgs);        }    )}List<MetaType> MetaTypes(boolean isMethod) :{  MetaType type;  List<MetaType> types = new ArrayList<MetaType>();}{    < LT >        type =  MetaType(isMethod) {  types.add(type); }        ( 
             < COMMA > type =  MetaType(isMethod) {  types.add(type); }        )*     < GT >    {        return types;    }}
 
 /*****************************************************************************/
@@ -440,10 +439,10 @@ List<Import> Imports() :
 }
 
 
-List<Expression> MetaArgs() :
+List<Expr> MetaArgs() :
 {
-    Expression arg;
-    List<Expression> args = new ArrayList<Expression>();
+    Expr arg;
+    List<Expr> args = new ArrayList<Expr>();
 }{
     <LT>
         arg =  SimpleExpr1() {  args.add(arg); }
@@ -455,7 +454,7 @@ List<Expression> MetaArgs() :
 }
 
 
-MetaArgSpec MetaArgSpec(boolean isMethod) :
+MetaArg MetaArgSpec(boolean isMethod) :
 {
     Token t;
     Identifier id;
@@ -470,17 +469,17 @@ MetaArgSpec MetaArgSpec(boolean isMethod) :
         } else if ( !isMethod && gp != GroupPermission.EMPTY ) {
             throw new ParseException("Group permissions are not allowed at statet level");
         }
-        return new MetaGroupArgSpec(t, gp, id);
+        return new GroupArg(t, gp, id);
     }
-  | t= <TYPE> id = Identifier() [ <CASE> <OF> qi = QualifiedIdentifier() ]     {        return new TypeParameter(t, id, qi);    }
+  | t= <TYPE> id = Identifier() [ <CASE> <OF> qi = QualifiedIdentifier() ]     {        return new TypeArg(t, id, qi);    }
   )
 }
 
 
-List<MetaArgSpec> MetaArgsSpec(boolean isMethod) :
+List<MetaArg> MetaArgsSpec(boolean isMethod) :
 {
-    List<MetaArgSpec> args = new ArrayList<MetaArgSpec>();
-    MetaArgSpec arg; 
+    List<MetaArg> args = new ArrayList<MetaArg>();
+    MetaArg arg; 
 }
 {
     < LT >
@@ -499,8 +498,8 @@ List<Modifier> Modifiers() : {
     List<Modifier> modifiers = new ArrayList<Modifier>();
 }{
     (
-            t = <OVERRIDE>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.OVERRIDE));  }
-        |   t = <REQUIRES>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.REQUIRES));  }
+            t = <OVERRIDE>   { modifiers.add(new OverrideModifier(t));  }
+        |   t = <REQUIRES>   { modifiers.add(new RequiresModifier(t));  }
         // immutable is handled by directly associating it to states to avoid conflicts with types
     )+
     { return modifiers; }
@@ -510,8 +509,8 @@ List<Modifier> Modifiers() : {
 Specifier Specifier() : {
     Token t;  
 }{
-        t = <VAL> { return new Specifier(t, Specifier.SpecifierKind.VAL); }
-    |   t = <VAR> { return new Specifier(t, Specifier.SpecifierKind.VAR); }
+        t = <VAL> { return new ValSpecifier(t); }
+    |   t = <VAR> { return new VarSpecifier(t); }
 }
 
 
@@ -542,7 +541,7 @@ List<DeclOrStateOp> DeclOrStateOpList() : {
 Decl Decl() :
 {
     Decl d;
-    List<Modifier> modifiers = new ArrayList<Modifier>();
+    List<Modifier> modifiers = Modifier.EMPTY;
 }
 {
     [ modifiers = Modifiers() ]     
@@ -561,14 +560,14 @@ Decl StateDecl(List< Modifier > modifiers) :
     Identifier name;
 	Token t;
 	boolean stateval = false;
-	State stb = null;
-	List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
-	List<Expression> metaCaseOfArgs = new ArrayList<Expression>();
+	StateExpr stb = null;
+	List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
+	List<Expr> metaCaseOfArgs = new ArrayList<Expr>();
 	QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;
 }
 {
-    [ t = <IMMUTABLE>  { modifiers.add(new Modifier(t, Modifier.ModifierKind.IMMUTABLE)); } ]
-    t= <STATE> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgsSpec(false)) metaCaseOfArgs = MetaArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {
+    [ t = <IMMUTABLE>  { modifiers.add(new ImmutableModifier(t)); } ]
+    t= <STATE> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaCaseOfArgs = MetaArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {
         if (stb == null) {            return new AbstractStateDecl(t, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs);
         } else {
             return new ConcreteStateDecl(t, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs,stb);
@@ -581,8 +580,8 @@ Decl StateDecl(List< Modifier > modifiers) :
 }
 
 
-State StateBinding() : {
-    State state;
+StateExpr StateBinding() : {
+    StateExpr state;
 }{
   (
       <EQUALS> state = State()
@@ -592,7 +591,7 @@ State StateBinding() : {
 }
 
 
-State State() : {
+StateExpr State() : {
     StatePrim stpLeft;
     StatePrim stpRight = null;
     Token t = null;
@@ -610,7 +609,7 @@ State State() : {
 
 StatePrim StatePrim() : {
     Token t;
-    Expression e;
+    Expr e;
     List<DeclOrStateOp> dops = new ArrayList<DeclOrStateOp>();
     StatePrim stp;
 }{
@@ -642,7 +641,7 @@ StateOp StateOp () : {
 
 Decl FieldDecl(List<Modifier> modifiers) :
 {
-	Expression e;
+	Expr e;
 	Identifier name;
 	Type type = Type.EMPTY;
 	Specifier specifier = Specifier.EMPTY;
@@ -702,10 +701,12 @@ Decl GroupDecl(List<Modifier> modifiers) :{
     }
 }
 
-GroupPermission GroupPermission() : {}{
-   <EXCLUSIVE> { return GroupPermission.EXCLUSIVE; }
- | <SHARED>    { return GroupPermission.SHARED; }
- | <PROTECTED> { return GroupPermission.PROTECTED; }   }
+GroupPermission GroupPermission() : {
+    Token t;
+}{
+    t = <EXCLUSIVE> { return new ExclusiveGroupPermission(t); }
+ |  t = <SHARED>    { return new SharedGroupPermission(t); }
+ |  t = <PROTECTED> { return new ProtectedGroupPermission(t); }   }
 
 
 Decl MethodDecl(List<Modifier> modifiers) :
@@ -716,9 +717,9 @@ Decl MethodDecl(List<Modifier> modifiers) :
 	List<Arg> argList = new ArrayList<Arg>();
 	List<ArgSpec> argTypes = new ArrayList<ArgSpec>();
 	List<Arg> env = new ArrayList<Arg>();
-	Expression e = Expression.EMPTY;
+	Expr e = Expr.EMPTY;
 	MethodDecl d;
-	List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
+	List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
 }{
 //      //method [T] m([T>>T x])[T >> T] ( {e} | ; )
     t = <METHOD>
@@ -730,11 +731,11 @@ Decl MethodDecl(List<Modifier> modifiers) :
         methodName = IdOrOperator() [metaArgsSpec = MetaArgsSpec(true)] <LPAREN> [argList = DeclArgs()] <RPAREN> [env = Environment()]
     )
     (
-        e = BlockExpression() 
+        e = BlockExpr() 
       | <SEMICOLON>
     )
          {
-            if (e==Expression.EMPTY) {
+            if (e==Expr.EMPTY) {
                 return new AbstractMethodDecl(t, 
                                    modifiers, 
                                    returnType,
@@ -800,7 +801,7 @@ DeclList DeclList() :
 		}
 }
 
-Expression BlockExpression() :
+Expr BlockExpr() :
 {
     Token t;
 	List<Stmt > stmts = new ArrayList<Stmt>();
@@ -814,7 +815,7 @@ Expression BlockExpression() :
 
 List<Stmt> StmtList() :
 {
-    ArrayList < Stmt > stmtList = new ArrayList < Stmt > ();
+    List < Stmt > stmtList = new ArrayList < Stmt > ();
 	Stmt s;	
 }
 {
@@ -843,26 +844,26 @@ Stmt Stmt() :
 }
 
 
-Expression Expr() :
+Expr Expr() :
 {
-	Expression e;
+	Expr e;
 }
 {
     e = Function() { return e; }
   | e = Expr1() { return e; }
 }
 
-Expression Expr1() :
+Expr Expr1() :
 {
     Token t;
-    List<Expression > metaArgs = new ArrayList<Expression>();
+    List<Expr > metaArgs = new ArrayList<Expr>();
     List<Case > cl;
-    Expression pattern;
+    Expr pattern;
     Identifier id;
-    Expression target;
-    Expression e;
-    State st;
-    List<Expression> datagroups;
+    Expr target;
+    Expr e;
+    StateExpr st;
+    List<Expr> datagroups;
     List<Stmt> stmtList = new ArrayList<Stmt>();}
 {
     // This rule corresponds to the following rule:
@@ -870,13 +871,13 @@ Expression Expr1() :
     // [SimpleExp <DOT>] Identifier <EQUALS> Expr
     // 
     // Because SimpleExp.Identifier is itself an 
-    // Expression we simply parse a SimpleExpression 
+    // Expr we simply parse a SimpleExpr 
     // and check that we have a correct receiver. 
     LOOKAHEAD(SimpleExpr() <EQUALS>) 
     target = SimpleExpr()  t = <EQUALS> e = Expr()
     {   
         if ( target instanceof Identifier ) {
-            return new Assignment(t, null, (Identifier)target, e);
+            return new Assignment(t, Expr.EMPTY, (Identifier)target, e);
         } else if ( target instanceof Dereference ) {
            Dereference dref = (Dereference)target;
            if ( dref.getRight() instanceof Identifier ) {
@@ -905,17 +906,17 @@ Expression Expr1() :
       return new Match(t, pattern, cl);
     }
 |   
-    t = <ATOMIC> datagroups = MetaArgs() e = BlockExpression()
+    t = <ATOMIC> datagroups = MetaArgs() e = BlockExpr()
     {
       return new AtomicBlock(t, datagroups, e);
     }
 |   
-    t = <SPLIT> datagroups = MetaArgs() e = BlockExpression()
+    t = <SPLIT> datagroups = MetaArgs() e = BlockExpr()
     {
       return new SplitBlock(t, datagroups, e);
     }
 |   
-    t = <UNPACKINNERGROUPS> e = BlockExpression() 
+    t = <UNPACKINNERGROUPS> e = BlockExpr() 
     {
       return new UnpackInnerGroups(t, e);
     }
@@ -923,9 +924,9 @@ Expression Expr1() :
 {
   return e;}}
 
-Expression InfixExpr() :
+Expr InfixExpr() :
 {
-		Expression e;
+		Expr e;
 		Token t = null;
 		Type type = Type.EMPTY;
 }
@@ -937,29 +938,29 @@ Expression InfixExpr() :
         return new Cast(t, e, type);
     }
   |
-    LOOKAHEAD(ConditionalExpression())
-    e = ConditionalExpression()
+    LOOKAHEAD(ConditionalExpr())
+    e = ConditionalExpr()
     {
         return e;
     }
 }
 
-Expression SimpleExpr() : {
-    Expression e;
+Expr SimpleExpr() : {
+    Expr e;
     Token t;
-    State st;
-    List<Expression> exps = new ArrayList<Expression>();
+    StateExpr st;
+    List<Expr> exps = new ArrayList<Expr>();
 }{
 
-    e = BlockExpression()  { return e; }
+    e = BlockExpr()  { return e; }
 |   t = <NEW> st = State() { return new NewInstance(t, st); }
 |   e = SimpleExpr2()      { return e; }
 }
 
 
-Expression SimpleExpr2() : {
-    Expression e;
-    List<Expression> rest;
+Expr SimpleExpr2() : {
+    Expr e;
+    List<Expr> rest;
 }{
     e = SimpleExpr1() rest = SimpleExpr2Rest()
     {
@@ -969,62 +970,62 @@ Expression SimpleExpr2() : {
 }
 
 
-List<Expression> SimpleExpr2Rest() : {
-    Expression block;
-    List<Expression> rest;
+List<Expr> SimpleExpr2Rest() : {
+    Expr block;
+    List<Expr> rest;
 }{
-    LOOKAHEAD(BlockExpression())
-    block = BlockExpression() rest = SimpleExpr2Rest()
+    LOOKAHEAD(BlockExpr())
+    block = BlockExpr() rest = SimpleExpr2Rest()
     {
-        rest.add(new Application(ASTNode.DEFAULT_TOKEN, Expression.EMPTY, new ArrayList<Expression>(), block));
+        rest.add(new Application(ASTNode.DEFAULT_TOKEN, Expr.EMPTY, new ArrayList<Expr>(), block));
         return rest;
     }
-  | { return new ArrayList<Expression>(); }
+  | { return new ArrayList<Expr>(); }
 }
 
 
-Expression SimpleExpr1() : {
-    Expression e;
-    List<Expression> rest;
+Expr SimpleExpr1() : {
+    Expr e;
+    List<Expr> rest;
     Token t = ASTNode.DEFAULT_TOKEN;
 }{
 
     (
-        e = Literal() rest = SimpleExp1Rest()            { rest.add (e); }
-      | e = Identifier() rest = SimpleExp1Rest()         { rest.add (e); }
-      | e = THIS() rest = SimpleExp1Rest()               { rest.add (e); }
-      | e = ArgumentExpression() rest = SimpleExp1Rest() { rest.add (e); }
+        e = Literal() rest = SimpleExp1Rest()      { rest.add (e); }
+      | e = Identifier() rest = SimpleExp1Rest()   { rest.add (e); }
+      | e = THIS() rest = SimpleExp1Rest()         { rest.add (e); }
+      | e = ArgumentExpr() rest = SimpleExp1Rest() { rest.add (e); }
     )
     { return combineSimpleExp1(rest); }
 }
 
 
-List<Expression> SimpleExp1Rest() : {
+List<Expr> SimpleExp1Rest() : {
     Token t = ASTNode.DEFAULT_TOKEN;
-    Expression e;
+    Expr e;
     Identifier id;
-    List<Expression> metaArgs = new ArrayList<Expression>();
-    List<Expression> args;
-    List<Expression> rest;
+    List<Expr> metaArgs = new ArrayList<Expr>();
+    List<Expr> args;
+    List<Expr> rest;
 }{
      t = <DOT> id = Identifier() rest = SimpleExp1Rest()
      {
-        rest.add(new Dereference(t, Expression.EMPTY, id));
+        rest.add(new Dereference(t, Expr.EMPTY, id));
         return rest; 
      } 
   |  
      t = <BANG> id = Identifier() rest = SimpleExp1Rest()
      {
-        rest.add(new DestructiveDereference(t, Expression.EMPTY, id));
+        rest.add(new DestructiveDereference(t, Expr.EMPTY, id));
         return rest; 
      } 
-  |  LOOKAHEAD([MetaArgs()] ArgumentExpression()) 
-     [ metaArgs = MetaArgs()] e = ArgumentExpression() rest = SimpleExp1Rest()
+  |  LOOKAHEAD([MetaArgs()] ArgumentExpr()) 
+     [ metaArgs = MetaArgs()] e = ArgumentExpr() rest = SimpleExp1Rest()
      {
-        rest.add(new Application(t, Expression.EMPTY, metaArgs, e));
+        rest.add(new Application(t, Expr.EMPTY, metaArgs, e));
         return rest;
      }
-  |  { return new ArrayList<Expression>() ;}
+  |  { return new ArrayList<Expr>() ;}
 }
 
 Identifier THIS() : {
@@ -1033,28 +1034,28 @@ Identifier THIS() : {
     t = <THIS> { return new Identifier(t, t.image); }
 }
 
-ArgumentExpression ArgumentExpression() : {
+ArgumentExpr ArgumentExpr() : {
     Token t;
-    List<Expression> args = new ArrayList<Expression>();
+    List<Expr> args = new ArrayList<Expr>();
 }{
     t = <LPAREN> [args = ExprList()] <RPAREN>
     {
-        return new ArgumentExpression(t, args);
+        return new ArgumentExpr(t, args);
     }
 }
 
-Expression ConditionalExpression() : 
+Expr ConditionalExpr() : 
 {
-    Expression e;
-    Expression arg;
-    Expression arg2;
+    Expr e;
+    Expr arg;
+    Expr arg2;
     Token t;
     Token t2;
 }
 {
-    e = ConditionalOrExpression()
+    e = ConditionalOrExpr()
     (
-        t = "?" arg = Expr() t2 =  ":" arg2 = ConditionalExpression()
+        t = "?" arg = Expr() t2 =  ":" arg2 = ConditionalExpr()
 		{
             e = new MethodCall(t, e, new Identifier(t,t.image), arg);
             e = new MethodCall(t2, e, new Identifier(t,t.image), arg2);
@@ -1063,95 +1064,95 @@ Expression ConditionalExpression() :
 	{ return e; }
 }
 
-Expression ConditionalOrExpression() :
+Expr ConditionalOrExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
 }
 {
-    e = ConditionalAndExpression()
+    e = ConditionalAndExpr()
     (
-	   t = "||" arg = ConditionalAndExpression() 	{ e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
+	   t = "||" arg = ConditionalAndExpr() 	{ e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
     )*
 	{ return e; }
 }
 
 
-Expression ConditionalAndExpression() :
+Expr ConditionalAndExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
 }
 {
-    e = InclusiveOrExpression()
+    e = InclusiveOrExpr()
     (
-	   t = "&&" arg = InclusiveOrExpression() {	e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
+	   t = "&&" arg = InclusiveOrExpr() {	e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
     )*
 	{ return e;	}
 }
 
 
-Expression InclusiveOrExpression() :
+Expr InclusiveOrExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
 }
 {
-    e = ExclusiveOrExpression()
+    e = ExclusiveOrExpr()
     (
-	   t = "|" arg = ExclusiveOrExpression() { e = new InfixOperator(t, e, new Identifier(t,t.image), arg);	}
+	   t = "|" arg = ExclusiveOrExpr() { e = new InfixOperator(t, e, new Identifier(t,t.image), arg);	}
     )*
 	{ return e; }
 }
 
 
-Expression ExclusiveOrExpression() :
+Expr ExclusiveOrExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
 }
 {
-    e = AndExpression()
+    e = AndExpr()
 	(
-        t = "^" arg = AndExpression() {	e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
+        t = "^" arg = AndExpr() {	e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
     )*
 	{ return e; }
 }
 
 
-Expression AndExpression() :
+Expr AndExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
 }
 {
-    e = EqualityExpression()
+    e = EqualityExpr()
     (
-        t = "&" arg = EqualityExpression() { e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
+        t = "&" arg = EqualityExpr() { e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
     )*
 	{ return e; }
 }
 
 
-Expression EqualityExpression() :
+Expr EqualityExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
 }
 {
-    e = RelationalExpression()
+    e = RelationalExpr()
     (
 	   (
             t = "=="
           | t = "!="
 	   )
-       arg = RelationalExpression()
+       arg = RelationalExpr()
 	   {
            e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
 	   }
@@ -1160,15 +1161,15 @@ Expression EqualityExpression() :
 }
 
 
-Expression RelationalExpression() :
+Expr RelationalExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
-    List<Expression> argList = new ArrayList<Expression>();
+    List<Expr> argList = new ArrayList<Expr>();
 }
 {
-    e = ShiftExpression() 
+    e = ShiftExpr() 
     (   
         (
             t = "<"
@@ -1176,7 +1177,7 @@ Expression RelationalExpression() :
         |   t = "<="
         |	t = ">="
 	    )
-		arg = ShiftExpression()
+		arg = ShiftExpr()
 		{
             e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
         }
@@ -1185,21 +1186,21 @@ Expression RelationalExpression() :
 }
 
 
-Expression ShiftExpression() :
+Expr ShiftExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
 }
 {
-    e = AdditiveExpression()
+    e = AdditiveExpr()
     (
         (
             t = "<<"
         |   t = ">>"
         |   t = ">>>"
         )
-        arg = AdditiveExpression()
+        arg = AdditiveExpr()
         {
             e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
         }
@@ -1208,20 +1209,20 @@ Expression ShiftExpression() :
 }
 
 
-Expression AdditiveExpression() :
+Expr AdditiveExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
 }
 {
-    e = MultiplicativeExpression()
+    e = MultiplicativeExpr()
     (
         (
             t = "+"
         |   t = "-"
         )
-	    arg = MultiplicativeExpression()
+	    arg = MultiplicativeExpr()
         {
             e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
         }
@@ -1230,21 +1231,21 @@ Expression AdditiveExpression() :
 }
 
 
-Expression MultiplicativeExpression() :
+Expr MultiplicativeExpr() :
 {
-    Expression e;
-    Expression arg;
+    Expr e;
+    Expr arg;
     Token t;
 }
 {
-    e = UnaryExpression()
+    e = UnaryExpr()
     (
         (
             t = "*"
         |   t = "/"
         |    t = "%"
         )
-		arg = UnaryExpression()
+		arg = UnaryExpr()
         {
             e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
         }
@@ -1253,9 +1254,9 @@ Expression MultiplicativeExpression() :
 }
 
 
-Expression UnaryExpression() :
+Expr UnaryExpr() :
 {
-    Expression e;
+    Expr e;
     Token t;
 }
 {
@@ -1276,7 +1277,7 @@ Expression UnaryExpression() :
 }
 
 
-Stmt LocalVarDecl() :{    Specifier spec;    Identifier id;    Expression e;    Type type = Type.EMPTY;}{    spec = Specifier()    (         LOOKAHEAD( Type() Identifier()) 
+Stmt LocalVarDecl() :{    Specifier spec;    Identifier id;    Expr e;    Type type = Type.EMPTY;}{    spec = Specifier()    (         LOOKAHEAD( Type() Identifier()) 
         type = Type() id = Identifier() 
     |   id = Identifier() 
     )     <EQUALS> e = Expr() //local var declarations must be initialized	{    	return new VarDecl(spec.getToken(), spec, type, id, e);    }}
@@ -1286,7 +1287,7 @@ Stmt LocalStateValDecl() :
 {
     Token t;
     Identifier id;
-    State st;
+    StateExpr st;
 }
 {
     t = < STATEVAL > id = Identifier() st = StateBinding()
@@ -1296,7 +1297,7 @@ Stmt LocalStateValDecl() :
 List <Case> CaseList() :
 {
     Token t,caseToken;
-    Expression body;
+    Expr body;
     List < Case > cl = new ArrayList < Case > ();
     QualifiedIdentifier qi;
 }
@@ -1304,13 +1305,13 @@ List <Case> CaseList() :
     (
         LOOKAHEAD(2)
         caseToken = < CASE > qi = QualifiedIdentifier()
-        body = BlockExpression()
+        body = BlockExpr()
         {
             cl.add(new PatternCase(caseToken, qi, body)); // no bound variable	
         }
     )*
 	[
-	   caseToken = < DEF > body = BlockExpression()
+	   caseToken = < DEF > body = BlockExpr()
 	   {
           cl.add(new DefaultCase(caseToken, body));
        }
@@ -1329,10 +1330,10 @@ Identifier IdOrOperator() :
     
 }
 
-List<Expression> ExprList() :
+List<Expr> ExprList() :
 {
-    Expression e, nextExp;
-    List < Expression > expList = new ArrayList < Expression > ();
+    Expr e, nextExp;
+    List < Expr > expList = new ArrayList < Expr > ();
 }
 {
     e = Expr() { expList.add(e); }
@@ -1391,13 +1392,13 @@ List<Arg> Environment() : {
 }
 
 
-Expression Function() :
+Expr Function() :
 {
     Token t;
     List<Arg> argList = new ArrayList<Arg>();
-    List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
+    List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
     List<Arg> env = new ArrayList<Arg>();
-    Expression body;
+    Expr body;
 }
 {
     t = <FN> [metaArgsSpec = MetaArgsSpec(true)] <LPAREN> [argList = DeclArgs()] <RPAREN>
@@ -1408,7 +1409,7 @@ Expression Function() :
 }
 
 
-Expression Literal() :
+Expr Literal() :
 {
     Token t;
 }

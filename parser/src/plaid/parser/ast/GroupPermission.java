@@ -1,10 +1,12 @@
 package plaid.parser.ast;
 
-public enum GroupPermission {
-	EMPTY,
-	EXCLUSIVE,
-	SHARED,
-	PROTECTED,
-	MUTABLE,
-	READONLY
+import plaid.parser.Token;
+
+public abstract class GroupPermission extends ASTNode {
+	
+	public GroupPermission(Token token) {
+		super(token);
+	}
+	
+	public static GroupPermission EMPTY = EmptyGroupPermission.singleton;
 }

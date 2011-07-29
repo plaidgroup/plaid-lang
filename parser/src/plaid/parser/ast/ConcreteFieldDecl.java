@@ -5,16 +5,16 @@ import java.util.List;
 import plaid.parser.Token;
 
 public class ConcreteFieldDecl extends FieldDecl {
-	private final Expression expr;
+	private final Expr expr;
 
 	public ConcreteFieldDecl(Token t, List<Modifier> modifiers, 
 			Specifier specifier, Type type,
-			Identifier name,  Expression expr) {
+			Identifier name,  Expr expr) {
 		super(t, modifiers, specifier, type, name);
 		this.expr = expr;
 	}
 
-	public Expression getExpr() {
+	public Expr getExpr() {
 		return expr;
 	}
 	
@@ -22,7 +22,7 @@ public class ConcreteFieldDecl extends FieldDecl {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		
-		if (getSpecifier().getSpecifierKind() != Specifier.SpecifierKind.EMPTY ) sb.append(getSpecifier().getSpecifierKind().toString().toLowerCase() + " ");
+		if (getSpecifier()!= Specifier.EMPTY ) sb.append(getSpecifier().toString() + " ");
 		if (getType() != Type.EMPTY ) sb.append(getType().toString()+ " ");
 		sb.append(getName());
 		sb.append("=");

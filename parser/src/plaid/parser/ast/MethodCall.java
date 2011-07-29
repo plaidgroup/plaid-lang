@@ -6,14 +6,14 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class MethodCall extends Expression {
+public class MethodCall extends Expr {
 
-	private final List<Expression> arguments = new ArrayList<Expression>();
+	private final List<Expr> arguments = new ArrayList<Expr>();
 	private final boolean hasArgs;
-	private final Expression receiver;
+	private final Expr receiver;
 	private final Identifier methodId;
 	
-	public MethodCall(Token token, Expression receiver, Identifier methodId, Expression argument) {
+	public MethodCall(Token token, Expr receiver, Identifier methodId, Expr argument) {
 		super(token);
 		if (argument instanceof UnitLiteral) {
 			hasArgs = false;
@@ -25,11 +25,11 @@ public class MethodCall extends Expression {
 		this.methodId = methodId;
 	}
 
-	public List<Expression> getArguments() {
+	public List<Expr> getArguments() {
 		return Collections.unmodifiableList(arguments);
 	}
 	
-	public Expression getReceiver() {
+	public Expr getReceiver() {
 		return receiver;
 	}
 	

@@ -4,20 +4,20 @@ import plaid.parser.Token;
 
 
 public class InfixOperator extends Operator {
-	private final Expression left;
-	private final Expression right;
+	private final Expr left;
+	private final Expr right;
 	
-	public InfixOperator(Token token, Expression left, Identifier op, Expression right) {
+	public InfixOperator(Token token, Expr left, Identifier op, Expr right) {
 		super(token, op);
 		this.left = left;
 		this.right = right;
 	}
 
-	public Expression getLeft() {
+	public Expr getLeft() {
 		return left;
 	}
 
-	public Expression getRight() {
+	public Expr getRight() {
 		return right;
 	}
 	

@@ -21,7 +21,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Identifier extends Expression {
+public class Identifier extends Expr {
 	
 	private final String name;
 	

@@ -4,15 +4,15 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class ArgumentExpression extends Expression {
-	protected final List<Expression> args;
+public class ArgumentExpr extends Expr {
+	protected final List<Expr> args;
 
-	public ArgumentExpression(Token token, List<Expression> args) {
+	public ArgumentExpr(Token token, List<Expr> args) {
 		super(token);
 		this.args = args;
 	}
 
-	public List<Expression> getArgs() {
+	public List<Expr> getArgs() {
 		return args;
 	}
 	
