@@ -25,7 +25,7 @@ public class TransliterateToPlaid<T> {
 	 * @param plaidPackage The string package name of the Plaid file.
 	 * @return Plaid code as a String.
 	 */
-	private static String plaidCodeFromJavaClass(Class<?> clazz, String plaidPackage) {
+	private static String plaidCodeFromJavaClass(Class<?> clazz, String plaidPackage, boolean isConcrete) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("package " + plaidPackage+ ";\n\n");
 		sb.append("state " + clazz.getSimpleName());
@@ -38,6 +38,8 @@ public class TransliterateToPlaid<T> {
 		for (int i = 0; i < fs.length; i++) {
 			sb.append("\tval immutable " + fs[i].getType().getSimpleName() + " " + fs[i].getName() + ";\n");
 		}
+		
+		//toString()
 		sb.append("\n");
 		sb.append("\tmethod immutable String toString() {\n");
 		sb.append("\t\treturn ");
@@ -48,11 +50,27 @@ public class TransliterateToPlaid<T> {
 		}
 		sb.replace(sb.length()-1, sb.length(), ";"); //remove last plus
 		sb.append("\n\t}\n");
+		
+
+		//accept(v)
+		sb.append("\n");
+		sb.append("\tmethod void accept(unique ASTVisitor v)");
+		if(isConcrete){
+			sb.append("{\n");
+			sb.append("\t\tv.visit"+clazz.getSimpleName() +"(this);\n");
+			sb.append("\t}\n");
+		} else {
+			sb.append(";\n");
+		}
+		
+
+		
 		sb.append("\n}");
 		return sb.toString();
 	}
 	
-	private static void writePlaidFile(File outputDirectory, String code, String stateName) throws IOException{
+	private static void writePlaidFile(File outputDirectory, String code, 
+			String stateName) throws IOException{
 		File outputFile = new File(outputDirectory, stateName+".plaid");
 		outputFile.delete();
 		outputFile.createNewFile();
@@ -110,33 +128,68 @@ public class TransliterateToPlaid<T> {
 		return fields;
 	}
 	
+	private static String visitMethod(Class<?> clazz, boolean includeBody) {
+		String visitMethodCode =  "\tmethod void visit" + clazz.getSimpleName() 
+			+ "(immutable " + clazz.getSimpleName() + " node)";
+		if(includeBody){
+			visitMethodCode += " {\n";
+			for(Field field:getAllFields(clazz)) {
+				visitMethodCode += "\t\tnode."+field.getName()+".accept(this);\n";
+			}
+			visitMethodCode += "\t}\n";
+		}else {
+			visitMethodCode +=";\n";
+		}
+		return visitMethodCode;
+	}
+	
 	public static void main(String[] args) throws IOException {
 		Class<? extends ASTNode>[] classes = getASTClasses();
+		
+		
 		File outputDir = new File("../ast/pld/plaid/ast/parsed");
 		outputDir.mkdir();
+		File translateDir =  new File("../ast/pld/plaid/ast/translator");
+		translateDir.mkdir();
+		
 		StringBuilder sbTranslator = new StringBuilder();
 		sbTranslator.append("package plaid.ast.translator;\n\n");
 		sbTranslator.append("import plaid.ast.parsed.*;\n");
 		sbTranslator.append("import plaid.ast.util.makeListFromJavaCollection;\n");
 		sbTranslator.append("import plaid.ast.util.makeTokenFromJavaToken;\n\n");
 		sbTranslator.append("state ASTTranslator {\n");
-		sbTranslator.append("\t method immutable CompilationUnit translateAST(" +
+		sbTranslator.append("\t method immutable ASTNode translateAST(" +
 				"immutable " + ASTNode.class.getName() + " node){\n");
 		sbTranslator.append("\t\t match(node){\n");
+		
+		StringBuilder sbVisitor = new StringBuilder();
+		sbVisitor.append("package plaid.ast.parsed;\n\n");
+		sbVisitor.append("state ASTVisitor {\n");
+		
+		StringBuilder sbLeafVisitor = new StringBuilder();
+		sbLeafVisitor.append("package plaid.ast.parsed;\n\n");
+		sbLeafVisitor.append("state LeafVisitor {\n");
+		
 		for (Class<?> clazz : classes) {
-			String code = plaidCodeFromJavaClass(clazz, "plaid.ast.parsed");
+			boolean isConcrete = !Modifier.isAbstract(clazz.getModifiers());
+			String code = plaidCodeFromJavaClass(clazz, "plaid.ast.parsed", isConcrete);
 			writePlaidFile(outputDir, code, clazz.getSimpleName());
-			if(!Modifier.isAbstract(clazz.getModifiers())) {
+			if(isConcrete) {
 				sbTranslator.append(matchCase(clazz));
+				sbVisitor.append(visitMethod(clazz,false));
+				sbLeafVisitor.append(visitMethod(clazz,true));
 			}
 		}
 		sbTranslator.append("\t\t}\n");
 		sbTranslator.append("\t}\n");
 		sbTranslator.append("}\n");
-		File translateDir =  new File("../ast/pld/plaid/ast/translator");
-		translateDir.mkdir();
+		
 		writePlaidFile(translateDir, 
 				sbTranslator.toString(), "ASTTranslator");
 		
+		sbVisitor.append("}\n");
+		writePlaidFile(outputDir, sbVisitor.toString(), "ASTVisitor");
+		sbLeafVisitor.append("}\n");
+		writePlaidFile(outputDir, sbLeafVisitor.toString(), "LeafVisitor");
 	}
 }
