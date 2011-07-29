@@ -4,22 +4,22 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class SplitBlock extends Expression {
+public class SplitBlock extends Expr {
 
-	private final List<Expression> datagroups;
-	private final Expression body;
+	private final List<Expr> datagroups;
+	private final Expr body;
 	
-	public SplitBlock(Token token, List<Expression> datagroups, Expression body) {
+	public SplitBlock(Token token, List<Expr> datagroups, Expr body) {
 		super(token);
 		this.datagroups = datagroups;
 		this.body = body;
 	}
 	
-	public List<Expression> getDatagroups() {
+	public List<Expr> getDatagroups() {
 		return datagroups;
 	}
 
-	public Expression getBody() {
+	public Expr getBody() {
 		return body;
 	}
 

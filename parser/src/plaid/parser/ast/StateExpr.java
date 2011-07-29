@@ -19,33 +19,11 @@
  
 package plaid.parser.ast;
 
-import java.util.List;
-
 import plaid.parser.Token;
 
 
-public abstract class Expression extends Stmt {
-	
-	public static final Expression EMPTY = EmptyExpression.getEmptyExpression();
-
-	public Expression(Token token) {
-		super(token);
+public abstract class StateExpr extends ASTNode {
+	public StateExpr(Token t) {
+		super(t);
 	}
-
-	public static String exprListToString(List<Expression> exprs) {
-		 StringBuilder sb = new StringBuilder();
-		 
-		 if ( exprs.size() == 1 ) {
-			 sb.append(exprs.get(0).toString());
-		 } else  if ( exprs.size() > 1 ){
-			 sb.append(exprs.get(0));
-			 for (int i = 1; i < exprs.size(); i++) {
-				 sb.append(",");
-				 sb.append(exprs.get(i));
-			 }
-		 }
-		 
-		 return sb.toString();
-	 }
-
 }
