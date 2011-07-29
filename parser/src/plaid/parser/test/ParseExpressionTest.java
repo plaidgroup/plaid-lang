@@ -936,7 +936,7 @@ public class ParseExpressionTest {
 		final Lambda goal = 
 			Lambda(
 					Arrays.asList(
-							GroupArg(GroupPermission.PROTECTED, Identifier("A"))
+							GroupArg(Protected(), Identifier("A"))
 					), 
 					Arrays.asList(
 							Arg(EmptyArgSpec.EMPTY, Identifier("x"))
@@ -1278,7 +1278,7 @@ public class ParseExpressionTest {
 					NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
 					Identifier("foo"), 
 					Arrays.asList(
-						GroupArg(GroupPermission.PROTECTED, Identifier("A"))
+						GroupArg(Protected(), Identifier("A"))
 					), 
 					Arrays.asList(
 						Arg(
