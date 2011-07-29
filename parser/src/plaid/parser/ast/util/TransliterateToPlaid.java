@@ -36,8 +36,11 @@ public class TransliterateToPlaid<T> {
 		sb.append(" {\n\n");
 		Field[] fs = clazz.getDeclaredFields();
 		for (int i = 0; i < fs.length; i++) {
-			sb.append("\tval immutable " + fs[i].getType().getSimpleName() + " " + fs[i].getName() + ";\n");
+			if(!Modifier.isStatic(fs[i].getModifiers())) {
+				sb.append("\tval immutable " + fs[i].getType().getSimpleName() + " " + fs[i].getName() + ";\n");
+			}
 		}
+		
 		
 		//toString()
 		sb.append("\n");
