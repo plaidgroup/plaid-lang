@@ -5,7 +5,7 @@ public final class EmptyPermission extends Permission {
 
 	private static EmptyPermission singleton = new EmptyPermission();
 	private EmptyPermission() {
-		super(DEFAULT_TOKEN, PermissionKind.EMPTY, Expr.EMPTY);
+		super(DEFAULT_TOKEN);
 	}
 	protected static EmptyPermission getEmptyPermission() {
 		return singleton;

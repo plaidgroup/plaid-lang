@@ -342,12 +342,11 @@ Permission Permission() :
     Token t;	Permission perm;
 	Expr datagroup = Expr.EMPTY;
 }
-{(	t = <FULL>       { return new Permission(t, Permission.PermissionKind.FULL, datagroup); }
- |  t = <IMMUTABLE>  { return new Permission(t, Permission.PermissionKind.IMMUTABLE, datagroup); }
- |  t = <PURE>       { return new Permission(t, Permission.PermissionKind.PURE, datagroup); }
- |  t = <SHARED> [ <LT> datagroup = SimpleExpr() <GT>] {	return new Permission(t, Permission.PermissionKind.SHARED, datagroup); }
- |  t = <UNIQUE>     { return new Permission(t, Permission.PermissionKind.UNIQUE, datagroup); }  
- |  t = <NONE>       { return new Permission(t, Permission.PermissionKind.NONE, datagroup); }
+{(	t = <IMMUTABLE>  { return new ImmutablePermission(t); }
+ |  t = <SHARED> [ <LT> datagroup = SimpleExpr() <GT>] 
+        {return new SharedPermission(t, datagroup); }
+ |  t = <UNIQUE>     { return new UniquePermission(t); }  
+ |  t = <NONE>       { return new NonePermission(t); }
 )
 }
 
@@ -499,8 +498,8 @@ List<Modifier> Modifiers() : {
     List<Modifier> modifiers = new ArrayList<Modifier>();
 }{
     (
-            t = <OVERRIDE>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.OVERRIDE));  }
-        |   t = <REQUIRES>   { modifiers.add(new Modifier(t, Modifier.ModifierKind.REQUIRES));  }
+            t = <OVERRIDE>   { modifiers.add(new OverrideModifier(t));  }
+        |   t = <REQUIRES>   { modifiers.add(new RequiresModifier(t));  }
         // immutable is handled by directly associating it to states to avoid conflicts with types
     )+
     { return modifiers; }
@@ -510,8 +509,8 @@ List<Modifier> Modifiers() : {
 Specifier Specifier() : {
     Token t;  
 }{
-        t = <VAL> { return new Specifier(t, Specifier.SpecifierKind.VAL); }
-    |   t = <VAR> { return new Specifier(t, Specifier.SpecifierKind.VAR); }
+        t = <VAL> { return new ValSpecifier(t); }
+    |   t = <VAR> { return new VarSpecifier(t); }
 }
 
 
@@ -567,7 +566,7 @@ Decl StateDecl(List< Modifier > modifiers) :
 	QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;
 }
 {
-    [ t = <IMMUTABLE>  { modifiers.add(new Modifier(t, Modifier.ModifierKind.IMMUTABLE)); } ]
+    [ t = <IMMUTABLE>  { modifiers.add(new ImmutableModifier(t)); } ]
     t= <STATE> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaCaseOfArgs = MetaArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {
         if (stb == null) {            return new AbstractStateDecl(t, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs);
         } else {
@@ -705,9 +704,9 @@ Decl GroupDecl(List<Modifier> modifiers) :{
 GroupPermission GroupPermission() : {
     Token t;
 }{
-    t = <EXCLUSIVE> { return new GroupPermission(t, GroupPermission.GroupPermissionKind.EXCLUSIVE); }
- |  t = <SHARED>    { return new GroupPermission(t, GroupPermission.GroupPermissionKind.SHARED); }
- |  t = <PROTECTED> { return new GroupPermission(t, GroupPermission.GroupPermissionKind.PROTECTED); }   }
+    t = <EXCLUSIVE> { return new ExclusiveGroupPermission(t); }
+ |  t = <SHARED>    { return new SharedGroupPermission(t); }
+ |  t = <PROTECTED> { return new ProtectedGroupPermission(t); }   }
 
 
 Decl MethodDecl(List<Modifier> modifiers) :
