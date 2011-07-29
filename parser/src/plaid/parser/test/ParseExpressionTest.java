@@ -234,8 +234,8 @@ public class ParseExpressionTest {
 		final String code = "(1,2)";
 		final ArgumentExpression goal = 
 			ArgumentExpression(
-					IntLiteral(1), 
-					IntLiteral(2)
+				IntLiteral(1), 
+				IntLiteral(2)
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.SimpleExpr1();
@@ -248,8 +248,8 @@ public class ParseExpressionTest {
 		final String code = "this.f";
 		final Dereference goal = 
 			Dereference(
-					Identifier("this"),
-					Identifier("f")
+				Identifier("this"),
+				Identifier("f")
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.SimpleExpr1();
@@ -262,11 +262,11 @@ public class ParseExpressionTest {
 		final String code = "this.x.f";
 		final Dereference goal =
 			Dereference(
-					Dereference(
-							Identifier("this"),											
-							Identifier("x")
-					),
-					Identifier("f")
+				Dereference(
+					Identifier("this"),											
+					Identifier("x")
+				),
+				Identifier("f")
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Expression e = pp.SimpleExpr1();
@@ -279,8 +279,8 @@ public class ParseExpressionTest {
 		final String code = "this!f";
 		final Dereference goal =
 			DestructiveDereference(
-					Identifier("this"),
-					Identifier("f")
+				Identifier("this"),
+				Identifier("f")
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.SimpleExpr1();
@@ -293,8 +293,8 @@ public class ParseExpressionTest {
 		final String code = "m()";
 		final Application goal = 
 			Application(
-					Identifier("m"),
-					ArgumentExpression()
+				Identifier("m"),
+				ArgumentExpression()
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.SimpleExpr1();
@@ -309,9 +309,9 @@ public class ParseExpressionTest {
 			Application(
 			 	Identifier("m"),
 			 	ArgumentExpression(
-			 			IntLiteral(1),
-			 			IntLiteral(2),
-			 			IntLiteral(3)
+		 			IntLiteral(1),
+		 			IntLiteral(2),
+		 			IntLiteral(3)
 			 	)
 			 );
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
@@ -325,13 +325,13 @@ public class ParseExpressionTest {
 		final String code = "m<a,b,c>()";
 		final Application goal =
 			Application(
-					Identifier("m"),
-					MetaArgs(
-							Identifier("a"),
-							Identifier("b"),
-							Identifier("c")
-					),
-					ArgumentExpression()
+				Identifier("m"),
+				MetaArgs(
+					Identifier("a"),
+					Identifier("b"),
+					Identifier("c")
+				),
+				ArgumentExpression()
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.SimpleExpr1();
@@ -344,22 +344,22 @@ public class ParseExpressionTest {
 		final String code = "this.m<a,this.c>(1,2,3)";
 		final Application goal =
 			Application(
+				Dereference(
+					Identifier("this"),
+					Identifier("m")
+				),
+				MetaArgs(
+					Identifier("a"),
 					Dereference(
-							Identifier("this"),
-							Identifier("m")
-					),
-					MetaArgs(
-							Identifier("a"),
-							Dereference(
-									Identifier("this"),
-									Identifier("c")
-							)							
-					),
-					ArgumentExpression(
-							IntLiteral(1),
-							IntLiteral(2),
-							IntLiteral(3)
-					)
+						Identifier("this"),
+						Identifier("c")
+					)							
+				),
+				ArgumentExpression(
+					IntLiteral(1),
+					IntLiteral(2),
+					IntLiteral(3)
+			)
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.SimpleExpr1();
@@ -389,14 +389,14 @@ public class ParseExpressionTest {
 		final String code = "foo{}{}{}";
 		final Application goal =
 			Application(
+				Application(
 					Application(
-							Application(
-									Identifier("foo"),
-									BlockExpression()
-							),
-							BlockExpression()
+						Identifier("foo"),
+						BlockExpression()
 					),
 					BlockExpression()
+				),
+				BlockExpression()
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.SimpleExpr2();
@@ -422,11 +422,11 @@ public class ParseExpressionTest {
 		final String code = "{1+1}";
 		final BlockExpr goal = 
 			BlockExpression(
-					InfixOperator(
-							IntLiteral(1),
-							Identifier("+"),
-							IntLiteral(1)
-					)
+				InfixOperator(
+					IntLiteral(1),
+					Identifier("+"),
+					IntLiteral(1)
+				)
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.SimpleExpr();
@@ -439,16 +439,16 @@ public class ParseExpressionTest {
 		final String code = "{1+1;2+2}";
 		final BlockExpr goal = 
 			BlockExpression(
-					InfixOperator(
-							IntLiteral(1),
-							Identifier("+"),
-							IntLiteral(1)
-					),
-					InfixOperator(
-							IntLiteral(2),
-							Identifier("+"),
-							IntLiteral(2)
-					)					
+				InfixOperator(
+					IntLiteral(1),
+					Identifier("+"),
+					IntLiteral(1)
+				),
+				InfixOperator(
+					IntLiteral(2),
+					Identifier("+"),
+					IntLiteral(2)
+				)					
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.SimpleExpr();
@@ -477,10 +477,10 @@ public class ParseExpressionTest {
 		final String code = "x as Foo";
 		final Cast goal = 
 			Cast(
-						Identifier("x"), 
-						NominalObjectType(
-								QualifiedIdentifier("Foo")
-						)
+				Identifier("x"), 
+				NominalObjectType(
+					QualifiedIdentifier("Foo")
+				)
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.InfixExpr();
@@ -811,9 +811,9 @@ public class ParseExpressionTest {
 		final String code = "match (x) { case Foo{} default{} }";
 		final Match goal = 
 			Match(
-					Identifier("x"),
-					PatternCase(QualifiedIdentifier("Foo"), BlockExpression()),
-					DefaultCase(BlockExpression())
+				Identifier("x"),
+				PatternCase(QualifiedIdentifier("Foo"), BlockExpression()),
+				DefaultCase(BlockExpression())
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.Expr1();
@@ -875,10 +875,10 @@ public class ParseExpressionTest {
 		@SuppressWarnings("unchecked")
 		final Lambda goal = 
 			Lambda(
-					Collections.EMPTY_LIST, 
-					Collections.EMPTY_LIST, 
-					Collections.EMPTY_LIST, 
-					BlockExpression()
+				Collections.EMPTY_LIST, 
+				Collections.EMPTY_LIST, 
+				Collections.EMPTY_LIST, 
+				BlockExpression()
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.Expr();
@@ -895,10 +895,10 @@ public class ParseExpressionTest {
 		@SuppressWarnings("unchecked")
 		final Lambda goal = 
 			Lambda(
-					Collections.EMPTY_LIST, 
-					Collections.EMPTY_LIST, 
-					Collections.EMPTY_LIST, 
-					BlockExpression()
+				Collections.EMPTY_LIST, 
+				Collections.EMPTY_LIST, 
+				Collections.EMPTY_LIST, 
+				BlockExpression()
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.Function();
@@ -912,12 +912,12 @@ public class ParseExpressionTest {
 		@SuppressWarnings("unchecked")
 		final Lambda goal = 
 			Lambda(
-					Collections.EMPTY_LIST, 
-					Arrays.asList(
-							Arg(EmptyArgSpec.EMPTY, Identifier("x"))
-					),
-					Collections.EMPTY_LIST, 
-					Identifier("x")
+				Collections.EMPTY_LIST, 
+				Arrays.asList(
+					Arg(EmptyArgSpec.EMPTY, Identifier("x"))
+				),
+				Collections.EMPTY_LIST, 
+				Identifier("x")
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.Function();
@@ -930,23 +930,23 @@ public class ParseExpressionTest {
 		final String code = "fn (x)[Integer y, Integer z] => x + y + z";
 		final Lambda goal = 
 			Lambda(
-					Collections.EMPTY_LIST, 
-					Arrays.asList(
-							Arg(EmptyArgSpec.EMPTY, Identifier("x"))
-					),
-					Arrays.asList(
-							Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("y")),
-							Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("z"))
-					), 
+				Collections.EMPTY_LIST, 
+				Arrays.asList(
+					Arg(EmptyArgSpec.EMPTY, Identifier("x"))
+				),
+				Arrays.asList(
+					Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("y")),
+					Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("z"))
+				), 
+				InfixOperator(
 					InfixOperator(
-							InfixOperator(
-									Identifier("x"), 
-									Identifier("+"), 
-									Identifier("y")
-							),
-							Identifier("+"),
-							Identifier("z")
-					)
+						Identifier("x"), 
+						Identifier("+"), 
+						Identifier("y")
+					),
+					Identifier("+"),
+					Identifier("z")
+				)
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.Function();
@@ -959,25 +959,25 @@ public class ParseExpressionTest {
 		final String code = "fn <group protected A>(x)[shared<A> Integer y, Integer z] => x + y + z";
 		final Lambda goal = 
 			Lambda(
-					Arrays.asList(
-							GroupArg(Protected(), Identifier("A"))
-					), 
-					Arrays.asList(
-							Arg(EmptyArgSpec.EMPTY, Identifier("x"))
-					),
-					Arrays.asList(
-							Arg(ArgSpec(NominalObjectType(Shared(Identifier("A")), QualifiedIdentifier("Integer"))), Identifier("y")),
-							Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("z"))
-					), 
+				Arrays.asList(
+					GroupArg(Protected(), Identifier("A"))
+				), 
+				Arrays.asList(
+					Arg(EmptyArgSpec.EMPTY, Identifier("x"))
+				),
+				Arrays.asList(
+					Arg(ArgSpec(NominalObjectType(Shared(Identifier("A")), QualifiedIdentifier("Integer"))), Identifier("y")),
+					Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("z"))
+				), 
+				InfixOperator(
 					InfixOperator(
-							InfixOperator(
-									Identifier("x"), 
-									Identifier("+"), 
-									Identifier("y")
-							),
-							Identifier("+"),
-							Identifier("z")
-					)
+						Identifier("x"), 
+						Identifier("+"), 
+						Identifier("y")
+					),
+					Identifier("+"),
+					Identifier("z")
+				)
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expression e = pp.Function();
@@ -1003,9 +1003,9 @@ public class ParseExpressionTest {
 		final String code = "case Foo{} case Bar{} case Baz{}";
 		final List<Case> goal = 
 			Arrays.asList(
-					PatternCase(QualifiedIdentifier("Foo"), BlockExpression()),
-					PatternCase(QualifiedIdentifier("Bar"), BlockExpression()),
-					PatternCase(QualifiedIdentifier("Baz"), BlockExpression())
+				PatternCase(QualifiedIdentifier("Foo"), BlockExpression()),
+				PatternCase(QualifiedIdentifier("Bar"), BlockExpression()),
+				PatternCase(QualifiedIdentifier("Baz"), BlockExpression())
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		List<Case> e = pp.CaseList();
@@ -1079,9 +1079,9 @@ public class ParseExpressionTest {
 		final String code = "Foo{remove Bar;rename Baz as Fogo;}";
 		final StateRef goal = 
 			StateRef(
-					Identifier("Foo"),
-					StateOpRemove(Identifier("Bar")),
-					StateOpRename(Identifier("Baz"), Identifier("Fogo"))
+				Identifier("Foo"),
+				StateOpRemove(Identifier("Bar")),
+				StateOpRename(Identifier("Baz"), Identifier("Fogo"))
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final StatePrim e = pp.StatePrim();
@@ -1213,11 +1213,11 @@ public class ParseExpressionTest {
 		final String code = "method immutable Boolean foo();";
 		final MethodDecl goal = 
 			AbstractMethodDecl(
-					NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
-					Identifier("foo"), 
-					MetaArg.EMPTY, 
-					Arg.EMPTY, 
-					Arg.EMPTY
+				NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
+				Identifier("foo"), 
+				MetaArg.EMPTY, 
+				Arg.EMPTY, 
+				Arg.EMPTY
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.MethodDecl(new ArrayList<Modifier>());
@@ -1254,19 +1254,19 @@ public class ParseExpressionTest {
 		final String code = "method foo()[unique Bar >> none Baz x];";
 		final MethodDecl goal = 
 			AbstractMethodDecl(
-					NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
-					Identifier("foo"), 
-					MetaArg.EMPTY, 
-					Arg.EMPTY, 
-					Arrays.asList(
-						Arg(
-							ArgSpec(
-								NominalObjectType(Unique(), QualifiedIdentifier("Bar")),
-								NominalObjectType(None(), QualifiedIdentifier("Baz"))
-							), 
-							Identifier("x")
-						)
+				NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
+				Identifier("foo"), 
+				MetaArg.EMPTY, 
+				Arg.EMPTY, 
+				Arrays.asList(
+					Arg(
+						ArgSpec(
+							NominalObjectType(Unique(), QualifiedIdentifier("Bar")),
+							NominalObjectType(None(), QualifiedIdentifier("Baz"))
+						), 
+						Identifier("x")
 					)
+				)
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.MethodDecl(new ArrayList<Modifier>());
@@ -1279,14 +1279,14 @@ public class ParseExpressionTest {
 		final String code = "method foo() {1}";
 		final MethodDecl goal = 
 			ConcreteMethodDecl(
-					NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
-					Identifier("foo"), 
-					MetaArg.EMPTY, 
-					Arg.EMPTY, 
-					Arg.EMPTY,
-					BlockExpression(
-						IntLiteral(1)
-					)
+				NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
+				Identifier("foo"), 
+				MetaArg.EMPTY, 
+				Arg.EMPTY, 
+				Arg.EMPTY,
+				BlockExpression(
+					IntLiteral(1)
+				)
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
@@ -1299,35 +1299,35 @@ public class ParseExpressionTest {
 		final String code = "method immutable Boolean foo<group protected A>(immutable Boolean>>immutable Boolean x)[Boolean global] {1+1}";
 		final MethodDecl goal = 
 			ConcreteMethodDecl(
-					NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
-					Identifier("foo"), 
-					Arrays.asList(
-						GroupArg(Protected(), Identifier("A"))
-					), 
-					Arrays.asList(
-						Arg(
-							ArgSpec(
-								NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")),
-								NominalObjectType(Immutable(), QualifiedIdentifier("Boolean"))
-							), 
-							Identifier("x")
-						)
-					), 
-					Arrays.asList(
-						Arg(
-							ArgSpec(
-								NominalObjectType(QualifiedIdentifier("Boolean"))
-							), 
-							Identifier("global")
-						)
-					),
-					BlockExpression(
-						InfixOperator(
-							IntLiteral(1),
-							Identifier("+"),
-							IntLiteral(1)
-						)
+				NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
+				Identifier("foo"), 
+				Arrays.asList(
+					GroupArg(Protected(), Identifier("A"))
+				), 
+				Arrays.asList(
+					Arg(
+						ArgSpec(
+							NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")),
+							NominalObjectType(Immutable(), QualifiedIdentifier("Boolean"))
+						), 
+						Identifier("x")
 					)
+				), 
+				Arrays.asList(
+					Arg(
+						ArgSpec(
+							NominalObjectType(QualifiedIdentifier("Boolean"))
+						), 
+						Identifier("global")
+					)
+				),
+				BlockExpression(
+					InfixOperator(
+						IntLiteral(1),
+						Identifier("+"),
+						IntLiteral(1)
+					)
+				)
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
@@ -1343,15 +1343,15 @@ public class ParseExpressionTest {
 		final String code = "requires override method foo();";
 		final MethodDecl goal = 
 			AbstractMethodDecl(
-					Arrays.asList(
-						REQUIRES(),
-						OVERRIDE()
-					),
-					Type.EMPTY, 
-					Identifier("foo"), 
-					MetaArg.EMPTY, 
-					Arg.EMPTY, 
-					Arg.EMPTY
+				Arrays.asList(
+					REQUIRES(),
+					OVERRIDE()
+				),
+				Type.EMPTY, 
+				Identifier("foo"), 
+				MetaArg.EMPTY, 
+				Arg.EMPTY, 
+				Arg.EMPTY
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.Decl();
