@@ -41,15 +41,20 @@ public class TransliterateToPlaid<T> {
 		
 		//toString()
 		sb.append("\n");
-		sb.append("\tmethod immutable String toString() {\n");
-		sb.append("\t\treturn ");
-		for(Field field:getAllFields(clazz)) {
-			sb.append("\n\t\t\t");
-			sb.append("\"" + field.getName() + ":\" + " + field.getName() + ".toString()");
-			sb.append(" + \"\\n\" +");
+		sb.append("\tmethod immutable String toString()");
+		if (isConcrete) {
+			sb.append("\n\t\t{");
+		
+			for(Field field:getAllFields(clazz)) {
+				sb.append("\n\t\t");
+				sb.append("\"" + field.getName() + ":\" + " + field.getName() + ".toString()");
+				sb.append(" + \"\\n\" +");
+			}
+			sb.replace(sb.length()-1, sb.length(), ";"); //remove last plus
+			sb.append("\n\t}\n");
+		} else {
+			sb.append(";\n");
 		}
-		sb.replace(sb.length()-1, sb.length(), ";"); //remove last plus
-		sb.append("\n\t}\n");
 		
 
 		//accept(v)
@@ -83,7 +88,7 @@ public class TransliterateToPlaid<T> {
 	private static String matchCase(Class<?> clazz) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("\t\t\tcase " + clazz.getName() + "{ \n");
-		sb.append("\t\t\t\tnew " + clazz.getName() + " {\n");
+		sb.append("\t\t\t\tnew " + clazz.getSimpleName() + " {\n");
 		List<Field> allFields = getAllFields(clazz);
 		for (Field field : allFields) {
 			sb.append("\t\t\t\t\t" + field.getName() + " = ");
@@ -95,7 +100,7 @@ public class TransliterateToPlaid<T> {
 					|| field.getType() == String.class) {
 				sb.append("root." + getter(field.getName()) + "();");
 			} else if (field.getType() == Token.class) {
-				sb.append("createToken(root." + getter(field.getName()) + "());");
+				sb.append("makeTokenFromJavaToken(root." + getter(field.getName()) + "());");
 			}
 			else {
 				sb.append("this.translateAST(root." + 
@@ -159,8 +164,8 @@ public class TransliterateToPlaid<T> {
 		sbTranslator.append("import plaid.ast.util.makeTokenFromJavaToken;\n\n");
 		sbTranslator.append("state ASTTranslator {\n");
 		sbTranslator.append("\t method immutable ASTNode translateAST(" +
-				"immutable " + ASTNode.class.getName() + " node){\n");
-		sbTranslator.append("\t\t match(node){\n");
+				"/* immutable " + ASTNode.class.getName() + "*/ root){\n");
+		sbTranslator.append("\t\t match(root){\n");
 		
 		StringBuilder sbVisitor = new StringBuilder();
 		sbVisitor.append("package plaid.ast.parsed;\n\n");
