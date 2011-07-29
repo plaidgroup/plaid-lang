@@ -1,7 +1,6 @@
 package plaid.parser.test.astfactory;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import plaid.parser.ast.ASTNode;
@@ -36,8 +35,8 @@ import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupArg;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.GroupPermission;
-import plaid.parser.ast.GroupPermission.GroupPermissionKind;
 import plaid.parser.ast.Identifier;
+import plaid.parser.ast.ImmutablePermission;
 import plaid.parser.ast.Import;
 import plaid.parser.ast.InfixOperator;
 import plaid.parser.ast.IntLiteral;
@@ -50,11 +49,15 @@ import plaid.parser.ast.MethodDecl;
 import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
 import plaid.parser.ast.NominalObjectType;
+import plaid.parser.ast.NonePermission;
+import plaid.parser.ast.OverrideModifier;
 import plaid.parser.ast.PatternCase;
 import plaid.parser.ast.Permission;
-import plaid.parser.ast.Permission.PermissionKind;
+import plaid.parser.ast.ProtectedGroupPermission;
 import plaid.parser.ast.QualifiedIdentifier;
 import plaid.parser.ast.Replace;
+import plaid.parser.ast.RequiresModifier;
+import plaid.parser.ast.SharedPermission;
 import plaid.parser.ast.Specifier;
 import plaid.parser.ast.SplitBlock;
 import plaid.parser.ast.StateChange;
@@ -70,13 +73,16 @@ import plaid.parser.ast.StringLiteral;
 import plaid.parser.ast.Type;
 import plaid.parser.ast.TypeArg;
 import plaid.parser.ast.UnaryOperator;
+import plaid.parser.ast.UniquePermission;
 import plaid.parser.ast.UnpackInnerGroups;
+import plaid.parser.ast.ValSpecifier;
 import plaid.parser.ast.VarDecl;
+import plaid.parser.ast.VarSpecifier;
 import plaid.parser.ast.With;
 
 public class ASTFactory {
 	public static FieldDecl AbstractFieldDecl(Specifier specifier, Type type, Identifier name) {
-		return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, specifier, type, name);
+		return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, specifier, type, name);
 	}
 	
 	public static MethodDecl AbstractMethodDecl(List<Modifier> modifiers, Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env) {
@@ -84,11 +90,11 @@ public class ASTFactory {
 	}
 
 	public static MethodDecl AbstractMethodDecl(Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env) {
-		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, type, name, metaArgs, args, env);
+		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env);
 	}
 	
 	public static StateDecl AbstractStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs) {
-		return new AbstractStateDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, name, metaArgsSpec, caseOf, metaCaseOfArgs);
+		return new AbstractStateDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, caseOf, metaCaseOfArgs);
 	}
 	
 	public static StateValDecl AbstractStateValDecl(Identifier name, List<MetaArg> metaArgsSpec) {
@@ -140,15 +146,15 @@ public class ASTFactory {
 	}
 	
 	public static FieldDecl ConcreteFieldDecl(Specifier specifier, Type type, Identifier name, Expr body) {
-		return new ConcreteFieldDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, specifier, type, name, body);
+		return new ConcreteFieldDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, specifier, type, name, body);
 	}
 	
 	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env, Expr body) {
-		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, type, name, metaArgs, args, env, body);
+		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env, body);
 	}
 	
 	public static StateDecl ConcreteStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs, StateExpr statebinding) {
-		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
+		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
 	}
 	
 	public static StateValDecl ConcreteStateValDecl(Identifier name, List<MetaArg> metaArgsSpec, StateExpr stateBinding) {
@@ -184,7 +190,7 @@ public class ASTFactory {
 	}
 	
 	public static GroupDecl GroupDecl(Identifier name) {
-		return new GroupDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, name);
+		return new GroupDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name);
 	}
 	
 	public static Identifier Identifier(String value) {
@@ -192,7 +198,7 @@ public class ASTFactory {
 	}
 	
 	public static Permission  Immutable() {
-		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.IMMUTABLE, Expr.EMPTY);
+		return new ImmutablePermission(ASTNode.DEFAULT_TOKEN);
 	}
 	
 	public static Import Import(QualifiedIdentifier qi, boolean star) {
@@ -247,11 +253,11 @@ public class ASTFactory {
 	}
 	
 	public static Permission  None() {
-		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.NONE, Expr.EMPTY);
+		return new NonePermission(ASTNode.DEFAULT_TOKEN);
 	}
 	
 	public static Modifier OVERRIDE() {
-		return new Modifier(ASTNode.DEFAULT_TOKEN, Modifier.ModifierKind.OVERRIDE);
+		return new OverrideModifier(ASTNode.DEFAULT_TOKEN);
 	}
 	
 	public static QualifiedIdentifier Package(String ...names) {
@@ -263,7 +269,7 @@ public class ASTFactory {
 	}
 	
 	public static GroupPermission Protected() {
-		return new GroupPermission(ASTNode.DEFAULT_TOKEN, GroupPermissionKind.PROTECTED);
+		return new ProtectedGroupPermission(ASTNode.DEFAULT_TOKEN);
 	}
 	
 	public static QualifiedIdentifier QualifiedIdentifier(String... s) {
@@ -279,11 +285,11 @@ public class ASTFactory {
 	}
 	
 	public static Modifier REQUIRES() {
-		return new Modifier(ASTNode.DEFAULT_TOKEN, Modifier.ModifierKind.REQUIRES);
+		return new RequiresModifier(ASTNode.DEFAULT_TOKEN);
 	}
 	
 	public static Permission  Shared(Expr datagroup) {
-		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.SHARED, datagroup);
+		return new SharedPermission(ASTNode.DEFAULT_TOKEN, datagroup);
 	}
 	
 	public static SplitBlock SplitBlock(Expr e, Expr ...datagroups) {
@@ -324,7 +330,7 @@ public class ASTFactory {
 	}
 	
 	public static Permission  Unique() {
-		return new Permission(ASTNode.DEFAULT_TOKEN, PermissionKind.UNIQUE, Expr.EMPTY);
+		return new UniquePermission(ASTNode.DEFAULT_TOKEN);
 	}
 
 	public static UnpackInnerGroups UnpackInnerGroups(Expr e) {
@@ -332,11 +338,11 @@ public class ASTFactory {
 	}
 
 	public static Specifier Val() {
-		return new Specifier(ASTNode.DEFAULT_TOKEN, Specifier.SpecifierKind.VAL);
+		return new ValSpecifier(ASTNode.DEFAULT_TOKEN);
 	}
 	
 	public static Specifier Var() {
-		return new Specifier(ASTNode.DEFAULT_TOKEN, Specifier.SpecifierKind.VAR);
+		return new VarSpecifier(ASTNode.DEFAULT_TOKEN);
 	}
 
 	public static VarDecl VarDecl(Specifier specifier, Type type, Identifier field, Expr value) {

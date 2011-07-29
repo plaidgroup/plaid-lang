@@ -2,27 +2,11 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class GroupPermission extends ASTNode {
-	protected GroupPermissionKind gpkind;
+public abstract class GroupPermission extends ASTNode {
 	
-	public enum GroupPermissionKind {
-		EMPTY,
-		EXCLUSIVE,
-		SHARED,
-		PROTECTED,
-		MUTABLE,
-		READONLY
-	}
-	
-	public GroupPermission(Token token, GroupPermissionKind gpkind) {
+	public GroupPermission(Token token) {
 		super(token);
-		this.gpkind = gpkind;
 	}
 	
-	@Override
-	public String toString() {
-		return gpkind.toString().toLowerCase();
-	}
-	
-	public static GroupPermission EMPTY = new GroupPermission(DEFAULT_TOKEN, GroupPermissionKind.EMPTY);
+	public static GroupPermission EMPTY = EmptyGroupPermission.singleton;
 }

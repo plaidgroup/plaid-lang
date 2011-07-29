@@ -1,9 +1,13 @@
 package plaid.parser.test;
 
 import static plaid.parser.test.astfactory.ASTFactory.ArgSpec;
+import static plaid.parser.test.astfactory.ASTFactory.Immutable;
 import static plaid.parser.test.astfactory.ASTFactory.LambdaType;
 import static plaid.parser.test.astfactory.ASTFactory.NominalObjectType;
+import static plaid.parser.test.astfactory.ASTFactory.None;
 import static plaid.parser.test.astfactory.ASTFactory.QualifiedIdentifier;
+import static plaid.parser.test.astfactory.ASTFactory.Shared;
+import static plaid.parser.test.astfactory.ASTFactory.Unique;
 
 import java.io.ByteArrayInputStream;
 import java.io.UnsupportedEncodingException;
@@ -25,7 +29,6 @@ import plaid.parser.ast.LambdaType;
 import plaid.parser.ast.MetaType;
 import plaid.parser.ast.NominalObjectType;
 import plaid.parser.ast.Permission;
-import plaid.parser.ast.Permission.PermissionKind;
 import plaid.parser.ast.QualifiedIdentifier;
 import plaid.parser.ast.Type;
 
@@ -39,11 +42,11 @@ public class ParseTypeTest {
 		}
 	}
 	
-	private void testPermission(String permString, PermissionKind permKind) {
+	private void testPermission(String permString, Permission perm) {
 		try { 
 			PlaidCoreParser pp = parserFromString(permString);
 			Permission parsedAST = pp.Permission();
-			Permission goalAST = new Permission(null, permKind, Expr.EMPTY);
+			Permission goalAST = perm;
 			Assert.assertTrue(parsedAST.equivalent(goalAST));
 		} catch (ParseException e) {
 			Assert.fail("ParseException: " + e.getMessage());
@@ -52,22 +55,22 @@ public class ParseTypeTest {
 	
 	@Test
 	public void testImmutable(){
-		testPermission("immutable", PermissionKind.IMMUTABLE);
+		testPermission("immutable", Immutable());
 	}
 	
 	@Test
 	public void testUnique(){
-		testPermission("unique", PermissionKind.UNIQUE);
+		testPermission("unique", Unique());
 	}
 	
 	@Test
 	public void testNone(){
-		testPermission("none", PermissionKind.NONE);
+		testPermission("none", None());
 	}
 	
 	@Test
 	public void testShared(){
-		testPermission("shared", PermissionKind.SHARED);
+		testPermission("shared", Shared(Expr.EMPTY));
 	}
 	
 	private void testNominalType(String code, QualifiedIdentifier qi) throws ParseException{
@@ -122,7 +125,7 @@ public class ParseTypeTest {
 		ids.add(new Identifier(null, "max"));
 		QualifiedIdentifier qi = 
 			new QualifiedIdentifier(null, ids);
-		Permission p = new Permission(null, PermissionKind.IMMUTABLE, Expr.EMPTY);
+		Permission p = Immutable();
 		testNominalType("immutable hello.world.mighty.max",p,qi);
 	}
 	
@@ -135,7 +138,7 @@ public class ParseTypeTest {
 		ids.add(new Identifier(null, "max"));
 		QualifiedIdentifier qi = 
 			new QualifiedIdentifier(null, ids);
-		Permission p = new Permission(null, PermissionKind.UNIQUE, Expr.EMPTY);
+		Permission p = Unique();
 		testNominalType("unique hello.world.mighty.max",p,qi);
 	}
 	
