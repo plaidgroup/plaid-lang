@@ -26,11 +26,11 @@ import plaid.parser.Token;
 public abstract class StateDecl extends Decl {
 	
 	private final QualifiedIdentifier caseOf;
-	private final List<MetaArgSpec> metaArgsSpec;
+	private final List<MetaArg> metaArgsSpec;
 	private final List<Expression> metaCaseOfArgs;
 	
 	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, 
-			List<MetaArgSpec> metaArgsSpec, QualifiedIdentifier caseOf, 
+			List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, 
 			List<Expression> metaCaseOfArgs) {
 		super(t, modifiers, name);
 		this.metaArgsSpec = metaArgsSpec;
@@ -44,7 +44,7 @@ public abstract class StateDecl extends Decl {
 	}
 
 
-	public List<MetaArgSpec> getMetaArgsSpec() {
+	public List<MetaArg> getMetaArgsSpec() {
 		return metaArgsSpec;
 	}
 

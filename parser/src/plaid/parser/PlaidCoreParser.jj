@@ -391,8 +391,8 @@ LambdaType LambdaType() :
 MetaType MetaType(boolean isMethod) : {    Token t;
     Identifier id;    boolean isAbstract = true;    Type type = Type.EMPTY;    GroupPermission gp = GroupPermission.EMPTY;
     List<Expression> metaArgs = new ArrayList<Expression>();
-    List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
-    QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;}{    (        t = <GROUP> [gp = GroupPermission()] id = Identifier() [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]        {            if ( !isMethod && gp != GroupPermission.EMPTY ) {                throw new ParseException("Cannot specify group permissions in states.");            } else if ( isMethod && gp == GroupPermission.EMPTY ) {                throw new ParseException("Need to specify group permission.");            }            return new GroupType(t, gp, id, isAbstract);        }    |   t = <TYPE> id = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false) ] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaArgs = MetaArgs()] ]         {            return new TypeParameterType(t, id, metaArgsSpec, caseof, metaArgs);        }    )}List<MetaType> MetaTypes(boolean isMethod) :{  MetaType type;  List<MetaType> types = new ArrayList<MetaType>();}{    < LT >        type =  MetaType(isMethod) {  types.add(type); }        ( 
+    List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
+    QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;}{    (        t = <GROUP> [gp = GroupPermission()] id = Identifier() [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]        {            if ( !isMethod && gp != GroupPermission.EMPTY ) {                throw new ParseException("Cannot specify group permissions in states.");            } else if ( isMethod && gp == GroupPermission.EMPTY ) {                throw new ParseException("Need to specify group permission.");            }            return new GroupType(t, gp, id, isAbstract);        }    |   t = <TYPE> id = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false) ] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaArgs = MetaArgs()] ]         {            return new TypeArgType(t, id, metaArgsSpec, caseof, metaArgs);        }    )}List<MetaType> MetaTypes(boolean isMethod) :{  MetaType type;  List<MetaType> types = new ArrayList<MetaType>();}{    < LT >        type =  MetaType(isMethod) {  types.add(type); }        ( 
             < COMMA > type =  MetaType(isMethod) {  types.add(type); }        )*     < GT >    {        return types;    }}
 
 /*****************************************************************************/
@@ -455,7 +455,7 @@ List<Expression> MetaArgs() :
 }
 
 
-MetaArgSpec MetaArgSpec(boolean isMethod) :
+MetaArg MetaArgSpec(boolean isMethod) :
 {
     Token t;
     Identifier id;
@@ -470,17 +470,17 @@ MetaArgSpec MetaArgSpec(boolean isMethod) :
         } else if ( !isMethod && gp != GroupPermission.EMPTY ) {
             throw new ParseException("Group permissions are not allowed at statet level");
         }
-        return new MetaGroupArgSpec(t, gp, id);
+        return new GroupArg(t, gp, id);
     }
-  | t= <TYPE> id = Identifier() [ <CASE> <OF> qi = QualifiedIdentifier() ]     {        return new TypeParameter(t, id, qi);    }
+  | t= <TYPE> id = Identifier() [ <CASE> <OF> qi = QualifiedIdentifier() ]     {        return new TypeArg(t, id, qi);    }
   )
 }
 
 
-List<MetaArgSpec> MetaArgsSpec(boolean isMethod) :
+List<MetaArg> MetaArgsSpec(boolean isMethod) :
 {
-    List<MetaArgSpec> args = new ArrayList<MetaArgSpec>();
-    MetaArgSpec arg; 
+    List<MetaArg> args = new ArrayList<MetaArg>();
+    MetaArg arg; 
 }
 {
     < LT >
@@ -561,8 +561,8 @@ Decl StateDecl(List< Modifier > modifiers) :
     Identifier name;
 	Token t;
 	boolean stateval = false;
-	State stb = null;
-	List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
+	StateExpression stb = null;
+	List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
 	List<Expression> metaCaseOfArgs = new ArrayList<Expression>();
 	QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;
 }
@@ -581,8 +581,8 @@ Decl StateDecl(List< Modifier > modifiers) :
 }
 
 
-State StateBinding() : {
-    State state;
+StateExpression StateBinding() : {
+    StateExpression state;
 }{
   (
       <EQUALS> state = State()
@@ -592,7 +592,7 @@ State StateBinding() : {
 }
 
 
-State State() : {
+StateExpression State() : {
     StatePrim stpLeft;
     StatePrim stpRight = null;
     Token t = null;
@@ -702,10 +702,12 @@ Decl GroupDecl(List<Modifier> modifiers) :{
     }
 }
 
-GroupPermission GroupPermission() : {}{
-   <EXCLUSIVE> { return GroupPermission.EXCLUSIVE; }
- | <SHARED>    { return GroupPermission.SHARED; }
- | <PROTECTED> { return GroupPermission.PROTECTED; }   }
+GroupPermission GroupPermission() : {
+    Token t;
+}{
+    t = <EXCLUSIVE> { return new GroupPermission(t, GroupPermission.GroupPermissionKind.EXCLUSIVE); }
+ |  t = <SHARED>    { return new GroupPermission(t, GroupPermission.GroupPermissionKind.SHARED); }
+ |  t = <PROTECTED> { return new GroupPermission(t, GroupPermission.GroupPermissionKind.PROTECTED); }   }
 
 
 Decl MethodDecl(List<Modifier> modifiers) :
@@ -718,7 +720,7 @@ Decl MethodDecl(List<Modifier> modifiers) :
 	List<Arg> env = new ArrayList<Arg>();
 	Expression e = Expression.EMPTY;
 	MethodDecl d;
-	List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
+	List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
 }{
 //      //method [T] m([T>>T x])[T >> T] ( {e} | ; )
     t = <METHOD>
@@ -814,7 +816,7 @@ Expression BlockExpression() :
 
 List<Stmt> StmtList() :
 {
-    ArrayList < Stmt > stmtList = new ArrayList < Stmt > ();
+    List < Stmt > stmtList = new ArrayList < Stmt > ();
 	Stmt s;	
 }
 {
@@ -861,7 +863,7 @@ Expression Expr1() :
     Identifier id;
     Expression target;
     Expression e;
-    State st;
+    StateExpression st;
     List<Expression> datagroups;
     List<Stmt> stmtList = new ArrayList<Stmt>();}
 {
@@ -876,7 +878,7 @@ Expression Expr1() :
     target = SimpleExpr()  t = <EQUALS> e = Expr()
     {   
         if ( target instanceof Identifier ) {
-            return new Assignment(t, null, (Identifier)target, e);
+            return new Assignment(t, Expression.EMPTY, (Identifier)target, e);
         } else if ( target instanceof Dereference ) {
            Dereference dref = (Dereference)target;
            if ( dref.getRight() instanceof Identifier ) {
@@ -947,7 +949,7 @@ Expression InfixExpr() :
 Expression SimpleExpr() : {
     Expression e;
     Token t;
-    State st;
+    StateExpression st;
     List<Expression> exps = new ArrayList<Expression>();
 }{
 
@@ -1286,7 +1288,7 @@ Stmt LocalStateValDecl() :
 {
     Token t;
     Identifier id;
-    State st;
+    StateExpression st;
 }
 {
     t = < STATEVAL > id = Identifier() st = StateBinding()
@@ -1395,7 +1397,7 @@ Expression Function() :
 {
     Token t;
     List<Arg> argList = new ArrayList<Arg>();
-    List<MetaArgSpec> metaArgsSpec = new ArrayList<MetaArgSpec>();
+    List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
     List<Arg> env = new ArrayList<Arg>();
     Expression body;
 }
