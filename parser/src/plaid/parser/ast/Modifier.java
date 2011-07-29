@@ -1,8 +1,13 @@
 package plaid.parser.ast;
 
+import java.util.Collections;
+import java.util.List;
+
 import plaid.parser.Token;
 
 public class Modifier extends ASTNode {
+	public static final List<Modifier> EMPTY = Collections.emptyList();
+	
 	public enum ModifierKind {OVERRIDE,REQUIRES,IMMUTABLE};
 
 	private final ModifierKind modiferKind;
