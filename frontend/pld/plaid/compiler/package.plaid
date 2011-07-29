@@ -5,38 +5,122 @@ import plaid.compiler.reporter.*;
 
 import java.lang.System;
 
-method main() {
-    
-    val file = java.io.File.new("build.xml");
-    val r = new ConsoleReporter;
-    
-    r.error(
-        file,
-        1,
-        2,
-        1,
-        6,
-        "Hello"
-    );
+method showUsage() {
+    printLine("usage: plaidc [OPTIONS] [FILES]");
+    printLine("");
+    printLine("Options:");
+    printLine(" -h | --help                 This message.");
+    printLine(" -v | --version              The version of the current compiler.");
+    printLine(" -o | --output               The directory to put generated files.");
+    printLine(" -i | --input                The directory of Plaid files to compile.");
+    printLine(" -t | --temp                 The directory to put temporary generated files.");
+    printLine(" -k | --keep                 Keep temporary files.");
+    printLine(" -f | --force-recompile      Generate output files even if source files are older.");
+}
 
-    r.warning(
-        file,
-        10,
-        10,
-        15,
-        20,
-        "Hello"
-    );
+method showVersion() {
+    printLine("PlaidC version 2.0");
+}
 
-    r.error(
-        file,
-        5,
-        10,
-        5,
-        20,
-        "Hello"
-    );
-
+method parseCommandLineArgs(args) {
+    var abort = false;
     
-    r.report();
+    var keep      = false;
+    var force     = false;
+    var outputDir = System.getProperty("user.dir");
+    var tempDir   = System.getProperty("user.dir");
+    var inputDir  = System.getProperty("user.dir");
+    var plaidpath = makeEmptyList();
+        
+    while { !abort && !args.isEmpty() }{
+        var handled = false;
+        if ( args.car().equals("-h") || args.car().equals("--help") ) {
+            handled = true;
+            showUsage();
+            abort = true
+        };
+        if ( args.car().equals("-v") || args.car().equals("--version") ) {
+            handled = true;
+            showVersion();
+            abort = true
+        };
+        if ( args.car().equals("-o") || args.car().equals("--output") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-o' option requires a parameter.");
+                abort = true
+            }{
+                outputDir = args.car();
+            }
+        };        
+        if ( args.car().equals("-t") || args.car().equals("--temp") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-t' option requires a parameter.");
+                abort = true
+            }{
+                tempDir = args.car();
+            }
+        };
+        if ( args.car().equals("-i") || args.car().equals("--input") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-i' option requires a parameter.");
+                abort = true
+            }{
+                inputDir = args.car();
+            }
+        };
+        if ( args.car().equals("-p") || args.car().equals("--plaidpath") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-i' option requires a parameter.");
+            }{
+                plaidpath.add(args.car());
+            }
+        };        
+        if ( args.car().equals("-f") || args.car().equals("--force") ) {
+            handled = true;
+            force = true
+        };        
+        if ( args.car().equals("-k") || args.car().equals("--keep") ) {
+            handled = true;
+            force = true
+        };    
+        if ( !handled ) {
+            printLine("Unsupported option: " + args.car());
+            abort = true
+        };
+        
+        args = args.cdr()
+    };
+   
+    match (abort) {
+        case True  { new None; }
+        default    { createSome(new CompilerConfiguration {
+                val plaidpath = plaidpath;
+                val force     = force;
+                val keep      = keep;
+                val outputDir = outputDir;
+                val inputDir  = inputDir;
+                val tempDir   = tempDir;
+            }); 
+        }        
+    }
+}
+
+
+method main(args) {
+    val unique Option result = parseCommandLineArgs(args);
+   
+    match (result) {
+        case Some {
+            printLine("Some: " + result.value.toString());
+        }
+        default {}
+    }
 }
