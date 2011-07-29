@@ -7,16 +7,16 @@ public class Specifier extends ASTNode {
 	public enum SpecifierKind {VAR, VAL, EMPTY};
 	public static final Specifier EMPTY = EmptySpecifier.getEmptySpecifier();
 	
-	private final SpecifierKind sk;
+	private final SpecifierKind specifierKind;
 
 
-	public Specifier(Token token, SpecifierKind sk) {
+	public Specifier(Token token, SpecifierKind specifierKind) {
 		super(token);
-		this.sk = sk;
+		this.specifierKind = specifierKind;
 	}
 
 
 	public SpecifierKind getSpecifierKind() {
-		return sk;
+		return specifierKind;
 	}
 }
