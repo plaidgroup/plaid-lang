@@ -100,6 +100,7 @@ import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
 import plaid.parser.ast.StateRef;
+import plaid.parser.ast.StateValDecl;
 import plaid.parser.ast.Stmt;
 import plaid.parser.ast.StringLiteral;
 import plaid.parser.ast.Type;
@@ -1330,7 +1331,7 @@ public class ParseExpressionTest {
 					Arg.EMPTY
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.Decl();
+		final Decl e = pp.Decl();
 		assertTrue(e instanceof AbstractMethodDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1338,28 +1339,38 @@ public class ParseExpressionTest {
 	@Test
 	public void parseAbstractStateValEmpty() throws ParseException, UnsupportedEncodingException {
 		final String code = "stateval Foo;";
+		final StateValDecl goal = AbstractStateValDecl(Identifier("Foo"), MetaArg.EMPTY);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.Decl();
+		final Decl e = pp.Decl();
 		assertTrue(e instanceof AbstractStateValDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test
 	public void parseConcreteStateVal() throws ParseException, UnsupportedEncodingException {
 		final String code = "stateval Foo = Bar";
+		final StateValDecl goal = ConcreteStateValDecl(Identifier("Foo"), MetaArg.EMPTY, StateRef(Identifier("Bar")));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.Decl();
+		final Decl e = pp.Decl();
 		assertTrue(e instanceof ConcreteStateValDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test
 	public void parseAbstractStateValEmptyMetaArgs() throws ParseException, UnsupportedEncodingException {
 		final String code = "stateval Foo<group A, type T>;";
+		final StateValDecl goal = 
+				AbstractStateValDecl(
+					Identifier("Foo"),
+					Arrays.asList(
+						GroupArg(GroupPermission.EMPTY, Identifier("A")),
+						TypeArg(Identifier("T"), QualifiedIdentifier.EMPTY)
+					)
+				);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.Decl();
+		final Decl e = pp.Decl();
 		assertTrue(e instanceof AbstractStateValDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test

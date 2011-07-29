@@ -7,6 +7,7 @@ import java.util.List;
 import plaid.parser.ast.ASTNode;
 import plaid.parser.ast.AbstractFieldDecl;
 import plaid.parser.ast.AbstractMethodDecl;
+import plaid.parser.ast.AbstractStateValDecl;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.Arg;
 import plaid.parser.ast.ArgSpec;
@@ -18,6 +19,7 @@ import plaid.parser.ast.Case;
 import plaid.parser.ast.Cast;
 import plaid.parser.ast.ConcreteFieldDecl;
 import plaid.parser.ast.ConcreteMethodDecl;
+import plaid.parser.ast.ConcreteStateValDecl;
 import plaid.parser.ast.Decl;
 import plaid.parser.ast.DeclList;
 import plaid.parser.ast.DeclOrStateOp;
@@ -31,6 +33,7 @@ import plaid.parser.ast.Freeze;
 import plaid.parser.ast.GroupArg;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.GroupPermission;
+import plaid.parser.ast.GroupPermission.GroupPermissionKind;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.InfixOperator;
 import plaid.parser.ast.IntLiteral;
@@ -45,7 +48,6 @@ import plaid.parser.ast.NewInstance;
 import plaid.parser.ast.NominalObjectType;
 import plaid.parser.ast.PatternCase;
 import plaid.parser.ast.Permission;
-import plaid.parser.ast.GroupPermission.GroupPermissionKind;
 import plaid.parser.ast.Permission.PermissionKind;
 import plaid.parser.ast.QualifiedIdentifier;
 import plaid.parser.ast.Replace;
@@ -57,9 +59,11 @@ import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
 import plaid.parser.ast.StateRef;
+import plaid.parser.ast.StateValDecl;
 import plaid.parser.ast.Stmt;
 import plaid.parser.ast.StringLiteral;
 import plaid.parser.ast.Type;
+import plaid.parser.ast.TypeArg;
 import plaid.parser.ast.UnaryOperator;
 import plaid.parser.ast.UnpackInnerGroups;
 import plaid.parser.ast.VarDecl;
@@ -273,6 +277,18 @@ public class ASTFactory {
 	
 	public static Modifier REQUIRES() {
 		return new Modifier(ASTNode.DEFAULT_TOKEN, Modifier.ModifierKind.REQUIRES);
+	}
+	
+	public static StateValDecl AbstractStateValDecl(Identifier name, List<MetaArg> metaArgsSpec) {
+		return new AbstractStateValDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec);
+	}
+
+	public static StateValDecl ConcreteStateValDecl(Identifier name, List<MetaArg> metaArgsSpec, StateExpression stateBinding) {
+		return new ConcreteStateValDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, stateBinding);
+	}
+	
+	public static MetaArg TypeArg(Identifier id, QualifiedIdentifier caseof) {
+		return new TypeArg(ASTNode.DEFAULT_TOKEN, id, caseof);
 	}
 	
 	// types 
