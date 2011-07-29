@@ -836,7 +836,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseLocalVarDel() throws ParseException, UnsupportedEncodingException {
 		final String code = "var x = 1";
-		final VarDecl goal = VarDecl(var(), Type.EMPTY, Identifier("x"), IntLiteral(1));
+		final VarDecl goal = VarDecl(Var(), Type.EMPTY, Identifier("x"), IntLiteral(1));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Stmt e = pp.LocalVarDecl();
 		assertTrue(e instanceof Stmt );
@@ -1098,7 +1098,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseAbstractFieldSpecifier() throws ParseException, UnsupportedEncodingException {
 		final String code = "val f;";
-		final FieldDecl goal = AbstractFieldDecl(val(), Type.EMPTY, Identifier("f"));
+		final FieldDecl goal = AbstractFieldDecl(Val(), Type.EMPTY, Identifier("f"));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractFieldDecl );
@@ -1108,7 +1108,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseAbstractFieldSpecifierType() throws ParseException, UnsupportedEncodingException {
 		final String code = "val Foo f;";
-		final FieldDecl goal = AbstractFieldDecl(val(), NominalObjectType(QualifiedIdentifier("Foo")), Identifier("f"));
+		final FieldDecl goal = AbstractFieldDecl(Val(), NominalObjectType(QualifiedIdentifier("Foo")), Identifier("f"));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractFieldDecl );
@@ -1128,7 +1128,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseConcretetFieldSpecifierType() throws ParseException, UnsupportedEncodingException {
 		final String code = "val Foo f=0;";
-		final FieldDecl goal = ConcreteFieldDecl(val(), NominalObjectType(QualifiedIdentifier("Foo")), Identifier("f"), IntLiteral(0));
+		final FieldDecl goal = ConcreteFieldDecl(Val(), NominalObjectType(QualifiedIdentifier("Foo")), Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
@@ -1138,7 +1138,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseConcretetFieldSpecifier() throws ParseException, UnsupportedEncodingException {
 		final String code = "val f=0;";
-		final FieldDecl goal = ConcreteFieldDecl(val(), Type.EMPTY, Identifier("f"), IntLiteral(0));
+		final FieldDecl goal = ConcreteFieldDecl(Val(), Type.EMPTY, Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
@@ -1313,7 +1313,7 @@ public class ParseExpressionTest {
 	}
 	
 	/************************************************************
-	 **                      Decl                         **
+	 **                        Decl                            **
 	 ************************************************************/
 	@Test
 	public void parseModifierlDecl() throws ParseException, UnsupportedEncodingException {
@@ -1376,46 +1376,101 @@ public class ParseExpressionTest {
 	@Test
 	public void parseAbstractStateEmpty() throws ParseException, UnsupportedEncodingException {
 		final String code = "state Foo;";
+		final Decl goal = 
+			AbstractStateDecl(
+				Identifier("Foo"), 
+				MetaArg.EMPTY, 
+				QualifiedIdentifier.EMPTY, 
+				Collections.EMPTY_LIST
+			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.Decl();
+		final Decl e = pp.Decl();
 		assertTrue(e instanceof AbstractStateDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test
 	public void parseAbstractStateCaseOf() throws ParseException, UnsupportedEncodingException {
 		final String code = "state Foo case of Bar.Baz;";
+		final Decl goal = 
+			AbstractStateDecl(
+				Identifier("Foo"), 
+				MetaArg.EMPTY, 
+				QualifiedIdentifier("Bar", "Baz"), 
+				Collections.EMPTY_LIST
+			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.Decl();
+		final Decl e = pp.Decl();
 		assertTrue(e instanceof AbstractStateDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test
 	public void parseAbstractStateCaseOfMetaArgs() throws ParseException, UnsupportedEncodingException {
 		final String code = "state Foo<group A, group B> case of Bar.Baz<A,B>;";
+		final Decl goal = 
+			AbstractStateDecl(
+				Identifier("Foo"), 
+				Arrays.asList(
+					GroupArg(GroupPermission.EMPTY, Identifier("A")),
+					GroupArg(GroupPermission.EMPTY, Identifier("B"))
+				), 
+				QualifiedIdentifier("Bar", "Baz"), 
+				Arrays.asList(
+					(Expression)Identifier("A"),
+					(Expression)Identifier("B")
+				)
+			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.Decl();
+		final Decl e = pp.Decl();
 		assertTrue(e instanceof AbstractStateDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test
 	public void parseConcreteStateWith() throws ParseException, UnsupportedEncodingException {
 		final String code = "state Foo = Bar with Baz;";
+		final Decl goal = 
+			ConcreteStateDecl(
+				Identifier("Foo"), 
+				MetaArg.EMPTY, 
+				QualifiedIdentifier.EMPTY, 
+				Collections.EMPTY_LIST,
+				With(
+					StateRef(Identifier("Bar")),
+					StateRef(Identifier("Baz"))
+				)
+			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.Decl();
+		final Decl e = pp.Decl();
 		assertTrue(e instanceof ConcreteStateDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test
 	public void parseConcreteStateDecls() throws ParseException, UnsupportedEncodingException {
 		final String code = "state Foo = { method foo(); val x;}";
+		final Decl goal = 
+			ConcreteStateDecl(
+				Identifier("Foo"), 
+				MetaArg.EMPTY, 
+				QualifiedIdentifier.EMPTY, 
+				Collections.EMPTY_LIST,
+				DeclList(
+					AbstractMethodDecl(
+						Type.EMPTY, 
+						Identifier("foo"), 
+						MetaArg.EMPTY, 
+						Arg.EMPTY, 
+						Arg.EMPTY
+					),
+					 AbstractFieldDecl(Val(), Type.EMPTY, Identifier("x"))
+				)
+			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.Decl();
+		final Decl e = pp.Decl();
 		assertTrue(e instanceof ConcreteStateDecl );
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 
 	/************************************************************
@@ -1424,20 +1479,37 @@ public class ParseExpressionTest {
 	@Test
 	public void parseSingleImport() throws ParseException, UnsupportedEncodingException {
 		final String code = "import foo.bar.baz;";
+		final Import goal = Import(QualifiedIdentifier("foo","bar","baz"), false);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		List<?> e = pp.Imports();
+		final List<Import> e = pp.Imports();
 		assertTrue(e.get(0) instanceof Import);
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.get(0).equivalent(goal));
+	}
+	
+	@Test
+	public void parseSingleImportStar() throws ParseException, UnsupportedEncodingException {
+		final String code = "import foo.bar.baz.*;";
+		final Import goal = Import(QualifiedIdentifier("foo","bar","baz"), true);
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final List<Import> e = pp.Imports();
+		assertTrue(e.get(0) instanceof Import);
+		assertTrue(e.get(0).equivalent(goal));
 	}
 	
 	@Test
 	public void parseMultipleImport() throws ParseException, UnsupportedEncodingException {
 		final String code = "import foo.bar.baz; import bob.karl;";
+		final List<Import> goal =
+			Arrays.asList(
+				Import(QualifiedIdentifier("foo","bar","baz"), false),
+				Import(QualifiedIdentifier("bob","karl"), false)
+			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		List<?> e = pp.Imports();
+		final List<Import> e = pp.Imports();
 		assertTrue(e.get(0) instanceof Import);
 		assertTrue(e.get(1) instanceof Import);
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.get(0).equivalent(goal.get(0)));
+		assertTrue(e.get(1).equivalent(goal.get(1)));
 	}
 	
 	/************************************************************
@@ -1446,33 +1518,79 @@ public class ParseExpressionTest {
 	@Test
 	public void parseEmptyPackage() throws ParseException, UnsupportedEncodingException {
 		final String code = "package foo.bar.baz;";
+		final CompilationUnit goal = 
+			CompilationUnit( 
+				Package("foo","bar","baz"),
+				Collections.EMPTY_LIST,
+				Collections.EMPTY_LIST
+			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		CompilationUnit e = pp.CompilationUnit();
+		final CompilationUnit e = pp.CompilationUnit();
 		assertTrue(e instanceof CompilationUnit);
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test
 	public void parsePackageImports() throws ParseException, UnsupportedEncodingException {
 		final String code = "package foo.bar.baz; import foo.bar;";
+		final CompilationUnit goal = 
+			CompilationUnit( 
+				Package("foo","bar","baz"),
+				Arrays.asList(
+					Import(QualifiedIdentifier("foo","bar"), false)
+				),
+				Collections.EMPTY_LIST
+			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		CompilationUnit e = pp.CompilationUnit();
+		final CompilationUnit e = pp.CompilationUnit();
 		assertTrue(e instanceof CompilationUnit);
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 	
 	@Test
 	public void parsePackageImportsDelcs() throws ParseException, UnsupportedEncodingException {
 		final String code = "package foo.bar.baz; import foo.bar; val x = 1; method foo(){} state Karl { val bob = \"ML\"; }";
+		final CompilationUnit goal = 
+			CompilationUnit( 
+				Package("foo","bar","baz"),
+				Arrays.asList(
+					Import(QualifiedIdentifier("foo","bar"), false)
+				),
+				Arrays.asList(
+					ConcreteFieldDecl(
+						Val(), 
+						Type.EMPTY, 
+						Identifier("x"), 
+						IntLiteral(1)
+					),
+					ConcreteMethodDecl(
+						Type.EMPTY, 
+						Identifier("foo"), 
+						MetaArg.EMPTY, 
+						Arg.EMPTY, 
+						Arg.EMPTY,
+						BlockExpression()
+					),
+					ConcreteStateDecl(
+						Identifier("Karl"), 
+						MetaArg.EMPTY, 
+						QualifiedIdentifier.EMPTY, 
+						Collections.EMPTY_LIST,
+						DeclList(
+							ConcreteFieldDecl(
+								Val(), 
+								Type.EMPTY, 
+								Identifier("bob"), 
+								StringLiteral("ML")
+							)
+						)
+					)
+				)				
+			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		CompilationUnit e = pp.CompilationUnit();
+		final CompilationUnit e = pp.CompilationUnit();
 		assertTrue(e instanceof CompilationUnit);
-		//assertTrue( code.equals(e.toString()));
+		assertTrue(e.equivalent(goal));
 	}
 }
-
-
-
-
-
 

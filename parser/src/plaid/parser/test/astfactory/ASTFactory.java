@@ -7,6 +7,7 @@ import java.util.List;
 import plaid.parser.ast.ASTNode;
 import plaid.parser.ast.AbstractFieldDecl;
 import plaid.parser.ast.AbstractMethodDecl;
+import plaid.parser.ast.AbstractStateDecl;
 import plaid.parser.ast.AbstractStateValDecl;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.Arg;
@@ -17,8 +18,10 @@ import plaid.parser.ast.AtomicBlock;
 import plaid.parser.ast.BlockExpr;
 import plaid.parser.ast.Case;
 import plaid.parser.ast.Cast;
+import plaid.parser.ast.CompilationUnit;
 import plaid.parser.ast.ConcreteFieldDecl;
 import plaid.parser.ast.ConcreteMethodDecl;
+import plaid.parser.ast.ConcreteStateDecl;
 import plaid.parser.ast.ConcreteStateValDecl;
 import plaid.parser.ast.Decl;
 import plaid.parser.ast.DeclList;
@@ -35,6 +38,7 @@ import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.GroupPermission;
 import plaid.parser.ast.GroupPermission.GroupPermissionKind;
 import plaid.parser.ast.Identifier;
+import plaid.parser.ast.Import;
 import plaid.parser.ast.InfixOperator;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Lambda;
@@ -54,6 +58,7 @@ import plaid.parser.ast.Replace;
 import plaid.parser.ast.Specifier;
 import plaid.parser.ast.SplitBlock;
 import plaid.parser.ast.StateChange;
+import plaid.parser.ast.StateDecl;
 import plaid.parser.ast.StateExpression;
 import plaid.parser.ast.StateOpRemove;
 import plaid.parser.ast.StateOpRename;
@@ -207,11 +212,11 @@ public class ASTFactory {
 		return new VarDecl(ASTNode.DEFAULT_TOKEN, specifier, type, field, value);
 	}
 
-	public static Specifier val() {
+	public static Specifier Val() {
 		return new Specifier(ASTNode.DEFAULT_TOKEN, Specifier.SpecifierKind.VAL);
 	}
 	
-	public static Specifier var() {
+	public static Specifier Var() {
 		return new Specifier(ASTNode.DEFAULT_TOKEN, Specifier.SpecifierKind.VAR);
 	}
 
@@ -289,6 +294,27 @@ public class ASTFactory {
 	
 	public static MetaArg TypeArg(Identifier id, QualifiedIdentifier caseof) {
 		return new TypeArg(ASTNode.DEFAULT_TOKEN, id, caseof);
+	}
+	
+	public static StateDecl AbstractStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expression> metaCaseOfArgs) {
+		return new AbstractStateDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, name, metaArgsSpec, caseOf, metaCaseOfArgs);
+	}
+	
+	
+	public static StateDecl ConcreteStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expression> metaCaseOfArgs, StateExpression statebinding) {
+		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Collections.EMPTY_LIST, name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
+	}
+	
+	public static Import Import(QualifiedIdentifier qi, boolean star) {
+		return new Import(ASTNode.DEFAULT_TOKEN, qi, star);
+	}
+	
+	public static QualifiedIdentifier Package(String ...names) {
+		return QualifiedIdentifier(names);
+	}
+	
+	public static CompilationUnit CompilationUnit(QualifiedIdentifier packageName, List<Import> imports, List<Decl> decls) {
+		return new CompilationUnit(packageName, imports, decls);
 	}
 	
 	// types 
