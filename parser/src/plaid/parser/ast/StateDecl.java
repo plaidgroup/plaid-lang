@@ -38,16 +38,13 @@ public abstract class StateDecl extends Decl {
 		this.metaCaseOfArgs = metaCaseOfArgs;
 	}
 
-
 	public QualifiedIdentifier getCaseOf() {
 		return caseOf;
 	}
 
-
 	public List<MetaArg> getMetaArgsSpec() {
 		return metaArgsSpec;
 	}
-
 
 	public List<Expression> getMetaCaseOfArgs() {
 		return metaCaseOfArgs;
