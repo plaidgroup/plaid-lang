@@ -13,7 +13,7 @@ public class Import extends ASTNode {
 		this.star = star;
 	}
 
-	public boolean isStar() {
+	public boolean getStar() {
 		return star;
 	}
 

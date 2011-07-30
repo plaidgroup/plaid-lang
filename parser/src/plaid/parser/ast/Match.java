@@ -24,18 +24,18 @@ import java.util.List;
 import plaid.parser.Token;
 
 public class Match extends Expr {
-	private final Expr e;
+	private final Expr expression;
 	private final List<Case> caseList;
 	
 	
 	public Match(Token t, Expr e, List<Case> caseList) {
 		super(t);
-		this.e = e;
+		this.expression = e;
 		this.caseList = caseList;
 	}
 	
-	public Expr getE() {
-		return e;
+	public Expr getExpression() {
+		return expression;
 	}
 
 	public List<Case> getCaseList() {
@@ -46,7 +46,7 @@ public class Match extends Expr {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		
-		sb.append("match(" + e.toString()+"){");
+		sb.append("match(" + expression.toString()+"){");
 		for(Case c : caseList ) {
 			sb.append(c.toString());
 		}
