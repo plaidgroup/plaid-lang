@@ -23,28 +23,28 @@ import plaid.parser.Token;
 
 public class StateChange extends Expr {
 	
-	private final Expr e;
-	private final StateExpr st;
+	private final Expr expression;
+	private final StateExpr stateExpr;
 
 
 	public StateChange(Token t, Expr e, StateExpr st) {
 		super(t);
-		this.e = e;
-		this.st = st;
+		this.expression = e;
+		this.stateExpr = st;
 	}
 	
 	public Expr getExpression() {
-		return e;
+		return expression;
 	}
 
-	public StateExpr getState() {
-		return st;
+	public StateExpr getStateExpr() {
+		return stateExpr;
 	}
 
 	
 	@Override
 	public String toString() {
-		return e.toString()+"<-"+st.toString();
+		return expression.toString()+"<-"+stateExpr.toString();
 	}
 
 	
