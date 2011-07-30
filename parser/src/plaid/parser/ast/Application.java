@@ -25,14 +25,14 @@ import java.util.List;
 import plaid.parser.Token;
 
 public class Application extends Expr {
-	private final Expr f;
+	private final Expr function;
 	private final Expr argument;
 	private final List<Expr> metaArgs; 
 
 
 	public Application(Token t, Expr function, List<Expr> metaArgs, Expr argument) {
 		super(t);
-		this.f = function;
+		this.function = function;
 		if ( metaArgs == null ) {
 			this.metaArgs = new ArrayList<Expr>();
 		} else {
@@ -42,21 +42,21 @@ public class Application extends Expr {
 	}
 	
 	public Expr getFunction() {
-		return f;
+		return function;
 	}
 
 	public Expr getArgument() {
 		return argument;
 	}
 	
-	public List<Expr> getMetaArguments() {
+	public List<Expr> getMetaArgs() {
 		return metaArgs;
 	}
 	
 	@Override 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		if (f != null) sb.append(f.toString());
+		if (function != null) sb.append(function.toString());
 		if (metaArgs.size() > 0) sb.append("<" + exprListToString(metaArgs) + ">");
 		if (argument != null ) sb.append(argument.toString());
 		return sb.toString();
