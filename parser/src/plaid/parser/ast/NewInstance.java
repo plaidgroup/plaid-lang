@@ -23,19 +23,19 @@ import plaid.parser.Token;
 
 public class NewInstance extends Expr{
 
-	private final StateExpr st;	
+	private final StateExpr stateExpr;	
 
 	public NewInstance(Token t, StateExpr st) {
 		super(t);
-		this.st = st;
+		this.stateExpr = st;
 	}
 
-	public StateExpr getState() {
-		return st;
+	public StateExpr getStateExpr() {
+		return stateExpr;
 	}
 
 	@Override
 	public String toString() {
-		return "new " + st.toString();
+		return "new " + stateExpr.toString();
 	}
 }
