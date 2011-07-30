@@ -4,18 +4,29 @@
 package plaid.parser.test;
 
 
+import static plaid.parser.test.astfactory.ASTFactory.CompilationUnit;
+import static plaid.parser.test.astfactory.ASTFactory.Val;
+
 import java.io.StringBufferInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 
 import junit.framework.Assert;
+import static junit.framework.Assert.*;
 
 import org.junit.Test;
 
 import plaid.parser.ParseException;
-import plaid.parser.ParserCore;
-import plaid.parser.ast.*;
-import static plaid.parser.test.astfactory.ASTFactory.*;
+import plaid.parser.Parser;
+import plaid.parser.ast.CompilationUnit;
+import plaid.parser.ast.ConcreteFieldDecl;
+import plaid.parser.ast.Decl;
+import plaid.parser.ast.Identifier;
+import plaid.parser.ast.Import;
+import plaid.parser.ast.IntLiteral;
+import plaid.parser.ast.Modifier;
+import plaid.parser.ast.QualifiedIdentifier;
+import plaid.parser.ast.Type;
 
 /**
  * @author jssunshi
@@ -23,16 +34,19 @@ import static plaid.parser.test.astfactory.ASTFactory.*;
  */
 public class ParserTests {
 	
-	@Test(expected=ParseException.class)
+	@Test
 	public void noPackage() throws ParseException {
 		String program = "val foo = 5;";
-		ParserCore.parse(new StringBufferInputStream(program));
+		Parser parser = new Parser(new StringBufferInputStream(program));
+		assertTrue( !parser.hasCompilationUnit() );
 	}
 	
 	@Test
 	public void intField() throws ParseException {
 		String program = "package plaid; val foo = 5;";
-		CompilationUnit parsedCU = ParserCore.parse(new StringBufferInputStream(program));
+		Parser parser = new Parser(new StringBufferInputStream(program));
+		assertTrue( parser.hasCompilationUnit() );
+		CompilationUnit parsedCU = parser.getCompilationUnit();
 		Decl field = 
 			new ConcreteFieldDecl(null, new ArrayList<Modifier>(), 
 					Val(),
