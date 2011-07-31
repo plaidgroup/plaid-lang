@@ -1,0 +1,56 @@
+package plaid.collections;
+
+state AATree case of Collection {
+	/* type T; */
+	val /* T -> T -> ComparatorResult */ compare;
+	val /* T -> T -> T */ eqHandler = fn(newElem, oldElem) => { oldElem };
+
+	var /* Option<AANode<T>> */ root = new None;
+	var /* Int */ nodeCount = 0;
+
+	method void add(elem) {
+		var added = true;
+		val addRecursive = fn(nodeOpt) => {
+			nodeOpt.map(fn(node) => {
+				printLine("comparing");
+				match(compare(elem, node.data)) {
+					case LessThanCR { printLine("going left"); node.left = addRecursive(node.left) }
+					case GreaterThanCR { printLine("going right"); node.right = addRecursive(node.right) }
+					case EqualCR { 
+						node.data = eqHandler(elem, node.data);
+						added = false;
+					}
+				};
+				
+				printLine("balancing subtree");
+				new Some { val value = node.skewOp().splitOp(); }
+			}).getOrElse(new Some { 
+				val value = new AANode { 
+					var level = 1; 
+					var data = elem;
+				}; 
+			})
+		};
+		root = addRecursive(root);
+
+		if(added) {
+			nodeCount = nodeCount + 1;
+		}
+	}
+
+	method void do(f) {
+		val traverse = fn(nodeOpt) => {
+			nodeOpt.map(fn(node) => {
+				traverse(node.left);
+				f(node.data);
+				traverse(node.right);
+			})
+		};
+
+		traverse(root);
+	}
+
+	method void size() {
+		nodeCount
+	}
+}
