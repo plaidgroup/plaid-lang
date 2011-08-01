@@ -24,17 +24,23 @@ import java.io.InputStream;
 
 import plaid.parser.ast.CompilationUnit;
 
-public class ParserCore {
-	public static CompilationUnit parse(InputStream toParse) throws ParseException {
-		//System.out.println("parsing...");
+public class Parser {
+	public CompilationUnit cu;
+	
+	public Parser(InputStream toParse) {
 		try {
-			PlaidCoreParser pp = new PlaidCoreParser(toParse);
-			
-			return pp.CompilationUnit();
-			
-		} catch (RuntimeException e) {
-			e.printStackTrace();
-			throw e;
+			PlaidCoreParser pp = new PlaidCoreParser(toParse);			
+			cu = pp.CompilationUnit();	
+		} catch (ParseException e) {
+			cu = null;
 		}
+	}
+
+	public boolean hasCompilationUnit() {
+		return !(cu == null);
+	}
+	
+	public CompilationUnit getCompilationUnit() {
+		return cu;
 	}
 }

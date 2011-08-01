@@ -5,6 +5,11 @@ import plaid.compiler.reporter.*;
 
 import java.lang.System;
 
+
+method void DEBUG(immutable String msg) {
+    printLine("[DEBUG] " + msg);
+}
+
 method showUsage() {
     printLine("usage: plaidc [OPTIONS] [FILES]");
     printLine("");
@@ -27,9 +32,9 @@ method parseCommandLineArgs(args) {
     
     var keep       = false;
     var force      = false;
-    var outputDir  = System.getProperty("user.dir");
-    var tempDir    = System.getProperty("user.dir");
-    var inputDir   = System.getProperty("user.dir");
+    var outputDir  = "";
+    var tempDir    = "";
+    var inputDir   = "";
     var plaidpath  = makeEmptyList();
     var inputFiles = makeEmptyList();
         
@@ -53,6 +58,7 @@ method parseCommandLineArgs(args) {
                 abort = true
             }{
                 outputDir = args.car();
+                DEBUG("Found output directory option '" + args.car() + "'.");
             }
         };        
         if ( args.car().equals("-t") || args.car().equals("--temp") ) {
@@ -63,6 +69,7 @@ method parseCommandLineArgs(args) {
                 abort = true
             }{
                 tempDir = args.car();
+                DEBUG("Found temporary directory option '" + args.car() + "'.");
             }
         };
         if ( args.car().equals("-i") || args.car().equals("--input") ) {
@@ -73,6 +80,7 @@ method parseCommandLineArgs(args) {
                 abort = true
             }{
                 inputDir = args.car();
+                DEBUG("Found input directory option '" + args.car() + "'.");
             }
         };
         if ( args.car().equals("-p") || args.car().equals("--plaidpath") ) {
@@ -82,6 +90,7 @@ method parseCommandLineArgs(args) {
                 printLine("The '-i' option requires a parameter.");
             }{
                 plaidpath.add(args.car());
+                DEBUG("Found plaidpath option '" + args.car()  + "'.");
             }
         };        
         if ( args.car().equals("-f") || args.car().equals("--force") ) {
@@ -98,18 +107,31 @@ method parseCommandLineArgs(args) {
                 abort = true
             }{
                 // add remaining arguments as input files 
-                args.map( fn (x) => inputFiles.add(x));
-                args = makeEmptyList()
+                ifElse ( inputDir.length() > 0 ) {
+                    printLine("Cannot specify input directory '-i' and explicit files. Make your choice.");
+                    abort = true
+                }{
+                    args.map( fn (x) => {
+                        DEBUG("Found input file  '" + args.car()  + "'.");
+                        inputFiles.add(x)
+                    });
+                    args = makeEmptyList()
+                }
             };
         }{        
             args = args.cdr()
         };
     };
+
+    if ( inputDir == "" && inputFiles.isEmpty() ) {
+        printLine("You specify either an input directory('-i') or explicit file names.");
+        abort = true
+    };
    
     match (abort) {
         case True  { new None; }
         default    { 
-            createSome(new CompilerConfiguration {
+            createSome((new CompilerConfiguration {
                 val plaidpath   = plaidpath;
                 val force       = force;
                 val keep        = keep;
@@ -117,10 +139,11 @@ method parseCommandLineArgs(args) {
                 val inputDir    = inputDir;
                 val tempDir     = tempDir;
                 val inputFiles  = inputFiles;
-            }); 
+            }).expand()); 
         }        
     }
 }
+
 
 
 method main(args) {
@@ -128,16 +151,18 @@ method main(args) {
    
     match (result) {
         case Some {
-            printLine("Some: " + result.value.toString());
-            val path = "/home/svens/research/plaid-lang/compilerTests/coreExamples/turing/package.plaid";
-            val source = new Source {
-                val path = path;
-            };
-            val job = new Job {
-                val source = source;
-            };
-            val parsePass = new passes.ParsePass;
-            parsePass.run(job);
+            val unique CompilerConfiguration cc = result.value;
+
+            // printLine("Some: " + result.value.toString());
+            // val path = "../compilerTests/coreExamples/turing/package.plaid";
+            // val source = new Source {
+            //     val path = path;
+            // };
+            // val job = new Job {
+            //     val source = source;
+            // };
+            // val parsePass = new passes.ParsePass;
+            // parsePass.run(job);
         }
         default {}
     }

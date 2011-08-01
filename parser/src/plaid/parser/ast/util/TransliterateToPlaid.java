@@ -44,7 +44,11 @@ public class TransliterateToPlaid<T> {
 		
 		//toString()
 		sb.append("\n");
-		sb.append("\tmethod immutable String toString()");
+		if ( clazz.getSimpleName().toString().equals("ASTNode")) {
+			sb.append("\tmethod immutable String toString()");
+		} else {
+			sb.append("\toverride method immutable String toString()");
+		}
 		if (isConcrete) {
 			sb.append(" {\n\t\t");
 			sb.append("\"" +clazz.getSimpleName() + "\\n\" + ");
@@ -62,7 +66,11 @@ public class TransliterateToPlaid<T> {
 
 		//accept(v)
 		sb.append("\n");
-		sb.append("\tmethod void accept(unique ASTVisitor v)");
+		if ( clazz.getSimpleName().toString().equals("ASTNode")) {
+			sb.append("\tmethod void accept(unique ASTVisitor v)");
+		} else {
+			sb.append("\toverride method void accept(unique ASTVisitor v)");
+		}
 		if(isConcrete){
 			sb.append("{\n");
 			sb.append("\t\tv.visit"+clazz.getSimpleName() +"(this);\n");
