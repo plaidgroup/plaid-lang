@@ -4,25 +4,25 @@ import plaid.parser.Token;
 
 public class Replace extends Expr {
 
-	private final Expr e;
-	private final StateExpr st;
+	private final Expr expression;
+	private final StateExpr stateExpr;
 	
 	public Replace(Token token, Expr e, StateExpr st) {
 		super(token);
-		this.e = e;
-		this.st = st;
+		this.expression = e;
+		this.stateExpr = st;
 	}
 	
-	public Expr getE() {
-		return e;
+	public Expr getExpression() {
+		return expression;
 	}
 	
-	public StateExpr getSt() {
-		return st;
+	public StateExpr getStateExpr() {
+		return stateExpr;
 	}
 
 	@Override
 	public String toString() {
-		return e.toString()+"<<-"+st.toString();
+		return expression.toString()+"<<-"+stateExpr.toString();
 	}
 }

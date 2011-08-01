@@ -18,21 +18,17 @@ public class VarDecl extends Stmt {
 		this.expr = expr;
 	}
 
-
-	public Specifier getSpeccifier() {
+	public Specifier getSpecifier() {
 		return specifier;
 	}
-
 
 	public Type getType() {
 		return type;
 	}
 
-
 	public Identifier getId() {
 		return id;
 	}
-
 
 	public Expr getExpr() {
 		return expr;

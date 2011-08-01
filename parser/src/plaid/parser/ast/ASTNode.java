@@ -85,7 +85,7 @@ public abstract class ASTNode {
 						}
 					} 
 					else if (myField instanceof Enum || myField instanceof String || 
-							myField instanceof Double || myField instanceof Integer) {
+							myField instanceof Double || myField instanceof Integer || myField instanceof Boolean) {
 						matches = matches && (myField.equals(otherField));
 					} else if (myField == null) {
 						matches = matches && otherField == null;

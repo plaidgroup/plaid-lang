@@ -14,7 +14,7 @@ public class AtomicBlock extends Expr {
                 this.body = body;
         }
 
-        public List<Expr> getDataGroups() {
+        public List<Expr> getDatagroups() {
 			return datagroups;
 		}
 

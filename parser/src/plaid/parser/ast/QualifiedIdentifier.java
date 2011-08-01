@@ -8,27 +8,27 @@ public class QualifiedIdentifier extends ASTNode {
 	
 	public static final QualifiedIdentifier EMPTY = EmptyQualifiedIdentifier.getEmptyQalifiedIdentifer();
 
-	private final List<Identifier> ids;
+	private final List<Identifier> identifiers;
 	
-	public QualifiedIdentifier(Token t, List<Identifier> ids) {
+	public QualifiedIdentifier(Token t, List<Identifier> identifiers) {
 		super(t);
-		this.ids = ids;
+		this.identifiers = identifiers;
 	}
 	
 	public List<Identifier> getIdentifiers() {
-		return ids;
+		return identifiers;
 	}
 
 	@Override
 	public String toString() {
-		if ( ids.size() == 1 ) {
-			return ids.get(0).toString();
+		if ( identifiers.size() == 1 ) {
+			return identifiers.get(0).toString();
 		} else {
 			StringBuilder sb = new StringBuilder();
-			sb.append(ids.get(0));
-			for(int i = 1; i < ids.size(); i++ ) {
+			sb.append(identifiers.get(0));
+			for(int i = 1; i < identifiers.size(); i++ ) {
 				sb.append(".");
-				sb.append(ids.get(i).toString());
+				sb.append(identifiers.get(i).toString());
 			}
 			return sb.toString();
 		}
