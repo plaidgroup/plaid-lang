@@ -4,20 +4,20 @@ import plaid.parser.Token;
 
 public class Cast extends Expr {
 	private final Type type;
-	private final Expr exp;
+	private final Expr expression;
 	
-	public Cast(Token t, Expr exp, Type type) {
+	public Cast(Token t, Expr expression, Type type) {
 		super(t);
 		this.type = type;
-		this.exp = exp;
+		this.expression = expression;
 	}
 	
 	public Type getType() {
 		return this.type;
 	}
 	
-	public Expr getExp() {
-		return this.exp;
+	public Expr getExpr() {
+		return this.expression;
 	}
 
 }

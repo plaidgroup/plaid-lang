@@ -3,19 +3,19 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public class UnaryOperator extends Operator {
-	protected final Expr e;
+	protected final Expr expression;
 	
 	public UnaryOperator(Token token, Identifier op, Expr e) {
 		super(token, op);
-		this.e = e;
+		this.expression = e;
 	}
 	
 	public Expr getExpression() {
-		return e;
+		return expression;
 	}
 
 	@Override
 	public String toString() {
-		return getOperator().toString() + e.toString();
+		return getOperator().toString() + expression.toString();
 	}
 }

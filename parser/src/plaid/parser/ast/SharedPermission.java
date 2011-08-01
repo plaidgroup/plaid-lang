@@ -4,15 +4,11 @@ import plaid.parser.Token;
 
 public final class SharedPermission extends Permission {
 	private final Expr datagroup;
-	
-	
 
 	public SharedPermission(Token token, Expr datagroup) {
 		super(token);
 		this.datagroup = datagroup;
 	}
-
-
 
 	public Expr getDatagroup() {
 		return datagroup;
