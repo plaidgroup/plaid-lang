@@ -8,7 +8,6 @@ state AANode {
 	var /* T */ data;
 
 	method /* AANode */ skewOp() {
-		printLine("performing skew");
 		val top = this;
 		left.map(fn(lNode) => {
 			ifElse (level == lNode.level) {
@@ -23,12 +22,9 @@ state AANode {
 	}
 
 	method /* AANode */ splitOp() {
-		printLine("performing split");
 		val top = this;
 		right.map(fn(rNode) => { 
-			printLine("checking rrNode");
 			rNode.right.map(fn(rrNode) => {
-				printLine("checking level of rrNode");
 				ifElse (level == rrNode.level) {
 					val newRoot = rNode;
 					top.right = newRoot.left;
@@ -42,7 +38,44 @@ state AANode {
 		}).getOrElse(top)
 	}
 
+	method /*AANode*/ fixLevel() {
+		val leftLevel = left.map(fn(n) => { n.level }).getOrElse(0);
+		val rightLevel = right.map(fn(n) => { n.level }).getOrElse(0);
+		val maxLevel = min(leftLevel, rightLevel) + 1;
+
+		if(maxLevel < level) {
+			level = maxLevel;
+			if(maxLevel < rightLevel) {
+				node.right = node.right.map(fn(n) => { n.level = maxLevel; });
+			}
+		};
+
+		this
+	}
+
+	method /*AANode*/ fixAfterRemove() {
+		var r = fixLevel().skewOp();
+		r.right = r.right.map(fn(r) => { 
+			val newRight = r.skewOp();
+			newRight.right = newRight.right.map(fn(rr) => {
+				rr.skewOp()
+			});
+			newRight
+		});
+
+		r = r.splitOp();
+		r.right = r.right.map(fn(r) => {
+			r.splitOp()
+		});
+
+		r
+	}
+
+	method immutable boolean isLeaf() {
+		!(left.hasValue() || right.hasValue())
+	}
+
 	method immutable String toString() {
-		"AANode{level=" + level + ", left=" + left.toString() + ", right=" + right.toString() + "}"
+		"AANode{level=" + level + ", left=" + left.toString() + ", right=" + right.toString() + ", value=" + data.toString() + "}"
 	}
 }

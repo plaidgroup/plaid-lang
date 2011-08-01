@@ -6,23 +6,21 @@ state AATree case of Collection {
 	val /* T -> T -> T */ eqHandler = fn(newElem, oldElem) => { oldElem };
 
 	var /* Option<AANode<T>> */ root = new None;
-	var /* Int */ nodeCount = 0;
+	var /* Int */ elemCount = 0;
 
 	method void add(elem) {
 		var added = true;
-		val addRecursive = fn(nodeOpt) => {
+		val addHelper = fn(nodeOpt) => {
 			nodeOpt.map(fn(node) => {
-				printLine("comparing");
 				match(compare(elem, node.data)) {
-					case LessThanCR { printLine("going left"); node.left = addRecursive(node.left) }
-					case GreaterThanCR { printLine("going right"); node.right = addRecursive(node.right) }
+					case LessThanCR { node.left = addHelper(node.left) }
+					case GreaterThanCR { node.right = addHelper(node.right) }
 					case EqualCR { 
 						node.data = eqHandler(elem, node.data);
 						added = false;
 					}
 				};
 				
-				printLine("balancing subtree");
 				new Some { val value = node.skewOp().splitOp(); }
 			}).getOrElse(new Some { 
 				val value = new AANode { 
@@ -31,11 +29,64 @@ state AATree case of Collection {
 				}; 
 			})
 		};
-		root = addRecursive(root);
+		root = addHelper(root);
 
 		if(added) {
-			nodeCount = nodeCount + 1;
+			elemCount = elemCount + 1;
 		}
+	}
+
+	method immutable boolean remove(/*T*/ elem) {
+
+		val findLeftmost = fn(node) => { node.left.map(fn(l) => { findLeftmost(l) }).getOrElse(node) };
+		val findRightmost = fn(node) => { node.right.map(fn(r) => { findRightmost(r) }).getOrElse(node) };
+
+		var removed = false;
+
+		val removeHelper = fn(currentRootOpt, elemToDelete) => {
+			currentRootOpt.flatMap(fn(currentRoot) => {
+				match(compare(elemToDelete, currentRoot.data)) {
+					case LessThanCR {
+						// element to remove may be to the left
+						currentRoot.left = removeHelper(currentRoot.left, elemToDelete);
+						createSome(currentRoot)
+					}
+					case GreaterThanCR {
+						// element to remove may be to the right
+						currentRoot.right = removeHelper(currentRoot.right, elemToDelete);
+						createSome(currentRoot)
+					}
+					case EqualCR {
+						// found the element to remove
+						removed = true;
+
+						ifElse(currentRoot.isLeaf()) {
+							new None
+						} {
+							ifElse(currentRoot.left.hasValue()) {
+								val predecessor = findRightmost(currentRoot.left.getValue());
+								currentRoot.left = removeHelper(currentRoot.left, predecessor.data);
+								currentRoot.data = predecessor.data;
+								// XXX: createSome does not work here. Closure bug?
+								createSome(currentRoot)
+							} {
+								val successor = findLeftmost(currentRoot.right.getValue());
+								currentRoot.right = removeHelper(currentRoot.right, successor.data);
+								currentRoot.data = successor.data;
+								// XXX: createSome does not work here. Closure bug?
+								createSome(currentRoot)
+							};
+						}
+					}
+				}
+			}).map(fn(r) => { r.fixAfterRemove() })
+		};
+
+		root = removeHelper(root, elem);
+		if(removed) {
+			elemCount = elemCount - 1;
+		};
+		removed
 	}
 
 	method void do(f) {
@@ -51,6 +102,6 @@ state AATree case of Collection {
 	}
 
 	method void size() {
-		nodeCount
+		elemCount
 	}
 }
