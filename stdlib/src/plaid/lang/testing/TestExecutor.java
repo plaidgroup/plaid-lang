@@ -205,7 +205,7 @@ public class TestExecutor {
 					return false;
 				}
 			} catch (Exception ex) {
-				System.out.println(ex.toString());
+				ex.printStackTrace(System.out);
 				return false;
 			}
 		}

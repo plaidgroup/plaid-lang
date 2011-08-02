@@ -26,17 +26,17 @@ import plaid.parser.Token;
 
 public abstract class MethodDecl extends Decl {
 	private final Type type;
-	private final List<MetaArg> metaArgsSpec;
+	private final List<StaticArg> StaticArgsSpec;
 	private final List<Arg> arguments;
 	private final List<Arg> env;
 	
 	public MethodDecl(Token t, List<Modifier> modifiers, 
 			Type type, Identifier name,
-			List<MetaArg> metaArgsSpec, List<Arg> arguments,
+			List<StaticArg> StaticArgsSpec, List<Arg> arguments,
 			List<Arg> env) {
 		super(t, modifiers, name);
 		this.type = type;
-		this.metaArgsSpec = metaArgsSpec;
+		this.StaticArgsSpec = StaticArgsSpec;
 		this.arguments = arguments;
 		this.env = env;
 	}
@@ -45,8 +45,8 @@ public abstract class MethodDecl extends Decl {
 		return type;
 	}
 
-	public List<MetaArg> getMetaArgsSpec() {
-		return metaArgsSpec;
+	public List<StaticArg> getStaticArgsSpec() {
+		return StaticArgsSpec;
 	}
 
 	public List<Arg> getArguments() {

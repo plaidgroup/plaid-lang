@@ -26,7 +26,7 @@ import plaid.parser.ast.ArgSpec;
 import plaid.parser.ast.Expr;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.LambdaType;
-import plaid.parser.ast.MetaType;
+import plaid.parser.ast.StaticType;
 import plaid.parser.ast.NominalObjectType;
 import plaid.parser.ast.Permission;
 import plaid.parser.ast.QualifiedIdentifier;
@@ -83,7 +83,7 @@ public class ParseTypeTest {
 		Type parsedType = pcp.Type();
 		Type goalType = new NominalObjectType(null, p, 
 				qi,
-				new ArrayList<MetaType>());
+				new ArrayList<StaticType>());
 		Assert.assertTrue("Goal and parsed ASTs don't match.", parsedType.equivalent(goalType));
 	}
 	
@@ -145,7 +145,7 @@ public class ParseTypeTest {
 	
 	private void testLambdaType(String code, List<ArgSpec> argsSpec, Type returnType) 
 	throws ParseException{
-		Type goalType = new LambdaType(null,new ArrayList<MetaType>(),argsSpec,
+		Type goalType = new LambdaType(null,new ArrayList<StaticType>(),argsSpec,
 				new ArrayList<Arg>(), returnType);
 		testLambdaType(code, goalType);
 	}
@@ -162,7 +162,7 @@ public class ParseTypeTest {
 			new QualifiedIdentifier(null, Collections.singletonList(new Identifier(null, "hello")));
 		Type returnType = new NominalObjectType(null, Permission.EMPTY, 
 				qi,
-				new ArrayList<MetaType>());
+				new ArrayList<StaticType>());
 		testLambdaType("()->hello", LambdaType(returnType));
 	}
 	

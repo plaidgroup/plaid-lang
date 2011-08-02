@@ -8,9 +8,9 @@ public final class ConcreteMethodDecl extends MethodDecl {
 	private final Expr body;
 
 	public ConcreteMethodDecl(Token t, List<Modifier> modifiers, Type type,
-			Identifier name, List<MetaArg> metaArgsSpec,
+			Identifier name, List<StaticArg> StaticArgsSpec,
 			List<Arg> arguments, List<Arg> env, Expr body) {
-		super(t, modifiers, type, name, metaArgsSpec, arguments, env);
+		super(t, modifiers, type, name, StaticArgsSpec, arguments, env);
 		this.body = body;
 	}
 
@@ -26,7 +26,7 @@ public final class ConcreteMethodDecl extends MethodDecl {
 		sb.append("method ");
 		if ( getType() != Type.EMPTY ) sb.append(getType().toString()+ " ");
 		sb.append(getName());
-		if ( getMetaArgsSpec().size() > 0) sb.append(metaArgSpecsToString(getMetaArgsSpec()));
+		if ( getStaticArgsSpec().size() > 0) sb.append(StaticArgSpecsToString(getStaticArgsSpec()));
 		sb.append("(");
 		if ( getArguments().size() > 0 ) sb.append(argsToString(getArguments()));
 		sb.append(")");

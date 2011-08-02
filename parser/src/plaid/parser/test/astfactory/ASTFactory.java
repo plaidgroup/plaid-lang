@@ -38,13 +38,13 @@ import plaid.parser.ast.GroupPermission;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.ImmutablePermission;
 import plaid.parser.ast.Import;
-import plaid.parser.ast.InfixOperator;
+import plaid.parser.ast.InfixOperatorExpr;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Lambda;
 import plaid.parser.ast.LambdaType;
 import plaid.parser.ast.Match;
-import plaid.parser.ast.MetaArg;
-import plaid.parser.ast.MetaType;
+import plaid.parser.ast.StaticArg;
+import plaid.parser.ast.StaticType;
 import plaid.parser.ast.MethodDecl;
 import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
@@ -72,7 +72,7 @@ import plaid.parser.ast.Stmt;
 import plaid.parser.ast.StringLiteral;
 import plaid.parser.ast.Type;
 import plaid.parser.ast.TypeArg;
-import plaid.parser.ast.UnaryOperator;
+import plaid.parser.ast.UnaryOperatorExpr;
 import plaid.parser.ast.UniquePermission;
 import plaid.parser.ast.UnpackInnerGroups;
 import plaid.parser.ast.ValSpecifier;
@@ -85,19 +85,19 @@ public class ASTFactory {
 		return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, specifier, type, name);
 	}
 	
-	public static MethodDecl AbstractMethodDecl(List<Modifier> modifiers, Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env) {
+	public static MethodDecl AbstractMethodDecl(List<Modifier> modifiers, Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env) {
 		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, modifiers, type, name, metaArgs, args, env);
 	}
 
-	public static MethodDecl AbstractMethodDecl(Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env) {
+	public static MethodDecl AbstractMethodDecl(Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env) {
 		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env);
 	}
 	
-	public static StateDecl AbstractStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs) {
+	public static StateDecl AbstractStateDecl(Identifier name, List<StaticArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs) {
 		return new AbstractStateDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, caseOf, metaCaseOfArgs);
 	}
 	
-	public static StateValDecl AbstractStateValDecl(Identifier name, List<MetaArg> metaArgsSpec) {
+	public static StateValDecl AbstractStateValDecl(Identifier name, List<StaticArg> metaArgsSpec) {
 		return new AbstractStateValDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec);
 	}
 	
@@ -149,15 +149,15 @@ public class ASTFactory {
 		return new ConcreteFieldDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, specifier, type, name, body);
 	}
 	
-	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<MetaArg> metaArgs, List<Arg> args, List<Arg> env, Expr body) {
+	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env, Expr body) {
 		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env, body);
 	}
 	
-	public static StateDecl ConcreteStateDecl(Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs, StateExpr statebinding) {
+	public static StateDecl ConcreteStateDecl(Identifier name, List<StaticArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs, StateExpr statebinding) {
 		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
 	}
 	
-	public static StateValDecl ConcreteStateValDecl(Identifier name, List<MetaArg> metaArgsSpec, StateExpr stateBinding) {
+	public static StateValDecl ConcreteStateValDecl(Identifier name, List<StaticArg> metaArgsSpec, StateExpr stateBinding) {
 		return new ConcreteStateValDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, stateBinding);
 	}
 	
@@ -185,7 +185,7 @@ public class ASTFactory {
 		return new Freeze(ASTNode.DEFAULT_TOKEN, e);
 	}
 	
-	public static MetaArg GroupArg(GroupPermission gp, Identifier name) {
+	public static StaticArg GroupArg(GroupPermission gp, Identifier name) {
 		return new GroupArg(ASTNode.DEFAULT_TOKEN, gp, name);
 	}
 	
@@ -205,20 +205,20 @@ public class ASTFactory {
 		return new Import(ASTNode.DEFAULT_TOKEN, qi, star);
 	}
 	
-	public static InfixOperator InfixOperator(Expr left, Identifier op, Expr right) {
-		return new InfixOperator(ASTNode.DEFAULT_TOKEN, left, op, right);
+	public static InfixOperatorExpr InfixOperator(Expr left, Identifier op, Expr right) {
+		return new InfixOperatorExpr(ASTNode.DEFAULT_TOKEN, left, op, right);
 	}
 	
 	public static IntLiteral IntLiteral(int value) {
 		return new IntLiteral(ASTNode.DEFAULT_TOKEN, value);
 	}
 
-	public static Lambda Lambda(List<MetaArg> metaArgsSpec, List<Arg> args, List<Arg> env, Expr body) {
+	public static Lambda Lambda(List<StaticArg> metaArgsSpec, List<Arg> args, List<Arg> env, Expr body) {
 		return new Lambda(ASTNode.DEFAULT_TOKEN, metaArgsSpec, args, env, body);
 	}
 	
 	public static LambdaType LambdaType(List<ArgSpec>argsSpec, Type returnType) {
-		return new LambdaType(null,new ArrayList<MetaType>(),argsSpec,
+		return new LambdaType(null,new ArrayList<StaticType>(),argsSpec,
 				new ArrayList<Arg>(), returnType);
 	}
 
@@ -241,14 +241,14 @@ public class ASTFactory {
 	public static NominalObjectType NominalObjectType(Permission perm, QualifiedIdentifier qi) {
 		NominalObjectType type = new NominalObjectType(null, perm, 
 				qi,
-				new ArrayList<MetaType>());
+				new ArrayList<StaticType>());
 		return type;
 	}
 	
 	public static NominalObjectType NominalObjectType(QualifiedIdentifier qi) {
 		NominalObjectType type = new NominalObjectType(null, Permission.EMPTY, 
 				qi,
-				new ArrayList<MetaType>());
+				new ArrayList<StaticType>());
 		return type;
 	}
 	
@@ -321,12 +321,12 @@ public class ASTFactory {
 		return new StringLiteral(ASTNode.DEFAULT_TOKEN, value);
 	}
 	
-	public static MetaArg TypeArg(Identifier id, QualifiedIdentifier caseof) {
+	public static StaticArg TypeArg(Identifier id, QualifiedIdentifier caseof) {
 		return new TypeArg(ASTNode.DEFAULT_TOKEN, id, caseof);
 	}
 	
-	public static UnaryOperator UnaryOperator(Identifier op, Expr e) {
-		return new UnaryOperator(ASTNode.DEFAULT_TOKEN, op, e);
+	public static UnaryOperatorExpr UnaryOperator(Identifier op, Expr e) {
+		return new UnaryOperatorExpr(ASTNode.DEFAULT_TOKEN, op, e);
 	}
 	
 	public static Permission  Unique() {
