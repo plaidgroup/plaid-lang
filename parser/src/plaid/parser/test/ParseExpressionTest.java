@@ -106,7 +106,7 @@ import plaid.parser.ast.InfixOperator;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Lambda;
 import plaid.parser.ast.Match;
-import plaid.parser.ast.MetaArg;
+import plaid.parser.ast.StaticArg;
 import plaid.parser.ast.MethodCall;
 import plaid.parser.ast.MethodDecl;
 import plaid.parser.ast.Modifier;
@@ -1198,7 +1198,7 @@ public class ParseExpressionTest {
 			AbstractMethodDecl(
 					Type.EMPTY, 
 					Identifier("foo"), 
-					MetaArg.EMPTY, 
+					StaticArg.EMPTY, 
 					Arg.EMPTY, 
 					Arg.EMPTY
 			); 
@@ -1215,7 +1215,7 @@ public class ParseExpressionTest {
 			AbstractMethodDecl(
 				NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
 				Identifier("foo"), 
-				MetaArg.EMPTY, 
+				StaticArg.EMPTY, 
 				Arg.EMPTY, 
 				Arg.EMPTY
 			); 
@@ -1232,7 +1232,7 @@ public class ParseExpressionTest {
 			AbstractMethodDecl(
 				NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
 				Identifier("foo"), 
-				MetaArg.EMPTY, 
+				StaticArg.EMPTY, 
 				Arrays.asList(
 					Arg(
 						ArgSpec(
@@ -1256,7 +1256,7 @@ public class ParseExpressionTest {
 			AbstractMethodDecl(
 				NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
 				Identifier("foo"), 
-				MetaArg.EMPTY, 
+				StaticArg.EMPTY, 
 				Arg.EMPTY, 
 				Arrays.asList(
 					Arg(
@@ -1281,7 +1281,7 @@ public class ParseExpressionTest {
 			ConcreteMethodDecl(
 				NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
 				Identifier("foo"), 
-				MetaArg.EMPTY, 
+				StaticArg.EMPTY, 
 				Arg.EMPTY, 
 				Arg.EMPTY,
 				BlockExpr(
@@ -1349,7 +1349,7 @@ public class ParseExpressionTest {
 				),
 				Type.EMPTY, 
 				Identifier("foo"), 
-				MetaArg.EMPTY, 
+				StaticArg.EMPTY, 
 				Arg.EMPTY, 
 				Arg.EMPTY
 			); 
@@ -1362,7 +1362,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseAbstractStateValEmpty() throws ParseException, UnsupportedEncodingException {
 		final String code = "stateval Foo;";
-		final StateValDecl goal = AbstractStateValDecl(Identifier("Foo"), MetaArg.EMPTY);
+		final StateValDecl goal = AbstractStateValDecl(Identifier("Foo"), StaticArg.EMPTY);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.Decl();
 		assertTrue(e instanceof AbstractStateValDecl );
@@ -1372,7 +1372,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseConcreteStateVal() throws ParseException, UnsupportedEncodingException {
 		final String code = "stateval Foo = Bar";
-		final StateValDecl goal = ConcreteStateValDecl(Identifier("Foo"), MetaArg.EMPTY, StateRef(Identifier("Bar")));
+		final StateValDecl goal = ConcreteStateValDecl(Identifier("Foo"), StaticArg.EMPTY, StateRef(Identifier("Bar")));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.Decl();
 		assertTrue(e instanceof ConcreteStateValDecl );
@@ -1402,7 +1402,7 @@ public class ParseExpressionTest {
 		final Decl goal = 
 			AbstractStateDecl(
 				Identifier("Foo"), 
-				MetaArg.EMPTY, 
+				StaticArg.EMPTY, 
 				QualifiedIdentifier.EMPTY, 
 				Collections.EMPTY_LIST
 			);
@@ -1418,7 +1418,7 @@ public class ParseExpressionTest {
 		final Decl goal = 
 			AbstractStateDecl(
 				Identifier("Foo"), 
-				MetaArg.EMPTY, 
+				StaticArg.EMPTY, 
 				QualifiedIdentifier("Bar", "Baz"), 
 				Collections.EMPTY_LIST
 			);
@@ -1456,7 +1456,7 @@ public class ParseExpressionTest {
 		final Decl goal = 
 			ConcreteStateDecl(
 				Identifier("Foo"), 
-				MetaArg.EMPTY, 
+				StaticArg.EMPTY, 
 				QualifiedIdentifier.EMPTY, 
 				Collections.EMPTY_LIST,
 				With(
@@ -1476,14 +1476,14 @@ public class ParseExpressionTest {
 		final Decl goal = 
 			ConcreteStateDecl(
 				Identifier("Foo"), 
-				MetaArg.EMPTY, 
+				StaticArg.EMPTY, 
 				QualifiedIdentifier.EMPTY, 
 				Collections.EMPTY_LIST,
 				DeclList(
 					AbstractMethodDecl(
 						Type.EMPTY, 
 						Identifier("foo"), 
-						MetaArg.EMPTY, 
+						StaticArg.EMPTY, 
 						Arg.EMPTY, 
 						Arg.EMPTY
 					),
@@ -1589,14 +1589,14 @@ public class ParseExpressionTest {
 					ConcreteMethodDecl(
 						Type.EMPTY, 
 						Identifier("foo"), 
-						MetaArg.EMPTY, 
+						StaticArg.EMPTY, 
 						Arg.EMPTY, 
 						Arg.EMPTY,
 						BlockExpr()
 					),
 					ConcreteStateDecl(
 						Identifier("Karl"), 
-						MetaArg.EMPTY, 
+						StaticArg.EMPTY, 
 						QualifiedIdentifier.EMPTY, 
 						Collections.EMPTY_LIST,
 						DeclList(

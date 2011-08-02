@@ -2,7 +2,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class TypeArg extends MetaArg {
+public class TypeArg extends StaticArg {
 	private final Identifier id;
 	private final QualifiedIdentifier caseof;
 	
