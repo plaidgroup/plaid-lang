@@ -26,17 +26,17 @@ import plaid.parser.Token;
 public final class Lambda extends Expr {
 	
 	private final List<Arg> arguments;
-	private final List<MetaArg> metaArgsSpec;
+	private final List<StaticArg> StaticArgsSpec;
 	private final List<Arg> env ;
 	private final Expr body;
 	
 	public Lambda(Token token, 
-			List<MetaArg> metaArgsSpec,
+			List<StaticArg> StaticArgsSpec,
 			List<Arg> arguments,
 			List<Arg> env, Expr body) {
 		super(token);
 		this.arguments = arguments;
-		this.metaArgsSpec = metaArgsSpec;
+		this.StaticArgsSpec = StaticArgsSpec;
 		this.env = env;
 		this.body = body;
 	}
@@ -45,8 +45,8 @@ public final class Lambda extends Expr {
 		return arguments;
 	}
 	
-	public List<MetaArg> getMetaArgsSpec() {
-		return metaArgsSpec;
+	public List<StaticArg> getStaticArgsSpec() {
+		return StaticArgsSpec;
 	}
 	
 	public List<Arg> getEnv() {
@@ -62,7 +62,7 @@ public final class Lambda extends Expr {
 		StringBuilder sb = new StringBuilder();
 		
 		sb.append("fn ");
-		if ( getMetaArgsSpec().size() > 0) sb.append(Decl.metaArgSpecsToString(getMetaArgsSpec()));
+		if ( getStaticArgsSpec().size() > 0) sb.append(Decl.StaticArgSpecsToString(getStaticArgsSpec()));
 		sb.append("(");
 		if ( getArguments().size() > 0 ) sb.append(Decl.argsToString(getArguments()));
 		sb.append(")");

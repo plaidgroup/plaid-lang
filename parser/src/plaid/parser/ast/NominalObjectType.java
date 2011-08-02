@@ -12,9 +12,9 @@ public class NominalObjectType extends Type {
 	 */
 	private final Permission permission;
 	private final QualifiedIdentifier stateQi;
-	private final List<MetaType> metaTypes;
+	private final List<StaticType> metaTypes;
 	
-	public NominalObjectType(Token t, Permission permission, QualifiedIdentifier st, List<MetaType> metaTypes) {
+	public NominalObjectType(Token t, Permission permission, QualifiedIdentifier st, List<StaticType> metaTypes) {
 		super(t);
 		this.permission=permission;
 		this.stateQi = st;
@@ -29,7 +29,7 @@ public class NominalObjectType extends Type {
 		return stateQi;
 	}
 	
-	public List<MetaType> getMetaTypes() {
+	public List<StaticType> getMetaTypes() {
 		return metaTypes;
 	}
 
