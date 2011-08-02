@@ -19,22 +19,50 @@
  
 package plaid.collections;
 
+/**
+ * An implementation of Arne Andersson's simple balanced binary tree, with efficiency
+ * theoretically equivalent to that of a red-black tree. Add and remove are O(log n)
+ * worst case complexity. See the paper "Balanced search trees made simple" for more
+ * information: http://user.it.uu.se/~arnea/abs/simp.html
+ */
 state AATree case of Collection {
 	/* type T; */
-	val /* T -> T -> ComparatorResult */ compare;
+	val /* Option<OrderProvider> */ explicitCompare;
 	val /* T -> T -> T */ eqHandler = fn(newElem, oldElem) => { oldElem };
 
-	var /* Option<AANode<T>> */ root = new None;
+	var /* Option<AANode<T>> */ root = NONE;
 	var /* Int */ elemCount = 0;
 
+	/**
+	 * Abstraction for comparison, which will either use the explicit comparator
+	 * (if provided) or the order method provided on the Orderable elements
+	 * directly.
+	 */
+	method immutable Ordering compare(/*T*/ a, /*T*/ b) {
+		match(explicitCompare) {
+			case Some {
+				explicitCompare.getValue().order(a, b)
+			}
+			case None {
+				// rely on the built in ordering for type T
+				a.order(b)
+			}
+		}
+	}
+
+	/**
+	 * Inserts an element into the tree, while maintaining balance. If the element already
+	 * exists, the eqHandler function will decide what to do with the two equal values. By
+	 * default, attempts to insert duplicate values will be ignored.
+	 */
 	method void add(elem) {
 		var added = true;
 		val addHelper = fn(nodeOpt) => {
 			nodeOpt.map(fn(node) => {
 				match(compare(elem, node.data)) {
-					case LessThanCR { node.left = addHelper(node.left) }
-					case GreaterThanCR { node.right = addHelper(node.right) }
-					case EqualCR { 
+					case OrdLessThan { node.left = addHelper(node.left) }
+					case OrdGreaterThan { node.right = addHelper(node.right) }
+					case OrdEqual { 
 						node.data = eqHandler(elem, node.data);
 						added = false;
 					}
@@ -55,6 +83,9 @@ state AATree case of Collection {
 		}
 	}
 
+	/**
+	 * Removes an element from the tree, while maintaining balance.
+	 */
 	method immutable boolean remove(/*T*/ elem) {
 
 		val findLeftmost = fn(node) => { node.left.map(fn(l) => { findLeftmost(l) }).getOrElse(node) };
@@ -65,17 +96,17 @@ state AATree case of Collection {
 		val removeHelper = fn(currentRootOpt, elemToDelete) => {
 			currentRootOpt.flatMap(fn(currentRoot) => {
 				match(compare(elemToDelete, currentRoot.data)) {
-					case LessThanCR {
+					case OrdLessThan {
 						// element to remove may be to the left
 						currentRoot.left = removeHelper(currentRoot.left, elemToDelete);
 						createSome(currentRoot)
 					}
-					case GreaterThanCR {
+					case OrdGreaterThan {
 						// element to remove may be to the right
 						currentRoot.right = removeHelper(currentRoot.right, elemToDelete);
 						createSome(currentRoot)
 					}
-					case EqualCR {
+					case OrdEqual {
 						// found the element to remove
 						removed = true;
 
@@ -108,16 +139,39 @@ state AATree case of Collection {
 		removed
 	}
 
-	method void do(f) {
-		val traverse = fn(nodeOpt) => {
+	/**
+	 * Traverses the tree from least to greatest element in order, until
+	 * the provided function returns false.
+	 */
+	method void inOrderTraverse(/*T -> boolean*/ f) {
+		val traverseHelper = fn(nodeOpt) => {
 			nodeOpt.map(fn(node) => {
-				traverse(node.left);
-				f(node.data);
-				traverse(node.right);
+				traverseHelper(node.left);
+				if(f(node.data)) {
+					traverseHelper(node.right);
+				}
 			})
 		};
 
-		traverse(root);
+		traverseHelper(root);
+	}
+
+	method void do(f) {
+		inOrderTraverse(fn(elem) => { f(elem); true });
+	}
+
+	method /*Option<T>*/ find(e) {
+		val findHelper = fn(nodeOpt) => {
+			nodeOpt.map(fn(node) => {
+				match(compare(e, node.data)) {
+					case OrdLessThan { findHelper(node.left) }
+					case OrdEqual { node.data }
+					case OrdGreaterThan { findHelper(node.right) }
+				}
+			})
+		};
+
+		findHelper(e);
 	}
 
 	method void size() {
