@@ -1,0 +1,126 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.collections;
+
+state AATree case of Collection {
+	/* type T; */
+	val /* T -> T -> ComparatorResult */ compare;
+	val /* T -> T -> T */ eqHandler = fn(newElem, oldElem) => { oldElem };
+
+	var /* Option<AANode<T>> */ root = new None;
+	var /* Int */ elemCount = 0;
+
+	method void add(elem) {
+		var added = true;
+		val addHelper = fn(nodeOpt) => {
+			nodeOpt.map(fn(node) => {
+				match(compare(elem, node.data)) {
+					case LessThanCR { node.left = addHelper(node.left) }
+					case GreaterThanCR { node.right = addHelper(node.right) }
+					case EqualCR { 
+						node.data = eqHandler(elem, node.data);
+						added = false;
+					}
+				};
+				
+				new Some { val value = node.skewOp().splitOp(); }
+			}).getOrElse(new Some { 
+				val value = new AANode { 
+					var level = 1; 
+					var data = elem;
+				}; 
+			})
+		};
+		root = addHelper(root);
+
+		if(added) {
+			elemCount = elemCount + 1;
+		}
+	}
+
+	method immutable boolean remove(/*T*/ elem) {
+
+		val findLeftmost = fn(node) => { node.left.map(fn(l) => { findLeftmost(l) }).getOrElse(node) };
+		val findRightmost = fn(node) => { node.right.map(fn(r) => { findRightmost(r) }).getOrElse(node) };
+
+		var removed = false;
+
+		val removeHelper = fn(currentRootOpt, elemToDelete) => {
+			currentRootOpt.flatMap(fn(currentRoot) => {
+				match(compare(elemToDelete, currentRoot.data)) {
+					case LessThanCR {
+						// element to remove may be to the left
+						currentRoot.left = removeHelper(currentRoot.left, elemToDelete);
+						createSome(currentRoot)
+					}
+					case GreaterThanCR {
+						// element to remove may be to the right
+						currentRoot.right = removeHelper(currentRoot.right, elemToDelete);
+						createSome(currentRoot)
+					}
+					case EqualCR {
+						// found the element to remove
+						removed = true;
+
+						ifElse(currentRoot.isLeaf()) {
+							new None
+						} {
+							ifElse(currentRoot.left.hasValue()) {
+								val predecessor = findRightmost(currentRoot.left.getValue());
+								currentRoot.left = removeHelper(currentRoot.left, predecessor.data);
+								currentRoot.data = predecessor.data;
+								// XXX: createSome does not work here. Closure bug?
+								createSome(currentRoot)
+							} {
+								val successor = findLeftmost(currentRoot.right.getValue());
+								currentRoot.right = removeHelper(currentRoot.right, successor.data);
+								currentRoot.data = successor.data;
+								// XXX: createSome does not work here. Closure bug?
+								createSome(currentRoot)
+							};
+						}
+					}
+				}
+			}).map(fn(r) => { r.fixAfterRemove() })
+		};
+
+		root = removeHelper(root, elem);
+		if(removed) {
+			elemCount = elemCount - 1;
+		};
+		removed
+	}
+
+	method void do(f) {
+		val traverse = fn(nodeOpt) => {
+			nodeOpt.map(fn(node) => {
+				traverse(node.left);
+				f(node.data);
+				traverse(node.right);
+			})
+		};
+
+		traverse(root);
+	}
+
+	method void size() {
+		elemCount
+	}
+}
