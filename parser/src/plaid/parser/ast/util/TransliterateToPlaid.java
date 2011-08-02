@@ -159,12 +159,20 @@ public class TransliterateToPlaid<T> {
 		return visitMethodCode;
 	}
 	
+	private static String showMethod(Class<?> clazz) {
+		StringBuilder sb = new StringBuilder();
+		sb.append("\toverride method void visit" + clazz.getSimpleName() + "(immutable " + clazz.getSimpleName() + " node) {\n") ;
+		sb.append("\t\tvar cu = createNode(\"CompilationUnit\");");
+		sb.append("\t}\n\n");
+		return sb.toString();
+	}
+	
 	public static void main(String[] args) throws IOException {
 		Class<? extends ASTNode>[] classes = getASTClasses();
 		
 		
-		File outputDir = new File("../ast/pld/plaid/ast/parsed");
-		outputDir.mkdir();
+		File outputASTDir = new File("../ast/pld/plaid/ast/parsed");
+		outputASTDir.mkdir();
 		File translateDir =  new File("../ast/pld/plaid/ast/translator");
 		translateDir.mkdir();
 		
@@ -174,7 +182,7 @@ public class TransliterateToPlaid<T> {
 		sbTranslator.append("import plaid.ast.util.makeListFromJavaCollection;\n");
 		sbTranslator.append("import plaid.ast.util.makeTokenFromJavaToken;\n\n");
 		sbTranslator.append("state ASTTranslator {\n");
-		sbTranslator.append("\t method immutable ASTNode translateAST(" +
+		sbTranslator.append("\tmethod immutable ASTNode translateAST(" +
 				"/* immutable " + ASTNode.class.getName() + "*/ root){\n");
 		sbTranslator.append("\t\t match(root){\n");
 		
@@ -186,14 +194,32 @@ public class TransliterateToPlaid<T> {
 		sbLeafVisitor.append("package plaid.ast.parsed;\n\n");
 		sbLeafVisitor.append("state LeafVisitor {\n");
 		
+		StringBuilder sbASTViewerVisitor = new StringBuilder(); 
+		sbASTViewerVisitor.append("package plaid.ast.parsed;\n\n");
+		sbASTViewerVisitor.append("import java.lang.Thread;\n");
+		sbASTViewerVisitor.append("import java.awt.BorderLayout;\n");
+		sbASTViewerVisitor.append("import java.awt.Dimension;\n");
+		sbASTViewerVisitor.append("import javax.swing.JFrame;\n");
+		sbASTViewerVisitor.append("import javax.swing.JTree;\n");
+		sbASTViewerVisitor.append("import javax.swing.JScrollPane;\n");
+		sbASTViewerVisitor.append("import javax.swing.tree.DefaultMutableTreeNode;\n");
+		sbASTViewerVisitor.append("import javax.swing.WindowConstants;\n\n");
+		sbASTViewerVisitor.append("state ASTViewerVisitor caseof LeafVisitor{\n");
+		sbASTViewerVisitor.append("\tvar /* (private) DefaultMutableTreeNode */ parent = DefaultMutableTreeNode.new(\"AST\");\n");
+		sbASTViewerVisitor.append("\tval /* String */ title = \"ASTViewer\";\n\n");
+		sbASTViewerVisitor.append("\tmethod createNode(name) {\n");
+		sbASTViewerVisitor.append("\t    DefaultMutableTreeNode.new(name);\n");
+		sbASTViewerVisitor.append("\t}\n\n");
+		
 		for (Class<?> clazz : classes) {
 			boolean isConcrete = !Modifier.isAbstract(clazz.getModifiers());
 			String code = plaidCodeFromJavaClass(clazz, "plaid.ast.parsed", isConcrete);
-			writePlaidFile(outputDir, code, clazz.getSimpleName());
+			writePlaidFile(outputASTDir, code, clazz.getSimpleName());
 			if(isConcrete) {
 				sbTranslator.append(matchCase(clazz));
 				sbVisitor.append(visitMethod(clazz,false));
 				sbLeafVisitor.append(visitMethod(clazz,true));
+				sbASTViewerVisitor.append(showMethod(clazz));
 			}
 		}
 		sbTranslator.append("\t\t}\n");
@@ -204,8 +230,10 @@ public class TransliterateToPlaid<T> {
 				sbTranslator.toString(), "ASTTranslator");
 		
 		sbVisitor.append("}\n");
-		writePlaidFile(outputDir, sbVisitor.toString(), "ASTVisitor");
+		writePlaidFile(outputASTDir, sbVisitor.toString(), "ASTVisitor");
 		sbLeafVisitor.append("}\n");
-		writePlaidFile(outputDir, sbLeafVisitor.toString(), "LeafVisitor");
+		writePlaidFile(outputASTDir, sbLeafVisitor.toString(), "LeafVisitor");
+		sbASTViewerVisitor.append("}\n");
+		writePlaidFile(outputASTDir, sbASTViewerVisitor.toString(), "ASTViewerVisitor");
 	}
 }
