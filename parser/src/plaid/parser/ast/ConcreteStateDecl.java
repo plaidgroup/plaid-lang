@@ -8,10 +8,10 @@ public final class ConcreteStateDecl extends StateDecl {
 	private final StateExpr stateBinding;
 
 	public ConcreteStateDecl(Token t, List<Modifier> modifiers,
-			Identifier name, List<MetaArg> metaArgsSpec,
+			Identifier name, List<StaticArg> StaticArgsSpec,
 			QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs,
 			StateExpr stateBinding) {
-		super(t, modifiers, name, metaArgsSpec, caseOf, metaCaseOfArgs);
+		super(t, modifiers, name, StaticArgsSpec, caseOf, metaCaseOfArgs);
 		this.stateBinding = stateBinding;
 	}
 

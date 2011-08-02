@@ -5,15 +5,15 @@ import java.util.List;
 import plaid.parser.Token;
 
 public abstract class StateValDecl extends Decl {
-	private final List<MetaArg> metaArgsSpec;
+	private final List<StaticArg> StaticArgsSpec;
 
 	public StateValDecl(Token t, List<Modifier> modifiers, Identifier name,
-			List<MetaArg> metaArgsSpec) {
+			List<StaticArg> StaticArgsSpec) {
 		super(t, modifiers, name);
-		this.metaArgsSpec = metaArgsSpec;
+		this.StaticArgsSpec = StaticArgsSpec;
 	}
 
-	public List<MetaArg> getMetaArgsSpecs() {
-		return metaArgsSpec;
+	public List<StaticArg> getStaticArgsSpecs() {
+		return StaticArgsSpec;
 	}
 }

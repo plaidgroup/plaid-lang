@@ -2,9 +2,9 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class MetaType extends Type {
+public class StaticType extends Type {
 
-	public MetaType(Token token) {
+	public StaticType(Token token) {
 		super(token);
 	}
 

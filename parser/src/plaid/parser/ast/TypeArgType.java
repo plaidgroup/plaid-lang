@@ -4,18 +4,18 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class TypeArgType extends MetaType {
+public class TypeArgType extends StaticType {
 	protected final Identifier name;
-	protected final List<MetaArg> metaArgsSpec;
+	protected final List<StaticArg> StaticArgsSpec;
 	protected final QualifiedIdentifier qi;
-	protected final List<Expr> metaArgs;
+	protected final List<Expr> StaticArgs;
 		
-	public TypeArgType(Token t, Identifier name, List<MetaArg> metaArgsSpec, QualifiedIdentifier qi, List<Expr> metaArgs) {
+	public TypeArgType(Token t, Identifier name, List<StaticArg> StaticArgsSpec, QualifiedIdentifier qi, List<Expr> StaticArgs) {
 		super(t);
 		this.name = name;
-		this.metaArgsSpec = metaArgsSpec;
+		this.StaticArgsSpec = StaticArgsSpec;
 		this.qi = qi;
-		this.metaArgs = metaArgs;
+		this.StaticArgs = StaticArgs;
 	}
 
 }

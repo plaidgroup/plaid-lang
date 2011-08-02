@@ -6,12 +6,12 @@ import plaid.parser.Token;
 
 public class LambdaType extends Type {
 	
-	private final List<MetaType> metaTypes;
+	private final List<StaticType> metaTypes;
 	private final List<ArgSpec> argTypes;
 	private final List<Arg> env;
 	private final Type returnType;
 	
-	public LambdaType(Token t, List<MetaType> metaTypes,
+	public LambdaType(Token t, List<StaticType> metaTypes,
 			List<ArgSpec> argTypes, List<Arg> env,
 			Type returnType) {
 		super(t);
@@ -21,7 +21,7 @@ public class LambdaType extends Type {
 		this.returnType = returnType;
 	}
 	
-	public List<MetaType> getMetaTypes() {
+	public List<StaticType> getMetaTypes() {
 		return metaTypes;
 	}
 	public List<ArgSpec> getArgTypes() {

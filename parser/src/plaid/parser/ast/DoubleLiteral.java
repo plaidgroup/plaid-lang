@@ -21,7 +21,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class DoubleLiteral extends Expr {
+public class DoubleLiteral extends Literal {
 
 	private final double value;
 

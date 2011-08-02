@@ -2,10 +2,10 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class UnaryOperator extends Operator {
+public class UnaryOperatorExpr extends OperatorExpr {
 	protected final Expr expression;
 	
-	public UnaryOperator(Token token, Identifier op, Expr e) {
+	public UnaryOperatorExpr(Token token, Identifier op, Expr e) {
 		super(token, op);
 		this.expression = e;
 	}
