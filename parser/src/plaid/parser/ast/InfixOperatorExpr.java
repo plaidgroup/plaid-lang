@@ -3,11 +3,11 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 
-public class InfixOperator extends Operator {
+public class InfixOperatorExpr extends OperatorExpr {
 	private final Expr left;
 	private final Expr right;
 	
-	public InfixOperator(Token token, Expr left, Identifier op, Expr right) {
+	public InfixOperatorExpr(Token token, Expr left, Identifier op, Expr right) {
 		super(token, op);
 		this.left = left;
 		this.right = right;
