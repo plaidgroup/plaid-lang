@@ -63,7 +63,14 @@ public class String$plaid {
 					(((PlaidJavaObject)args).getJavaObject().toString());
 					return Util.string(x);
 				} else {
-					throw new PlaidInvalidArgumentException("Cannot concatenate a String with : " + args);
+					//throw new PlaidInvalidArgumentException("Cannot concatenate a String with : " + args);
+					PlaidMemberDef mdef = args.getMember("toString");
+					PlaidObject result = Util.call(mdef.getValue(), Util.unit());
+					if ( result instanceof PlaidJavaObject ) {
+						return Util.string(((String)((PlaidJavaObject)thisVar).getJavaObject()) + ((PlaidJavaObject)result).getJavaObject().toString() );
+					} else  {						
+						throw new PlaidInvalidArgumentException("Cannot concatenate a String with : " + args);
+					}
 				}
 			}
 		}));
@@ -84,41 +91,41 @@ public class String$plaid {
 			}
 		}));
 		PlaidMemberDef substring = Util.memberDef("substring$plaid", String$Tag$plaid, false, false);
-		foo.addMember(substring, Util.protoMethod("plaid.lang.String.substring$plaid", new Delegate() {
-			@Override
-			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				String x;
-				if (args instanceof PlaidJavaObject) {
-					String javaStr = (String)((PlaidJavaObject)thisVar).getJavaObject();
-					Integer index = (Integer)((PlaidJavaObject)args).getJavaObject();
-					x = javaStr.substring(index);
-				} else { // must be a pair
-					throw new RuntimeException("Invalid argument to substring.");
-				}
-				return Util.string(x);
-			}
-		}));
-		PlaidMemberDef substring2 = Util.memberDef("substring2$plaid", String$Tag$plaid, false, false);
-		foo.addMember(substring2, Util.protoMethod("plaid.lang.String.substring2$plaid", new Delegate() {
-			@Override
-			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
-				@SuppressWarnings("unused")
-				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
-				if (args instanceof PlaidJavaObject) {
-					throw new RuntimeException("Invalid argument to substring2.");
-				}
-				String x;
-				PlaidObject firstMethod = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("first", args);
-				PlaidObject secondArg = plaid.runtime.Util.call(args, firstMethod);
-				PlaidObject secondMethod = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("second", args);
-				PlaidObject firstArg = plaid.runtime.Util.call(args, secondMethod);
-				x = ((String)((PlaidJavaObject)thisVar).getJavaObject()).substring(((Integer)((PlaidJavaObject)firstArg).getJavaObject()),
-																				   ((Integer)((PlaidJavaObject)secondArg).getJavaObject()));
-				return Util.string(x);
-			}
-		}));
+//		foo.addMember(substring, Util.protoMethod("plaid.lang.String.substring$plaid", new Delegate() {
+//			@Override
+//			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				String x;
+//				if (args instanceof PlaidJavaObject) {
+//					String javaStr = (String)((PlaidJavaObject)thisVar).getJavaObject();
+//					Integer index = (Integer)((PlaidJavaObject)args).getJavaObject();
+//					x = javaStr.substring(index);
+//				} else { // must be a pair
+//					throw new RuntimeException("Invalid argument to substring.");
+//				}
+//				return Util.string(x);
+//			}
+//		}));
+//		PlaidMemberDef substring2 = Util.memberDef("substring2$plaid", String$Tag$plaid, false, false);
+//		foo.addMember(substring2, Util.protoMethod("plaid.lang.String.substring2$plaid", new Delegate() {
+//			@Override
+//			public PlaidObject invoke(PlaidObject thisVar, PlaidObject args)  throws PlaidException {
+//				@SuppressWarnings("unused")
+//				PlaidScope scope = new PlaidLocalScopeMap(globalScope);
+//				if (args instanceof PlaidJavaObject) {
+//					throw new RuntimeException("Invalid argument to substring2.");
+//				}
+//				String x;
+//				PlaidObject firstMethod = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("first", args);
+//				PlaidObject secondArg = plaid.runtime.Util.call(args, firstMethod);
+//				PlaidObject secondMethod = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("second", args);
+//				PlaidObject firstArg = plaid.runtime.Util.call(args, secondMethod);
+//				x = ((String)((PlaidJavaObject)thisVar).getJavaObject()).substring(((Integer)((PlaidJavaObject)firstArg).getJavaObject()),
+//																				   ((Integer)((PlaidJavaObject)secondArg).getJavaObject()));
+//				return Util.string(x);
+//			}
+//		}));
 	}
 	static {
 		foo.addTopTag(String$Tag$plaid);	

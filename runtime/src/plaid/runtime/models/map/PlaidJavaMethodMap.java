@@ -22,6 +22,7 @@ package plaid.runtime.models.map;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.math.BigInteger;
 import java.util.Iterator;
 
 import plaid.runtime.PlaidException;
@@ -31,6 +32,7 @@ import plaid.runtime.PlaidJavaObject;
 import plaid.runtime.PlaidMethod;
 import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
+import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
 import plaid.runtime.utils.QualifiedIdentifier;
 
