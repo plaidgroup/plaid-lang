@@ -38,7 +38,7 @@ import plaid.parser.ast.GroupPermission;
 import plaid.parser.ast.Identifier;
 import plaid.parser.ast.ImmutablePermission;
 import plaid.parser.ast.Import;
-import plaid.parser.ast.InfixOperator;
+import plaid.parser.ast.InfixOperatorExpr;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Lambda;
 import plaid.parser.ast.LambdaType;
@@ -72,7 +72,7 @@ import plaid.parser.ast.Stmt;
 import plaid.parser.ast.StringLiteral;
 import plaid.parser.ast.Type;
 import plaid.parser.ast.TypeArg;
-import plaid.parser.ast.UnaryOperator;
+import plaid.parser.ast.UnaryOperatorExpr;
 import plaid.parser.ast.UniquePermission;
 import plaid.parser.ast.UnpackInnerGroups;
 import plaid.parser.ast.ValSpecifier;
@@ -205,8 +205,8 @@ public class ASTFactory {
 		return new Import(ASTNode.DEFAULT_TOKEN, qi, star);
 	}
 	
-	public static InfixOperator InfixOperator(Expr left, Identifier op, Expr right) {
-		return new InfixOperator(ASTNode.DEFAULT_TOKEN, left, op, right);
+	public static InfixOperatorExpr InfixOperator(Expr left, Identifier op, Expr right) {
+		return new InfixOperatorExpr(ASTNode.DEFAULT_TOKEN, left, op, right);
 	}
 	
 	public static IntLiteral IntLiteral(int value) {
@@ -325,8 +325,8 @@ public class ASTFactory {
 		return new TypeArg(ASTNode.DEFAULT_TOKEN, id, caseof);
 	}
 	
-	public static UnaryOperator UnaryOperator(Identifier op, Expr e) {
-		return new UnaryOperator(ASTNode.DEFAULT_TOKEN, op, e);
+	public static UnaryOperatorExpr UnaryOperator(Identifier op, Expr e) {
+		return new UnaryOperatorExpr(ASTNode.DEFAULT_TOKEN, op, e);
 	}
 	
 	public static Permission  Unique() {
