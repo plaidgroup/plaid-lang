@@ -45,7 +45,7 @@ public class PlaidCoreParser
                     Application app = (Application)right;
                     left = new Application(app.getToken(),
                                            left,
-                                           app.getMetaArgs(),
+                                           app.getStaticArgs(),
                                            app.getArgument());
                 } else if ( right instanceof DestructiveDereference ) {
                     DestructiveDereference ddref = (DestructiveDereference) right;
@@ -83,7 +83,7 @@ public class PlaidCoreParser
 	                Application app = (Application)right;
 	                left = new Application(app.getToken(),
 	                                       left,
-	                                       app.getMetaArgs(),
+	                                       app.getStaticArgs(),
 	                                       app.getArgument());
 	            } else {
 	                throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
@@ -324,13 +324,13 @@ Type Type() :
 	Permission perm = Permission.EMPTY;
 	LambdaType l;
     QualifiedIdentifier qi;
-    List<MetaType> metaTypes = new ArrayList<MetaType>();
+    List<StaticType> metaTypes = new ArrayList<StaticType>();
 }
 {   
 (	    <UNIT> { return Type.UNIT; }
   |	    <VOID> {	return Type.VOID; }
   |	    l = LambdaType()	{ return l; }
-  |     [perm = Permission()] qi = QualifiedIdentifier() [LOOKAHEAD(MetaTypes()) metaTypes = MetaTypes(false)]
+  |     [perm = Permission()] qi = QualifiedIdentifier() [LOOKAHEAD(StaticTypes()) metaTypes = StaticTypes(false)]
 	   {
 	       return new NominalObjectType(ASTNode.DEFAULT_TOKEN, perm, qi, metaTypes);
 	   }
@@ -375,11 +375,11 @@ LambdaType LambdaType() :
 	List<Arg> env = new ArrayList<Arg>();
 	Type returnType;
 	List<ArgSpec> argTypes = new ArrayList<ArgSpec>();
-	List<MetaType> metaTypes = new ArrayList<MetaType>();
+	List<StaticType> metaTypes = new ArrayList<StaticType>();
 }
 {
 	// <meta>( c )[E] -> pT
-	[metaTypes = MetaTypes(true)]
+	[metaTypes = StaticTypes(true)]
 	t = <LPAREN> [ argTypes = ArgSpecList() ] <RPAREN> [ <LBRACK> [ env = Environment() ] <RBRACK> ] <RARROW> returnType = Type()
 	{
 		return new LambdaType(t, metaTypes, argTypes, env, returnType); 
@@ -387,12 +387,12 @@ LambdaType LambdaType() :
 
 }
 
-MetaType MetaType(boolean isMethod) : {    Token t;
+StaticType StaticType(boolean isMethod) : {    Token t;
     Identifier id;    boolean isAbstract = true;    Type type = Type.EMPTY;    GroupPermission gp = GroupPermission.EMPTY;
     List<Expr> metaArgs = new ArrayList<Expr>();
-    List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
-    QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;}{    (        t = <GROUP> [gp = GroupPermission()] id = Identifier() [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]        {            if ( !isMethod && gp != GroupPermission.EMPTY ) {                throw new ParseException("Cannot specify group permissions in states.");            } else if ( isMethod && gp == GroupPermission.EMPTY ) {                throw new ParseException("Need to specify group permission.");            }            return new GroupType(t, gp, id, isAbstract);        }    |   t = <TYPE> id = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false) ] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaArgs = MetaArgs()] ]         {            return new TypeArgType(t, id, metaArgsSpec, caseof, metaArgs);        }    )}List<MetaType> MetaTypes(boolean isMethod) :{  MetaType type;  List<MetaType> types = new ArrayList<MetaType>();}{    < LT >        type =  MetaType(isMethod) {  types.add(type); }        ( 
-            < COMMA > type =  MetaType(isMethod) {  types.add(type); }        )*     < GT >    {        return types;    }}
+    List<StaticArg> metaArgsSpec = new ArrayList<StaticArg>();
+    QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;}{    (        t = <GROUP> [gp = GroupPermission()] id = Identifier() [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]        {            if ( !isMethod && gp != GroupPermission.EMPTY ) {                throw new ParseException("Cannot specify group permissions in states.");            } else if ( isMethod && gp == GroupPermission.EMPTY ) {                throw new ParseException("Need to specify group permission.");            }            return new GroupType(t, gp, id, isAbstract);        }    |   t = <TYPE> id = Identifier() [LOOKAHEAD(StaticArgsSpec(false)) metaArgsSpec = StaticArgsSpec(false) ] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(StaticArgs()) metaArgs = StaticArgs()] ]         {            return new TypeArgType(t, id, metaArgsSpec, caseof, metaArgs);        }    )}List<StaticType> StaticTypes(boolean isMethod) :{  StaticType type;  List<StaticType> types = new ArrayList<StaticType>();}{    < LT >        type =  StaticType(isMethod) {  types.add(type); }        ( 
+            < COMMA > type =  StaticType(isMethod) {  types.add(type); }        )*     < GT >    {        return types;    }}
 
 /*****************************************************************************/
 /*							END OF TYPING RULES								 */
@@ -439,7 +439,7 @@ List<Import> Imports() :
 }
 
 
-List<Expr> MetaArgs() :
+List<Expr> StaticArgs() :
 {
     Expr arg;
     List<Expr> args = new ArrayList<Expr>();
@@ -454,7 +454,7 @@ List<Expr> MetaArgs() :
 }
 
 
-MetaArg MetaArgSpec(boolean isMethod) :
+StaticArg StaticArgSpec(boolean isMethod) :
 {
     Token t;
     Identifier id;
@@ -476,16 +476,16 @@ MetaArg MetaArgSpec(boolean isMethod) :
 }
 
 
-List<MetaArg> MetaArgsSpec(boolean isMethod) :
+List<StaticArg> StaticArgsSpec(boolean isMethod) :
 {
-    List<MetaArg> args = new ArrayList<MetaArg>();
-    MetaArg arg; 
+    List<StaticArg> args = new ArrayList<StaticArg>();
+    StaticArg arg; 
 }
 {
     < LT >
-        arg = MetaArgSpec(isMethod) { args.add(arg); }
+        arg = StaticArgSpec(isMethod) { args.add(arg); }
         (
-          < COMMA > arg = MetaArgSpec(isMethod) { args.add(arg); }          
+          < COMMA > arg = StaticArgSpec(isMethod) { args.add(arg); }          
         )*
     < GT >
     { return args; }
@@ -561,18 +561,18 @@ Decl StateDecl(List< Modifier > modifiers) :
 	Token t;
 	boolean stateval = false;
 	StateExpr stb = null;
-	List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
+	List<StaticArg> metaArgsSpec = new ArrayList<StaticArg>();
 	List<Expr> metaCaseOfArgs = new ArrayList<Expr>();
 	QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;
 }
 {
     [ t = <IMMUTABLE>  { modifiers.add(new ImmutableModifier(t)); } ]
-    t= <STATE> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(MetaArgs()) metaCaseOfArgs = MetaArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {
+    t= <STATE> name = Identifier() [LOOKAHEAD(StaticArgsSpec(false)) metaArgsSpec = StaticArgsSpec(false)] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(StaticArgs()) metaCaseOfArgs = StaticArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {
         if (stb == null) {            return new AbstractStateDecl(t, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs);
         } else {
             return new ConcreteStateDecl(t, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs,stb);
         }    }    | 
-    t = <STATEVAL> name = Identifier() [LOOKAHEAD(MetaArgsSpec(false)) metaArgsSpec = MetaArgsSpec(false)] [stb = StateBinding()] // <SEMICOLON>    {        if (stb == null) {
+    t = <STATEVAL> name = Identifier() [LOOKAHEAD(StaticArgsSpec(false)) metaArgsSpec = StaticArgsSpec(false)] [stb = StateBinding()] // <SEMICOLON>    {        if (stb == null) {
             return new AbstractStateValDecl(t,modifiers, name, metaArgsSpec);
         } else {
             return new ConcreteStateValDecl(t, modifiers, name, metaArgsSpec, stb);
@@ -719,16 +719,16 @@ Decl MethodDecl(List<Modifier> modifiers) :
 	List<Arg> env = new ArrayList<Arg>();
 	Expr e = Expr.EMPTY;
 	MethodDecl d;
-	List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
+	List<StaticArg> metaArgsSpec = new ArrayList<StaticArg>();
 }{
 //      //method [T] m([T>>T x])[T >> T] ( {e} | ; )
     t = <METHOD>
     (   
-        LOOKAHEAD(Type() IdOrOperator() [MetaArgsSpec(true)] <LPAREN> [DeclArgs()] <RPAREN> [Environment()])  
-        returnType = Type() methodName = IdOrOperator() [metaArgsSpec = MetaArgsSpec(true)]  <LPAREN> [argList = DeclArgs()] <RPAREN> [env = Environment()]
+        LOOKAHEAD(Type() IdOrOperator() [StaticArgsSpec(true)] <LPAREN> [DeclArgs()] <RPAREN> [Environment()])  
+        returnType = Type() methodName = IdOrOperator() [metaArgsSpec = StaticArgsSpec(true)]  <LPAREN> [argList = DeclArgs()] <RPAREN> [env = Environment()]
       |
-        LOOKAHEAD(IdOrOperator() [MetaArgsSpec(true)] <LPAREN> [DeclArgs()] <RPAREN> [Environment()])  
-        methodName = IdOrOperator() [metaArgsSpec = MetaArgsSpec(true)] <LPAREN> [argList = DeclArgs()] <RPAREN> [env = Environment()]
+        LOOKAHEAD(IdOrOperator() [StaticArgsSpec(true)] <LPAREN> [DeclArgs()] <RPAREN> [Environment()])  
+        methodName = IdOrOperator() [metaArgsSpec = StaticArgsSpec(true)] <LPAREN> [argList = DeclArgs()] <RPAREN> [env = Environment()]
     )
     (
         e = BlockExpr() 
@@ -906,12 +906,12 @@ Expr Expr1() :
       return new Match(t, pattern, cl);
     }
 |   
-    t = <ATOMIC> datagroups = MetaArgs() e = BlockExpr()
+    t = <ATOMIC> datagroups = StaticArgs() e = BlockExpr()
     {
       return new AtomicBlock(t, datagroups, e);
     }
 |   
-    t = <SPLIT> datagroups = MetaArgs() e = BlockExpr()
+    t = <SPLIT> datagroups = StaticArgs() e = BlockExpr()
     {
       return new SplitBlock(t, datagroups, e);
     }
@@ -1019,8 +1019,8 @@ List<Expr> SimpleExp1Rest() : {
         rest.add(new DestructiveDereference(t, Expr.EMPTY, id));
         return rest; 
      } 
-  |  LOOKAHEAD([MetaArgs()] ArgumentExpr()) 
-     [ metaArgs = MetaArgs()] e = ArgumentExpr() rest = SimpleExp1Rest()
+  |  LOOKAHEAD([StaticArgs()] ArgumentExpr()) 
+     [ metaArgs = StaticArgs()] e = ArgumentExpr() rest = SimpleExp1Rest()
      {
         rest.add(new Application(t, Expr.EMPTY, metaArgs, e));
         return rest;
@@ -1073,7 +1073,7 @@ Expr ConditionalOrExpr() :
 {
     e = ConditionalAndExpr()
     (
-	   t = "||" arg = ConditionalAndExpr() 	{ e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
+	   t = "||" arg = ConditionalAndExpr() 	{ e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg); }
     )*
 	{ return e; }
 }
@@ -1088,7 +1088,7 @@ Expr ConditionalAndExpr() :
 {
     e = InclusiveOrExpr()
     (
-	   t = "&&" arg = InclusiveOrExpr() {	e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
+	   t = "&&" arg = InclusiveOrExpr() {	e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg); }
     )*
 	{ return e;	}
 }
@@ -1103,7 +1103,7 @@ Expr InclusiveOrExpr() :
 {
     e = ExclusiveOrExpr()
     (
-	   t = "|" arg = ExclusiveOrExpr() { e = new InfixOperator(t, e, new Identifier(t,t.image), arg);	}
+	   t = "|" arg = ExclusiveOrExpr() { e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);	}
     )*
 	{ return e; }
 }
@@ -1118,7 +1118,7 @@ Expr ExclusiveOrExpr() :
 {
     e = AndExpr()
 	(
-        t = "^" arg = AndExpr() {	e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
+        t = "^" arg = AndExpr() {	e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg); }
     )*
 	{ return e; }
 }
@@ -1133,7 +1133,7 @@ Expr AndExpr() :
 {
     e = EqualityExpr()
     (
-        t = "&" arg = EqualityExpr() { e = new InfixOperator(t, e, new Identifier(t,t.image), arg); }
+        t = "&" arg = EqualityExpr() { e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg); }
     )*
 	{ return e; }
 }
@@ -1154,7 +1154,7 @@ Expr EqualityExpr() :
 	   )
        arg = RelationalExpr()
 	   {
-           e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
+           e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
 	   }
     )*
 	{ return e; }
@@ -1179,7 +1179,7 @@ Expr RelationalExpr() :
 	    )
 		arg = ShiftExpr()
 		{
-            e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
+            e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
         }
     )*
 	{ return e; }
@@ -1202,7 +1202,7 @@ Expr ShiftExpr() :
         )
         arg = AdditiveExpr()
         {
-            e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
+            e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
         }
     )*
     { return e; }
@@ -1224,7 +1224,7 @@ Expr AdditiveExpr() :
         )
 	    arg = MultiplicativeExpr()
         {
-            e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
+            e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
         }
     )*
 	{ return e;	}
@@ -1247,7 +1247,7 @@ Expr MultiplicativeExpr() :
         )
 		arg = UnaryExpr()
         {
-            e = new InfixOperator(t, e, new Identifier(t,t.image), arg);
+            e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
         }
     )*
 	{ return e; }
@@ -1269,7 +1269,7 @@ Expr UnaryExpr() :
         )
         e = SimpleExpr()
         {
-            e = new UnaryOperator(t, new Identifier(t,t.image), e);
+            e = new UnaryOperatorExpr(t, new Identifier(t,t.image), e);
         }
     |   e = SimpleExpr()
 	)
@@ -1396,12 +1396,12 @@ Expr Function() :
 {
     Token t;
     List<Arg> argList = new ArrayList<Arg>();
-    List<MetaArg> metaArgsSpec = new ArrayList<MetaArg>();
+    List<StaticArg> metaArgsSpec = new ArrayList<StaticArg>();
     List<Arg> env = new ArrayList<Arg>();
     Expr body;
 }
 {
-    t = <FN> [metaArgsSpec = MetaArgsSpec(true)] <LPAREN> [argList = DeclArgs()] <RPAREN>
+    t = <FN> [metaArgsSpec = StaticArgsSpec(true)] <LPAREN> [argList = DeclArgs()] <RPAREN>
     [ env = Environment() ]<DARROW> body = Expr()
     {
        return new Lambda(t, metaArgsSpec, argList, env, body);

@@ -27,16 +27,16 @@ import plaid.parser.Token;
 public class Application extends Expr {
 	private final Expr function;
 	private final Expr argument;
-	private final List<Expr> metaArgs; 
+	private final List<Expr> StaticArgs; 
 
 
-	public Application(Token t, Expr function, List<Expr> metaArgs, Expr argument) {
+	public Application(Token t, Expr function, List<Expr> StaticArgs, Expr argument) {
 		super(t);
 		this.function = function;
-		if ( metaArgs == null ) {
-			this.metaArgs = new ArrayList<Expr>();
+		if ( StaticArgs == null ) {
+			this.StaticArgs = new ArrayList<Expr>();
 		} else {
-			this.metaArgs = metaArgs;			
+			this.StaticArgs = StaticArgs;			
 		}
 		this.argument = argument;
 	}
@@ -49,15 +49,15 @@ public class Application extends Expr {
 		return argument;
 	}
 	
-	public List<Expr> getMetaArgs() {
-		return metaArgs;
+	public List<Expr> getStaticArgs() {
+		return StaticArgs;
 	}
 	
 	@Override 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		if (function != null) sb.append(function.toString());
-		if (metaArgs.size() > 0) sb.append("<" + exprListToString(metaArgs) + ">");
+		if (StaticArgs.size() > 0) sb.append("<" + exprListToString(StaticArgs) + ">");
 		if (argument != null ) sb.append(argument.toString());
 		return sb.toString();
 	}

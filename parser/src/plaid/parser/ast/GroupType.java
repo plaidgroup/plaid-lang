@@ -2,7 +2,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class GroupType extends MetaType {
+public class GroupType extends StaticType {
 
 	private final GroupPermission gp;
 	private Identifier id;

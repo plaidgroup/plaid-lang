@@ -70,15 +70,15 @@ public abstract class Decl extends ASTNode implements DeclOrStateOp{
 		return sb.toString();
 	}
 	
-	public static String metaArgSpecsToString(List<MetaArg> metaArgsSpec) {
+	public static String StaticArgSpecsToString(List<StaticArg> StaticArgsSpec) {
 		StringBuilder sb = new StringBuilder();
 		
-		if ( metaArgsSpec.size() > 0 ) {
+		if ( StaticArgsSpec.size() > 0 ) {
 			sb.append("<");
-			sb.append(metaArgsSpec.get(0));
-			for ( int i = 1; i < metaArgsSpec.size(); i++ ) {
+			sb.append(StaticArgsSpec.get(0));
+			for ( int i = 1; i < StaticArgsSpec.size(); i++ ) {
 				sb.append(",");
-				sb.append(metaArgsSpec.get(i));
+				sb.append(StaticArgsSpec.get(i));
 			}
 			sb.append(">");			
 		}
