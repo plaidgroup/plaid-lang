@@ -4,12 +4,12 @@ import plaid.parser.Token;
 
 public class Import extends ASTNode {
 	
-	private final QualifiedIdentifier qi;
+	private final QualifiedIdentifier qualifiedIdentifier;
 	private final boolean star;
 	
 	public Import(Token token, QualifiedIdentifier qi, boolean star) {
 		super(token);
-		this.qi = qi;
+		this.qualifiedIdentifier = qi;
 		this.star = star;
 	}
 
@@ -18,11 +18,11 @@ public class Import extends ASTNode {
 	}
 
 	public QualifiedIdentifier getQualifiedIdentifier() {
-		return qi;
+		return qualifiedIdentifier;
 	}
 
 	@Override
 	public String toString() {
-		return "import " + qi.toString() + ((star)?".*":"");
+		return "import " + qualifiedIdentifier.toString() + ((star)?".*":"");
 	}
 }
