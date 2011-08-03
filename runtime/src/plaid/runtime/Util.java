@@ -263,7 +263,10 @@ public class Util {
 					if ( tag.getPath().equals("plaid.lang.Integer")) {						 
 						objs.add(((BigInteger)((PlaidJavaObject)(params.getMember("nativeInt").getValue())).getJavaObject()).intValue()); 
 						break;
-					}
+					}  else if ( tag.getPath().equals("plaid.lang.Real")) {						 
+						objs.add(((BigDecimal)((PlaidJavaObject)(params.getMember("nativeReal").getValue())).getJavaObject()).doubleValue()); 
+						break;
+					} 
 				}
 			}
 			if ( objs.isEmpty() ) {
