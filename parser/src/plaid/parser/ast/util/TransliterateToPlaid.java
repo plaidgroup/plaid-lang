@@ -293,6 +293,6 @@ public class TransliterateToPlaid<T> {
 		sbASTViewerVisitor.append("}\n");
 		writePlaidFile(outputASTDir, sbASTViewerVisitor.toString(), "ASTViewerVisitor");
 		
-		System.out.println("");
+		System.out.println("Done.");
 	}
 }
