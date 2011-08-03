@@ -150,7 +150,11 @@ public class TransliterateToPlaid<T> {
 		if(includeBody){
 			visitMethodCode += " {\n";
 			for(Field field:getAllFields(clazz)) {
-				visitMethodCode += "\t\tnode."+field.getName()+".accept(this);\n";
+				if ( List.class.isAssignableFrom(field.getType())) {
+					visitMethodCode += "\t\tnode."+field.getName()+".map(fn (item) => { item.accept(this); item });\n";
+				} else if ( ASTNode.class.isAssignableFrom(field.getType()) ) {
+					visitMethodCode += "\t\tnode."+field.getName()+".accept(this);\n";
+				}
 			}
 			visitMethodCode += "\t}\n";
 		}else {
@@ -166,16 +170,16 @@ public class TransliterateToPlaid<T> {
 		sb.append("\toverride method void visit" + clazz.getSimpleName() + "(immutable " + clazz.getSimpleName() + " node) {\n") ;
 		sb.append("\t\tval " + nodeName + " = createNode(\"" + clazz.getSimpleName() + "\");\n");
 		sb.append("\t\tthis.parent.add(" + nodeName + ");\n");
-		
+				
 		for(Field field : getAllFields(clazz)) {
 			sb.append("\t    \n");
 			sb.append("\t    // add " + field.getName()+"\n");
 			
-			if ( field.getType().isAssignableFrom(List.class)) {
+			if ( List.class.isAssignableFrom(field.getType()) ) {
 				String fieldNode = "node"+field.getName();
 				sb.append("\t    val " + fieldNode + " = createNode(\"" + field.getName() + "\");\n" );
 				sb.append("\t    "+nodeName+".add(" + fieldNode + ");\n");
-				sb.append("\t    node." + field.getName() +".map( fn(item) => {  this.parent = " + fieldNode + "; item.accept(this) } );\n");
+				sb.append("\t    node." + field.getName() +".map( fn(item) => {  this.parent = " + fieldNode + "; item.accept(this); item } );\n");
 			} else if ( ASTNode.class.isAssignableFrom(field.getType()) ) {
 				String fieldNode = "node"+field.getName();
 				sb.append("\t    val " + fieldNode + " = createNode(\"" + field.getName() + "\");\n" );
@@ -207,6 +211,7 @@ public class TransliterateToPlaid<T> {
 	
 	public static void main(String[] args) throws IOException {
 		Class<? extends ASTNode>[] classes = getASTClasses();
+	
 		
 		
 		File outputASTDir = new File("../ast/pld/plaid/ast/parsed");
