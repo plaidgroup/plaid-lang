@@ -152,18 +152,30 @@ method main(args) {
     match (result) {
         case Some {
             val unique CompilerConfiguration cc = result.value;
+            val sourceJobs = makeEmptyList();
+            val unique Reporter reporter = new reporter.ConsoleReporter;
 
-            printLine("Some: " + result.value.toString());
-            val path = "../compilerTests/coreExamples/turing/package.plaid";
-            val source = new Source {
-                val path = path;
-            };
-            val job = new Job {
-                val source = source;
-            };
-            val parsePass = new passes.ParsePass;
-            parsePass.run(job);
+            cc.inputFiles.map(fn (path) => {
+                printLine("parse " + path);
+                val source = new Source { val path = path; };
+                val job = new Job { val source = source; };
+                
+                // add to source jobs
+                sourceJobs.add(job);
+                                        
+                // run parse job
+                val parsePass = new passes.ParsePass;
+                job.status = job.status &&  parsePass.run(job);
+
+                // viewer pass 
+                val viewerPass = new passes.ASTViewerPass { override var titlePrefix = "After translation: "; };
+                job.status = job.status && viewerPass.run(job);
+            });
+
+            reporter.report();
         }
-        default {}
+        default {
+            printLine("Could not find any source files.");
+        }
     }
 }
