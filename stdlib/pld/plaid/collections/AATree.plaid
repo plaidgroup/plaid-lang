@@ -25,7 +25,7 @@ package plaid.collections;
  * worst case complexity. See the paper "Balanced search trees made simple" for more
  * information: http://user.it.uu.se/~arnea/abs/simp.html
  */
-state AATree case of Collection {
+state AATree {
 	/* type T; */
 	val /* Option<OrderProvider> */ explicitCompare;
 	val /* T -> T -> T */ eqHandler = fn(newElem, oldElem) => { oldElem };
@@ -156,14 +156,16 @@ state AATree case of Collection {
 		traverseHelper(root);
 	}
 
-	method void do(f) {
-		inOrderTraverse(fn(elem) => { f(elem); true });
-	}
-
-	method /*Option<T>*/ find(e) {
-		val findHelper = fn(nodeOpt) => {
+	/**
+	 * Will navigate from the root of the tree by following the instructions provided by the function
+	 * f. If f returns OrdLessThan, the traversal will go left. If f returns OrdGreaterThan, the traversal
+	 * will go right. If f returns OrdEqual, the traversal will stop and return the element at that
+	 * position in the tree.
+	 */
+	method immutable Option/*<T>*/ guidedTraverse(/*T -> immutable Ordering*/ f) {
+		val traverseHelper = fn(nodeOpt) => {
 			nodeOpt.map(fn(node) => {
-				match(compare(e, node.data)) {
+				match(f(node.data)) {
 					case OrdLessThan { findHelper(node.left) }
 					case OrdEqual { node.data }
 					case OrdGreaterThan { findHelper(node.right) }
@@ -171,7 +173,11 @@ state AATree case of Collection {
 			})
 		};
 
-		findHelper(e);
+		traverseHelper(e);
+	}
+
+	method /*Option<T>*/ find(e) {
+		guidedTraverse(fn(treeElem) => { compare(e, treeElem) })
 	}
 
 	method void size() {

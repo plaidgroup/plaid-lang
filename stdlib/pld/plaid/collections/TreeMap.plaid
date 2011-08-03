@@ -19,6 +19,78 @@
  
 package plaid.collections;
 
-state TreeMap case of Map {
-	
+/**
+ * A mutable implementation of Map, for which all key types must be Orderable, or have a total order
+ * improved on them through an OrderProvider. This ordering is then used to provide O(log n)
+ * worst case guarantees for insertion and deletion of key/value pairs, and lookup of values
+ * for keys.
+ */
+state TreeMap case of Map/*<K, V>*/ = {
+	/*
+	type K; // must be Orderable
+	type V;
+	*/
+
+	var unique AATree/*<Pair<K,V>>*/ tree;
+
+	method immutable Integer size() {
+		tree.size()
+	}
+
+	/*private*/ method mapHelper(newTree, f) {
+		this.do(fn(elem) => {
+			newTree.add(f(elem));
+		});
+		newTree
+	}
+
+	// K2 *must* be an Orderable type. Not sure how to express
+	// this in Plaid, also, this is likely breaks inheritance
+	// wrt. the map method on Collection, which has no such
+	// restriction as not all collection types are ordered.
+	method /*<K2, V2>*/ /*unique TreeMap<K2,V2>*/ map(/*Pair<K,V> -> Pair<K2,V2>*/ f) {
+		mapHelper(makeTreeMap(), f)
+	}
+
+	method /*<K2, V2>*/ /*unique TreeMap<K2,V2>*/ mapWithOrder(/*Pair<K,V> -> Pair<K2,V2>*/ f, 
+															   immutable OrderProvider/*<K2>*/ order) {
+		mapHelper(makeTreeMapWithOrder(order), f)
+	}
+
+	method void doUntil(/*T -> immutable Boolean*/ f) {
+		tree.inOrderTraverse(f);
+	}
+
+	method immutable Option/*<V>*/ get(/*K*/ key) {
+		tree.guidedTraverse(fn(treeElem) => { tree.compare(key, treeElem.first) })
+	}
+
+	method immutable Option/*<V>*/ set(/*K*/ key, /*V*/ value) {
+		var immutable Option/*<V>*/ replaced = NONE;
+		tree.guidedTraverse(fn(treeElem) => { 
+			val compareResult = tree.compare(key, treeElem.first);
+			match(compareResult) {
+				case OrdEqual {
+					replaced = createSome(treeElem.second);
+					treeElem.second = value;
+				}
+			}
+		});
+
+		if(!replaced.hasValue()) {
+			tree.add(makePair(key, value));
+		};
+
+		replaced
+	}
+
+
+} with MutableCollection {
+	method void add(/*Pair<K,V>*/ e) {
+		tree.add(e);
+	}
+
+	method immutable Boolean remove(/*Pair<K,V>*/ e) {
+		tree.remove(e);
+	}
 }
