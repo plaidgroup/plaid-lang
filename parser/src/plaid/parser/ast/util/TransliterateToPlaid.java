@@ -73,7 +73,6 @@ public class TransliterateToPlaid<T> {
 		}
 		if(isConcrete){
 			sb.append("{\n");
-			sb.append("\t\tjava.lang.System.out.println(\"visit " + clazz.getSimpleName() + "\");\n");
 			sb.append("\t\tv.visit"+clazz.getSimpleName() +"(this);\n");
 			sb.append("\t}\n");
 		} else {
