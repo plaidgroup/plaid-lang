@@ -73,6 +73,7 @@ public class TransliterateToPlaid<T> {
 		}
 		if(isConcrete){
 			sb.append("{\n");
+			sb.append("\t\tjava.lang.System.out.println(\"visit " + clazz.getSimpleName() + "\");\n");
 			sb.append("\t\tv.visit"+clazz.getSimpleName() +"(this);\n");
 			sb.append("\t}\n");
 		} else {
@@ -159,11 +160,49 @@ public class TransliterateToPlaid<T> {
 		return visitMethodCode;
 	}
 	
+	
 	private static String showMethod(Class<?> clazz) {
 		StringBuilder sb = new StringBuilder();
+		String nodeName = "node" + clazz.getSimpleName(); 
 		sb.append("\toverride method void visit" + clazz.getSimpleName() + "(immutable " + clazz.getSimpleName() + " node) {\n") ;
-		sb.append("\t\tvar cu = createNode(\"CompilationUnit\");");
+		sb.append("\t\tval " + nodeName + " = createNode(\"" + clazz.getSimpleName() + "\");\n");
+		sb.append("\t\tthis.parent.add(" + nodeName + ");\n");
+		
+		for(Field field : getAllFields(clazz)) {
+			sb.append("\t    \n");
+			sb.append("\t    // add " + field.getName()+"\n");
+			
+			if ( field.getType().isAssignableFrom(List.class)) {
+				String fieldNode = "node"+field.getName();
+				sb.append("\t    val " + fieldNode + " = createNode(\"" + field.getName() + "\");\n" );
+				sb.append("\t    "+nodeName+".add(" + fieldNode + ");\n");
+				sb.append("\t    node." + field.getName() +".map( fn(item) => {  this.parent = " + fieldNode + "; item.accept(this) } );\n");
+			} else if ( ASTNode.class.isAssignableFrom(field.getType()) ) {
+				String fieldNode = "node"+field.getName();
+				sb.append("\t    val " + fieldNode + " = createNode(\"" + field.getName() + "\");\n" );
+				sb.append("\t    this.parent = " + fieldNode + ";\n");
+				sb.append("\t    node."+field.getName()+".accept(this);\n");
+				sb.append("\t    " + nodeName + ".add(" + fieldNode + ");\n");
+			} else if ( Token.class.isAssignableFrom(field.getType()) ) {
+				//sb.append("\t    "+ nodeName+".add(this.createTokenNode(node."+field.getName()+"));\n");
+			}else {
+				// handle base cases 
+				String fieldNode = "node"+field.getName();
+				String fieldNodeValue = "node"+field.getName()+"Value";
+				sb.append("\t    val " + fieldNode + " = createNode(\"" + field.getName() + "\");\n" );
+				sb.append("\t    val " + fieldNodeValue + " = createNode(node." + field.getName() + ".toString());\n" );
+				sb.append("\t    "+fieldNode+".add("+fieldNodeValue+");\n");
+				sb.append("\t    " + nodeName + ".add(" + fieldNode + ");\n");
+			}
+		}
+	
+		if ( clazz.getSimpleName().equals("CompilationUnit")) {
+			// add call to create windows
+			sb.append("\t // create window\n");
+			sb.append("\tdraw(" +  nodeName + ")\n");
+		}
 		sb.append("\t}\n\n");
+		
 		return sb.toString();
 	}
 	
@@ -204,11 +243,30 @@ public class TransliterateToPlaid<T> {
 		sbASTViewerVisitor.append("import javax.swing.JScrollPane;\n");
 		sbASTViewerVisitor.append("import javax.swing.tree.DefaultMutableTreeNode;\n");
 		sbASTViewerVisitor.append("import javax.swing.WindowConstants;\n\n");
-		sbASTViewerVisitor.append("state ASTViewerVisitor caseof LeafVisitor{\n");
+		sbASTViewerVisitor.append("state ASTViewerVisitor case of LeafVisitor {\n");
 		sbASTViewerVisitor.append("\tvar /* (private) DefaultMutableTreeNode */ parent = DefaultMutableTreeNode.new(\"AST\");\n");
 		sbASTViewerVisitor.append("\tval /* String */ title = \"ASTViewer\";\n\n");
 		sbASTViewerVisitor.append("\tmethod createNode(name) {\n");
 		sbASTViewerVisitor.append("\t    DefaultMutableTreeNode.new(name);\n");
+		sbASTViewerVisitor.append("\t}\n\n");
+		sbASTViewerVisitor.append("\tmethod draw(root) {\n");
+		sbASTViewerVisitor.append("\t    var jtree  = JTree.new(root);\n");
+		sbASTViewerVisitor.append("\t    jtree.setRootVisible(true);\n");
+		sbASTViewerVisitor.append("\t    var scroll = JScrollPane.new(jtree);\n");
+		sbASTViewerVisitor.append("\t    var jframe = JFrame.new(this.title);\n");
+		sbASTViewerVisitor.append("\t    jframe.add(scroll);\n"); 
+		sbASTViewerVisitor.append("\t    jframe.setMinimumSize(Dimension.new(500,500));\n");
+		sbASTViewerVisitor.append("\t    jframe.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);\n");
+		sbASTViewerVisitor.append("\t    jframe.setVisible(true);\n");
+		sbASTViewerVisitor.append("\t}\n\n");
+		sbASTViewerVisitor.append("\tmethod createTokenNode(jtreeNode, token) { \n");
+		sbASTViewerVisitor.append("\t   var tokenNode = createNode(\"Token\");\n");
+		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"beginLine(\"+token.beginLine+\")\"));\n");
+		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"beginColumn(\"+token.beginColumn+\")\"));\n");
+		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"endLine(\"+token.endLine+\")\"));\n");
+		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"endColumn(\"+token.endColumn+\")\"));\n");
+		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"image(\"+token.image+\")\"));\n");
+		sbASTViewerVisitor.append("\t   tokenNode\n");
 		sbASTViewerVisitor.append("\t}\n\n");
 		
 		for (Class<?> clazz : classes) {
