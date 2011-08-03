@@ -1,0 +1,169 @@
+
+package plaid.compiler;
+
+import plaid.compiler.reporter.*;
+
+import java.lang.System;
+
+
+method void DEBUG(immutable String msg) {
+    printLine("[DEBUG] " + msg);
+}
+
+method showUsage() {
+    printLine("usage: plaidc [OPTIONS] [FILES]");
+    printLine("");
+    printLine("Options:");
+    printLine(" -h | --help                 This message.");
+    printLine(" -v | --version              The version of the current compiler.");
+    printLine(" -o | --output               The directory to put generated files.");
+    printLine(" -i | --input                The directory of Plaid files to compile.");
+    printLine(" -t | --temp                 The directory to put temporary generated files.");
+    printLine(" -k | --keep                 Keep temporary files.");
+    printLine(" -f | --force-recompile      Generate output files even if source files are older.");
+}
+
+method showVersion() {
+    printLine("PlaidC version 2.0");
+}
+
+method parseCommandLineArgs(args) {
+    var abort = false;
+    
+    var keep       = false;
+    var force      = false;
+    var outputDir  = "";
+    var tempDir    = "";
+    var inputDir   = "";
+    var plaidpath  = makeEmptyList();
+    var inputFiles = makeEmptyList();
+        
+    while { !abort && !args.isEmpty() }{
+        var handled = false;
+        if ( args.car().equals("-h") || args.car().equals("--help") ) {
+            handled = true;
+            showUsage();
+            abort = true
+        };
+        if ( args.car().equals("-v") || args.car().equals("--version") ) {
+            handled = true;
+            showVersion();
+            abort = true
+        };
+        if ( args.car().equals("-o") || args.car().equals("--output") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-o' option requires a parameter.");
+                abort = true
+            }{
+                outputDir = args.car();
+                DEBUG("Found output directory option '" + args.car() + "'.");
+            }
+        };        
+        if ( args.car().equals("-t") || args.car().equals("--temp") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-t' option requires a parameter.");
+                abort = true
+            }{
+                tempDir = args.car();
+                DEBUG("Found temporary directory option '" + args.car() + "'.");
+            }
+        };
+        if ( args.car().equals("-i") || args.car().equals("--input") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-i' option requires a parameter.");
+                abort = true
+            }{
+                inputDir = args.car();
+                DEBUG("Found input directory option '" + args.car() + "'.");
+            }
+        };
+        if ( args.car().equals("-p") || args.car().equals("--plaidpath") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-i' option requires a parameter.");
+            }{
+                plaidpath.add(args.car());
+                DEBUG("Found plaidpath option '" + args.car()  + "'.");
+            }
+        };        
+        if ( args.car().equals("-f") || args.car().equals("--force") ) {
+            handled = true;
+            force = true
+        };        
+        if ( args.car().equals("-k") || args.car().equals("--keep") ) {
+            handled = true;
+            force = true
+        };    
+        ifElse ( !handled ) {
+            ifElse ( args.car().startsWith("-") ) {
+                printLine("Unsupported option: " + args.car());
+                abort = true
+            }{
+                // add remaining arguments as input files 
+                ifElse ( inputDir.length() > 0 ) {
+                    printLine("Cannot specify input directory '-i' and explicit files. Make your choice.");
+                    abort = true
+                }{
+                    args.map( fn (x) => {
+                        DEBUG("Found input file  '" + args.car()  + "'.");
+                        inputFiles.add(x)
+                    });
+                    args = makeEmptyList()
+                }
+            };
+        }{        
+            args = args.cdr()
+        };
+    };
+
+    if ( inputDir == "" && inputFiles.isEmpty() ) {
+        printLine("You specify either an input directory('-i') or explicit file names.");
+        abort = true
+    };
+   
+    match (abort) {
+        case True  { new None; }
+        default    { 
+            createSome((new CompilerConfiguration {
+                val plaidpath   = plaidpath;
+                val force       = force;
+                val keep        = keep;
+                val outputDir   = outputDir;
+                val inputDir    = inputDir;
+                val tempDir     = tempDir;
+                val inputFiles  = inputFiles;
+            }).expand()); 
+        }        
+    }
+}
+
+
+
+method main(args) {
+    val unique Option result = parseCommandLineArgs(args);
+   
+    match (result) {
+        case Some {
+            val unique CompilerConfiguration cc = result.value;
+
+            // printLine("Some: " + result.value.toString());
+            // val path = "../compilerTests/coreExamples/turing/package.plaid";
+            // val source = new Source {
+            //     val path = path;
+            // };
+            // val job = new Job {
+            //     val source = source;
+            // };
+            // val parsePass = new passes.ParsePass;
+            // parsePass.run(job);
+        }
+        default {}
+    }
+}
