@@ -190,7 +190,7 @@ public class Serialization {
 				} else if ( ((String)type).equals("class java.lang.Integer") || 
 						    ((String)type).equals("class java.lang.Long") ) {
 					if ( jsonObj.get(DATA) instanceof Integer ) {
-						return plaid.runtime.Util.integer((Integer)jsonObj.get(DATA));
+						return plaid.runtime.Util.integer((java.lang.Integer)jsonObj.get(DATA));
 					} else if ( jsonObj.get(DATA) instanceof Long ) {
 						return plaid.runtime.Util.integer(((Long)jsonObj.get(DATA)).intValue());
 					} else {
