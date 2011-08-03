@@ -184,7 +184,7 @@ public class TransliterateToPlaid<T> {
 				sb.append("\t    node."+field.getName()+".accept(this);\n");
 				sb.append("\t    " + nodeName + ".add(" + fieldNode + ");\n");
 			} else if ( Token.class.isAssignableFrom(field.getType()) ) {
-				//sb.append("\t    "+ nodeName+".add(this.createTokenNode(node."+field.getName()+"));\n");
+				sb.append("\t    "+ nodeName+".add(this.createTokenNode(node."+field.getName()+"));\n");
 			}else {
 				// handle base cases 
 				String fieldNode = "node"+field.getName();
@@ -259,13 +259,13 @@ public class TransliterateToPlaid<T> {
 		sbASTViewerVisitor.append("\t    jframe.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);\n");
 		sbASTViewerVisitor.append("\t    jframe.setVisible(true);\n");
 		sbASTViewerVisitor.append("\t}\n\n");
-		sbASTViewerVisitor.append("\tmethod createTokenNode(jtreeNode, token) { \n");
+		sbASTViewerVisitor.append("\tmethod createTokenNode(token) { \n");
 		sbASTViewerVisitor.append("\t   var tokenNode = createNode(\"Token\");\n");
 		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"beginLine(\"+token.beginLine+\")\"));\n");
 		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"beginColumn(\"+token.beginColumn+\")\"));\n");
 		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"endLine(\"+token.endLine+\")\"));\n");
 		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"endColumn(\"+token.endColumn+\")\"));\n");
-		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"image(\"+token.image+\")\"));\n");
+		sbASTViewerVisitor.append("\t   tokenNode.add(createNode(\"image(\\\"\"+token.image+\"\\\")\"));\n");
 		sbASTViewerVisitor.append("\t   tokenNode\n");
 		sbASTViewerVisitor.append("\t}\n\n");
 		
@@ -293,5 +293,7 @@ public class TransliterateToPlaid<T> {
 		writePlaidFile(outputASTDir, sbLeafVisitor.toString(), "LeafVisitor");
 		sbASTViewerVisitor.append("}\n");
 		writePlaidFile(outputASTDir, sbASTViewerVisitor.toString(), "ASTViewerVisitor");
+		
+		System.out.println("");
 	}
 }
