@@ -19,6 +19,8 @@
 package plaid.runtime;
 
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -27,14 +29,13 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.models.map.PlaidStateMap;
-import plaid.runtime.types.PlaidImmutablePermission;
 import plaid.runtime.utils.Delegate;
 
 public class Util {
 	public static final String thisVar = "this";
 	private static PlaidRuntime rt = PlaidRuntime.getRuntime();
     private static PlaidClassLoader cl = PlaidRuntime.getRuntime().getClassLoader();
-	protected static AtomicReferenceArray<PlaidJavaObject> integerCache = new AtomicReferenceArray<PlaidJavaObject>(256);
+	protected static AtomicReferenceArray<PlaidObject> integerCache = new AtomicReferenceArray<PlaidObject>(256);
     protected static volatile PlaidObject TRUE; 
     protected static volatile PlaidObject FALSE;
     protected static AtomicReference<PlaidObject> NONE = new AtomicReference<PlaidObject>();
@@ -75,13 +76,16 @@ public class Util {
 		return value;
 	}
 
-	public static PlaidObject integer(Integer i) throws PlaidException {
+	public static PlaidObject integer(java.lang.Integer i) throws PlaidException {
 		if ( 0 <= i && i < integerCache.length() ) {
-			PlaidJavaObject value = integerCache.get(i);
+			PlaidObject value = integerCache.get(i);
 			if ( value == null ) {
 				PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
-				value = (PlaidJavaObject)intState.instantiate(PlaidImmutablePermission.immutable());
-				value.setJavaObject(i);
+				PlaidState init = newState();
+				PlaidMemberDef mdef = memberDef("nativeInt", null, false, true);
+				init.addMember(mdef, cl.packJavaObject(java.math.BigInteger.valueOf(i)));
+				PlaidState initState = (PlaidState)intState.initState(init);
+				value =  initState.instantiate();		
 				if ( !integerCache.weakCompareAndSet(i, null, value) ) {
 					value = integerCache.get(i);
 				}				
@@ -89,17 +93,21 @@ public class Util {
 			return value;
 		} else {
 			PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
-			PlaidJavaObject value = (PlaidJavaObject)intState.instantiate(PlaidImmutablePermission.immutable());
-			value.setJavaObject(i);
-			return value;
+			PlaidState init = newState();
+			PlaidMemberDef mdef = memberDef("nativeInt", null, false, true);
+			init.addMember(mdef, cl.packJavaObject(java.math.BigInteger.valueOf(i)));
+			PlaidState initState = (PlaidState)intState.initState(init);
+			return initState.instantiate();		
 		}
 	}
 	
 	public static PlaidObject floatingDouble(Double i) throws PlaidException {
-		PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Double", unit()));
-		PlaidJavaObject value = (PlaidJavaObject)intState.instantiate(PlaidImmutablePermission.immutable());
-		value.setJavaObject(i);
-		return value;
+		PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Real", unit()));
+		PlaidState init = newState();
+		PlaidMemberDef mdef = memberDef("nativeReal", null, false, true);
+		init.addMember(mdef, cl.packJavaObject(java.math.BigDecimal.valueOf(i)));
+		PlaidState initState = (PlaidState)intState.initState(init);
+		return initState.instantiate();	
 	}
 	
 	public static PlaidObject boolObject(boolean b) throws PlaidException {
@@ -212,7 +220,21 @@ public class Util {
 									objs.add(Boolean.FALSE);
 									added = true;
 									break;
-								}				
+								}
+							}
+							if (((PlaidObject)fst).getTags() != null ) {
+								for (Object o : ((PlaidObject)fst).getTags().keySet() ) {
+									PlaidTag tag = (PlaidTag)o;
+									if ( tag.getPath().equals("plaid.lang.Integer")) {						 
+										objs.add(((BigInteger)((PlaidJavaObject)(fst.getMember("nativeInt").getValue())).getJavaObject()).intValue()); 
+										added = true;
+										break;
+									} else if ( tag.getPath().equals("plaid.lang.Real")) {						 
+										objs.add(((BigDecimal)((PlaidJavaObject)(fst.getMember("nativeReal").getValue())).getJavaObject()).doubleValue()); 
+										added = true;
+										break;
+									} 
+								}
 							}
 						}
 						if ( !added ) {
@@ -233,6 +255,19 @@ public class Util {
 				} else if (ps.getPath().equals("plaid.lang.False")) {
 					objs.add(Boolean.FALSE);
 				}				
+			}
+
+			if (((PlaidObject)params).getTags() != null ) {
+				for (Object o : ((PlaidObject)params).getTags().keySet() ) {
+					PlaidTag tag = (PlaidTag)o;
+					if ( tag.getPath().equals("plaid.lang.Integer")) {						 
+						objs.add(((BigInteger)((PlaidJavaObject)(params.getMember("nativeInt").getValue())).getJavaObject()).intValue()); 
+						break;
+					}  else if ( tag.getPath().equals("plaid.lang.Real")) {						 
+						objs.add(((BigDecimal)((PlaidJavaObject)(params.getMember("nativeReal").getValue())).getJavaObject()).doubleValue()); 
+						break;
+					} 
+				}
 			}
 			if ( objs.isEmpty() ) {
 				objs.add(params);
