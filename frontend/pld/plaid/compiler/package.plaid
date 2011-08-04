@@ -4,19 +4,25 @@ package plaid.compiler;
 import plaid.compiler.Reporter;
 import plaid.compiler.reporter.*;
 
+import plaid.compiler.resolver.ClasspathResolver;
+
 import java.lang.System;
 
 
 method void INFO(immutable String msg) {
-    printLine("[INFO] " + msg);
+    printLine("[INFO   ] " + msg);
 }
 
 method void WARNING(immutable String msg) {
     printLine("[WARNING] " + msg);
 }
 
+method void ERROR(immutable String msg) {
+    printLine("[ERROR  ] " + msg);
+}
+
 method void DEBUG(immutable String msg) {
-    printLine("[DEBUG] " + msg);
+    printLine("[DEBUG  ] " + msg);
 }
 
 method showUsage() {
@@ -163,6 +169,8 @@ method main(args) {
             val unique CompilerConfiguration cc = result.value;
             val sourceJobs = makeEmptyList();
             val unique Reporter reporter = new reporter.ConsoleReporter;
+            INFO("Classpath = " + cc.plaidpath.toString());
+            val shared Resolver resolver = new ClasspathResolver { classpath = cc.plaidpath; };
 
             cc.inputFiles.map(fn (path) => {
                 val source = new Source { val path = path; };
@@ -173,24 +181,25 @@ method main(args) {
                                         
                 // run parse job
                 val parsePass = new passes.ParsePass;
-                job.status = job.status &&  parsePass.run(job, reporter);
+                job.status = job.status && parsePass.run(job, reporter);
 
                 // run file system checks 
                 val fsCheckPass = new passes.FileSystemCheckPass;
-                job.status = job.status &&  fsCheckPass.run(job, reporter);
+                job.status = job.status && fsCheckPass.run(job, reporter);
 
                 // viewer pass 
-                val viewerPass = new passes.ASTViewerPass { override var titlePrefix = "After translation: "; };
-                job.status = job.status && viewerPass.run(job, reporter);
+                //val viewerPass = new passes.ASTViewerPass { override var titlePrefix = "After translation: "; };
+                //job.status = job.status && viewerPass.run(job, reporter);
 
                 // naming pass 
-                val nameExpanderPass = new passes.NameExpanderPass;
+                val nameExpanderPass = new passes.NameExpanderPass { resolver = resolver; };
                 job.status = job.status && nameExpanderPass.run(job, reporter);
             });
 
             reporter.report();
         }
         default {
+            printLine("Could not find any source files.");
         }
     }
 }

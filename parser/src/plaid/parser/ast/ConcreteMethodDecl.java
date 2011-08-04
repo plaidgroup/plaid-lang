@@ -7,10 +7,10 @@ import plaid.parser.Token;
 public final class ConcreteMethodDecl extends MethodDecl {
 	private final BlockExpr body;
 
-	public ConcreteMethodDecl(Token t, List<Modifier> modifiers, Type type,
+	public ConcreteMethodDecl(Token t, List<Modifier> modifiers, Type returnType,
 			Identifier name, List<StaticArg> StaticArgsSpec,
 			List<Arg> arguments, List<Arg> env, BlockExpr body) {
-		super(t, modifiers, type, name, StaticArgsSpec, arguments, env);
+		super(t, modifiers, returnType, name, StaticArgsSpec, arguments, env);
 		this.body = body;
 	}
 
@@ -24,7 +24,7 @@ public final class ConcreteMethodDecl extends MethodDecl {
 		
 		if ( getModifiers().size() > 0 ) sb.append(modifiersToString(getModifiers())+" ");
 		sb.append("method ");
-		if ( getType() != Type.EMPTY ) sb.append(getType().toString()+ " ");
+		if ( getReturnType() != Type.EMPTY ) sb.append(getReturnType().toString()+ " ");
 		sb.append(getName());
 		if ( getStaticArgsSpec().size() > 0) sb.append(StaticArgSpecsToString(getStaticArgsSpec()));
 		sb.append("(");
