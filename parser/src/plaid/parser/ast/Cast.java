@@ -3,17 +3,17 @@ package plaid.parser.ast;
 import plaid.parser.Token;
 
 public class Cast extends Expr {
-	private final Type type;
+	private final Type targetType;
 	private final Expr expression;
 	
-	public Cast(Token t, Expr expression, Type type) {
+	public Cast(Token t, Expr expression, Type targetType) {
 		super(t);
-		this.type = type;
+		this.targetType = targetType;
 		this.expression = expression;
 	}
 	
-	public Type getType() {
-		return this.type;
+	public Type getTargetType() {
+		return this.targetType;
 	}
 	
 	public Expr getExpr() {
