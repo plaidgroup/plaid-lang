@@ -65,29 +65,36 @@ method makeRichards(){
  * The Richards benchmark simulates the task dispatcher of an
  * operating system.
  **/
-method runRichards() {
+method runRichardsCompiled() {
+  
   var scheduler = new Scheduler;
-  scheduler.addIdleTask(ID_IDLE, 0, null, COUNT);
+  scheduler.addIdleTask(ID_IDLE, 0, NEWNONE, COUNT);
 
   var queue = new Packet;
-  queue.setData(null, ID_WORKER, KIND_WORK);
-  queue.setData(queue,  ID_WORKER, KIND_WORK);
-  scheduler.addWorkerTask(ID_WORKER, 1000, queue);
+  queue.setData(NEWNONE, ID_WORKER, KIND_WORK);
+  var queue2 = new Packet;
+  queue2.setData(queue,  ID_WORKER, KIND_WORK);
+  scheduler.addWorkerTask(ID_WORKER, 1000, queue2);
 
-  queue = new Packet;
-  queue.setData(null, ID_DEVICE_A, KIND_DEVICE);
-  queue.setData(queue,  ID_DEVICE_A, KIND_DEVICE);
-  queue.setData(queue,  ID_DEVICE_A, KIND_DEVICE);
-  scheduler.addHandlerTask(ID_HANDLER_A, 2000, queue);
+  var queue3 = new Packet;
+  queue3.setData(NEWNONE, ID_DEVICE_A, KIND_DEVICE);
+  var queue4 = new Packet;
+  queue4.setData(queue3,  ID_DEVICE_A, KIND_DEVICE);
+  var queue5 = new Packet;
+  queue5.setData(queue4,  ID_DEVICE_A, KIND_DEVICE);
+  scheduler.addHandlerTask(ID_HANDLER_A, 2000, queue5);
 
-  queue.setData(null, ID_DEVICE_B, KIND_DEVICE);
-  queue.setData(queue,  ID_DEVICE_B, KIND_DEVICE);
-  queue.setData(queue,  ID_DEVICE_B, KIND_DEVICE);
-  scheduler.addHandlerTask(ID_HANDLER_B, 3000, queue);
+  var queue6 = new Packet;
+  queue6.setData(NEWNONE, ID_DEVICE_B, KIND_DEVICE);
+  var queue7 = new Packet;
+  queue7.setData(queue6,  ID_DEVICE_B, KIND_DEVICE);
+  var queue8 = new Packet;
+  queue8.setData(queue7,  ID_DEVICE_B, KIND_DEVICE);
+  scheduler.addHandlerTask(ID_HANDLER_B, 3000, queue8);
 
-  scheduler.addDeviceTask(ID_DEVICE_A, 4000, null);
+  scheduler.addDeviceTask(ID_DEVICE_A, 4000, NEWNONE);
 
-  scheduler.addDeviceTask(ID_DEVICE_B, 5000, null);
+  scheduler.addDeviceTask(ID_DEVICE_B, 5000, NEWNONE);
 
   scheduler.schedule();
 
@@ -109,7 +116,7 @@ method runRichards() {
 state Scheduler {
   var queueCount = 0;
   var holdCount = 0;
-  var blocks = new Array;
+  var blocks = (new Array).getArrayWithSize(NUMBER_OF_IDS);
   var list = NEWNONE;
   var currentTcb = NEWNONE;
   var currentId = NEWNONE;
@@ -211,7 +218,7 @@ method schedule() {
  */
 method release(id) {
   var tcb = this.blocks.get(id);
-  ifElse (tcb == null) {
+  ifElse (tcb == NEWNONE) {
     tcb;
   }
   {
@@ -253,7 +260,7 @@ method suspendCurrent() {
  */
 method queue(packet) {
   var t = this.blocks.get(packet.id);
-  ifElse (t == null) {
+  ifElse (t == NEWNONE) {
     t;
   }
   {
@@ -295,7 +302,7 @@ method setData(link, id, priority, queue, task){
   this.priority = priority;
   this.queue = queue;
   this.task = task;
-  ifElse (queue == null) {
+  ifElse (queue == NEWNONE) {
     this.currState = STATE_SUSPENDED;
   }
   {
@@ -331,6 +338,7 @@ method markAsRunnable() {
  * Runs this task, if it is ready to be run, and returns the next task to run.
  */
 method run() {
+  //error might be here???  returning wrong link?
   var packet = "";
   ifElse (this.currState == STATE_SUSPENDED_RUNNABLE) {
     packet = this.queue;
@@ -369,7 +377,7 @@ method checkPriorityAdd(task, packet) {
 }
 
 method toString() {
-  "tcb { " + this.task + "@" + this.currState + " }";
+  "tcb { " + this.id +": " + this.task + "@" + this.currState + " }";
 }
 
 }
@@ -521,11 +529,12 @@ state HandlerTask{
 
 method setData(scheduler) {
   this.scheduler = scheduler;
-  this.v1 = null;
-  this.v2 = null;
+  this.v1 = NEWNONE;
+  this.v2 = NEWNONE;
 }
 
 method run(packet) {
+  //this might be where problem is.  returning wrong item?
   if (packet != NEWNONE) {
     ifElse (packet.kind == KIND_WORK) {
       this.v1 = packet.addTo(this.v1);
@@ -554,7 +563,7 @@ method run(packet) {
     };
   };
   if (toReturn==""){
-  toReturn = this.scheduler.suspendCurrent();
+    toReturn = this.scheduler.suspendCurrent();
   };
   toReturn;
 }
@@ -595,7 +604,8 @@ method setData(link, id, kind) {
   this.id = id;
   this.kind = kind;
   this.a1 = 0;
-  this.a2 = new Array;
+  var temp = new Array;
+  this.a2 = temp.getArrayWithSize(DATA_SIZE);
 }
 
 /**
@@ -610,8 +620,9 @@ method addTo(queue) {
   {
   var peek = queue;
   var next = queue;
-  while ({(peek = next.link) != NEWNONE}) {
+  while ({peek != NEWNONE}) {
     next = peek;
+    peek=next.link;
   };
   next.link = this;
   queue;
@@ -624,6 +635,20 @@ method toString() {
 }
 //end Packet
 
-method main(){
-  runRichards();
+
+method main() {
+	printLine("Plaid");
+	var time=0;
+	var i=0;
+	while({i<10}){
+		var start=new Date;
+		runRichardsCompiled();
+		var timeOne = new Date-start;
+		printLine(timeOne);
+		time=time+timeOne;
+		i=i+1;
+	};
+	printLine("--------");
+	printLine(time);
 }
+
