@@ -27,16 +27,16 @@ import plaid.parser.Token;
 public class Application extends Expr {
 	private final Expr function;
 	private final Expr argument;
-	private final List<Expr> StaticArgs; 
+	private final List<Expr> staticArgs; 
 
 
 	public Application(Token t, Expr function, List<Expr> StaticArgs, Expr argument) {
 		super(t);
 		this.function = function;
 		if ( StaticArgs == null ) {
-			this.StaticArgs = new ArrayList<Expr>();
+			this.staticArgs = new ArrayList<Expr>();
 		} else {
-			this.StaticArgs = StaticArgs;			
+			this.staticArgs = StaticArgs;			
 		}
 		this.argument = argument;
 	}
@@ -50,14 +50,14 @@ public class Application extends Expr {
 	}
 	
 	public List<Expr> getStaticArgs() {
-		return StaticArgs;
+		return staticArgs;
 	}
 	
 	@Override 
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		if (function != null) sb.append(function.toString());
-		if (StaticArgs.size() > 0) sb.append("<" + exprListToString(StaticArgs) + ">");
+		if (staticArgs.size() > 0) sb.append("<" + exprListToString(staticArgs) + ">");
 		if (argument != null ) sb.append(argument.toString());
 		return sb.toString();
 	}
