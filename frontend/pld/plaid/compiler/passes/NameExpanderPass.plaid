@@ -4,8 +4,18 @@ import plaid.ast.parsed.LeafVisitor;
 import plaid.compiler.Pass;
 import plaid.compiler.Reporter;
 
+import plaid.compiler.symbol.VariableSymbol;
+import plaid.compiler.symbol.SymbolFactory;
+
+import java.util.Map;
+import java.util.IdentityHashMap;
+
 state NameExpanderPass case of Pass  = LeafVisitor with  {
- 
+
+    val unique Stack stack = new Stack;
+    val unique Map map = IdentityHashMap.new();
+    val immutable SymbolFactory sf = new SymbolFactory;
+    
     method immutable Boolean run(unique Job job, unique Reporter reporter) {
         match (job.ast) {
             case Some {
@@ -15,9 +25,54 @@ state NameExpanderPass case of Pass  = LeafVisitor with  {
             default { false }
         }
     }
-
-    override method visitCompilationUnit(cu) {
+    
+    override method void visitVarDecl(immutable VarDecl node) {
+        node.specifier.accept(this);
+        node.type.accept(this);
+        node.id.accept(this);
+        node.expr.accept(this);
         
+        val shared VariableSymbol mySymbol = sf.makeVariableSymbol(node.id.name, node);
+        map.put(node, mySymbol);
+        val ctx = stack.peek();
+        ctx.put(node.id.name, mySymbol);
     }
-
+    
+    method void visitConcreteStateValDecl(immutable ConcreteStateValDecl node) {
+        node.stateBinding.accept(this);
+        node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
+        node.name.accept(this);
+        node.modifiers.map(fn (item) => { item.accept(this); item });
+        
+        val shared VariableSymbol mySymbol = sf.makeVariableSymbol(node.name.name, node);
+        map.put(node, mySymbol);
+        val ctx = stack.peek();
+        ctx.put(node.name.name, mySymbol);
+    }
+    
+    override method void visitConcreteMethodDecl(immutable ConcreteMethodDecl node) {
+        
+        Context ctxt = new LocalContext{parent = stack.peek()};
+        stack.push(ctxt);
+        
+        node.modifiers.map(fn (item) => { item.accept(this); item });
+        node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
+        node.type.accept(this);
+        node.arguments.map(fn (item) => { item.accept(this); item });
+        node.env.map(fn (item) => { item.accept(this); item });
+        node.name.accept(this);
+        node.body.accept(this);
+        
+        stack.pop();
+    }
+    
+    override method void visitArg(immutable Arg node) {
+        node.name.accept(this);
+        node.argSpec.accept(this);
+        
+        val shared VariableSymbol mySymbol = sf.makeVariableSymbol(node.name.name, node);
+        map.put(node, mySymbol);
+        val ctx = stack.peek();
+        ctx.put(node.name.name, mySymbol);
+    }
 }
