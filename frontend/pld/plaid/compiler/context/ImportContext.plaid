@@ -1,6 +1,14 @@
 package plaid.compiler.context;
 
+import plaid.ast.util.*;
+
+import plaid.compiler.DEBUG;
+import plaid.compiler.Symbol;
+import plaid.compiler.symbol.SymbolFactory;
 import plaid.compiler.Context;
+import plaid.compiler.resolver.ClassPathResolver;
+import plaid.compiler.Resolver;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,10 +18,44 @@ state ImportContext case of Context {
     
     val unique Map map = HashMap.new();
     val shared Context parent;
+    val shared List imports;    
+    val shared ClasspathResolver resolver;
     
     method put(name, symbol) {
-        
+        false
     }
-    method find(name) {
+
+    method find(name) {        
+        var unique Option symbol = NONE;
+
+        imports.map( fn (imp) =>  {            
+            match (symbol) {
+                case None {
+                    match (imp.star) {                
+                        case False {                            
+                            val size   = imp.qualifiedIdentifier.identifiers.length();
+                            val lastId = imp.qualifiedIdentifier.identifiers.get(size - 1);                            
+                            
+                            if ( lastId.name == name ) {
+                                var fqn = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+                                symbol = resolver.lookup(fqn);
+                            };
+                        }
+                        case True { 
+                            val packageName = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+                            val fqn = packageName + "." + name;
+                            symbol = resolver.lookup(fqn);
+                        }
+                    }
+                }
+                case Some {}
+            }
+        });
+
+   
+        match (symbol) {
+            case Some { symbol }
+            case None { parent.find(name) }
+        }
     }
 }
