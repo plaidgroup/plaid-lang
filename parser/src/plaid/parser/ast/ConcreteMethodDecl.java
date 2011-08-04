@@ -5,16 +5,16 @@ import java.util.List;
 import plaid.parser.Token;
 
 public final class ConcreteMethodDecl extends MethodDecl {
-	private final Expr body;
+	private final BlockExpr body;
 
 	public ConcreteMethodDecl(Token t, List<Modifier> modifiers, Type type,
 			Identifier name, List<StaticArg> StaticArgsSpec,
-			List<Arg> arguments, List<Arg> env, Expr body) {
+			List<Arg> arguments, List<Arg> env, BlockExpr body) {
 		super(t, modifiers, type, name, StaticArgsSpec, arguments, env);
 		this.body = body;
 	}
 
-	public Expr getBody() {
+	public BlockExpr getBody() {
 		return body;
 	}
 	
