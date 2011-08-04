@@ -149,7 +149,7 @@ public class ASTFactory {
 		return new ConcreteFieldDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, specifier, type, name, body);
 	}
 	
-	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env, Expr body) {
+	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env, BlockExpr body) {
 		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env, body);
 	}
 	
