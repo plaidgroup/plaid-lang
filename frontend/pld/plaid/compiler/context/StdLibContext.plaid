@@ -1,5 +1,6 @@
 package plaid.compiler.context;
 
+import java.util.HashMap;
 
 import plaid.compiler.Context;
 import plaid.compiler.resolver.ClassPathResolver;
@@ -7,6 +8,7 @@ import plaid.compiler.Resolver;
 
 state StdLibContext case of Context {
 
+    val unique Map cache = HashMap.new();
     val shared Context parent;
     val shared ClasspathResolver resolver;
     
@@ -16,16 +18,28 @@ state StdLibContext case of Context {
 
     method find(immutable String name) {        
         var unique Option symbol = NONE;                                
-        var symbolOpt = resolver.lookup("plaid.lang." + name);
-        match (symbolOpt) {
-            case Some { symbolOpt }
-            case None { 
-                symbolOpt = resolver.lookup("plaid.lang.globals." + name);
-                match (symbolOpt) {
-                    case Some { symbolOpt }
-                    case None { parent.find(name) }
+        DEBUG("<StdLibContext> looking for '" + name + "'");        
+
+        ifElse ( cache.containsKey(name) ) {
+            DEBUG("<StdLibContext> found '" + name + "' in cache.");
+            symbol = cache.get(name);
+        }{
+            DEBUG("<StdLibContext>     search for 'plaid.lang." + name + "'");
+            symbol = resolver.lookup("plaid.lang." + name);
+            match (symbol) {
+                case Some { symbol }
+                case None { 
+                    DEBUG("<StdLibContext>     search for 'plaid.lang.globals." + name + "'");
+                    symbol = resolver.lookup("plaid.lang.globals." + name);
                 }
-            }
-        }
+            };
+            cache.put(name, symbol);
+        };
+
+        match (symbol) {
+            case Some { symbol }
+            case None { parent.find(name) }            
+       }
+
     }
 }

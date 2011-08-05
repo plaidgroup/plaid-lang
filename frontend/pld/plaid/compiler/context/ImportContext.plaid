@@ -16,7 +16,7 @@ import java.util.Map;
 
 state ImportContext case of Context {
     
-    val unique Map map = HashMap.new();
+    val unique Map cache = HashMap.new();
     val shared Context parent;
     val shared List imports;    
     val shared ClasspathResolver resolver;
@@ -27,32 +27,41 @@ state ImportContext case of Context {
 
     method find(name) {        
         var unique Option symbol = NONE;
+        DEBUG("<ImportContext> looking for '" + name + "'");        
 
-        imports.map( fn (imp) =>  {            
-            match (symbol) {
-                case None {
-                    match (imp.star) {                
-                        case False {                            
-                            val size   = imp.qualifiedIdentifier.identifiers.length();
-                            val lastId = imp.qualifiedIdentifier.identifiers.get(size - 1);
-                            
-                            
-                            if ( lastId.name == name ) {
-                                var fqn = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+        ifElse ( cache.containsKey(name) ) {
+            DEBUG("<ImportContext> found '" + name + "' in cache.");
+            symbol = cache.get(name);
+        }{
+            DEBUG("<ImportContext> searching in imports");
+            imports.map( fn (imp) =>  {            
+                DEBUG("<ImportContext>     searching in '" + makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier) +"'");
+                match (symbol) {
+                    case None {
+                        match (imp.star) {                
+                            case False {                            
+                                val size   = imp.qualifiedIdentifier.identifiers.length();
+                                val lastId = imp.qualifiedIdentifier.identifiers.get(size - 1);
+
+                                if ( lastId.name == name ) {
+                                    var fqn = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+                                    symbol = resolver.lookup(fqn);
+                                };
+                            }
+                            case True { 
+                                val packageName = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+                                val fqn = packageName + "." + name;
                                 symbol = resolver.lookup(fqn);
-                            };
-                        }
-                        case True { 
-                            val packageName = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
-                            val fqn = packageName + "." + name;
-                            symbol = resolver.lookup(fqn);
+                            }
                         }
                     }
-                }
-                case Some {}
-            }
-        });
+                    case Some {}
+                };
+                imp
+            });
 
+           cache.put(name, symbol);
+        };
    
         match (symbol) {
             case Some { symbol }

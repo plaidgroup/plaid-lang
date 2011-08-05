@@ -43,9 +43,9 @@ state ClasspathResolver case of Resolver {
      
 
      method /*Option<Symbol>*/ lookup(immutable String fqn) {
-         DEBUG("Resolver looking for '" + fqn + "'");
+         DEBUG("<ClasspathResolver> looking for '" + fqn + "'");
          ifElse ( cache.containsKey(fqn) ) {
-             DEBUG("found '" + fqn + "' in cache");
+             DEBUG("<ClasspathResolver> found '" + fqn + "' in cache");
              createSome(cache.get(fqn));
          }{
              val /* List<...> */ lookupFunctions = makeEmptyList();
@@ -77,7 +77,7 @@ state ClasspathResolver case of Resolver {
      
 
      method void addCompilationUnit(unique CompilationUnit cu) {
-         DEBUG("    resolver add compilation Unit: " + makeStringFromQualifiedIdentifier(cu.packageName));
+         DEBUG("<ClasspathResolver>    resolver add compilation unit");
  
          // add package declarations
          val packages = cu.packageName.identifiers;
@@ -92,6 +92,7 @@ state ClasspathResolver case of Resolver {
             if(!cache.containsKey(curName)) {
                 val packageSymbol = sf.makePackageSymbol(curName,sf.makeTopSymbol());
                 cache.put(curName, packageSymbol);
+                DEBUG("<ClasspathResolver>    ADD '" +  curName + "'");
             };
             i = i + 1;
          };
@@ -102,8 +103,9 @@ state ClasspathResolver case of Resolver {
          cu.decls.map(fn(d) => {
             val declName = curName + "." + d.name.name;
             ifElse(cache.containsKey(declName)) {
-                ERROR("Name " + declName + " already declared.");
+                ERROR("<ClasspathResolver> Name " + declName + " already declared.");
             }{
+                DEBUG("<ClasspathResolver>    ADD '" +  declName + "'");
                 var declSymbol = sf.makeTopSymbol();
                 match(d) {
                     case FieldDecl {
@@ -127,19 +129,18 @@ state ClasspathResolver case of Resolver {
          });
      }
      
-
-     method /* Option<DeclType> */ lookupFromPlaidSource(immutable String fqn) {
-         var /* Option<DeclType> */ result = new None;
+     method /* Option<Symbol> */ lookupFromPlaidSource(immutable String fqn) {
+         var /* Option<Symbol> */ result = new None;
          
-         DEBUG("searching for '" + fqn + "' plaid source code in classpath");
+         DEBUG("<ClasspathResolver> searching for '" + fqn + "' plaid source code in classpath");
          classpath.map(fn (item) => {
              match (result) {
                  case None {
                      val unique File path = (java.io.File.new(item)).getAbsoluteFile();
-                     DEBUG("  searching classpath: " + path);
+                     DEBUG("<ClasspathResolver>   searching classpath: " + path);
                      
                      ifElse  ( path.isFile() && path.toString().endsWith(".jar") ) {
-                         DEBUG("  dive into JAR file ... " );
+                         DEBUG("<ClasspathResolver>     dive into JAR file ... " );
                          val unique JarFile jarFile = java.util.jar.JarFile.new(path);
                          val entries = jarFile.entries();
                          while { entries.hasMoreElements() }{
@@ -158,7 +159,7 @@ state ClasspathResolver case of Resolver {
                                      val packageName = fqn.substring(0, fqn.length() - (fqn.length()- fqn.lastIndexOf("."))).replace(".", fileSeparator)+ fileSeparator +"package.plaid";
                                      val absPackageFileName = packageName + fileSeparator + packageName;                                     
                                      if ( entryName.equals(packageName) && (!visitedFiles.contains(absPackageFileName))) {
-                                         DEBUG("    found: " + packageName);
+                                         DEBUG("<ClasspathResolver>     found: " + packageName);
                                          visitedFiles.add(absPackageFileName);
                                          result = loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry));
                                      };
@@ -169,26 +170,26 @@ state ClasspathResolver case of Resolver {
                      }{
                          // check for file specification
                          val fqnFile = java.io.File.new(path.toString() + fileSeparator + fqn.replace(".", fileSeparator)+ ".plaid").getAbsoluteFile();
-                         DEBUG("    checking for file: " + fqnFile.toString() );
-                         if(!fqnFile.exists()) {
-                            DEBUG(fqnFile.toString() + " does not exist.");
-                         };
+                         DEBUG("<ClasspathResolver>     checking for file: " + fqnFile.toString() );
                          ifElse ( fqnFile.exists() && (!visitedFiles.contains(fqnFile.getAbsolutePath())) ) {
-                             DEBUG("  try loading definition from file: " + fqnFile.toString());
+                             DEBUG("<ClasspathResolver>       try loading definition from file: " + fqnFile.toString());
                              visitedFiles.add(fqnFile.getAbsolutePath());
                              result = loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(fqnFile));
                          }{
-                             DEBUG("  specification file does not exists");
+                             DEBUG("<ClasspathResolver>       specification file does not exists");
                          };
 
                          // check for definition in package
                          match (result) {
-                             case None {
+                             case None {                           
                                  val packageFile = java.io.File.new(fqnFile.getParent().toString() + fileSeparator + "package.plaid");
-                                 if ( packageFile.exists() && (!visitedFiles.contains(packageFile.getAbsolutePath())) ) {
-                                     DEBUG("  checking package definition: " + packageFile.toString());
+                                  DEBUG("<ClasspathResolver>     checking for package file: " + packageFile.toString() );
+                                 ifElse ( packageFile.exists() && (!visitedFiles.contains(packageFile.getAbsolutePath())) ) {
+                                     DEBUG("<ClasspathResolver>     checking package definition: " + packageFile.toString());
                                      visitedFiles.add(packageFile.getAbsolutePath());
                                      result = loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(packageFile));
+                                 }{
+                                     DEBUG("<ClasspathResolver>       package file does not exist");
                                  }
                              }
                              default {}
@@ -203,7 +204,7 @@ state ClasspathResolver case of Resolver {
      }
 
 
-     method /* Option<DeclType> */ loadTypeFromPlaidSourceStream(immutable String fqn, 
+     method /* Option<Symbol> */ loadTypeFromPlaidSourceStream(immutable String fqn, 
       unique InputStream fqnStream) {
          //val typeName = fqn.substring(fqn.lastIndexOf(".")+1);
          val parser = plaid.parser.Parser.new(fqnStream);
@@ -213,13 +214,13 @@ state ClasspathResolver case of Resolver {
              val plaidAST = translator.translateAST(javaAST);
              addCompilationUnit(plaidAST);
              ifElse ( cache.containsKey(fqn) ) {
-                INFO("Resolver found " + fqn);
+                INFO("<ClasspathResolver>      found '" + fqn + "'");
                 createSome(cache.get(fqn))
              }{
                 NONE
              }
          }{
-            ERROR("Could not parse " + fqn);
+            ERROR("<ClasspathResolver>     Could not parse '" + fqn + "'");
             NONE
          }
      }
