@@ -1,0 +1,159 @@
+package plaid.compiler.reporter;
+
+import plaid.compiler.Reporter;
+import plaid.lang.globals.*;
+import plaid.compiler.reporter.Error;
+
+import java.lang.System;
+
+state ConsoleReporter case of AbstractReporter {
+    val immutable String lineSuffix = "| ";
+    val immutable String errorPrefix = "***Error: ";
+    val immutable String warningPrefix = "***Warning: ";
+    val immutable String infoPrefix = "***Info: ";
+    val immutable Map cache = java.util.HashMap.new();
+
+
+    //=======================================================================
+    // report
+    //=======================================================================
+    method void report() {
+        var errorCount   = 0;
+        var warningCount = 0;
+
+        if ( !messages.isEmpty() ) {
+            messages.map( fn (msg) => {
+                 match(msg) {
+                     case Error   { reportMessage(errorPrefix, msg);   errorCount = errorCount + 1; }
+                     case Warning { reportMessage(warningPrefix, msg); warningCount = warningCount + 1;}
+                     case Info    { reportMessage(errorPrefix, msg);   }
+                     default { displayLine("Unsupported message.");}
+                 }
+            });
+            // summary
+            displayLine("Found " + errorCount + " errors and " + warningCount + " warnings.");
+        }
+    }
+    
+    
+    method reportMessage(immutable String prefix, immutable Message msg) {
+        // add checks that beginLine <= endLine
+    
+        // check if we can find file and print source code 
+        val immutable List sourceCode = getSourceCode(msg.file);
+        ifElse ( !sourceCode.isEmpty() ) {
+            ifElse ( msg.beginLine == msg.endLine ) {
+                val line = sourceCode.get(msg.beginLine - 1 );
+                val lineString = formatLineNumber(msg.beginLine);
+                displayLine( "File: " + msg.file.getAbsolutePath() + " (line:" + msg.beginLine +", column:" + msg.beginColumn+")");
+                displayLine( "...");
+                displayLine( lineString + line.toString());
+                displayLine( getMarker(lineString, msg.beginColumn, msg.endColumn) );
+            }{
+                var current = msg.beginLine;
+                displayLine( "File: " + msg.file.getAbsolutePath() + " (line:" + msg.beginLine +", column:" + msg.beginColumn+")");
+                displayLine( "...");
+                while { current < msg.endLine} {
+                    val line = sourceCode.get(current - 1 );
+                    val lineString = formatLineNumber(current);
+                    displayLine( lineString + line.toString());
+                    current = current + 1;  
+                };
+            };
+        }{
+            displayLine(warningPrefix + "Cannot find file: " + msg.file.getAbsolutePath());
+        };
+
+        displayLine("");
+        displayLine(prefix + msg.message);
+        displayLine("");
+        displayLine("");
+    }
+
+    
+    method immutable String getMarker(immutable  String prefix, 
+                                      immutable Integer beginColumn, 
+                                      immutable Integer endColumn) {
+        val unique StringBuilder sb = java.lang.StringBuilder.new();
+        val immutable Integer skip  = prefix.length() + beginColumn - 1;
+
+        var s = 0; 
+        while { s < skip }{ sb.append(" "); s = s + 1; };
+        
+        var l = skip;
+        while { l < (prefix.length() + endColumn ) }{ sb.append("^"); l = l + 1; };
+
+        sb.toString()
+    }
+
+
+    method immutable String formatLineNumber(immutable Integer value) {
+        ifElse ( value < 10 ) {
+            "0000"+value+lineSuffix;
+        }{
+            ifElse ( value < 100 ) {
+                "000"+value+lineSuffix
+            }{
+                ifElse (value < 1000 ) {
+                    "00"+value+lineSuffix
+                }{
+                    ifElse (value < 10000) {
+                        "0" + value + lineSuffix
+                    }{
+                        ""+value+lineSuffix
+                    }
+                }
+            }
+        }
+    }
+
+
+    method immutable List getSourceCode(immutable File file) {
+        var unique List list = makeEmptyList();
+
+        ifElse ( cache.containsKey(file.getAbsolutePath()) ) {
+            list = cache.get(file.getAbsolutePath());
+        }{
+            if ( file.getAbsoluteFile().exists()  ) {
+                val unique BufferedReader reader = java.io.BufferedReader.new(java.io.FileReader.new(file));
+
+                // start reading into buffer
+                var sb = java.lang.StringBuilder.new();
+                list.add(sb);
+                var value = reader.read();
+                while { 0 <= value  }{
+                    //sb.append(java.lang.Character.toChars(value));
+                    ifElse ( value == 0xD /* '\r' */ ) { 
+                       val next = reader.read();
+                       ifElse ( next == 0xA /* '\n' */ ) { 
+                           // next line
+                           sb = java.lang.StringBuilder.new();
+                           list.add(sb);
+                           value = reader.read();
+                       }{                      
+                           sb.append(java.lang.Character.toChars(value));
+                           value = next;
+                       };    
+                    }{
+                        ifElse ( value == 0xA /* '\n' */ ) { 
+                           // new line
+                           sb = java.lang.StringBuilder.new();
+                           list.add(sb);
+                        }{
+                            sb.append(java.lang.Character.toChars(value));
+                        };
+                        value = reader.read();
+                    };               
+                };            
+            };
+            cache.put(file.getAbsolutePath(), list);
+        };
+
+        list
+    }
+
+
+    method displayLine(immutable String line) {
+        System.out.println(line)
+    } 
+}

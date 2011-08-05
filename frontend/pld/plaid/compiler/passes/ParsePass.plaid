@@ -1,0 +1,40 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.*;
+import plaid.ast.translator.ASTTranslator;
+import plaid.parser.PlaidCoreParser;
+import plaid.parser.Parser;
+import plaid.compiler.Pass;
+import plaid.compiler.DEBUG;
+import plaid.compiler.ERROR;
+import plaid.compiler.Reporter;
+
+import java.io.File;
+import java.io.FileInputStream;
+
+state ParsePass case of Pass {
+    method immutable Boolean run(unique SourceJob job, unique Reporter reporter) {
+        // parse source file 
+        val file     = java.io.File.new(job.source.getPath());
+        val inStream = java.io.FileInputStream.new(file);
+        val parser   = Parser.new(inStream);
+        
+        DEBUG("parse file '" + job.source.getPath() + "'");
+
+        match (parser.hasCompilationUnit()) {
+            case True {
+                val javaAST  = parser.getCompilationUnit();
+                
+                // translate from Java -> Plaid AST
+                val translator = new ASTTranslator;
+                job.ast = createSome(translator.translateAST(javaAST));
+                
+                true 
+            }
+            default { 
+                ERROR("Failed to parse file '" + job.source.getPath()+"'");
+                false 
+            }
+        }
+    }
+}

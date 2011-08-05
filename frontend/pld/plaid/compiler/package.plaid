@@ -1,0 +1,263 @@
+
+package plaid.compiler;
+
+import plaid.compiler.Reporter;
+import plaid.compiler.reporter.*;
+
+import plaid.compiler.resolver.ClasspathResolver;
+
+import java.lang.System;
+
+
+var immutable Integer DEBUG_LEVEL = 0;
+
+method void INFO(immutable String msg) {
+    if ( 0 < DEBUG_LEVEL ) {
+        printLine("[INFO   ] " + msg);
+    }
+}
+
+method void WARNING(immutable String msg) {
+    if ( 0 < DEBUG_LEVEL ) {
+        printLine("[WARNING] " + msg);
+    }
+}
+
+method void ERROR(immutable String msg) {
+    if ( 0 < DEBUG_LEVEL ) {
+       printLine("[ERROR  ] " + msg);
+    }
+}
+
+method void DEBUG(immutable String msg) {
+    if ( 1 < DEBUG_LEVEL ) {
+       printLine("[DEBUG  ] " + msg);
+    }
+}
+
+method void DEBUG2(immutable String msg) {
+    if ( 2 < DEBUG_LEVEL ) {
+       printLine("[DEBUG  ] " + msg);
+    }
+}
+
+method void DEBUG3(immutable String msg) {
+    if ( 3 < DEBUG_LEVEL ) {
+       printLine("[DEBUG  ] " + msg);
+    }
+}
+
+
+method showUsage() {
+    printLine("usage: plaidc [OPTIONS] [FILES]");
+    printLine("");
+    printLine("Options:");
+    printLine(" -d | --debug  <LEVEL>       Set the default level for debug output (0,1,2,3,4).");
+    printLine(" -f | --force-recompile      Generate output files even if source files are older.");
+    printLine(" -h | --help                 This message.");
+    printLine(" -i | --input  <DIR>         The directory of Plaid files to compile.");
+    printLine(" -k | --keep                 Keep temporary files.");
+    printLine(" -o | --output <DIR>         The directory to put generated files.");
+    printLine(" -p | --plaidpath <DIR>      A path where plaid sources are stored.");
+    printLine(" -t | --temp <DIR>           The directory to put temporary generated files.");
+    printLine(" -v | --version              The version of the current compiler.");
+    
+}
+
+method showVersion() {
+    printLine("PlaidC version 2.0");
+}
+
+method parseCommandLineArgs(args) {
+    var abort = false;
+    
+    var keep       = false;
+    var force      = false;
+    var outputDir  = "";
+    var tempDir    = "";
+    var inputDir   = "";
+    var plaidpath  = makeEmptyList();
+    var inputFiles = makeEmptyList();
+        
+    while { !abort && !args.isEmpty() }{
+        var handled = false;
+        if ( args.car().equals("-h") || args.car().equals("--help") ) {
+            handled = true;
+            showUsage();
+            abort = true
+        };
+        if ( args.car().equals("-v") || args.car().equals("--version") ) {
+            handled = true;
+            showVersion();
+            abort = true
+        };
+        if ( args.car().equals("-d") || args.car().equals("--debug") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-d' option requires a parameter.");
+                abort = true
+            }{
+                val debugValueString = args.car().trim();
+                // cannot use valueOf because we cannot handle execution
+                if ( debugValueString.equals("1") ) {
+                    DEBUG_LEVEL = 1;
+                };
+                if ( debugValueString.equals("2") ) {
+                    DEBUG_LEVEL = 2;
+                };
+                if ( debugValueString.equals("3") ) {
+                    DEBUG_LEVEL = 3;
+                };
+                if ( debugValueString.equals("4") ) {
+                    DEBUG_LEVEL = 4;
+                };
+                DEBUG("Found output directory option '" + args.car() + "'.");
+            }
+        };        
+        if ( args.car().equals("-o") || args.car().equals("--output") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-o' option requires a parameter.");
+                abort = true
+            }{
+                outputDir = args.car();
+                DEBUG("Found output directory option '" + args.car() + "'.");
+            }
+        };        
+        if ( args.car().equals("-t") || args.car().equals("--temp") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-t' option requires a parameter.");
+                abort = true
+            }{
+                tempDir = args.car();
+                DEBUG("Found temporary directory option '" + args.car() + "'.");
+            }
+        };
+        if ( args.car().equals("-i") || args.car().equals("--input") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-i' option requires a parameter.");
+                abort = true
+            }{
+                inputDir = args.car();
+                DEBUG("Found input directory option '" + args.car() + "'.");
+            }
+        };
+        if ( args.car().equals("-p") || args.car().equals("--plaidpath") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-p' option requires a parameter.");
+            }{
+                plaidpath.add(args.car());
+                DEBUG("Found plaidpath option '" + args.car()  + "'.");
+            }
+        };        
+        if ( args.car().equals("-f") || args.car().equals("--force") ) {
+            handled = true;
+            force = true
+        };        
+        if ( args.car().equals("-k") || args.car().equals("--keep") ) {
+            handled = true;
+            force = true
+        };    
+        ifElse ( !handled ) {
+            ifElse ( args.car().startsWith("-") ) {
+                printLine("Unsupported option: " + args.car());
+                abort = true
+            }{
+                // add remaining arguments as input files 
+                ifElse ( inputDir.length() > 0 ) {
+                    printLine("Cannot specify input directory '-i' and explicit files. Make your choice.");
+                    abort = true
+                }{
+                    args.map( fn (x) => {
+                        DEBUG("Found input file  '" + args.car()  + "'.");
+                        inputFiles.add(x)
+                    });
+                    args = makeEmptyList()
+                }
+            };
+        }{        
+            args = args.cdr()
+        };
+    };
+
+    if ( inputDir == "" && inputFiles.isEmpty() ) {
+        printLine("You must specify either an input directory('-i') or explicit file names.");
+        abort = true
+    };
+   
+    match (abort) {
+        case True  { new None; }
+        default    { 
+            createSome((new CompilerConfiguration {
+                val plaidpath   = plaidpath;
+                val force       = force;
+                val keep        = keep;
+                val outputDir   = outputDir;
+                val inputDir    = inputDir;
+                val tempDir     = tempDir;
+                val inputFiles  = inputFiles;
+            }).expand()); 
+        }        
+    }
+}
+
+
+
+method main(args) {
+    val unique Option result = parseCommandLineArgs(args);
+   
+    match (result) {
+        case Some {
+            val unique CompilerConfiguration cc = result.value;
+            val sourceJobs = makeEmptyList();
+            val unique Reporter reporter = new reporter.ConsoleReporter;
+            val shared Resolver resolver = new ClasspathResolver { classpath = cc.plaidpath; };
+
+            cc.inputFiles.map(fn (path) => {
+                val source = new Source { val path = path; };
+                val job = new Job { val source = source; };
+                
+                // add to source jobs
+                sourceJobs.add(job);
+                                        
+                // run parse job
+                val parsePass = new passes.ParsePass;
+                job.status = job.status && parsePass.run(job, reporter);
+
+                // run file system checks 
+                val fsCheckPass = new passes.FileSystemCheckPass;
+                job.status = job.status && fsCheckPass.run(job, reporter);
+                
+                // add to resolver 
+                ifElse ( job.status ) {
+                    resolver.addCompilationUnit(job.ast.value);
+                }{
+                    DEBUG("Failed to add to resolver");
+                };
+            });
+            
+            sourceJobs.map(fn (job) => {
+                // viewer pass 
+                //val viewerPass = new passes.ASTViewerPass { override var titlePrefix = "After translation: "; };
+                //job.status = job.status && viewerPass.run(job, reporter);
+
+                // naming pass 
+                val nameExpanderPass = new passes.NameExpanderPass { resolver = resolver; };
+                job.status = job.status && nameExpanderPass.run(job, reporter);
+            });
+
+            reporter.report();
+        }
+        default {
+            printLine("Could not find any source files.");
+        }
+    }
+}
