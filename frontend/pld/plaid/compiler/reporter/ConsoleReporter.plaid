@@ -11,7 +11,7 @@ state ConsoleReporter case of AbstractReporter {
     val immutable String errorPrefix = "***Error: ";
     val immutable String warningPrefix = "***Warning: ";
     val immutable String infoPrefix = "***Info: ";
-
+    val immutable Map cache = java.util.HashMap.new();
 
 
     //=======================================================================
@@ -80,14 +80,8 @@ state ConsoleReporter case of AbstractReporter {
         var s = 0; 
         while { s < skip }{ sb.append(" "); s = s + 1; };
         
-        ifElse ( beginColumn + 1 == endColumn ) {
-            sb.append("^");
-        }{
-            sb.append("<");
-            var l = skip + 1;
-            while { l < (prefix.length() + endColumn - 1) }{ sb.append("-"); l = l + 1; };
-            sb.append(">");
-        };        
+        var l = skip;
+        while { l < (prefix.length() + endColumn ) }{ sb.append("^"); l = l + 1; };
 
         sb.toString()
     }
@@ -115,45 +109,49 @@ state ConsoleReporter case of AbstractReporter {
 
 
     method immutable List getSourceCode(immutable File file) {
-        val unique List list = makeEmptyList();
+        var unique List list = makeEmptyList();
 
-        if ( file.getAbsoluteFile().exists()  ) {
-            val unique BufferedReader reader = java.io.BufferedReader.new(java.io.FileReader.new(file));
-           
-            // start reading into buffer
-            var sb = java.lang.StringBuilder.new();
-            list.add(sb);
-            var value = reader.read();
-            while { 0 <= value  }{
-                //sb.append(java.lang.Character.toChars(value));
-                ifElse ( value == 0xD /* '\r' */ ) { 
-                   val next = reader.read();
-                   ifElse ( next == 0xA /* '\n' */ ) { 
-                       // next line
-                       sb = java.lang.StringBuilder.new();
-                       list.add(sb);
-                       value = reader.read();
-                   }{                      
-                       sb.append(java.lang.Character.toChars(value));
-                       value = next;
-                   };    
-                }{
-                    ifElse ( value == 0xA /* '\n' */ ) { 
-                       // new line
-                       sb = java.lang.StringBuilder.new();
-                       list.add(sb);
+        ifElse ( cache.containsKey(file.getAbsolutePath()) ) {
+            list = cache.get(file.getAbsolutePath());
+        }{
+            if ( file.getAbsoluteFile().exists()  ) {
+                val unique BufferedReader reader = java.io.BufferedReader.new(java.io.FileReader.new(file));
+
+                // start reading into buffer
+                var sb = java.lang.StringBuilder.new();
+                list.add(sb);
+                var value = reader.read();
+                while { 0 <= value  }{
+                    //sb.append(java.lang.Character.toChars(value));
+                    ifElse ( value == 0xD /* '\r' */ ) { 
+                       val next = reader.read();
+                       ifElse ( next == 0xA /* '\n' */ ) { 
+                           // next line
+                           sb = java.lang.StringBuilder.new();
+                           list.add(sb);
+                           value = reader.read();
+                       }{                      
+                           sb.append(java.lang.Character.toChars(value));
+                           value = next;
+                       };    
                     }{
-                        sb.append(java.lang.Character.toChars(value));
-                    };
-                    value = reader.read();
-                };               
+                        ifElse ( value == 0xA /* '\n' */ ) { 
+                           // new line
+                           sb = java.lang.StringBuilder.new();
+                           list.add(sb);
+                        }{
+                            sb.append(java.lang.Character.toChars(value));
+                        };
+                        value = reader.read();
+                    };               
+                };            
             };
-
-            list
+            cache.put(file.getAbsolutePath(), list);
         };
 
         list
     }
+
 
     method displayLine(immutable String line) {
         System.out.println(line)
