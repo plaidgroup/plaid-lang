@@ -1,5 +1,6 @@
 package plaid.compiler.context;
 
+import java.util.HashMap;
 
 import plaid.compiler.Context;
 import plaid.compiler.resolver.ClassPathResolver;
@@ -7,6 +8,7 @@ import plaid.compiler.Resolver;
 
 state PackageContext case of Context {
 
+    val unique Map cache = HashMap.new();
     val shared Context parent;
     val shared ClasspathResolver resolver;
     val immutable String packageName;
@@ -17,9 +19,19 @@ state PackageContext case of Context {
 
     method find(immutable String name) {        
         var unique Option symbol = NONE;                                
-        val symbolOpt = resolver.lookup(packageName + "." + name);
-        match (symbolOpt) {
-            case Some { symbolOpt }
+        DEBUG("<PackageContext> looking for '" + name + "'");        
+
+        ifElse ( cache.containsKey(name) ) {
+            DEBUG("<PackageContext> found '" + name +"' in cache");
+            symbol = cache.get(name);
+        }{
+            DEBUG("<PackageContext>     looking for '" + packageName + "."+ name +"'");
+            symbol  = resolver.lookup(packageName + "." + name);
+        };
+        cache.put(name, symbol);
+
+        match (symbol) {
+            case Some { symbol }
             case None { parent.find(name) }
         }
     }

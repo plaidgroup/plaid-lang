@@ -155,7 +155,7 @@ public class PlaidJavaObjectMap extends PlaidObjectMap implements PlaidJavaObjec
 					obj = f.get(value);
 					result = Util.memberDef(f.getName(), null, true, false);
 					if ( obj != null ) {
-						result.setValue(new PlaidJavaObjectMap(obj));
+						result.setValue(Util.convertJavaToPlaid(obj));
 					} else {
 						result.setValue( PlaidRuntime.getRuntime().getClassLoader().unit());
 					}

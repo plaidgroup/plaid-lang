@@ -481,4 +481,12 @@ public class Util {
 		}
 		return false;
 	}
+
+	public static PlaidObject convertJavaToPlaid(Object obj) {
+		if ( obj != null && ( obj instanceof Integer || obj.getClass() == int.class) ) {
+			return integer((Integer)obj);
+		} else {
+			return cl.packJavaObject(obj);			
+		}		
+	}
 }
