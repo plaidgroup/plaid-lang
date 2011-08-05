@@ -39,6 +39,7 @@ state ClasspathResolver case of Resolver {
      val immutable String  fileSeparator = java.lang.System.getProperty("file.separator");
      val /* List<String> */ classpath;
      val sf = new SymbolFactory;
+     val /* Set<String> */ visitedFiles = java.util.HashSet.new();
      
 
      method /*Option<Symbol>*/ lookup(immutable String fqn) {
@@ -142,22 +143,39 @@ state ClasspathResolver case of Resolver {
                          val unique JarFile jarFile = java.util.jar.JarFile.new(path);
                          val entries = jarFile.entries();
                          while { entries.hasMoreElements() }{
+                             
                              val entry = entries.nextElement();
-                             if ( entry.toString().equals(fqn.replace(".", fileSeparator)+ ".plaid") ) {
+                             val entryName = entry.toString(); 
+                             val fqnFileName = fqn.replace(".", fileSeparator)+ ".plaid";
+                             val absFileName = path.getAbsolutePath()+ fileSeparator + fqnFileName;
+                             if ( entryName.equals(fqnFileName) && (!visitedFiles.contains(absFileName)) ) {                             
                                  DEBUG("    found: " + fqn.replace(".", fileSeparator)+ ".plaid");
+                                 visitedFiles.add(absFileName);
                                  result = loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry));
                              };
-                             val packageName = fqn.substring(0, fqn.length() - (fqn.length()- fqn.lastIndexOf("."))).replace(".", fileSeparator)+ fileSeparator +"package.plaid";
-                             if ( entry.toString().equals(packageName) ) {
-                                 result = loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry));
-                             };
+                             match (result) {
+                                 case None {
+                                     val packageName = fqn.substring(0, fqn.length() - (fqn.length()- fqn.lastIndexOf("."))).replace(".", fileSeparator)+ fileSeparator +"package.plaid";
+                                     val absPackageFileName = packageName + fileSeparator + packageName;                                     
+                                     if ( entryName.equals(packageName) && (!visitedFiles.contains(absPackageFileName))) {
+                                         DEBUG("    found: " + packageName);
+                                         visitedFiles.add(absPackageFileName);
+                                         result = loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry));
+                                     };
+                                 }
+                                 case Some { result }
+                             }
                          };
                      }{
                          // check for file specification
-                         val fqnFile = java.io.File.new(path.toString() + fileSeparator + fqn.replace(".", fileSeparator)+ ".plaid");
+                         val fqnFile = java.io.File.new(path.toString() + fileSeparator + fqn.replace(".", fileSeparator)+ ".plaid").getAbsoluteFile();
                          DEBUG("    checking for file: " + fqnFile.toString() );
-                         ifElse ( fqnFile.exists() ) {
+                         if(!fqnFile.exists()) {
+                            DEBUG(fqnFile.toString() + " does not exist.");
+                         };
+                         ifElse ( fqnFile.exists() && (!visitedFiles.contains(fqnFile.getAbsolutePath())) ) {
                              DEBUG("  try loading definition from file: " + fqnFile.toString());
+                             visitedFiles.add(fqnFile.getAbsolutePath());
                              result = loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(fqnFile));
                          }{
                              DEBUG("  specification file does not exists");
@@ -167,8 +185,9 @@ state ClasspathResolver case of Resolver {
                          match (result) {
                              case None {
                                  val packageFile = java.io.File.new(fqnFile.getParent().toString() + fileSeparator + "package.plaid");
-                                 if ( packageFile.exists() ) {
+                                 if ( packageFile.exists() && (!visitedFiles.contains(packageFile.getAbsolutePath())) ) {
                                      DEBUG("  checking package definition: " + packageFile.toString());
+                                     visitedFiles.add(packageFile.getAbsolutePath());
                                      result = loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(packageFile));
                                  }
                              }
@@ -184,7 +203,8 @@ state ClasspathResolver case of Resolver {
      }
 
 
-     method /* Option<DeclType> */ loadTypeFromPlaidSourceStream(immutable String fqn, unique InputStream fqnStream) {
+     method /* Option<DeclType> */ loadTypeFromPlaidSourceStream(immutable String fqn, 
+      unique InputStream fqnStream) {
          //val typeName = fqn.substring(fqn.lastIndexOf(".")+1);
          val parser = plaid.parser.Parser.new(fqnStream);
          ifElse ( parser.hasCompilationUnit() ) {
@@ -199,6 +219,7 @@ state ClasspathResolver case of Resolver {
                 NONE
              }
          }{
+            ERROR("Could not parse " + fqn);
             NONE
          }
      }
