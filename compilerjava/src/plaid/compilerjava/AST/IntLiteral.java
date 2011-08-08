@@ -20,6 +20,7 @@
 package plaid.compilerjava.AST;
 
 import java.util.Set;
+import java.math.BigInteger;
 
 import plaid.compilerjava.coreparser.Token;
 import plaid.compilerjava.tools.ASTVisitor;
@@ -29,7 +30,7 @@ import plaid.compilerjava.util.IDList;
 public class IntLiteral implements Expression {
 
 	private Token token;
-	private int integer;
+	private BigInteger integer;
 	
 	@Override
 	public void codegenExpr(CodeGen out, ID y, IDList localVars, Set<ID> stateVars) {
@@ -40,12 +41,12 @@ public class IntLiteral implements Expression {
 		out.updateVarDebugInfo(y.getName());
 	}
 	
-	public IntLiteral(int integer) {
+	public IntLiteral(BigInteger integer) {
 		super();
 		this.integer = integer;
 	}
 
-	public IntLiteral(Token t, int integer) {
+	public IntLiteral(Token t, BigInteger integer) {
 		super();
 		this.token = t;
 		this.integer = integer;
@@ -60,11 +61,15 @@ public class IntLiteral implements Expression {
 		return token != null;
 	}
 	
-	public int getValue() {
+	public BigInteger getValue() {
 		return integer;
 	}
 
 	public void setValue(int integer) {
+		this.integer = BigInteger.valueOf(integer);
+	}
+	
+	public void setValue(BigInteger integer) {
 		this.integer = integer;
 	}
 

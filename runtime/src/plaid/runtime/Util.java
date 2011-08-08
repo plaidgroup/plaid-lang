@@ -76,29 +76,34 @@ public class Util {
 		return value;
 	}
 
-	public static PlaidObject integer(java.lang.Integer i) throws PlaidException {
-		if ( 0 <= i && i < integerCache.length() ) {
-			PlaidObject value = integerCache.get(i);
+	public static PlaidObject integer(int i) throws PlaidException {
+		return integer(BigInteger.valueOf(i));
+	}
+	
+	public static PlaidObject integer(java.math.BigInteger i) throws PlaidException {
+		BigInteger cacheSize = BigInteger.valueOf(integerCache.length());
+		if ( i.compareTo(BigInteger.ZERO) >= 0 && i.compareTo(cacheSize) < 0 ) {
+			int intValue = i.intValue();
+			PlaidObject value = integerCache.get(intValue);
 			if ( value == null ) {
-				PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
-				PlaidState init = newState();
-				PlaidMemberDef mdef = memberDef("nativeInt", null, false, true);
-				init.addMember(mdef, cl.packJavaObject(java.math.BigInteger.valueOf(i)));
-				PlaidState initState = (PlaidState)intState.initState(init);
-				value =  initState.instantiate();		
-				if ( !integerCache.weakCompareAndSet(i, null, value) ) {
-					value = integerCache.get(i);
-				}				
+				value = buildInteger(i);
+				if ( !integerCache.weakCompareAndSet(intValue, null, value) ) {
+					value = integerCache.get(intValue);
+				}
 			} 
 			return value;
 		} else {
-			PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
-			PlaidState init = newState();
-			PlaidMemberDef mdef = memberDef("nativeInt", null, false, true);
-			init.addMember(mdef, cl.packJavaObject(java.math.BigInteger.valueOf(i)));
-			PlaidState initState = (PlaidState)intState.initState(init);
-			return initState.instantiate();		
+			return buildInteger(i);
 		}
+	}
+	
+	private static PlaidObject buildInteger(BigInteger i) {
+		PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
+		PlaidState init = newState();
+		PlaidMemberDef mdef = memberDef("nativeInt", null, false, true);
+		init.addMember(mdef, cl.packJavaObject(i));
+		PlaidState initState = (PlaidState)intState.initState(init);
+		return initState.instantiate();
 	}
 	
 	public static PlaidObject floatingDouble(Double i) throws PlaidException {
