@@ -555,8 +555,8 @@ public class CodeGen {
 		output.append(utilClass + ".string(\"" + s + "\")"); 
 	}
 	
-	public final void plaidInt(int i) {
-		output.append(utilClass + ".integer(" + i + ")");
+	public final void plaidInt(java.math.BigInteger i) {
+		output.append(utilClass + ".integer(new java.math.BigInteger(\"" + i.toString() + "\"))");
 	}
 	
 	public final void plaidDouble(double i) {
