@@ -5,6 +5,9 @@ import plaid.ast.parsed.BlockExpr;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
 
 import plaid.compiler.ERROR;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG1;
+import plaid.compiler.DEBUG2;
 import plaid.compiler.Pass;
 import plaid.compiler.Reporter;
 import plaid.compiler.Context;
@@ -19,9 +22,14 @@ import plaid.lang.Boolean;
 import plaid.compiler.Symbol;
 import plaid.compiler.symbol.VariableSymbol;
 import plaid.compiler.symbol.SymbolFactory;
+import plaid.compiler.symbol.ThisSymbol;
+import plaid.compiler.symbol.StateSymbol;
+import plaid.compiler.symbol.StateValSymbol;
 
 import java.util.Map;
 import java.util.IdentityHashMap;
+
+
 
 state NameExpanderPass case of Pass  = LeafVisitor with  {
 
@@ -30,68 +38,69 @@ state NameExpanderPass case of Pass  = LeafVisitor with  {
     val immutable SymbolFactory sf = new SymbolFactory;
     var immutable String sourceFile ="";
     var shared Reporter reporter;
-    var immutable Boolean check = false;
     val shared ClasspathResolver resolver;    
         
 
     method immutable Boolean run(unique Job job, unique Reporter reporter) {
         match (job.ast) {
             case Some {
+                DEBUG("<NameExpanderPass> started");
                 this.sourceFile = job.source.getPath();
                 this.reporter = reporter;
-                stack.push(new TopLevelContext);
+                this.stack.push(new TopLevelContext);
                 job.ast.value.accept(this);
-                val it = map.values().iterator();
-//                while { it.hasNext() }{
-//                    val next = it.next();
-//                    printLine("next = " + next.name);
-//                };
+                DEBUG("<NameExpanderPass> finished");
                 true
             }
-            default { false }
+            default { 
+                ERROR("<NameExpanderPass> AST invalid");
+                false 
+            }
         }
     }
 
     
 	override method void visitBlockExpr(immutable BlockExpr node) {
         //DEBUG("  NameExpanderPass -> visit BlockExpr");
-        val shared Context ctxt = new LocalContext{ parent = stack.peek().value;};
-        stack.push(ctxt);
+        val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(ctxt);
 
 		node.statements.map(fn (item) => { item.accept(this); item });
 
-        stack.pop();
+        this.stack.pop();
 	}
 
 
 	override method void visitCompilationUnit(immutable CompilationUnit node) {
+        DEBUG2("<NameExpanderPass> visit CompilationUnit");
         val stdCtx = new StdLibContext {
            parent = this.stack.peek().value; 
-           resolver = resolver;
+           resolver = this.resolver;
         };
-        stack.push(stdCtx);
+        this.stack.push(stdCtx);
         
         val packageString = makeStringFromQualifiedIdentifier(node.packageName);
         val shared PackageContext pkgCtx = new PackageContext {
            parent = this.stack.peek().value; 
            packageName = packageString;
-           resolver = resolver;
+           resolver = this.resolver;
         };
-        stack.push(pkgCtx);
+        this.stack.push(pkgCtx);
         
         val shared ImportContext impCtx = new ImportContext{ 
             parent = this.stack.peek().value; 
             imports = node.imports;
-            resolver = resolver;
+            resolver = this.resolver;
         };
-        stack.push(impCtx);
+        this.stack.push(impCtx);
 
-		node.packageName.accept(this);
-		node.imports.map(fn (item) => { item.accept(this); item });
+		//node.packageName.accept(this);
+		//node.imports.map(fn (item) => { item.accept(this); item });
 		node.decls.map(fn (item) => { item.accept(this); item });
 
-        stack.pop();
+        this.stack.pop();
 	}
+
 
 	override method void visitConcreteFieldDecl(immutable ConcreteFieldDecl node) {
 		node.expression.accept(this);
@@ -103,18 +112,16 @@ state NameExpanderPass case of Pass  = LeafVisitor with  {
 
 
     override method void visitConcreteMethodDecl(immutable ConcreteMethodDecl node) {
-        //DEBUG("  NameExpanderPass -> visit ConcreteMethodDecl");
+        DEBUG2("<NameExpanderPass> visit ConcreteMethodDecl");
 
-        this.check = true;
-               
-        val shared Context ctxt = new LocalContext{ parent = stack.peek().value; };
-        stack.push(ctxt);
+        val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value; };
+        this.stack.push(ctxt);
 
         // add arguments to context
         node.arguments.map( fn (arg) => {
-            val shared VariableSymbol mySymbol = sf.makeVariableSymbol(arg.name.name, node);
-            map.put(arg.name, mySymbol);
-            val ctx = stack.peek().value;
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(arg.name.name, node);
+            this.map.put(arg.name, mySymbol);
+            val ctx = this.stack.peek().value;
             ctx.put(arg.name.name, mySymbol);
             arg
         });
@@ -129,42 +136,76 @@ state NameExpanderPass case of Pass  = LeafVisitor with  {
         //node.body.accept(this);
         node.body.statements.map( fn (stmt) => { stmt.accept(this); stmt });
         
-        stack.pop();
-
-        this.check = false;
+        this.stack.pop();
     }
+
+
+	override method void visitConcreteStateDecl(immutable ConcreteStateDecl node) {
+        //DEBUG("  NameExpanderPass -> visit ConcreteStateValDecl");
+        val shared StateSymbol mySymbol = this.sf.makeStateSymbol(node.name.name, node);
+        this.map.put(node.name, mySymbol);
+        val ctx = this.stack.peek().value;
+        ctx.put(node.name.name, mySymbol);
+
+        // create this and add new context
+        val stateCtx = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(stateCtx);
+        val shared ThisSymbol thisSymbol = this.sf.makeThisSymbol(mySymbol);
+        stateCtx.put("this", thisSymbol);
+
+		node.caseOf.accept(this);
+		node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
+		node.metaCaseOfArgs.map(fn (item) => { item.accept(this); item });
+		node.name.accept(this);
+		node.modifiers.map(fn (item) => { item.accept(this); item });
+		node.stateBinding.accept(this);
+
+        this.stack.pop();
+	}
 
 
     override method void visitConcreteStateValDecl(immutable ConcreteStateValDecl node) {
         //DEBUG("  NameExpanderPass -> visit ConcreteStateValDecl");
+        val shared StateValSymbol mySymbol = this.sf.makeStateValSymbol(node.name.name, node);
+        this.map.put(node.name, mySymbol);
+        val ctx = this.stack.peek().value;
+        ctx.put(node.name.name, mySymbol);
 
-        node.stateBinding.accept(this);
+        // create this and add new context
+        val stateCtx = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(stateCtx);
+        val shared ThisSymbol thisSymbol = this.sf.makeThisSymbol(mySymbol);
+        stateCtx.put("this", thisSymbol);
+
         node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
         //node.name.accept(this);
         node.modifiers.map(fn (item) => { item.accept(this); item });
-        
-        val shared VariableSymbol mySymbol = sf.makeVariableSymbol(node.name.name, node);
-        map.put(node.name, mySymbol);
-        val ctx = stack.peek().value;
-        ctx.put(node.name.name, mySymbol);
+        node.stateBinding.accept(this);
+
+        this.stack.pop();        
     }  
 
+
 	override method void visitIdentifier(immutable Identifier node) {
-        if ( check )  {
-            val symbol = stack.peek().value.find(node.name);
-            match (symbol) {
-                case Some {
-                   map.put(node, symbol.value);
-               }
-               case None {
-                   reporter.errorToken(java.io.File.new(sourceFile), node.token, "Cannot resolve '" + node.name + "'");
-                   //ERROR("Cannot find '" + node.name + "'");
-               }
+        val symbol = this.stack.peek().value.find(node.name);
+        match (symbol) {
+            case Some {
+               this.map.put(node, symbol.value);
            }
-        }
+           case None {
+               this.reporter.errorToken(java.io.File.new(this.sourceFile), node.token, "Cannot resolve '" + node.name + "'");
+           }
+       }
 	}
     
+
 	override method void visitDereference(immutable Dereference node) {
+		node.left.accept(this);
+		//node.right.accept(this);
+	}
+
+
+	override method void visitDestructiveDereference(immutable Dereference node) {
 		node.left.accept(this);
 		//node.right.accept(this);
 	}
@@ -173,14 +214,14 @@ state NameExpanderPass case of Pass  = LeafVisitor with  {
 	override method void visitLambda(immutable Lambda node) {
         //DEBUG("  NameExpanderPass -> visit Lambda");
        
-        val shared Context ctxt = new LocalContext{ parent = stack.peek().value;};
-        stack.push(ctxt);
+        val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(ctxt);
 
         // add arguments to context
         node.arguments.map( fn (arg) => {
-            val shared VariableSymbol mySymbol = sf.makeVariableSymbol(arg.name.name, node);
-            map.put(arg.name, mySymbol);
-            val ctx = stack.peek().value;
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(arg.name.name, node);
+            this.map.put(arg.name, mySymbol);
+            val ctx = this.stack.peek().value;
             ctx.put(arg.name.name, mySymbol);
             arg
         });
@@ -200,27 +241,25 @@ state NameExpanderPass case of Pass  = LeafVisitor with  {
             }
         };
         
-        stack.pop();
+        this.stack.pop();
 	}
+
 
     override method void visitVarDecl(immutable VarDecl node) {
         //DEBUG("  NameExpanderPass -> visit Lambda");
 
         node.specifier.accept(this);
         node.varType.accept(this);
-        //node.id.accept(this);
+                //node.id.accept(this);
         node.expr.accept(this);
         
-        val shared VariableSymbol mySymbol = sf.makeVariableSymbol(node.id.name, node);
-        val ctx = stack.peek().value;
+        val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(node.id.name, node);
+        val ctx = this.stack.peek().value;
         val result = ctx.put(node.id.name, mySymbol);
         ifElse ( result ) {            
-            map.put(node.id, mySymbol);
+            this.map.put(node.id, mySymbol);
         }{
             ERROR("Name "+ node.id.name +" already declared.");
         }
     }
-
-
-
 }
