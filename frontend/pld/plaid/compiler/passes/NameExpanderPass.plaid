@@ -17,6 +17,7 @@ import plaid.compiler.context.LocalContext;
 import plaid.compiler.context.ImportContext;
 import plaid.compiler.context.StdLibContext;
 import plaid.compiler.context.PackageContext;
+import plaid.compiler.context.GlobalContext;
 
 import plaid.lang.Boolean;
 
@@ -32,7 +33,7 @@ import java.util.IdentityHashMap;
 
 
 
-state NameExpanderPass case of Pass  = LeafVisitor with  {
+state NameExpanderPass case of Pass = LeafVisitor with  {
 
     val unique Stack stack = new Stack;
     val unique Map map = IdentityHashMap.new();
@@ -49,6 +50,14 @@ state NameExpanderPass case of Pass  = LeafVisitor with  {
                 this.sourceFile = job.source.getPath();
                 this.reporter = reporter;
                 this.stack.push(new TopLevelContext);
+
+                // add global stack 
+                val globalCtx = new GlobalContext {
+                     parent = this.stack.peek().value; 
+                     resolver = this.resolver;
+                };
+                this.stack.push(globalCtx);
+
                 job.ast.value.accept(this);
                 DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass> finished");
                 true
@@ -74,6 +83,7 @@ state NameExpanderPass case of Pass  = LeafVisitor with  {
 
 	override method void visitCompilationUnit(immutable CompilationUnit node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> visit CompilationUnit");
+        
         val stdCtx = new StdLibContext {
            parent = this.stack.peek().value; 
            resolver = this.resolver;
