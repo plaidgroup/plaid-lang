@@ -22,6 +22,15 @@ Array.prototype.get = function(i){
 Array.prototype.set = function(i, value){
 	this[i]=value;
 }
+Array.prototype.getArrayWithSize = function(size){
+	return new Array(size);
+}
+
+//Date state
+var plaidNewState_Date = new Object();
+function returnNewDate() {return new Date();}
+plaidNewState_Date.instantiate = returnNewDate;
+
 
 //if function
 var if$plaid = function(bool) {
@@ -67,32 +76,12 @@ var ifElse = function(bool) {
 };
 
 //while function
-
-var plaidNewState_While = new PlaidState();
-	plaidNewState_While['whileLoop'] = function whileLoop (result) {
-		var plaidNewVar1 = this.condition();
-		var test = plaidNewVar1;
-		var matchVar = test;
-		if (matchVar==true) {
-			var plaidNewVar2 = this.whileBody();
-			var newResult = plaidNewVar2;
-			var plaidNewVar3 = this.whileLoop(newResult);
-			var returnVal = plaidNewVar3;
-		}
-		else if (matchVar==false) {
-			var returnVal = result;
-		}
-		return returnVal;
-	}
-	plaidNewState_While.tree = [['', [], 'with'], [['While', ['whileLoop'], 'with']]];
-
 var while$plaid = function(cond) {
-	var plaidNewVar15 = function(body) {
-		var condition = cond;
-		var whileBody = body;
-		var plaidNewVar17 = plaidNewState_While.specialize('While', 'condition', condition).specialize('While', 'whileBody', whileBody).instantiate();
-		var plaidNewVar16 = plaidNewVar17.whileLoop();
-		return plaidNewVar16;
+	var plaidNewVar15 = function(body) {	
+		while (cond()){
+			var result=body();
+		}
+		return result;
 	};
 	return plaidNewVar15;
 };
