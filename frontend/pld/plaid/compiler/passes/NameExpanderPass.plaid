@@ -2,6 +2,7 @@ package plaid.compiler.passes;
 
 import plaid.ast.parsed.LeafVisitor;
 import plaid.ast.parsed.BlockExpr;
+import plaid.ast.parsed.EmptyExpr;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
 
 import plaid.compiler.ERROR;
@@ -42,9 +43,9 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
     val unique Stack stack = new Stack;
     val unique Map map = IdentityHashMap.new();
     val immutable SymbolFactory sf = new SymbolFactory;
-    var immutable String sourceFile ="";
+    var immutable String sourceFile = "";
     var shared Reporter reporter;
-    val shared ClasspathResolver resolver;    
+    val shared ClasspathResolver resolver;
     val unique Stack currentState = new Stack;
     var shared Symbol packageSymbol = new TopSymbol;
         
@@ -75,7 +76,28 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         }
     }
 
+	override method void visitAbstractFieldDecl(immutable AbstractFieldDecl node) {
+		node.specifier.accept(this);
+		node.fieldType.accept(this);
+		node.name.accept(this);
+		node.modifiers.map(fn (item) => { item.accept(this); item });
+	}
     
+
+	override method void visitAssignment(immutable Assignment node) {
+		//node.target.accept(this);
+		//node.field.accept(this);
+        match ( node.target ) {
+            case EmptyExpr {
+                node.field.accept(this);
+            }
+            default {
+                node.target.accept(this);
+            }
+        };
+		node.value.accept(this);
+	}
+
 	override method void visitBlockExpr(immutable BlockExpr node) {
         val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value;};
         this.stack.push(ctxt);
@@ -90,7 +112,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> visit CompilationUnit");
 
         
-        var currentSymbol = sf.makeTopSymbol();
+        var currentSymbol = this.sf.makeTopSymbol();
         node.packageName.identifiers.map( fn (id) => {
             val currentSymbolOpt = this.stack.peek().value.findInSymbol(currentSymbol, id.name);
             match (currentSymbolOpt) {
@@ -98,14 +120,14 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                     currentSymbol = currentSymbolOpt.value;                    
                 }
                 case None {
-                    currentSymbol = sf.makePackageSymbol(id.name, sf.makeTopSymbol());
+                    currentSymbol = this.sf.makePackageSymbol(id.name, this.sf.makeTopSymbol());
                     val fqn = makeStringFromQualifiedIdentifier(currentSymbol.getQualifiedIdentifier());
-                    resolver.define(fqn, currentSymbol);
+                    this.resolver.define(fqn, currentSymbol);
                 }
             };
-            map.put(id, currentSymbol);
+            this.map.put(id, currentSymbol);
         });
-        map.put(node.packageName, currentSymbol);
+        this.map.put(node.packageName, currentSymbol);
         this.packageSymbol = currentSymbol;
 
 
@@ -192,7 +214,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             }
             case None {
                 // outer state
-                val unique Opion stateSymbol = this.stack.peek().value.find(node.name.name);
+                val unique Option stateSymbol = this.stack.peek().value.find(node.name.name);
                 match (stateSymbol) {
                     case None {
                         ERROR("<NameExpanderPass> Cannot find symbol for state '" + node.name.name + "'");
@@ -268,6 +290,12 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 		//node.right.accept(this);
 	}
 
+
+	override method void visitInfixOperatorExpr(immutable InfixOperatorExpr node) {
+		node.left.accept(this);
+		node.right.accept(this);
+		//node.operator.accept(this);
+	}
 
 	override method void visitLambda(immutable Lambda node) {
         val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value;};
