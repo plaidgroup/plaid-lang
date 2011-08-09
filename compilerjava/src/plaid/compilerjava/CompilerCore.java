@@ -220,6 +220,7 @@ public class CompilerCore {
 			if ( !cc.forceRecompile() ) {
 				boolean rebuild = false;
 				for ( Decl d : cu.getDecls() ) {
+					//System.out.println(d);
 					StringBuilder packageName = new StringBuilder();
 					for ( String s : cu.getPackageName() ) {
 						packageName.append(s);
