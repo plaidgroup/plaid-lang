@@ -28,7 +28,7 @@ package plaid.collections;
 state AATree {
 	/* type T; */
 	val /* Option<OrderProvider> */ explicitCompare;
-	val /* T -> T -> T */ eqHandler = fn(newElem, oldElem) => { oldElem };
+	val /* T -> T -> Boolean */ eqHandler = fn(newElem, oldElem) => { false };
 
 	var /* Option<AANode<T>> */ root = NONE;
 	var /* Int */ elemCount = 0;
@@ -55,32 +55,26 @@ state AATree {
 	 * exists, the eqHandler function will decide what to do with the two equal values. By
 	 * default, attempts to insert duplicate values will be ignored.
 	 */
-	method void add(elem) {
+	method immutable Boolean add(elem) {
 		var added = true;
 		val addHelper = fn(nodeOpt) => {
 			nodeOpt.map(fn(node) => {
 				match(compare(elem, node.data)) {
 					case OrdLessThan { node.left = addHelper(node.left) }
 					case OrdGreaterThan { node.right = addHelper(node.right) }
-					case OrdEqual { 
-						node.data = eqHandler(elem, node.data);
-						added = false;
-					}
+					case OrdEqual { added = eqHandler(elem, node.data) }
 				};
 				
-				new Some { val value = node.skewOp().splitOp(); }
-			}).getOrElse(new Some { 
-				val value = new AANode { 
-					var level = 1; 
-					var data = elem;
-				}; 
-			})
+				createSome(node.skewOp().splitOp())
+			}).getOrElse(createSome(new AANode { var level = 1; var data = elem; }))
 		};
 		root = addHelper(root);
 
 		if(added) {
 			elemCount = elemCount + 1;
-		}
+		};
+
+		added
 	}
 
 	/**
@@ -117,13 +111,11 @@ state AATree {
 								val predecessor = findRightmost(currentRoot.left.getValue());
 								currentRoot.left = removeHelper(currentRoot.left, predecessor.data);
 								currentRoot.data = predecessor.data;
-								// XXX: createSome does not work here. Closure bug?
 								createSome(currentRoot)
 							} {
 								val successor = findLeftmost(currentRoot.right.getValue());
 								currentRoot.right = removeHelper(currentRoot.right, successor.data);
 								currentRoot.data = successor.data;
-								// XXX: createSome does not work here. Closure bug?
 								createSome(currentRoot)
 							};
 						}
