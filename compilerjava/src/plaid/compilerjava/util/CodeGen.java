@@ -434,14 +434,14 @@ public class CodeGen {
 	
 	public final void updateVarInScope(String destination, String source) {
 		ifCondition(source + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is not keeping encapsulation of plaid.runtime.map
-		throwNewPlaidException("No object found to insert into scope");
+		throwNewPlaidException("No object found to insert into scope. source = [\" + " + source + " + \"], destination = [" + destination + "] ");
 		elseCase();
 		output.append(localScope + ".update(\"" + destination + "\", " + source + ");");
 	}
 	
 	public final void insertIntoScope(String scope, String varName, boolean isImmutable) {
 		ifCondition(varName + " instanceof plaid.runtime.models.map.PlaidLookupMap");  //TODO : this is not keeping encapsulation of plaid.runtime.map
-		throwNewPlaidException("No object found to insert into scope");
+		throwNewPlaidException("No object found to insert into scope. varName = \" + " + varName + " + \"");
 		elseCase();
 		output.append(scope + ".insert(\"" + varName + "\", " + varName + ", "+ isImmutable + ");");
 	}
