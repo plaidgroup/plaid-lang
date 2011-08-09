@@ -1,28 +1,4 @@
-package V8Benchmarks.richards;
-
-/**
- * The task is running and is currently scheduled.
- */
-var STATE_RUNNING = 0;
-
-/**
- * The task has packets left to process.
- */
-var STATE_RUNNABLE = 1;
-
-/**
- * The task is not currently running.  The task is not blocked as such and may
-* be started by the scheduler.
- */
-var STATE_SUSPENDED = 2;
-
-/**
- * The task is blocked and cannot be run until it is explicitly released.
- */
-var STATE_HELD = 4;
-
-var STATE_SUSPENDED_RUNNABLE = STATE_SUSPENDED | STATE_RUNNABLE;
-var STATE_NOT_HELD = ~STATE_HELD;
+package V8Benchmarks.richards.richardsPrime;
 
 var NEWNONE = new None;
 
@@ -209,6 +185,7 @@ method schedule() {
       this.currentId = this.currentTcb.id;
       this.currentTcb = this.currentTcb.run();
     };
+    printLine(this.currentTcb);
   }
 }
 
@@ -294,7 +271,19 @@ state TaskControlBlock {
   var priority;
   var queue;
   var task;
-  var currState;
+  
+  state HELD {
+  }
+  state NOT_HELD {
+  	state SUSPENDED_RUNNABLE{
+  		state SUSPENDED{
+  		}
+  		state RUNNABLE{
+  		}
+  	}
+  	state RUNNING{
+  	}
+  }
 
 method setData(link, id, priority, queue, task){
   this.link = link;
@@ -303,35 +292,45 @@ method setData(link, id, priority, queue, task){
   this.queue = queue;
   this.task = task;
   ifElse (queue == NEWNONE) {
-    this.currState = STATE_SUSPENDED;
+    this <- SUSPENDED;
   }
   {
-    this.currState = STATE_SUSPENDED_RUNNABLE;
+    this <- SUSPENDED_RUNNABLE;
   };
 }
 
 method setRunning() {
-  this.currState = STATE_RUNNING;
+  this <- RUNNING;
 }
 
 method markAsNotHeld() {
-  this.currState = this.currState & STATE_NOT_HELD;
+  this <- NOT_HELD;
 }
 
 method markAsHeld() {
-  this.currState = this.currState | STATE_HELD;
+  this <- HELD;
 }
 
 method isHeldOrSuspended() {
-  (this.currState & STATE_HELD) != 0 || (this.currState == STATE_SUSPENDED);
+   match(this){
+   	case HELD {
+   		new True;
+   	}
+   	case SUSPENDED {
+   		new True;
+   	}
+   	default{
+   		new False;
+   	}
+   };
 }
 
 method markAsSuspended() {
-  this.currState = this.currState | STATE_SUSPENDED;
+  this <- SUSPENDED;
 }
 
 method markAsRunnable() {
-  this.currState = this.currState | STATE_RUNNABLE;
+  this <- RUNNABLE;
 }
 
 /**
@@ -340,18 +339,20 @@ method markAsRunnable() {
 method run() {
   //error might be here???  returning wrong link?
   var packet = "";
-  ifElse (this.currState == STATE_SUSPENDED_RUNNABLE) {
-    packet = this.queue;
-    this.queue = packet.link;
-    ifElse (this.queue == NEWNONE) {
-      this.currState = STATE_RUNNING;
-    }
-    {
-      this.currState = STATE_RUNNABLE;
-    };
-  }
-  {
-    packet = NEWNONE;
+  match(this){
+  	case SUSPENDED_RUNNABLE {
+  	    packet = this.queue;
+	    this.queue = packet.link;
+	    ifElse (this.queue == NEWNONE) {
+	      this <- RUNNING;
+	    }
+	    {
+	      this <- RUNNABLE;
+	    };
+  	}
+  	default{
+  		packet = NEWNONE;
+  	}
   };
   this.task.run(packet);
 }
@@ -377,7 +378,30 @@ method checkPriorityAdd(task, packet) {
 }
 
 method toString() {
-  "tcb { " + this.id +": " + this.task + "@" + this.currState + " }";
+  match(this){
+  	case HELD{
+       "tcb { " + this.id +": " + this.task + "@HELD }";
+  	}
+  	case SUSPENDED{
+       "tcb { " + this.id +": " + this.task + "@SUSPENDED }";
+  	}
+  	case RUNNABLE{
+       "tcb { " + this.id +": " + this.task + "@RUNNABLE }";
+  	}
+  	case RUNNING{
+       "tcb { " + this.id +": " + this.task + "@RUNNING }";
+  	}
+  	case SUSPENDED_RUNNABLE{
+       "tcb { " + this.id +": " + this.task + "@SUSPENDED_RUNNABLE }";
+  	}
+  	case NOT_HELD{
+       "tcb { " + this.id +": " + this.task + "@NOT_HELD }";
+  	}
+  	default{
+  		"I lack a tag!";
+  	}
+  	
+  };
 }
 
 }
@@ -635,12 +659,12 @@ method toString() {
 }
 //end Packet
 
-/*
+
 method main() {
 	printLine("Plaid");
 	var time=0;
 	var i=0;
-	while({i<10}){
+	while({i<1}){
 		var start=new Date;
 		runRichardsCompiled();
 		var timeOne = new Date-start;
@@ -651,4 +675,4 @@ method main() {
 	printLine("--------");
 	printLine(time);
 }
-*/
+
