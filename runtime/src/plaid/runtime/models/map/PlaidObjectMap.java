@@ -609,11 +609,11 @@ public class PlaidObjectMap implements PlaidObject {
 		if (!(retval instanceof PlaidJavaObject))
 			return super.hashCode();
 		
-		Object jo = ((PlaidJavaObject) retval).getJavaObject();
-		if (!(jo instanceof Integer))
+		//Object jo = ((PlaidJavaObject) retval).getJavaObject();
+		//if (!(jo instanceof Integer))
 			return super.hashCode();
 		
-		return ((Integer) jo).intValue();
+		//return ((Integer) jo).intValue();
 	}
 
 	@Override

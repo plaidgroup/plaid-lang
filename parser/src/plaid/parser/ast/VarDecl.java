@@ -4,16 +4,16 @@ import plaid.parser.Token;
 
 public class VarDecl extends Stmt {
 	private final Specifier specifier;
-	private final Type type;
+	private final Type varType;
 	private final Identifier id;
 	private final Expr expr;
 	
 	
-	public VarDecl(Token token, Specifier speccifier, Type type,
+	public VarDecl(Token token, Specifier speccifier, Type varType,
 			Identifier id, Expr expr) {
 		super(token);
 		this.specifier = speccifier;
-		this.type = type;
+		this.varType = varType;
 		this.id = id;
 		this.expr = expr;
 	}
@@ -22,8 +22,8 @@ public class VarDecl extends Stmt {
 		return specifier;
 	}
 
-	public Type getType() {
-		return type;
+	public Type getVarType() {
+		return varType;
 	}
 
 	public Identifier getId() {
