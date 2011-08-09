@@ -27,7 +27,7 @@ import plaid.compiler.DEBUG_PRIO_HIGH;
 import plaid.compiler.DEBUG_PRIO_MEDIUM;
 import plaid.compiler.DEBUG_PRIO_LOW;
 import plaid.compiler.INFO;
-
+import plaid.compiler.util.classpathToList;
 
 import plaid.ast.parsed.FieldDecl;
 import plaid.ast.parsed.MethodDecl;
@@ -44,6 +44,7 @@ state ClasspathResolver case of Resolver {
      val /* List<String> */ classpath;
      val sf = new SymbolFactory;
      val /* Set<String> */ visitedFiles = java.util.HashSet.new();
+     val unique List javaClasspath = classpathToList(java.lang.System.getProperty("java.class.path"));
      
 
      method /*Option<Symbol>*/ lookup(immutable String fqn) {
@@ -91,6 +92,7 @@ state ClasspathResolver case of Resolver {
          if(!cache.containsKey(curName)) {
             val packageSymbol = sf.makePackageSymbol(curName,sf.makeTopSymbol());
             cache.put(curName, packageSymbol);
+            DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
          };
          while {i < packages.length();} {
             curName = curName + "." + packages.get(i).name;
@@ -129,7 +131,7 @@ state ClasspathResolver case of Resolver {
                 cache.put(declName, declSymbol);
             };
             
-            decls
+            d
          });
      }
 
@@ -141,8 +143,56 @@ state ClasspathResolver case of Resolver {
          classpath.map(fn (item) => {
              match (result) {
                  case None {
-                     val qi = makeQualifiedIdentifierFromString(fqn);
-                     printLine(qi.toString());
+                     val unique File path = (java.io.File.new(item)).getAbsoluteFile();
+                     DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>   searching classpath: " + path);
+                     
+                     var immutable Boolean found = false;                     
+                     ifElse  ( path.isFile() && path.toString().endsWith(".jar") ) {
+                         DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     dive into JAR file ... " );
+                         val unique JarFile jarFile = java.util.jar.JarFile.new(path);
+                         val entries = jarFile.entries();
+                         while { entries.hasMoreElements() }{
+                             val entry = entries.nextElement();
+                             val entryName = entry.toString(); 
+                             val fqnDirName = fqn.replace(".", fileSeparator);
+                             ifElse ( entryName.equals(fqnFileName)  ) {                             
+                                 DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    found: " + fqnDirName );
+                                 found = true;
+                             }{
+                                 DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     directory: '" + fqnDir.toString() +"' does not exists.");
+                             };
+
+                         };
+                     }{
+                         val fqnDir = java.io.File.new(path.toString() + fileSeparator + fqn.replace(".", fileSeparator)).getAbsoluteFile();
+                         DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking for directory: '" + fqnDir.toString() +"'");
+                         ifElse ( fqnDir.exists() ) {
+                             DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     directory: '" + fqnDir.toString() +"' exists.");
+                             found = true;
+                         }{
+                             DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     directory: '" + fqnDir.toString() +"' does not exists.");
+                         };
+                     };
+                     
+                     if ( found ) {
+                         var currentSymbol = sf.makeTopSymbol();
+                         // add to cache
+                         val qi = makeQualifiedIdentifierFromString(fqn);
+                         qi.identifiers.map(fn (id) => {
+                             currentSymbol = sf.makePackageSymbol(id, currentSymbol);
+
+                             // check if we already have a symbol for this
+                             val fqnSymbol = makeStringFromQualifiedIdentifier(currentSymbol.getQualifiedIdentifier());
+                             ifElse ( cache.containsKey(fqnSymbol) ) {
+                                 currentSymbol = cache.get(fqnSymbol);
+                             }{
+                                 cache.put(fqnSymbol, currentSymbol);
+                             };                                 
+                     
+                             // create result 
+                             result = createSome(currentSymbol);
+                         });
+                     };
                  }
                  case Some  {}
              }
@@ -172,7 +222,7 @@ state ClasspathResolver case of Resolver {
                              val fqnFileName = fqn.replace(".", fileSeparator)+ ".plaid";
                              val absFileName = path.getAbsolutePath()+ fileSeparator + fqnFileName;
                              if ( entryName.equals(fqnFileName) && (!visitedFiles.contains(absFileName)) ) {                             
-                                 DEBUG(DEBUG_PRIO_MEDIUM, "    found: " + fqn.replace(".", fileSeparator)+ ".plaid");
+                                 DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    found: " + fqn.replace(".", fileSeparator)+ ".plaid");
                                  visitedFiles.add(absFileName);
                                  result = loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry));
                              };
