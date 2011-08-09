@@ -404,7 +404,6 @@ Identifier Identifier() : {
 }{
     (
         t = <ID>
-//      | t = <TYPE>//      | t = <MUTABLE>//      | t = <EXCLUSIVE>//      | t = <SHARED>//      | t = <READONLY>
     )
     { return new Identifier(t, t.image); }  
 }
@@ -724,11 +723,11 @@ Decl MethodDecl(List<Modifier> modifiers) :
 //      //method [T] m([T>>T x])[T >> T] ( {e} | ; )
     t = <METHOD>
     (   
-        LOOKAHEAD(Type() IdOrOperator() [StaticArgsSpec(true)] <LPAREN> [DeclArgs()] <RPAREN> [Environment()])  
-        returnType = Type() methodName = IdOrOperator() [metaArgsSpec = StaticArgsSpec(true)]  <LPAREN> [argList = DeclArgs()] <RPAREN> [env = Environment()]
+        LOOKAHEAD(Type() IdOrOperator() [StaticArgsSpec(true)] <LPAREN> [DeclArgs(false)] <RPAREN> [Environment()])  
+        returnType = Type() methodName = IdOrOperator() [metaArgsSpec = StaticArgsSpec(true)]  <LPAREN> [argList = DeclArgs(false)] <RPAREN> [env = Environment()]
       |
-        LOOKAHEAD(IdOrOperator() [StaticArgsSpec(true)] <LPAREN> [DeclArgs()] <RPAREN> [Environment()])  
-        methodName = IdOrOperator() [metaArgsSpec = StaticArgsSpec(true)] <LPAREN> [argList = DeclArgs()] <RPAREN> [env = Environment()]
+        LOOKAHEAD(IdOrOperator() [StaticArgsSpec(true)] <LPAREN> [DeclArgs(false)] <RPAREN> [Environment()])  
+        methodName = IdOrOperator() [metaArgsSpec = StaticArgsSpec(true)] <LPAREN> [argList = DeclArgs(false)] <RPAREN> [env = Environment()]
     )
     (
         e = BlockExpr() 
@@ -756,26 +755,35 @@ Decl MethodDecl(List<Modifier> modifiers) :
          }
 }
 
-List<Arg> DeclArgs() :
+List<Arg> DeclArgs(boolean allowThis) :
 {
     Arg arg;
     List<Arg> args = new ArrayList<Arg>();
 }
-{    arg = Arg() { args.add(arg); }
+{    arg = Arg(allowThis) { args.add(arg); }
     (
-	   <COMMA> arg = Arg() { args.add(arg);	}
+	   <COMMA> arg = Arg(false) { args.add(arg);	}
     )*
 	{ return args; }
 }
 
 
-Arg Arg() :
+Arg Arg(boolean allowThis) :
 {
+    Token t;
     ArgSpec c = ArgSpec.EMPTY;
 	Identifier argId;
 }
 {
-  	(LOOKAHEAD(ArgSpec() Identifier()) c = ArgSpec() argId = Identifier() | argId = Identifier()) 
+  	(
+  	    LOOKAHEAD(ArgSpec() (Identifier()|<THIS>)) 
+  	    c = ArgSpec() 
+  	    ( 
+  	        argId = Identifier() 
+          | t = <THIS> { if (!allowThis) throw new ParseException("Cannot use 'this' as argument name in this place."); argId = new Identifier(t, t.image); }
+  	    ) 
+  	  | argId = Identifier()
+  	) 
 	{
 		return new Arg(argId.getToken(), c, argId);
 	}
@@ -1395,9 +1403,9 @@ List<Arg> Environment() : {
     List<Arg> env = new ArrayList<Arg>();
 }{
     <LBRACK> 
-    arg = Arg() { env.add(arg); }
+    arg = Arg(true) { env.add(arg); }
     ( 
-        <COMMA> arg = Arg() { env.add(arg); } 
+        <COMMA> arg = Arg(false) { env.add(arg); } 
     )*
     <RBRACK>
     { return env; }
@@ -1413,7 +1421,7 @@ Expr Function() :
     Expr body;
 }
 {
-    t = <FN> [metaArgsSpec = StaticArgsSpec(true)] <LPAREN> [argList = DeclArgs()] <RPAREN>
+    t = <FN> [metaArgsSpec = StaticArgsSpec(true)] <LPAREN> [argList = DeclArgs(false)] <RPAREN>
     [ env = Environment() ]<DARROW> body = Expr()
     {
        return new Lambda(t, metaArgsSpec, argList, env, body);
