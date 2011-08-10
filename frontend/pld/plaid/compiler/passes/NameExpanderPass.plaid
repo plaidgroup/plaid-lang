@@ -38,6 +38,7 @@ import plaid.compiler.symbol.TopSymbol;
 import plaid.compiler.symbol.ThisSymbol;
 import plaid.compiler.symbol.StateSymbol;
 import plaid.compiler.symbol.StateValSymbol;
+import plaid.compiler.symbol.StateRefSymbol;
 
 import java.util.Map;
 import java.util.IdentityHashMap;
@@ -97,7 +98,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 })
             }
             case Dereference {
-                val leftQIOpt = getQualifiedIdentifierFromDereference(dref.left);
+                val leftQIOpt = this.getQualifiedIdentifierFromDereference(dref.left);
                 match (leftQIOpt) {
                     case Some {
                         val ids = makeEmptyList();
@@ -148,6 +149,18 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
 
 	override method void visitAbstractFieldDecl(immutable AbstractFieldDecl node) {
+        match (this.currentState.peek() ) {
+            case Some {
+                // member
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
+                this.map.put(node, fieldSymbol);
+            }
+            case None {
+                // top level
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.packageSymbol);
+                this.map.put(node, fieldSymbol);
+            }
+        };
 		node.specifier.accept(this);
 		node.fieldType.accept(this);
 		//node.name.accept(this);
@@ -233,12 +246,23 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
 
 	override method void visitConcreteFieldDecl(immutable ConcreteFieldDecl node) {
-        
+        match (this.currentState.peek() ) {
+            case Some {
+                // member
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
+                this.map.put(node, fieldSymbol);
+            }
+            case None {
+                // top level
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.packageSymbol);
+                this.map.put(node, fieldSymbol);
+            }
+        };
 		//node.name.accept(this);
 		node.expression.accept(this);
 		node.specifier.accept(this);
 		node.fieldType.accept(this);
-		node.modifiers.map(fn (item) => { item.accept(this); item });
+		//node.modifiers.map(fn (item) => { item.accept(this); item });
 	}
 
 
@@ -420,7 +444,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 	}
 
 	override method void visitQualifiedIdentifier(immutable QualifiedIdentifier node) {
-        val resolveCount = resolveQualifiedIdentifier(this.stack.peek().value, node);
+        val resolveCount = this.resolveQualifiedIdentifier(this.stack.peek().value, node);
         ifElse ( resolveCount == node.identifiers.length() ) {
              DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
         }{
@@ -442,8 +466,14 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
 
 	override method void visitStateRef(immutable StateRef node) {
+        val shared StateRefSymbol stateRefSymbol = this.sf.makeStateRefSymbol(node);
+
+        this.currentState.push(stateRefSymbol);
+
 		node.stateExpr.accept(this);
 		node.specializations.map(fn (item) => { item.accept(this); item });
+
+        this.currentState.pop();
 	}
 
 
