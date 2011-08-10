@@ -147,8 +147,43 @@ state ClasspathResolver case of Resolver {
      }
 
      method /* Option<Symbol> */ lookupJavaClass(immutable String fqn) {
-         //printLine("Java home " + this.javaHome);
-         NONE
+         DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver> Try loading Java class '" + fqn + "'");
+         val classes = plaid.compiler._native.loadClass(fqn);
+         ifElse ( classes.size() == 1 ) {
+             DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Found Java class '" + fqn + "'");
+
+             val klazz = classes.get(0);
+             val fqnQI = makeQualifiedIdentifierFromString(fqn);
+    
+             var parent = this.sf.makeTopSymbol();
+             if ( fqnQI.identifiers.length() > 1 ) {
+                 // top level 
+                 var curName = fqnQI.identifiers.get(0).name;
+                 var i = 1;
+                 if(!cache.containsKey(curName)) {
+                     parent = sf.makePackageSymbol(curName,sf.makeTopSymbol());
+                     cache.put(curName, parent);
+                     DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
+                 };
+                 while {i < ( fqnQI.identifiers.length() - 1 ) } {
+                    curName = curName + "." + fqnQI.identifiers.get(i).name;
+                    if(!cache.containsKey(curName)) {
+                        parent = sf.makePackageSymbol(curName,sf.makeTopSymbol());
+                        cache.put(curName, parent);
+                        DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
+                    };
+                    i = i + 1;
+                };
+             };
+             
+             val javaClassSymbol = this.sf.makeJavaClassSymbol(klazz.getSimpleName(), klazz, parent);
+             cache.put( fqn, javaClassSymbol );
+             DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  fqn + "'");
+             makeSome(javaClassSymbol);
+         }{
+             DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java class '" + fqn + "'");
+             NONE
+         }         
      }
 
 
@@ -298,7 +333,7 @@ state ClasspathResolver case of Resolver {
 
      method /* Option<Symbol> */ loadTypeFromPlaidSourceStream(immutable String fqn, 
       unique InputStream fqnStream) {
-         val parser = plaid.parser.Parser.new(fqnStream);
+         val parser = plaid.parser.Parser.new(fqnStream, 4);
          ifElse ( parser.hasCompilationUnit() ) {
              val javaAST = parser.getCompilationUnit();
              val translator = new ASTTranslator;
