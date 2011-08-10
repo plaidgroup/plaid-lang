@@ -27,9 +27,10 @@ import plaid.parser.ast.CompilationUnit;
 public class Parser {
 	public CompilationUnit cu;
 	
-	public Parser(InputStream toParse) {
+	public Parser(InputStream toParse, int tabSize) {
 		try {
-			PlaidCoreParser pp = new PlaidCoreParser(toParse);			
+			PlaidCoreParser pp = new PlaidCoreParser(toParse);
+			pp.setTabSize(tabSize);
 			cu = pp.CompilationUnit();	
 		} catch (ParseException e) {
 			cu = null;
