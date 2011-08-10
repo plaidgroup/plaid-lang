@@ -1,7 +1,12 @@
 package plaid.compiler.passes;
 
+import plaid.lang.math.min;
+import plaid.lang.math.max;
+
 import plaid.ast.parsed.LeafVisitor;
 import plaid.ast.parsed.BlockExpr;
+import plaid.ast.parsed.Dereference;
+import plaid.ast.parsed.DestructiveDereference;
 import plaid.ast.parsed.EmptyExpr;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
 
@@ -75,6 +80,69 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             }
         }
     }
+
+    
+    method immutable Option getQualifiedIdentifierFromDereference(immutable Dereference dref) {
+        match (dref.left) {
+            case Identifier {
+                val ids = makeEmptyList();
+                ids.add(dref.left);
+                ids.add(dref.right);
+                createSome(new QualifiedIdentifier {
+                    token = EMPTY_TOKEN;
+                    identifiers = ids;
+                })
+            }
+            case Dereference {
+                val leftQIOpt = getQualifiedIdentifierFromDereference(dref.left);
+                match (leftQIOpt) {
+                    case Some {
+                        val ids = makeEmptyList();
+                        leftQIOpt.value.identifiers.map( fn (id) => ids.add(id) );
+                        ids.add(dref.right);
+                        createSome(new QualifiedIdentifier {
+                            token = EMPTY_TOKEN;
+                            identifiers = ids;
+                        })
+                    }
+                    case None { NONE }
+                }                
+            }
+            default {
+                NONE
+            }
+        }
+    }
+
+    
+    method immutable Integer resolveQualifiedIdentifier(shared Context ctx,
+                                                        immutable QualifiedIdentifier qi) {
+        var currentSymbol = this.sf.makeTopSymbol();                                            
+        var count = 0;
+        var stop = false;
+        qi.identifiers.map(fn (id) => {
+            if ( stop == false ) {
+                val symbolOpt = ctx.find(id.name);
+                match ( symbolOpt ) {
+                    case Some {
+                        currentSymbol = symbolOpt.value;
+                        this.map.put(id, currentSymbol);
+                        count = count + 1;
+                    } 
+                    case None {
+                        stop = true;
+                    }
+                }
+            }
+        });
+
+        if ( qi.identifiers.length() == count ) {
+            this.map.put(qi, currentSymbol);
+        };
+
+        count;
+    }
+
 
 	override method void visitAbstractFieldDecl(immutable AbstractFieldDecl node) {
 		node.specifier.accept(this);
@@ -201,7 +269,6 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
 
   	override method void visitConcreteStateDecl(immutable ConcreteStateDecl node) {
-        //get from resolver
         match (this.currentState.peek() ) {
             case Some {
                  // inner state
@@ -232,6 +299,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         this.stack.push(stateCtx);
         val shared ThisSymbol thisSymbol = this.sf.makeThisSymbol(this.currentState.peek().value);
         stateCtx.put("this", thisSymbol);
+
 
 		node.caseOf.accept(this);
 		node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
@@ -280,6 +348,24 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
     
 
 	override method void visitDereference(immutable Dereference node) {
+        /*
+        val qiOpt = getQualifiedIdentifierFromDereference(node);
+        match (qiOpt) {
+            case Some {
+                DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass> Found potential QI: " + makeStringFromQualifiedIdentifier(qiOpt.value));
+                val immutable Integer resolvedCount = resolveQualifiedIdentifier(this.stack.peek().value, qiOpt.value);
+                DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass>   resolved  " + resolvedCount + " parts");
+                if ( resolvedCount == 0 ) {
+                    //val mostLeftId = qiOpt.value.identifiers.get(0);
+                    //this.reporter.errorToken(java.io.File.new(this.sourceFile), mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
+                    node.left.accept(this);
+                };
+            }
+            case None {
+                node.left.accept(this);
+            }
+        };
+        */
 		node.left.accept(this);
 		//node.right.accept(this);
 	}
@@ -327,6 +413,28 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         
         this.stack.pop();
 	}
+
+	override method void visitQualifiedIdentifier(immutable QualifiedIdentifier node) {
+		val resolveCount = resolveQualifiedIdentifier(this.stack.peek().value, node);
+        ifElse ( resolveCount == node.identifiers.length() ) {
+             DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
+        }{
+            ERROR("Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
+            val first = node.identifiers.car();
+            val last  = node.identifiers.get(node.identifiers.length() - 1);
+            val beginLine   = min(first.token.beginLine, last.token.beginLine);
+            val endLine     = max(first.token.endLine, last.token.endLine);
+            val beginColumn = min(first.token.beginColumn, last.token.beginColumn);
+            val endColumn   = max(first.token.endColumn, last.token.endColumn);
+            this.reporter.error(java.io.File.new(this.sourceFile), 
+                                beginLine,
+                                beginColumn,
+                                endLine,
+                                endColumn,
+                               "Cannot resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
+        }
+	}
+
 
     override method void visitVarDecl(immutable VarDecl node) {
 
