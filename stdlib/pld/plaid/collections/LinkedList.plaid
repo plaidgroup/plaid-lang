@@ -24,7 +24,7 @@ package plaid.collections;
  */
 state LinkedList case of Collection = {
 	
-	var head = new EndOfListNode;
+	var head = END_OF_LIST;
 	var listSize = 0;
 
 	method reverseMap(f) {
@@ -60,6 +60,103 @@ state LinkedList case of Collection = {
 		}
 	}
 
+	/**
+	 * Adds the provided element to the end of the list.
+	 * NOTE: This operation is O(n) in the size of the list, so should be used sparingly.
+	 */
+	method void addLast(elem) {
+		match(head) {
+			case EndOfListNode {
+				head = cons(elem, END_OF_LIST);
+			}
+			case ListValueNode {
+				val findLast = fn(node) => {
+					ifElse(node.tail.isEnd()) { 
+						node 
+					} { 
+						findLast(node.tail) 
+					}
+				};
+
+				val last = findLast(head);
+				last.tail = cons(elem, END_OF_LIST);
+			}
+		};
+
+		listSize = listSize + 1;
+	}
+
+	/**
+	 * Attempts to fetch the element at the provided index. If the index is outwith the range [0,size()-1] then
+	 * None will be returned, otherwise Some(x) will be returned where x is the element at that index.
+	 * NOTE: the time taken by this operation is proportional to the value of the index provided, so should
+	 * be used sparingly.
+	 */
+	method immutable Option get(index) {
+		ifElse(index < 0 || index >= listSize) {
+			NONE
+		} {
+			var counter = -1;
+			find(fn(elem) => { counter = counter + 1; counter == index });
+		}
+	}
+
+	/**
+	 * Accumulates a single value by applying the function f to the base value and the first element
+	 * of the collection, then applying f to this result and the next element in collection, etc.
+	 * until all elements have been passed to f.
+	 *
+	 * Example: Using foldl with "-" on the list [ 4 3 2 1 ] and a base value 0 is equivalent
+	 * to the expression: (((0 - 4) - 3) - 2) - 1 = -10
+	 *
+	 * This is an alias of reduce(base, f).
+	 */
+	method foldl(/*R*/ base,/*R -> T -> R*/ f) { reduce(base, f) }
+
+	/**
+	 * Accumulates a single value by applying the function f to the list and the provided base value
+	 * in a right-associative manner. 
+	 *
+	 * Example: Using foldr with "-" on the list [ 4 3 2 1 ] and a base value 0 is equivalent 
+	 * to the expression: 4 - (3 - (2 - (1 - 0))) = 2.
+	 */
+	method foldr(/*R*/ base,/*T -> R -> R*/ f) {
+		reverse().foldl(base, fn(acc, elem) => { result = f(elem, acc); } );
+	}
+
+	/**
+	 * Accumulates a single value by applying the function f to the elements in the list in a
+	 * left-to-right manner. If the list is empty, the result will be NONE, otherwise it will
+	 * be Some(x) where x is the accumulated value.
+	 *
+	 * Example: with list [ 1 2 3 4 ], applying "*" to the list is equivalent to the expression:
+	 * makeSome(((1 * 2) * 3) * 4)
+	 */
+	method /*<R <: T>*/ immutable Option foldli(/*T -> T -> T*/ f) {
+		foldl(NONE, fn(accOpt, elem) => { 
+			makeSome(accOpt.map(fn(acc) => { f(acc, elem) }).getOrElse(elem))
+		});
+	}
+
+	/**
+	 * Accumulates a single value by applying the function f to the elements in the list in a
+	 * left-to-right manner. If the list is empty, the result will be NONE, otherwise it will
+	 * be Some(x) where x is the accumulated value.
+	 *
+	 * Example: with list [ 1 2 3 4 ], applying "-" to the list is equivalent to the expression:
+	 * makeSome(1 - (2 - (3 - 4)))
+	 */
+	method /*<R <: T>*/ immutable Option foldri(/*T -> T -> T*/ f) {
+		foldr(NONE, fn(elem, accOpt) => { 
+			makeSome(accOpt.map(fn(acc) => { f(elem, acc) }).getOrElse(elem))
+		});
+	}
+
+
+	/**
+	 * Provides the number of elements currently stored within the list. This operation is O(1), as the
+	 * list size is maintained by all mutating operations.
+	 */
 	method immutable Integer size() {
 		listSize
 	}
@@ -69,6 +166,7 @@ state LinkedList case of Collection = {
 	}
 
 } with MutableCollection {
+
 	method immutable Boolean add(e) {
 		head = head.snoc(e);
 		listSize = listSize + 1;
@@ -89,7 +187,10 @@ state LinkedList case of Collection = {
 					ifElse (matcher(node.value)) { 
 						match(last) {
 							case None { head = node.tail; }
-							case Some { last.getValue().tail = node.tail; }
+							case Some { 
+								last.getValue().tail = node.tail;
+								listSize = listSize - 1;
+							}
 						};
 
 						result = true;
