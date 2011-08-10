@@ -1,0 +1,165 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package plaid.typechecker.resolver;
+
+import plaid.ast.ID;
+import plaid.ast.ASTTranslator;
+import plaid.ast.stateTable.StateTable;
+import plaid.typechecker.StateTableBuilderVisitor;
+
+state ClasspathResolver case of Resolver {
+     val immutable SimpleLogger log = plaid.runtime.utils.LogUtils.getSimpleLogger("Resolver");
+     val immutable String  fileSeparator = java.lang.System.getProperty("file.separator");
+     val /* Map<String, DeclType> */ cache = java.util.HashMap.new();
+     val /* List<String> */ classpath;
+     
+
+     method /*Option<DeclType>*/ lookup(immutable String fqn) {
+         ifElse ( cache.containsKey(fqn) ) {
+             log.fine("found '" + fqn + "' in cache");
+             makeSome(cache.get(fqn));
+         }{
+             val /* List<...> */ lookupFunctions = makeEmptyList();
+             lookupFunctions.add(this.lookupBuildIn);
+             lookupFunctions.add(this.lookupFromPlaidSource);
+
+             // search through              
+             var /* Option<DeclType> */ result = NONE;
+             lookupFunctions.map(fn (lookupFunction) => {
+                 match ( result ) {
+                     case None {
+                         result = lookupFunction(fqn);
+                     }
+                     default {}
+                 };
+                 lookupFunction
+             });
+             
+             // add to cache if found
+             match (result) {
+                 case Some {
+                     cache.put(fqn, result.value);
+                 } 
+                 default{}
+             };
+             
+             result
+         }
+     }
+     
+
+     method void addCompilationUnit(unique CompilationUnit cu) {
+         log.fine("    add compilation Unit: " + cu.getPackageString());
+
+         val immutable String packageName = cu.getPackageString();
+         val typeCollector = new TypeCollectorVisitor {
+             val resolver = this;
+         };
+
+         cu.accept(typeCollector);
+         val /* List<String> */ declNames = typeCollector.getDeclNames();
+
+         declNames.map(fn (name) => {
+             ifElse ( packageName.length() == 0 ) {
+                 log.fine("      add '" + name +"' to cache");
+                 cache.put(name, typeCollector.get(name));
+             }{
+                 log.fine("      add '" + packageName + "." +name +"' to cache");
+                 cache.put(packageName + "." + name, typeCollector.get(name));
+             };
+             name
+         });
+         
+     }
+     
+
+     method /* Option<DeclType> */ lookupBuildIn(immutable String fqn) {
+         log.fine("searching for '" + fqn + "' in build in type ");
+         val unique StateTable st = new StateTable;
+         val typeId = new ID { val name = fqn.substring(fqn.lastIndexOf(".")+1); };
+         st.get(typeId);
+     }    
+
+
+     method /* Option<DeclType> */ lookupFromPlaidSource(immutable String fqn) {
+         var /* Option<DeclType> */ result = new None;
+         
+         log.fine("searching for '" + fqn + "' plaid source code in classpath");
+         classpath.map(fn (item) => {
+             match (result) {
+                 case None {
+                     val unique File path = (java.io.File.new(item)).getAbsoluteFile();
+                     log.fine("  searching classpath: " + path);
+                     
+                     ifElse  ( path.isFile() && path.toString().endsWith(".jar") ) {
+                         log.fine("  dive into JAR file ... " );
+                         val unique JarFile jarFile = java.util.jar.JarFile.new(path);
+                         val entries = jarFile.entries();
+                         while { entries.hasMoreElements() }{
+                             val entry = entries.nextElement();
+                             if ( entry.toString().equals(fqn.replace(".", fileSeparator)+ ".plaid") ) {
+                                 log.fine("    found: " + fqn.replace(".", fileSeparator)+ ".plaid");
+                                 result = loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry));
+                             };
+                             val packageName = fqn.substring(0, fqn.length() - (fqn.length()- fqn.lastIndexOf("."))).replace(".", fileSeparator)+ fileSeparator +"package.plaid";
+                             if ( entry.toString().equals(packageName) ) {
+                                 result = loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry));
+                             };
+                         };
+                     }{
+                         // check for file specification
+                         val fqnFile = java.io.File.new(path.toString() + fileSeparator + fqn.replace(".", fileSeparator)+ ".plaid");
+                         log.fine("    checking for file: " + fqnFile.toString() );
+                         ifElse ( fqnFile.exists() ) {
+                             log.fine("  try loading definition from file: " + fqnFile.toString());
+                             result = loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(fqnFile));
+                         }{
+                             log.fine("  specification file does not exists");
+                         };
+
+                         // check for definition in package
+                         match (result) {
+                             case None {
+                                 val packageFile = java.io.File.new(fqnFile.getParent().toString() + fileSeparator + "package.plaid");
+                                 if ( packageFile.exists() ) {
+                                     log.fine("  checking package definition: " + packageFile.toString());
+                                     result = loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(packageFile));
+                                 }
+                             }
+                             default {}
+                         }
+                     }
+                 }
+                 default { /* we are done */ }
+             }
+         });
+         
+         result;
+     }
+
+
+     method /* Option<DeclType> */ loadTypeFromPlaidSourceStream(immutable String fqn, unique InputStream fqnStream) {
+         val typeName = fqn.substring(fqn.lastIndexOf(".")+1);
+         val javaAST = plaid.compilerjava.ParserCore.parse(fqnStream);
+         val translator = new ASTTranslator;
+         val plaidAST = translator.translateAST(javaAST);
+         addCompilationUnit(plaidAST);
+         cache.get(fqn)
+     }
+}
