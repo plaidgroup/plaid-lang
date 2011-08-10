@@ -61,27 +61,40 @@ state LinkedList case of Collection = {
 	}
 
 	/**
+	 * Adds the provided element to the front of the list.
+	 * This is an alias of add(elem), and is an O(1) operation.
+	 */
+	method void addFirst(elem) { add(elem); }
+
+	/**
+	 * INTERNAL USE ONLY
+	 * finds the last ListValueNode in the list, if the list is non-empty.
+	 */
+	/*private*/ method immutable Option/*<ListValueNode>*/ findLast(node) {
+		match(node) {
+			case EndOfListNode {
+				NONE
+			}
+			case ListValueNode {
+				ifElse (node.tail.isEnd()) {
+					makeSome(node)
+				} {
+					findLast(node.tail)
+				}
+			}
+		}
+	}
+
+	/**
 	 * Adds the provided element to the end of the list.
 	 * NOTE: This operation is O(n) in the size of the list, so should be used sparingly.
 	 */
 	method void addLast(elem) {
-		match(head) {
-			case EndOfListNode {
-				head = cons(elem, END_OF_LIST);
-			}
-			case ListValueNode {
-				val findLast = fn(node) => {
-					ifElse(node.tail.isEnd()) { 
-						node 
-					} { 
-						findLast(node.tail) 
-					}
-				};
-
-				val last = findLast(head);
-				last.tail = cons(elem, END_OF_LIST);
-			}
-		};
+		findLast(head).map(fn(node) => {
+			node.tail = cons(elem, END_OF_LIST);
+		}).orElse({
+			head = cons(elem, END_OF_LIST);
+		});
 
 		listSize = listSize + 1;
 	}
@@ -129,6 +142,8 @@ state LinkedList case of Collection = {
 	 * left-to-right manner. If the list is empty, the result will be NONE, otherwise it will
 	 * be Some(x) where x is the accumulated value.
 	 *
+	 * The primary difference between foldli and foldl is that foldli does not use a base value.
+	 *
 	 * Example: with list [ 1 2 3 4 ], applying "*" to the list is equivalent to the expression:
 	 * makeSome(((1 * 2) * 3) * 4)
 	 */
@@ -143,6 +158,8 @@ state LinkedList case of Collection = {
 	 * left-to-right manner. If the list is empty, the result will be NONE, otherwise it will
 	 * be Some(x) where x is the accumulated value.
 	 *
+	 * The primary difference between foldri and foldr is that foldri does not use a base value.
+	 *
 	 * Example: with list [ 1 2 3 4 ], applying "-" to the list is equivalent to the expression:
 	 * makeSome(1 - (2 - (3 - 4)))
 	 */
@@ -152,6 +169,67 @@ state LinkedList case of Collection = {
 		});
 	}
 
+	/**
+	 * Appends the provided linked list to this list. This consumes the contents of the provided
+	 * list, turning it into an empty list.
+	 * NOTE: this is done to make sure the other list reference cannot inadvertently change
+     * the contents of this list. It may in fact be better to completely consume the permission
+     * to the provided list, if this is possible in Plaid.
+	 */
+	method /*<R <: T>*/ void append(unique LinkedList/*<R>*/ list) {
+		findLast(head).map(fn(last) => {
+			last.tail = list.head;
+			list.head = END_OF_LIST;
+			list.listSize = 0;
+		})
+	}
+
+	/**
+	 * Combines two lists by creating a Pair composed of an element from this list in fst
+	 * and an element from the other list in snd. The list will be in reverse order compared
+	 * to the original lists. The size of the zipped list will be min(this.size(), other.size()),
+	 * elements from the longer list past this point will be ignored.
+	 */
+	method /*<U>*/ unique LinkedList/*<Pair<T,U>*/ zipReverse(immutable LinkedList/*<U>*/ other) {
+		val zippedList = makeLinkedList();
+
+		var thisCurrent = this.head;
+		var otherCurrent = other.head;
+
+		while { !thisCurrent.isEnd() && !otherCurrent.isEnd() } {
+			zippedList.add(makePair(thisCurrent.value, otherCurrent.value));
+			thisCurrent = thisCurrent.tail;
+			otherCurrent = otherCurrent.tail;
+		};
+
+		zippedList
+	}
+
+	/**
+	 * Similar to zipReverse, but the produced list has the same order as the original lists. This
+	 * involves an additional O(n) pass over the elements in the combined list to restore the original
+	 * order, so should only be used if order is important.
+	 */
+	method /*<U>*/ unique LinkedList/*<T,U>*/ zip(immutable LinkedList/*<U>*/ other) {
+		zipReverse(other).reverse()
+	}
+
+	/**
+	 * Creates a new Map where the keys are the indices of elements, and the values are
+	 * the elements found at that index in this list. This can be used for quick lookup
+	 * or map operations where the index is needed.
+	 */
+	method unique Map/*<Integer,T>*/ asIndexMap() {
+		val map = makeTreeMap();
+
+		var index = 0;
+		do(fn(elem) => {
+			map.set(index, elem);
+			index = index + 1;
+		});
+
+		map
+	}
 
 	/**
 	 * Provides the number of elements currently stored within the list. This operation is O(1), as the
