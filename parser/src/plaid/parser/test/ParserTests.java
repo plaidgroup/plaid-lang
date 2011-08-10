@@ -37,14 +37,14 @@ public class ParserTests {
 	@Test
 	public void noPackage() throws ParseException {
 		String program = "val foo = 5;";
-		Parser parser = new Parser(new StringBufferInputStream(program));
+		Parser parser = new Parser(new StringBufferInputStream(program), 4);
 		assertTrue( !parser.hasCompilationUnit() );
 	}
 	
 	@Test
 	public void intField() throws ParseException {
 		String program = "package plaid; val foo = 5;";
-		Parser parser = new Parser(new StringBufferInputStream(program));
+		Parser parser = new Parser(new StringBufferInputStream(program), 4);
 		assertTrue( parser.hasCompilationUnit() );
 		CompilationUnit parsedCU = parser.getCompilationUnit();
 		Decl field = 
