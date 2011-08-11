@@ -61,27 +61,40 @@ state LinkedList case of Collection = {
 	}
 
 	/**
+	 * Adds the provided element to the front of the list.
+	 * This is an alias of add(elem), and is an O(1) operation.
+	 */
+	method void addFirst(elem) { add(elem); }
+
+	/**
+	 * INTERNAL USE ONLY
+	 * finds the last ListValueNode in the list, if the list is non-empty.
+	 */
+	/*private*/ method immutable Option/*<ListValueNode>*/ findLast(node) {
+		match(node) {
+			case EndOfListNode {
+				NONE
+			}
+			case ListValueNode {
+				ifElse (node.tail.isEnd()) {
+					makeSome(node)
+				} {
+					findLast(node.tail)
+				}
+			}
+		}
+	}
+
+	/**
 	 * Adds the provided element to the end of the list.
 	 * NOTE: This operation is O(n) in the size of the list, so should be used sparingly.
 	 */
 	method void addLast(elem) {
-		match(head) {
-			case EndOfListNode {
-				head = cons(elem, END_OF_LIST);
-			}
-			case ListValueNode {
-				val findLast = fn(node) => {
-					ifElse(node.tail.isEnd()) { 
-						node 
-					} { 
-						findLast(node.tail) 
-					}
-				};
-
-				val last = findLast(head);
-				last.tail = cons(elem, END_OF_LIST);
-			}
-		};
+		findLast(head).map(fn(node) => {
+			node.tail = cons(elem, END_OF_LIST);
+		}).orElse({
+			head = cons(elem, END_OF_LIST);
+		});
 
 		listSize = listSize + 1;
 	}
@@ -106,22 +119,22 @@ state LinkedList case of Collection = {
 	 * of the collection, then applying f to this result and the next element in collection, etc.
 	 * until all elements have been passed to f.
 	 *
-	 * Example: Using foldl with "-" on the list [ 4 3 2 1 ] and a base value 0 is equivalent
+	 * Example: Using reduceLeft with "-" on the list [ 4 3 2 1 ] and a base value 0 is equivalent
 	 * to the expression: (((0 - 4) - 3) - 2) - 1 = -10
 	 *
 	 * This is an alias of reduce(base, f).
 	 */
-	method foldl(/*R*/ base,/*R -> T -> R*/ f) { reduce(base, f) }
+	method /*<R>*/ unique LinkedList/*<R>*/ reduceLeft(/*R*/ base,/*R -> T -> R*/ f) { reduce(base, f) }
 
 	/**
 	 * Accumulates a single value by applying the function f to the list and the provided base value
 	 * in a right-associative manner. 
 	 *
-	 * Example: Using foldr with "-" on the list [ 4 3 2 1 ] and a base value 0 is equivalent 
+	 * Example: Using reduceRight with "-" on the list [ 4 3 2 1 ] and a base value 0 is equivalent 
 	 * to the expression: 4 - (3 - (2 - (1 - 0))) = 2.
 	 */
-	method foldr(/*R*/ base,/*T -> R -> R*/ f) {
-		reverse().foldl(base, fn(acc, elem) => { result = f(elem, acc); } );
+	method /*<R>*/ unique LinkedList/*<R>*/ reduceRight(/*T -> R -> R*/ f, /*R*/ base) {
+		reverse().reduceLeft(base, fn(acc, elem) => { result = f(elem, acc); } );
 	}
 
 	/**
@@ -129,11 +142,14 @@ state LinkedList case of Collection = {
 	 * left-to-right manner. If the list is empty, the result will be NONE, otherwise it will
 	 * be Some(x) where x is the accumulated value.
 	 *
+	 * The primary difference between reduceLeftInner and reduceLeft is that reduceLeftInner 
+	 * does not use a base value.
+	 *
 	 * Example: with list [ 1 2 3 4 ], applying "*" to the list is equivalent to the expression:
 	 * makeSome(((1 * 2) * 3) * 4)
 	 */
-	method /*<R <: T>*/ immutable Option foldli(/*T -> T -> T*/ f) {
-		foldl(NONE, fn(accOpt, elem) => { 
+	method /*<R <: T>*/ immutable Option reduceLeftInner(/*R -> T -> R*/ f) {
+		reduceLeft(NONE, fn(accOpt, elem) => { 
 			makeSome(accOpt.map(fn(acc) => { f(acc, elem) }).getOrElse(elem))
 		});
 	}
@@ -143,15 +159,129 @@ state LinkedList case of Collection = {
 	 * left-to-right manner. If the list is empty, the result will be NONE, otherwise it will
 	 * be Some(x) where x is the accumulated value.
 	 *
+	 * The primary difference between reduceRightInner and reduceRight is that reduceRightInner does 
+	 * not use a base value.
+	 *
 	 * Example: with list [ 1 2 3 4 ], applying "-" to the list is equivalent to the expression:
 	 * makeSome(1 - (2 - (3 - 4)))
 	 */
-	method /*<R <: T>*/ immutable Option foldri(/*T -> T -> T*/ f) {
-		foldr(NONE, fn(elem, accOpt) => { 
+	method /*<R <: T>*/ immutable Option reduceRightInner(/*T -> R -> R*/ f) {
+		reduceRight(fn(elem, accOpt) => { 
 			makeSome(accOpt.map(fn(acc) => { f(elem, acc) }).getOrElse(elem))
-		});
+		}, NONE);
 	}
 
+	/**
+	 * Appends the provided linked list to this list. This consumes the contents of the provided
+	 * list, turning it into an empty list.
+	 * NOTE: this is done to make sure the other list reference cannot inadvertently change
+     * the contents of this list. It may in fact be better to completely consume the permission
+     * to the provided list, if this is possible in Plaid.
+	 */
+	method /*<R <: T>*/ void append(unique LinkedList/*<R>*/ list) {
+		findLast(head).map(fn(last) => {
+			last.tail = list.head;
+			list.head = END_OF_LIST;
+			list.listSize = 0;
+		})
+	}
+
+	/**
+	 * Combines two lists by creating a Pair composed of an element from this list in fst
+	 * and an element from the other list in snd. The list will be in reverse order compared
+	 * to the original lists. The size of the zipped list will be min(this.size(), other.size()),
+	 * elements from the longer list past this point will be ignored.
+	 */
+	method /*<U>*/ unique LinkedList/*<Pair<T,U>*/ zipReverse(immutable LinkedList/*<U>*/ other) {
+		val zippedList = makeLinkedList();
+
+		var thisCurrent = this.head;
+		var otherCurrent = other.head;
+
+		while { !thisCurrent.isEnd() && !otherCurrent.isEnd() } {
+			zippedList.add(makePair(thisCurrent.value, otherCurrent.value));
+			thisCurrent = thisCurrent.tail;
+			otherCurrent = otherCurrent.tail;
+		};
+
+		zippedList
+	}
+
+	/**
+	 * Similar to zipReverse, but the produced list has the same order as the original lists. This
+	 * involves an additional O(n) pass over the elements in the combined list to restore the original
+	 * order, so should only be used if order is important.
+	 */
+	method /*<U>*/ unique LinkedList/*<T,U>*/ zip(immutable LinkedList/*<U>*/ other) {
+		zipReverse(other).reverse()
+	}
+
+	/**
+	 * Splits the current collection into two parts. Elements for which the provided function returns true are placed
+	 * into the first list, while all other elements are placed in the second list.
+	 *
+	 * These lists will have a relative ordering which is the reverse of the current list.
+	 */
+	 method unique Pair/*<unique LinkedList<T>, unique LinkedList<T>>*/ partitionReverse(/*T -> immutable Boolean*/ f) {
+	 	val acceptList = makeLinkedList();
+	 	val rejectList = makeLinkedList();
+
+	 	do(fn(elem) => { 
+		 	ifElse(f(elem)) {
+		 		acceptList.add(elem);
+		 	} {
+		 		rejectList.add(elem);
+		 	}
+		});
+
+		makePair(acceptList, rejectList)
+	 }
+
+	 /**
+	  * This is the same as partitionReverse, except the returned lists will have the same relative ordering as this
+	  * list. This is a more expensive operation (involving a second pass over each list to restore the original order)
+	  * so should only be used if the relative ordering matters.
+	  */
+	 method unique Pair/*<unique LinkedList<T>, unique LinkedList<T>>*/ partition(/*T -> immutable Boolean*/ f) {
+	 	val reversedPair = partitionReverse(f);
+	 	makePair(reversedPair.fst.reverse(), reversedPair.snd.reverse())
+	 }
+
+	 method unique LinkedList/*<T>*/ collectReverse(/*T -> immutable Boolean*/ f) {
+	 	reduceLeft(makeLinkedList(), fn(acc, elem) => {
+	 		if(f(elem)) { acc.add(elem) };
+	 		acc
+	 	})
+	 }
+
+	 method unique LinkedList/*<T>*/ collect(/*T -> immutable Boolean*/ f) {
+	 	collectReverse(f).reverse()
+	 }
+
+	 method unique LinkedList/*<T>*/ rejectReverse(/*T -> immutable Boolean*/ f) {
+	 	collectReverse(fn(elem) => { !f(elem) });
+	 }
+
+	 method unique LinkedList/*<T>*/ reject(/*T -> immutable Boolean*/ f) {
+	 	rejectReverse(f).reverse()
+	 }
+
+	/**
+	 * Creates a new Map where the keys are the indices of elements, and the values are
+	 * the elements found at that index in this list. This can be used for quick lookup
+	 * or map operations where the index is needed.
+	 */
+	method unique Map/*<Integer,T>*/ asIndexMap() {
+		val map = makeTreeMap();
+
+		var index = 0;
+		do(fn(elem) => {
+			map.set(index, elem);
+			index = index + 1;
+		});
+
+		map
+	}
 
 	/**
 	 * Provides the number of elements currently stored within the list. This operation is O(1), as the

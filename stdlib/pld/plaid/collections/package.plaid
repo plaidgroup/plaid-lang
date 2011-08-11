@@ -27,6 +27,45 @@ method /*TreeSet<T>*/ makeTreeSetWithOrder(immutable OrderProvider order) {
 	new TreeSet { val tree = makeAATreeWithOrder(order); }
 }
 
+method /*TreeMap<K,V>*/ makeTreeMap() {
+	// tree map ordering is based on the key only
+	val pairOrder = new OrderProvider {
+		method eq(a, b) { a.fst == b.fst }
+		method lt(a, b) { a.fst < b.fst }
+	};
+
+	val keyOrder = new OrderProvider {
+		method eq(a, b) { a == b }
+		method lt(a, b) { a < b }
+	};
+
+	new TreeMap { val tree = makeAATreeWithOrder(pairOrder); val keyOrdering = keyOrder; }
+}
+
+method /*TreeMap<K,V>*/ makeTreeMapWithOrder(immutable OrderProvider order) {
+	// wrap the provided explicit key ordering in an ordering that
+	// deals with the (key, value) pairs
+	val pairOrder = new OrderProvider {
+		method eq(a, b) { 
+			match(order(a.fst, b.fst)) {
+				case OrdEqual { true }
+				default { false }
+			}
+		}
+
+		method lt(a, b) {
+			match(order(a.fst, b.fst)) {
+				case OrdLessThan { true }
+				default { false }
+			}
+		}
+	};
+
+	new TreeMap { val tree = makeAATreeWithOrder(pairOrder); val keyOrder = order; }
+}
+
+
+
 /* AATree constructors - not necessarily useful outwith the collections package,
  * as AATree is used as the backend of TreeSet and TreeMap, which are the real
  * public types.
