@@ -14,6 +14,7 @@ import plaid.ast.util.makeStringFromQualifiedIdentifier;
 import plaid.ast.util.EMPTY_TOKEN;
 
 import plaid.compiler.ERROR;
+import plaid.compiler.WARNING;
 import plaid.compiler.DEBUG;
 import plaid.compiler.DEBUG_PRIO_HIGH;
 import plaid.compiler.DEBUG_PRIO_MEDIUM;
@@ -37,6 +38,7 @@ import plaid.compiler.symbol.SymbolFactory;
 import plaid.compiler.symbol.TopSymbol;
 import plaid.compiler.symbol.ThisSymbol;
 import plaid.compiler.symbol.StateSymbol;
+import plaid.compiler.symbol.PackageSymbol;
 import plaid.compiler.symbol.StateValSymbol;
 import plaid.compiler.symbol.StateRefSymbol;
 
@@ -45,7 +47,7 @@ import java.util.IdentityHashMap;
 
 
 /*
- * Expands the left most case of a dot
+ * expands the left most case of a dot
  */
 state NameExpanderPass case of Pass = LeafVisitor with  {
 
@@ -121,27 +123,72 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
     
     method immutable Integer resolveQualifiedIdentifier(shared Context ctx,
                                                         immutable QualifiedIdentifier qi) {
-        var currentSymbol = this.sf.makeTopSymbol();                                            
-        var count = 0;
-        var stop = false;
-        qi.identifiers.map(fn (id) => {
-            if ( stop == false ) {
-                val symbolOpt = ctx.find(id.name);
-                match ( symbolOpt ) {
-                    case Some {
-                        currentSymbol = symbolOpt.value;
-                        this.map.put(id, currentSymbol);
-                        count = count + 1;
-                    } 
-                    case None {
-                        stop = true;
-                    }
-                }
-            }
-        });
 
-        if ( qi.identifiers.length() == count ) {
-            this.map.put(qi, currentSymbol);
+        
+        var stop = false;
+        var count = qi.identifiers.length();
+
+        if ( count == 1 ) {
+            val symbol = ctx.find(qi.identifiers.get(0).name);
+            match (symbol) {
+                case Some { count = 1 }
+                case None { count = 0 }
+            };
+            stop = true;
+        };
+
+        while { count  > 0 && !stop }{
+             var fqn = qi.identifiers.get(0).name;
+             var i = 1;
+             while {i < count}{
+                 fqn = fqn + "." + qi.identifiers.get(i).name; 
+                 i = i + 1;
+             };
+              
+             val symbolOpt = this.resolver.lookup(fqn);
+             match ( symbolOpt ) {
+                 case Some {
+                     stop = true;
+                     var resolvedFqn = qi.identifiers.get(0).name;
+                     var symbol = this.resolver.lookup(resolvedFqn);
+                     this.map.put(qi.identifiers.get(0), symbol.value);
+                     var x = 1;
+                     while {x < count }{
+                         resolvedFqn = resolvedFqn + "." + qi.identifiers.get(x).name;
+                         symbol = this.resolver.lookup(resolvedFqn);
+                         this.map.put(qi.identifiers.get(x), symbol.value);                         
+                         x = x + 1;
+                     };
+                     // check for class we should have found
+                     ifElse ( count < qi.identifiers.length() ) {
+                         match (symbol.value) {
+                             case PackageSymbol {
+                                 WARNING("<NameExpanderPass> Cannot resolve '" + fqn + "." + qi.identifiers.get(count).name  + "'");
+                                 val first = qi.identifiers.car();
+                                 val last  = qi.identifiers.get(count);
+                                 val beginLine   = min(first.token.beginLine, last.token.beginLine);
+                                 val endLine     = max(first.token.endLine, last.token.endLine);
+                                 val beginColumn = min(first.token.beginColumn, last.token.beginColumn);
+                                 val endColumn   = max(first.token.endColumn, last.token.endColumn);
+                                 this.reporter.error(java.io.File.new(this.sourceFile), 
+                                                     beginLine,
+                                                     beginColumn,
+                                                     endLine,
+                                                     endColumn,
+                                                     "Cannot resolve '" + fqn + "." + qi.identifiers.get(count).name  + "'");
+                             }
+                             default {}
+                         }
+                     }{
+                         this.map.put(qi, symbol.value);
+                     };
+                 } 
+                 case None {}
+             };
+
+             if (!stop) {
+                count = count - 1;
+             }
         };
 
         count;
@@ -404,7 +451,6 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                this.map.put(node, symbol.value);
            }
            case None {
-               printLine("asd " + node);
                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.token, "Cannot resolve '" + node.name + "'");
            }
        }
@@ -412,12 +458,11 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
     
 
 	override method void visitDereference(immutable Dereference node) {
-        /*
-        val qiOpt = getQualifiedIdentifierFromDereference(node);
+        val qiOpt = this.getQualifiedIdentifierFromDereference(node);
         match (qiOpt) {
             case Some {
                 DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass> Found potential QI: " + makeStringFromQualifiedIdentifier(qiOpt.value));
-                val immutable Integer resolvedCount = resolveQualifiedIdentifier(this.stack.peek().value, qiOpt.value);
+                val immutable Integer resolvedCount = this.resolveQualifiedIdentifier(this.stack.peek().value, qiOpt.value);
                 DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass>   resolved  " + resolvedCount + " parts");
                 if ( resolvedCount == 0 ) {
                     //val mostLeftId = qiOpt.value.identifiers.get(0);
@@ -429,8 +474,8 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 node.left.accept(this);
             }
         };
-        */
-		node.left.accept(this);
+        
+		//node.left.accept(this);
 		//node.right.accept(this);
 	}
 
@@ -483,7 +528,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         ifElse ( resolveCount == node.identifiers.length() ) {
              DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
         }{
-            ERROR("Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
+            WARNING("Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
             val first = node.identifiers.car();
             val last  = node.identifiers.get(node.identifiers.length() - 1);
             val beginLine   = min(first.token.beginLine, last.token.beginLine);
@@ -502,7 +547,6 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
 	override method void visitStateRef(immutable StateRef node) {
         val shared StateRefSymbol stateRefSymbol = this.sf.makeStateRefSymbol(node);
-
         this.currentState.push(stateRefSymbol);
 
 		node.stateExpr.accept(this);
@@ -511,6 +555,10 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         this.currentState.pop();
 	}
 
+	override method void visitUnaryOperatorExpr(immutable UnaryOperatorExpr node) {
+		node.expression.accept(this);
+		//node.operator.accept(this);
+	}
 
     override method void visitVarDecl(immutable VarDecl node) {
 
@@ -526,6 +574,9 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             this.map.put(node.id, mySymbol);
         }{
             ERROR("Name "+ node.id.name +" already declared.");
+            //val otherSymbol = ctx.get
+            //this.reporter.errorToken(java.io.File.new(this.sourceFile), node.token, "Name "+ node.id.name +" already declared at ");
+
         }
     }
 }
