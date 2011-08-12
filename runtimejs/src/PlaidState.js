@@ -12,6 +12,7 @@ Object.prototype.clone = function() {
   } return obj;
 }
 
+
 /*Constructor*/
 function PlaidState(){
    this.tree=[["",[],"with"]];
@@ -146,6 +147,7 @@ PlaidState.prototype.instantiate = function() {
 
 /*returns a copy of the state on which it was called, copy lacks the member that was passed in*/
 PlaidState.prototype.remove = function(member) {
+
    var obj=new PlaidState();
    obj.setTree(this.tree.clone());
    copyMembers(obj,this);
@@ -159,7 +161,7 @@ PlaidState.prototype.remove = function(member) {
 
 /*returns a copy of the state on which it was called, in copy member has the name newName*/
 PlaidState.prototype.rename = function(member, newName) {
-   var currMembers=this.members();
+   //var currMembers=this.members();
    /*
    if (has(currMembers,newName)){
       throw "Error: attempt to rename a member with name "+newName+" which already names a member";
@@ -168,6 +170,7 @@ PlaidState.prototype.rename = function(member, newName) {
    var obj=new PlaidState();
    obj.setTree(this.tree.clone());
    copyMembers(obj,this);
+
    if(s_rename(obj.tree,member,newName)===false){
       throw "Error: attempt to rename a member "+member+" that does not exist in the state";
       return;
@@ -197,10 +200,12 @@ function membersByTag(md1,tag){
 /*returns a copy of the state on which it was called, in copy member has the value passed in; the member is associated with the tag passed in*/
 PlaidState.prototype.specialize = function(tag, member, value) {
    //var currMembers=this.members();
+ 
    var obj=new PlaidState();
    obj.setTree(this.tree.clone());
-   var tagMembers=membersByTag(obj.tree,tag);
    copyMembers(obj,this);
+
+   var tagMembers=membersByTag(obj.tree,tag);
 
    if (!has(tagMembers,member)){
       /*if the member is already in the object and associated with any tag but the target tag, this is an error
@@ -308,10 +313,11 @@ PlaidState.prototype.withMemberNoValue = function(memberName) {
    } 
    */
 
-   var obj=new PlaidState();
-   obj.setTree(this.tree.clone());
+   //var obj=new PlaidState();
+   //obj.setTree(this.tree.clone());
    var i;
-   copyMembers(obj,this);
+   //copyMembers(obj,this);
+   var obj = this.begetObj();
 
    obj.tree.push([["",[memberName],"with"]]);  
 
@@ -345,7 +351,10 @@ function copyMembers(obj1,obj2){
 
 /*a helper function that adds member to obj1, giving it the name memberName;  currently just copies all members and adds the copy;  in future, could be made more efficient*/
 function addMember(obj1,memberName,member){
-      if (typeof member == "object") {
+      if (member==null) {
+         obj1[memberName]=null;
+      }
+      else if (typeof member == "object") {
          obj1[memberName]=member.clone();
       } 
       else {
