@@ -12,6 +12,12 @@ Object.prototype.clone = function() {
   } return obj;
 }
 
+Object.prototype.begetObj = function() {
+  function F() {}
+  F.prototype = this;
+  return new F();
+}
+
 /*Constructor*/
 function PlaidObject(t){
    this.tree=t;
@@ -334,13 +340,19 @@ function m_stateChange(obj1,obj2){
       md1.push([["",wm2,"with"]]); 
    }
 
+   //must update add because you may have concatenated new members to add
+   var addLength=add.length;
+   var removeLength=remove.length;
+
    //remove the members that need to be removed
    for (var j=0;j<removeLength;j++){
+      //document.write("remove "+remove[j]+"<br>");
       delete obj1[remove[j]];
    }
 
    //add the members that need to be added
    for (var j=0;j<addLength;j++){
+      //document.write("add "+add[j]['memberName']+"<br>");
       var mn = add[j]['memberName'];
       addMember(obj1,mn,obj2[mn]);
    }
@@ -390,10 +402,6 @@ function has(array, item){
          return true;
       }
    }
-   return false;
-}
-
-function hasFalse(array, item){
    return false;
 }
 
@@ -462,6 +470,7 @@ PlaidObject.prototype.replace=function(state) {
       }
    }
 
+
    var add=state.members();
    var remove=this.members();
    var addLength=add.length;
@@ -474,6 +483,7 @@ PlaidObject.prototype.replace=function(state) {
       delete this[remove[j]];
    }
   this.tree=state.tree.clone();
+
 }
 
 /*Returns a PlaidState object with the same tree and members as the object on which it is called*/
