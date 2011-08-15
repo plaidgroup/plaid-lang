@@ -24,6 +24,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.util.Iterator;
+import java.util.Collections;
 
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
@@ -213,8 +214,12 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 	 * exist on both sides.
 	 */
 	private PlaidObject getPlaidObjectRep(Object result) {
-		// if it's a boolean, we have to convert it to our special Plaid boolean
-		if (result.getClass().equals(Boolean.class)) {
+		Class resultType = result.getClass();
+
+		if (Util.isOfSupportedBasicType(result)) {
+			return Util.buildBasic(result);
+		}
+		else if (resultType.equals(Boolean.class)) {
 			if ((Boolean)result) {
 				return Util.trueObject();
 			}
@@ -222,15 +227,8 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 				return Util.falseObject();
 			}
 		}
-		else if (result.getClass().equals(Integer.class)) {
-			int val = ((Integer)result).intValue();
-			return Util.integer(BigInteger.valueOf(val));
-		}
-		else if (result.getClass().equals(String.class)) {
+		else if (resultType.equals(String.class)) {
 			return Util.string((String)result);
-		}
-		else if (result.getClass().equals(Double.class)) {
-			return Util.floatingDouble((Double)result);
 		}
 		else if (result instanceof PlaidObject) {
 			return (PlaidObject)result;
