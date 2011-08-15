@@ -77,7 +77,7 @@ public class NumericSupport {
 	public static BigRational modulusRational(BigRational a, BigRational b) { return a.mod(b); }
 	// NOTE: modulus is not supported by BigDecimal
 
-
+	public static boolean lessThanCharacter(Character a, Character b) { return a < b; }
 	public static boolean lessThanInt8(Byte a, Byte b) { return a < b; }
 	public static boolean lessThanInt16(Short a, Short b) { return a < b; }
 	public static boolean lessThanInt32(Integer a, Integer b) { return a < b; }
@@ -107,4 +107,7 @@ public class NumericSupport {
 		return x.intValue();
 	}
 
+	public static Integer characterToInt32(Character c) {
+		return (int)(c.charValue());
+	}
 }
