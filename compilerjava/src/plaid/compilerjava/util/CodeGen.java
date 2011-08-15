@@ -562,6 +562,10 @@ public class CodeGen {
 	public final void plaidDouble(double d) {
 		output.append(utilClass + ".floatingDouble(" + d + ")");
 	}
+
+	public final void plaidChar(String cImage) {
+		output.append(utilClass + ".character(" + cImage + ")");
+	}
 	
 	public final void castToState(String s) {
 		output.append(utilClass + ".toPlaidState(" + s + ")");
