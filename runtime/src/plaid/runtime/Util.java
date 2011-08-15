@@ -152,6 +152,10 @@ public class Util {
 	public static PlaidObject floatingDouble(Double d) throws PlaidException {
 		return buildBasic(d);
 	}
+
+	public static PlaidObject character(Character c) throws PlaidException {
+		return buildBasic(c);
+	}
 	
 	public static PlaidObject boolObject(boolean b) throws PlaidException {
 		if (b) { return trueObject(); }
