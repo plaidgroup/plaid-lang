@@ -405,7 +405,6 @@ public class CompilerCore {
 		
 		// create the output files
 		generateCode(cus, plaidpath);
-
 		return cus;
 	}
 	

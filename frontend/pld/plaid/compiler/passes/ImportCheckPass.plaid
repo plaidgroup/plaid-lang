@@ -1,0 +1,63 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.CompilationUnit;
+import plaid.compiler.DEBUG;
+import plaid.compiler.WARNING;
+import plaid.compiler.DEBUG_PRIO_HIGH;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.Pass;
+import plaid.compiler.CompilerConfiguration;
+import plaid.compiler.Reporter;
+
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+import plaid.ast.util.makeTokenForQualifiedIdentifier;
+
+import plaid.lang.math.min;
+import plaid.lang.math.max;
+
+
+state ImportCheckPass case of Pass {
+    val immutable CompilerConfiguration cc;
+    val shared Resolver resolver;
+
+    method immutable Boolean run(unique Job job, unique Reporter reporter) {
+        match (job.ast) {
+            case Some {
+                match (job.ast.value) {
+                    case CompilationUnit {
+                        DEBUG(DEBUG_PRIO_HIGH, "<ImportCheckPass> started");
+                        checkImports(job.ast.value.imports, reporter, job.source.getPath());
+                        DEBUG(DEBUG_PRIO_HIGH, "<ImportCheckPass> finished");
+                        true
+                    }
+                    default { false }
+                }
+            }
+            default { false }
+        }
+    }
+
+    method immutable Boolean checkImports(immutable List imports, 
+                                          unique Reporter reporter,
+                                          immutable String sourceFile) {
+        val rep = reporter;
+        imports.map(fn (imp) => {
+            if ( !imp.star ) {
+                val fqn = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+                val optSymbol = resolver.lookup(fqn);
+                match (optSymbol) {
+                    case None {
+                        WARNING("<ImportCheckPass> Cannot resolve '" + fqn + "'");
+                        val token = makeTokenForQualifiedIdentifier(imp.qualifiedIdentifier);
+                        rep.warningToken(java.io.File.new(sourceFile), 
+                                              token,
+                                              "Cannot resolve import '" + fqn  + "'");
+
+                    }
+                    default {}
+                }
+            };
+        });
+    }
+}
