@@ -437,33 +437,55 @@ public class Util {
 	public static Class<?> widenPrimitiveType(Class<?> fromClass, Class<?> toClass) {
 		if (fromClass.isPrimitive() && toClass.isPrimitive()) {
 			if (fromClass.equals(byte.class)) {
-				return widenPrimitiveHelper(toClass, short.class, int.class, long.class, float.class, double.class);
+				return conversionHelper(toClass, short.class, int.class, long.class, float.class, double.class);
 			}
 			else if (fromClass.equals(short.class)) {
-				return widenPrimitiveHelper(toClass, int.class, long.class, float.class, double.class);
+				return conversionHelper(toClass, int.class, long.class, float.class, double.class);
 			}
 			else if (fromClass.equals(char.class)) {
-				return widenPrimitiveHelper(toClass, int.class, long.class, float.class, double.class);
+				return conversionHelper(toClass, int.class, long.class, float.class, double.class);
 			}
 			else if (fromClass.equals(int.class)) {
-				return widenPrimitiveHelper(toClass, long.class, float.class, double.class);
+				return conversionHelper(toClass, long.class, float.class, double.class);
 			}
 			else if (fromClass.equals(long.class)) {
-				return widenPrimitiveHelper(toClass, float.class, double.class);
+				return conversionHelper(toClass, float.class, double.class);
 			}
 			else if (fromClass.equals(float.class)) {
-				return widenPrimitiveHelper(toClass, double.class);
+				return conversionHelper(toClass, double.class);
 			}
 		}
 		return null;
 	}
 	
-	private static Class<?> widenPrimitiveHelper(Class<?> toClass, Class<?> ...validClasses) {
+	private static Class<?> conversionHelper(Class<?> toClass, Class<?> ...validClasses) {
+		if(validClasses == null) {
+			return null;
+		}
+
 		for (Class<?> c : validClasses) {
 			if (toClass.equals(c)) {
 				return c;
 			}
 		}
+		return null;
+	}
+
+	/**
+	 * Checks to see whether fromClass can be legally "narrowed" to the toClass. In Plaid, this
+	 * is done to ease interop between Plaid and Java for the standard integer and floating point
+	 * types which are arbitrary precision. These can be narrowed to one of the primitive types
+	 * with the caveat that the value must fit within the target type, or a runtime exception
+	 * will be thrown.
+	 */
+	public static Class<?> narrowPrimitiveType(Class<?> fromClass, Class<?> toClass) {
+		if (fromClass.equals(plaid2JavaTypeMap.get("plaid.lang.Integer"))) {
+			return conversionHelper(toClass, byte.class, short.class, int.class, long.class);
+		}
+		else if (fromClass.equals(plaid2JavaTypeMap.get("plaid.lang.Rational"))) {
+			return conversionHelper(toClass, float.class, double.class);
+		}
+		
 		return null;
 	}
 	
