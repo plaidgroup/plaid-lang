@@ -122,6 +122,25 @@ public class BigRational implements Comparable<BigRational> {
         return new BigRational(num.mod(den), den);
     }
 
+    public double doubleValue() {
+        double numDouble = num.doubleValue();
+        double denDouble = den.doubleValue();
+
+        if(numDouble == Double.POSITIVE_INFINITY) {
+            return Double.POSITIVE_INFINITY;
+        } else if(numDouble == Double.NEGATIVE_INFINITY) {
+            return Double.NEGATIVE_INFINITY;
+        } else if(denDouble == Double.POSITIVE_INFINITY) {
+            return 0.0;
+        } else {
+            return numDouble / denDouble;
+        }
+    }
+
+    public float floatValue() {
+        return (float)doubleValue();
+    }
+
     public String toString() { 
         if (den.equals(BigInteger.ONE)) return num.toString();
         else                            return num + "/" + den;

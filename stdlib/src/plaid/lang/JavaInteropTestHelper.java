@@ -37,4 +37,15 @@ public class JavaInteropTestHelper {
 		return (a * b) / c;
 	}
 
+	public static long longIdent(long x) { return x; }
+	public static int intIdent(int x) { return x; }
+	public static short shortIdent(short x) { return x; }
+	public static byte byteIdent(byte x) { return x; }
+
+	public static boolean select(long x) { return true; }
+	public static boolean select(short x) { return false; }
+
+	public static int selectMulti(long x, long y, short z) { return 1; }
+	public static int selectMulti(int x, int y, int z) { return 2; }
+	public static int selectMulti(long x, byte y, short z) { return 3; }
 }
