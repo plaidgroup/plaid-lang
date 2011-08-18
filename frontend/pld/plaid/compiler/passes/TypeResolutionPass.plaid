@@ -10,6 +10,7 @@ import plaid.compiler.Pass;
 
 state TypeResolutionPass case of Pass = LeafVisitor with  {
     var immutable Source sourceFile;
+    var shared Resolver resolver;
     var shared Reporter reporter;
     var shared Map map;
 
@@ -33,13 +34,67 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
         }
     }
 
+
+    method immutable Option resolveDereference(immutable Deference dref,
+                                               shared Symbol leftSymbol) {
+        // check if we already                                        
+        ifElse ( this.map.containsKey(dref) ) {
+            this.map.get(dref)
+        }{
+            match (leftSymbol) {
+                case PackageSymbol {
+                    // if we have a package on the left side and haven't        
+                    // resolved the right hand side in the NameExpanderPass
+                    // this should be an error, but let's try gain anyway
+                    val fqn = makeStringFromQualifiedIdentifier(leftSymbol.getQualifiedIdentifier()) + "." + dref.right.name;
+                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   try to resolve '" + fqn +"'");
+                    NONE
+                }
+                case VariableSymbol {
+                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found variable");
+                    val varDecl = leftSymbol.declaration;
+                    ifElse ( this.map.containsKey(varDecl) ) {
+                        NONE
+                    }{
+                        NONE
+                    }
+                }
+                default {
+                    ERROR("<TypeResolutionPass> Found not supported symbol.");
+                    NONE
+                }
+            }
+        }                                               
+    }
     
-    method shared Symbol resolveDerefence(immutable Dereference dref)  {
-        
+    method immutable Option resolveNode(immutable Node node)  {
+        val leftSymbol = NONE;
+        match (node) {
+            case Identifier {
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   resolve Identifier");
+                ifElse ( this.map.containsKey(node) ) {
+                    makeSome(this.map.get(node));
+                }{
+                    NONE
+                };
+            }
+            case Dereference {
+                val leftSymbolOpt = resolveNode(node.left);
+                match (leftSymbolOpt) {
+                    case Some {
+                        resolveDereference(node, leftSymbolOpt.value);
+                    }
+                    case None { NONE }
+                }
+            }
+            default {
+                ERROR("<TypeResolutionPass> Found not supported AST node.");
+            }
+        }
     }
 
-
     override method void visitDereference(immutable Dereference node) {
-        //DEBUG(DEBUG_PRIO_MEDIUM, " found dereference.");
+        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> found dereference.");
+        val symbolOpt = resolveNode(node);
     }
 }
