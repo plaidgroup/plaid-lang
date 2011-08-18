@@ -59,6 +59,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
     val shared ClasspathResolver resolver;
     val unique Stack currentState = new Stack;
     var shared Symbol packageSymbol = new TopSymbol;
+    var hasErrors = false;
         
 
     method immutable Boolean run(unique Job job, unique Reporter reporter) {
@@ -79,7 +80,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 job.ast.value.accept(this);
                 job.symbolMap = this.map;                
                 DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass> finished");
-                true
+                !this.hasErrors
             }
             default { 
                 ERROR("<NameExpanderPass> AST invalid");
@@ -399,7 +400,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 val unique Option stateSymbol = this.stack.peek().value.find(node.name.name);
                 match (stateSymbol) {
                     case None {
-                        ERROR("<NameExpanderPass> Cannot find symbol for state '" + node.name.name + "'");
+                        ERROR("<NameExpanderPass> Cannot find symbol for state '" + node.name.name + "'");                        
                     }
                     case Some {
                         this.currentState.push(stateSymbol.value);
@@ -579,17 +580,18 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             this.map.put(node.id, mySymbol);
             this.map.put(node, mySymbol);
         }{
-            ERROR("<NameExpanderPass> Name "+ node.id.name +" already declared.");
+            ERROR("<NameExpanderPass> Variable '"+ node.id.name +"' already declared.");
             val otherSymbol = ctx.find(node.id.name);
             match (otherSymbol) {
                 case Some {
                    val otherDecl = otherSymbol.value.declaration;
-                   this.reporter.errorToken(java.io.File.new(this.sourceFile), node.id.token, "Name "+ node.id.name +" already declared in line " + otherDecl.token.beginLine);
+                   this.reporter.errorToken(java.io.File.new(this.sourceFile), node.id.token, "Variable '" +  node.id.name + "' already declared in line " + otherDecl.token.beginLine);
                 }
                 case None {
-                   this.reporter.errorToken(java.io.File.new(this.sourceFile), node.id.token, "Name "+ node.id.name +" already declared.");
+                   this.reporter.errorToken(java.io.File.new(this.sourceFile), node.id.token, "Variable '" + node.id.name + "' already declared.");
                 }
-            }
+            };
+            this.hasErrors = true;
         }
     }
 }
