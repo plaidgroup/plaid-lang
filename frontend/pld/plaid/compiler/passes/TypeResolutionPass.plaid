@@ -9,10 +9,12 @@ import plaid.compiler.Pass;
 
 
 state TypeResolutionPass case of Pass = LeafVisitor with  {
+    var unique SymbolFactory sf = new SymbolFactory;
     var immutable Source sourceFile;
     var shared Resolver resolver;
     var shared Reporter reporter;
     var shared Map map;
+    var hasErrors = false;
 
     method immutable Boolean run(unique Job job, unique Reporter reporter) {
         match (job.ast) {
@@ -25,7 +27,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                 job.ast.value.accept(this);
 
                 DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> finished");
-                true
+                this.hasErrors;
             }
             default { 
                 ERROR("<TypeResolutionPass> AST invalid");
@@ -34,6 +36,24 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
         }
     }
 
+    
+    method immutable Option findMemberSymbol(shared NominalObjectType objType, immutable String name) {
+        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       find member '" + name +"'");
+        ifElse ( this.map.containsKey(objType.stateQi) ) {
+            val typeSymbol = this.map.get(objType.stateQi);
+            match (typeSymbol) {
+                case StateSymbol {
+                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        found state symbol");
+                    typeSymbol.getMember(name);                    
+                }
+                default { NONE }
+            }
+        }{            
+            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       could not find symbol for type.");
+            NONE
+        }
+    }
+    
 
     method immutable Option resolveDereference(immutable Deference dref,
                                                shared Symbol leftSymbol) {
@@ -48,16 +68,40 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                     // this should be an error, but let's try gain anyway
                     val fqn = makeStringFromQualifiedIdentifier(leftSymbol.getQualifiedIdentifier()) + "." + dref.right.name;
                     DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   try to resolve '" + fqn +"'");
-                    NONE
+                    this.resolver.lookup(fqn);
                 }
                 case VariableSymbol {
                     DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found variable");
-                    val varDecl = leftSymbol.declaration;
-                    ifElse ( this.map.containsKey(varDecl) ) {
-                        NONE
-                    }{
-                        NONE
-                    }
+                    match (leftSymbol.declaration.varType) {
+                        case EmptyType {
+                            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with dynamic type");
+                            var dynSymbol = this.sf.makeDynamicSymbol();
+                            this.map.put(leftSymbol.declaration.varType, dynSymbol);
+                            this.map.put(dref.right, dynSymbol);
+                            makeSome(dynSymbol);
+                        }
+                        case NominalObjectType {
+                            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with object type");
+                            val memberSymbolOpt = findMemberSymbol(leftSymbol.declaration.varType, dref.right.name);
+                            match (memberSymbolOpt) {
+                                case Some {
+                                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       found member");
+                                    memberSymbolOpt
+                                }
+                                case None {
+                                    ERROR("<TypeResolutionPass>     State <FIXME> has no member <FIXME>");
+                                    NONE
+                                }
+                            }
+                        }
+                        default { NONE }
+                    }; 
+                }
+                case DynamicSymbol {
+                    var dynSymbol = this.sf.makeDynamicSymbol();
+                    this.map.put(leftSymbol.declaration.varType, dynSymbol);
+                    this.map.put(dref.right, dynSymbol);
+                    makeSome(dynSymbol);                    
                 }
                 default {
                     ERROR("<TypeResolutionPass> Found not supported symbol.");
@@ -79,6 +123,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                 };
             }
             case Dereference {
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   resolve Dereference");
                 val leftSymbolOpt = resolveNode(node.left);
                 match (leftSymbolOpt) {
                     case Some {

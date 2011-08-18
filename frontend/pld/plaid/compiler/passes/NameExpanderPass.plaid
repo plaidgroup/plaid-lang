@@ -41,6 +41,7 @@ import plaid.compiler.symbol.StateSymbol;
 import plaid.compiler.symbol.PackageSymbol;
 import plaid.compiler.symbol.StateValSymbol;
 import plaid.compiler.symbol.StateRefSymbol;
+import plaid.compiler.symbol.DynamicSymbol;
 
 import java.util.Map;
 import java.util.IdentityHashMap;
@@ -132,7 +133,11 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         if ( count == 1 ) {
             val symbol = ctx.find(qi.identifiers.get(0).name);
             match (symbol) {
-                case Some { count = 1 }
+                case Some { 
+                     this.map.put(qi.identifiers.get(0), symbol.value);
+                     this.map.put(qi, symbol.value);
+                     count = 1
+                }
                 case None { count = 0 }
             };
             stop = true;
@@ -202,6 +207,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 // member
                 val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
                 this.map.put(node, fieldSymbol);
+                this.currentState.peek().value.addMember(fieldSymbol);
             }
             case None {
                 // top level
@@ -222,6 +228,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 // member
                 val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.currentState.peek().value);
                 this.map.put(node, methodSymbol);
+                this.currentState.peek().value.addMember(methodSymbol);
             }
             case None {
                 // top level
@@ -390,6 +397,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                  val stateSymbol = this.sf.makeStateSymbol(node.name.name, node, this.currentState.peek().value);
                  this.currentState.push(stateSymbol);
                  this.map.put(node.name, stateSymbol);
+                 this.map.put(node, stateSymbol);
          
                  val ctx = this.stack.peek().value;
                  ctx.put(node.name.name, stateSymbol);
@@ -534,7 +542,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         ifElse ( resolveCount == node.identifiers.length() ) {
              DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
         }{
-            WARNING("Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
+            ERROR("Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
             val first = node.identifiers.car();
             val last  = node.identifiers.get(node.identifiers.length() - 1);
             val beginLine   = min(first.token.beginLine, last.token.beginLine);
@@ -570,7 +578,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
         node.specifier.accept(this);
         node.varType.accept(this);
-                //node.id.accept(this);
+        //node.id.accept(this);
         node.expr.accept(this);
         
         val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(node.id.name, node);
