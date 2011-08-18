@@ -404,7 +404,7 @@ public class CompilerCore {
 		getOptimizationInformation(cus);
 		
 		// create the output files
-		generateCode(cus, plaidpath);
+		generateCode(cus, plaidpath);	
 		return cus;
 	}
 	
