@@ -8,6 +8,9 @@ import plaid.compiler.DEBUG_PRIO_MEDIUM;
 import plaid.compiler.Pass;
 
 
+import plaid.compiler.symbol.*;
+
+
 state TypeResolutionPass case of Pass = LeafVisitor with  {
     var unique SymbolFactory sf = new SymbolFactory;
     var immutable Source sourceFile;
@@ -27,7 +30,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                 job.ast.value.accept(this);
 
                 DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> finished");
-                this.hasErrors;
+                !this.hasErrors;
             }
             default { 
                 ERROR("<TypeResolutionPass> AST invalid");
@@ -36,6 +39,35 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
         }
     }
 
+
+    method immutable Option findMemberInStateSymbol(shared StateSymbol stateSymbol, immutable String name) {
+        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        find in state symbol");
+        val memberSymbol = stateSymbol.getMember(name);                    
+        match (memberSymbol) {
+            case None {
+                match (stateSymbol.declaration.caseOf) {
+                    case EmptyQualifiedIdentifier {
+                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        no more parent to search in.");
+                        NONE
+                    }
+                    default {
+                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        search parent for symbol");
+                        ifElse ( this.map.containsKey(stateSymbol.declaration.caseOf) ) {
+                            val parentStateSymbol = this.map.get(stateSymbol.declaration.caseOf);
+                            findMemberInStateSymbol(parentStateSymbol, name);
+                        }{
+                            ERROR("<TypeResolutionPass>        Cannot find parent symbol.");
+                            NONE
+                        };
+                    }
+                };
+            }
+            case Some {
+                memberSymbol
+            }
+        }
+     }
+
     
     method immutable Option findMemberSymbol(shared NominalObjectType objType, immutable String name) {
         DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       find member '" + name +"'");
@@ -43,13 +75,12 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
             val typeSymbol = this.map.get(objType.stateQi);
             match (typeSymbol) {
                 case StateSymbol {
-                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        found state symbol");
-                    typeSymbol.getMember(name);                    
+                    findMemberInStateSymbol(typeSymbol, name);
                 }
                 default { NONE }
             }
         }{            
-            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       could not find symbol for type.");
+            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       could not find symbol for type <FIXME>.");
             NONE
         }
     }
@@ -89,7 +120,8 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                                     memberSymbolOpt
                                 }
                                 case None {
-                                    ERROR("<TypeResolutionPass>     State <FIXME> has no member <FIXME>");
+                                    ERROR("<TypeResolutionPass>     State <FIXME> has no member '" + dref.right.name +"'");
+                                    this.reporter.errorToken(java.io.File.new(this.sourceFile), dref.right.token, "State <FIXME> has no member  '" + dref.right.name + "'");                                    
                                     NONE
                                 }
                             }
@@ -102,6 +134,18 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                     this.map.put(leftSymbol.declaration.varType, dynSymbol);
                     this.map.put(dref.right, dynSymbol);
                     makeSome(dynSymbol);                    
+                }
+                case StateSymbol {
+                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found state symbol");
+                    NONE
+                }
+                case FieldSymbol {
+                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found field symbol");
+                    NONE
+                }
+                case MethodSymbol {
+                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found method symbol");
+                    NONE
                 }
                 default {
                     ERROR("<TypeResolutionPass> Found not supported symbol.");
