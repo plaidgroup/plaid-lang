@@ -22,6 +22,8 @@ package plaid.runtime.models.map;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
+import com.sun.org.apache.xpath.internal.Arg;
+
 import plaid.runtime.PlaidConstants;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
@@ -40,12 +42,30 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 		this.cl = cl;
 	}
 	
+	class ConstructorMatch {
+		Constructor<?> constr;
+		ArgumentCompatibility compat;
+		
+		public ConstructorMatch(Constructor<?> constr, ArgumentCompatibility compat) {
+			this.constr = constr;
+			this.compat = compat;
+		}
+		
+		public boolean isBetterThan(ConstructorMatch other) {
+			if(other == null) {
+				return true;
+			}
+			
+			return this.compat.isBetterMatchThan(other.compat);
+		}
+	}
+	
 	@Override
 	public PlaidObject invoke(PlaidObject args) throws PlaidException {
 		try {
 			Class<?>[] paramTypes = null;
 			Object[] params = null;
-			Constructor<?> handle = null;
+			ConstructorMatch match = null;
 			if ( args instanceof PlaidJavaObject ) {
 				paramTypes = new Class[1];
 				//paramTypes[0] = (Class<Object>) Object.class;
@@ -67,40 +87,19 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 			try {
 				for ( Constructor<?> ctr : cl.getConstructors()) {
 					Class<?>[] mpTypes = ctr.getParameterTypes();
-					if ( mpTypes.length == paramTypes.length ) {
-						boolean match = true;
-						boolean widened = false;
-						for (int i = 0; i < mpTypes.length; i++) {
-							Class<?> mpType = Util.convertPrimitiveTypes(mpTypes[i]);
-							
-							// perform primitive widening if necessary
-							Class<?> paramType = Util.widenPrimitiveType(
-									Util.convertToPrimitive(paramTypes[i]), 
-									Util.convertToPrimitive(mpTypes[i])
-								);
-							if (paramType != null) {
-								widened = true;
-								paramType = Util.convertPrimitiveTypes(paramType);
-							}
-							else {
-								paramType = Util.convertPrimitiveTypes(paramTypes[i]);
-							}
-							
-							if ( !mpType.isAssignableFrom(paramType) ) {
-								match = false;
-								break;
-							}
-						}
-						// if this is the first match we've seen, then record it
-						if (match && handle == null) {
-							handle = ctr;
-						}
-						// if we find a match and we didn't have to widen at all, this 
-						// is probably the method the user intended to call
-						else if (match && handle != null && !widened) {
-							handle = ctr;
-							break;
-						}
+					ArgumentCompatibility compat = ArgumentCompatibility.check(mpTypes, paramTypes);
+					if(compat == null) {
+						continue;
+					}
+					
+					ConstructorMatch newMatch = new ConstructorMatch(ctr, compat);
+					
+					if(newMatch.isBetterThan(match)) {
+						match = newMatch;
+					}
+					
+					if(newMatch.compat.isExact()) {
+						break;
 					}
 				}
 			}
@@ -109,10 +108,13 @@ public class PlaidJavaConstructorMap extends PlaidObjectMap implements PlaidMeth
 			}
 			
 			Object result;
-			if (handle == null) {
+			if (match == null) {
 				throw new PlaidIllegalAccessException("Cannot find matching constructor for " + args + " in class name "+ cl.getCanonicalName());
 			}
-			result = handle.newInstance(params);
+			
+			Object[] convertedParams = match.compat.convertParams(params);
+			result = match.constr.newInstance(convertedParams);
+			
 			if ( result == null ) {
 				return  PlaidRuntime.getRuntime().getClassLoader().unit();
 			} else {

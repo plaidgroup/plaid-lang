@@ -19,6 +19,9 @@
  
 package plaid.collections;
 
+import java.math.BigInteger;
+import plaid.runtime.NumericSupport;
+
 public class JavaArrayWrapper {
 	
 	private Object[] array;
@@ -31,13 +34,25 @@ public class JavaArrayWrapper {
 		return new JavaArrayWrapper(size);
 	}
 
+	public static JavaArrayWrapper create(BigInteger size) {
+		return new JavaArrayWrapper(NumericSupport.checkedNarrowToInt32(size));
+	}
+
 	public Object get(int index) {
 		return array[index];
+	}
+
+	public Object get(BigInteger index) {
+		return get(NumericSupport.checkedNarrowToInt32(index));
 	}
 
 	public Object set(int index, Object elem) {
 		Object old = array[index];
 		array[index] = elem;
 		return old;
+	}
+
+	public Object set(BigInteger index, Object elem) {
+		return set(NumericSupport.checkedNarrowToInt32(index), elem);
 	}
 }
