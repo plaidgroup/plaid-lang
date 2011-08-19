@@ -19,30 +19,33 @@
 
 package plaid.lang;
 
-state Integer case of NativeNumber {
-
-	method immutable Integer +(immutable Integer operand) {
-		plaid.runtime.NumericSupport.addInteger(nativeVal, operand.nativeVal)
+public class JavaInteropTestHelper {
+	
+	public static String addNewLine(String a) {
+		return a + "\n";
 	}
 
-	method immutable Integer -(immutable Integer operand) {
-		plaid.runtime.NumericSupport.subtractInteger(nativeVal, operand.nativeVal)
+	public static String concatenate(String a, String b) {
+		return a + b;
 	}
 
-	method immutable Integer *(immutable Integer operand) {
-		plaid.runtime.NumericSupport.multiplyInteger(nativeVal, operand.nativeVal)
+	public static int mulDiv(int a, int b, int c) {
+		return (a * b) / c;
 	}
 
-	method immutable Integer /(immutable Integer operand) {
-		plaid.runtime.NumericSupport.divideInteger(nativeVal, operand.nativeVal)
+	public static long mulDivLong(long a, long b, long c) {
+		return (a * b) / c;
 	}
 
-	method immutable Integer %(immutable Integer operand) {
-		plaid.runtime.NumericSupport.modulusInteger(nativeVal, operand.nativeVal)
-	}
+	public static long longIdent(long x) { return x; }
+	public static int intIdent(int x) { return x; }
+	public static short shortIdent(short x) { return x; }
+	public static byte byteIdent(byte x) { return x; }
 
-	method immutable Boolean nativeLessThan(immutable Integer operand) {
-		plaid.runtime.NumericSupport.lessThanInteger(nativeVal, operand.nativeVal)
-	}
+	public static boolean select(long x) { return true; }
+	public static boolean select(short x) { return false; }
 
+	public static int selectMulti(long x, long y, short z) { return 1; }
+	public static int selectMulti(int x, int y, int z) { return 2; }
+	public static int selectMulti(long x, byte y, short z) { return 3; }
 }
