@@ -158,6 +158,7 @@ public class TestExecutor {
 					PlaidJavaObject  javaList = (PlaidJavaObject)convertedList; 
 					@SuppressWarnings("unchecked")
 					Collection<PlaidObject> testCaseList = (Collection<PlaidObject>)(javaList.getJavaObject());
+					System.out.println(testCaseList.size() + " elements in test case list");
 					for (PlaidObject po : testCaseList ) {
 						PlaidObject getName = plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().lookup("getName", po);
 						PlaidObject poName = plaid.runtime.Util.call(getName, plaid.runtime.Util.unit());
@@ -175,7 +176,7 @@ public class TestExecutor {
 				System.out.println(klazzName + " could not be loaded as a plaid type");
 			}
 		} catch (Exception ex) {
-			System.out.println(ex);
+			ex.printStackTrace();
 		}
 		System.out.println("\t found " + tests.size() + " tests");
 		return tests;
