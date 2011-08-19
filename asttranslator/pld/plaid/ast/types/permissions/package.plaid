@@ -1,0 +1,62 @@
+package plaid.ast.types.permissions;
+
+//globals for permissions
+val immutable Permission DYNP = new DynPermission;
+val immutable Permission UNIQUE = new UniquePermission;
+val immutable Permission FULL = new FullPermission;
+val immutable Permission IMM = new ImmutablePermission;
+val immutable Permission IMMUTABLE = new ImmutablePermission;  //So I can have both fully spelled and not...
+val immutable Permission SHARED = new SharedPermission;
+val immutable Permission PURE = new PurePermission;
+val immutable Permission NONEP = new NonePermission;
+
+
+/**
+ *  Take a list of permissions and return the least upper Bound (strongest) by folding
+ */ 
+val /*(unique list<immutable Permission>) -> immutable Permission*/ leastUpperBound =
+	 fn (/*unique list<immutable Permission> */ permList) => {
+	 	permList.foldl(fn (immutable Permission p1, immutable Permission p2) => p1.leastUpperBound(p2),
+	 				   NONEP);
+	 };
+
+/**
+ *  Take a list of permissions and return the greatest lower bound (weakest) by folding
+ */
+val /*(unique list<immutable Permission>) -> immutable Permission*/ greatestLowerBound =
+	 fn (/*unique list<immutable Permission> */ permList) => {
+	 	permList.foldl(fn (immutable Permission p1, immutable Permission p2) => p1.greatestLowerBound(p2),
+	 				   UNIQUE);
+	 };
+
+/**
+ *  Returns the permission needed to the receiver if neededPerm is pulled from a field with permission
+ *  fieldPerm.  If the permission is strongly borrowed, we only need the needed permission, but if
+ *  it is not borrowed, then we must have the same permission as the field itself.
+ *  This of course assumes that you can actually pull the needed permission from the permission in the field
+ *  NOTE - this works for unique/immutable/none, but may have to be revised with other permissions
+ */
+val (immutable Permission >> void, immutable Permission >> void, immutable Boolean) -> /*unique Option<immutable Permission>*/ void
+fieldReadPermission =
+	fn (immutable Permission >> void fieldPerm,
+		immutable Permission >> void neededPerm,
+		immutable Boolean stronglyBorrowed) => 
+	{
+		match (neededPerm) {
+			case NonePermission { makeSome(NONEP) }
+			default {
+				ifElse (fieldPerm.isSubPermOf(neededPerm)) {
+					match (stronglyBorrowed) {
+						case True {
+							makeSome(neededPerm)
+						}
+						case False {
+							makeSome(fieldPerm)
+						}
+					}
+				} {
+					new None
+				}
+			}
+		}		
+	}; 
