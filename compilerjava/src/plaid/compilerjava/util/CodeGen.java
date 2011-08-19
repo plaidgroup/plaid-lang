@@ -559,8 +559,12 @@ public class CodeGen {
 		output.append(utilClass + ".integer(new java.math.BigInteger(\"" + i.toString() + "\"))");
 	}
 	
-	public final void plaidDouble(double i) {
-		output.append(utilClass + ".floatingDouble(" + i + ")");
+	public final void plaidDouble(double d) {
+		output.append(utilClass + ".floatingDouble(" + d + ")");
+	}
+
+	public final void plaidChar(String cImage) {
+		output.append(utilClass + ".character(" + cImage + ")");
 	}
 	
 	public final void castToState(String s) {

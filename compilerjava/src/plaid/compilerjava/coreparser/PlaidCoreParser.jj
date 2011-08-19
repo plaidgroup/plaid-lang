@@ -18,7 +18,9 @@
  */
 
 /* *** global configuration options *** */
-options{	STATIC=false;
+options
+{
+	STATIC=false;
 }
 
 /* *** Specification of the parser class *** */
@@ -226,6 +228,24 @@ TOKEN :
 						)
 				)*
 				"\"" >
+|		< CHARACTER_LITERAL :
+			"'"
+			(	(~["'","\\","\n","\r"])
+				| ("\\"
+					( ["n","t","b","r","f","\\","'","\""]
+					| ["0"-"7"] ( ["0"-"7"] )?
+					| ["0"-"3"] ["0"-"7"] ["0"-"7"]
+					)
+				  )
+				| ("\\u"
+					["0"-"9","A"-"F","a"-"f"]
+					["0"-"9","A"-"F","a"-"f"]
+					["0"-"9","A"-"F","a"-"f"]
+					["0"-"9","A"-"F","a"-"f"]
+				  )
+			)
+			"'"
+		>
 |       < INTEGER:
             <DECIMAL_LITERAL> 
           | <HEX_LITERAL> 
@@ -362,17 +382,22 @@ List < Token > Package() :
 /*****************************************************************************/
 
 PermType PermType() :
-{	Type type = null;
+{
+	Type type = null;
 	Permission perm = null;
 	LambdaType l = null;
 	Token group = null;
 }
-{	(	<DYN>
+{
+	(
+	<DYN>
 	{
-	  	return PermType.getDynPT();	}
+	  	return PermType.getDynPT();
+	}
 | 	<UNIT>
 	{
-	  	return PermType.getUnitPT();	}
+	  	return PermType.getUnitPT();
+	}
 |	<VOID>
 	{
 		return PermType.getVoidPT();
@@ -393,27 +418,38 @@ PermType PermType() :
 	        }
 	        return new PermType(perm, new ID(group.image), type);
 	        
-	    }		return new PermType(perm, type);
+	    }
+		return new PermType(perm, type);
 	}
 	)
 }
 
 Permission Permission() :
-{	Permission perm;
+{
+	Permission perm;
 }
-{	(	<FULL>	{
-	  	return Permission.FULL;	}
-| 	<IMMUTABLE>	{
-	  	return Permission.IMMUTABLE;	}
-| 	<PURE>	{
-	  	return Permission.PURE;	}
+{
+	(
+	<FULL>
+	{
+	  	return Permission.FULL;
+	}
+| 	<IMMUTABLE>
+	{
+	  	return Permission.IMMUTABLE;
+	}
+| 	<PURE>
+	{
+	  	return Permission.PURE;
+	}
 | 	<SHARED>
 	{
 		return Permission.SHARED;
 	}
 | 	<UNIQUE>
 	{
-	  	return Permission.UNIQUE;	}  
+	  	return Permission.UNIQUE;
+	}  
 |	<NONE>
 	{
 		return Permission.NONE;
@@ -458,20 +494,23 @@ ChangeType ChangeType() :
 
 ObjectType StructuralType() :
 {
-  	Token typeAbbrevTok;	ObjectType right = null;
+  	Token typeAbbrevTok;
+	ObjectType right = null;
 	List<TypeDecl> typeDecls;
 	List<MetaArgument> metaArgs = new ArrayList<MetaArgument>();
 }
 {
   	(
-  	// type abbreviation	typeAbbrevTok = <ID> [ LOOKAHEAD(MetaArguments()) metaArgs = MetaArguments() ][<WITH> right = StructuralType()]
+  	// type abbreviation
+	typeAbbrevTok = <ID> [ LOOKAHEAD(MetaArguments()) metaArgs = MetaArguments() ][<WITH> right = StructuralType()]
 	{
 		return (new ObjectType(new ID(typeAbbrevTok.image), metaArgs)).compose(right);
 	}
 	// type declarations
 | 	typeDecls = TypeDecls() [<WITH> right = StructuralType()]
 	{
-	  	return (new ObjectType(typeDecls)).compose(right);	}
+	  	return (new ObjectType(typeDecls)).compose(right);
+	}
 	)
 }
 
@@ -523,19 +562,27 @@ LambdaType LambdaType() :
 
 }
 
-List<TypeDecl> TypeDecls() :{	List<TypeDecl> decls = new ArrayList<TypeDecl>();
+List<TypeDecl> TypeDecls() :
+{
+	List<TypeDecl> decls = new ArrayList<TypeDecl>();
 	TypeDecl currDecl;
-}{
+}
+{
   	<LBRACE> (currDecl = TypeDecl() { decls.add(currDecl); })+ <RBRACE>
-  	{		return decls;
-  	}}
+  	{
+		return decls;
+  	}
+}
 
-TypeDecl TypeDecl() :{	TypeDecl decl;
+TypeDecl TypeDecl() :
+{
+	TypeDecl decl;
 }
 {
   	decl = MethodType() <SEMICOLON> { return decl; }
 | 	decl = FieldType() { return decl; }
-|   decl = MetaType(false) <SEMICOLON> { return decl; }}
+|   decl = MetaType(false) <SEMICOLON> { return decl; }
+}
 
 MethodType MethodType() :
 {
@@ -583,18 +630,22 @@ MethodType MethodType() :
 
 
 
-FieldType FieldType() :{
+FieldType FieldType() :
+{
   	// there could be no type annotation
   	PermType fieldPermType = PermType.getDynPT(); //default is dyn
   	Token fieldNameToken;
   	boolean immutable = true;
-}{
+}
+{
   	// val T f;
   	( <VAL> | <VAR> { immutable = false; } )  
   	(LOOKAHEAD(PermType()) fieldPermType = PermType() fieldNameToken = <ID> | fieldNameToken = <ID> )
   	<SEMICOLON>
   	{
-  	  	return new FieldType(new ID(fieldNameToken, fieldNameToken.image), fieldPermType, immutable);  	}}
+  	  	return new FieldType(new ID(fieldNameToken, fieldNameToken.image), fieldPermType, immutable);
+  	}
+}
 
 
 MetaType MetaType(boolean isMethod) : {
@@ -710,7 +761,8 @@ Decl DeclState() :
 	List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
 	List<MetaArgument> metaCaseOfArgs = new ArrayList<MetaArgument>();
 }
-{	[defaultPerm = Permission()] [ < TYPEDEF > { typedef = true; } ]
+{
+	[defaultPerm = Permission()] [ < TYPEDEF > { typedef = true; } ]
 		s = <STATE> t = <ID>
 			[ metaParams = MetaParameters(false) ]
 			[ c = <CASE> <OF> qi = DotName() [ metaCaseOfArgs = MetaArguments() ] ]
@@ -797,36 +849,53 @@ MetaArgument MetaArgument() :
 }
 
 
-List<MetaArgument> MetaArguments() :{
+List<MetaArgument> MetaArguments() :
+{
   MetaArgument arg;
-  List<MetaArgument> args = new ArrayList<MetaArgument>();}{
+  List<MetaArgument> args = new ArrayList<MetaArgument>();
+}{
   < LT >
-    arg =  MetaArgument() {  args.add(arg); }    (
-      < COMMA > arg =  MetaArgument() {  args.add(arg); }    )* 
+    arg =  MetaArgument() {  args.add(arg); }
+    (
+      < COMMA > arg =  MetaArgument() {  args.add(arg); }
+    )* 
   < GT >
-  {    return args;
-  }}
+  {
+    return args;
+  }
+}
 
 
 
 
 
-Decl DeclGroup() :{
+Decl DeclGroup() :
+{
   Token id;
-  boolean isAbstract = true;}{    < GROUP > id = < ID > [ < EQUALS > < NEW >  < GROUP > { isAbstract = false; } ] < SEMICOLON > 
-    {        return new GroupDecl(id, new ID(id.image), isAbstract);
+  boolean isAbstract = true;
+}{
+    < GROUP > id = < ID > [ < EQUALS > < NEW >  < GROUP > { isAbstract = false; } ] < SEMICOLON > 
+    {
+        return new GroupDecl(id, new ID(id.image), isAbstract);
     }
 }
 
-GroupPermission GroupPermission() :{}{
-   < EXCLUSIVE >   {
-     return GroupPermission.EXCLUSIVE;   }
+GroupPermission GroupPermission() :
+{
+}
+{
+   < EXCLUSIVE >
+   {
+     return GroupPermission.EXCLUSIVE;
+   }
  | < SHARED >
    {
      return GroupPermission.SHARED;
    }
  | < PROTECTED >
-   {     return GroupPermission.PROTECTED;   }
+   {
+     return GroupPermission.PROTECTED;
+   }
  | < MUTABLE >
    {
      return GroupPermission.MUTABLE;
@@ -834,7 +903,8 @@ GroupPermission GroupPermission() :{}{
  | < READONLY >
    {
      return GroupPermission.READONLY;
-   }   }
+   }   
+}
 
 
 
@@ -979,7 +1049,8 @@ List<Arg> DeclArgs() :
 		Arg arg;
 		List<Arg> args = new ArrayList<Arg>();
 }
-{		  arg = Arg()
+{
+		  arg = Arg()
 		  {
 			args.add(arg);
 		  }
@@ -1003,7 +1074,8 @@ Arg Arg() :
   	(LOOKAHEAD(ChangeType() ID()) c = ChangeType() argToken = ID() | argToken = ID()) 
 	{
 	  	// TODO: Should dyn be the default? - for now yes (Actually Dyn >> Dyn)
-	  	if (c == null) {			c = ChangeType.DYN;
+	  	if (c == null) {
+			c = ChangeType.DYN;
 	  	}
 		return new Arg(c, new ID(argToken, argToken.image));
 	}
@@ -1093,7 +1165,8 @@ Expression BlockExpression(boolean isExp) :
 {
 		<LBRACE> [ e = StmtListFolded() ] <RBRACE>
 		{
-				if (isExp) {					List<PermType> permTypes = new ArrayList<PermType>();
+				if (isExp) {
+					List<PermType> permTypes = new ArrayList<PermType>();
 					permTypes.add(PermType.getUnitPT());
 					ID varID = IdGen.getId();
 					List<ID> argNames = new ArrayList<ID>();
@@ -1101,7 +1174,8 @@ Expression BlockExpression(boolean isExp) :
 					// TODO: better signal of inference needed
 					return new Lambda(e.getToken(), varID, e, LambdaType.DEFAULTLAMBDATYPE); 
 				}
-				else {					return e;
+				else {
+					return e;
 				}
 		}
 }
@@ -1759,7 +1833,8 @@ ID Operator() :
 		)
 		{
 				return new ID(op, op.image);
-		}}
+		}
+}
 
 Expression Function() :
 {
@@ -1858,8 +1933,13 @@ Expression Literal() :
 		    }     
 		}
 |       t = <  FLOATING_POINT_LITERAL >
-        {                return new DoubleLiteral(t, Double.valueOf(t.image));
+        {
+                return new DoubleLiteral(t, Double.valueOf(t.image));
         }
+|		t = <  CHARACTER_LITERAL >
+		{
+				return new CharacterLiteral(t, t.image);
+		}
 |		t = < UNIT >
 		{
 				return new UnitLiteral(t);
