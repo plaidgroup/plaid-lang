@@ -117,6 +117,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                             match (memberSymbolOpt) {
                                 case Some {
                                     DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       found member");
+                                    this.map.put(dref, memberSymbolOpt.value);
                                     memberSymbolOpt
                                 }
                                 case None {
@@ -141,6 +142,33 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                 }
                 case FieldSymbol {
                     DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found field symbol");
+                    // get field type
+                    match (leftSymbol.declaration.fieldType) {
+                        case EmptyType {
+                            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with dynamic type");
+                            var dynSymbol = this.sf.makeDynamicSymbol();
+                            this.map.put(leftSymbol.declaration.fieldType, dynSymbol);
+                            this.map.put(dref.right, dynSymbol);
+                            makeSome(dynSymbol);
+                        }
+                        case NominalObjectType {
+                            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with object type");
+                            val memberSymbolOpt = findMemberSymbol(leftSymbol.declaration.fieldType, dref.right.name);
+                            match (memberSymbolOpt) {
+                                case Some {
+                                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       found member");
+                                    this.map.put(dref, memberSymbolOpt.value);
+                                    memberSymbolOpt
+                                }
+                                case None {
+                                    ERROR("<TypeResolutionPass>     State <FIXME> has no member '" + dref.right.name +"'");
+                                    this.reporter.errorToken(java.io.File.new(this.sourceFile), dref.right.token, "State <FIXME> has no member  '" + dref.right.name + "'");                                    
+                                    NONE
+                                }
+                            }
+                        }
+                        default { NONE }
+                    }; 
                     NONE
                 }
                 case MethodSymbol {
