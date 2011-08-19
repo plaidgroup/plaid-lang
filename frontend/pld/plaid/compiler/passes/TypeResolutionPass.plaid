@@ -68,6 +68,39 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
         }
      }
 
+
+    
+    method immutable Option findInType(immutable Type typeNode,
+                                       immutable Identifier id) {
+         match (typeNode) {
+             case EmptyType {
+                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with dynamic type");
+                 var dynSymbol = this.sf.makeDynamicSymbol();
+                 this.map.put(typeNode, dynSymbol);
+                 this.map.put(id, dynSymbol);
+                 makeSome(dynSymbol);
+             }
+             case NominalObjectType {
+                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with object type");
+                 val memberSymbolOpt = findMemberSymbol(typeNode, id.name);
+                 match (memberSymbolOpt) {
+                     case Some {
+                         DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       found member");
+                         this.map.put(dref, memberSymbolOpt.value);
+                         memberSymbolOpt
+                     }
+                     case None {
+                         ERROR("<TypeResolutionPass>     State <FIXME> has no member '" + id.name +"'");
+                         this.reporter.errorToken(java.io.File.new(this.sourceFile), id.token, "State <FIXME> has no member  '" + id.name + "'");
+                         NONE
+                     }
+                 }
+             }
+             default { NONE }
+         }; 
+    }
+
+
     
     method immutable Option findMemberSymbol(shared NominalObjectType objType, immutable String name) {
         DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       find member '" + name +"'");
@@ -84,8 +117,8 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
             NONE
         }
     }
-    
 
+    
     method immutable Option resolveDereference(immutable Deference dref,
                                                shared Symbol leftSymbol) {
         // check if we already                                        
@@ -103,32 +136,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                 }
                 case VariableSymbol {
                     DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found variable");
-                    match (leftSymbol.declaration.varType) {
-                        case EmptyType {
-                            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with dynamic type");
-                            var dynSymbol = this.sf.makeDynamicSymbol();
-                            this.map.put(leftSymbol.declaration.varType, dynSymbol);
-                            this.map.put(dref.right, dynSymbol);
-                            makeSome(dynSymbol);
-                        }
-                        case NominalObjectType {
-                            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with object type");
-                            val memberSymbolOpt = findMemberSymbol(leftSymbol.declaration.varType, dref.right.name);
-                            match (memberSymbolOpt) {
-                                case Some {
-                                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       found member");
-                                    this.map.put(dref, memberSymbolOpt.value);
-                                    memberSymbolOpt
-                                }
-                                case None {
-                                    ERROR("<TypeResolutionPass>     State <FIXME> has no member '" + dref.right.name +"'");
-                                    this.reporter.errorToken(java.io.File.new(this.sourceFile), dref.right.token, "State <FIXME> has no member  '" + dref.right.name + "'");                                    
-                                    NONE
-                                }
-                            }
-                        }
-                        default { NONE }
-                    }; 
+                    findInType(leftSymbol.declaration.varType, dref.right)
                 }
                 case DynamicSymbol {
                     var dynSymbol = this.sf.makeDynamicSymbol();
@@ -142,34 +150,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                 }
                 case FieldSymbol {
                     DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found field symbol");
-                    // get field type
-                    match (leftSymbol.declaration.fieldType) {
-                        case EmptyType {
-                            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with dynamic type");
-                            var dynSymbol = this.sf.makeDynamicSymbol();
-                            this.map.put(leftSymbol.declaration.fieldType, dynSymbol);
-                            this.map.put(dref.right, dynSymbol);
-                            makeSome(dynSymbol);
-                        }
-                        case NominalObjectType {
-                            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with object type");
-                            val memberSymbolOpt = findMemberSymbol(leftSymbol.declaration.fieldType, dref.right.name);
-                            match (memberSymbolOpt) {
-                                case Some {
-                                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       found member");
-                                    this.map.put(dref, memberSymbolOpt.value);
-                                    memberSymbolOpt
-                                }
-                                case None {
-                                    ERROR("<TypeResolutionPass>     State <FIXME> has no member '" + dref.right.name +"'");
-                                    this.reporter.errorToken(java.io.File.new(this.sourceFile), dref.right.token, "State <FIXME> has no member  '" + dref.right.name + "'");                                    
-                                    NONE
-                                }
-                            }
-                        }
-                        default { NONE }
-                    }; 
-                    NONE
+                    findInType(leftSymbol.declaration.fieldType, dref.right);
                 }
                 case MethodSymbol {
                     DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found method symbol");
