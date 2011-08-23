@@ -31,7 +31,6 @@ import plaid.compiler.context.GlobalContext;
 
 import plaid.compiler.resolver.ClasspathResolver;
 
-
 import plaid.compiler.Symbol;
 import plaid.compiler.symbol.VariableSymbol;
 import plaid.compiler.symbol.SymbolFactory;
@@ -61,6 +60,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
     val unique Stack currentState = new Stack;
     var shared Symbol packageSymbol = new TopSymbol;
     var hasErrors = false;
+    var immutable String packageName = "";
         
 
     method immutable Boolean run(unique Job job, unique Reporter reporter) {
@@ -271,6 +271,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 	override method void visitCompilationUnit(immutable CompilationUnit node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> visit CompilationUnit");
 
+        this.packageName = makeStringFromQualifiedIdentifier(node.packageName);
         
         var currentSymbol = this.sf.makeTopSymbol();
         node.packageName.identifiers.map( fn (id) => {
@@ -333,8 +334,15 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             }
             case None {
                 // top level
-                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.packageSymbol);
-                this.map.put(node, fieldSymbol);
+                val fieldSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
+                match (fieldSymbol) {
+                    case Some {
+                        this.map.put(node, fieldSymbol.value);
+                    }
+                    case None {
+                        ERROR("<NameExpanderPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
+                    }
+                }
             }
         };
 		//node.name.accept(this);
@@ -357,8 +365,16 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             }
             case None {
                 // top level
-                val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.packageSymbol);
-                this.map.put(node, methodSymbol);
+                //val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.packageSymbol);
+                val methodSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
+                match (methodSymbol) {
+                    case Some {
+                        this.map.put(node, methodSymbol.value);
+                    }
+                    case None {
+                        ERROR("<NameExpanderPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
+                    }
+                }
             }
         };
 
@@ -404,8 +420,9 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                  this.currentState.peek().value.addMember(stateSymbol);
             }
             case None {
-                // outer state
-                val unique Option stateSymbol = this.stack.peek().value.find(node.name.name);
+                // top-level  state
+                //val unique Option stateSymbol = this.stack.peek().value.find(node.name.name);
+                val unique Option stateSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
                 match (stateSymbol) {
                     case None {
                         ERROR("<NameExpanderPass> Cannot find symbol for state '" + node.name.name + "'");                        
