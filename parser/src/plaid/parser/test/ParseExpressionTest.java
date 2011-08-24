@@ -1102,6 +1102,23 @@ public class ParseExpressionTest {
 		assertTrue(e.equivalent(goal));
 	}
 	
+	@Test
+	public void parseWithWith() throws ParseException, UnsupportedEncodingException {
+		final String code = "x with y with z";
+		final With goal = 
+		    With(				
+				With(
+					StateRef(Identifier("x")),
+					StateRef(Identifier("y"))
+			    ),
+			    StateRef(Identifier("z")) 
+			);
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final StateExpr e = pp.State();
+		assertTrue(e instanceof With );
+		assertTrue(e.equivalent(goal));
+	}
+	
 	/************************************************************
 	 **                      GroupDecl                         **
 	 ************************************************************/
