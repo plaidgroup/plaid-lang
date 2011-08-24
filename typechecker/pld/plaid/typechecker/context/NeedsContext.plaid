@@ -1,0 +1,137 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker.context;
+
+
+import java.util.HashMap;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+
+state NeedsContext {
+	val /*Map<ID, Pair<Boolean,Permission>>*/ contextMap = java.util.HashMap.new();
+
+	method immutable TypeBinding get(immutable ID x)[unique Context]{
+		this.contextMap.get(x.copy());
+	}
+	
+	method unique TypeBinding remove(immutable ID x)[unique Context]{
+		this.contextMap.remove(x.copy());
+	}
+
+	method /*unique Option<immutable TypeBinding>*/ getOption(immutable ID x)[unique Context] {
+		match ( contextMap.containsKey(x.copy())) {
+			case True { makeSome(contextMap.get(x.copy())) }
+			case False { new None }
+		}
+	}
+	
+	method immutable Boolean containsKey(immutable ID x)[immutable Context] {
+		contextMap.containsKey(x.copy());
+	}
+	
+	method void update(/**ID*/ x, /**Pair<Boolean,Permission>*/value)[unique Context]{
+		match (contextMap.containsKey(x.copy())) {
+			case True { contextMap.remove(x.copy()); }
+			case False { /* no op */ }
+		};
+		contextMap.put(x.copy(), value);
+		unit
+	}
+	
+	/**
+	 * Puts a PermType in context
+	 * Adds to existing list or creates a new one
+	 */
+	method void put(immutable ID x, unique TypeBinding permType)[unique Context]{
+		match (contextMap.containsKey(x.copy())) {
+			case True { java.lang.System.out.println("Duplicate need for " + x.name); }
+			case False { contextMap.put(x.copy(), permType); }
+		};
+		unit
+	}
+	
+	method unique NeedsContext merge(unique NeedsContext other)[unique NeedsContext] {
+		val unique NeedsContext nc = new NeedsContext;
+		val iter = contextMap.keySet().iterator();
+		while{iter.hasNext()}{
+			val immutable ID theVar = iter.next();
+			val thisNeed = this.get(theVar);
+			match (other.getOption(theVar)) {
+				case Some {
+					val otherNeed = other.get(theVar);
+					nc.put(theVar.copy(),
+						   makePair(thisNeed.fst, //should check that borrowing is the same
+						   			thisNeed.snd.leastUpperBound(otherNeed.snd)));
+				}
+				//kludge for now to add stuff that isn't in one context
+				case None { nc.put(theVar,makePair(thisNeed.fst,thisNeed.snd)) } //should check that same variables mapped
+			}
+		};
+		nc
+	}
+
+	 /**
+	 * Creates a copy of the context.
+	 */
+	method unique NeedsContext copy()[unique NeedsContext]{
+		var copyContext = new NeedsContext;
+		val /*unique Collection<immutable ID>*/ valSet = java.util.HashSet.new();
+		valSet.addAll(this.contextMap.keySet());
+		val /*unique Iterator*/ iter = valSet.iterator();
+		while { iter.hasNext() } {
+			var immutable ID x = iter.next();
+			var need = this.remove(x);
+			copyContext.put(x.copy(), makePair(need.fst,need.snd));
+			this.put(x.copy(),makePair(need.fst,need.snd));
+		};
+		copyContext;
+	}
+
+	method immutable String toString()[immutable Context] {
+		ifElse (this.contextMap.size() == 0) { "empty" } {
+			var immutable String s = "";
+			val iter = contextMap.keySet().iterator();
+			if (iter.hasNext()) {
+				val x = iter.next();
+				val value = this.contextMap.get(x);
+				val permission = value.second().toString();
+				ifElse (value.first()) {
+					s = x.name + " : lent " + permission;
+				}
+				{
+					s = x.name + " : " + permission;
+				};
+			};		
+			while{iter.hasNext()}{
+				val x = iter.next();
+				val value = this.contextMap.get(x);
+				val permission = value.second().toString();
+				ifElse (value.first()) {
+					s = x.name + " : lent " + permission;
+				}
+				{
+					s = x.name + " : " + permission;
+				};		
+			};
+			s
+		}
+	}
+}
+
