@@ -50,7 +50,7 @@ public class Parser {
 	
 	public String getParseErrorMessage() {
 		if ( this.error == null ) {
-			return "";
+			return "Unknown parse error!!!";
 		} else {
 		    StringBuilder sb = new StringBuilder();
 		    sb.append("Found '"+ error.currentToken.next.image+"' but expected => ");
