@@ -211,33 +211,43 @@ method parseCommandLineArgs(args) {
 val shared List jobs = makeEmptyList();
 
 method void addJob(unique Job job) {
+    DEBUG(DEBUG_PRIO_LOW, "<Jobs> add job '" + job.source.path + "'");
     jobs.add(job)
 }
 
-method void runJobsToParsingBarrierPass() {
-    jobs.map( fn (job) => {
-        var done = false;
-        while { !job.passes.isEmpty() && !done  } {
-            match (job.passes.car()) {
-                case ParsingBarrierPass {
-                    done = true;
-                }
-                default {
-                    if ( job.status ) {
-                        val pass = job.passes.car();
-                        job.status =job.status && pass.run(job);
-                    };
-                }
-           };
-           // pop last pass of
-           job.passes = job.passes.cdr();
+
+method runJobToParsingBarrierPass(job) {
+    DEBUG(DEBUG_PRIO_LOW, "<Jobs> start to run job to ParsingBarrier '" + job.source.path + "'");
+    var done = false;
+    while { !job.passes.isEmpty() && !done  } {
+        match (job.passes.car()) {
+            case ParsingBarrierPass {
+                done = true;
+            }
+            default {
+                if ( job.status ) {
+                    val pass = job.passes.car();
+                    job.status =job.status && pass.run(job);
+                };
+            }
         };
-        job
+        // pop last pass of
+        job.passes = job.passes.cdr();
+    };
+    DEBUG(DEBUG_PRIO_LOW, "<Jobs> finished to run job to ParsingBarrier '" + job.source.path + "'");
+    job
+}
+
+method void runJobsToParsingBarrierPass() {
+
+    jobs.map( fn (job) => {
+        runJobToParsingBarrierPass(job);
     });
 }
 
 method void runJobsToNameExpanderBarrierPass() {
     jobs.map( fn (job) => {
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> start to run job to NameExpanderBarrierPass '" + job.source.path + "'");
         var done = false;
         while { !job.passes.isEmpty() && !done  } {
             match (job.passes.car()) {
@@ -254,6 +264,7 @@ method void runJobsToNameExpanderBarrierPass() {
            // pop last pass of
            job.passes = job.passes.cdr();
         };
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> finished to run job to NameExpanderBarrierPass '" + job.source.path + "'");
         job
     });
 }
@@ -261,6 +272,7 @@ method void runJobsToNameExpanderBarrierPass() {
 
 method void runJobsToTypeResolutionBarrierPass() {
     jobs.map( fn (job) => {
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> start to run job to TypeResolutionBarrierPass '" + job.source.path + "'");
         var done = false;
         while { !job.passes.isEmpty() && !done  } {
             match (job.passes.car()) {
@@ -277,6 +289,7 @@ method void runJobsToTypeResolutionBarrierPass() {
            // pop last pass of
            job.passes = job.passes.cdr();
         };
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> finished to run job to TypeResolutionBarrierPass '" + job.source.path + "'");
         job
     });
 }
@@ -284,6 +297,7 @@ method void runJobsToTypeResolutionBarrierPass() {
 
 method void runJobsToCompletion() {
     jobs.map( fn (job) => {
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> start to run job to completion '" + job.source.path + "'");
         while { !job.passes.isEmpty() } {
             if ( job.status ) {
                 val pass = job.passes.car();
@@ -292,6 +306,7 @@ method void runJobsToCompletion() {
             // pop last pass of
             job.passes = job.passes.cdr();
         };
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> finished to run job to completion '" + job.source.path + "'");
         job
     });
 }
@@ -333,7 +348,8 @@ method main(args) {
             val shared Resolver resolver = new ClasspathResolver { classpath = cc.plaidpath; };
 
             cc.inputFiles.map(fn (path) => {
-                val source = new Source { val path = path; };
+                val stream =java.io.FileInputStream.new(java.io.File.new(path));
+                val source = new Source { val path = path; val stream = stream; };
                 val job = new UserJob { 
                     val source = source; 
                     val resolver = resolver;
@@ -349,7 +365,8 @@ method main(args) {
             runJobsToParsingBarrierPass();
             // expand names
             runJobsToNameExpanderBarrierPass();
-                        
+            // resolve types/symbols
+            runJobsToTypeResolutionBarrierPass();            
             // run remaining passes 
             runJobsToCompletion();
         }
