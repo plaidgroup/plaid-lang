@@ -14,6 +14,11 @@ import plaid.compiler.util.classpathToList;
 import java.lang.System;
 
 
+
+/*****************************************************************************
+ ** debugging
+ ****************************************************************************/
+
 var immutable Integer DEBUG_LEVEL = 0;
 
 method void INFO(immutable String msg) {
@@ -42,7 +47,9 @@ method void DEBUG(immutable Integer level, immutable String msg) {
     }
 }
 
-
+/*****************************************************************************
+ ** command line handling
+ ****************************************************************************/
 method showUsage() {
     printLine("usage: plaidc [OPTIONS] [FILES]");
     printLine("");
@@ -312,7 +319,6 @@ method void runJobsToCompletion() {
 }
 
 
-
 method unique List getJobPasses() {
     val passes = makeEmptyList();
 
@@ -337,6 +343,36 @@ method unique List getJobPasses() {
 }
 
 
+/*****************************************************************************
+ ** global symbol map
+ ****************************************************************************/
+var shared Map globalSymbolMap = java.util.IdentityHashMap.new();
+
+method void addSymbolForAST(immutable ASTNode node, shared Symbol symbol) {
+     globalSymbolMap.put(node, symbol);
+}
+
+method immutable Option symbolForAST(immutable ASTNode node) {
+    ifElse (globalSymbolMap.containsKey(node) ) {
+        makeSome(globalSymbolMap.get(node));
+    }{
+        NONE
+    }
+}
+
+method immutable Option haveSymbolForAST(immutable ASTNode node) {
+    ifElse (globalSymbolMap.containsKey(node) ) {
+        true
+    }{
+        false
+    }
+}
+
+
+
+/*****************************************************************************
+ ** entry point 
+ ****************************************************************************/
 method main(args) {
 
     val unique Option result = parseCommandLineArgs(args);
@@ -363,10 +399,13 @@ method main(args) {
 
             // parse jobs
             runJobsToParsingBarrierPass();
+
             // expand names
             runJobsToNameExpanderBarrierPass();
+
             // resolve types/symbols
             runJobsToTypeResolutionBarrierPass();            
+
             // run remaining passes 
             runJobsToCompletion();
         }

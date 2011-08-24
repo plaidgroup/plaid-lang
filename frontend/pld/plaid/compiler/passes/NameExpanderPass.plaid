@@ -22,6 +22,12 @@ import plaid.compiler.DEBUG_PRIO_LOW;
 import plaid.compiler.Pass;
 import plaid.compiler.Reporter;
 import plaid.compiler.Context;
+import plaid.compiler.symbolForAST;
+import plaid.compiler.haveSymbolForAST;
+import plaid.compiler.addSymbolForAST;
+
+
+
 import plaid.compiler.context.TopLevelContext;
 import plaid.compiler.context.LocalContext;
 import plaid.compiler.context.ImportContext;
@@ -52,7 +58,6 @@ import java.util.IdentityHashMap;
 state NameExpanderPass case of Pass = LeafVisitor with  {
 
     val unique Stack stack = new Stack;
-    val unique Map map = IdentityHashMap.new();
     val immutable SymbolFactory sf = new SymbolFactory;
     var immutable String sourceFile = "";
     var shared Reporter reporter;
@@ -81,7 +86,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 this.stack.push(globalCtx);
 
                 job.ast.value.accept(this);
-                job.symbolMap = this.map;                
+
                 DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass> finished for '" + job.source.path + "'");
                 !this.hasErrors
             }
@@ -136,8 +141,9 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             val symbol = ctx.find(qi.identifiers.get(0).name);
             match (symbol) {
                 case Some { 
-                     this.map.put(qi.identifiers.get(0), symbol.value);
-                     this.map.put(qi, symbol.value);
+                     printLine("found QI " + qi.identifiers.get(0).name);
+                     addSymbolForAST(qi.identifiers.get(0), symbol.value);
+                     addSymbolForAST(qi, symbol.value);
                      count = 1
                 }
                 case None { count = 0 }
@@ -159,16 +165,16 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                      stop = true;
                      var resolvedFqn = qi.identifiers.get(0).name;
                      var symbol = this.resolver.lookup(resolvedFqn);
-                     this.map.put(qi.identifiers.get(0), symbol.value);
+                     addSymbolForAST(qi.identifiers.get(0), symbol.value);
                      var x = 1;
                      while {x < count }{
                          resolvedFqn = resolvedFqn + "." + qi.identifiers.get(x).name;
                          symbol = this.resolver.lookup(resolvedFqn);
-                         this.map.put(qi.identifiers.get(x), symbol.value);                         
+                         addSymbolForAST(qi.identifiers.get(x), symbol.value);                         
                          x = x + 1;
                      };
                      // check for class we should have found
-                     ifElse ( count < qi.identifiers.length() && reportErrors ) {
+                     ifElse ( count < qi.identifiers.length()  ) {
                          match (symbol.value) {
                              case PackageSymbol {
                                  WARNING("<NameExpanderPass> Cannot resolve '" + fqn + "." + qi.identifiers.get(count).name  + "'");
@@ -188,7 +194,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                              default {}
                          }
                      }{
-                         this.map.put(qi, symbol.value);
+                         addSymbolForAST(qi, symbol.value);
                      };
                  } 
                  case None {}
@@ -208,17 +214,20 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             case Some {
                 // member
                 val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
-                this.map.put(node, fieldSymbol);
+                addSymbolForAST(node, fieldSymbol);
                 this.currentState.peek().value.addMember(fieldSymbol);
             }
             case None {
                 // top level
                 val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.packageSymbol);
-                this.map.put(node, fieldSymbol);
+                addSymbolForAST(node, fieldSymbol);
             }
         };
+
 		node.specifier.accept(this);
+        printLine("visit type of field " + node.name.name);
 		node.fieldType.accept(this);
+        printLine("done visiting type of field " + node.name.name);
 		//node.name.accept(this);
 		node.modifiers.map(fn (item) => { item.accept(this); item });
 	}
@@ -229,13 +238,13 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             case Some {
                 // member
                 val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.currentState.peek().value);
-                this.map.put(node, methodSymbol);
+                addSymbolForAST(node, methodSymbol);
                 this.currentState.peek().value.addMember(methodSymbol);
             }
             case None {
                 // top level
                 val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.packageSymbol);
-                this.map.put(node, methodSymbol);
+                addSymbolForAST(node, methodSymbol);
             }
         };
 		node.returnType.accept(this);
@@ -288,9 +297,9 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                     this.resolver.define(fqn, currentSymbol);
                 }
             };
-            this.map.put(id, currentSymbol);
+            addSymbolForAST(id, currentSymbol);
         });
-        this.map.put(node.packageName, currentSymbol);
+        addSymbolForAST(node.packageName, currentSymbol);
         this.packageSymbol = currentSymbol;
 
 
@@ -331,7 +340,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             case Some {
                 // member
                 val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
-                this.map.put(node, fieldSymbol);
+                addSymbolForAST(node, fieldSymbol);
                 this.currentState.peek().value.addMember(fieldSymbol);
             }
             case None {
@@ -339,7 +348,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 val fieldSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
                 match (fieldSymbol) {
                     case Some {
-                        this.map.put(node, fieldSymbol.value);
+                        addSymbolForAST(node, fieldSymbol.value);
                     }
                     case None {
                         ERROR("<NameExpanderPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
@@ -362,7 +371,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             case Some {
                 // member
                 val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.currentState.peek().value);
-                this.map.put(node, methodSymbol);
+                addSymbolForAST(node, methodSymbol);
                 this.currentState.peek().value.addMember(methodSymbol);
             }
             case None {
@@ -371,7 +380,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 val methodSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
                 match (methodSymbol) {
                     case Some {
-                        this.map.put(node, methodSymbol.value);
+                        addSymbolForAST(node, methodSymbol.value);
                     }
                     case None {
                         ERROR("<NameExpanderPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
@@ -388,7 +397,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         // add arguments to context
         node.arguments.map( fn (arg) => {
             val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(arg.name.name, node);
-            this.map.put(arg.name, mySymbol);
+            addSymbolForAST(arg.name, mySymbol);
             val ctx = this.stack.peek().value;
             ctx.put(arg.name.name, mySymbol);
             arg
@@ -414,8 +423,8 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                  // inner state
                  val stateSymbol = this.sf.makeStateSymbol(node.name.name, node, this.currentState.peek().value);
                  this.currentState.push(stateSymbol);
-                 this.map.put(node.name, stateSymbol);
-                 this.map.put(node, stateSymbol);
+                 addSymbolForAST(node.name, stateSymbol);
+                 addSymbolForAST(node, stateSymbol);
          
                  val ctx = this.stack.peek().value;
                  ctx.put(node.name.name, stateSymbol);
@@ -431,7 +440,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                     }
                     case Some {
                         this.currentState.push(stateSymbol.value);
-                        this.map.put(node.name, stateSymbol);
+                        addSymbolForAST(node.name, stateSymbol);
                     }
                 };
             }
@@ -440,7 +449,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         // create this and add new context
         val stateCtx = new LocalContext{ parent = this.stack.peek().value;};
         this.stack.push(stateCtx);
-        val shared ThisSymbol thisSymbol = this.sf.makeThisSymbol(this.currentState.peek().value);
+        val shared ThisSymbol thisSymbol = this.sf.makeThisSymbol(this.currentState.peek().value, node);
         stateCtx.put("this", thisSymbol);
 
 
@@ -458,7 +467,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
     override method void visitConcreteStateValDecl(immutable ConcreteStateValDecl node) {
         val shared StateValSymbol mySymbol = this.sf.makeStateValSymbol(node.name.name, node);
-        this.map.put(node.name, mySymbol);
+        addSymbolForAST(node.name, mySymbol);
         val ctx = this.stack.peek().value;
         ctx.put(node.name.name, mySymbol);
 
@@ -481,7 +490,8 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         val symbol = this.stack.peek().value.find(node.name);
         match (symbol) {
             case Some {
-               this.map.put(node, symbol.value);
+               DEBUG(DEBUG_PRIO_LOW, "<NameExpanderPass> Found symbol for '" + node.name + "'");
+               addSymbolForAST(node, symbol.value);
            }
            case None {
                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.token, "Cannot resolve '" + node.name + "'");
@@ -532,7 +542,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         // add arguments to context
         node.arguments.map( fn (arg) => {
             val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(arg.name.name, node);
-            this.map.put(arg.name, mySymbol);
+            addSymbolForAST(arg.name, mySymbol);
             val ctx = this.stack.peek().value;
             ctx.put(arg.name.name, mySymbol);
             arg
@@ -557,9 +567,13 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 	}
 
 	override method void visitQualifiedIdentifier(immutable QualifiedIdentifier node) {
+        printLine("visit QI");
         val resolveCount = this.resolveQualifiedIdentifier(this.stack.peek().value, node, false);
         ifElse ( resolveCount == node.identifiers.length() ) {
-             DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
+            if ( !haveSymbolForAST(node) ) {
+                printLine("==> ERROR not QI in cache !!!!! ");
+            };
         }{
             ERROR("Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
             val first = node.identifiers.car();
@@ -604,8 +618,8 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         val ctx = this.stack.peek().value;
         val result = ctx.put(node.id.name, mySymbol);
         ifElse ( result ) {            
-            this.map.put(node.id, mySymbol);
-            this.map.put(node, mySymbol);
+            addSymbolForAST(node.id, mySymbol);
+            addSymbolForAST(node, mySymbol);
         }{
             ERROR("<NameExpanderPass> Variable '"+ node.id.name +"' already declared.");
             val otherSymbol = ctx.find(node.id.name);
