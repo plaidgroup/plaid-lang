@@ -7,6 +7,7 @@ import plaid.compiler.reporter.*;
 import plaid.compiler.resolver.ClasspathResolver;
 
 import plaid.compiler.context.*;
+import plaid.compiler.passes.*;
 
 import plaid.compiler.util.classpathToList;
 
@@ -204,6 +205,122 @@ method parseCommandLineArgs(args) {
 }
 
 
+/*****************************************************************************
+ ** Job Management 
+ ****************************************************************************/
+val shared List jobs = makeEmptyList();
+
+method void addJob(unique Job job) {
+    jobs.add(job)
+}
+
+method void runJobsToParsingBarrierPass() {
+    jobs.map( fn (job) => {
+        var done = false;
+        while { !job.passes.isEmpty() && !done  } {
+            match (job.passes.car()) {
+                case ParsingBarrierPass {
+                    done = true;
+                }
+                default {
+                    if ( job.status ) {
+                        val pass = job.passes.car();
+                        job.status =job.status && pass.run(job);
+                    };
+                }
+           };
+           // pop last pass of
+           job.passes = job.passes.cdr();
+        };
+        job
+    });
+}
+
+method void runJobsToNameExpanderBarrierPass() {
+    jobs.map( fn (job) => {
+        var done = false;
+        while { !job.passes.isEmpty() && !done  } {
+            match (job.passes.car()) {
+                case NameExpanderBarrierPass {
+                    done = true;
+                }
+                default {
+                    if ( job.status ) {
+                        val pass = job.passes.car();
+                        job.status =job.status && pass.run(job);
+                    };
+                }
+           };
+           // pop last pass of
+           job.passes = job.passes.cdr();
+        };
+        job
+    });
+}
+
+
+method void runJobsToTypeResolutionBarrierPass() {
+    jobs.map( fn (job) => {
+        var done = false;
+        while { !job.passes.isEmpty() && !done  } {
+            match (job.passes.car()) {
+                case TypeResolutionBarrierPass {
+                    done = true;
+                }
+                default {
+                    if ( job.status ) {
+                        val pass = job.passes.car();
+                        job.status =job.status && pass.run(job);
+                    };
+                }
+           };
+           // pop last pass of
+           job.passes = job.passes.cdr();
+        };
+        job
+    });
+}
+
+
+method void runJobsToCompletion() {
+    jobs.map( fn (job) => {
+        while { !job.passes.isEmpty() } {
+            if ( job.status ) {
+                val pass = job.passes.car();
+                job.status =job.status && pass.run(job);
+            };
+            // pop last pass of
+            job.passes = job.passes.cdr();
+        };
+        job
+    });
+}
+
+
+
+method unique List getJobPasses() {
+    val passes = makeEmptyList();
+
+    // parsing and basic checks pass 
+    passes.add(new ParsePass);
+    passes.add(new FileSystemCheckPass);
+    passes.add(new ImportCheckPass);
+    passes.add(new ParsingBarrierPass);
+
+    // name expanding passes
+    passes.add(new NameExpanderPass);
+    passes.add(new NameExpanderBarrierPass);
+
+    // type resolution pass 
+    passes.add(new TypeResolutionPass);
+    passes.add(new TypeResolutionBarrierPass);
+
+    // report errors pass 
+    passes.add(new ReporterPass);
+
+    passes
+}
+
 
 method main(args) {
 
@@ -213,73 +330,28 @@ method main(args) {
         case Some {
             val unique CompilerConfiguration cc = result.value;
             val sourceJobs = makeEmptyList();
-            val unique Reporter reporter = new reporter.ConsoleReporter;
             val shared Resolver resolver = new ClasspathResolver { classpath = cc.plaidpath; };
 
             cc.inputFiles.map(fn (path) => {
                 val source = new Source { val path = path; };
-                val job = new Job { val source = source; };
+                val job = new UserJob { 
+                    val source = source; 
+                    val resolver = resolver;
+                    val reporter = new reporter.ConsoleReporter;
+                    var passes = getJobPasses();
+                };
                 
                 // add to source jobs
-                sourceJobs.add(job);
-                                        
-                // run parse job
-                val parsePass = new passes.ParsePass;
-                job.status = job.status && parsePass.run(job, reporter);
+                addJob(job);
+            });                                        
 
-                // run file system checks 
-                if ( job.status ) {
-                    val fsCheckPass = new passes.FileSystemCheckPass;
-                    job.status = job.status && fsCheckPass.run(job, reporter);
-                };
-
-                // run file system checks 
-                if ( job.status ) {
-                    val importCheckPass = new passes.ImportCheckPass { resolver = resolver; };
-                    job.status = job.status && importCheckPass.run(job, reporter);
-                };
-                
-                // add to resolver 
-                if ( job.status ) {
-                    resolver.addCompilationUnit(job.ast.value);
-                };
-
-                path
-            });
-            
-            sourceJobs.map(fn (job) => {
-                // viewer pass 
-                //val viewerPass = new passes.ASTViewerPass { override var titlePrefix = "After translation: "; };
-                //job.status = job.status && viewerPass.run(job, reporter);
-
-                // naming pass 
-                if ( job.status ) {
-                    val nameExpanderPass = new passes.NameExpanderPass { resolver = resolver; };
-                    job.status = job.status && nameExpanderPass.run(job, reporter);
-                };
-
-                // pretty printer  
-                //val ppPass = new passes.PlaidPrettyPrinterPass { outputFile  = "Pretty.plaid";  map = nameExpanderPass.map;};
-                //job.status = job.status && ppPass.run(job, reporter);
-                job
-            });
-
-
-            sourceJobs.map(fn (job) => {
-                // viewer pass 
-                //val viewerPass = new passes.ASTViewerPass { override var titlePrefix = "After translation: "; };
-                //job.status = job.status && viewerPass.run(job, reporter);
-
-                if ( job.status ) {
-                    val typeResolutionPass = new passes.TypeResolutionPass { var resolver = resolver;};
-                    job.status = job.status && typeResolutionPass.run(job, reporter);
-                };
-
-                job
-            });
-
-
-            reporter.report();
+            // parse jobs
+            runJobsToParsingBarrierPass();
+            // expand names
+            runJobsToNameExpanderBarrierPass();
+                        
+            // run remaining passes 
+            runJobsToCompletion();
         }
         default {
             printLine("Could not find any source files.");

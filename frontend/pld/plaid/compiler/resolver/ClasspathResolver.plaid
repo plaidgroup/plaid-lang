@@ -99,44 +99,6 @@ state ClasspathResolver case of Resolver {
 
 
      method void addCompilationUnit(unique CompilationUnit cu) {
-         addCompilationUnitInternal(cu, false)
-     }
-
-
-     method void computeMembers(unique ConcreteStateDecl sd, shared StateSymbol stateSymbol) {
-          match (sd.stateBinding) {
-              case DeclList {
-                  sd.stateBinding.decls.map(fn (d) => {
-                      val stateName = makeStringFromQualifiedIdentifier(stateSymbol.getQualifiedIdentifier());
-                      DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>      state '"+stateName+"' has member '" + d.name.name +"'");
-                      match (d) {
-                          case FieldDecl {
-                              declSymbol = this.sf.makeFieldSymbol(d.name.name, d, stateSymbol);
-                              stateSymbol.addMem
-                          }
-                          case MethodDecl {
-                              declSymbol = this.sf.makeMethodSymbol(d.name.name, d, stateSymbol);
-                          }
-                          case ConcreteStateDecl {
-                              declSymbol = this.sf.makeStateSymbol(d.name.name, d, stateSymbol);
-                              // create symbols for members 
-                              computeMembers(d, declSymbol);
-                          }
-                          case AbstractStateDecl {
-                               declSymbol = this.sf.makeStateSymbol(d.name.name, d, stateSymbol);
-                          }
-                          case StateValDecl {
-                              declSymbol = this.sf.makeStateValSymbol(d.name.name, d, stateSymbol);
-                          }
-                      };
-                      d
-                  });
-              }
-              default {}
-          } 
-     }
-
-     method void addCompilationUnitInternal(unique CompilationUnit cu, immutable Boolean internal) {
          DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    resolver add compilation unit");
  
          // add package declarations
@@ -177,10 +139,6 @@ state ClasspathResolver case of Resolver {
                     }
                     case ConcreteStateDecl {
                         declSymbol = this.sf.makeStateSymbol(d.name.name, d, packageSymbol);
-                        if ( internal ) {
-                            // create symbols for members 
-                            computeMembers(d, declSymbol);
-                        };
                     }
                     case AbstractStateDecl {
                         declSymbol = this.sf.makeStateSymbol(d.name.name, d, packageSymbol);
@@ -388,7 +346,7 @@ state ClasspathResolver case of Resolver {
              val javaAST = parser.getCompilationUnit();
              val translator = new ASTTranslator;
              val plaidAST = translator.translateAST(javaAST);
-             this.addCompilationUnitInternal(plaidAST, true);
+             this.addCompilationUnit(plaidAST);
              ifElse ( this.cache.containsKey(fqn) ) {
                 DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>      found '" + fqn + "'");
                 makeSome(this.cache.get(fqn))

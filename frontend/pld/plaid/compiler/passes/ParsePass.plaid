@@ -17,7 +17,7 @@ import java.io.File;
 import java.io.FileInputStream;
 
 state ParsePass case of Pass {
-    method immutable Boolean run(unique SourceJob job, unique Reporter reporter) {
+    method immutable Boolean run(unique SourceJob job) {
         // parse source file 
         val file     = java.io.File.new(job.source.getPath());
         val inStream = java.io.FileInputStream.new(file);
@@ -36,14 +36,24 @@ state ParsePass case of Pass {
                 val translator = new ASTTranslator;
                 job.ast = makeSome(translator.translateAST(javaAST));
 
-                DEBUG(DEBUG_PRIO_HIGH, "<ParsePass> finished");               
-                true 
+                match (job.ast) {
+                     case Some {
+                         job.resolver.addCompilationUnit(job.ast.value);
+                         DEBUG(DEBUG_PRIO_HIGH, "<ParsePass> finished");
+                         true
+                     }
+                     case None {
+                         ERROR("<ParsePass> Failed to translate Java AST to Plaid AST.");
+                         DEBUG(DEBUG_PRIO_HIGH, "<ParsePass> finished");               
+                         false
+                     }
+                };
             }
             default { 
                 ERROR("Failed to parse file '" + job.source.getPath()+"'");
                 ERROR("==>  " + parser.getParseErrorMessage() );
                 val token = makeTokenFromJavaToken(parser.getToken());
-                reporter.errorToken(file, token, "Parse error: " + parser.getParseErrorMessage());
+                job.reporter.errorToken(file, token, "Parse error: " + parser.getParseErrorMessage());
                 false 
             }
         }
