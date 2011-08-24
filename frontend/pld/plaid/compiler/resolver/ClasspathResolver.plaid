@@ -28,7 +28,14 @@ import plaid.compiler.DEBUG_PRIO_HIGH;
 import plaid.compiler.DEBUG_PRIO_MEDIUM;
 import plaid.compiler.DEBUG_PRIO_LOW;
 import plaid.compiler.INFO;
+import plaid.compiler.Source;
+import plaid.compiler.getJobPasses;
+import plaid.compiler.addJob;
+import plaid.compiler.runJobToParsingBarrierPass;
+import plaid.compiler.CompilerJob;
 import plaid.compiler.util.classpathToList;
+
+import plaid.compiler.reporter.ConsoleReporter;
 
 import plaid.ast.parsed.FieldDecl;
 import plaid.ast.parsed.MethodDecl;
@@ -285,7 +292,7 @@ state ClasspathResolver case of Resolver {
                              if ( entryName.equals(fqnFileName) && (!this.visitedFiles.contains(absFileName)) ) {                             
                                  DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    found: " + fqn.replace(".", this.fileSeparator)+ ".plaid");
                                  this.visitedFiles.add(absFileName);
-                                 result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry));
+                                 result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry), path + this.fileSeparator + entry.getName() );
                              };
                              match (result) {
                                  case None {
@@ -294,7 +301,7 @@ state ClasspathResolver case of Resolver {
                                      if ( entryName.equals(packageName) && (!this.visitedFiles.contains(absPackageFileName))) {
                                          DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     found: " + packageName);
                                          this.visitedFiles.add(absPackageFileName);
-                                         result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry));
+                                         result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry), path + this.fileSeparator + entry.getName());
                                      };
                                  }
                                  case Some { result }
@@ -307,7 +314,7 @@ state ClasspathResolver case of Resolver {
                          ifElse ( fqnFile.exists() && (!this.visitedFiles.contains(fqnFile.getAbsolutePath())) ) {
                              DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>       try loading definition from file: " + fqnFile.toString());
                              this.visitedFiles.add(fqnFile.getAbsolutePath());
-                             result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(fqnFile));
+                             result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(fqnFile), fqnFile);
                          }{
                              DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>       specification file does not exists");
                          };
@@ -320,7 +327,7 @@ state ClasspathResolver case of Resolver {
                                  ifElse ( packageFile.exists() && (!this.visitedFiles.contains(packageFile.getAbsolutePath())) ) {
                                      DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking package definition: " + packageFile.toString());
                                      this.visitedFiles.add(packageFile.getAbsolutePath());
-                                     result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(packageFile));
+                                     result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(packageFile), packageFile);
                                  }{
                                      DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>       package file does not exist");
                                  }
@@ -340,13 +347,23 @@ state ClasspathResolver case of Resolver {
 
 
      method /* Option<Symbol> */ loadTypeFromPlaidSourceStream(immutable String fqn, 
-      unique InputStream fqnStream) {
-         val parser = plaid.parser.Parser.new(fqnStream, 4);
-         ifElse ( parser.hasCompilationUnit() ) {
-             val javaAST = parser.getCompilationUnit();
-             val translator = new ASTTranslator;
-             val plaidAST = translator.translateAST(javaAST);
-             this.addCompilationUnit(plaidAST);
+                                                               unique InputStream fqnStream,
+                                                               immutable String path) {
+
+         val source = new Source { val path = path; val stream = fqnStream; };
+         val job = new CompilerJob { 
+             val source = source; 
+             val resolver = this;
+             val reporter = new ConsoleReporter;
+             var passes = getJobPasses();
+         };
+
+         // add job to global jobs
+         addJob(job);
+         // run 1st phase of job to get symbols
+         runJobToParsingBarrierPass(job);
+
+         ifElse ( job.status ) {
              ifElse ( this.cache.containsKey(fqn) ) {
                 DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>      found '" + fqn + "'");
                 makeSome(this.cache.get(fqn))
