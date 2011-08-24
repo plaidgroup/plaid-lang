@@ -49,7 +49,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
             case None {
                 match (stateSymbol.declaration.caseOf) {
                     case EmptyQualifiedIdentifier {
-                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        no more parent to search in.");
+                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        no more parent to search in.");                        
                         NONE
                     }
                     default {
@@ -164,7 +164,14 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                 }
                 case StateSymbol {
                     DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found state symbol");
-                    NONE
+                    val symbolOpt = findMemberInStateSymbol(leftSymbol, dref.right);
+                    match (symbolOpt) {
+                        case None {
+                            val fqnState = leftSymbol.getFQN();
+                            this.reporter.errorToken(java.io.File.new(this.sourceFile), dref.right.token, "State '" + fqnState + "' has no member  '" + dref.right.name + "'");
+                        }
+                        case Some { symbolOpt }
+                    }
                 }
                 case FieldSymbol {
                     DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found field symbol");
@@ -188,7 +195,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
             case Identifier {
                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   resolve Identifier");
                 ifElse ( haveSymbolForAST(node) ) {
-                    makeSome(symbolForAST(node).value);
+                    symbolForAST(node);
                 }{
                     NONE
                 };
@@ -200,11 +207,55 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                     case Some {
                         resolveDereference(node, leftSymbolOpt.value);
                     }
+                    case None {
+                        NONE 
+                    }
+                }
+            }
+            case Application {
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   resolve Application");
+                val leftSymbolOpt = resolveNode(node.function);
+                match (leftSymbolOpt) {
+                    case Some {
+                        match (leftSymbolOpt.value) {
+                            case MethodSymbol {
+                                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   resolved Application to method symbol");
+                                val methodSymbol = leftSymbolOpt.value;
+                                match (methodSymbol.declaration.returnType) {
+                                    case NominalObjectType {
+                                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     found nominal return type");
+                                        match (symbolForAST(methodSymbol.declaration.returnType.stateQi)) {
+                                            case Some {
+                                               symbolForAST(methodSymbol.declaration.returnType.stateQi) 
+                                            }
+                                            case None {
+                                                // TODO: add error 
+                                                NONE
+                                            }
+                                        }
+                                    }
+                                    // TODO: add lambda type
+                                    case EmptyType {
+                                        // TODO: add error
+                                        NONE
+                                    }
+                                };
+                            }
+                            case FieldSymbol {
+                                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   resolved Application to field symbol");
+                                NONE
+                            }
+                            default {
+                                // TODO: add error 
+                                NONE
+                            }
+                        }
+                    }
                     case None { NONE }
                 }
             }
             default {
-                ERROR("<TypeResolutionPass> Found not supported AST node.");
+                ERROR("<TypeResolutionPass> Found not supported AST node." + node );
             }
         }
     }
