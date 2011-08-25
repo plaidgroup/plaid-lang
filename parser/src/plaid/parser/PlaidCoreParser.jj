@@ -43,18 +43,18 @@ public class PlaidCoreParser
                 Expr right = exps.get(i);
                 if ( right instanceof Application ) {
                     Application app = (Application)right;
-                    left = new Application(app.getToken(),
+                    left = new Application(combineTokens(left.getToken(), app.getToken(), "Application"),
                                            left,
                                            app.getStaticArgs(),
                                            app.getArgument());
                 } else if ( right instanceof DestructiveDereference ) {
                     DestructiveDereference ddref = (DestructiveDereference) right;
-                    left = new DestructiveDereference(ddref.getToken(), 
+                    left = new DestructiveDereference(combineTokens(left.getToken(), ddref.getToken(), "Application"), 
                                                       left, 
                                                       ddref.getRight());
                 } else if ( right instanceof Dereference ) {
                     Dereference dref = (Dereference) right;
-                    left = new Dereference(dref.getToken(), 
+                    left = new Dereference(combineTokens(left.getToken(), dref.getToken(), "Application"), 
                                            left, 
                                            dref.getRight());
                 } else {
@@ -81,7 +81,7 @@ public class PlaidCoreParser
 	            Expr right = exps.get(i);
 	            if ( right instanceof Application ) {
 	                Application app = (Application)right;
-	                left = new Application(app.getToken(),
+	                left = new Application(combineTokens(left.getToken(), app.getToken(), "Application"),
 	                                       left,
 	                                       app.getStaticArgs(),
 	                                       app.getArgument());
@@ -91,6 +91,18 @@ public class PlaidCoreParser
             }
             result = left;
         }
+        
+        return result;
+    }
+    
+    public Token combineTokens(final Token left, final Token right, final String image) {
+        final Token result = new Token();
+        
+        result.beginLine   = left.beginLine;
+        result.beginColumn = left.beginColumn;
+        result.endLine     = right.endLine;
+        result.endColumn   = right.endColumn;
+        result.image       = image;
         
         return result;
     }
@@ -333,11 +345,11 @@ Type Type() :
 }
 {   
 (	    <UNIT> { return Type.UNIT; }
-  |	    <VOID> {	return Type.VOID; }
+  |	    <VOID> { return Type.VOID; }
   |	    l = LambdaType()	{ return l; }
   |     [perm = Permission()] qi = QualifiedIdentifier() [LOOKAHEAD(StaticTypes()) metaTypes = StaticTypes(false)]
 	   {
-	       return new NominalObjectType(ASTNode.DEFAULT_TOKEN, perm, qi, metaTypes);
+	       return new NominalObjectType(qi.getToken(), perm, qi, metaTypes);
 	   }
 )
 }
@@ -366,11 +378,13 @@ ArgSpec ArgSpec() :
 	Type input;
 	Type output = Type.EMPTY;
 	boolean borrow = false;
+	Token t = ASTNode.DEFAULT_TOKEN;
 }
 {
-	input = Type() [ <MARROW> output = Type() ]
+	input = Type() [ t = <MARROW> output = Type() ]
 	{
-		return new ArgSpec(ASTNode.DEFAULT_TOKEN, input,output);
+	    if ( t == ASTNode.DEFAULT_TOKEN ) t = input.getToken();
+		return new ArgSpec(t, input,output);
 	}
 }
 
@@ -423,12 +437,18 @@ QualifiedIdentifier QualifiedIdentifier() : {
         <DOT> id = Identifier() 
             { ids.add(id); } 
     )*
-    { return new QualifiedIdentifier(ASTNode.DEFAULT_TOKEN, ids); }   
+    {
+        Token t = ids.get(0).getToken();
+        for ( int i = 1; i < ids.size(); i++ ) {
+            t = combineTokens(t, ids.get(i).getToken(), t.image+"."+ids.get(i).getToken().image);
+        } 
+        return new QualifiedIdentifier(t, ids); 
+    }   
 }
 
 List<Import> Imports() :
 {
-	Token tImp, tStar;
+	Token tImp, tStar, tSemicolon;
 	QualifiedIdentifier qi;
 	boolean hasStar = false;
 	List <Import> imports = new ArrayList <Import> ();
@@ -436,8 +456,8 @@ List<Import> Imports() :
 {
     (
         { hasStar = false; }
-		tImp = <IMPORT>  qi = QualifiedIdentifier() [<DOT> tStar = <STAR> { hasStar= true; } ] < SEMICOLON >
-		{  imports.add(new Import(tImp, qi, hasStar)); }
+		tImp = <IMPORT>  qi = QualifiedIdentifier() [<DOT> tStar = <STAR> { hasStar= true; } ] tSemicolon=<SEMICOLON>
+		{  imports.add(new Import(combineTokens(tImp, tSemicolon, "import ... ;"), qi, hasStar)); }
 	)+
 	{ return imports; }
 }
@@ -486,12 +506,12 @@ List<StaticArg> StaticArgsSpec(boolean isMethod) :
     StaticArg arg; 
 }
 {
-    < LT >
+    <LT>
         arg = StaticArgSpec(isMethod) { args.add(arg); }
         (
-          < COMMA > arg = StaticArgSpec(isMethod) { args.add(arg); }          
+          <COMMA> arg = StaticArgSpec(isMethod) { args.add(arg); }          
         )*
-    < GT >
+    <GT>
     { return args; }
 }
 
@@ -601,7 +621,6 @@ StateExpr State() : {
     List<StatePrim> stprims = new ArrayList<StatePrim>();
     List<Token> tokens = new ArrayList<Token>();
 }{
-//    stpLeft = StatePrim() [LOOKAHEAD(<WITH>) t = <WITH> stpRight = StatePrim() ]//    {//        if ( stpRight != null  ) {//            return new With(t, stpLeft, stpRight);//        } else {//            return stpLeft;//        }//    }
     stprim = StatePrim() { stprims.add(stprim); }  
     (LOOKAHEAD(<WITH>)
         t = <WITH> stprim = StatePrim()
@@ -663,49 +682,50 @@ Decl FieldDecl(List<Modifier> modifiers) :
 	Identifier name;
 	Type type = Type.EMPTY;
 	Specifier specifier = Specifier.EMPTY;
+	Token t = ASTNode.DEFAULT_TOKEN;
 }
 {
   (  
-     LOOKAHEAD(Specifier() Identifier() <SEMICOLON>)     specifier = Specifier() name = Identifier() <SEMICOLON>     {        return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name);     }
+     LOOKAHEAD(Specifier() Identifier() <SEMICOLON>)     specifier = Specifier() name = Identifier() t=<SEMICOLON>     {        return new AbstractFieldDecl(combineTokens(specifier.getToken(), t, "AbstractFieldDecl"), modifiers, specifier, type, name);     }
   |
      LOOKAHEAD(Specifier() Type() Identifier() <SEMICOLON>)
-     specifier = Specifier() type=Type() name = Identifier() <SEMICOLON>
+     specifier = Specifier() type=Type() name = Identifier() t=<SEMICOLON>
      {
-        return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name);
+        return new AbstractFieldDecl(combineTokens(specifier.getToken(), t, "AbstractFieldDecl"), modifiers, specifier, type, name);
      }
   |
      LOOKAHEAD(Type() Identifier() <SEMICOLON>)
-     type = Type() name = Identifier() <SEMICOLON>
+     type = Type() name = Identifier() t=<SEMICOLON>
      {
-        return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name);
+        return new AbstractFieldDecl(combineTokens(type.getToken(), t, "AbstractFieldDecl"), modifiers, specifier, type, name);
      }
   |  // concrete field decl
      LOOKAHEAD(Specifier() type = Type() Identifier() <EQUALS> )
-     specifier = Specifier() type = Type() name = Identifier() <EQUALS> e = Expr() <SEMICOLON> 
+     specifier = Specifier() type = Type() name = Identifier() <EQUALS> e = Expr() t=<SEMICOLON> 
      {
         return new ConcreteFieldDecl
-            (ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name, e);
+            (combineTokens(specifier.getToken(), t, "ConcreteFieldDecl"), modifiers, specifier, type, name, e);
      }     
   |  
      LOOKAHEAD(Specifier() Identifier() <EQUALS>)
-     specifier = Specifier() name = Identifier() <EQUALS> e = Expr() <SEMICOLON> 
+     specifier = Specifier() name = Identifier() <EQUALS> e = Expr() t=<SEMICOLON> 
      {
         return new ConcreteFieldDecl
-            (ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name, e);
+            (combineTokens(specifier.getToken(), t, "ConcreteFieldDecl"), modifiers, specifier, type, name, e);
      }
   |  
      LOOKAHEAD(Type() Identifier() <EQUALS>)
-     type = Type() name = Identifier() <EQUALS> e = Expr() <SEMICOLON> 
+     type = Type() name = Identifier() <EQUALS> e = Expr() t=<SEMICOLON> 
      {
         return new ConcreteFieldDecl
-            (ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name, e);
+            (combineTokens(type.getToken(), t, "ConcreteFieldDecl"), modifiers, specifier, type, name, e);
      }
   |  
      LOOKAHEAD(Identifier() <EQUALS>)
-     name = Identifier() <EQUALS> e = Expr() <SEMICOLON> 
+     name = Identifier() t=<EQUALS> e = Expr() <SEMICOLON> 
      {
         return new ConcreteFieldDecl
-            (ASTNode.DEFAULT_TOKEN, modifiers, specifier, type, name, e);
+            (t, modifiers, specifier, type, name, e);
      }
   ) 
 }
@@ -1010,7 +1030,7 @@ List<Expr> SimpleExpr2Rest() : {
     LOOKAHEAD(BlockExpr())
     block = BlockExpr() rest = SimpleExpr2Rest()
     {
-        rest.add(new Application(ASTNode.DEFAULT_TOKEN, Expr.EMPTY, new ArrayList<Expr>(), block));
+        rest.add(new Application(block.getToken(), Expr.EMPTY, new ArrayList<Expr>(), block));
         return rest;
     }
   | { return new ArrayList<Expr>(); }
@@ -1020,7 +1040,6 @@ List<Expr> SimpleExpr2Rest() : {
 Expr SimpleExpr1() : {
     Expr e;
     List<Expr> rest;
-    Token t = ASTNode.DEFAULT_TOKEN;
 }{
 
     (
@@ -1061,7 +1080,7 @@ List<Expr> SimpleExp1Rest() : {
   |  LOOKAHEAD([StaticArgs()] ArgumentExpr()) 
      [ metaArgs = StaticArgs()] e = ArgumentExpr() rest = SimpleExp1Rest()
      {
-        rest.add(new Application(t, Expr.EMPTY, metaArgs, e));
+        rest.add(new Application(e.getToken(), Expr.EMPTY, metaArgs, e));
         return rest;
      }
   |  { return new ArrayList<Expr>() ;}
@@ -1074,12 +1093,12 @@ Identifier THIS() : {
 }
 
 ArgumentExpr ArgumentExpr() : {
-    Token t;
+    Token t1,t2;
     List<Expr> args = new ArrayList<Expr>();
 }{
-    t = <LPAREN> [args = ExprList()] <RPAREN>
+    t1 = <LPAREN> [args = ExprList()] t2=<RPAREN>
     {
-        return new ArgumentExpr(t, args);
+        return new ArgumentExpr(combineTokens(t1,t2,"(...)"), args);
     }
 }
 
