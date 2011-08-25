@@ -25,7 +25,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
         match (job.ast) {
             case Some {
                 DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> started");
-                this.sourceFile = job.source.getPath();
+                this.sourceFile = job.source.path;
                 this.reporter = job.reporter;
                 this.resolver = job.resolver;
 
@@ -65,6 +65,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                 };
             }
             case Some {
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>          found '"+ id.name +"' in state symbol '" + makeStringFromQualifiedIdentifier(stateSymbol.getQualifiedIdentifier()) +"'");
                 memberSymbol
             }
         }
@@ -170,7 +171,10 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                             val fqnState = leftSymbol.getFQN();
                             this.reporter.errorToken(java.io.File.new(this.sourceFile), dref.right.token, "State '" + fqnState + "' has no member  '" + dref.right.name + "'");
                         }
-                        case Some { symbolOpt }
+                        case Some { 
+                            addSymbolForAST(dref, symbolOpt.value);
+                            symbolOpt 
+                        }
                     }
                 }
                 case FieldSymbol {
@@ -226,6 +230,7 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                                         DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     found nominal return type");
                                         match (symbolForAST(methodSymbol.declaration.returnType.stateQi)) {
                                             case Some {
+                                               addSymbolForAST(node, symbolForAST(methodSymbol.declaration.returnType.stateQi).value);
                                                symbolForAST(methodSymbol.declaration.returnType.stateQi) 
                                             }
                                             case None {
@@ -243,7 +248,17 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
                             }
                             case FieldSymbol {
                                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   resolved Application to field symbol");
-                                NONE
+                                match (leftSymbolOpt.value.declaration) {
+                                    case LambdaType {
+                                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    Found lambda type for field");
+                                        NONE
+                                    }
+                                    default {
+                                        ERROR("<TypeResolutionPass> Cannot apply value to non-lambda object.");                                        
+                                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.token, "Cannot apply value to non-lambda object.");
+                                        NONE
+                                    }                                 
+                                }
                             }
                             default {
                                 // TODO: add error 
@@ -264,4 +279,10 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
         DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> found dereference.");
         val symbolOpt = resolveNode(node);
     }
+
+    override method void visitApplication(immutable Application  node) {
+        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> found application.");
+        val symbolOpt = resolveNode(node);
+    }
+
 }
