@@ -31,9 +31,9 @@ method void ERROR(immutable String msg) {
     printLine("[ERROR  ] " + msg);
 }
 
-val DEBUG_PRIO_HIGH = 1;
+val DEBUG_PRIO_HIGH   = 1;
 val DEBUG_PRIO_MEDIUM = 2;
-val DEBUG_PRIO_LOW = 3;
+val DEBUG_PRIO_LOW    = 3;
 
 method void DEBUG(immutable Integer level, immutable String msg) {
     if ( level <= DEBUG_LEVEL) {
@@ -58,9 +58,11 @@ method showUsage() {
     
 }
 
+
 method showVersion() {
-    printLine("PlaidC version 2.0");
+    printLine("Plaid Compiler version 2.0");
 }
+
 
 method parseCommandLineArgs(args) {
     var abort = false;
@@ -145,7 +147,7 @@ method parseCommandLineArgs(args) {
             ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
                 printLine("The '-p' option requires a parameter.");
             }{
-                val elems = classpathToList(args.car());
+                val elems = classpathToList( args.car() );
                 elems.map(fn (elem) => plaidpath.add(elem) );
                 DEBUG(DEBUG_PRIO_MEDIUM, "Found plaidpath option '" + args.car()  + "'.");
             }
@@ -226,15 +228,23 @@ method main(args) {
                 job.status = job.status && parsePass.run(job, reporter);
 
                 // run file system checks 
-                val fsCheckPass = new passes.FileSystemCheckPass;
-                job.status = job.status && fsCheckPass.run(job, reporter);
+                if ( job.status ) {
+                    val fsCheckPass = new passes.FileSystemCheckPass;
+                    job.status = job.status && fsCheckPass.run(job, reporter);
+                };
+
+                // run file system checks 
+                if ( job.status ) {
+                    val importCheckPass = new passes.ImportCheckPass { resolver = resolver; };
+                    job.status = job.status && importCheckPass.run(job, reporter);
+                };
                 
                 // add to resolver 
-                ifElse ( job.status ) {
+                if ( job.status ) {
                     resolver.addCompilationUnit(job.ast.value);
-                }{
-                    DEBUG("Failed to add to resolver");
                 };
+
+                path
             });
             
             sourceJobs.map(fn (job) => {
@@ -243,14 +253,31 @@ method main(args) {
                 //job.status = job.status && viewerPass.run(job, reporter);
 
                 // naming pass 
-                val nameExpanderPass = new passes.NameExpanderPass { resolver = resolver; };
-                job.status = job.status && nameExpanderPass.run(job, reporter);
+                if ( job.status ) {
+                    val nameExpanderPass = new passes.NameExpanderPass { resolver = resolver; };
+                    job.status = job.status && nameExpanderPass.run(job, reporter);
+                };
 
                 // pretty printer  
                 //val ppPass = new passes.PlaidPrettyPrinterPass { outputFile  = "Pretty.plaid";  map = nameExpanderPass.map;};
                 //job.status = job.status && ppPass.run(job, reporter);
-
+                job
             });
+
+
+            sourceJobs.map(fn (job) => {
+                // viewer pass 
+                //val viewerPass = new passes.ASTViewerPass { override var titlePrefix = "After translation: "; };
+                //job.status = job.status && viewerPass.run(job, reporter);
+
+                if ( job.status ) {
+                    val typeResolutionPass = new passes.TypeResolutionPass { var resolver = resolver;};
+                    job.status = job.status && typeResolutionPass.run(job, reporter);
+                };
+
+                job
+            });
+
 
             reporter.report();
         }

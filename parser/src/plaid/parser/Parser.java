@@ -23,9 +23,11 @@ package plaid.parser;
 import java.io.InputStream;
 
 import plaid.parser.ast.CompilationUnit;
+import plaid.parser.ast.Expr;
 
 public class Parser {
-	public CompilationUnit cu;
+	private CompilationUnit cu;
+	private ParseException error;
 	
 	public Parser(InputStream toParse, int tabSize) {
 		try {
@@ -34,6 +36,7 @@ public class Parser {
 			cu = pp.CompilationUnit();	
 		} catch (ParseException e) {
 			cu = null;
+			error = e;
 		}
 	}
 
@@ -43,5 +46,39 @@ public class Parser {
 	
 	public CompilationUnit getCompilationUnit() {
 		return cu;
+	}
+	
+	public String getParseErrorMessage() {
+		if ( this.error == null ) {
+			return "";
+		} else {
+		    StringBuilder sb = new StringBuilder();
+		    sb.append("Found '"+ error.currentToken.next.image+"' but expected => ");
+		    
+		    final String eol = System.getProperty("line.separator", "\n");
+		    int maxSize = 10;
+		    for (int i = 0; i < error.expectedTokenSequences.length; i++) {
+		        if (maxSize < error.expectedTokenSequences[i].length) {
+		          maxSize = error.expectedTokenSequences[i].length;
+		        }
+		        for (int j = 0; j < error.expectedTokenSequences[i].length; j++) {
+		          sb.append(error.tokenImage[error.expectedTokenSequences[i][j]]).append(' ');
+		        }
+		        if (error.expectedTokenSequences[i][error.expectedTokenSequences[i].length - 1] != 0) {
+		          sb.append("...");
+		        }
+		        sb.append(eol);
+		      }
+		    
+		    return sb.toString();
+		}
+	}
+	
+	public Token getToken() {
+		if ( error.currentToken == null || error.currentToken.next == null ) {
+			return Expr.DEFAULT_TOKEN;
+		} else {
+			return error.currentToken.next;
+		}
 	}
 }

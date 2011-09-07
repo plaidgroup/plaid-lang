@@ -19,6 +19,8 @@
  
 package plaid.compilerjava.AST;
 
+import plaid.runtime.BigRational;
+
 import java.util.Set;
 
 import plaid.compilerjava.coreparser.Token;
@@ -39,7 +41,7 @@ public class DoubleLiteral implements Expression {
 		out.append(";");
 		out.updateVarDebugInfo(y.getName());
 	}
-	
+
 	public DoubleLiteral(double value) {
 		super();
 		this.value = value;

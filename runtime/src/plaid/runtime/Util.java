@@ -24,9 +24,13 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 
+import plaid.runtime.BigRational;
 import plaid.runtime.models.map.PlaidLookupMap;
 import plaid.runtime.models.map.PlaidStateMap;
 import plaid.runtime.utils.Delegate;
@@ -40,6 +44,32 @@ public class Util {
     protected static volatile PlaidObject FALSE;
     protected static AtomicReference<PlaidObject> NONE = new AtomicReference<PlaidObject>();
 	public static final PlaidTag javaObjectTag = tag("Object", "java.util", null);
+
+	private static final Map<Class<?>,String> java2PlaidTypeMap;
+	private static final Map<String,Class<?>> plaid2JavaTypeMap;
+
+	private static void addTypeMapping(Map<Class<?>,String> j2p, Map<String,Class<?>> p2j, Class<?> jType, String pType) {
+		j2p.put(jType, pType);
+		p2j.put(pType, jType);
+	}
+
+	static {
+		HashMap<Class<?>,String> j2p = new HashMap<Class<?>,String>();
+		HashMap<String,Class<?>> p2j = new HashMap<String,Class<?>>();
+		addTypeMapping(j2p, p2j, Double.class,     "plaid.lang.Float64");
+		addTypeMapping(j2p, p2j, Float.class,      "plaid.lang.Float32");
+		addTypeMapping(j2p, p2j, Long.class,       "plaid.lang.Int64");
+		addTypeMapping(j2p, p2j, Integer.class,    "plaid.lang.Int32");
+		addTypeMapping(j2p, p2j, Short.class,      "plaid.lang.Int16");
+		addTypeMapping(j2p, p2j, Byte.class,       "plaid.lang.Int8");
+		addTypeMapping(j2p, p2j, BigInteger.class, "plaid.lang.Integer");
+		addTypeMapping(j2p, p2j, BigDecimal.class, "plaid.lang.Decimal");
+		addTypeMapping(j2p, p2j, BigRational.class, "plaid.lang.Rational");
+		addTypeMapping(j2p, p2j, Character.class,  "plaid.lang.Character");
+
+		java2PlaidTypeMap = Collections.unmodifiableMap(j2p);
+		plaid2JavaTypeMap = Collections.unmodifiableMap(p2j);
+	}
     
 	public static PlaidObject newObject() throws PlaidException {
 		PlaidState object = (PlaidState)cl.lookup("plaid.lang.Object", unit());
@@ -98,21 +128,33 @@ public class Util {
 	}
 	
 	private static PlaidObject buildInteger(BigInteger i) {
-		PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Integer", unit()));
+		return buildBasic(i);
+	}
+
+	public static boolean isOfSupportedBasicType(Object o) {
+		return java2PlaidTypeMap.containsKey(o.getClass());
+	}
+
+	/**
+	 * Used to construct Plaid types which are simple wrappers around the Java equivalent.
+	 */
+	public static PlaidObject buildBasic(Object nativeVal) {
+		Class<?> javaType = nativeVal.getClass();
+		String plaidType = java2PlaidTypeMap.get(javaType);
+		PlaidState intState = toPlaidState(cl.lookup(plaidType, unit()));
 		PlaidState init = newState();
-		PlaidMemberDef mdef = memberDef("nativeInt", null, false, true);
-		init.addMember(mdef, cl.packJavaObject(i));
+		PlaidMemberDef mdef = memberDef("nativeVal", null, false, true);
+		init.addMember(mdef, cl.packJavaObject(nativeVal));
 		PlaidState initState = (PlaidState)intState.initState(init);
 		return initState.instantiate();
 	}
 	
-	public static PlaidObject floatingDouble(Double i) throws PlaidException {
-		PlaidState intState = toPlaidState(cl.lookup("plaid.lang.Real", unit()));
-		PlaidState init = newState();
-		PlaidMemberDef mdef = memberDef("nativeReal", null, false, true);
-		init.addMember(mdef, cl.packJavaObject(java.math.BigDecimal.valueOf(i)));
-		PlaidState initState = (PlaidState)intState.initState(init);
-		return initState.instantiate();	
+	public static PlaidObject floatingDouble(Double d) throws PlaidException {
+		return buildBasic(d);
+	}
+
+	public static PlaidObject character(Character c) throws PlaidException {
+		return buildBasic(c);
 	}
 	
 	public static PlaidObject boolObject(boolean b) throws PlaidException {
@@ -230,12 +272,8 @@ public class Util {
 							if (((PlaidObject)fst).getTags() != null ) {
 								for (Object o : ((PlaidObject)fst).getTags().keySet() ) {
 									PlaidTag tag = (PlaidTag)o;
-									if ( tag.getPath().equals("plaid.lang.Integer")) {						 
-										objs.add(((BigInteger)((PlaidJavaObject)(fst.getMember("nativeInt").getValue())).getJavaObject()).intValue()); 
-										added = true;
-										break;
-									} else if ( tag.getPath().equals("plaid.lang.Real")) {						 
-										objs.add(((BigDecimal)((PlaidJavaObject)(fst.getMember("nativeReal").getValue())).getJavaObject()).doubleValue()); 
+									if(plaid2JavaTypeMap.containsKey(tag.getPath())) {
+										objs.add((((PlaidJavaObject)(fst.getMember("nativeVal").getValue())).getJavaObject()));
 										added = true;
 										break;
 									} 
@@ -265,11 +303,8 @@ public class Util {
 			if (((PlaidObject)params).getTags() != null ) {
 				for (Object o : ((PlaidObject)params).getTags().keySet() ) {
 					PlaidTag tag = (PlaidTag)o;
-					if ( tag.getPath().equals("plaid.lang.Integer")) {						 
-						objs.add(((BigInteger)((PlaidJavaObject)(params.getMember("nativeInt").getValue())).getJavaObject()).intValue()); 
-						break;
-					}  else if ( tag.getPath().equals("plaid.lang.Real")) {						 
-						objs.add(((BigDecimal)((PlaidJavaObject)(params.getMember("nativeReal").getValue())).getJavaObject()).doubleValue()); 
+					if(plaid2JavaTypeMap.containsKey(tag.getPath())) {
+						objs.add((((PlaidJavaObject)(params.getMember("nativeVal").getValue())).getJavaObject()));
 						break;
 					} 
 				}
@@ -402,33 +437,55 @@ public class Util {
 	public static Class<?> widenPrimitiveType(Class<?> fromClass, Class<?> toClass) {
 		if (fromClass.isPrimitive() && toClass.isPrimitive()) {
 			if (fromClass.equals(byte.class)) {
-				return widenPrimitiveHelper(toClass, short.class, int.class, long.class, float.class, double.class);
+				return conversionHelper(toClass, short.class, int.class, long.class, float.class, double.class);
 			}
 			else if (fromClass.equals(short.class)) {
-				return widenPrimitiveHelper(toClass, int.class, long.class, float.class, double.class);
+				return conversionHelper(toClass, int.class, long.class, float.class, double.class);
 			}
 			else if (fromClass.equals(char.class)) {
-				return widenPrimitiveHelper(toClass, int.class, long.class, float.class, double.class);
+				return conversionHelper(toClass, int.class, long.class, float.class, double.class);
 			}
 			else if (fromClass.equals(int.class)) {
-				return widenPrimitiveHelper(toClass, long.class, float.class, double.class);
+				return conversionHelper(toClass, long.class, float.class, double.class);
 			}
 			else if (fromClass.equals(long.class)) {
-				return widenPrimitiveHelper(toClass, float.class, double.class);
+				return conversionHelper(toClass, float.class, double.class);
 			}
 			else if (fromClass.equals(float.class)) {
-				return widenPrimitiveHelper(toClass, double.class);
+				return conversionHelper(toClass, double.class);
 			}
 		}
 		return null;
 	}
 	
-	private static Class<?> widenPrimitiveHelper(Class<?> toClass, Class<?> ...validClasses) {
+	private static Class<?> conversionHelper(Class<?> toClass, Class<?> ...validClasses) {
+		if(validClasses == null) {
+			return null;
+		}
+
 		for (Class<?> c : validClasses) {
 			if (toClass.equals(c)) {
 				return c;
 			}
 		}
+		return null;
+	}
+
+	/**
+	 * Checks to see whether fromClass can be legally "narrowed" to the toClass. In Plaid, this
+	 * is done to ease interop between Plaid and Java for the standard integer and floating point
+	 * types which are arbitrary precision. These can be narrowed to one of the primitive types
+	 * with the caveat that the value must fit within the target type, or a runtime exception
+	 * will be thrown.
+	 */
+	public static Class<?> narrowPrimitiveType(Class<?> fromClass, Class<?> toClass) {
+		if (fromClass.equals(plaid2JavaTypeMap.get("plaid.lang.Integer"))) {
+			return conversionHelper(toClass, byte.class, short.class, int.class, long.class);
+		}
+		else if (fromClass.equals(plaid2JavaTypeMap.get("plaid.lang.Rational"))) {
+			return conversionHelper(toClass, float.class, double.class);
+		}
+		
 		return null;
 	}
 	
@@ -488,10 +545,10 @@ public class Util {
 	}
 
 	public static PlaidObject convertJavaToPlaid(Object obj) {
-		if ( obj != null && ( obj instanceof Integer || obj.getClass() == int.class) ) {
-			return integer((Integer)obj);
+		if ( obj != null && isOfSupportedBasicType(obj) ) {
+			return buildBasic(obj);
 		} else {
 			return cl.packJavaObject(obj);			
-		}		
+		}
 	}
 }
