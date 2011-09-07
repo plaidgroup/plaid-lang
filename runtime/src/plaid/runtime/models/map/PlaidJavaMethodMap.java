@@ -24,7 +24,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigInteger;
 import java.util.Iterator;
+import java.util.Collections;
 
+//import plaid.collections.Collection;
 import plaid.runtime.PlaidException;
 import plaid.runtime.PlaidIllegalAccessException;
 import plaid.runtime.PlaidInvalidArgumentException;
@@ -34,6 +36,7 @@ import plaid.runtime.PlaidObject;
 import plaid.runtime.PlaidRuntime;
 import plaid.runtime.PlaidTag;
 import plaid.runtime.Util;
+import plaid.runtime.BigRational;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMethod {
@@ -53,42 +56,19 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 	@Override
 	public PlaidObject invoke(PlaidObject args) throws PlaidException {
 		try {
-			Class<?>[] paramTypes = null;
-			Object[] params = null;
-			Method handle = null;
-			if ( args instanceof PlaidJavaObject ) {
-				paramTypes = new Class[1];
-				//paramTypes[0] = (Class<Object>) Object.class;
-				paramTypes[0] = ((PlaidJavaObject)args).getJavaObject().getClass();
-				params = new Object[1];
-				params[0] = ((PlaidJavaObject)args).getJavaObject();
-			} else if( args == Util.unit() )  {
-				paramTypes = new Class[0];
-				params = new Object[0];
-			} else {
-				// check for pair
-				params = Util.convertParamsToArray(args);
-				paramTypes = new Class[params.length];
-				for (int i = 0; i < params.length; i++) {
-					paramTypes[i] = params[i].getClass();
-				}
-			}
+			Object[] params = extractArguments(args);
+			Class<?>[] paramTypes = extractArgumentTypes(params);
+			MethodMatch match = null;
 			
 			Object result = null;
-			Method tempHandle;
 			boolean invoked = false;
 			
-			// check all of the implemented interfaces
 			for (Class<?> c : instance.getClass().getInterfaces()) {
-				tempHandle = this.getMethodHandle(this.name, c, paramTypes);
-				// if we didn't find a method, go to the next interface
-				if (tempHandle == null) {
-					continue;
-				}
-				// if this one doesn't require widening, call it right away
-				else if (!Util.requiresPrimitiveWidening(tempHandle, paramTypes)) {	
+				MethodMatch newMatch = this.getMethodHandle(this.name, c, paramTypes, match);
+				// if this one is an exact match, call it right away
+				if (newMatch != match && newMatch.compat.isExact()) {
 					try {
-						result = tempHandle.invoke(instance, params);
+						result = newMatch.method.invoke(instance, params);
 						// if we make it this far, we succeeded in calling the method
 						invoked = true;
 						break;
@@ -96,15 +76,10 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 						// otherwise just try again
 					}
 				}
-				// if we haven't found a potential method yet, record this one 
-				else if (handle == null) {
-					handle = tempHandle;
+				// we found a better match than the one we had, so store it
+				else {
+					match = newMatch;
 				}
-				// if this one requires widening ignore it, we already have a handle so ignore it
-				else if (Util.requiresPrimitiveWidening(tempHandle, paramTypes)) {
-					continue;
-				}
-				
 			}
 			
 			// Workaround for Java's handling of reflection when accessing inner classes.
@@ -117,16 +92,18 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 				};
 				
 				for (Class<?> interfaceClass : interfaceClasses) {
-					tempHandle = this.getMethodHandle(this.name, interfaceClass, paramTypes);
-					if (tempHandle != null && !Util.requiresPrimitiveWidening(tempHandle, paramTypes)) {
+					MethodMatch newMatch = this.getMethodHandle(this.name, interfaceClass, paramTypes, match);
+					if (newMatch != match && newMatch.compat.isExact()) {
 						try {
-							result = tempHandle.invoke(instance, params);
+							result = newMatch.method.invoke(instance, params);
 							// if we make it here, we successfully called the method
 							invoked = true;
 						}
 						catch (IllegalAccessException e) {
 							throw new PlaidIllegalAccessException("Cannot call method : " + name);
 						}
+					} else {
+						match = newMatch;
 					}
 				}
 			}
@@ -136,25 +113,29 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 			if (!invoked) {
 				Class<?> currClass = this.instanceClass;
 				while (result == null) {
+					MethodMatch newMatch = null;
 					try {
-						tempHandle = this.getMethodHandle(this.name, currClass, paramTypes);
-						// if we have a null handle, we've reached a point where we can 
-						// no longer succeed in calling the method, since none of the superclasses 
-						// will have the method we're looking for
-						if (tempHandle == null) {
-							throw new PlaidIllegalAccessException("Cannot call method : " + name);
+						newMatch = this.getMethodHandle(this.name, currClass, paramTypes, null);
+						if (newMatch == null) {
+							// no potential methods found at this point in the hierarchy, so
+							// we will not find any more higher up the hierarchy. Break out and
+							// attempt to call the best match we have, if we have one.
+							break;
 						}
-						else if (!Util.requiresPrimitiveWidening(tempHandle, paramTypes)) {
-							result = tempHandle.invoke(instance, params);
+						else if (newMatch.compat.isExact()) {
+							result = newMatch.method.invoke(instance, params);
 							// if we make it here, we successfully called the method
 							invoked = true;
 							break;
 						}
-						else if (handle == null) {
-							handle = tempHandle;
-						}
-						else if (Util.requiresPrimitiveWidening(tempHandle, paramTypes)) {
-							continue;
+						else if (match == null || !match.isBetterThan(newMatch)) {
+							// if the new match is at least equal to the current match
+							// we prefer it as methods from higher up the inheritance
+							// hierarchy are more likely to be accessible.
+							match = newMatch;
+							currClass = currClass.getSuperclass();
+						} else {
+							currClass = currClass.getSuperclass();
 						}
 					} catch (IllegalAccessException e) {
 						// if this class is public and we can't call it then something is wrong
@@ -166,21 +147,24 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 					}
 				}
 				
-				// if we found a handle but required primitive widening, call it now
-				if (!invoked && handle != null) {
+				// if we found a handle but required primitive widening / narrowing, call it now
+				if (!invoked && match != null) {
 					try {
-						result = handle.invoke(instance, params);
+						Object[] convertedParams = match.compat.convertParams(params);
+						result = match.method.invoke(instance, convertedParams);
+					} catch (IllegalArgumentException e) {
+						throw new PlaidIllegalAccessException("Cannot call method : " + name + " - one of more arguments could not be safely narrowed");
 					} catch (IllegalAccessException e) {
 						throw new PlaidIllegalAccessException("Cannot call method : " + name);
 					}
 				}
-				else if (!invoked && handle == null) {
+				else if (!invoked && match == null) {
 					throw new PlaidException("Cannot find method: " + name);
 				}
 			}
 			
 			if ( result == null ) {
-				return  PlaidRuntime.getRuntime().getClassLoader().unit();
+				return PlaidRuntime.getRuntime().getClassLoader().unit();
 			} else {
 				PlaidObject plaidResult = getPlaidObjectRep(result);
 				// if we didn't convert this to a pure Plaid object, then add tags to it
@@ -201,6 +185,25 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 			}
 		}
 	}
+
+	private Object[] extractArguments(PlaidObject args) {
+		if ( args instanceof PlaidJavaObject ) {
+			return new Object[] { ((PlaidJavaObject)args).getJavaObject() };
+		} else if( args == Util.unit() )  {
+			return new Object[0];
+		} else {
+			// check for pair
+			return Util.convertParamsToArray(args);
+		}
+	}
+
+	private Class[] extractArgumentTypes(Object[] args) {
+		Class[] types = new Class[args.length];
+		for(int i=0; i < args.length; i++) {
+			types[i] = args[i].getClass();
+		}
+		return types;
+	}
 	
 	/*
 	 * This function is called when we invoke a Java method and it returns 
@@ -213,8 +216,12 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 	 * exist on both sides.
 	 */
 	private PlaidObject getPlaidObjectRep(Object result) {
-		// if it's a boolean, we have to convert it to our special Plaid boolean
-		if (result.getClass().equals(Boolean.class)) {
+		Class resultType = result.getClass();
+
+		if (Util.isOfSupportedBasicType(result)) {
+			return Util.buildBasic(result);
+		}
+		else if (resultType.equals(Boolean.class)) {
 			if ((Boolean)result) {
 				return Util.trueObject();
 			}
@@ -222,15 +229,8 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 				return Util.falseObject();
 			}
 		}
-		else if (result.getClass().equals(Integer.class)) {
-			int val = ((Integer)result).intValue();
-			return Util.integer(BigInteger.valueOf(val));
-		}
-		else if (result.getClass().equals(String.class)) {
+		else if (resultType.equals(String.class)) {
 			return Util.string((String)result);
-		}
-		else if (result.getClass().equals(Double.class)) {
-			return Util.floatingDouble((Double)result);
 		}
 		else if (result instanceof PlaidObject) {
 			return (PlaidObject)result;
@@ -240,55 +240,54 @@ public final class PlaidJavaMethodMap extends PlaidObjectMap implements PlaidMet
 			return new PlaidJavaObjectMap(result);
 		}
 	}
+
+	class MethodMatch {
+		Method method;
+		ArgumentCompatibility compat;
+		
+		public MethodMatch(Method method, ArgumentCompatibility compat) {
+			this.method = method;
+			this.compat = compat;
+		}
+		
+		public boolean isBetterThan(MethodMatch other) {
+			if(other == null) {
+				return true;
+			}
+			
+			return compat.isBetterMatchThan(other.compat);
+		}
+	}
 	
-	private Method getMethodHandle(String methodName, Class<?> currClass, Class<?>[] paramTypes) {
-		Method handle = null;
+	private MethodMatch getMethodHandle(String methodName, Class<?> currClass, Class<?>[] paramTypes, MethodMatch previousMatch) {
+		MethodMatch currentMatch = previousMatch;
 		try {
-			//handle = instanceClass.getMethod(name, paramTypes);
+			// iterate through all methods, looking for those that have the right number of parameters,
+			// and parameter types that match paramTypes most closely
 			for ( Method m : currClass.getMethods()) {
-				if ( m.getName().equals(methodName)) {
-					Class<?>[] mpTypes = m.getParameterTypes();
-					if ( mpTypes.length == paramTypes.length ) {
-						boolean match = true;
-						boolean widened = false;
-						for (int i = 0; i < mpTypes.length; i++) {
-							Class<?> mpType = Util.convertPrimitiveTypes(mpTypes[i]);
-							
-							// perform primitive widening if necessary
-							Class<?> paramType = Util.widenPrimitiveType(
-									Util.convertToPrimitive(paramTypes[i]), 
-									Util.convertToPrimitive(mpTypes[i])
-								);
-							if (paramType != null) {
-								widened = true;
-								paramType = Util.convertPrimitiveTypes(paramType);
-							}
-							else {
-								paramType = Util.convertPrimitiveTypes(paramTypes[i]);
-							}
-							
-							if ( !mpType.isAssignableFrom(paramType) ) {
-								match = false;
-								break;
-							}
-						}
-						// if this is the first match we've seen, then record it
-						if (match && handle == null) {
-							handle = m;
-						}
-						// if we find a match and we didn't have to widen at all, this 
-						// is probably the method the user intended to call
-						else if (match && handle != null && !widened) {
-							handle = m;
-							break;
-						}
-					}
+				if ( !m.getName().equals(methodName) ) {
+					continue;
+				}
+				
+				ArgumentCompatibility compat = ArgumentCompatibility.check(m.getParameterTypes(), paramTypes);
+				if(compat == null) {
+					continue;
+				}
+				
+				MethodMatch potentialMatch = new MethodMatch(m, compat);
+				
+				// if this is the first match we've seen, then record it
+				if (currentMatch == null) {
+					currentMatch = potentialMatch;
+				} else if(potentialMatch.isBetterThan(currentMatch)) {
+					currentMatch = potentialMatch;
 				}
 			}
 		} catch (SecurityException e) {
 			throw new PlaidIllegalAccessException("Cannot find method : " + name);
 		}
-		return handle;
+
+		return currentMatch;
 	}
 	
 	@Override
