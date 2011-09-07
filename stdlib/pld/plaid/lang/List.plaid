@@ -1,0 +1,243 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.lang;
+
+state List {
+	var head;
+	
+	method prepend(elem) {
+		this.head = new Cons { var value = elem; var next = this.head; };
+	}
+	
+	method add(elem) {
+		this.head = this.head.append( new Cons { var value = elem; var next = new plaid.lang.Nil; } );
+	}
+	
+	method append(list) {
+		this.head = this.head.append(list.head);
+	}
+	
+	method get(index) {
+		var returnValue = new plaid.lang.Nil;
+		var counter = 0;
+		this.map(fn (x) => {
+			if(counter == index){
+				returnValue = x;
+			};
+			counter = counter + 1;
+		});
+		returnValue; 
+	}
+	
+	method reverse() {
+		this.foldrHelper(fn (n,l) => {
+			l.add(n);
+			l;
+		}, makeEmptyList(), this.head);
+	}
+	
+	method map(f) {
+		new List { var head = this.mapHelper(f, this.head); }
+	}
+	
+	method mapHelper(f, curr) {
+		match (curr) {
+			case Cons {
+				val newVal = f(curr.value);
+				new Cons { var value = newVal; var next = this.mapHelper(f, curr.next); }
+			}
+			case Nil {
+				curr
+			}
+			default {
+				java.lang.System.out.println("bad");
+			}
+		};
+	}
+	
+	method zip(otherList) {
+		new List { var head = this.zipHelper(this.head, otherList.head); };
+	}
+	
+	method zipHelper(curr1, curr2) {
+		match (curr1) {
+			case Cons {
+				match (curr2) {
+					case Cons {
+						val p = makePair(curr1.value, curr2.value);
+						new Cons { var value = p; var next = this.zipHelper(curr1.next, curr2.next); };
+					}
+					case Nil {
+						new Nil;
+					}
+				};
+			}
+			case Nil {
+				new Nil;
+			}
+		};
+	}
+	
+	method filter(pred) {
+		new List { var head = this.filterHelper(pred, this.head); };
+	}
+	
+	method filterHelper(pred, curr) {
+		match (curr) {
+			case Cons {
+				ifElse (pred(curr.value)) {
+					new Cons { var value = curr.value; var next = this.filterHelper(pred, curr.next); };
+				} {
+					this.filterHelper(pred, curr.next);
+				};
+			}
+			case Nil {
+				curr;
+			}
+		};
+	}
+	
+	method foldr(f, z) {
+		this.foldrHelper(f, z, this.head);
+	}
+
+	method foldrHelper(f, z, curr) {
+		match (curr) {
+			case Cons {
+				f(curr.value, this.foldrHelper(f, z, curr.next));
+			}
+			case Nil {
+				z
+			}
+		}
+	}
+	
+	method foldl(f, z) {
+		this.foldlHelper(f, z, this.head);
+	}
+	
+	method foldlHelper(f, z, curr) {
+		match (curr) {
+			case Cons {
+				val newZ = f(curr.value, z);
+				this.foldlHelper(f, newZ, curr.next)
+			}
+			case Nil {
+				z
+			}
+		}
+	}
+
+	method length() {
+		this.lengthHelper(0, this.head);
+	}
+
+	method lengthHelper(l, curr) {
+		match (curr) {
+			case Cons {
+				this.lengthHelper(l + 1, curr.next);
+			}
+			case Nil {
+				l
+			}
+		}
+	}
+	
+	method isEmpty() {
+		match (this.head) {
+			case Cons {
+				false;
+			}
+			case Nil {
+				true;
+			}
+		}
+	}
+	
+	method subList(fromIndex, toIndex){
+		var subList = new List{var head = new plaid.lang.Nil;};
+		var counter = 0;
+		this.map(fn (x) => {
+			if(counter >= fromIndex && counter <= toIndex){
+				subList.add(x);
+			};
+			counter = counter + 1;
+		});
+		subList; 
+	}
+	
+	method copy(){
+		var newList = new List{var head = new plaid.lang.Nil;};
+		this.map(fn (x) => {
+			newList.add(x);
+		});
+		newList; 
+	}
+	
+	method contains(item){
+		var found = false;
+		this.map(fn (x) => {
+			if(x==item){
+				found = true;
+			};
+		});
+		found; 
+	}
+	
+	// Cannot name this head() because we use the same namespace for fields and methods.
+	// So Lisp's naming convention will have to do for now.
+	method car() {
+		this.head.value;
+	}
+	
+	method cdr() {
+		// TODO:  Would it be better to create a copy of the list here?  This looks potentially dangerous.
+		new List {
+			var head = this.head.next;
+		};
+	}
+	
+	method immutable Boolean ==(immutable List other)[immutable List this] {
+		match (this.length() == other.length()) {
+			case True {
+				this.zip(other).foldr(fn (p,o) => o && p.fst == p.snd,true) 
+			}
+			case False { false }
+		}
+	}
+	
+	//Prints as a comma-separated list
+	method immutable String toString()[immutable List this] {
+		val ret = foldl(fn (e,prev) => prev + ", " + e.toString(), "" );
+		match (ret.equals("")) {
+			case True { ret }
+			case False { ret.substring(2) }
+		}
+	}
+	
+	//Prints as a comma-separated list, with brackets around list
+	method immutable String toStringWithBrackets()[immutable List this] {
+		val ret = foldl(fn (e,prev) => prev + ", " + e.toString(), "" );
+		match (ret.equals("")) {
+			case True { "["+ret+"]" }
+			case False { "["+ret.substring(2)+"]" }
+		}
+	}
+}
