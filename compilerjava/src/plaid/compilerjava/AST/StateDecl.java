@@ -202,7 +202,7 @@ public class StateDecl implements Decl {
 				}
 			}
 		}
-		throw new RuntimeException("Name '" + qid + "' not declared or imported");
+		throw new RuntimeException("Name '" + qid + "' not declared or imported("+inPackage+")");
 	}
 	
 	@Override
