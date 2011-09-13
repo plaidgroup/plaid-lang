@@ -79,7 +79,11 @@ public class TransliterateToPlaid<T> {
 			sb.append(";\n");
 		}
 		
-
+		if ( clazz.getSimpleName().toString().equals("ASTNode")) {
+			sb.append("\n\tmethod immutable String nodeName() {\"ASTNode\"}") ;
+		} else {
+			sb.append("\n\toverride method immutable string nodeName() { \""+ clazz.getSimpleName() +"\" }") ;
+		}
 		
 		sb.append("\n}");
 		return sb.toString();
@@ -162,7 +166,6 @@ public class TransliterateToPlaid<T> {
 		}
 		return visitMethodCode;
 	}
-	
 	
 	private static String showMethod(Class<?> clazz) {
 		StringBuilder sb = new StringBuilder();
