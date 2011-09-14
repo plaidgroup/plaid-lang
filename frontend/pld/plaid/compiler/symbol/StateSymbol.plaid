@@ -1,15 +1,15 @@
 package plaid.compiler.symbol;
 
-import plaid.compiler.Symbol;
+import plaid.compiler.*;
 import plaid.compiler.types.*;
 import plaid.ast.parsed.ASTNode;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
 
 state StateSymbol case of Symbol {
     val immutable ASTNode declaration;
     val immutable Symbol owner;
     val unique List members = makeEmptyList();
-    var immutable StateType stateType = NONE;
 
     method unique QualifiedIdentifier getQualifiedIdentifier() {
         match ( owner ) {
@@ -49,56 +49,24 @@ state StateSymbol case of Symbol {
     method unique Option getMember(immutable String name) {
         var unique Option value = NONE;
 
-        this.members.map( fn (m) => {
-            if ( m.name == name ) {
-                value = makeSome(m);
+        this.members.map( fn (memberSymbol) => {
+            if ( memberSymbol.name == name ) {
+                value = makeSome(memberSymbol);
             };
+            memberSymbol
         });
         
         value;
     }
 
     method immutable PlaidType getType() {   
-        match (stateType) {
-            case None {
-                val fqnName   = getFQN(); 
-                val memberTypes = makeEmptyList();
-        
-                // get types for members
-                match (this.declaration) {
-                    case ConcreteStateDecl {
-                        match (this.declaration.stateBinding) {
-                            case DeclList {
-                                this.declaration.stateBinding.decls.map( fn (decl) => {
-                                    val declSymbol = symbolForAST(decl);
-                                    match (declSymbol) {
-                                        case Some {
-                                            memberTypes.add(declSymbol.value.getType());
-                                        }
-                                        case None {
-                                            ERROR("Cannot find symbol for declaration: '" + decl.name.name + "'");
-                                        }
-                                    }                            
-                                 });
-                            }
-                            default {
-                                ERROR("Cannot not (yet) handle state composition.");
-                            }
-                        }
-                    }
-                    case AbstractStateDecl { /* no members */ }
-                };
-                this.stateType = makeSome(new NominalPlaidType {
-                    val owner = ownerType;
-                    val name  = this.name;
-                    val memberTypes = memberTypes;
-                    val metaTypes   = makeEmptyList();
-                });
-                this.stateType.value
-            }
-            case Some {
-               this.stateType.value;
-            }        
-        }
+        if ( !haveTypeForAST(this.declaration) ) {
+            addTypeForAST(this.declaration, new NominalPlaidType {
+                val symbol = this;
+                val owner  = this.owner.getType();
+                val name   = this.name;
+            })
+        };
+        typeForAST(this.declaration).value;
     }
 }
