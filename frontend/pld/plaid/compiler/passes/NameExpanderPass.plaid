@@ -502,13 +502,24 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         match (qiOpt) {
             case Some {
                 DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass> Found potential QI: " + makeStringFromQualifiedIdentifier(qiOpt.value));
-                val immutable Integer resolvedCount = this.resolveQualifiedIdentifier(this.stack.peek().value, qiOpt.value, true);
-                DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass>   resolved  " + resolvedCount + " parts");
-                if ( resolvedCount == 0 ) {
-                    //val mostLeftId = qiOpt.value.identifiers.get(0);
-                    //this.reporter.errorToken(java.io.File.new(this.sourceFile), mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
-                    node.left.accept(this);
-                };
+                // check if left most can be resolved before we try to resolve the whole QI
+                DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass>   check if left most identifier '"+qiOpt.value.identifiers.get(0).name+"' can be resolved");
+                val symbol = this.stack.peek().value.find(qiOpt.value.identifiers.get(0).name);
+                match (symbol) {
+                    case None {
+                        DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass>   left most identifier cannot be resolved, try to resolve whole QualifiedIdentifier");
+                        val immutable Integer resolvedCount = this.resolveQualifiedIdentifier(this.stack.peek().value, qiOpt.value, true);
+                        DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass>   resolved  " + resolvedCount + " parts");
+                        if ( resolvedCount == 0 ) {
+                            //val mostLeftId = qiOpt.value.identifiers.get(0);
+                            //this.reporter.errorToken(java.io.File.new(this.sourceFile), mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
+                        node.left.accept(this);
+                        };
+                    }
+                    case Some {
+                        node.left.accept(this);
+                    }
+                }
             }
             case None {
                 node.left.accept(this);
