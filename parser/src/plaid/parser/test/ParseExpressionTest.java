@@ -126,7 +126,7 @@ import plaid.parser.ast.StateRef;
 import plaid.parser.ast.StateValDecl;
 import plaid.parser.ast.Stmt;
 import plaid.parser.ast.StringLiteral;
-import plaid.parser.ast.Type;
+import plaid.parser.ast.TypeDeclaration;
 import plaid.parser.ast.UnaryOperatorExpr;
 import plaid.parser.ast.UnpackInnerGroups;
 import plaid.parser.ast.VarDecl;
@@ -859,7 +859,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseLocalVarDel() throws ParseException, UnsupportedEncodingException {
 		final String code = "var x = 1";
-		final VarDecl goal = VarDecl(Var(), Type.EMPTY, Identifier("x"), IntLiteral(1));
+		final VarDecl goal = VarDecl(Var(), TypeDeclaration.EMPTY, Identifier("x"), IntLiteral(1));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Stmt e = pp.LocalVarDecl();
 		assertTrue(e instanceof Stmt );
@@ -1138,7 +1138,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseAbstractFieldSpecifier() throws ParseException, UnsupportedEncodingException {
 		final String code = "val f;";
-		final FieldDecl goal = AbstractFieldDecl(Val(), Type.EMPTY, Identifier("f"));
+		final FieldDecl goal = AbstractFieldDecl(Val(), TypeDeclaration.EMPTY, Identifier("f"));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractFieldDecl );
@@ -1178,7 +1178,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseConcretetFieldSpecifier() throws ParseException, UnsupportedEncodingException {
 		final String code = "val f=0;";
-		final FieldDecl goal = ConcreteFieldDecl(Val(), Type.EMPTY, Identifier("f"), IntLiteral(0));
+		final FieldDecl goal = ConcreteFieldDecl(Val(), TypeDeclaration.EMPTY, Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
@@ -1198,7 +1198,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseConcretetField() throws ParseException, UnsupportedEncodingException {
 		final String code = "f=0;";
-		final FieldDecl goal = ConcreteFieldDecl(Specifier.EMPTY, Type.EMPTY, Identifier("f"), IntLiteral(0));
+		final FieldDecl goal = ConcreteFieldDecl(Specifier.EMPTY, TypeDeclaration.EMPTY, Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
@@ -1213,7 +1213,7 @@ public class ParseExpressionTest {
 		final String code = "method foo();";
 		final MethodDecl goal = 
 			AbstractMethodDecl(
-					Type.EMPTY, 
+					TypeDeclaration.EMPTY, 
 					Identifier("foo"), 
 					StaticArg.EMPTY, 
 					Arg.EMPTY, 
@@ -1389,7 +1389,7 @@ public class ParseExpressionTest {
 					REQUIRES(),
 					OVERRIDE()
 				),
-				Type.EMPTY, 
+				TypeDeclaration.EMPTY, 
 				Identifier("foo"), 
 				StaticArg.EMPTY, 
 				Arg.EMPTY, 
@@ -1523,13 +1523,13 @@ public class ParseExpressionTest {
 				Collections.EMPTY_LIST,
 				DeclList(
 					AbstractMethodDecl(
-						Type.EMPTY, 
+						TypeDeclaration.EMPTY, 
 						Identifier("foo"), 
 						StaticArg.EMPTY, 
 						Arg.EMPTY, 
 						Arg.EMPTY
 					),
-					 AbstractFieldDecl(Val(), Type.EMPTY, Identifier("x"))
+					 AbstractFieldDecl(Val(), TypeDeclaration.EMPTY, Identifier("x"))
 				)
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
@@ -1624,12 +1624,12 @@ public class ParseExpressionTest {
 				Arrays.asList(
 					ConcreteFieldDecl(
 						Val(), 
-						Type.EMPTY, 
+						TypeDeclaration.EMPTY, 
 						Identifier("x"), 
 						IntLiteral(1)
 					),
 					ConcreteMethodDecl(
-						Type.EMPTY, 
+						TypeDeclaration.EMPTY, 
 						Identifier("foo"), 
 						StaticArg.EMPTY, 
 						Arg.EMPTY, 
@@ -1644,7 +1644,7 @@ public class ParseExpressionTest {
 						DeclList(
 							ConcreteFieldDecl(
 								Val(), 
-								Type.EMPTY, 
+								TypeDeclaration.EMPTY, 
 								Identifier("bob"), 
 								StringLiteral("ML")
 							)
