@@ -30,7 +30,7 @@ import plaid.parser.ast.StaticType;
 import plaid.parser.ast.NominalObjectType;
 import plaid.parser.ast.Permission;
 import plaid.parser.ast.QualifiedIdentifier;
-import plaid.parser.ast.TypeDeclaration;
+import plaid.parser.ast.TypeDecl;
 
 public class ParseTypeTest {
 	private PlaidCoreParser parserFromString(String code) {
@@ -80,8 +80,8 @@ public class ParseTypeTest {
 	private void testNominalType(String code, Permission p, 
 			QualifiedIdentifier qi) throws ParseException{
 		PlaidCoreParser pcp = parserFromString(code);
-		TypeDeclaration parsedType = pcp.Type();
-		TypeDeclaration goalType = new NominalObjectType(null, p, 
+		TypeDecl parsedType = pcp.Type();
+		TypeDecl goalType = new NominalObjectType(null, p, 
 				qi,
 				new ArrayList<StaticType>());
 		Assert.assertTrue("Goal and parsed ASTs don't match.", parsedType.equivalent(goalType));
@@ -143,16 +143,16 @@ public class ParseTypeTest {
 	}
 	
 	
-	private void testLambdaType(String code, List<ArgSpec> argsSpec, TypeDeclaration returnType) 
+	private void testLambdaType(String code, List<ArgSpec> argsSpec, TypeDecl returnType) 
 	throws ParseException{
-		TypeDeclaration goalType = new LambdaType(null,new ArrayList<StaticType>(),argsSpec,
+		TypeDecl goalType = new LambdaType(null,new ArrayList<StaticType>(),argsSpec,
 				new ArrayList<Arg>(), returnType);
 		testLambdaType(code, goalType);
 	}
 	
-	private void testLambdaType(String code, TypeDeclaration goalType) throws ParseException {
+	private void testLambdaType(String code, TypeDecl goalType) throws ParseException {
 		PlaidCoreParser pcp = parserFromString(code);
-		TypeDeclaration parsedType = pcp.Type();
+		TypeDecl parsedType = pcp.Type();
 		Assert.assertTrue("Goal and parsed ASTs don't match.", parsedType.equivalent(goalType));
 	}
 	
@@ -160,7 +160,7 @@ public class ParseTypeTest {
 	public void testNoArgLambdaType() throws ParseException {
 		QualifiedIdentifier qi = 
 			new QualifiedIdentifier(null, Collections.singletonList(new Identifier(null, "hello")));
-		TypeDeclaration returnType = new NominalObjectType(null, Permission.EMPTY, 
+		TypeDecl returnType = new NominalObjectType(null, Permission.EMPTY, 
 				qi,
 				new ArrayList<StaticType>());
 		testLambdaType("()->hello", LambdaType(returnType));
@@ -168,21 +168,21 @@ public class ParseTypeTest {
 	
 	@Test
 	public void testOneArgLambdaType() throws ParseException {
-		TypeDeclaration type = NominalObjectType(QualifiedIdentifier("hello"));
+		TypeDecl type = NominalObjectType(QualifiedIdentifier("hello"));
 		ArgSpec argspec = ArgSpec(type);
 		testLambdaType("(hello)->hello", Collections.singletonList(argspec), type);
 	}
 	
 	@Test
 	public void testOneArgSpecLambdaType() throws ParseException {
-		TypeDeclaration type = NominalObjectType(QualifiedIdentifier("hello"));
+		TypeDecl type = NominalObjectType(QualifiedIdentifier("hello"));
 		ArgSpec argspec = ArgSpec(type,type);
 		testLambdaType("(hello>>hello)->hello", Collections.singletonList(argspec), type);
 	}
 	
 	@Test
 	public void testLambdaReturnType() throws ParseException {
-		TypeDeclaration type = NominalObjectType(QualifiedIdentifier("hello"));
+		TypeDecl type = NominalObjectType(QualifiedIdentifier("hello"));
 		ArgSpec argSpec = ArgSpec(type,type);
 		List<ArgSpec> argsSpec = Collections.singletonList(argSpec);
 		testLambdaType("(hello>>hello)->(hello>>hello)->hello", 
