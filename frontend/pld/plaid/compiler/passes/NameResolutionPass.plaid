@@ -55,7 +55,7 @@ import java.util.IdentityHashMap;
 /*
  * expands the left most case of a dot
  */
-state NameExpanderPass case of Pass = LeafVisitor with  {
+state NameResolutionPass case of Pass = LeafVisitor with  {
 
     val unique Stack stack = new Stack;
     val immutable SymbolFactory sf = new SymbolFactory;
@@ -73,7 +73,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         this.resolver = job.resolver;
         match (job.ast) {
             case Some {
-                DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass> started for '" + job.source.path + "'");
+                DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass> started for '" + job.source.path + "'");
                 this.sourceFile = job.source.path;
                 this.reporter = reporter;
                 this.stack.push(new TopLevelContext);
@@ -87,11 +87,11 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
                 job.ast.value.accept(this);
 
-                DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass> finished for '" + job.source.path + "'");
+                DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass> finished for '" + job.source.path + "'");
                 !this.hasErrors
             }
             default { 
-                ERROR("<NameExpanderPass> AST invalid");
+                ERROR("<NameResolutionPass> AST invalid");
                 false 
             }
         }
@@ -176,7 +176,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                      ifElse ( count < qi.identifiers.length()  ) {
                          match (symbol.value) {
                              case PackageSymbol {
-                                 WARNING("<NameExpanderPass> Cannot resolve '" + fqn + "." + qi.identifiers.get(count).name  + "'");
+                                 WARNING("<NameResolutionPass> Cannot resolve '" + fqn + "." + qi.identifiers.get(count).name  + "'");
                                  val first = qi.identifiers.car();
                                  val last  = qi.identifiers.get(count);
                                  val beginLine   = min(first.token.beginLine, last.token.beginLine);
@@ -277,7 +277,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
 
 	override method void visitCompilationUnit(immutable CompilationUnit node) {
-        DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> visit CompilationUnit");
+        DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> visit CompilationUnit");
 
         this.packageName = makeStringFromQualifiedIdentifier(node.packageName);
         
@@ -348,7 +348,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                         addSymbolForAST(node, fieldSymbol.value);
                     }
                     case None {
-                        ERROR("<NameExpanderPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
+                        ERROR("<NameResolutionPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
                     }
                 }
             }
@@ -362,7 +362,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 
 
     override method void visitConcreteMethodDecl(immutable ConcreteMethodDecl node) {
-        DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> visit ConcreteMethodDecl");
+        DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> visit ConcreteMethodDecl");
 
         match (this.currentState.peek() ) {
             case Some {
@@ -380,7 +380,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                         addSymbolForAST(node, methodSymbol.value);
                     }
                     case None {
-                        ERROR("<NameExpanderPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
+                        ERROR("<NameResolutionPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
                     }
                 }
             }
@@ -433,7 +433,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
                 val unique Option stateSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
                 match (stateSymbol) {
                     case None {
-                        ERROR("<NameExpanderPass> Cannot find symbol for state '" + node.name.name + "'");                        
+                        ERROR("<NameResolutionPass> Cannot find symbol for state '" + node.name.name + "'");                        
                     }
                     case Some {
                         this.currentState.push(stateSymbol.value);
@@ -487,7 +487,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         val symbol = this.stack.peek().value.find(node.name);
         match (symbol) {
             case Some {
-               DEBUG(DEBUG_PRIO_LOW, "<NameExpanderPass> Found symbol for '" + node.name + "'");
+               DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> Found symbol for '" + node.name + "'");
                addSymbolForAST(node, symbol.value);
            }
            case None {
@@ -501,15 +501,15 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
         val qiOpt = this.getQualifiedIdentifierFromDereference(node);
         match (qiOpt) {
             case Some {
-                DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass> Found potential QI: " + makeStringFromQualifiedIdentifier(qiOpt.value));
+                DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass> Found potential QI: " + makeStringFromQualifiedIdentifier(qiOpt.value));
                 // check if left most can be resolved before we try to resolve the whole QI
-                DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass>   check if left most identifier '"+qiOpt.value.identifiers.get(0).name+"' can be resolved");
+                DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   check if left most identifier '"+qiOpt.value.identifiers.get(0).name+"' can be resolved");
                 val symbol = this.stack.peek().value.find(qiOpt.value.identifiers.get(0).name);
                 match (symbol) {
                     case None {
-                        DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass>   left most identifier cannot be resolved, try to resolve whole QualifiedIdentifier");
+                        DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   left most identifier cannot be resolved, try to resolve whole QualifiedIdentifier");
                         val immutable Integer resolvedCount = this.resolveQualifiedIdentifier(this.stack.peek().value, qiOpt.value, true);
-                        DEBUG(DEBUG_PRIO_HIGH, "<NameExpanderPass>   resolved  " + resolvedCount + " parts");
+                        DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass>   resolved  " + resolvedCount + " parts");
                         if ( resolvedCount == 0 ) {
                             //val mostLeftId = qiOpt.value.identifiers.get(0);
                             //this.reporter.errorToken(java.io.File.new(this.sourceFile), mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
@@ -588,7 +588,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
 	override method void visitQualifiedIdentifier(immutable QualifiedIdentifier node) {
         val resolveCount = this.resolveQualifiedIdentifier(this.stack.peek().value, node, false);
         ifElse ( resolveCount == node.identifiers.length() ) {
-            DEBUG(DEBUG_PRIO_MEDIUM, "<NameExpanderPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
             if ( !haveSymbolForAST(node) ) {
                 printLine("==> ERROR not QI in cache !!!!! ");
             };
@@ -639,7 +639,7 @@ state NameExpanderPass case of Pass = LeafVisitor with  {
             addSymbolForAST(node.id, mySymbol);
             addSymbolForAST(node, mySymbol);
         }{
-            ERROR("<NameExpanderPass> Variable '"+ node.id.name +"' already declared.");
+            ERROR("<NameResolutionPass> Variable '"+ node.id.name +"' already declared.");
             val otherSymbol = ctx.find(node.id.name);
             match (otherSymbol) {
                 case Some {
