@@ -25,7 +25,7 @@ import plaid.parser.ast.Arg;
 import plaid.parser.ast.ArgSpec;
 import plaid.parser.ast.Expr;
 import plaid.parser.ast.Identifier;
-import plaid.parser.ast.LambdaType;
+import plaid.parser.ast.LambdaTypeDecl;
 import plaid.parser.ast.StaticType;
 import plaid.parser.ast.NominalObjectType;
 import plaid.parser.ast.Permission;
@@ -145,7 +145,7 @@ public class ParseTypeTest {
 	
 	private void testLambdaType(String code, List<ArgSpec> argsSpec, TypeDecl returnType) 
 	throws ParseException{
-		TypeDecl goalType = new LambdaType(null,new ArrayList<StaticType>(),argsSpec,
+		TypeDecl goalType = new LambdaTypeDecl(null,new ArrayList<StaticType>(),argsSpec,
 				new ArrayList<Arg>(), returnType);
 		testLambdaType(code, goalType);
 	}

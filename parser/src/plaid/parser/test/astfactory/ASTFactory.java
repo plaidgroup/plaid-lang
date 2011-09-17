@@ -41,7 +41,7 @@ import plaid.parser.ast.Import;
 import plaid.parser.ast.InfixOperatorExpr;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Lambda;
-import plaid.parser.ast.LambdaType;
+import plaid.parser.ast.LambdaTypeDecl;
 import plaid.parser.ast.Match;
 import plaid.parser.ast.StaticArg;
 import plaid.parser.ast.StaticType;
@@ -217,12 +217,12 @@ public class ASTFactory {
 		return new Lambda(ASTNode.DEFAULT_TOKEN, metaArgsSpec, args, env, body);
 	}
 	
-	public static LambdaType LambdaType(List<ArgSpec>argsSpec, TypeDecl returnType) {
-		return new LambdaType(null,new ArrayList<StaticType>(),argsSpec,
+	public static LambdaTypeDecl LambdaType(List<ArgSpec>argsSpec, TypeDecl returnType) {
+		return new LambdaTypeDecl(null,new ArrayList<StaticType>(),argsSpec,
 				new ArrayList<Arg>(), returnType);
 	}
 
-	public static LambdaType LambdaType(TypeDecl returnType) {
+	public static LambdaTypeDecl LambdaType(TypeDecl returnType) {
 		return LambdaType(new ArrayList<ArgSpec>(), returnType);
 	}
 	
