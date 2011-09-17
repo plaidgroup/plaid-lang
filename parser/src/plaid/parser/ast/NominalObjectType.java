@@ -5,7 +5,7 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class NominalObjectType extends TypeDeclaration {
+public class NominalObjectType extends TypeDecl {
 
 	/**
 	 * Set of type abbreviations contained in this type.

@@ -5,10 +5,10 @@ import plaid.parser.Token;
 public class ArgSpec extends ASTNode {
 	
 	public static final ArgSpec EMPTY = EmptyArgSpec.getEmptyArgSpec();
-	private final TypeDeclaration preType;
-	private final TypeDeclaration postType;
+	private final TypeDecl preType;
+	private final TypeDecl postType;
 	
-	public ArgSpec(Token t, TypeDeclaration preType, TypeDeclaration postType) {
+	public ArgSpec(Token t, TypeDecl preType, TypeDecl postType) {
 		super(t);
 		this.preType = preType;
 		if (postType == null) {
@@ -19,11 +19,11 @@ public class ArgSpec extends ASTNode {
 		}
 	}
 	
-	public TypeDeclaration getPreType() {
+	public TypeDecl getPreType() {
 		return preType;
 	}
 
-	public TypeDeclaration getPostType() {
+	public TypeDecl getPostType() {
 		return postType;
 	}
 
@@ -32,7 +32,7 @@ public class ArgSpec extends ASTNode {
 		if ( this == EMPTY ) {
 			return "";
 		} else {
-			return preType + ((postType!=TypeDeclaration.EMPTY)?">>"+postType:"");
+			return preType + ((postType!=TypeDecl.EMPTY)?">>"+postType:"");
 		}
 	}
 }
