@@ -4,14 +4,14 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class LambdaType extends TypeDecl {
+public class LambdaTypeDecl extends TypeDecl {
 	
 	private final List<StaticType> metaTypes;
 	private final List<ArgSpec> argTypes;
 	private final List<Arg> env;
 	private final TypeDecl returnType;
 	
-	public LambdaType(Token t, List<StaticType> metaTypes,
+	public LambdaTypeDecl(Token t, List<StaticType> metaTypes,
 			List<ArgSpec> argTypes, List<Arg> env,
 			TypeDecl returnType) {
 		super(t);
