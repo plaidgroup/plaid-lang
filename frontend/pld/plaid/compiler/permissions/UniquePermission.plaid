@@ -5,121 +5,107 @@ import plaid.compiler.AP;
 /**
  *	Unique Permission
  */
-state UniquePermission case of AP {
+state UniquePermission case of SingularPerm {
 	
 	//unique permissions give write access
-	method immutable Boolean isWritable()[pure UniquePermission] { true }
+	method immutable Boolean isWritable()[immutable UniquePermission >> void] { true }
 	
 	//unique permission guarantee the state
-	method immutable Boolean guaranteesState()[pure UniquePermission] { true }
+	method immutable Boolean guaranteesState()[immutable UniquePermission >> void] { true }
 	
-	method immutable Boolean ==(immutable Permission p2)[immutable UniquePermission] {
+	method immutable Boolean ==(immutable Permission >> void p2)[immutable UniquePermission >> void] {
 		match(p2) {
 			case UniquePermission { true }
 			default { false }
 		};
 	}
 	
-	method immutable String toString()[immutable UniquePermission] {
+	method immutable String toString()[immutable UniquePermission >> void] {
 		"unique"
 	}
 
 	//I can split anything off of a unique
-	method /*unique Option<immutable Permission>*/ 
-			splitPerm(immutable Permission p2)
+	method unique Option<immutable Permission> 
+			splitPerm(immutable Permission >> void p2)
 					 [immutable UniquePermission >> void] 
 	{
 		match(p2) {
-			// unique => unique/none
-			case UniquePermission { makeSome(NONEP) }
-			// unique => full/pure
-			case FullPermission { makeSome(PURE) } 
-			// unique => shared/shared
-			case SharedPermission { makeSome(SHARED) }
-			// unique => immutable/immutable
-			case ImmutablePermission { makeSome(IMMUTABLE) }
-			// unique => pure/full
-			case PurePermission { makeSome(FULL) }
-			// unique => none/unique
-			case NonePermission { makeSome(this) }
-			//unique => dyn/unique
-			case DynPermission { makeSome(this) }
+			case UniquePermission { makeSome(NONEP) }  // unique => unique/none
+			case SharedPermission { makeSome(SHARED) } // unique => shared/shared
+			case ImmutablePermission { makeSome(IMMUTABLE) } // unique => immutable/immutable
+			case NonePermission { makeSome(this) } // unique => none/unique
+			case LocalPermission {
+				//unique => local(sym)/borrow(sym,unique,1)
+				makeSome(makeSplitLocal(p2.thePerm,UNIQUE,1)) 
+			}
 			default { new None }
+			
+			//unused cases
+			//case FullPermission { makeSome(PURE) } // unique => full/pure
+			//case PurePermission { makeSome(FULL) } // unique => pure/full
+			//case DynPermission { makeSome(this) } //unique => dyn/unique
 		};
 	}
 	
 	//unique permissions can only coexist with none and dyn permissions
-	method /*unique Option<immutable Permission>*/ 
+	method unique Option<immutable Permission>
 			join(immutable Permission >> void p2)
 				[immutable UniquePermission >> void] 
 	{
 		match (p2) {
-			case DynPermission { makeSome(p2) } //unique/dyn => dyn
 			case NonePermission { makeSome(this) } //unique/none => unique
 			default { new None }
+			
+			//unused cases
+			//case DynPermission { makeSome(p2) } //unique/dyn => dyn
 		}
 	}
 	
 	//joining to unique or dyn are the only possibilities
-	method /*unique Option<immutable Permission>*/ 
+	method unique Option<immutable Permission> 
 		joinTo(immutable Permission >> void p2, immutable Permission >> void target)
 			  [immutable UniquePermision >> void] 
 	{
 		match (target) {
-			case DynPermission { makeSome(DYNP) }
 			case UniquePermission { this.join(p2) }
 			default { new None }
+			
+			//unused cases
+			//case DynPermission { makeSome(DYNP) }
 		}
 	}
 	
 	//UNIQUE is above all permissions in the lattice
 	method immutable Permission leastUpperBound(immutable Permission p2)[immutable UniquePermission] {
 		match (p2) {
-			case DynPermission { DYNP }
 			case UniquePermission { UNIQUE }
-			case FullPermission { UNIQUE }
 			case ImmutablePermission { UNIQUE }
 			case SharedPermission { UNIQUE }
-			case PurePermission { UNIQUE }
+			case LocalPermission { UNIQUE }
 			case NonePermission { UNIQUE }
-			default { 
-				java.lang.System.out.println("not a permission"); 
-				DYNP; 
-			}
+			default { UNIQUE }  //error - not a permission, default to UNIQUE - KBN error handling?
+			
+			//unused cases
+			//case PurePermission { UNIQUE }
+			//case FullPermission { UNIQUE }
+			//case DynPermission { DYNP }
 		}
 	}
 	
 	//All permissions are below UNIQUE in the permission lattice
 	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable UniquePermission] {
 		match (p2) {
-			case DynPermission { DYNP }
 			case UniquePermission { UNIQUE }
-			case FullPermission { FULL }
 			case ImmutablePermission { IMMUTABLE }
 			case SharedPermission { SHARED }
-			case PurePermission { PURE }
+			case LocalPermission { p2 } //return whatever local permission we got
 			case NonePermission { NONEP }
-			default { 
-				java.lang.System.out.println("not a permission"); 
-				NONEP; 
-			}
-		}
-	}
-	
-	//***DEPRECATED***
-	method asStrongAs(p2) {
-		match(p2) {
-			case DynPermission { false }
-			default { true }
-		}
-	}
-	
-	//weaker
-	//***DEPRECATED***
-	method /*Permission*/ merge(p2) {
-		match (p2) {
-			case DynPermission { DYNP }
-			default { p2 } //most things are weaker than unique
+			default { NONEP } //error - not a permission, default to NONEP - KBN error handling?
+			
+			//unused cases
+			//case DynPermission { DYNP }
+			//case FullPermission { FULL }
+			//case PurePermission { PURE }
 		}
 	}
 }

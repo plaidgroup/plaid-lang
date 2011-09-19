@@ -5,54 +5,64 @@ import plaid.compiler.AP;
 /**
  *	Immutable permission
  */
-state ImmutablePermission case of AP {
+state ImmutablePermission case of SymmetricPerm {
 	
 	//immutable permissions do not allow writing
-	method immutable Boolean isWritable()[pure Permission] { false }
+	method immutable Boolean isWritable()[immutable Permission >> void] { false }
 	
 	//immutable permissions do guarantee the state of an object
-	method immutable Boolean guaranteesState()[pure Permission] { true }
+	method immutable Boolean guaranteesState()[immutable Permission >> void] { true }
 
-	method immutable Boolean ==(immutable Permission p2)[immutable ImmutablePermission] {
+	method immutable Boolean ==(immutable Permission >> void p2)[immutable ImmutablePermission >> void] {
 		match(p2) {
 			case ImmutablePermission { true }
 			default { false }
 		};
 	}
 
-	method immutable String toString()[immutable Permission] {
+	method immutable String toString()[immutable Permission >> void] {
 		"immutable"
 	}	
 	
 	//immutable, pure, and none can be split off from an immutable
-	method /*unique Option<immutable Permission>*/ splitPerm(immutable Permission p2)
+	method unique Option<immutable Permission> splitPerm(immutable Permission >> void p2)
 															[immutable ImmutablePermission >> void] {
 		match(p2) {
-			// immutable => immutable/immutable
-			case ImmutablePermission { makeSome(this) }
-			// immutable => pure/immutable
-			case PurePermission { makeSome( this) }
-			// immutable => none/immutable
-			case NonePermission { makeSome(this) }
-			// immutable => dyn/immutable - KBN correct?
-			case DynPermission { makeSome(this) }
+			case ImmutablePermission { makeSome(this) }  // immutable => immutable/immutable	
+			case LocalPermission { //immutable => local immutable/immutable
+				ifElse (p2.thePerm == IMMUTABLE) 
+					{ makeSome(IMMUTABLE) }
+					{ new None }
+			}
+			case NonePermission { makeSome(this) }		 // immutable => none/immutable
 			default { new None }
+			
+			//unused cases
+			//case DynPermission { makeSome(this) }		 // immutable => dyn/immutable - KBN correct?
+			//case PurePermission { makeSome( this) }	 // immutable => pure/immutable
 		};
 	}
 	
 	// immutable, none, and pure permission can coexist with immutables
-	method /*unique Option<immutable Permission>*/ join(immutable Permission >> void p2)
+	method unique Option<immutable Permission> join(immutable Permission >> void p2)
 													   [immutable ImmutablePermission >> void] {
 		match (p2) {
-			case DynPermission { makeSome(DYNP) }  //immutable/dyn => dyn
 			case ImmutablePermission { makeSome(this) } //immutable/immutable => immutable
-			case PurePermission { makeSome(this) } // immutable/pure => immutable
+			case LocalPermission { //immutable/local immutable => immutable
+				ifElse (p2.thePerm == IMMUTABLE) 
+					{ makeSome(IMMUTABLE) }
+					{ new None }
+			}
 			case NonePermission { makeSome(this) } // immutable/none => immutable
 			default { new None }
+			
+			//unused cases
+			//case DynPermission { makeSome(DYNP) }  //immutable/dyn => dyn
+			//case PurePermission { makeSome(this) } // immutable/pure => immutable
 		}
 	}
 	
-	method /*unique Option<immutable Permission>*/ 
+	method unique Option<immutable Permission> 
 		joinTo(immutable Permission >> void p2, immutable Permission >> void target)
 			  [immutable ImmutablePermission >> void] 
 	{
@@ -63,78 +73,64 @@ state ImmutablePermission case of AP {
 					default { new None }
 				}
 			}
-			case FullPermission {  //IMM + IMM = Full
-				match (p2) {
-					case ImmutablePermission { makeSome(target) }
-					default { new None }
-				}
-			}
 			case ImmutablePermission {
 				this.join(p2)
 			}
 			default { new None }  //cannot join immutable to other permissions
+			
+			//unused cases
+			//case FullPermission {  //IMM + IMM = Full
+			//	match (p2) {
+			//		case ImmutablePermission { makeSome(target) }
+			//		default { new None }
+			//	}
+			//}
 		}
 	}
 	
 	//Immutable is at the same level on different branches of the lattice than Shared,
 	//in this case the upper bound is FULL
-	method immutable Permission leastUpperBound(immutable Permission p2)[immutable ImmutablePermission] {
+	method immutable Permission leastUpperBound(immutable Permission >> void p2)[immutable ImmutablePermission >> void] {
 		match (p2) {
-			case DynPermission { DYNP }
 			case UniquePermission { UNIQUE }
-			case FullPermission { FULL }
 			case ImmutablePermission { IMMUTABLE }  
-			case SharedPermission { FULL }
-			case PurePermission { IMMUTABLE }
-			case NonePermission { IMMUTABLE }
-			default { 
-				java.lang.System.out.println("not a permission"); 
-				DYNP; 
+			case SharedPermission { UNIQUE }
+			case LocalPermission {
+				ifElse(p2.thePerm == IMMUTABLE)
+					{ IMMUTABLE }
+					{ UNIQUE }
 			}
+			case NonePermission { IMMUTABLE }
+			default { UNIQUE; } //error - not a permission, default to UNIQUE - KBN error handling?
+			
+			//currently unused cases
+			//case DynPermission { DYNP }
+			//case FullPermission { FULL }
+			//case SharedPermission { FULL }
+			//case PurePermission { IMMUTABLE }
 		}
 	}
 	
 	//Immutable is at the same level on different branches of the lattice than Shared,
 	//in this case the lower bound is PURE
-	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable ImmutablePermission] {
+	method immutable Permission greatestLowerBound(immutable Permission >> void p2)[immutable ImmutablePermission >> void] {
 		match (p2) {
-			case DynPermission { IMMUTABLE }
 			case UniquePermission { IMMUTABLE }
-			case FullPermission { IMMUTABLE }
 			case ImmutablePermission { IMMUTABLE }
-			case SharedPermission { PURE }
-			case PurePermission { PURE }
-			case NonePermission { NONEP }
-			default { 
-				java.lang.System.out.println("not a permission"); 
-				NONEP; 
+			case SharedPermission { NONEP }
+			case LocalPermission {
+				ifElse(p2.thePerm == IMMUTABLE)
+					{ LOCALIMMUTABLE }
+					{ NONEP }
 			}
-		}
-	}
-	
-	//weaker
-	//***Deprecated***
-	method /*Permission*/ merge(p2) {
-		match (p2) {
-			case DynPermission { DYNP }
-			case UniquePermission { IMM }
-			case FullPermission { IMM }
-			case ImmutablePermission { IMM }
-			case SharedPermission { SHARED }
-			case PurePermission { PURE }
 			case NonePermission { NONEP }
-		}
-	}
-	
-	//unqiue and full and Dyn are stronger, Shared is neither
-	//***DEPRECATED***
-	method asStrongAs(p2) {
-		match (p2) {
-			case DynPermission { false }
-			case UniquePermission { false }
-			case FullPermission { false }
-			case SharedPermission { false }
-			default { true }
+			default { NONEP; } //error - not a permission, default to NONEP - KBN error handling?
+			
+			//unused cases
+			//case DynPermission { IMMUTABLE }
+			//case FullPermission { IMMUTABLE }
+			//case SharedPermission { PURE }
+			//case PurePermission { PURE }
 		}
 	}
 }
