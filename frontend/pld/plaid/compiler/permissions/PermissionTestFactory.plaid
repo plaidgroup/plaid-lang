@@ -1,0 +1,996 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.permissions;
+
+import plaid.lang.testing.TestFactory;
+import plaid.compiler.permissions.*;
+
+state PermissionTestFactory case of TestFactory {
+	
+	method unique List<unique Test> createTests() {
+		val tests = makeEmptyList();
+		val test = fn(name,body) => { tests.add(mktest(name, body)) };
+		var t = new None;  //dummy variable to get around match scoping bug
+		val borrowed = makeBorrowedPerm(IMM,UNIQUE,3);
+
+		/********** UNIQUE *************/
+		test("Unique is writable", fn(ctx) => {
+			ctx.assertTrue(UNIQUE.isWritable());
+		});
+		
+		test("Unique guarantees state", fn(ctx) => {
+			ctx.assertTrue(UNIQUE.guaranteesState());
+		});
+		
+		test("Unique splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(UNIQUE)) {
+					case Some {
+						match (UNIQUE.splitPerm(UNIQUE).value) {
+							case NonePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(IMMUTABLE)) {
+					case Some {
+						match (UNIQUE.splitPerm(IMMUTABLE).value) {
+							case ImmutablePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(SHARED)) {
+					case Some {
+						match (UNIQUE.splitPerm(SHARED).value) {
+							case SharedPermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(NONEP)) {
+					case Some {
+						match (UNIQUE.splitPerm(NONEP).value) {
+							case UniquePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(LOCALIMMUTABLE)) {
+					case Some {
+						t = UNIQUE.splitPerm(LOCALIMMUTABLE).value;
+						match (t) {
+							case BorrowedPermission { 
+								ifElse( t.thePerm == IMMUTABLE &&
+										t.originalPerm == UNIQUE &&
+										t.splitCount == 1 )
+								{ true }
+								{ false }
+							}
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(LOCALSHARED)) {
+					case Some {
+						t = UNIQUE.splitPerm(LOCALSHARED).value;
+						match (t) {
+							case BorrowedPermission { 
+								ifElse( t.thePerm == SHARED &&
+										t.originalPerm == UNIQUE &&
+										t.splitCount == 1 )
+								{ true }
+								{ false }
+							}
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(borrowed)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+		});
+		
+		test("Unique returns", fn(ctx) => {
+			//joining
+			ctx.assertTrue(match (UNIQUE.returnPerm(UNIQUE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (UNIQUE.returnPerm(IMMUTABLE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (UNIQUE.returnPerm(SHARED)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (UNIQUE.returnPerm(LOCALIMMUTABLE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (UNIQUE.returnPerm(LOCALSHARED)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (UNIQUE.returnPerm(borrowed)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (UNIQUE.returnPerm(NONEP)) {
+				case Some {
+					match (UNIQUE.returnPerm(NONEP).value) {
+						case UniquePermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+		});
+
+		test("Unique isSubPermOf", fn(ctx) => {	
+			ctx.assertTrue(UNIQUE.isSubPermOf(UNIQUE));
+			ctx.assertTrue(UNIQUE.isSubPermOf(IMMUTABLE));
+			ctx.assertTrue(UNIQUE.isSubPermOf(SHARED));
+			ctx.assertTrue(UNIQUE.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertTrue(UNIQUE.isSubPermOf(LOCALSHARED));
+			ctx.assertTrue(UNIQUE.isSubPermOf(NONEP));
+			ctx.assertFalse(UNIQUE.isSubPermOf(borrowed));
+		});
+		
+		test("Unique leastUpperBound", fn (ctx) => {
+			ctx.assertTrue(
+				match(UNIQUE.leastUpperBound(UNIQUE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(UNIQUE.leastUpperBound(IMMUTABLE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(UNIQUE.leastUpperBound(SHARED) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(UNIQUE.leastUpperBound(LOCALSHARED) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(UNIQUE.leastUpperBound(LOCALIMMUTABLE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+		});
+		
+		/********** IMMUTABLE *************/
+		
+		test("Immutable is not writable", fn(ctx) => {
+			ctx.assertFalse(IMM.isWritable());
+		});
+		
+		test("Immutable guarantees state", fn(ctx) => {
+			ctx.assertTrue(IMM.guaranteesState());
+		});
+		
+		test("Immutable splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (IMM.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = IMM.splitPerm(IMMUTABLE);
+			ctx.assertTrue(
+				match (t ) {
+					case Some {
+						match (t.value) {
+							case ImmutablePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (IMM.splitPerm(SHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = IMM.splitPerm(LOCALIMMUTABLE);
+			ctx.assertTrue(
+				match (t) {
+					case Some {
+						match (t.value) {
+							case ImmutablePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (IMM.splitPerm(LOCALSHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (IMM.splitPerm(NONEP)) {
+					case Some {
+						match (IMM.splitPerm(NONEP).value) {
+							case ImmutablePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (IMM.splitPerm(borrowed)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+		});
+		
+		test("Immutable returns", fn(ctx) => {
+			//joining
+			ctx.assertTrue(match (IMM.returnPerm(UNIQUE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (IMM.returnPerm(IMMUTABLE)) {
+				case Some {
+					match (IMM.returnPerm(IMMUTABLE).value) {
+						case ImmutablePermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			ctx.assertTrue(match (IMM.returnPerm(SHARED)) {
+				case Some { false }
+				case None { true }
+			});
+			t = IMM.returnPerm(LOCALIMMUTABLE);
+			ctx.assertTrue(match (t) {
+				case Some {
+					match (t.value) {
+						case ImmutablePermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			ctx.assertTrue(match (IMM.returnPerm(LOCALSHARED)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (IMM.returnPerm(borrowed)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (IMM.returnPerm(NONEP)) {
+				case Some {
+					match (IMM.returnPerm(NONEP).value) {
+						case ImmutablePermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+		});
+
+		test("Immutable isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(IMM.isSubPermOf(UNIQUE));
+			ctx.assertTrue(IMM.isSubPermOf(IMMUTABLE));
+			ctx.assertTrue(IMM.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertFalse(IMM.isSubPermOf(SHARED));
+			ctx.assertFalse(IMM.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(IMM.isSubPermOf(borrowed));
+			ctx.assertTrue(IMM.isSubPermOf(NONEP));
+		});
+		
+		test("Immutable leastUpperBound", fn (ctx) => {
+			ctx.assertTrue(
+				match(IMM.leastUpperBound(UNIQUE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(IMM.leastUpperBound(IMMUTABLE) ) {
+					case ImmutablePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(IMM.leastUpperBound(SHARED) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(IMM.leastUpperBound(LOCALIMMUTABLE) ) {
+					case ImmutablePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(IMM.leastUpperBound(LOCALSHARED) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+		});
+		
+		/********** SHARED *************/
+		
+		test("Shared is writable", fn(ctx) => {
+			ctx.assertTrue(SHARED.isWritable());
+		});
+		
+		test("Shared does not guarantee state", fn(ctx) => {
+			ctx.assertFalse(SHARED.guaranteesState());
+		});
+		
+		test("Shared splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (SHARED.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(SHARED)) {
+					case Some {
+						match (SHARED.splitPerm(SHARED).value) {
+							case SharedPermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(IMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = SHARED.splitPerm(LOCALSHARED);
+			ctx.assertTrue(
+				match (t) {
+					case Some {
+						match (t.value) {
+							case SharedPermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(LOCALIMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(NONEP)) {
+					case Some {
+						match (SHARED.splitPerm(NONEP).value) {
+							case SharedPermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(borrowed)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+		});
+		
+		test("Shared returns", fn(ctx) => {
+			//joining
+			ctx.assertTrue(match (SHARED.returnPerm(UNIQUE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (SHARED.returnPerm(SHARED)) {
+				case Some {
+					match (SHARED.returnPerm(SHARED).value) {
+						case SharedPermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			ctx.assertTrue(match (SHARED.returnPerm(IMMUTABLE)) {
+				case Some { false }
+				case None { true }
+			});
+			t = SHARED.returnPerm(LOCALSHARED);
+			ctx.assertTrue(
+				match (t) {
+					case Some {
+						match (t.value) {
+							case SharedPermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.returnPerm(LOCALIMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.returnPerm(borrowed)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(match (SHARED.returnPerm(NONEP)) {
+				case Some {
+					match (SHARED.returnPerm(NONEP).value) {
+						case SharedPermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+		});
+		
+		test("Shared isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(SHARED.isSubPermOf(UNIQUE));
+			ctx.assertFalse(SHARED.isSubPermOf(IMMUTABLE));
+			ctx.assertFalse(SHARED.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertTrue(SHARED.isSubPermOf(SHARED));
+			ctx.assertTrue(SHARED.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(SHARED.isSubPermOf(borrowed));
+			ctx.assertTrue(SHARED.isSubPermOf(NONEP));
+		});
+		
+		test("Shared leastUpperBound", fn (ctx) => {
+			ctx.assertTrue(
+				match(SHARED.leastUpperBound(UNIQUE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(SHARED.leastUpperBound(IMMUTABLE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(SHARED.leastUpperBound(SHARED) ) {
+					case SharedPermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(SHARED.leastUpperBound(LOCALIMMUTABLE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(SHARED.leastUpperBound(LOCALSHARED) ) {
+					case SharedPermission { true }
+					default { false }
+				}
+			);
+		});
+		
+		/********** NONE *************/
+		
+		test("None is not writable", fn(ctx) => {
+			ctx.assertFalse(NONEP.isWritable());
+		});
+		
+		test("None does not guarantee state", fn(ctx) => {
+			ctx.assertFalse(NONEP.guaranteesState());
+		});
+		
+		test("None splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (NONEP.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(SHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(IMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(LOCALSHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(LOCALIMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(NONEP)) {
+					case Some {
+						match (NONEP.splitPerm(NONEP).value) {
+							case NonePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+		});
+		
+		test("None returns", fn(ctx) => {
+			//joining
+			ctx.assertTrue(match (NONEP.returnPerm(UNIQUE)) {
+				case Some {
+					match (NONEP.returnPerm(UNIQUE).value) {
+						case UniquePermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			ctx.assertTrue(match (NONEP.returnPerm(SHARED)) {
+				case Some {
+					match (NONEP.returnPerm(SHARED).value) {
+						case SharedPermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			ctx.assertTrue(match (NONEP.returnPerm(IMMUTABLE)) {
+				case Some {
+					match (NONEP.returnPerm(IMMUTABLE).value) {
+						case ImmutablePermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			t = NONEP.returnPerm(LOCALSHARED);
+			ctx.assertTrue(match (t) {
+				case Some {
+					match (t.value) {
+						case LocalPermission { 
+							ifElse ( t.value.thePerm == SHARED )
+							{ true }
+							{ false }
+						}
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			t = NONEP.returnPerm(LOCALIMMUTABLE);
+			ctx.assertTrue(match (t) {
+				case Some {
+					match (t.value) {
+						case LocalPermission { 
+							ifElse ( t.value.thePerm == IMMUTABLE )
+							{ true }
+							{ false }
+						}
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			ctx.assertTrue(match (NONEP.returnPerm(NONEP)) {
+				case Some {
+					match (NONEP.returnPerm(NONEP).value) {
+						case NonePermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			ctx.assertTrue(match (NONEP.returnPerm(borrowed)) {
+				case Some { false }
+				case None { true }
+			});
+		});
+
+		test("None isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(NONEP.isSubPermOf(UNIQUE));
+			ctx.assertFalse(NONEP.isSubPermOf(IMMUTABLE));
+			ctx.assertFalse(NONEP.isSubPermOf(SHARED));
+			ctx.assertFalse(NONEP.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertFalse(NONEP.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(NONEP.isSubPermOf(borrowed));
+			ctx.assertTrue(NONEP.isSubPermOf(NONEP));
+			
+		});
+		
+		
+		/********** LOCAL *************/
+		
+		test("Local is writable if underlying permission is", fn(ctx) => {
+			ctx.assertFalse(LOCALIMMUTABLE.isWritable());
+			ctx.assertTrue(LOCALSHARED.isWritable());
+		});
+		
+		test("Local guarantees state if underlying permission does", fn(ctx) => {
+			ctx.assertTrue(LOCALIMMUTABLE.guaranteesState());
+			ctx.assertFalse(LOCALSHARED.guaranteesState());
+		});
+		
+		test("Local splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (LOCALIMMUTABLE.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (LOCALIMMUTABLE.splitPerm(SHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (LOCALIMMUTABLE.splitPerm(IMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (LOCALIMMUTABLE.splitPerm(LOCALSHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = LOCALIMMUTABLE.splitPerm(LOCALIMMUTABLE);
+			ctx.assertTrue(
+				match (t) {
+					case Some { 
+						match (t.value) {
+							case BorrowedPermission {
+								t.value.thePerm == IMMUTABLE &&
+								t.value.originalPerm == LOCALIMMUTABLE &&
+								t.value.splitCount == 1
+							}
+							default { false }
+						}
+ 					}
+					case None { false }
+				}
+			);
+			t = LOCALIMMUTABLE.splitPerm(NONEP);
+			ctx.assertTrue(
+				match (t) {
+					case Some {
+						match (t.value) {
+							case LocalPermission { t.value.thePerm == IMMUTABLE }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+		});
+		
+		test("Local returns", fn(ctx) => {
+			//joining
+			ctx.assertTrue(match (LOCALIMMUTABLE.returnPerm(UNIQUE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (LOCALIMMUTABLE.returnPerm(IMMUTABLE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (LOCALIMMUTABLE.returnPerm(SHARED)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (LOCALIMMUTABLE.returnPerm(LOCALIMMUTABLE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (LOCALIMMUTABLE.returnPerm(LOCALSHARED)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (LOCALIMMUTABLE.returnPerm(borrowed)) {
+				case Some { false }
+				case None { true }
+			});
+			t = LOCALIMMUTABLE.returnPerm(NONEP);
+			ctx.assertTrue(match (t) {
+				case Some {
+					match (t.value) {
+						case LocalPermission { t.value.thePerm == IMMUTABLE }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+		});
+
+		test("None isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(UNIQUE));
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(IMMUTABLE));
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(SHARED));
+			ctx.assertTrue(LOCALIMMUTABLE.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(borrowed));
+			ctx.assertTrue(LOCALIMMUTABLE.isSubPermOf(NONEP));
+			
+		});
+		
+				test("Shared isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(SHARED.isSubPermOf(UNIQUE));
+			ctx.assertFalse(SHARED.isSubPermOf(IMMUTABLE));
+			ctx.assertFalse(SHARED.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertTrue(SHARED.isSubPermOf(SHARED));
+			ctx.assertTrue(SHARED.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(SHARED.isSubPermOf(borrowed));
+			ctx.assertTrue(SHARED.isSubPermOf(NONEP));
+		});
+		
+		test("Local leastUpperBound", fn (ctx) => {
+			ctx.assertTrue(
+				match(LOCALSHARED.leastUpperBound(UNIQUE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(LOCALSHARED.leastUpperBound(IMMUTABLE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(LOCALSHARED.leastUpperBound(SHARED) ) {
+					case SharedPermission { true }
+					default { false }
+				}
+			);
+			ctx.assertTrue(
+				match(LOCALSHARED.leastUpperBound(LOCALIMMUTABLE) ) {
+					case UniquePermission { true }
+					default { false }
+				}
+			);
+			t = LOCALSHARED.leastUpperBound(LOCALSHARED);
+			ctx.assertTrue(
+				match(t) {
+					case LocalPermission { t.thePerm == SHARED }
+					default { false }
+				}
+			);
+		});
+	
+			/********** Borrowed *************/
+		
+		val borrowedS1 = makeBorrowedPerm(SHARED,UNIQUE,1);
+		val borrowedI3 = borrowed;
+		
+		test("Borrowed is writable if underlying permission is", fn(ctx) => {
+			ctx.assertFalse(borrowedI3.isWritable());
+			ctx.assertTrue(borrowedS1.isWritable());
+		});
+		
+		test("Borrowed guarantees state if underlying permission does", fn(ctx) => {
+			ctx.assertTrue(borrowedI3.guaranteesState());
+			ctx.assertFalse(borrowedS1.guaranteesState());
+		});
+		test("Borrowed splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (borrowedS1.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (borrowedS1.splitPerm(SHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (borrowedS1.splitPerm(IMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = borrowedS1.splitPerm(LOCALSHARED);
+			ctx.assertTrue(
+				match (t) {
+					case Some { 
+						match (t.value) {
+							case BorrowedPermission { 
+								t.value.thePerm == SHARED &&
+								t.value.originalPerm == UNIQUE &&
+								t.value.splitCount == 2
+							}
+							default { false }
+						}
+					}
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (borrowedS1.splitPerm(LOCALIMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = borrowedS1.splitPerm(NONEP);
+			ctx.assertTrue(
+				match (t) {
+					case Some {
+						match (t.value) {
+							case BorrowedPermission { 
+								t.value.thePerm == SHARED &&
+								t.value.originalPerm == UNIQUE &&
+								t.value.splitCount == 1
+							}
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+		});
+		
+		test("Borrowed returns", fn(ctx) => {
+			//joining
+			ctx.assertTrue(match (borrowedS1.returnPerm(UNIQUE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (borrowedS1.returnPerm(IMMUTABLE)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (borrowedS1.returnPerm(SHARED)) {
+				case Some { false }
+				case None { true }
+			});
+			ctx.assertTrue(match (borrowedS1.returnPerm(LOCALIMMUTABLE)) {
+				case Some { false }
+				case None { true }
+			});
+			t = borrowedI3.returnPerm(LOCALIMMUTABLE);
+			ctx.assertTrue(match (t) {
+				case Some {
+					match (t.value) {
+						case BorrowedPermission { 
+								t.value.thePerm == IMMUTABLE &&
+								t.value.originalPerm == UNIQUE &&
+								t.value.splitCount == 2
+							}
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			t = borrowedS1.returnPerm(LOCALSHARED);
+			ctx.assertTrue(match (t) {
+				case Some {
+					match (t.value) {
+						case UniquePermission { true }
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+			ctx.assertTrue(match (borrowedS1.returnPerm(borrowed)) {
+				case Some { false }
+				case None { true }
+			});
+			t = borrowedS1.returnPerm(NONEP);
+			ctx.assertTrue(match (t) {
+				case Some {
+					match (t.value) {
+						case BorrowedPermission { 
+								t.value.thePerm == SHARED &&
+								t.value.originalPerm == UNIQUE &&
+								t.value.splitCount == 1
+							}
+						default { false }
+					} 
+				}
+				case None { false }
+			});
+		});
+
+		test("None isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(borrowedS1.isSubPermOf(UNIQUE));
+			ctx.assertFalse(borrowedS1.isSubPermOf(IMMUTABLE));
+			ctx.assertFalse(borrowedS1.isSubPermOf(SHARED));
+			ctx.assertFalse(borrowedS1.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertTrue(borrowedS1.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(borrowedS1.isSubPermOf(borrowed));
+			ctx.assertTrue(borrowedS1.isSubPermOf(NONEP));
+			
+		});
+		
+		tests
+	}
+	
+	
+}
