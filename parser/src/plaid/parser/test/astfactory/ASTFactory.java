@@ -41,7 +41,7 @@ import plaid.parser.ast.Import;
 import plaid.parser.ast.InfixOperatorExpr;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Lambda;
-import plaid.parser.ast.LambdaType;
+import plaid.parser.ast.LambdaTypeDecl;
 import plaid.parser.ast.Match;
 import plaid.parser.ast.StaticArg;
 import plaid.parser.ast.StaticType;
@@ -70,7 +70,7 @@ import plaid.parser.ast.StateRef;
 import plaid.parser.ast.StateValDecl;
 import plaid.parser.ast.Stmt;
 import plaid.parser.ast.StringLiteral;
-import plaid.parser.ast.Type;
+import plaid.parser.ast.TypeDecl;
 import plaid.parser.ast.TypeArg;
 import plaid.parser.ast.UnaryOperatorExpr;
 import plaid.parser.ast.UniquePermission;
@@ -81,15 +81,15 @@ import plaid.parser.ast.VarSpecifier;
 import plaid.parser.ast.With;
 
 public class ASTFactory {
-	public static FieldDecl AbstractFieldDecl(Specifier specifier, Type type, Identifier name) {
+	public static FieldDecl AbstractFieldDecl(Specifier specifier, TypeDecl type, Identifier name) {
 		return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, specifier, type, name);
 	}
 	
-	public static MethodDecl AbstractMethodDecl(List<Modifier> modifiers, Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env) {
+	public static MethodDecl AbstractMethodDecl(List<Modifier> modifiers, TypeDecl type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env) {
 		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, modifiers, type, name, metaArgs, args, env);
 	}
 
-	public static MethodDecl AbstractMethodDecl(Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env) {
+	public static MethodDecl AbstractMethodDecl(TypeDecl type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env) {
 		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env);
 	}
 	
@@ -113,11 +113,11 @@ public class ASTFactory {
 		return new Arg(ASTNode.DEFAULT_TOKEN, argSpec, id);
 	}
 
-	public static ArgSpec ArgSpec(Type preType) {
-		return new ArgSpec(null, preType, Type.EMPTY);
+	public static ArgSpec ArgSpec(TypeDecl preType) {
+		return new ArgSpec(null, preType, TypeDecl.EMPTY);
 	}
 	
-	public static ArgSpec ArgSpec(Type preType, Type postType) {
+	public static ArgSpec ArgSpec(TypeDecl preType, TypeDecl postType) {
 		return new ArgSpec(null, preType, postType);
 	}
 	
@@ -137,7 +137,7 @@ public class ASTFactory {
 		return new BlockExpr(ASTNode.DEFAULT_TOKEN, Arrays.asList(args));
 	}
 	
-	public static Cast Cast(Expr e, Type type) {
+	public static Cast Cast(Expr e, TypeDecl type) {
 		return new Cast(ASTNode.DEFAULT_TOKEN, e, type);
 	}
 
@@ -145,11 +145,11 @@ public class ASTFactory {
 		return new CompilationUnit(packageName, imports, decls);
 	}
 	
-	public static FieldDecl ConcreteFieldDecl(Specifier specifier, Type type, Identifier name, Expr body) {
+	public static FieldDecl ConcreteFieldDecl(Specifier specifier, TypeDecl type, Identifier name, Expr body) {
 		return new ConcreteFieldDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, specifier, type, name, body);
 	}
 	
-	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env, BlockExpr body) {
+	public static MethodDecl ConcreteMethodDecl(TypeDecl type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env, BlockExpr body) {
 		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env, body);
 	}
 	
@@ -217,12 +217,12 @@ public class ASTFactory {
 		return new Lambda(ASTNode.DEFAULT_TOKEN, metaArgsSpec, args, env, body);
 	}
 	
-	public static LambdaType LambdaType(List<ArgSpec>argsSpec, Type returnType) {
-		return new LambdaType(null,new ArrayList<StaticType>(),argsSpec,
+	public static LambdaTypeDecl LambdaType(List<ArgSpec>argsSpec, TypeDecl returnType) {
+		return new LambdaTypeDecl(null,new ArrayList<StaticType>(),argsSpec,
 				new ArrayList<Arg>(), returnType);
 	}
 
-	public static LambdaType LambdaType(Type returnType) {
+	public static LambdaTypeDecl LambdaType(TypeDecl returnType) {
 		return LambdaType(new ArrayList<ArgSpec>(), returnType);
 	}
 	
@@ -345,7 +345,7 @@ public class ASTFactory {
 		return new VarSpecifier(ASTNode.DEFAULT_TOKEN);
 	}
 
-	public static VarDecl VarDecl(Specifier specifier, Type type, Identifier field, Expr value) {
+	public static VarDecl VarDecl(Specifier specifier, TypeDecl type, Identifier field, Expr value) {
 		return new VarDecl(ASTNode.DEFAULT_TOKEN, specifier, type, field, value);
 	}
 

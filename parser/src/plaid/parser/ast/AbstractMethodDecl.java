@@ -8,7 +8,7 @@ public final class AbstractMethodDecl extends MethodDecl {
 
 	public AbstractMethodDecl(Token t,
 							  List<Modifier> modifiers,
-							  Type returnType,
+							  TypeDecl returnType,
 							  Identifier name,
 							  List<StaticArg> StaticArgsSpec,
 							  List<Arg> arguments,
@@ -22,7 +22,7 @@ public final class AbstractMethodDecl extends MethodDecl {
 		
 		if ( getModifiers().size() > 0 ) sb.append(modifiersToString(getModifiers())+" ");
 		sb.append("method ");
-		if ( getReturnType() != Type.EMPTY ) sb.append(getReturnType().toString()+ " ");
+		if ( getReturnType() != TypeDecl.EMPTY ) sb.append(getReturnType().toString()+ " ");
 		sb.append(getName());
 		if ( getStaticArgsSpec().size() > 0) sb.append(StaticArgSpecsToString(getStaticArgsSpec()));
 		sb.append("(");
