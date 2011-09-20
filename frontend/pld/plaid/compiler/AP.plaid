@@ -1,8 +1,49 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package plaid.compiler;
 
+import plaid.compiler.permissions.SourcePermission;
+
 /**
- *	Top level state representing all Permissions. possibilities are
- *  DynP, Unique, Full, Immutable, Shared, Pure, None
+ *	Top level state representing all Permissions.
+ *	We have two main classes of Permission:
+ *		Source Permissions - these are permissions that can appear
+ *			in a source program attached to a reference.  They include
+ *			Base Permissions and Local Permissions
+ *		System Permissions - these are permissions that are needed for
+ *			for tracking during typechecking but are not normally
+ *			expressible in the source.  These included Borrowed Permissions
+ *			and the none permission (only expressible as a end state and then
+ *			only with no state information).
+ *
+ *  We give the full Permission hierarchy here and explain the details in
+ *  the various source files
+ *
+ *  AP ::= SourcePermission | SystemPermission
+ *  SourcePermission ::= BasePermission | local(SymmetricPermission)
+ *  BasePermission ::= SingularPermission | SymmetricPermission
+ *  SingularPermission ::= unique ( | full )
+ *  SymmetricPermission ::= immutable | shared ( | pure )
+ *  SystemPermission ::= borrow(SymmetricPermission,Integer,SourcePermission)
+ *  			       | none 
+ *
  */
 state AP {
 	/**
@@ -10,7 +51,7 @@ state AP {
 	 * allows a stage change, then the permission is writable and this function 
 	 * returns true.  Returns false otherwise.
 	 */
-	method immutable Boolean isWritable()[immutable Permission >> void];
+	method immutable Boolean isWritable()[immutable AP >> void];
 	
 	/**
 	 * Determines whether a specific permission guarantees that the state of
@@ -18,78 +59,52 @@ state AP {
 	 * return false, and strong permissions (unique, full, immutable) return
 	 * true
 	 */
-	method immutable Boolean guaranteesState()[immutable Permission >> void];
+	method immutable Boolean guaranteesState()[immutable AP >> void];
 	
 	/**
 	 * Compares this permission to the specified permission.  If they are of the
 	 * same type, then they are considered equal.  Returns true if the two
 	 * permissions are equal and false otherwise.
 	 */
-	method immutable Boolean ==(immutable Permission p2)[immutable Permission >> void];
+	method immutable Boolean ==(immutable AP p2)[immutable AP >> void];
 	
 	/** 
-	 * Print
+	 * for Printing
 	 */
-	method immutable String toString()[immutable Permission];
+	method immutable String toString()[immutable AP];
 	
 	/**
 	 * determines whether the current permission can be split into
-	 * the specified permission.  If it can, the function returns Some(newPerm)
-	 * where newPerm is the residue after splitting.  If it cannot, it returns None
+	 * the requested source permission.  
+	 * If it can, the function returns Some(newPerm),
+	 *    where newPerm is the residue after splitting.  
+	 * If it cannot, it returns None
 	 */
-	method unique Option<immutable Permission> splitPerm(immutable Permission >> void p2)
-															[immutable Permission >> void];
+	method unique Option<immutable AP> splitPerm(immutable AP >> void p2)
+												[immutable AP >> void];
 	
 	/**
-	 *  While there is always a least upper bound, it may not always be possible to combine two
-	 *  permissions into that upper bound.  The join method attempts to join two permissions
-	 *  together.  If they cannot be joined because they cannot coexist, then None is returned.
+	 * determines the result of returning a permission to the
+	 * receiving AP.  
+	 * If this is a well formed return, then Some with the resulting
+	 * 	  AP is returned.  
+	 * Otherwise, None is returned. 
 	 */
-	method unique Option<immutable Permission> join(immutable Permission >> void p2)
-													   [immutable Permission >> void];
-	
-	/**
-	 * When permissions are strongly borrowed, it is possible to rejoin them
-	 * and get back a stronger type.  If the target can be regained from this
-	 * permission and p2 given that they were strongly borrowed (no persistent
-	 * aliases were created), then Some is returned wapping the target permission.
-	 * Otherwise, None is returned.
-	 */
-	method unique Option<immutable Permission> 
-		joinTo(immutable Permission >> void p2, immutable Permission >> void target)
-			  [immutable Permission >> void];
+	method unique Option<immutable AP> returnPerm(immutable AP >> void p2)
+												 [immutable AP >> void];
 
 	/**
-	 * returns true if this permission is as subpermission of p2
+	 * returns true if this permission is a subpermission of the permission p2
+	 *   in other words, the receiver is "stronger" than p2
+	 *   or, anything that can be pulled from p2 can be pulled from this permission
+	 *   or, p2 can be pulled from this permission
 	 * returns false otherwise
-	 * for permissions, subPerms can be said to be "stronger" than their superPerms 
-	 * the function is implemented in terms of splitting.  If p2 can be split off
-	 * from this permission, then p2 is a super Permission of this permission
-	 * order: dyn, unique, full, immutable <> shared, pure, none
-	 * immutable and shared neither stronger than the other
 	 */
-	method immutable Boolean isSubPermOf(immutable Permission >> void p2)[immutable Permission >> void] {
+	method immutable Boolean isSubPermOf(immutable AP >> void p2)
+										[immutable AP >> void] {
 		match(this.splitPerm(p2)) {
 			case Some { true }
 			case None { false }
 		}
 	}
-	
-	/**
-	 *  If we think of permissions as a lattice, then we can define a least
-	 *  upper bound between two permissions.  This corresponds to the idea
-	 *  of the strongest permission, except that when two permissions
-	 *  cannot be compared (for example immutable and shared), then we
-	 *  give the upper bound on them (in that case, full)
-	 */
-	method immutable Permission leastUpperBound(immutable Permission p2)[immutable Permission];
-	
-	/**
-	 *  If we think of permissions as a lattice, then we candefine a greatest
-	 *  lower bound between two permissions.  This corresponds to the idea
-	 *  of the weakest permission, except when two permissions cannot be
-	 *  compared (for example immutable and shared), then we give the lower
-	 *  bound for them (in that case, pure)
-	 */
-	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable Permission];
 }

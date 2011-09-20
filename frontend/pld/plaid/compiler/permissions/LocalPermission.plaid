@@ -14,20 +14,111 @@ import plaid.compiler.AP;
  * 	to allow the original permission to be regained
  *	when all splits have been rejoined.
  */
-state LocalPermission case of AP {
+state LocalPermission case of SourcePermission {
 	val immutable SymmetricPerm thePerm;
 	
-	method toString() {
-		"Local(" + this.thePerm.toString() + ")"
+	//delegate to underlying permission
+	method immutable Boolean isWritable()[immutable LocalPermission >> void] {
+		this.thePerm.isWritable();
+	}	
+
+	//delegate to underlying permission
+	method immutable Boolean guaranteesState()[immutable LocalPermission >> void] {
+		this.thePerm.guaranteesState();
 	}
 	
-	method ==(other) {
+	method immutable Boolean ==(immutable AP >> void other)
+							   [immutable LocalPermission >> void] 
+	{
 		match (other) {
-			case SplitLocalPerm { false }
 			case LocalPermission {
 				this.thePerm == other.thePerm
 			}
 			default { false }
 		}
 	}
+	
+	method immutable String toString()[immutable LocalPermission >> void] {
+		"Local(" + this.thePerm.toString() + ")"
+	}
+	
+	/**
+	 *  We can only split local permissions from a local permission
+	 *  and only if the underlying permissions match
+	 *  If they do, then we transform the source into a borrow to
+	 *  record that it is waiting for a local to be returned
+	 */
+	method unique Option<immutable AP> splitPerm(immutable AP >> void p2)
+												[immutable SourcePermission >> void] 
+	{
+		match (p2) {
+			case LocalPermission {
+				ifElse ( p2.thePerm == this.thePerm ) 
+					{ makeSome(makeBorrowedPerm(this.thePerm, this, 1)) }
+					{ new None }
+			}
+			case NonePermission { makeSome(this) }
+			default { new None }
+		}														
+	}
+	
+	/**
+	 * nothing can be returned to a local permission, if something is
+	 * then there was an error (Except none)
+	 */
+	method unique Option<immutable AP> returnPerm(immutable AP >> void p2)
+												 [immutable LocalPermission >> void]
+	{
+		match (p2) {
+			case NonePermission { makeSome(this) }
+			default { new None }
+		}
+	}
+	
+	/**
+	 * if this and p2 are on the same (imm or shared) branch, stay on that branch
+	 * otherwise, push up to unique
+	 */
+	method immutable SourcePermission leastUpperBound(immutable SourcePermission >> void p2)
+											   		 [immutable SourcePermission >> void]
+	{
+		match (p2) {
+			case UniquePermission { UNIQUE }
+			case LocalPermission {
+				ifElse (this.thePerm == p2.thePerm)
+					{ this }
+					{ UNIQUE }
+			}
+			case SymmetricPerm {
+				ifElse (this.thePerm == p2) 
+					{ p2 }
+					{ UNIQUE }
+			}
+			case NonePermission { this }
+			default { UNIQUE } //error
+		}									   
+	}
+	
+	/* NOT CURRENTLY USED	
+	method immutable Permission greatestLowerBound(immutable Permission p2)
+												  [immutable Permission]
+	{
+		match (p2) {
+			case UniquePermission { this }
+			case LocalPermission {
+				ifElse (this.thePerm == p2.thePerm)
+					{ this }
+					{ NONEP }
+			}
+			case SymmetricPermission {
+				ifElse (this.thePerm == p2) 
+					{ this }
+					{ NONEP }
+			}
+			case NonePermission { NONEP }
+			default { NONEP } //error
+		}
+	} */
+	
+
 }
