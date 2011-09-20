@@ -1,10 +1,41 @@
 package plaid.compiler.symbol;
 
-import plaid.compiler.Symbol;
-import plaid.ast.parsed.ASTNode;
+import plaid.compiler.*;
+import plaid.ast.parsed.*;
+import plaid.compiler.util.makeTypeFromAST;
 
 state FieldSymbol case of Symbol {
-  immutable ASTNode declaration;
-  val immutable Symbol owner;
-  
+    val immutable ASTNode declaration;
+    val immutable Symbol owner;
+
+    method immutable FieldType getType() {
+        val fieldTypeOpt = typeForAST(this.declaration);
+        match (fieldTypeOpt) {
+            case Some {
+                fieldTypeOpt.value;
+            }
+            case None {
+                DEBUG(DEBUG_PRIO_LOW, "<FieldSymbol> compute type for field");
+                val fieldType = makeTypeFromAST(this.declaration.fieldType);
+                var isVar     = false;        
+
+                match (this.declaration.specifier) {
+                    case VarSpecifier {
+                        isVar = true;
+                    }
+                    default {
+                        isVar = false;
+                    }
+                };
+
+                val newType = new FieldPlaidType {
+                    val isVar    = isVar;
+                    val fileType = fieldType;
+                    val name     = this.declaration.name.name;
+                };
+                addTypeForAST(this.declaration, newType);
+                newType
+            }
+        }
+    }
 }

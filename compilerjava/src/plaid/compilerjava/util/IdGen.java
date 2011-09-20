@@ -19,22 +19,24 @@
  
 package plaid.compilerjava.util;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import plaid.compilerjava.AST.ID;
 import plaid.runtime.PlaidConstants;
 
 public class IdGen {
-	private static int counter = 0;
+	private static AtomicInteger counter = new AtomicInteger();
 	private final static String prefix = "vAr";
 	
 	//called at the beginning of code generation to reset the counter
 	public static void init() {
-		counter = 0;
+		counter.set(0);
 	}
 
 	//Generate a new fresh ID for the compiler
 	public static ID getId() {
-		String idName = prefix + counter + PlaidConstants.ID_SUFFIX;
-		counter++;
+		final int value = counter.incrementAndGet();
+		final String idName = prefix + value + PlaidConstants.ID_SUFFIX;
 		return new ID(idName);
 	}
 }
