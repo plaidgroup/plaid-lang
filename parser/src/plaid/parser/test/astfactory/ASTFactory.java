@@ -349,7 +349,7 @@ public class ASTFactory {
 		return new VarDecl(ASTNode.DEFAULT_TOKEN, specifier, type, field, value);
 	}
 
-	public static With With(StatePrim p1, StatePrim p2) {
+	public static With With(StateExpr p1, StateExpr p2) {
 		return new With(ASTNode.DEFAULT_TOKEN, p1, p2);
 	}
 }

@@ -7,8 +7,13 @@ import plaid.compiler.DEBUG;
 import plaid.compiler.DEBUG_PRIO_MEDIUM;
 import plaid.compiler.Pass;
 
+import plaid.compiler.symbolForAST;
+import plaid.compiler.haveSymbolForAST;
+import plaid.compiler.addSymbolForAST;
 
 import plaid.compiler.symbol.*;
+import plaid.compiler.*;
+import plaid.compiler.types.*;
 
 
 state TypeResolutionPass case of Pass = LeafVisitor with  {
@@ -16,16 +21,15 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
     var immutable Source sourceFile;
     var shared Resolver resolver;
     var shared Reporter reporter;
-    var shared Map map;
     var hasErrors = false;
 
-    method immutable Boolean run(unique Job job, unique Reporter reporter) {
+    method immutable Boolean run(unique Job job) {
         match (job.ast) {
             case Some {
                 DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> started");
-                this.sourceFile = job.source.getPath();
-                this.reporter = reporter;
-                this.map = job.symbolMap;
+                this.sourceFile = job.source.path;
+                this.reporter   = job.reporter;
+                this.resolver   = job.resolver;
 
                 job.ast.value.accept(this);
 
@@ -40,169 +44,63 @@ state TypeResolutionPass case of Pass = LeafVisitor with  {
     }
 
 
-    method immutable Option findMemberInStateSymbol(shared StateSymbol stateSymbol, immutable String name) {
-        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        find in state symbol");
-        val memberSymbol = stateSymbol.getMember(name);                    
-        match (memberSymbol) {
-            case None {
-                match (stateSymbol.declaration.caseOf) {
-                    case EmptyQualifiedIdentifier {
-                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        no more parent to search in.");
-                        NONE
+
+    method immutable PlaidType resolveType(immutable ASTNode node) {
+        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> resolve type for ASTNode '" + node.nodeName() +"'");
+        val nodeType = typeForAST(node);
+        match (nodeType) {
+            case Some { nodeType.value } 
+            case None {                
+                match (node) {
+                    case Dereference {
+                        val leftType = resolveType(node.left);
+                        match (leftType) {
+                            case NominalPlaidType {
+                                DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>   Found state ");
+                                val memberType = leftType.getMemberType(node.right.name);
+                                addTypeForAST(node.right, memberType);
+                                addTypeForAST(node, memberType);
+                                memberType
+                            }
+                            case FieldPlaidType {
+                                ERROR("<TypeResolutionPass> cannot handle field types yet ");                                
+                            }
+                            default {
+                                ERROR("<TypeResolutionPass> Cannot deference non state Object.");
+                            }
+                        }
+                    }
+                    case Identifier {
+                        val symbol = symbolForAST(node);
+                        match (symbol) {
+                            case Some {
+                                val idType = symbol.value.getType();
+                                addTypeForAST(node, idType);
+                                idType
+                            }
+                            case None {
+                                ABORT("Cannot find symbol for: '" + node.name +"'");
+                            }
+                        }
                     }
                     default {
-                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>        search parent for symbol");
-                        ifElse ( this.map.containsKey(stateSymbol.declaration.caseOf) ) {
-                            val parentStateSymbol = this.map.get(stateSymbol.declaration.caseOf);
-                            findMemberInStateSymbol(parentStateSymbol, name);
-                        }{
-                            ERROR("<TypeResolutionPass>        Cannot find parent symbol.");
-                            NONE
-                        };
-                    }
-                };
-            }
-            case Some {
-                memberSymbol
-            }
-        }
-     }
-
-
-    
-    method immutable Option findInType(immutable Type typeNode,
-                                       immutable Identifier id) {
-         match (typeNode) {
-             case EmptyType {
-                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with dynamic type");
-                 var dynSymbol = this.sf.makeDynamicSymbol();
-                 this.map.put(typeNode, dynSymbol);
-                 this.map.put(id, dynSymbol);
-                 makeSome(dynSymbol);
-             }
-             case NominalObjectType {
-                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     with object type");
-                 val memberSymbolOpt = findMemberSymbol(typeNode, id.name);
-                 match (memberSymbolOpt) {
-                     case Some {
-                         DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       found member");
-                         this.map.put(dref, memberSymbolOpt.value);
-                         memberSymbolOpt
-                     }
-                     case None {
-                         var fqnState = makeStringFromQualifiedIdentifier(typeNode.stateQi);
-                         ERROR("<TypeResolutionPass>     State '" + fqnState + "' has no member '" + id.name +"'");
-                         if ( this.map.containsKey(typeNode.stateQi) ) {
-                             val stateSymbol = this.map.get(typeNode.stateQi);
-                             match (stateSymbol) {
-                                 case StateSymbol {
-                                     fqnState = makeStringFromQualifiedIdentifier(stateSymbol.getQualifiedIdentifier());
-                                 }
-                                 default {}
-                             };
-                         };
-                         this.reporter.errorToken(java.io.File.new(this.sourceFile), id.token, "State '" + fqnState + "' has no member  '" + id.name + "'");
-                         NONE
-                     }
-                 }
-             }
-             default { NONE }
-         }; 
-    }
-
-
-    
-    method immutable Option findMemberSymbol(shared NominalObjectType objType, immutable String name) {
-        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       find member '" + name +"'");
-        ifElse ( this.map.containsKey(objType.stateQi) ) {
-            val typeSymbol = this.map.get(objType.stateQi);
-            match (typeSymbol) {
-                case StateSymbol {
-                    findMemberInStateSymbol(typeSymbol, name);
+                        ABORT("Cannot resolve type for AST.");
+                    }   
                 }
-                default { NONE }
             }
-        }{            
-            DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       could not find symbol for type <FIXME>.");
-            NONE
         }
     }
 
-    
-    method immutable Option resolveDereference(immutable Deference dref,
-                                               shared Symbol leftSymbol) {
-        // check if we already                                        
-        ifElse ( this.map.containsKey(dref) ) {
-            this.map.get(dref)
-        }{
-            match (leftSymbol) {
-                case PackageSymbol {
-                    // if we have a package on the left side and haven't        
-                    // resolved the right hand side in the NameExpanderPass
-                    // this should be an error, but let's try gain anyway
-                    val fqn = makeStringFromQualifiedIdentifier(leftSymbol.getQualifiedIdentifier()) + "." + dref.right.name;
-                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   try to resolve '" + fqn +"'");
-                    this.resolver.lookup(fqn);
-                }
-                case VariableSymbol {
-                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found variable");
-                    findInType(leftSymbol.declaration.varType, dref.right)
-                }
-                case DynamicSymbol {
-                    var dynSymbol = this.sf.makeDynamicSymbol();
-                    this.map.put(leftSymbol.declaration.varType, dynSymbol);
-                    this.map.put(dref.right, dynSymbol);
-                    makeSome(dynSymbol);                    
-                }
-                case StateSymbol {
-                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found state symbol");
-                    NONE
-                }
-                case FieldSymbol {
-                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found field symbol");
-                    findInType(leftSymbol.declaration.fieldType, dref.right);
-                }
-                case MethodSymbol {
-                    DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   found method symbol");
-                    NONE
-                }
-                default {
-                    ERROR("<TypeResolutionPass> Found not supported symbol.");
-                    NONE
-                }
-            }
-        }                                               
+    override method void visitApplication(immutable Application  node) {
+        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> found application.");
+        resolveType(node);
     }
-    
-    method immutable Option resolveNode(immutable Node node)  {
-        val leftSymbol = NONE;
-        match (node) {
-            case Identifier {
-                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   resolve Identifier");
-                ifElse ( this.map.containsKey(node) ) {
-                    makeSome(this.map.get(node));
-                }{
-                    NONE
-                };
-            }
-            case Dereference {
-                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   resolve Dereference");
-                val leftSymbolOpt = resolveNode(node.left);
-                match (leftSymbolOpt) {
-                    case Some {
-                        resolveDereference(node, leftSymbolOpt.value);
-                    }
-                    case None { NONE }
-                }
-            }
-            default {
-                ERROR("<TypeResolutionPass> Found not supported AST node.");
-            }
-        }
-    }
+
 
     override method void visitDereference(immutable Dereference node) {
-        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> found dereference.");
-        val symbolOpt = resolveNode(node);
+        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> found deference.");
+        resolveType(node);
     }
+
+
 }

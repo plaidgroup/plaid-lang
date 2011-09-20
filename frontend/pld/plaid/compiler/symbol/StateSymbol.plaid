@@ -1,7 +1,10 @@
 package plaid.compiler.symbol;
 
-import plaid.compiler.Symbol;
+import plaid.compiler.*;
+import plaid.compiler.types.*;
 import plaid.ast.parsed.ASTNode;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
 
 state StateSymbol case of Symbol {
     val immutable ASTNode declaration;
@@ -35,6 +38,9 @@ state StateSymbol case of Symbol {
         }
     }
 
+    method immutable String getFQN() {
+        makeStringFromQualifiedIdentifier(getQualifiedIdentifier());
+    }    
 
     method void addMember(shared Symbol member) {
         this.members.add(member);
@@ -43,12 +49,24 @@ state StateSymbol case of Symbol {
     method unique Option getMember(immutable String name) {
         var unique Option value = NONE;
 
-        this.members.map( fn (m) => {
-            if ( m.name == name ) {
-                value = makeSome(m);
+        this.members.map( fn (memberSymbol) => {
+            if ( memberSymbol.name == name ) {
+                value = makeSome(memberSymbol);
             };
+            memberSymbol
         });
         
         value;
+    }
+
+    method immutable PlaidType getType() {   
+        if ( !haveTypeForAST(this.declaration) ) {
+            addTypeForAST(this.declaration, new NominalPlaidType {
+                val symbol = this;
+                val owner  = this.owner.getType();
+                val name   = this.name;
+            })
+        };
+        typeForAST(this.declaration).value;
     }
 }

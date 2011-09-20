@@ -1,0 +1,92 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.permissions;
+
+//globals for permissions
+val immutable Permission UNIQUE = new UniquePermission;
+val immutable Permission IMM = new ImmutablePermission;
+val immutable Permission IMMUTABLE = new ImmutablePermission;  //So I can have both fully spelled and not...
+val immutable Permission SHARED = new SharedPermission;
+val immutable Permission NONEP = new NonePermission;
+val immutable Permission LOCALIMM = makeLocal(IMM);
+val immutable Permission LOCALIMMUTABLE = makeLocal(IMM);
+val immutable Permission LOCALSHARED = makeLocal(SHARED);
+
+//currently unused
+//val immutable Permission DYNP = new DynPermission;
+//val immutable Permission PURE = new PurePermission;
+//val immutable Permission FULL = new FullPermission;
+
+//factories
+val makeLocal = fn (immutable SymmetricPerm >> void thePerm) => {
+	new LocalPermission {
+		val immutable SymmetricPerm thePerm = thePerm;
+	}
+};
+
+val makeBorrowedPerm = fn (immutable SymmetricPerm >> void thePerm,
+						 immutable Permission >> void originalPerm,
+						 immutable Integer >> void splitCount) =>
+{
+	new BorrowedPermission {
+		val immutable SymmetricPerm thePerm = thePerm;
+		val immutable Permission originalPerm = originalPerm;
+		val immutable Integer splitCount = splitCount;
+	}						 
+};
+
+
+/**
+ *  Returns the permission needed to the receiver if neededPerm is pulled from a field with permission
+ *  fieldPerm.  If the permission is strongly borrowed, we only need the needed permission, but if
+ *  it is not borrowed, then we must have the same permission as the field itself.
+ *  This of course assumes that you can actually pull the needed permission from the permission in the field
+ *  NOTE - this works for unique/immutable/none, but may have to be revised with other permissions
+ */
+val (immutable Permission >> void, immutable Permission >> void, immutable Boolean) -> unique Option<immutable Permission>
+fieldReadPermission =
+	fn (immutable Permission >> void fieldPerm,
+		immutable Permission >> void neededPerm,
+		immutable Boolean local) => 
+	{
+		match (neededPerm) {
+			case NonePermission { makeSome(NONEP) }
+			default {
+				ifElse (fieldPerm.isSubPermOf(neededPerm)) {
+					match (local) {
+						case True {
+							makeSome(neededPerm)
+						}
+						case False {
+							makeSome(fieldPerm)
+						}
+					}
+				} {
+					new None
+				}
+			}
+		}		
+	}; 
+	
+method main() {
+		val factory = new PermissionTestFactory;
+		val tests = factory.createTests();
+		tests.map( fn (test) => test.run() );
+	}
