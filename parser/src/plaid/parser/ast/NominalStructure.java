@@ -5,26 +5,20 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public class NominalObjectType extends TypeDecl {
+public class NominalStructure extends Structure {
 
 	/**
 	 * Set of type abbreviations contained in this type.
 	 */
-	private final Permission permission;
 	private final QualifiedIdentifier stateQi;
 	private final List<StaticType> metaTypes;
 	
-	public NominalObjectType(Token t, Permission permission, QualifiedIdentifier st, List<StaticType> metaTypes) {
+	public NominalStructure(Token t,QualifiedIdentifier st, List<StaticType> metaTypes) {
 		super(t);
-		this.permission=permission;
 		this.stateQi = st;
 		this.metaTypes = metaTypes;
 	}
 	
-	public Permission getPermission() {
-		return permission;
-	}
-
 	public QualifiedIdentifier getStateQi() {
 		return stateQi;
 	}
@@ -36,8 +30,6 @@ public class NominalObjectType extends TypeDecl {
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		
-		if ( permission != Permission.EMPTY ) sb.append(permission.toString()+" ");
 		sb.append(stateQi.toString());
 		if ( metaTypes.size() > 0 ) {
 			sb.append("<");
