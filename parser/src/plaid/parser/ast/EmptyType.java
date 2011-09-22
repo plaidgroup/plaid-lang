@@ -1,6 +1,6 @@
 package plaid.parser.ast;
 
-public final class EmptyType extends TypeDecl {
+public final class EmptyType extends Type {
 	private final static EmptyType singleton = new EmptyType();
 	
 	private EmptyType() {

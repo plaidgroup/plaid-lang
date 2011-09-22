@@ -2,7 +2,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public final class ImmutablePermission extends Permission {
+public final class ImmutablePermission extends SymmetricPermission {
 
 	public ImmutablePermission(Token token) {
 		super(token);

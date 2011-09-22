@@ -106,8 +106,6 @@ import plaid.parser.ast.InfixOperatorExpr;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Lambda;
 import plaid.parser.ast.Match;
-import plaid.parser.ast.StaticArg;
-import plaid.parser.ast.MethodCall;
 import plaid.parser.ast.MethodDecl;
 import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
@@ -124,9 +122,10 @@ import plaid.parser.ast.StateOpRename;
 import plaid.parser.ast.StatePrim;
 import plaid.parser.ast.StateRef;
 import plaid.parser.ast.StateValDecl;
+import plaid.parser.ast.StaticArg;
 import plaid.parser.ast.Stmt;
 import plaid.parser.ast.StringLiteral;
-import plaid.parser.ast.TypeDecl;
+import plaid.parser.ast.Type;
 import plaid.parser.ast.UnaryOperatorExpr;
 import plaid.parser.ast.UnpackInnerGroups;
 import plaid.parser.ast.VarDecl;
@@ -750,16 +749,16 @@ public class ParseExpressionTest {
 		assertTrue( goal.equivalent(e) );
 	}
 	
-	/************************************************************
-	 **                 ConditionalExpr               **
-	 ************************************************************/
-	@Test
-	public void parseConditional() throws ParseException, UnsupportedEncodingException {
-		final String code = "x?y:z";
-		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Expr e = pp.ConditionalExpr();
-		assertTrue(e instanceof MethodCall );;
-	}
+//	/************************************************************
+//	 **                 ConditionalExpr               **
+//	 ************************************************************/
+//	@Test
+//	public void parseConditional() throws ParseException, UnsupportedEncodingException {
+//		final String code = "x?y:z";
+//		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+//		final Expr e = pp.ConditionalExpr();
+//		assertTrue(e instanceof MethodCall );;
+//	}
 	
 	/************************************************************
 	 **                        Exp1                            **
@@ -859,7 +858,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseLocalVarDel() throws ParseException, UnsupportedEncodingException {
 		final String code = "var x = 1";
-		final VarDecl goal = VarDecl(Var(), TypeDecl.EMPTY, Identifier("x"), IntLiteral(1));
+		final VarDecl goal = VarDecl(Var(), Type.EMPTY, Identifier("x"), IntLiteral(1));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Stmt e = pp.LocalVarDecl();
 		assertTrue(e instanceof Stmt );
@@ -1138,7 +1137,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseAbstractFieldSpecifier() throws ParseException, UnsupportedEncodingException {
 		final String code = "val f;";
-		final FieldDecl goal = AbstractFieldDecl(Val(), TypeDecl.EMPTY, Identifier("f"));
+		final FieldDecl goal = AbstractFieldDecl(Val(), Type.EMPTY, Identifier("f"));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractFieldDecl );
@@ -1178,7 +1177,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseConcretetFieldSpecifier() throws ParseException, UnsupportedEncodingException {
 		final String code = "val f=0;";
-		final FieldDecl goal = ConcreteFieldDecl(Val(), TypeDecl.EMPTY, Identifier("f"), IntLiteral(0));
+		final FieldDecl goal = ConcreteFieldDecl(Val(), Type.EMPTY, Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
@@ -1198,7 +1197,7 @@ public class ParseExpressionTest {
 	@Test
 	public void parseConcretetField() throws ParseException, UnsupportedEncodingException {
 		final String code = "f=0;";
-		final FieldDecl goal = ConcreteFieldDecl(Specifier.EMPTY, TypeDecl.EMPTY, Identifier("f"), IntLiteral(0));
+		final FieldDecl goal = ConcreteFieldDecl(Specifier.EMPTY, Type.EMPTY, Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
@@ -1213,7 +1212,7 @@ public class ParseExpressionTest {
 		final String code = "method foo();";
 		final MethodDecl goal = 
 			AbstractMethodDecl(
-					TypeDecl.EMPTY, 
+					Type.EMPTY, 
 					Identifier("foo"), 
 					StaticArg.EMPTY, 
 					Arg.EMPTY, 
@@ -1389,7 +1388,7 @@ public class ParseExpressionTest {
 					REQUIRES(),
 					OVERRIDE()
 				),
-				TypeDecl.EMPTY, 
+				Type.EMPTY, 
 				Identifier("foo"), 
 				StaticArg.EMPTY, 
 				Arg.EMPTY, 
@@ -1523,13 +1522,13 @@ public class ParseExpressionTest {
 				Collections.EMPTY_LIST,
 				DeclList(
 					AbstractMethodDecl(
-						TypeDecl.EMPTY, 
+						Type.EMPTY, 
 						Identifier("foo"), 
 						StaticArg.EMPTY, 
 						Arg.EMPTY, 
 						Arg.EMPTY
 					),
-					 AbstractFieldDecl(Val(), TypeDecl.EMPTY, Identifier("x"))
+					 AbstractFieldDecl(Val(), Type.EMPTY, Identifier("x"))
 				)
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
@@ -1624,12 +1623,12 @@ public class ParseExpressionTest {
 				Arrays.asList(
 					ConcreteFieldDecl(
 						Val(), 
-						TypeDecl.EMPTY, 
+						Type.EMPTY, 
 						Identifier("x"), 
 						IntLiteral(1)
 					),
 					ConcreteMethodDecl(
-						TypeDecl.EMPTY, 
+						Type.EMPTY, 
 						Identifier("foo"), 
 						StaticArg.EMPTY, 
 						Arg.EMPTY, 
@@ -1644,7 +1643,7 @@ public class ParseExpressionTest {
 						DeclList(
 							ConcreteFieldDecl(
 								Val(), 
-								TypeDecl.EMPTY, 
+								Type.EMPTY, 
 								Identifier("bob"), 
 								StringLiteral("ML")
 							)
