@@ -26,7 +26,7 @@ import plaid.parser.ast.Import;
 import plaid.parser.ast.IntLiteral;
 import plaid.parser.ast.Modifier;
 import plaid.parser.ast.QualifiedIdentifier;
-import plaid.parser.ast.TypeDecl;
+import plaid.parser.ast.Type;
 
 /**
  * @author jssunshi
@@ -50,7 +50,7 @@ public class ParserTests {
 		Decl field = 
 			new ConcreteFieldDecl(null, new ArrayList<Modifier>(), 
 					Val(),
-					TypeDecl.EMPTY,
+					Type.EMPTY,
 					new Identifier(null,"foo"), 
 					new IntLiteral(null,5));
 		QualifiedIdentifier packageName = 

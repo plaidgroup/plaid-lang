@@ -171,6 +171,7 @@ TOKEN /*[IGNORE_CASE]*/:
 |   < GROUP : "group" >
 |	< IMMUTABLE : "immutable" >
 |	< IMPORT : "import" > 
+|   < LOCAL : "local" >
 |	< MATCH : "match" >
 |	< METHOD : "method">
 | 	< MUTABLE : "mutable" >
@@ -338,18 +339,20 @@ QualifiedIdentifier Package() :
 
 Type Type() :
 {
+	Token t;
 	Permission perm = Permission.EMPTY;
-	LambdaType l;
+	LambdaStructure l;
     QualifiedIdentifier qi;
     List<StaticType> metaTypes = new ArrayList<StaticType>();
 }
 {   
-(	    <UNIT> { return Type.UNIT; }
-  |	    <VOID> { return Type.VOID; }
-  |	    l = LambdaType()	{ return l; }
+(	    t= <UNIT> { return new UnitType(t); }
+  |	    t = <VOID> { return new UnitType(t); }
+  |	    LOOKAHEAD(2) [t = <IMMUTABLE> {perm = new ImmutablePermission(t);}] l = LambdaStructure() 
+            { return new ConcreteType(l.getToken(), perm, l); }
   |     [perm = Permission()] qi = QualifiedIdentifier() [LOOKAHEAD(StaticTypes()) metaTypes = StaticTypes(false)]
 	   {
-	       return new NominalObjectType(qi.getToken(), perm, qi, metaTypes);
+	       return new ConcreteType(qi.getToken(), perm, new NominalStructure(qi.getToken(), qi, metaTypes));
 	   }
 )
 }
@@ -359,12 +362,36 @@ Permission Permission() :
     Token t;	Permission perm;
 	Expr datagroup = Expr.EMPTY;
 }
-{(	t = <IMMUTABLE>  { return new ImmutablePermission(t); }
- |  t = <SHARED> [ <LT> datagroup = SimpleExpr() <GT>] 
-        {return new SharedPermission(t, datagroup); }
- |  t = <UNIQUE>     { return new UniquePermission(t); }  
+{(    t = <UNIQUE>     { return new UniquePermission(t); }  
  |  t = <NONE>       { return new NonePermission(t); }
+ |  perm = SymmetricPermission() { return perm; }
+ |  perm = LocalPermission() { return perm; }
 )
+}
+
+SymmetricPermission SymmetricPermission() :
+{
+    Token t;
+    SymmetricPermission perm;
+    Expr datagroup = Expr.EMPTY;
+}
+{
+    ( 
+        t = <IMMUTABLE>  { return new ImmutablePermission(t); }
+        |  t = <SHARED> [ <LT> datagroup = SimpleExpr() <GT>] 
+            {return new SharedPermission(t, datagroup); }
+    )
+}
+
+LocalPermission LocalPermission() :
+{
+    Token t;
+    SymmetricPermission perm;
+    Expr datagroup = Expr.EMPTY;
+}
+{
+    t = <LOCAL>  perm = SymmetricPermission() 
+    { return new LocalPermission(t, perm); }
 }
 
 
@@ -388,7 +415,7 @@ ArgSpec ArgSpec() :
 	}
 }
 
-LambdaType LambdaType() :
+LambdaStructure LambdaStructure() :
 {
 	Token t;
 	List<Arg> env = new ArrayList<Arg>();
@@ -401,7 +428,7 @@ LambdaType LambdaType() :
 	[metaTypes = StaticTypes(true)]
 	t = <LPAREN> [ argTypes = ArgSpecList() ] <RPAREN> [ <LBRACK> [ env = Environment() ] <RBRACK> ] <RARROW> returnType = Type()
 	{
-		return new LambdaType(t, metaTypes, argTypes, env, returnType); 
+		return new LambdaStructure(t, metaTypes, argTypes, env, returnType); 
 	}
 
 }

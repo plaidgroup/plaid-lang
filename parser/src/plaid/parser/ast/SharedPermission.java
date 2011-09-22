@@ -2,7 +2,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public final class SharedPermission extends Permission {
+public final class SharedPermission extends SymmetricPermission {
 	private final Expr datagroup;
 
 	public SharedPermission(Token token, Expr datagroup) {

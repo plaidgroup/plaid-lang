@@ -25,13 +25,13 @@ import java.util.List;
 import plaid.parser.Token;
 
 public abstract class MethodDecl extends Decl {
-	private final TypeDecl returnType;
+	private final Type returnType;
 	private final List<StaticArg> StaticArgsSpec;
 	private final List<Arg> arguments;
 	private final List<Arg> env;
 	
 	public MethodDecl(Token t, List<Modifier> modifiers, 
-			TypeDecl returnType, Identifier name,
+			Type returnType, Identifier name,
 			List<StaticArg> StaticArgsSpec, List<Arg> arguments,
 			List<Arg> env) {
 		super(t, modifiers, name);
@@ -41,7 +41,7 @@ public abstract class MethodDecl extends Decl {
 		this.env = env;
 	}
 
-	public TypeDecl getReturnType() {
+	public Type getReturnType() {
 		return returnType;
 	}
 

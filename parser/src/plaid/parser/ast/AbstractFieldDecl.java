@@ -8,7 +8,7 @@ public class AbstractFieldDecl extends FieldDecl {
 
 	//optional - specifier, identifier
 	public AbstractFieldDecl(Token t, List<Modifier> modifiers, Specifier specifier, 
-			TypeDecl fieldType, Identifier name) {
+			Type fieldType, Identifier name) {
 		super(t, modifiers, specifier, fieldType, name);
 	}
 
@@ -18,7 +18,7 @@ public class AbstractFieldDecl extends FieldDecl {
 		StringBuilder sb = new StringBuilder();
 		
 		if (getSpecifier() != Specifier.EMPTY ) sb.append(getSpecifier().toString() + " ");
-		if (getFieldType() != TypeDecl.EMPTY ) sb.append(getFieldType().toString()+ " ");
+		if (getFieldType() != Type.EMPTY ) sb.append(getFieldType().toString()+ " ");
 		sb.append(getName());
 		sb.append(";");
 		
