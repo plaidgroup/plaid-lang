@@ -1,0 +1,76 @@
+package plaid.compiler.symbol;
+
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+import plaid.ast.parsed.ASTNode;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
+
+state StateSymbol case of Symbol {
+    val immutable ASTNode declaration;
+    val immutable Symbol owner;
+    val unique List members = makeEmptyList();
+
+    method unique QualifiedIdentifier getQualifiedIdentifier() {
+        match ( owner ) {
+            case PackageSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<SateSymbol> Found 'PackageSymbol' owner.");
+                val qi = owner.getQualifiedIdentifier();
+                val unique List ids = makeEmptyList();
+                
+                qi.identifiers.map(fn (id) => {
+                    ids.add(id);
+                });
+                ids.add(new Identifier{name = this.name; token = EMPTY_TOKEN;});
+                
+                new QualifiedIdentifier{ identifiers = ids; token = EMPTY_TOKEN;}
+            }
+            case TopSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<StateSymbol> Found 'TopSymbol' owner.");
+                val ids = makeEmptyList();
+                ids.add(new Identifier{name = this.name; token = EMPTY_TOKEN;});
+                new QualifiedIdentifier{ identifiers = ids;  token = EMPTY_TOKEN;}
+            }
+            default {
+                ERROR("<StateSymbol> Package has invalid owner.");
+                new QualifiedIdentifier{ identifiers = makeEmptyList(); token = EMPTY_TOKEN;}
+            }
+        }
+    }
+
+    method immutable String getFQN() {
+        makeStringFromQualifiedIdentifier(getQualifiedIdentifier());
+    }    
+
+    method void addMember(shared Symbol member) {
+        this.members.add(member);
+    }
+
+    method unique Option getMember(immutable String name) {
+        var unique Option value = NONE;
+
+        this.members.map( fn (memberSymbol) => {
+            if ( memberSymbol.name == name ) {
+                value = makeSome(memberSymbol);
+            };
+            memberSymbol
+        });
+        
+        value;
+    }
+
+    method immutable PlaidType getType() {   
+        if ( !haveTypeForAST(this.declaration) ) {
+            val plaidType =  new NominalType {
+                val symbol = this;
+                val owner  = this.owner.getType();
+                val name   = this.name;
+            };
+            addTypeForAST(this.declaration, new Type {
+                val permission = new NonePermission;
+                val plaidType  = plaidType;
+            });
+        };
+        typeForAST(this.declaration).value;
+    }
+}
