@@ -29,6 +29,7 @@ import static plaid.parser.test.astfactory.ASTFactory.GroupArg;
 import static plaid.parser.test.astfactory.ASTFactory.GroupDecl;
 import static plaid.parser.test.astfactory.ASTFactory.Identifier;
 import static plaid.parser.test.astfactory.ASTFactory.Immutable;
+import static plaid.parser.test.astfactory.ASTFactory.IMMUTABLE;
 import static plaid.parser.test.astfactory.ASTFactory.Import;
 import static plaid.parser.test.astfactory.ASTFactory.InfixOperator;
 import static plaid.parser.test.astfactory.ASTFactory.IntLiteral;
@@ -1411,6 +1412,16 @@ public class ParseExpressionTest {
 	}
 	
 	@Test
+	public void parseImmutableAbstractStateValEmpty() throws ParseException, UnsupportedEncodingException {
+		final String code = "immutable stateval Foo;";
+		final StateValDecl goal = AbstractStateValDecl(Identifier("Foo"), IMMUTABLE(), StaticArg.EMPTY);
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final Decl e = pp.Decl();
+		assertTrue(e instanceof AbstractStateValDecl );
+		assertTrue(e.equivalent(goal));
+	}
+	
+	@Test
 	public void parseConcreteStateVal() throws ParseException, UnsupportedEncodingException {
 		final String code = "stateval Foo = Bar";
 		final StateValDecl goal = ConcreteStateValDecl(Identifier("Foo"), StaticArg.EMPTY, StateRef(Identifier("Bar")));
@@ -1496,6 +1507,27 @@ public class ParseExpressionTest {
 		final String code = "state Foo = Bar with Baz;";
 		final Decl goal = 
 			ConcreteStateDecl(
+				Identifier("Foo"), 
+				StaticArg.EMPTY, 
+				QualifiedIdentifier.EMPTY, 
+				Collections.EMPTY_LIST,
+				With(
+					StateRef(Identifier("Bar")),
+					StateRef(Identifier("Baz"))
+				)
+			);
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final Decl e = pp.Decl();
+		assertTrue(e instanceof ConcreteStateDecl );
+		assertTrue(e.equivalent(goal));
+	}
+	
+	@Test
+	public void parseImmutableConcreteStateWith() throws ParseException, UnsupportedEncodingException {
+		final String code = "immutable state Foo = Bar with Baz;";
+		final Decl goal = 
+			ConcreteStateDecl(
+				IMMUTABLE(),
 				Identifier("Foo"), 
 				StaticArg.EMPTY, 
 				QualifiedIdentifier.EMPTY, 
