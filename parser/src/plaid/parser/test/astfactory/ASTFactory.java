@@ -1,6 +1,7 @@
 package plaid.parser.test.astfactory;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import plaid.parser.ast.ASTNode;
@@ -37,6 +38,7 @@ import plaid.parser.ast.GroupArg;
 import plaid.parser.ast.GroupDecl;
 import plaid.parser.ast.GroupPermission;
 import plaid.parser.ast.Identifier;
+import plaid.parser.ast.ImmutableModifier;
 import plaid.parser.ast.ImmutablePermission;
 import plaid.parser.ast.Import;
 import plaid.parser.ast.InfixOperatorExpr;
@@ -101,6 +103,10 @@ public class ASTFactory {
 		return new AbstractStateValDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec);
 	}
 	
+	public static StateValDecl AbstractStateValDecl(Identifier name, Modifier m, List<StaticArg> metaArgsSpec) {
+		return new AbstractStateValDecl(ASTNode.DEFAULT_TOKEN, Collections.singletonList(m), name, metaArgsSpec);
+	}
+	
 	public static Application Application(Expr left, Expr right) {
 		return new Application(ASTNode.DEFAULT_TOKEN, left, null, right);
 	}
@@ -151,6 +157,10 @@ public class ASTFactory {
 	
 	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env, BlockExpr body) {
 		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env, body);
+	}
+	
+	public static StateDecl ConcreteStateDecl(Modifier m, Identifier name, List<StaticArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs, StateExpr statebinding) {
+		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Collections.singletonList(m), name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
 	}
 	
 	public static StateDecl ConcreteStateDecl(Identifier name, List<StaticArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs, StateExpr statebinding) {
@@ -284,6 +294,10 @@ public class ASTFactory {
 	
 	public static Modifier REQUIRES() {
 		return new RequiresModifier(ASTNode.DEFAULT_TOKEN);
+	}
+	
+	public static Modifier IMMUTABLE() {
+		return new ImmutableModifier(ASTNode.DEFAULT_TOKEN);
 	}
 	
 	public static Permission  Shared(Expr datagroup) {
