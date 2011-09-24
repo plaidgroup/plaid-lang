@@ -5,28 +5,31 @@ import plaid.ast.parsed.*;
 import plaid.compiler.util.makeTypeFromAST;
 
 state FieldSymbol case of Symbol {
-    val immutable ASTNode declaration;
+    val immutable ParsedASTNode declaration;
     val immutable Symbol owner;
+    val unique Option<immutable FieldSignature> signatureOption = new None;
 
     method immutable FieldSignature getSignature() {
-           DEBUG(DEBUG_PRIO_LOW, "<FieldSymbol> compute type for field");
-           val fieldType = makeTypeFromAST(this.declaration.fieldType);
-           var isVar     = false;        
+      match (this.signatureOption) {
+        case None {
+          DEBUG(DEBUG_PRIO_LOW, "<FieldSymbol> compute type for field");
+          val fieldType = makeTypeFromAST(this.declaration.fieldType);
+          val isVar = match (this.declaration.specifier) {
+            case VarSpecifier { true }
+            default { false }
+          };
 
-           match (this.declaration.specifier) {
-               case VarSpecifier {
-                   isVar = true;
-               }
-               default {
-                   isVar = false;
-               }
-           };
-
-           val newType = new FieldSignature  {
-                val isVar    = isVar;
-                val fileType = fieldType;
-                val name     = this.declaration.name.name;
-           };
-           newType
+          val newType = new FieldSignature  {
+            val isVar    = isVar;
+            val fileType = fieldType;
+            val name     = this.declaration.name.name;
+          };
+          this.signatureOption = makeSome(newType);
+          newType
+        }
+        case Some {
+          this.signatureOption.value      
+        }
+      }
     }
 }
