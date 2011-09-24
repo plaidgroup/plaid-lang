@@ -41,7 +41,8 @@ public class TransliterateToPlaid<T> {
 			if(!Modifier.isStatic(fs[i].getModifiers())) {
 				String fieldType = fs[i].getType().getSimpleName();
 				if (fieldType.equals("List")) fieldType = "LinkedList";
-				else fieldType = PREFIX + fieldType;
+				else if (!fieldType.equals("String")) 
+					fieldType = PREFIX + fieldType;
 				sb.append("\tval immutable " + fieldType + " " + fs[i].getName() + ";\n");
 			}
 		}
