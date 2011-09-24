@@ -39,7 +39,10 @@ public class TransliterateToPlaid<T> {
 		Field[] fs = clazz.getDeclaredFields();
 		for (int i = 0; i < fs.length; i++) {
 			if(!Modifier.isStatic(fs[i].getModifiers())) {
-				sb.append("\tval immutable " + PREFIX +  fs[i].getType().getSimpleName() + " " + fs[i].getName() + ";\n");
+				String fieldType = fs[i].getType().getSimpleName();
+				if (fieldType.equals("List")) fieldType = "LinkedList";
+				else fieldType = PREFIX + fieldType;
+				sb.append("\tval immutable " + fieldType + " " + fs[i].getName() + ";\n");
 			}
 		}
 		
@@ -56,7 +59,7 @@ public class TransliterateToPlaid<T> {
 			sb.append("\"" +clazz.getSimpleName() + "\\n\" + ");
 			for(Field field:getAllFields(clazz)) {
 				sb.append("\n\t\t");
-				sb.append("\"" + field.getName() + ":\" + " + field.getName() + ".toString()");
+				sb.append("\"" + field.getName() + ":\" + this." + field.getName() + ".toString()");
 				sb.append(" + \"\\n\" +");
 			}
 			sb.replace(sb.length()-1, sb.length(), ";"); //remove last plus
