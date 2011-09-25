@@ -84,15 +84,16 @@ public class ImportList implements ASTnode {
 		stdLib.add("lang");
 		stdLib.add("*");
 		
-		List<String> makeLinkedList = new ArrayList<String>();
-		makeLinkedList.add("plaid");
-		makeLinkedList.add("collections");
-		makeLinkedList.add("makeLinkedList");
+		/*kbn - not working as I hoped */
+//		List<String> makeLinkedList = new ArrayList<String>();
+//		makeLinkedList.add("plaid");
+//		makeLinkedList.add("collections");
+//		makeLinkedList.add("makeLinkedList");
 		
 		// We don't want to have the same import twice
 		boolean haveStdLib = false;
 		boolean haveGlobals = false;
-		boolean haveMakeLL = false;
+		boolean haveMakeLL = true;
 		for (QualifiedID qi : imports) {
 			if (qi.toString().equals("plaid.lang.*")) {
 				haveStdLib = true;
@@ -102,17 +103,17 @@ public class ImportList implements ASTnode {
 				haveGlobals = true;
 				if (haveStdLib && haveMakeLL) break;
 			}
-			if(qi.toString().equals("plaid.collections.makeLinkedList")) {
-				haveMakeLL = true;
-				if (haveStdLib && haveGlobals) break;
-			}
+//			if(qi.toString().equals("plaid.collections.makeLinkedList")) {
+//				haveMakeLL = true;
+//				if (haveStdLib && haveGlobals) break;
+//			}
 		}
 		if (!haveStdLib)
 			imports.add(new QualifiedID(stdLib));
 		if (!haveGlobals)
 			imports.add(new QualifiedID(globals));
-		if (!haveMakeLL)
-			imports.add(new QualifiedID(makeLinkedList));
+//		if (!haveMakeLL)
+//			imports.add(new QualifiedID(makeLinkedList));
 	}
 
 	public void checkAndExpandImports(PackageRep plaidpath, List<String> declMembers, String thePackage) {
