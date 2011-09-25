@@ -23,6 +23,9 @@ import plaid.lang.testing.TestFactory;
 import plaid.lang.testing.Test;
 import plaid.compiler.*;
 import plaid.compiler.symbol.SymbolFactory;
+import plaid.ast.parsed.ParsedEmptyExpr;
+import plaid.compiler.types.VOID;
+import plaid.compiler.types.DYNAMICTYPE;
 
 import plaid.collections.makeLinkedList;
 
@@ -41,11 +44,9 @@ state LinearContextTestFactory case of TestFactory {
 	  val immutable VariableSymbol var4 = symFac.makeVariableSymbol("var4",dummyAST);
 	  val immutable VariableSymbol var5 = symFac.makeVariableSymbol("var4",dummyAST);
 	  
-	  
-	   
-	   
-	   
-    /****************** LinearContext.== *******************/
+    /****************** LinearContext.== and put *******************/
+    
+    val unique LinearContext emptyContext = new LinearContext;
     
     val unique LinearContext c1 = new LinearContext;
     c1.put(var1,VOID);
@@ -80,10 +81,9 @@ state LinearContextTestFactory case of TestFactory {
     c2neq3.put(var2,DYNAMICTYPE);
     c2neq3.put(var3,VOID);
     c2neq3.put(var5,VOID);
-    
-    
-    test("LinearContext equality", fn(ctx) => {
-      ctx.assertTrue(new LinearContext == new LinearContext);
+
+    test("LinearContext equality and put", fn(ctx) => {
+      ctx.assertTrue(emptyContext == new LinearContext);
       ctx.assertTrue(c1 == c1eq);
       ctx.assertFalse(c1 == c1neq1);
       ctx.assertFalse(c1 == c1neq2);
@@ -92,8 +92,73 @@ state LinearContextTestFactory case of TestFactory {
       ctx.assertFalse(c2 == c2neq2);
       ctx.assertFalse(c2 == c2neq3);
     });
+    
+    /****************** LinearContext.get *******************/
 	
+	  test("LinearContext get", fn(ctx) => {
+      ctx.assertTrue(c1.get(var1) == VOID);
+      ctx.assertFalse(c1.get(var1) == DYNAMICTYPE);
+      //test exception thrown when trying to get something that isn't there since no null in plaid
+    });
+    
+    /****************** LinearContext.getOption *******************/
   
-		
+    test("LinearContext getOption", fn(ctx) => {
+      ctx.assertTrue(match (c1.getOption(var1)) { case Some { c1.getOption(var1).value == VOID } case None { false } });
+      ctx.assertTrue(match (c1.getOption(var2)) { case Some { false } case None { true } });
+    });
+    
+    /****************** LinearContext.containsSymbol *******************/
+  
+    test("LinearContext containsSymbol", fn(ctx) => {
+      ctx.assertTrue(c1.containsSymbol(var1));
+      ctx.assertFalse(c1.containsSymbol(var2));
+    });
+    
+    /****************** LinearContext.remove *******************/
+  
+    val unique LinearContext cr1 = new LinearContext;
+    cr1.put(var1,VOID);
+    cr1.remove(var1);
+    
+    val unique LinearContext cr2 = new LinearContext;
+    cr2.put(var1,VOID);
+    cr2.put(var5,VOID);
+    cr2.put(var2,VOID);
+    cr2.put(var3,VOID);
+    cr2.remove(var5);
+    
+    val unique LinearContext cr3 = new LinearContext;
+    cr3.put(var1,VOID);
+    cr3.remove(var2);
+  
+    test("LinearContext remove", fn(ctx) => {
+      ctx.assertTrue(cr1 == emptyContext);
+      ctx.assertTrue(cr2 == c2neq1);
+      ctx.assertTrue(cr3 == c1);
+    });
+    
+    /****************** LinearContext.update *******************/
+  
+    val unique LinearContext cu1 = new LinearContext;
+    cu1.put(var1,VOID);
+    cu1.update(var1,DYNAMICTYPE);
+    
+    val unique LinearContext cu2 = new LinearContext;
+    cu2.put(var1,DYNAMICTYPE);
+    cu2.put(var2,DYNAMICTYPE);
+    cu2.update(var2,VOID);
+    
+    val unique LinearContext cu3 = new LinearContext;
+    cu3.put(var1,VOID);
+    cu3.update(var2,DYNAMICTYPE);
+  
+    test("LinearContext update", fn(ctx) => {
+      ctx.assertTrue(cu1.get(var1) == DYNAMICTYPE);
+      ctx.assertTrue(cu2.get(var1) == DYNAMICTYPE && cu2.get(var2) == VOID);
+      ctx.assertTrue(cu3 == c1);
+    });
+  
+		tests
 	}
 }
