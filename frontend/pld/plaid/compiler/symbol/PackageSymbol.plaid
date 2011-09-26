@@ -1,0 +1,54 @@
+package plaid.compiler.symbol;
+
+import plaid.ast.parsed.QualifiedIdentifier;
+import plaid.ast.parsed.Identifier;
+import plaid.ast.util.EMPTY_TOKEN;
+import plaid.compiler.Symbol;
+
+import plaid.compiler.*;
+
+state PackageSymbol case of Symbol {
+    val immutable Symbol owner;
+    var immutable Option<immutable PlaidType> ownerType = NONE;
+
+    method unique QualifiedIdentifier getQualifiedIdentifier() {
+        match ( owner ) {
+            case PackageSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<PackageSymbol> Found 'PackageSymbol' owner.");
+                val qi = owner.getQualifiedIdentifier();
+                val unique List ids = makeEmptyList();
+                
+                qi.identifiers.map(fn (id) => {
+                    ids.add(id);
+                });
+                ids.add( new Identifier{name = this.name; token = EMPTY_TOKEN;} );
+                
+                new QualifiedIdentifier{ identifiers = ids; token = EMPTY_TOKEN;}
+            }
+            case TopSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<PackageSymbol> Found 'TopSymbol' owner.");
+                val ids = makeEmptyList();
+                ids.add( new Identifier{name = this.name; token = EMPTY_TOKEN;} );
+                new QualifiedIdentifier{ identifiers = ids;  token = EMPTY_TOKEN;}
+            }
+            default {
+                ERROR("Package has invalid owner.");
+                new QualifiedIdentifier{ identifiers = makeEmptyList(); token = EMPTY_TOKEN;}
+            }
+        }
+    }
+
+    method immutable PlaidType getType() {
+        match (ownerType) {
+            case Some { this.ownerType.value; }
+            case None {
+                val ownerType = owner.getType();
+                this.ownerType = makeSome(new PackageType {
+                    val owner = ownerType;
+                    val name  = this.name;
+                });
+                this.ownerType.value
+            }
+        }
+    }
+}

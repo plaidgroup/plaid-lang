@@ -1,0 +1,38 @@
+package plaid.compiler.util;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+
+method immutable Type makeTypeFromAST(immutable Type typeNode) {
+    match(typeNode) {
+        case EmptyType {
+            DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> EmptyType -> DynamicPlaidType");
+            new DynamicType; 
+        }
+        case NominalObjectType {
+            DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> transform NominalObjectType");
+            val qiSymbol = symbolForAST(typeNode.stateQi);
+            match (qiSymbol) {
+                case Some {
+                    DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> create PermType for state '" + qiSymbol.value.getFQN() + "'");
+                    val qiType = qiSymbol.value.getType();
+                    val permission = makePermissionFromAST(typeNode.permission);
+                    new Type {
+                        val permission = permission;
+                        val plaidType  = qiType;
+                    }
+                 }
+                 case None {
+                     ABORT("Cannot find symbol for '" + makeStringFromQualifiedIdentifier(typeNode.stateQi) + "'");
+                 }
+             }
+        }
+        case LambdaPlaidType {
+            ABORT("Cannot handle LambdaTypes yet");
+        }
+        default {
+            ABORT("Cannot create type from ASTNode. " + typeNode.toString());
+        }
+    }
+}
