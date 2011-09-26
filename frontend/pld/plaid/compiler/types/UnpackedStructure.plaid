@@ -1,5 +1,96 @@
 package plaid.compiler.types;
 
+import java.util.Map;
+import java.util.HashMap;
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+
 state UnpackedStructure case of ObjectStructure {
-    
+  val immutable NominalStructure unpackedStructure;
+  val /*unique Map<shared FieldSymbol,immutable FieldSignature>*/ unpackedFields = HashMap.new();
+  //TODO: shared in the above type is parsing incorrectly for some reason
+  
+  
+  method immutable Boolean ==(immutable Structure other)
+                             [immutable UnpackedStructure this] 
+  {
+    match (other) {
+      case UnpackedStructure {
+        var immutable Boolean eq = 
+          this.unpackedStructure == other.unpackedStructure &&
+          this.unpackedFields.size() == other.unpackedFields.size();
+        val unique Iterator iter = this.unpackedFields.keySet().iterator();
+        while { eq && iter.hasNext() } {
+          val shared FieldSymbol fieldSym = iter.next();
+          match (other.unpackedFields.containsKey(fieldSym)) {
+            case True {
+              eq = other.unpackedFields.get(fieldSym) == 
+                         this.unpackedFields.get(fieldSym)    
+            }
+            case False { eq = false; }
+          }     
+        };
+        eq
+      }
+      default { false }
+    }
+  }
+  
+  /**
+   * Unpacked structures do not have least upper bounds
+   */
+  method unique Option<immutable Structure> leastUpperBound(immutable Structure other)[immutable UnpackedStructure this] {
+    new None;
+  }
+  
+  /**
+   * unpacked structures cannot be used in place of any other structures
+   * might want to relax this in the future
+   */
+  method immutable Boolean isSubStructureOf(immutable Structure other)[immutable UnpackedStructure this] {
+    false
+  }
+  
+  method immutable String toString()[immutable UnpackedStructure] {
+    var immutable String ret = this.unpackedStructure.toString() + "(";
+    val unique Iterator iter = this.unpackedFields.keySet().iterator();
+    while {iter.hasNext() } {
+       val shared FieldSymbol fieldSym = iter.next();
+       s = s + fieldSym.name + " : " + this.unpackedFields.get(fieldSym).toString()
+    };
+    s
+  }
+  
+  method immutable Signature getMember(immutable String memberName) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure> searching for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+    val memberSymbolOpt = this.symbol.getMember(memberName);
+    match (memberSymbolOpt) {
+      case Some {
+        match (memberSymbolOpt.value) {
+          case FieldSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found FieldSymbol for '"+memberName+"'");
+            match (this.unpackedFields.contains(memberSymbolOpt.value)) {
+              case True {
+                this.unpackedFields.get(memberSymbolOpt.value)
+              }
+              case False {
+                 memberSymbolOpt.value.getSignature();
+              }
+            }
+          }
+          case MethodSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found MethodSymbol for '"+memberName+"'");
+            memberSymbolOpt.value.getSignature();
+          }
+          default {
+            ABORT("Unsupported member type ");
+          }
+        }
+      }
+      case None {
+        ABORT("Cannot find member '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+      }
+    }
+  }
+  
 }
