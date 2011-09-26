@@ -9,10 +9,11 @@ import plaid.collections.makeLinkedList;
 
 
 state StateSymbol case of OwningSymbol {
-    val immutable ParsedASTNode declaration;
+    val immutable ParsedStateDecl declaration;
     val immutable OwningSymbol owner;
     val unique LinkedList members = makeLinkedList();
-    val unique Option<immutable Type> stateTypeOption = new None;
+    var unique Option<immutable Structure> stateStructureOption = new None;
+    var unique Option<immutable Symbol> superStateSymbolOption = new None;
     
     override method immutable Boolean ==(immutable Symbol other)[immutable StateSymbol this] {
         match (other) {
@@ -85,22 +86,58 @@ state StateSymbol case of OwningSymbol {
         value;
     }
 
-    method immutable Type getType() {   
-        if ( !haveTypeForAST(this.declaration) ) {
+    method immutable Structure getStructure() {        
+      match (this.stateStructureOption) {
+        case Some { this.stateStructureOption.value }
+        case None {
+          if ( !haveTypeForAST(this.declaration) ) {
             val immutable NominalStructure theStructure =  new NominalStructure {
-                val symbol = this;
-                val owner  = this.owner.getType();
-                val name   = this.name;
+              val symbol = this;
+              val owner  = this.owner.getType();
+              val name   = this.name;
             };
             addTypeForAST(this.declaration, new Type {
-                val permission = NONEP;
-                val structure  = theStructure;
+              val permission = NONEP;
+              val structure  = theStructure;
             });
-        };
-        typeForAST(this.declaration).value;
+            this.stateStructureOption = makeSome(theStructure);
+            theStructure
+          }
+        }
+      }
     }
     
-    method immutable Structure getStructure() {
-    
+    method immutable Symbol getSuperStateSymbol()[immutable StateSymbol this] {
+      match (this.superStateSymbolOption) {
+        case Some { this.superStateSymbolOption.value }
+        case None {
+          val immutable ParsedQualifiedIdentifier caseOfNode = this.declaration.caseOf;
+          match (caseOfNode) {
+            case ParsedEmptyQualifiedIdentifier { 
+              this.superStateSymbolOption = makeSome(new TopSymbol);
+              new TopSymbol;
+            }
+            default {
+              val unique Option<immutable Symbol> ASTsymbolOption = symbolForAST(caseOfNode);
+              match (ASTsymbolOption) {
+                case Some {
+                  match (ASTsymbolOption.value) {
+                    case StateSymbol {
+                      this.superStateSymbolOption = makeSome(ASTsymbolOption.value);
+                      ASTsymbolOption.value;
+                    }
+                    default {
+                      ABORT(this.toString() + " case of a non-state declaration: " + ASTsymbolOption.toString());
+                    }
+                  }
+                }
+                case None {
+                  ABORT(this.toString() + " case of declaration invalid");
+                }
+              }
+            }
+          }
+        }
+      }
     }
 }
