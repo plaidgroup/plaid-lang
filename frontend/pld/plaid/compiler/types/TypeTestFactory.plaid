@@ -1,0 +1,203 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.types;
+
+import plaid.lang.testing.TestFactory;
+import plaid.lang.testing.Test;
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+import plaid.compiler.permissions.*;
+import plaid.ast.parsed.*;
+
+import plaid.collections.makeLinkedList;
+
+state TypeTestFactory case of TestFactory {
+  
+  method unique List<unique Test> createTests() {
+    val tests = makeLinkedList();
+    val test = fn(name,body) => { tests.add(mktest(name, body)) };
+    
+    //setup values to use for tests
+    val immutable String stateName1 = "state1";
+    val immutable String stateName2 = "state2";
+    
+    val unique SymbolFactory symFac = new SymbolFactory;
+    
+    //Top symbol
+    val immutable TopSymbol topSym = TOPSYM;
+    
+    //package symbols and structures
+    val immutable PackageSymbol packSym1 = symFac.makePackageSymbol("pack1",topSym);
+    val immutable PackageStructure packStruct1 = makePackageStructure(TOPSTRUCT, "pack1");
+    
+    //state Symbols
+    val immutable ParsedIdentifier stateID1 = new ParsedIdentifier { val name = stateName1; };
+    val immutable ParsedAbstractStateDecl stateAST1 = new ParsedStateDecl {
+      val name = stateID1;
+      val modifiers = makeLinkedList();
+      val caseOf = new ParsedEmptyQualifiedIdentifier;
+      val StaticArgsSpec = makeLinkedList();
+      val metaCaseOfArgs = makeLinkedList();
+    };
+    
+    val stateCaseOf2 = makeLinkedList();
+    stateCaseOf2.add(stateID1);
+    val immutable ParsedAbstractStateDecl stateAST2 = new ParsedStateDecl {
+      val name = new ParsedIdentifier { val name = stateName2; };
+      val modifiers = makeLinkedList();
+      val caseOf = stateCaseOf2;
+      val StaticArgsSpec = makeLinkedList();
+      val metaCaseOfArgs = makeLinkedList();
+    };
+    
+    val immutable StateSymbol stateSym1 = symFac.makeStateSymbol(stateName1, stateAST1, packSym1);
+    val immutable StateSymbol stateSym2 = symFac.makeStateSymbol(stateName2, stateAST2, packSym1);
+    val immutable Symbol owner = new Symbol { val name = "owner"; };
+    
+    addSymbolForAST(stateCaseOf2,stateSym1);
+    
+    val immutable NominalStructure nomStruct1 = makeNominalStructure(stateSym1,packStruct1,stateName1);
+    val immutable NominalStructure nomStruct2 = makeNominalStructure(stateSym2,packStruct1,stateName2);
+    
+    val immutable String fieldName1 = "field1";
+    val immutable String fieldName2 = "field2";
+    val immutable FieldSignature fieldSig1 = makeFieldSignature(true,DYNAMICTYPE,fieldName1);
+    val immutable FieldSignature fieldSig1alt = makeFieldSignature(false,DYNAMICTYPE,fieldName1);
+    val immutable FieldSignature fieldSig2 = makeFieldSignature(false,DYNAMICTYPE,fieldName2);
+    val immutable Symbol fieldSym1 = new Symbol { val name = fieldName1; };
+    val immutable Symbol fieldSym2 = new Symbol { val name = fieldName2; };
+    
+    val unique Map fieldMap1 = java.util.HashMap.new();
+    fieldMap1.put(fieldSym1,fieldSig1);
+    val unique Map fieldMap1alt = java.util.HashMap.new();
+    fieldMap1alt.put(fieldSym1,fieldSig1alt);
+    val unique Map fieldMap2 = java.util.HashMap.new();
+    fieldMap2.put(fieldSym1,fieldSig1);
+    fieldMap2.put(fieldSym2,fieldSig2);
+    
+    val immutable UnpackedStructure unpackedStruct1 = makeUnpackedStructureWithFieldMap(nomStruct1,fieldMap1);
+    val immutable UnpackedStructure unpackedStruct1alt = makeUnpackedStructureWithFieldMap(nomStruct1,fieldMap1alt);
+    val immutable UnpackedStructure unpackedStruct1altalt = makeUnpackedStructureWithFieldMap(nomStruct1,fieldMap2);
+    val immutable UnpackedStructure unpackedStruct2 = makeUnpackedStructureWithFieldMap(nomStruct2,fieldMap1);
+    
+    /********************** Top Structure *************************/
+    
+    test("TopStructure equality", fn(ctx) => {
+      
+      ctx.assertTrue(TOPSTRUCT == new TopStructure);
+      ctx.assertFalse(TOPSTRUCT == DYNAMICSTRUCT);
+      ctx.assertFalse(TOPSTRUCT == nomStruct1);
+      ctx.assertFalse(TOPSTRUCT == unpackedStruct1);
+    }); 
+    
+    test("UnpackedStructure isSubStructureOf", fn(ctx) => {
+      ctx.assertFalse(TOPSTRUCT.isSubStructureOf(nomStruct2));
+      ctx.assertTrue(TOPSTRUCT.isSubStructureOf(new TopStructure));
+      ctx.assertFalse(TOPSTRUCT.isSubStructureOf(DYNAMICSTRUCT));
+      ctx.assertFalse(TOPSTRUCT.isSubStructureOf(unpackedStruct1));
+    });
+
+    /********************** Dynamic Structure *************************/
+    
+    test("DynamicStructure equality", fn(ctx) => {
+      
+      ctx.assertTrue(DYNAMICSTRUCT == new DynamicStructure);
+      ctx.assertFalse(DYNAMICSTRUCT == TOPSTRUCT);
+      ctx.assertFalse(DYNAMICSTRUCT == nomStruct1);
+      ctx.assertFalse(DYNAMICSTRUCT == unpackedStruct1);
+    }); 
+    
+    test("UnpackedStructure isSubStructureOf", fn(ctx) => {
+      ctx.assertFalse(DYNAMICSTRUCT.isSubStructureOf(nomStruct2));
+      ctx.assertFalse(DYNAMICSTRUCT.isSubStructureOf(TOPSTRUCT));
+      ctx.assertFalse(DYNAMICSTRUCT.isSubStructureOf(new DynamicStructure));
+      ctx.assertFalse(DYNAMICSTRUCT.isSubStructureOf(unpackedStruct1));
+    });
+    
+    /********************** Nominal Structure *************************/
+    test("NominalStructure equality", fn(ctx) => {
+      
+      ctx.assertFalse(nomStruct1 == DYNAMICSTRUCT);
+      ctx.assertFalse(nomStruct1 == TOPSTRUCT);
+      ctx.assertTrue(nomStruct1 == nomStruct1);
+      ctx.assertFalse(nomStruct1 == nomStruct2);
+      ctx.assertFalse(nomStruct1 == unpackedStruct1);
+    });   
+
+    test("NominalStructure isSubStructureOf", fn(ctx) => {
+      ctx.assertFalse(nomStruct1.isSubStructureOf(nomStruct2));
+      ctx.assertTrue(nomStruct2.isSubStructureOf(nomStruct1));
+      ctx.assertTrue(nomStruct1.isSubStructureOf(TOPSTRUCT));
+      ctx.assertFalse(nomStruct1.isSubStructureOf(DYNAMICSTRUCT));
+      ctx.assertFalse(nomStruct1.isSubStructureOf(unpackedStruct1));
+    }); 
+    
+    /********************** Unpacked Structure *************************/
+    test("UnpackedStructure equality", fn(ctx) => {
+      
+      ctx.assertFalse(unpackedStruct1 == DYNAMICSTRUCT);
+      ctx.assertFalse(unpackedStruct1 == TOPSTRUCT);
+      ctx.assertFalse(unpackedStruct1 == nomStruct1);
+      ctx.assertTrue(unpackedStruct1 == unpackedStruct1);
+      ctx.assertFalse(unpackedStruct1alt == unpackedStruct1);
+      ctx.assertFalse(unpackedStruct1altalt == unpackedStruct1);
+      ctx.assertFalse(unpackedStruct2 == unpackedStruct1);
+    }); 
+    
+    test("UnpackedStructure isSubStructureOf", fn(ctx) => {
+      ctx.assertFalse(unpackedStruct1.isSubStructureOf(nomStruct2));
+      ctx.assertFalse(unpackedStruct1.isSubStructureOf(TOPSTRUCT));
+      ctx.assertFalse(unpackedStruct1.isSubStructureOf(DYNAMICSTRUCT));
+      ctx.assertFalse(unpackedStruct1.isSubStructureOf(unpackedStruct1));
+    }); 
+    
+    
+    
+    /********************** Types *************************/
+    
+    test("Type equality", fn(ctx) => {
+      
+      ctx.assertTrue(makeType(UNIQUE,nomStruct1) == makeType(UNIQUE,nomStruct1));
+      ctx.assertFalse(makeType(UNIQUE,nomStruct1) == makeType(UNIQUE,nomStruct2));
+      ctx.assertFalse(makeType(UNIQUE,nomStruct1) == makeType(IMMUTABLE,nomStruct1));
+      ctx.assertFalse(VOID == makeType(IMMUTABLE,nomStruct1));
+      ctx.assertTrue(VOID == makeType(new NonePermission,new TopStructure));
+      ctx.assertFalse(DYNAMICTYPE == VOID);
+      ctx.assertTrue(DYNAMICTYPE == makeType(new DynamicPermission,new DynamicStructure));
+    }); 
+    
+    test("Type downgrade", fn(ctx) => {
+      
+      ctx.assertTrue(makeType(UNIQUE,nomStruct1).downgrade() == makeType(UNIQUE,nomStruct1));
+      ctx.assertTrue(makeType(IMMUTABLE,nomStruct1).downgrade() == makeType(IMMUTABLE,nomStruct1));
+      ctx.assertTrue(makeType(LOCALIMMUTABLE,nomStruct1).downgrade() == makeType(LOCALIMMUTABLE,nomStruct1));
+      ctx.assertTrue(makeType(SHARED,nomStruct1).downgrade() == makeType(SHARED,TOPSTRUCT));
+      ctx.assertTrue(makeType(LOCALSHARED,nomStruct1).downgrade() == makeType(LOCALSHARED,TOPSTRUCT));
+      ctx.assertTrue(VOID.downgrade() == makeType(NONEP,TOPSTRUCT));
+      ctx.assertTrue(DYNAMICTYPE.downgrade() == makeType(new DynamicPermission,new DynamicStructure));
+    });
+    
+    
+    
+    tests
+  }
+  
+  
+}

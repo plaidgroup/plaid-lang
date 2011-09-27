@@ -4,8 +4,8 @@ import plaid.parser.Token;
 
 public class UnitType extends Type {
 
-	public UnitType(Token t) {
-		super(t);
+	public UnitType(Token token) {
+		super(token);
 	}
 
 }

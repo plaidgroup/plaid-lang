@@ -1,9 +1,5 @@
 package plaid.parser.ast;
 
-import java.beans.Expression;
-import java.util.Collections;
-import java.util.List;
-
 import plaid.parser.Token;
 
 public class MethodCall extends Expr {

@@ -21,15 +21,16 @@ import org.junit.Test;
 
 import plaid.parser.ParseException;
 import plaid.parser.PlaidCoreParser;
+import plaid.parser.ast.ASTNode;
 import plaid.parser.ast.Arg;
 import plaid.parser.ast.ArgSpec;
+import plaid.parser.ast.ConcreteType;
 import plaid.parser.ast.Expr;
 import plaid.parser.ast.Identifier;
-import plaid.parser.ast.LambdaType;
-import plaid.parser.ast.StaticType;
-import plaid.parser.ast.NominalObjectType;
+import plaid.parser.ast.LambdaStructure;
 import plaid.parser.ast.Permission;
 import plaid.parser.ast.QualifiedIdentifier;
+import plaid.parser.ast.StaticType;
 import plaid.parser.ast.Type;
 
 public class ParseTypeTest {
@@ -81,9 +82,7 @@ public class ParseTypeTest {
 			QualifiedIdentifier qi) throws ParseException{
 		PlaidCoreParser pcp = parserFromString(code);
 		Type parsedType = pcp.Type();
-		Type goalType = new NominalObjectType(null, p, 
-				qi,
-				new ArrayList<StaticType>());
+		Type goalType = NominalObjectType(p, qi);
 		Assert.assertTrue("Goal and parsed ASTs don't match.", parsedType.equivalent(goalType));
 	}
 	
@@ -145,8 +144,10 @@ public class ParseTypeTest {
 	
 	private void testLambdaType(String code, List<ArgSpec> argsSpec, Type returnType) 
 	throws ParseException{
-		Type goalType = new LambdaType(null,new ArrayList<StaticType>(),argsSpec,
-				new ArrayList<Arg>(), returnType);
+		Type goalType = new ConcreteType(ASTNode.DEFAULT_TOKEN, 
+					Permission.EMPTY,
+					new LambdaStructure(null,new ArrayList<StaticType>(),argsSpec,
+							new ArrayList<Arg>(), returnType));
 		testLambdaType(code, goalType);
 	}
 	
@@ -160,9 +161,7 @@ public class ParseTypeTest {
 	public void testNoArgLambdaType() throws ParseException {
 		QualifiedIdentifier qi = 
 			new QualifiedIdentifier(null, Collections.singletonList(new Identifier(null, "hello")));
-		Type returnType = new NominalObjectType(null, Permission.EMPTY, 
-				qi,
-				new ArrayList<StaticType>());
+		Type returnType = NominalObjectType(qi);
 		testLambdaType("()->hello", LambdaType(returnType));
 	}
 	

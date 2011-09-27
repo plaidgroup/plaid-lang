@@ -18,6 +18,8 @@ public class TransliterateToPlaid<T> {
 		return DiscoverClasses(ASTNode.class,null,ASTNode.class);
 	}
 	
+	private static final String PREFIX = "Parsed";
+	
 	/**
 	 * Only converts fields and sets all of the fields to immutable. Only supports fields whose types are 
 	 * in the same package as the class being converted.
@@ -28,16 +30,20 @@ public class TransliterateToPlaid<T> {
 	private static String plaidCodeFromJavaClass(Class<?> clazz, String plaidPackage, boolean isConcrete) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("package " + plaidPackage+ ";\n\n");
-		sb.append("state " + clazz.getSimpleName());
+		sb.append("state " + PREFIX + clazz.getSimpleName());
 		Class<?> superClass = clazz.getSuperclass();
 		if(superClass != Object.class) {
-			sb.append(" case of " + superClass.getSimpleName());
+			sb.append(" case of " + PREFIX + superClass.getSimpleName());
 		}
 		sb.append(" {\n\n");
 		Field[] fs = clazz.getDeclaredFields();
 		for (int i = 0; i < fs.length; i++) {
 			if(!Modifier.isStatic(fs[i].getModifiers())) {
-				sb.append("\tval immutable " + fs[i].getType().getSimpleName() + " " + fs[i].getName() + ";\n");
+				String fieldType = fs[i].getType().getSimpleName();
+				if (fieldType.equals("List")) fieldType = "LinkedList";
+				else if (!fieldType.equals("String")) 
+					fieldType = PREFIX + fieldType;
+				sb.append("\tval immutable " + fieldType + " " + fs[i].getName() + ";\n");
 			}
 		}
 		
@@ -54,7 +60,7 @@ public class TransliterateToPlaid<T> {
 			sb.append("\"" +clazz.getSimpleName() + "\\n\" + ");
 			for(Field field:getAllFields(clazz)) {
 				sb.append("\n\t\t");
-				sb.append("\"" + field.getName() + ":\" + " + field.getName() + ".toString()");
+				sb.append("\"" + field.getName() + ":\" + this." + field.getName() + ".toString()");
 				sb.append(" + \"\\n\" +");
 			}
 			sb.replace(sb.length()-1, sb.length(), ";"); //remove last plus
@@ -103,7 +109,7 @@ public class TransliterateToPlaid<T> {
 	private static String matchCase(Class<?> clazz) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("\t\t\tcase " + clazz.getName() + "{ \n");
-		sb.append("\t\t\t\tnew " + clazz.getSimpleName() + " {\n");
+		sb.append("\t\t\t\tnew " + PREFIX + clazz.getSimpleName() + " {\n");
 		List<Field> allFields = getAllFields(clazz);
 		for (Field field : allFields) {
 			sb.append("\t\t\t\t\t" + field.getName() + " = ");
@@ -150,7 +156,7 @@ public class TransliterateToPlaid<T> {
 	
 	private static String visitMethod(Class<?> clazz, boolean includeBody) {
 		String visitMethodCode =  "\tmethod void visit" + clazz.getSimpleName() 
-			+ "(immutable " + clazz.getSimpleName() + " node)";
+			+ "(immutable " + PREFIX + clazz.getSimpleName() + " node)";
 		if(includeBody){
 			visitMethodCode += " {\n";
 			for(Field field:getAllFields(clazz)) {
@@ -279,7 +285,7 @@ public class TransliterateToPlaid<T> {
 		for (Class<?> clazz : classes) {
 			boolean isConcrete = !Modifier.isAbstract(clazz.getModifiers());
 			String code = plaidCodeFromJavaClass(clazz, "plaid.ast.parsed", isConcrete);
-			writePlaidFile(outputASTDir, code, clazz.getSimpleName());
+			writePlaidFile(outputASTDir, code, PREFIX + clazz.getSimpleName());
 			if(isConcrete) {
 				sbTranslator.append(matchCase(clazz));
 				sbVisitor.append(visitMethod(clazz,false));

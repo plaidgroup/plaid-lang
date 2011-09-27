@@ -5,26 +5,26 @@ import plaid.parser.Token;
 public class ArgSpec extends ASTNode {
 	
 	public static final ArgSpec EMPTY = EmptyArgSpec.getEmptyArgSpec();
-	private final Type preType;
-	private final Type postType;
+	private final Type inputType;
+	private final Type outputType;
 	
-	public ArgSpec(Token t, Type preType, Type postType) {
+	public ArgSpec(Token t, Type inputType, Type outputType) {
 		super(t);
-		this.preType = preType;
-		if (postType == null) {
-			this.postType = preType;
+		this.inputType = inputType;
+		if (outputType == null || outputType == Type.EMPTY) {
+			this.outputType = inputType;
 		} 
 		else {
-			this.postType = postType;
+			this.outputType = outputType;
 		}
 	}
 	
-	public Type getPreType() {
-		return preType;
+	public Type getInputType() {
+		return inputType;
 	}
 
-	public Type getPostType() {
-		return postType;
+	public Type getOutputType() {
+		return outputType;
 	}
 
 	@Override
@@ -32,7 +32,7 @@ public class ArgSpec extends ASTNode {
 		if ( this == EMPTY ) {
 			return "";
 		} else {
-			return preType + ((postType!=Type.EMPTY)?">>"+postType:"");
+			return inputType + ((outputType!=Type.EMPTY)?">>"+outputType:"");
 		}
 	}
 }
