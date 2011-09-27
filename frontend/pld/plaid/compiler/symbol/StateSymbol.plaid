@@ -2,38 +2,49 @@ package plaid.compiler.symbol;
 
 import plaid.compiler.*;
 import plaid.compiler.types.*;
+import plaid.compiler.permissions.NONEP;
 import plaid.ast.parsed.ASTNode;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
+import plaid.collections.makeLinkedList;
 
 
-state StateSymbol case of Symbol {
-    val immutable ASTNode declaration;
-    val immutable Symbol owner;
-    val unique List members = makeEmptyList();
-
-    method unique QualifiedIdentifier getQualifiedIdentifier() {
+state StateSymbol case of OwningSymbol {
+    val immutable ParsedStateDecl declaration;
+    val immutable OwningSymbol owner;
+    val unique LinkedList members = makeLinkedList();
+    var unique Option<immutable Structure> stateStructureOption = new None;
+    var unique Option<immutable Symbol> superStateSymbolOption = new None;
+    
+    override method immutable Boolean ==(immutable Symbol other)[immutable StateSymbol this] {
+        match (other) {
+          case StateSymbol { this.name.equals(other.name) && this.owner == other.owner }
+          default { false }
+        }
+    } 
+    
+    method unique ParsedQualifiedIdentifier getQualifiedIdentifier() {
         match ( owner ) {
             case PackageSymbol {
                 DEBUG(DEBUG_PRIO_LOW, "<SateSymbol> Found 'PackageSymbol' owner.");
                 val qi = owner.getQualifiedIdentifier();
-                val unique List ids = makeEmptyList();
+                val unique LinkedList ids = makeLinkedList();
                 
                 qi.identifiers.map(fn (id) => {
                     ids.add(id);
                 });
-                ids.add(new Identifier{name = this.name; token = EMPTY_TOKEN;});
+                ids.add(new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;});
                 
-                new QualifiedIdentifier{ identifiers = ids; token = EMPTY_TOKEN;}
+                new ParsedQualifiedIdentifier{ identifiers = ids; token = EMPTY_TOKEN;}
             }
             case TopSymbol {
                 DEBUG(DEBUG_PRIO_LOW, "<StateSymbol> Found 'TopSymbol' owner.");
-                val ids = makeEmptyList();
-                ids.add(new Identifier{name = this.name; token = EMPTY_TOKEN;});
-                new QualifiedIdentifier{ identifiers = ids;  token = EMPTY_TOKEN;}
+                val unique LinkedList ids = makeLinkedList();
+                ids.add(new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;});
+                new ParsedQualifiedIdentifier{ identifiers = ids;  token = EMPTY_TOKEN;}
             }
             default {
                 ERROR("<StateSymbol> Package has invalid owner.");
-                new QualifiedIdentifier{ identifiers = makeEmptyList(); token = EMPTY_TOKEN;}
+                new ParsedQualifiedIdentifier{ identifiers = makeLinkedList(); token = EMPTY_TOKEN;}
             }
         }
     }
@@ -44,6 +55,22 @@ state StateSymbol case of Symbol {
 
     method void addMember(shared Symbol member) {
         this.members.add(member);
+    }
+    
+    method immutable Boolean isImmutableState() {
+        match (this.declaration) {
+            case ParsedStateDecl {
+                this.declaration.modifiers.exists(
+                    fn (elem) => {
+                        match (elem) {
+                            case ParsedImmutableModifier { true }
+                            default { false }
+                        }
+                    }
+                )
+            }
+            default { false } //TODO: better node types?
+        }
     }
 
     method unique Option getMember(immutable String name) {
@@ -59,14 +86,58 @@ state StateSymbol case of Symbol {
         value;
     }
 
-    method immutable PlaidType getType() {   
-        if ( !haveTypeForAST(this.declaration) ) {
-            addTypeForAST(this.declaration, new NominalPlaidType {
-                val symbol = this;
-                val owner  = this.owner.getType();
-                val name   = this.name;
-            })
-        };
-        typeForAST(this.declaration).value;
+    method immutable Structure getStructure() {        
+      match (this.stateStructureOption) {
+        case Some { this.stateStructureOption.value }
+        case None {
+          if ( !haveTypeForAST(this.declaration) ) {
+            val immutable NominalStructure theStructure =  new NominalStructure {
+              val symbol = this;
+              val owner  = this.owner.getType();
+              val name   = this.name;
+            };
+            addTypeForAST(this.declaration, new Type {
+              val permission = NONEP;
+              val structure  = theStructure;
+            });
+            this.stateStructureOption = makeSome(theStructure);
+            theStructure
+          }
+        }
+      }
+    }
+    
+    method immutable Symbol getSuperStateSymbol()[immutable StateSymbol this] {
+      match (this.superStateSymbolOption) {
+        case Some { this.superStateSymbolOption.value }
+        case None {
+          val immutable ParsedQualifiedIdentifier caseOfNode = this.declaration.caseOf;
+          match (caseOfNode) {
+            case ParsedEmptyQualifiedIdentifier { 
+              this.superStateSymbolOption = makeSome(new TopSymbol);
+              new TopSymbol;
+            }
+            default {
+              val unique Option<immutable Symbol> ASTsymbolOption = symbolForAST(caseOfNode);
+              match (ASTsymbolOption) {
+                case Some {
+                  match (ASTsymbolOption.value) {
+                    case StateSymbol {
+                      this.superStateSymbolOption = makeSome(ASTsymbolOption.value);
+                      ASTsymbolOption.value;
+                    }
+                    default {
+                      ABORT(this.toString() + " case of a non-state declaration: " + ASTsymbolOption.toString());
+                    }
+                  }
+                }
+                case None {
+                  ABORT(this.toString() + " case of declaration invalid");
+                }
+              }
+            }
+          }
+        }
+      }
     }
 }

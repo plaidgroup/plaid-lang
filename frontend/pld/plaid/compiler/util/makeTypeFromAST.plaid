@@ -3,36 +3,68 @@ package plaid.compiler.util;
 import plaid.ast.parsed.*;
 import plaid.compiler.*;
 import plaid.compiler.types.*;
+import plaid.compiler.permissions.*;
 
-method immutable PlaidType makeTypeFromAST(immutable Type typeNode) {
-    match(typeNode) {
-        case EmptyType {
-            DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> EmptyType -> DynamicPlaidType");
-            new DynamicPlaidType; 
+method immutable Type makeTypeFromAST(immutable ParsedType typeNode) {
+  match(typeNode) {
+    case ParsedEmptyType { //If we didn't get type information, put Dynamic
+      DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> EmptyType -> dynamicPermission DynamicStructure");
+      new Type {
+        val permission = DYNP;
+        val structure = new DynamicStructure; 
+      }
+    }
+    case ParsedConcreteType { //If we did construct a type
+      DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> transform ConcreteType");
+      
+      //determine the permission first - may update it later
+      var defaultPermissionOption = new None;
+      
+      //get the structure by using the symbol to type map
+      val theStructure = match (typeNode.structure) {
+        case ParsedNominalStructure {
+          val qiSymbol = symbolForAST(typeNode.structure.stateQi);
+          match (qiSymbol) {
+            case Some {
+              DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> create structure for state '" + qiSymbol.value.getFQN() + "'");
+              
+              //if no permission information specified, check if the state is immutable
+              match (typeNode.permission) {
+                case ParsedEmptyPermission {
+                  ifElse (qiSymbol.value.isImmutableState()) 
+                    { defaultPermissionOption = makeSome(IMMUTABLE) }
+                    { defaultPermissionOption = makeSome(UNIQUE) }
+                }
+                default { /* no op */ }
+              };
+              
+              
+              //return the structure
+              qiSymbol.value.getStructure();
+            }
+            case None {
+                ABORT("Cannot find symbol for '" + makeStringFromQualifiedIdentifier(typeNode.stateQi) + "'");
+            }
+          }
         }
-        case NominalObjectType {
-            DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> transform NominalObjectType");
-            val qiSymbol = symbolForAST(typeNode.stateQi);
-            match (qiSymbol) {
-                case Some {
-                    DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> create PermType for state '" + qiSymbol.value.getFQN() + "'");
-                    val qiType = qiSymbol.value.getType();
-                    val permission = makePermissionFromAST();
-                    new PermPlaidType {
-                        val permission = permission;
-                        val permType   = qiType;
-                    }
-                 }
-                 case None {
-                     ABORT("Cannot find symbol for '" + makeStringFromQualifiedIdentifier(typeNode.stateQi) + "'");
-                 }
-             }
-        }
-        case LambdaPlaidType {
-            ABORT("Cannot handle LambdaTypes yet");
+        case ParsedLambdaStructure {
+          ABORT("Cannot handle LambdaTypes yet");
         }
         default {
-            ABORT("Cannot create type from ASTNode. " + typeNode.toString());
+          ABORT("Type node has unknown structure: " + typeNode.structure.nodeName());
         }
+      };
+      
+      val thePermission = match (defaultPermissionOption) {
+        case Some { defaultPermissionOption.value }
+        case None { makePermissionFromAST(typeNode.permission) }
+      };
+      
+      //create type from the permission and structure
+      makeType(thePermission,theStructure);
     }
+    default {
+        ABORT("Cannot create type from ASTNode. " + typeNode.nodeName());
+    }
+  }
 }
