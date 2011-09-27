@@ -1,0 +1,110 @@
+package plaid.ast.types.permissions;
+
+/**
+ *	Top level state representing all Permissions. possibilities are
+ *  DynP, Unique, Full, Immutable, Shared, Pure, None
+ */
+state Permission {
+	/**
+	 * Determines whether a specific permission is writable.  If this permission 
+	 * allows a stage change, then the permission is writable and this function 
+	 * returns true.  Returns false otherwise.
+	 */
+	method immutable Boolean isWritable()[pure Permission];
+	
+	/**
+	 * Determines whether a specific permission guarantees that the state of
+	 * of the object does not change.  Weak permissions (none, pure, shared)
+	 * return false, and strong permissions (unique, full, immutable) return
+	 * true
+	 */
+	method immutable Boolean guaranteesState()[pure Permission];
+	
+	/**
+	 * Compares this permission to the specified permission.  If they are of the
+	 * same type, then they are considered equal.  Returns true if the two
+	 * permissions are equal and false otherwise.
+	 */
+	method immutable Boolean ==(immutable Permission p2)[immutable Permission];
+	
+	/** 
+	 * Print
+	 */
+	method immutable String toString()[immutable Permission];
+	
+	/**
+	 * determines whether the current permission can be split into
+	 * the specified permission.  If it can, the function returns Some(newPerm)
+	 * where newPerm is the residue after splitting.  If it cannot, it returns None
+	 */
+	method /*unique Option<immutable Permission>*/ splitPerm(immutable Permission p2)
+															[immutable Permission >> void];
+	
+	/**
+	 *  While there is always a least upper bound, it may not always be possible to combine two
+	 *  permissions into that upper bound.  The join method attempts to join two permissions
+	 *  together.  If they cannot be joined because they cannot coexist, then None is returned.
+	 */
+	method /*unique Option<immutable Permission>*/ join(immutable Permission >> void p2)
+													   [immutable Permission >> void];
+	
+	/**
+	 * When permissions are strongly borrowed, it is possible to rejoin them
+	 * and get back a stronger type.  If the target can be regained from this
+	 * permission and p2 given that they were strongly borrowed (no persistent
+	 * aliases were created), then Some is returned wapping the target permission.
+	 * Otherwise, None is returned.
+	 */
+	method /*unique Option<immutable Permission>*/ 
+		joinTo(immutable Permission >> void p2, immutable Permission >> void target)
+			  [immutable Permision >> void];
+
+	/**
+	 * returns true if this permission is as subpermission of p2
+	 * returns false otherwise
+	 * for permissions, subPerms can be said to be "stronger" than their superPerms 
+	 * the function is implemented in terms of splitting.  If p2 can be split off
+	 * from this permission, then p2 is a super Permission of this permission
+	 * order: dyn, unique, full, immutable <> shared, pure, none
+	 * immutable and shared neither stronger than the other
+	 */
+	method immutable Boolean isSubPermOf(immutable Permission p2)[immutable Permission >> void] {
+		match(this.splitPerm(p2)) {
+			case Some { true }
+			case None { false }
+		}
+	}
+	
+	/**
+	 *  If we think of permissions as a lattice, then we can define a least
+	 *  upper bound between two permissions.  This corresponds to the idea
+	 *  of the strongest permission, except that when two permissions
+	 *  cannot be compared (for example immutable and shared), then we
+	 *  give the upper bound on them (in that case, full)
+	 */
+	method immutable Permission leastUpperBound(immutable Permission p2)[immutable Permission];
+	
+	/**
+	 *  If we think of permissions as a lattice, then we candefine a greatest
+	 *  lower bound between two permissions.  This corresponds to the idea
+	 *  of the weakest permission, except when two permissions cannot be
+	 *  compared (for example immutable and shared), then we give the lower
+	 *  bound for them (in that case, pure)
+	 */
+	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable Permission];
+	
+	/**
+	 * returns true if this permission is as strong or stronger than p2
+	 * returns false otherwise
+	 * order: dyn, unique, full, immutable <> shared, pure, none
+	 * immutable and shared neither stronger than the other
+	 * ***Deprecated in favor of isSubPermOf
+	 */
+	method asStrongAs(p2);
+	
+	/**
+	 *	returns the weakest of the two permissions (for merging after eg multiple case statements)
+	 *  ***Deprecated in favor of greatestLowerBound***
+	 */
+	method merge(p2);
+}

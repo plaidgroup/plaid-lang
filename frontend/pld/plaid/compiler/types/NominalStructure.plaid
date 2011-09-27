@@ -1,0 +1,82 @@
+package plaid.compiler.types;
+
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+
+state NominalStructure case of ObjectStructure {
+  val shared StateSymbol symbol;
+  val immutable Structure owner;
+  val immutable String name;
+
+  method immutable Boolean ==(immutable Structure other)
+                             [immutable NominalStructure this] 
+  {
+    match (other) {
+      case NominalStructure { this.symbol == other.symbol } //TODO: symbol seems like it would be unique, is this correct?
+      default { false }
+    } 
+  }
+  
+  method immutable String toString()[immutable NominalStructure this] {
+    this.name;
+  }
+  
+  /**
+   * TODO
+   */
+  method unique Option<immutable Structure> leastUpperBound(immutable Structure other)[immutable NominalStructure this] {
+    match (other) {
+      case TopStructure { makeSome(other) }
+      default {
+        /* work to do*/
+      }
+    }
+  }
+  
+  /**
+   * unpacked structures cannot be used in place of any other structures
+   * might want to relax this in the future
+   */
+  method immutable Boolean isSubStructureOf(immutable Structure other)[immutable NominalStructure this] {
+    match (other) {
+      case TopStructure { true }
+      case NominalStructure {
+        val immutable StateSymbol otherSymbol = other.symbol;
+        var immutable Symbol thisSuperStateSymbol = this.symbol;
+        var immutable Boolean found = false;
+        while { !found && !(thisSuperStateSymbol == TOPSYM) } {
+          ifElse (thisSuperStateSymbol == otherSymbol) 
+            { found = true }
+            { thisSuperStateSymbol = thisSuperStateSymbol.getSuperStateSymbol() }
+        };
+        found
+      }
+      default { false }
+    }
+  }
+
+  method immutable Signature getMember(immutable String memberName) {
+      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> searching for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+      val memberSymbol = this.symbol.getMember(memberName);
+      match (memberSymbol) {
+          case Some {
+              match (memberSymbol.value) {
+                  case FieldSymbol {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+memberName+"'");
+                      memberSymbol.value.getSignature();
+                  }
+                  case MethodSymbol {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+memberName+"'");
+                      memberSymbol.value.getSignature();
+                  }
+                  default {
+                      ABORT("Unsupported member type ");
+                  }
+              }
+          }
+          case None {
+              ABORT("Cannot find member '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+          }
+      }
+  }
+}
