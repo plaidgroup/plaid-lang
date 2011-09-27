@@ -1243,6 +1243,31 @@ public class ParseExpressionTest {
 	}
 	
 	@Test
+	public void parseAbstractMethodThis() throws ParseException, UnsupportedEncodingException {
+		final String code = "method immutable Boolean foo() [immutable Boolean >> immutable Boolean this];";
+		final MethodDecl goal = 
+			AbstractMethodDecl(
+				NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")), 
+				Identifier("foo"), 
+				StaticArg.EMPTY, 
+				Arg.EMPTY, 
+				Arrays.asList(
+						Arg(
+								ArgSpec(
+									NominalObjectType(Immutable(), QualifiedIdentifier("Boolean")),
+									NominalObjectType(Immutable(), QualifiedIdentifier("Boolean"))
+								), 
+								Identifier("this"))
+						)
+				
+			); 
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		assertTrue(e instanceof AbstractMethodDecl );
+		assertTrue(e.equivalent(goal));
+	}
+	
+	@Test
 	public void parseAbstractMethodReturnTypeArgs() throws ParseException, UnsupportedEncodingException {
 		final String code = "method immutable Boolean foo(immutable Boolean>>immutable Boolean x);";
 		final MethodDecl goal = 
