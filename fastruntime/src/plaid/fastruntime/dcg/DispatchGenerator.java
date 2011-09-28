@@ -24,7 +24,7 @@ public final class DispatchGenerator implements Opcodes {
 		// generate class
 		Collection<String> ifaces = new ArrayList<String>();
 		for (MethodInfo m : ov.getMethods()) {
-			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(m.getName()));
+			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(m.getName(), m.numArgs()));
 		}
 		cw.visit(50,
 			     ACC_PUBLIC,
