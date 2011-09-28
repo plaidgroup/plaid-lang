@@ -1,0 +1,162 @@
+/**
+ * Copyright (c) 2011 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.compiler.permissions;
+
+import plaid.compiler.Permission;
+
+/**
+ *	BorrwedPermissions are similar to local permissions, but they record
+ *	an original permissions from which a local permission was pulled
+ *  from (unique or local), and how many splits have occurred.
+ *  This allows the original permission to be restored when the
+ *  splits have been returned.	
+ */
+state BorrowedPermission case of SystemPermission {
+	val immutable SymmetricPerm thePerm;
+	val immutable SourcePermission originalPerm;
+	val immutable Integer splitCount;
+	
+	//delegate to underlying permission
+	method immutable Boolean isWritable()[immutable BorrowedPermission >> void] {
+		this.thePerm.isWritable();
+	}	
+
+	//delegate to underlying permission
+	method immutable Boolean guaranteesState()[immutable BorrowedPermission >> void] {
+		this.thePerm.guaranteesState();
+	}
+	
+	method immutable Boolean ==(immutable Permission >> void other)
+							   [immutable BorrowedPermission >> void] {
+		match (other) {
+			case BorrowedPermission { 
+				this.thePerm == other.thePerm &&
+				this.originalPerm == other.originalPerm &&
+				this.splitCount == other.splitCount
+			}
+			default { false }
+		}
+	}
+	
+	method immutable String toString()[immutable BorrowedPermission >> void] {
+		"borrow(local " + this.thePerm.toString() + ", " 
+		+ this.originalPerm.toString() + ", " + this.splitCount + ")"
+	}
+	
+	/**
+	 *  We can only split local permissions from a borrowed permission
+	 *  and only if the underlying permissions match
+	 *  If they do, then we increment the split counter in the returned
+	 *  borrowed permission
+	 */
+	method unique Option<immutable Permission> splitPerm(immutable Permission >> void p2)
+												[immutable BorrowedPermission >> void] {
+		match (p2) {
+			case LocalPermission {
+				ifElse ( p2.thePerm == this.thePerm ) 
+					{ makeSome(makeBorrowedPerm(this.thePerm, 
+												this.originalPerm, 
+												this.splitCount + 1)) }
+					{ new None }
+			}
+			case NonePermission { makeSome(this) }
+			default { new None }
+		}														
+	}
+	
+	/**
+	 * if we return a local permission matching the underlying permission
+	 * of this borrow, then we decrement the split counter.  If the split
+	 * counter reaches 0, then we return the original permission.
+	 */
+	method unique Option<immutable Permission> returnPerm(immutable SourcePermission >> void p2)
+											 	 [immutable BorrowedPermission >> void]
+	{
+		match (p2) {
+			case LocalPermission {
+				ifElse ( this.thePerm == p2.thePerm ) 
+					{
+						ifElse ( this.splitCount == 1 )
+							{ makeSome( this.originalPerm ) }
+							{ makeSome( makeBorrowedPerm(this.thePerm,
+														 this.originalPerm,
+														 this.splitCount - 1))
+							}
+					}
+					{ new None }
+			}
+			case NonePermission { makeSome(this) }
+			default { new None }
+		}
+	}
+
+/* NOT USED CURRENTLY	*/
+	/**
+	 * For the purposes of least upper bounds, we treat borrowed as local
+	 * permissions with the same underlying permission 
+	 * NOTE - this may not be correct
+	 */
+/*	method immutable Permission leastUpperBound(immutable Permission p2)
+											   [immutable Permission]
+	{
+		match (p2) {
+			case UniquePermission { UNIQUE }
+			case LocalPermission {
+				ifElse (this.thePerm == p2.thePerm)
+					{ this }
+					{ UNIQUE }
+			}
+			case SymmetricPermission {
+				ifElse (this.thePerm == p2) 
+					{ p2 }
+					{ UNIQUE }
+			}
+			case NonePermission { this }
+			default { UNIQUE } //error
+		}									   
+	}*/
+	
+	/**
+	 * For the purposes of greatest lower bounds, we treat borrowed as local
+	 * permissions with the same underlying permission 
+	 * NOTE - this may not be correct
+	 */
+/*	method immutable Permission greatestLowerBound(immutable Permission p2)
+												  [immutable Permission]
+	{
+		match (p2) {
+			case UniquePermission { this }
+			case LocalPermission {
+				ifElse (this.thePerm == p2.thePerm)
+					{ this }
+					{ NONEP }
+			}
+			case SymmetricPermission {
+				ifElse (this.thePerm == p2) 
+					{ this }
+					{ NONEP }
+			}
+			case NonePermission { NONEP }
+			default { NONEP } //error
+		}
+	}*/
+
+}
+
