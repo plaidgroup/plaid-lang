@@ -19,14 +19,16 @@
 
 package plaid.compiler;
 
-import plaid.compiler.permissions.SourcePermission;
+import plaid.compiler.permissions.DYNAMICP;
+import plaid.compiler.permissions.BorrowedPermission;
+import plaid.compiler.permissions.UNIQUE;
 
 /**
  *	Top level state representing all Permissions.
  *	We have two main classes of Permission:
  *		Source Permissions - these are permissions that can appear
  *			in a source program attached to a reference.  They include
- *			Base Permissions and Local Permissions
+ *			Base Permissions and Local Permissions and the dynamic permission
  *		System Permissions - these are permissions that are needed for
  *			for tracking during typechecking but are not normally
  *			expressible in the source.  These included Borrowed Permissions
@@ -37,13 +39,33 @@ import plaid.compiler.permissions.SourcePermission;
  *  the various source files
  *
  *  Permission ::= SourcePermission | SystemPermission
- *  SourcePermission ::= BasePermission | local(SymmetricPermission)
+ *  SourcePermission ::= BasePermission | local(SymmetricPermission) | dynamic
  *  BasePermission ::= SingularPermission | SymmetricPermission
  *  SingularPermission ::= unique ( | full )
  *  SymmetricPermission ::= immutable | shared ( | pure )
  *  SystemPermission ::= borrow(SymmetricPermission,Integer,SourcePermission)
  *  			       | none 
  *
+ *
+ *  This is what the permission lattice looks like based on current and (future) permissions
+ *  This lattice is defined by the splitting operations.  A permission, p, is
+ *  a subpermission of another permission p' if and only if p' can be split from p.
+ *  Note that dynamic is not comparable with any other permissions
+ *  and that the borrow forms are only comparable to the corresponding
+ *  local permission and none.
+ *
+ *                            none                              weakest
+ *                              |                                 |
+ *                           (pure)                               |
+ *                           /    \                               |
+ *               local immutable  local shared                    |
+ *                /         |       |        \                    |
+ *borrowed(immutable,n,p)   |       |       borrowed(shared,n,p)  |
+ *                      immutable  shared                         |
+ *                           \    /                               |
+ *                           (full)                               |
+ *                             |                                  V
+ *                          unique        dynamic              strongest
  */
 state Permission {
 	/**
@@ -107,4 +129,40 @@ state Permission {
 			case None { false }
 		}
 	}
+	
+	/**
+   *  Because of borrowed and dynamic permissions, we do not form a meet bounded lattice, so we cannot always
+   *  guarantee a greatest lower bound.  If one is a subpermission of the other, then we can
+   *  return that.  Otherwise, as long as we don't have a borrowed or dynamic permission, unqiue will be out
+   *  lower bound.  If we do have a borrowed permission in this case, then none is returned.  
+   *  (Note that a local can be split from a borrowed so borrowed is a subtype of local
+   *  in some cases, so it may succeed with a borrow and a local).
+   */
+  method unique Option<immutable Permission> greatestLowerBound(immutable Permission p2)
+                           [immutable Permission] {
+    
+    ifElse ((this == DYNAMICP ) XOR (p2 == DYNAMICP)) { //if both dynamic, then they are subperms
+      new None
+    } /*else*/ {
+      match(this.isSubPermOf(p2)) {
+        case True { makeSome(this) }
+        case False {
+          match (p2.isSubPermOf(this)) {
+            case True { makeSome(p2) }
+            case False { 
+              match (this) {
+                case BorrowedPermission { new None }
+                default {
+                  match (p2) {
+                    case BorrowedPermission { new None }
+                    default { makeSome(UNIQUE) }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }   
+    }                                            
+  }
 }
