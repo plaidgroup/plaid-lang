@@ -3,7 +3,7 @@ package plaid.fastruntime.dcg.examples.testFooBar;
 import java.util.HashMap;
 import java.util.Map;
 
-import plaid.fastruntime.dcg.Generator;
+import plaid.fastruntime.dcg.DispatchGenerator;
 import plaid.fastruntime.dcg.MethodImplementation;
 import plaid.fastruntime.dcg.MethodSpecification;
 
@@ -22,19 +22,18 @@ public class TestFooBar extends SimpleBenchmark {
 		map2.put(Foo.class, FooImpl.class);
 		map2.put(Bar.class, BarImpl.class);
 		map2.put(Baz.class, BazImpl.class);
-		
 	}
 	
 	public void timeFooBar(int reps) {
 		for (int i = 0; i < reps; i++) {
-			Generator gen = new Generator();
+			DispatchGenerator gen = new DispatchGenerator();
 			fo = (Foo)gen.createClass(map);
 		}
 	}
 	
 	public void timeFooBarBaz(int reps) {
 		for (int i = 0; i < reps; i++) {
-			Generator gen = new Generator();
+			DispatchGenerator gen = new DispatchGenerator();
 			fo = (Foo)gen.createClass(map2);
 		}
 	}
