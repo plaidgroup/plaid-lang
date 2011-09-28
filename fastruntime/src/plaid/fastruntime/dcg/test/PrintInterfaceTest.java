@@ -4,6 +4,6 @@ import plaid.fastruntime.dcg.InterfaceGenerator;
 
 public class PrintInterfaceTest {
 	public static void main(String[] args) {
-		new InterfaceGenerator().createInterface("hello", 0);
+		new InterfaceGenerator().createInterface("bar", 1);
 	}
 }

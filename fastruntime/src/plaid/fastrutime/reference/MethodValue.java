@@ -1,7 +1,7 @@
 package plaid.fastrutime.reference;
 
-import static plaid.fastruntime.dcg.NamingConventions.PLAID_OBJECT_DESCRIPTOR;
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.dcg.NamingConventions;
 import fj.data.List;
 
 public final class MethodValue extends MemberValue implements MethodInfo {
@@ -47,14 +47,7 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 
 	@Override
 	public String getMethodDescriptor() {
-		StringBuilder sb = new StringBuilder("(");
-		sb.append(PLAID_OBJECT_DESCRIPTOR); // receiver
-		for(int i=0; i<this.numArgs; i++) {
-			sb.append(PLAID_OBJECT_DESCRIPTOR); //args
-		}
-		sb.append(")");
-		sb.append(PLAID_OBJECT_DESCRIPTOR); // return
-		return sb.toString();
+		return NamingConventions.getMethodDescriptor(numArgs);
 	}
 
 	@Override
