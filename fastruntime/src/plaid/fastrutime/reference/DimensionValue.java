@@ -1,6 +1,8 @@
 package plaid.fastrutime.reference;
 
+import plaid.fastruntime.MethodInfo;
 import fj.Ord;
+import fj.data.List;
 import fj.data.Set;
 
 /**
@@ -100,5 +102,17 @@ public final class DimensionValue extends SingleValue {
 			toReturn = toReturn + "<:" + parent.toString();
 		}
 		return toReturn;
+	}
+
+	@Override
+	public List<MethodInfo> getMethods() {
+		List<MethodInfo> mi = List.nil();
+		if(innerValue!=null) {
+			mi.append(innerValue.getMethods());
+		}
+		if(parent!=null) {
+			mi.append(parent.getMethods());
+		}
+		return mi;
 	}
 }

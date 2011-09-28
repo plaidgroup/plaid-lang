@@ -72,10 +72,10 @@ public class StateChangeTest {
 		ObjectValue target = 
 					new DimensionValue("A", null, null);
 		ObjectValue update = 
-			new MethodValue("foo");
+			new MethodValue("foo", 0, null);
 		ObjectValue result = target.changeState(update);
 		ObjectValue goal = 
-				new ListValue(new DimensionValue("A", null, null), new MethodValue("foo"));
+				new ListValue(new DimensionValue("A", null, null), new MethodValue("foo", 0, null));
 		Assert.assertTrue(result.equals(goal));
 	}
 	
@@ -83,10 +83,10 @@ public class StateChangeTest {
 	public void List() {
 		ObjectValue target = 
 					new DimensionValue("A", null, null);
-		ObjectValue update = new ListValue(new MethodValue("foo"), new DimensionValue("B", null, null));
+		ObjectValue update = new ListValue(new MethodValue("foo", 0, null), new DimensionValue("B", null, null));
 		ObjectValue result = target.changeState(update);
 		ObjectValue goal = 
-			new ListValue(new DimensionValue("A", null, null), new MethodValue("foo"), new DimensionValue("B", null, null));
+			new ListValue(new DimensionValue("A", null, null), new MethodValue("foo", 0, null), new DimensionValue("B", null, null));
 		Assert.assertTrue(result.equals(goal));
 	}
 	
@@ -122,37 +122,37 @@ public class StateChangeTest {
 	@Test
 	public void MaintainOriginalParent() {
 		ObjectValue target = 
-			new DimensionValue("A", null, new DimensionValue("C", new MethodValue("foo"), null));
+			new DimensionValue("A", null, new DimensionValue("C", new MethodValue("foo", 0, null), null));
 		ObjectValue update = 
-				new DimensionValue("B", null, new DimensionValue("C", new MethodValue("bar"), null));
+				new DimensionValue("B", null, new DimensionValue("C", new MethodValue("bar", 0, null), null));
 		ObjectValue result = target.changeState(update);
 		ObjectValue goal = 
-			new DimensionValue("B", null, new DimensionValue("C", new MethodValue("foo"), null));
+			new DimensionValue("B", null, new DimensionValue("C", new MethodValue("foo", 0, null), null));
 		Assert.assertTrue(result.equals(goal));
 	}
 
 	@Test
 	public void UniqueTags() {
 		ObjectValue target = 
-			new DimensionValue("A", null, new DimensionValue("C", new MethodValue("foo"), null));
+			new DimensionValue("A", null, new DimensionValue("C", new MethodValue("foo", 0, null), null));
 		ObjectValue update = 
 				new DimensionValue("B", new DimensionValue("B", null, null), new DimensionValue("C", null, null));
 		ObjectValue result = target.changeState(update);
 		ObjectValue goal = 
-			new DimensionValue("B", null, new DimensionValue("C", new MethodValue("foo"), null));
+			new DimensionValue("B", null, new DimensionValue("C", new MethodValue("foo", 0, null), null));
 		Assert.assertTrue(result.equals(goal));
 	}
 	
 	@Test
 	public void testListToString() {
-		ListValue lv = new ListValue(new MethodValue("foo"), new MethodValue("bar"));
+		ListValue lv = new ListValue(new MethodValue("foo", 0, null), new MethodValue("bar", 0, null));
 		Assert.assertTrue("<method foo,method bar>".equals(lv.toString()));
 	}
 	
 	@Test
 	public void testDimensionToString() {
 		DimensionValue dv = new DimensionValue("B", 
-				new MethodValue("foo"), 
+				new MethodValue("foo", 0, null), 
 				new DimensionValue("A", null, null));
 		Assert.assertTrue("B{method foo}<:A".equals(dv.toString()));
 		dv = new DimensionValue("B", 
@@ -160,7 +160,7 @@ public class StateChangeTest {
 				new DimensionValue("A", null, null));
 		Assert.assertTrue("B<:A".equals(dv.toString()));
 		dv = new DimensionValue("B", 
-				new MethodValue("foo"), 
+				new MethodValue("foo", 0, null), 
 				null);
 		Assert.assertTrue("B{method foo}".equals(dv.toString()));
 		dv = new DimensionValue("B", 

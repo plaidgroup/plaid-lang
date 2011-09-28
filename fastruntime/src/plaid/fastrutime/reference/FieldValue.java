@@ -1,5 +1,8 @@
 package plaid.fastrutime.reference;
 
+import plaid.fastruntime.MethodInfo;
+import fj.data.List;
+
 public final class FieldValue extends MemberValue {
 
 	public FieldValue(String name) {
@@ -18,5 +21,10 @@ public final class FieldValue extends MemberValue {
 	@Override
 	public String toString() {
 		return "val " + getName();
+	}
+
+	@Override
+	public List<MethodInfo> getMethods() {
+		return List.nil();
 	}
 }

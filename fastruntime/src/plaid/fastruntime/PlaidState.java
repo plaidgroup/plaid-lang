@@ -3,11 +3,13 @@ package plaid.fastruntime;
 /**
  * A PlaidState is functional. All methods return new objects.  
  */
-public abstract class PlaidState {
+public interface PlaidState {
 	
 	public abstract PlaidState with (PlaidState other);
 	
 	public abstract PlaidObject instantiate();
+	
+	public abstract PlaidStorage getStorage();
 	
 	public abstract PlaidState remove(String member);
 	
@@ -16,4 +18,6 @@ public abstract class PlaidState {
 	public abstract PlaidState specialize(PlaidState other);
 
 	public abstract PlaidState change(PlaidState s);
+	
+	public abstract ObjectValue getObjectValue();
 }

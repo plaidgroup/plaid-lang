@@ -1,18 +1,10 @@
 package plaid.fastruntime;
 
-public abstract class PlaidObject {
+public interface PlaidObject {
 	
-	public PlaidState dispatch;
+	public PlaidState getDispatch();
 	
-	public PlaidObject[] storage;
+	public PlaidStorage getStorage();
 	
-	public abstract PlaidState freeze();
-	
-	public void changeState(PlaidState s) {
-		this.dispatch = this.dispatch.change(s);
-	}
-	
-	public void replaceState(PlaidState s) {
-		this.dispatch = s;
-	}
+	public void changeState(PlaidState s);
 }
