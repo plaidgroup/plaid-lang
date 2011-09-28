@@ -12,11 +12,13 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 
-public final class Generator implements Opcodes {
+public final class DispatchGenerator implements Opcodes {
 	private int classCounter = 0;
 	private final DynClassLoader cl = new DynClassLoader();
 	
-	public Object createClass(final Map<Class<? extends MethodSpecification>, Class<? extends MethodImplementation>> map) {
+	public Object createClass(
+			final Map<Class<? extends MethodSpecification>, 
+			Class<? extends MethodImplementation>> map) {
 		final String name = "plaid/innerClass"+classCounter++;
 		Object result = null;
 					
@@ -48,7 +50,6 @@ public final class Generator implements Opcodes {
 				mv.visitCode();
 				Method target = null;
 				for ( Method tm : entry.getValue().getMethods() ) {
-					// TODO: should check parameters
 					if ( tm.getName().equals(m.getName())) {
 						target = tm;
 					}
