@@ -1,13 +1,13 @@
-package plaid.fastrutime.reference.test;
+package plaid.fastruntime.reference.test;
 
 import junit.framework.Assert;
 
 import org.junit.Test;
 
 import plaid.fastruntime.ObjectValue;
-import plaid.fastrutime.reference.DimensionValue;
-import plaid.fastrutime.reference.ListValue;
-import plaid.fastrutime.reference.MethodValue;
+import plaid.fastruntime.reference.DimensionValue;
+import plaid.fastruntime.reference.ListValue;
+import plaid.fastruntime.reference.MethodValue;
 
 
 public class StateChangeTest {
