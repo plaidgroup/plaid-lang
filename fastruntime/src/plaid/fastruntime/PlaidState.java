@@ -9,6 +9,8 @@ public interface PlaidState {
 	
 	public abstract PlaidObject instantiate();
 	
+	public abstract PlaidStorage getStorage();
+	
 	public abstract PlaidState remove(String member);
 	
 	public abstract PlaidState rename(String from, String to);
@@ -16,4 +18,6 @@ public interface PlaidState {
 	public abstract PlaidState specialize(PlaidState other);
 
 	public abstract PlaidState change(PlaidState s);
+	
+	public abstract ObjectValue getObjectValue();
 }

@@ -1,7 +1,6 @@
 package plaid.fastrutime.reference;
 
-import java.util.Iterator;
-
+import plaid.fastruntime.MethodInfo;
 import fj.Equal;
 import fj.F;
 import fj.Ord;
@@ -113,6 +112,15 @@ public final class ListValue extends AbstractObjectValue {
 	public String toString() {
 		Show<SingleValue> singleValueShow = Show.anyShow();
 		return Show.listShow(singleValueShow).showS(singleValues);
+	}
+
+	@Override
+	public List<MethodInfo> getMethods() {
+		List<MethodInfo> currentList = List.nil();
+		for(SingleValue sv : singleValues) {
+			currentList = currentList.append((sv.getMethods()));
+		}
+		return currentList;
 	}
 	
 }

@@ -34,7 +34,7 @@ public class InterfaceGenerator implements Opcodes{
 			cw.visit(V1_5, 
 					ACC_PUBLIC + ACC_ABSTRACT + ACC_INTERFACE, 
 					className, null, "java/lang/Object", null);
-			cw.visitMethod(ACC_PUBLIC, getIdentifierName(methodName), 
+			cw.visitMethod(ACC_PUBLIC + ACC_ABSTRACT, getIdentifierName(methodName), 
 					METHOD_DESCRIPTOR, null, null).visitEnd(); 
 			//TODO: Adjust method descriptor to number of arguments
 			cw.visitEnd();

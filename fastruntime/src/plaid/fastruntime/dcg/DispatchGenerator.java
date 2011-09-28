@@ -1,72 +1,59 @@
 package plaid.fastruntime.dcg;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
+
+import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.ObjectValue;
+import plaid.fastruntime.PlaidState;
 
 
 public final class DispatchGenerator implements Opcodes {
 	private int classCounter = 0;
 	private final DynClassLoader cl = new DynClassLoader();
 	
-	public Object createClass(
-			final Map<Class<? extends MethodSpecification>, 
-			Class<? extends MethodImplementation>> map) {
-		final String name = "plaid/innerClass"+classCounter++;
-		Object result = null;
+	public PlaidState createClass(ObjectValue ov) {
+		final String name = "plaid/generatedDispatches/DispatchClass$plaid$"+classCounter++;
 					
 		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
 		
 		// generate class
 		Collection<String> ifaces = new ArrayList<String>();
-		for ( Class<? extends MethodSpecification> i : map.keySet()) {
-			ifaces.add(Type.getInternalName(i));
+		for (MethodInfo m : ov.getMethods()) {
+			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(m.getName()));
 		}
 		cw.visit(50,
 			     ACC_PUBLIC,
 			     name,
 			     null,
-			     "java/lang/Object",
+			     "plaid/fastruntime/AbstractPlaidState",
 			     ifaces.toArray(new String[0]));
 		
 		// add methods 
-		for ( Entry<Class<? extends MethodSpecification>, Class<? extends MethodImplementation>> entry : map.entrySet() ) {
-			//System.out.println("using interface: " + entry.getKey().getName());
-			for ( Method m : entry.getKey().getMethods() ) {
-				//System.out.println("add method: " + m.getName());
-				MethodVisitor mv;
-				mv = cw.visitMethod(ACC_PUBLIC, 
-							        m.getName(), 
-							        Type.getMethodDescriptor(m),
-							        null,
-							        null); // TODO: add exception
-				mv.visitCode();
-				Method target = null;
-				for ( Method tm : entry.getValue().getMethods() ) {
-					if ( tm.getName().equals(m.getName())) {
-						target = tm;
+		for ( MethodInfo m : ov.getMethods() ) {
+			//System.out.println("add method: " + m.getName());
+			MethodVisitor mv;
+			mv = cw.visitMethod(ACC_PUBLIC, 
+					m.getName(), 
+					m.getMethodDescriptor(),
+					null,
+					null); // TODO: add exception
+					mv.visitCode();
+					// add receiver
+
+					mv.visitVarInsn(Opcodes.ALOAD, 0);
+					// add parameters
+					for (int x = 1; x <= m.numArgs(); x++ ) {
+						mv.visitVarInsn(Opcodes.ALOAD, x);
 					}
-				}
-				// add receiver
-				//System.out.println("  add receiver");
-				mv.visitVarInsn(Opcodes.ALOAD, 0);
-				// add parameters
-				for (int x = 1; x <= m.getParameterTypes().length ; x++ ) {
-					//System.out.println("  add parameter: " + m.getParameterTypes()[x-1]);
-					mv.visitVarInsn(Opcodes.ALOAD, x);
-				}
-				mv.visitMethodInsn(INVOKESTATIC, Type.getInternalName(entry.getValue()), target.getName(), Type.getMethodDescriptor(target));
-				mv.visitInsn(RETURN);
-				mv.visitMaxs(0,0);
-				mv.visitEnd();			
-			}
+					mv.visitMethodInsn(INVOKESTATIC, m.getStaticClassInternalName(), m.getName(), m.getMethodDescriptor());
+					mv.visitInsn(RETURN);
+					mv.visitMaxs(0,0);
+					mv.visitEnd();			
 		}
 		
 		
@@ -81,10 +68,9 @@ public final class DispatchGenerator implements Opcodes {
 
 		// done
 		cw.visitEnd();
-		//CheckClassAdapter.verify(new ClassReader(cw.toByteArray()), true, new PrintWriter(System.out));
-
+		PlaidState result = null;
 		try {
-			result =  cl.createClass(name, cw).newInstance();
+			result =  (PlaidState)cl.createClass(name, cw).newInstance();
 		} catch (InstantiationException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

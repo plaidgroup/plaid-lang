@@ -2,10 +2,12 @@ package plaid.fastruntime.dcg;
 
 public class NamingConventions {
 	
-	public static final String GENERATED_INTERFACES_PKG = "plaid/fastruntime/generatedinterfaces";
+	public static final String GENERATED_INTERFACES_PKG = "plaid/generatedinterfaces";
 	public static final String GENERATED_INTEFACES_PREFIX = "I";
 	public static final String GENERATED_IDENTIFIER_SUFFIX = "$plaid";
-	public static final String GENERATED_INTERFACES_DIR = "src/" + GENERATED_INTERFACES_PKG;
+	public static final String GENERATED_INTERFACES_DIR = "../generatedinterfaces/bin/" + GENERATED_INTERFACES_PKG;
+	
+	public static final String PLAID_OBJECT_DESCRIPTOR = "Lplaid/fastruntime/PlaidObject;";
 	
 	public static final String getGeneratedInterfaceSimpleName(String method) {
 		return GENERATED_INTEFACES_PREFIX + 
@@ -23,7 +25,7 @@ public class NamingConventions {
 	}
 	
 	public static final String getGeneratedInterfaceFilePath(String method) {
-		return GENERATED_INTERFACES_DIR + getGeneratedInterfaceSimpleName(method) + ".class";
+		return GENERATED_INTERFACES_DIR + "/" + getGeneratedInterfaceSimpleName(method) + ".class";
 	}
 	
 	public static final String getIdentifierName(String sourceID) {
