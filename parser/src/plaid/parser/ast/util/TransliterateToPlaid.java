@@ -73,13 +73,13 @@ public class TransliterateToPlaid<T> {
 		//accept(v)
 		sb.append("\n");
 		if ( clazz.getSimpleName().toString().equals("ASTNode")) {
-			sb.append("\tmethod void accept(unique ASTVisitor v)");
+			sb.append("\tmethod void accept(unique "+PREFIX+"ASTVisitor v)");
 		} else {
-			sb.append("\toverride method void accept(unique ASTVisitor v)");
+			sb.append("\toverride method void accept(unique "+PREFIX+"ASTVisitor v)");
 		}
 		if(isConcrete){
 			sb.append("{\n");
-			sb.append("\t\tv.visit"+clazz.getSimpleName() +"(this);\n");
+			sb.append("\t\tv.visit"+PREFIX+clazz.getSimpleName() +"(this);\n");
 			sb.append("\t}\n");
 		} else {
 			sb.append(";\n");
@@ -88,7 +88,7 @@ public class TransliterateToPlaid<T> {
 		if ( clazz.getSimpleName().toString().equals("ASTNode")) {
 			sb.append("\n\tmethod immutable String nodeName() {\"ASTNode\"}") ;
 		} else {
-			sb.append("\n\toverride method immutable string nodeName() { \""+ clazz.getSimpleName() +"\" }") ;
+			sb.append("\n\toverride method immutable string nodeName() { \""+ PREFIX+clazz.getSimpleName() +"\" }") ;
 		}
 		
 		sb.append("\n}");
