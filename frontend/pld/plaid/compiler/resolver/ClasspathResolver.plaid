@@ -37,12 +37,7 @@ import plaid.compiler.util.classpathToList;
 
 import plaid.compiler.reporter.ConsoleReporter;
 
-import plaid.ast.parsed.FieldDecl;
-import plaid.ast.parsed.MethodDecl;
-import plaid.ast.parsed.StateDecl;
-import plaid.ast.parsed.ConcreteStateDecl;
-import plaid.ast.parsed.StateValDecl;
-import plaid.ast.parsed.DeclList;
+import plaid.ast.parsed.*;
 import plaid.ast.translator.ASTTranslator;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
 import plaid.ast.util.makeQualifiedIdentifierFromString;
@@ -109,25 +104,28 @@ state ClasspathResolver case of Resolver {
          DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    resolver add compilation unit");
  
          // add package declarations
+         var packageSymbol = this.sf.makeTopSymbol();
          val packages = cu.packageName.identifiers;
-         var curName = packages.get(0).name;
+         var curName = packages.get(0).value.name;
          var i = 1;
-         if(!this.cache.containsKey(curName)) {
+         ifElse(!this.cache.containsKey(curName)) {
             val packageSymbol = this.sf.makePackageSymbol(curName,this.sf.makeTopSymbol());
             this.cache.put(curName, packageSymbol);
             DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
+         }{
+            packageSymbol = this.cache.get(curName);
          };
-         while {i < packages.length();} {
-            curName = curName + "." + packages.get(i).name;
+         while {i < packages.size();} {
+            curName = curName + "." + packages.get(i).value.name;
             if(!this.cache.containsKey(curName)) {
-                val packageSymbol = this.sf.makePackageSymbol(curName,this.sf.makeTopSymbol()); //KBN - should this be owned by the enclosing package instead of top?
+                val packageSymbol = this.sf.makePackageSymbol(curName, packageSymbol); //KBN - should this be owned by the enclosing package instead of top?
                 this.cache.put(curName, packageSymbol);
                 DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
             };
             i = i + 1;
          };
          
-         val packageSymbol = this.cache.get(curName);
+         packageSymbol = this.cache.get(curName);
          
          // add top-level symbols    
          cu.decls.map(fn(d) => {
@@ -138,19 +136,19 @@ state ClasspathResolver case of Resolver {
                 DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  declName + "'");
                 var declSymbol = this.sf.makeTopSymbol();
                 match(d) {
-                    case FieldDecl {
+                    case ParsedFieldDecl {
                         declSymbol = this.sf.makeFieldSymbol(d.name.name, d, packageSymbol);
                     }
-                    case MethodDecl {
+                    case ParsedMethodDecl {
                         declSymbol = this.sf.makeMethodSymbol(d.name.name, d, packageSymbol);
                     }
-                    case ConcreteStateDecl {
+                    case ParsedConcreteStateDecl {
                         declSymbol = this.sf.makeStateSymbol(d.name.name, d, packageSymbol);
                     }
-                    case AbstractStateDecl {
+                    case ParsedAbstractStateDecl {
                         declSymbol = this.sf.makeStateSymbol(d.name.name, d, packageSymbol);
                     }
-                    case StateValDecl {
+                    case ParsedStateValDecl {
                         declSymbol = this.sf.makeStateValSymbol(d.name.name, d, packageSymbol);
                     }
                 };
