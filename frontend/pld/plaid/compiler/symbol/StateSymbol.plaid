@@ -3,6 +3,8 @@ package plaid.compiler.symbol;
 import plaid.compiler.*;
 import plaid.compiler.types.*;
 import plaid.compiler.permissions.NONEP;
+import plaid.compiler.permissions.IMMUTABLE;
+import plaid.compiler.permissions.UNIQUE;
 import plaid.ast.parsed.ASTNode;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
 import plaid.collections.makeLinkedList;
@@ -11,10 +13,11 @@ import plaid.collections.makeLinkedList;
 state StateSymbol case of OwningSymbol {
     val immutable ParsedStateDecl declaration;
     val immutable OwningSymbol owner;
-    val unique LinkedList members = makeLinkedList();
+    val unique Map<immutable String,immutable Symbol> members = java.util.HashMap.new();
     var unique Option<immutable Structure> stateStructureOption = new None;
     var unique Option<immutable Symbol> superStateSymbolOption = new None;
     var /*unique Option<immutable LinkedList<immutable Symbol>>*/ dimensionOption = new None;
+    var unique Option<immutable Permission> defaultPermOption = new None;
     
     override method immutable Boolean ==(immutable Symbol other)[immutable StateSymbol this] {
         match (other) {
@@ -54,37 +57,42 @@ state StateSymbol case of OwningSymbol {
         makeStringFromQualifiedIdentifier(getQualifiedIdentifier());
     }    
 
-    method void addMember(shared Symbol member) {
-        this.members.add(member);
+
+    
+    method immutable Permission defaultStatePermission() {
+      match (this.defaultPermOption) {
+        case Some { this.defaultPermOption.value }
+        case None {
+          val immutable Boolean immState = this.declaration.modifiers.exists(
+            fn (elem) => {
+              match (elem) {
+                case ParsedImmutableModifier { true }
+                default { false }
+              }
+            });
+          val defaultPerm = match (immState) {
+            case True { IMMUTABLE }
+            case False { UNIQUE }
+          };
+          this.defaultPermOption = makeSome(defaultPerm);
+          defaultPerm
+        }
+      }
     }
     
-    method immutable Boolean isImmutableState() {
-        match (this.declaration) {
-            case ParsedStateDecl {
-                this.declaration.modifiers.exists(
-                    fn (elem) => {
-                        match (elem) {
-                            case ParsedImmutableModifier { true }
-                            default { false }
-                        }
-                    }
-                )
-            }
-            default { false } //TODO: better node types?
-        }
+    method immutable Type defaultStateType() {
+      makeType(this.defaultStatePermission(),this.getStructure());
     }
 
-    method unique Option getMember(immutable String name) {
-        var unique Option value = NONE;
+    method void addMember(immutable Symbol member)[unique StateSymbol this] {
+        this.members.put(member.name, member);
+    }
 
-        this.members.map( fn (memberSymbol) => {
-            if ( memberSymbol.name == name ) {
-                value = makeSome(memberSymbol);
-            };
-            memberSymbol
-        });
-        
-        value;
+    method unique Option<immutable Symbol> getMember(immutable String name) {
+        match (this.members.containsKey(name)) {
+          case True { makeSome(this.members.get(name)) }
+          case False { new None }
+        }
     }
 
     method immutable Structure getStructure() {        

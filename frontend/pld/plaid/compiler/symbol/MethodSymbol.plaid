@@ -2,13 +2,16 @@ package plaid.compiler.symbol;
 
 import plaid.compiler.Symbol;
 import plaid.ast.parsed.ASTNode;
+import plaid.compiler.util.*;
+import plaid.compiler.types.makeArgSpec;
+import plaid.compiler.types.VOID;
 
 import plaid.collections.makeLinkedList;
 
 state MethodSymbol case of DeclSymbol {
     immutable ASTNode declaration;
     val immutable Symbol owner;
-    val immutable Option<immutable MethodSignature> methodSignature = NONE;
+    val immutable Option<immutable MethodSignature> methodSigOption = NONE;
 
     override method immutable Boolean ==(immutable Symbol other)[immutable MethodSymbol this] {
         match (other) {
@@ -18,54 +21,44 @@ state MethodSymbol case of DeclSymbol {
     }
 
     method immutable MethodType getSignature() {
-        match (this.methodType)  {
+        match (this.methodSigOption)  {
             case Some {
-                this.methodType.value
+                this.methodSigOption.value
             }
             case None {
+                val name = this.name;
                 val returnType     = makeTypeFromAST(this.declaration.returnType);
-                val staticArgsSpec = makeLinkedList();
-                val arguments      = makeLinkedList();
-                val environment    = makeLinkedList();
-
-                // translate static args
-                this.declaration.staticArgsSpec.map(fn (arg) => {
-                    // TODO: fixme
-                });
-
-                // translate arguments 
-                this.declaration.arguments.map(fn (arg) => {
-                    val preType  = makeTypeFromAST(arg.argSpec.preType);
-                    val postType = makeTypeFromAST(arg.argSpec.postType);
-                    arguments.add(
-                        new ChangeType {
-                            val preType  = preType;
-                            val postType = postType;
-                            val name     = arg.name.name;
-                        }
-                    );
-                });
-
-                // translate environment 
-                this.declaration.environment.map(fn (arg) => {
-                    val preType  = makeTypeFromAST(arg.argSpec.preType);
-                    val postType = makeTypeFromAST(arg.argSpec.postType);
-                    environment.add(
-                        new ChangeType {
-                            val preType  = preType;
-                            val postType = postType;
-                            val name     = arg.name.name;
-                        }
-                    );
-                    
-                });
-
-                this.methodType = makeSome( new MethodSignature {
-                    val returnType     = returnType;
-                    val name           = this.declaration.name.name;
-                    val staticArgsSpec = staticArgsSpec;
-                    val environment    = environment;
-                });
+                val staticArgsSpec = makeLinkedList(); //TODO - don't know how these work yet
+                val arguments      = this.declaration.arguments.map(fn (arg) => makeArgSpecFromAST(arg.argSpec)); 
+                val environment    = java.util.HashMap.new();
+                
+                // translate environment into a map
+                this.declaration.environment.do(fn (arg) => {
+                                        val spec = makeArgSpecFromAST(arg.argSpec);
+                                        val name = arg.name.name;
+                                        environment.put(name,spec);
+                                     });
+                                     
+               //TODO: clean this up with parser
+                val receiverSpec = match (environment.containsKey("this")) {
+                  case True { environment.remove("this") }
+                  case False {
+                    match (this.owner) {
+                      case PackageSymbol { makeArgSpec(VOID,VOID) } //TODO: receiver type for package methods...
+                      case TopSymbol { makeArgSpec(VOID,VOID) }
+                      case StateSymbol { 
+                        val defaultType = this.owner.defaultStateType();
+                        makeArgSpec(defaultType,defaultType);
+                      }
+                      //default { makeArgSpec(VOID,VOID) }
+                    }
+                  }
+                }; 
+                
+                val immutable MethodSignature newMethodSig = 
+                  makeMethodSignature(returnType, name, arguments, receiverSpec, environment, staticArgsSpec);
+                this.methodSigOption = makeSome(newMethodSig);
+                newMethodSig 
             }
         }
     }
