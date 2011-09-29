@@ -155,7 +155,7 @@ public class TransliterateToPlaid<T> {
 	}
 	
 	private static String visitMethod(Class<?> clazz, boolean includeBody) {
-		String visitMethodCode =  "\tmethod void visit" + clazz.getSimpleName() 
+		String visitMethodCode =  "\tmethod void visit" + PREFIX + clazz.getSimpleName() 
 			+ "(immutable " + PREFIX + clazz.getSimpleName() + " node)";
 		if(includeBody){
 			visitMethodCode += " {\n";
@@ -176,7 +176,7 @@ public class TransliterateToPlaid<T> {
 	private static String showMethod(Class<?> clazz) {
 		StringBuilder sb = new StringBuilder();
 		String nodeName = "node" + clazz.getSimpleName(); 
-		sb.append("\toverride method void visit" + clazz.getSimpleName() + "(immutable " + clazz.getSimpleName() + " node) {\n") ;
+		sb.append("\toverride method void visit" + PREFIX + clazz.getSimpleName() + "(immutable " + PREFIX+clazz.getSimpleName() + " node) {\n") ;
 		sb.append("\t\tval " + nodeName + " = createNode(\"" + clazz.getSimpleName() + "\");\n");
 		sb.append("\t\tthis.parent.add(" + nodeName + ");\n");
 				
@@ -240,11 +240,11 @@ public class TransliterateToPlaid<T> {
 		
 		StringBuilder sbVisitor = new StringBuilder();
 		sbVisitor.append("package plaid.ast.parsed;\n\n");
-		sbVisitor.append("state ASTVisitor {\n");
+		sbVisitor.append("state "+PREFIX+"ASTVisitor {\n");
 		
 		StringBuilder sbLeafVisitor = new StringBuilder();
 		sbLeafVisitor.append("package plaid.ast.parsed;\n\n");
-		sbLeafVisitor.append("state LeafVisitor {\n");
+		sbLeafVisitor.append("state "+PREFIX+"LeafVisitor {\n");
 		
 		StringBuilder sbASTViewerVisitor = new StringBuilder(); 
 		sbASTViewerVisitor.append("package plaid.ast.parsed;\n\n");
@@ -256,7 +256,7 @@ public class TransliterateToPlaid<T> {
 		sbASTViewerVisitor.append("import javax.swing.JScrollPane;\n");
 		sbASTViewerVisitor.append("import javax.swing.tree.DefaultMutableTreeNode;\n");
 		sbASTViewerVisitor.append("import javax.swing.WindowConstants;\n\n");
-		sbASTViewerVisitor.append("state ASTViewerVisitor case of LeafVisitor {\n");
+		sbASTViewerVisitor.append("state "+PREFIX+"ASTViewerVisitor case of "+PREFIX+"LeafVisitor {\n");
 		sbASTViewerVisitor.append("\tvar /* (private) DefaultMutableTreeNode */ parent = DefaultMutableTreeNode.new(\"AST\");\n");
 		sbASTViewerVisitor.append("\tval /* String */ title = \"ASTViewer\";\n\n");
 		sbASTViewerVisitor.append("\tmethod createNode(name) {\n");
@@ -301,11 +301,11 @@ public class TransliterateToPlaid<T> {
 				sbTranslator.toString(), "ASTTranslator");
 		
 		sbVisitor.append("}\n");
-		writePlaidFile(outputASTDir, sbVisitor.toString(), "ASTVisitor");
+		writePlaidFile(outputASTDir, sbVisitor.toString(), PREFIX+"ASTVisitor");
 		sbLeafVisitor.append("}\n");
-		writePlaidFile(outputASTDir, sbLeafVisitor.toString(), "LeafVisitor");
+		writePlaidFile(outputASTDir, sbLeafVisitor.toString(), PREFIX+"LeafVisitor");
 		sbASTViewerVisitor.append("}\n");
-		writePlaidFile(outputASTDir, sbASTViewerVisitor.toString(), "ASTViewerVisitor");
+		writePlaidFile(outputASTDir, sbASTViewerVisitor.toString(), PREFIX+"ASTViewerVisitor");
 		
 		System.out.println("Done.");
 	}
