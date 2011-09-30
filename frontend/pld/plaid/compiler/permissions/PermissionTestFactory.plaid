@@ -32,6 +32,8 @@ state PermissionTestFactory case of TestFactory {
 		var t = new None;  //dummy variable to get around match scoping bug
 		val borrowed = makeBorrowedPerm(IMM,UNIQUE,3);
 		val borrowedS1 = makeBorrowedPerm(SHARED,UNIQUE,1);
+		val borrowedS2 = makeBorrowedPerm(SHARED,UNIQUE,2);
+    val borrowedI2 = makeBorrowedPerm(IMM,UNIQUE,2);
     val borrowedI3 = borrowed;
 
 		/********** UNIQUE *************/
@@ -227,6 +229,23 @@ state PermissionTestFactory case of TestFactory {
 			
 		});
 		
+		test("split field permissions from unique receiver", fn (ctx) => {
+      t = splitFieldPermission(UNIQUE,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = splitFieldPermission(UNIQUE,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = splitFieldPermission(UNIQUE,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = splitFieldPermission(UNIQUE,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == borrowedS1 } case None { false } });
+      t = splitFieldPermission(UNIQUE,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(UNIQUE,borrowedI2,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == borrowedI3 } case None { false } });
+      t = splitFieldPermission(UNIQUE,SHARED,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+    });
+		
 		/********** IMMUTABLE *************/
 		
 		test("Immutable is not writable", fn(ctx) => {
@@ -401,6 +420,27 @@ state PermissionTestFactory case of TestFactory {
       ctx.assertTrue(match(t) { case Some { false } case None { true } });
       t = IMM.greatestLowerBound(borrowed);
       ctx.assertTrue(match(t) { case Some { false } case None { true } });
+    });
+    
+    test("split field permissions from immutable receiver", fn (ctx) => {
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(IMMUTABLE,SHARED,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = splitFieldPermission(IMMUTABLE,IMMUTABLE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(IMMUTABLE,IMMUTABLE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
     });
 		
 		/********** SHARED *************/
@@ -592,6 +632,30 @@ state PermissionTestFactory case of TestFactory {
       ctx.assertTrue(match(t) { case Some { false } case None { true } });
 		});
 		
+		 test("split field permissions from shared receiver", fn (ctx) => {
+      t = splitFieldPermission(SHARED,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(SHARED,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(SHARED,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(SHARED,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(SHARED,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(SHARED,UNIQUE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(SHARED,IMMUTABLE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = splitFieldPermission(SHARED,SHARED,SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = splitFieldPermission(SHARED,SHARED,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      //not a valid test situation and not the behavior
+      //t = splitFieldPermission(SHARED,borrowedS1,LOCALSHARED);
+      //ctx.assertTrue(match(t) { case Some { t.value == borrowedS2 } case None { false } });
+    });
+		
 		/********** NONE *************/
 		
 		test("None is not writable", fn(ctx) => {
@@ -773,6 +837,23 @@ state PermissionTestFactory case of TestFactory {
       t = NONEP.greatestLowerBound(borrowed);
       ctx.assertTrue(match(t) { case Some { t.value == borrowed } case None { true } });
     });
+    
+    test("split field permissions from none receiver", fn (ctx) => {
+      t = splitFieldPermission(NONEP,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,IMMUTABLE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+    });
 		
 		
 		/********** LOCAL *************/
@@ -939,6 +1020,21 @@ state PermissionTestFactory case of TestFactory {
       t = LOCALIMMUTABLE.greatestLowerBound(borrowedS1);
       ctx.assertTrue(match(t) { case Some { false } case None { true } });
 		});
+		
+		test("split field permissions from local receiver", fn (ctx) => {
+      t = splitFieldPermission(LOCALIMMUTABLE,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(LOCALIMMUTABLE,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(LOCALIMMUTABLE,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(LOCALIMMUTABLE,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(LOCALSHARED,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == borrowedS1 } case None { false } });
+      t = splitFieldPermission(LOCALIMMUTABLE,borrowedI2,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == borrowedI3 } case None { false } });
+    });
 	
 			/********** Borrowed *************/
 		
@@ -1136,6 +1232,21 @@ state PermissionTestFactory case of TestFactory {
       t = borrowedI3.greatestLowerBound(borrowedS1);
       ctx.assertTrue(match(t) { case Some { false } case None { true } });
     });
+    
+    test("split field permissions from borrowed receiver", fn (ctx) => {
+      t = splitFieldPermission(borrowedI3,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(borrowedI3,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(borrowedI3,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(borrowedI3,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(borrowedS2,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == borrowedS1 } case None { false } });
+      t = splitFieldPermission(borrowedI3,borrowedI2,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == borrowedI3 } case None { false } });
+    });
 	
 	   /********** Dynamic *************/
     
@@ -1278,6 +1389,21 @@ state PermissionTestFactory case of TestFactory {
       ctx.assertTrue(match(t) { case Some { t.value == DYNAMICP } case None { false } });
     });
     
+    test("split field permissions from dynamic receiver", fn (ctx) => {
+      t = splitFieldPermission(DYNAMICP,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,borrowedI2,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+    });
+    
 		/********** Globals *************/
 		
 		test("global definitions", fn(ctx) => { 
@@ -1292,6 +1418,7 @@ state PermissionTestFactory case of TestFactory {
       ctx.assertTrue(DYNP == new DynamicPermission);
       ctx.assertTrue(DYNAMICP == new DynamicPermission);
     });
+    
 		tests
 	}
 	
