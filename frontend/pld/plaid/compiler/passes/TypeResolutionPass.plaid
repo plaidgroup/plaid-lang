@@ -1,0 +1,106 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.ParsedLeafVisitor;
+
+import plaid.compiler.ERROR;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.Pass;
+
+import plaid.compiler.symbolForAST;
+import plaid.compiler.haveSymbolForAST;
+import plaid.compiler.addSymbolForAST;
+
+import plaid.compiler.symbol.*;
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+
+
+state TypeResolutionPass case of Pass = ParsedLeafVisitor with  {
+    var unique SymbolFactory sf = new SymbolFactory;
+    var immutable Source sourceFile;
+    var shared Resolver resolver;
+    var shared Reporter reporter;
+    var hasErrors = false;
+
+    method immutable Boolean run(unique Job job) {
+        match (job.ast) {
+            case Some {
+                DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> started");
+                this.sourceFile = job.source.path;
+                this.reporter   = job.reporter;
+                this.resolver   = job.resolver;
+
+                job.ast.value.accept(this);
+
+                DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> finished");
+                !this.hasErrors;
+            }
+            default { 
+                ERROR("<TypeResolutionPass> AST invalid");
+                false 
+            }
+        }
+    }
+
+
+
+    method immutable Type resolveType(immutable ASTNode node) {
+        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> resolve type for ASTNode '" + node.nodeName() +"'");
+        val nodeType = typeForAST(node);
+        match (nodeType) {
+            case Some { nodeType.value } 
+            case None {                
+                match (node) {
+                    case ParsedDereference {
+                        val leftType = resolveType(node.left);
+                        match (leftType.plaidType) {
+                            case NominalType {
+                                DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>   Found NominalType ");
+                                val memberSignature = leftType.plaidType.getMember(node.right.name);
+                                addTypeForAST(node.right, memberType);
+                                addTypeForAST(node, memberType);
+                                memberType
+                            }
+                            case FieldPlaidType {
+                                ERROR("<TypeResolutionPass> cannot handle field types yet ");                                
+                            }
+                            default {
+                                ERROR("<TypeResolutionPass> Cannot deference non state Object.");
+                            }
+                        }
+                    }
+                    case ParsedIdentifier {
+                        val symbol = symbolForAST(node);
+                        match (symbol) {
+                            case Some {
+                                val idType = symbol.value.getType();
+                                addTypeForAST(node, idType);
+                                idType
+                            }
+                            case None {
+                                ABORT("Cannot find symbol for: '" + node.name +"'");
+                            }
+                        }
+                    }
+                    default {
+                        ABORT("Cannot resolve type for AST.");
+                    }   
+                }
+            }
+        }
+    }
+
+    override method void visitParsedApplication(immutable Application  node) {
+        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> found application.");
+        resolveType(node);
+    }
+
+
+    override method void visitParsedDereference(immutable Dereference node) {
+        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> found deference.");
+        resolveType(node);
+    }
+
+
+}

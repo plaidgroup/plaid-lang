@@ -1,0 +1,50 @@
+package plaid.compiler.context;
+
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
+import plaid.compiler.Context;
+import plaid.compiler.symbol.PackageSymbol;
+import plaid.compiler.symbol.TopSymbol;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+
+
+state GlobalContext case of Context {
+    val shared Context parent;
+    val shared Resolver resolver;
+
+    method immutable Boolean put(immutable String name, shared Symbol symbol) {
+        parent.put(name, symbol);
+    }
+    
+    method find(name) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<GlobalContext> finding '" + name + "'" );
+        val symbol = this.resolver.lookup(name);
+        match ( symbol ) {
+            case Some {
+                symbol
+            }
+            case None {
+                parent.find(name);
+            }
+        }
+    }
+
+    method shared Option findInSymbol(symbol, name) {
+        match (symbol) {
+            case PackageSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<GlobalContext> search in package symbol for '" + name + "'" );
+                val fqn = makeStringFromQualifiedIdentifier(symbol.getQualifiedIdentifier()) + "." + name;
+                resolver.lookup(fqn);
+            }
+            case TopSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<GlobalContext> search in top symbol for '" + name + "'");
+                resolver.lookup(name);
+            }
+            default {
+                parent.findInSymbol(symbol, name);
+            }
+        }
+    }
+
+}

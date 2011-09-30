@@ -1,0 +1,55 @@
+package plaid.typechecker.rewriting.tests;
+
+import plaid.ast.*;
+import plaid.ast.visitor.*;
+import plaid.ast.stateTable.*;
+import plaid.testing.*;
+import plaid.typechecker.context.*;
+import plaid.typechecker.rewriting.*;
+import plaid.typechecker.StateTableBuilderVisitor;
+import plaid.typechecker.typeCheckCU;
+import plaid.ast.types.permissions.*;
+
+val () -> void wholeProgramTest = fn(immutable String filename, unique Tester tester) => {
+	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new(filename)));
+	val unique ASTTranslator translator = new ASTTranslator;
+	val unique ASTNode plaidAST = translator.translateAST(javaAST);	
+	val stateTableVisitor = new StateTableBuilderVisitor;
+	plaidAST.accept(stateTableVisitor);
+	
+	testName("WHOLE PROGRAM: " + filename + "\n\n");
+	val unique ASTNode newAST = plaidAST.accept(new LetNormalFormVisitor);
+	val ct = createObjContextFromCU(newAST);
+	//stateTableVisitor.stateTable.printTable();
+	//java.lang.System.out.println("\n===============Gathering object Types===============\n");
+	val typefetcher = new TypeFetchVisitor { val context = ct; val st = stateTableVisitor.stateTable; };
+	val result = newAST.accept(typefetcher);
+	match( result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,result.errorMsg);
+		}
+		default {
+			//java.lang.System.out.println("\n===============Inferring permissions===============\n");
+			val permAnalysis = new PermissionAnalysisVisitor {
+				override var context = ct;
+				override val st = stateTableVisitor.stateTable; 
+			};
+			newAST.accept(permAnalysis);
+			//java.lang.System.out.println("\n===============Typechecking===============\n");
+			//newAST.accept(new PrintVisitor);
+			val checked = typeCheckCU(newAST,stateTableVisitor.stateTable);
+			
+			match(checked) {
+				case Some {
+					tester.testPassedMsg(false, checked.value.toString())
+				}
+				case None {
+					tester.testPassed(true)
+				}
+			}
+		}
+	};
+	
+	java.lang.System.out.println("\n===============AST with Type===============\n");
+	newAST.accept(new PrintVisitor);
+};
