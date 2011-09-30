@@ -189,7 +189,7 @@ public class TransliterateToPlaid<T> {
 	}
 
 	private static String rewriteMethod(Class<?> clazz, boolean includeBody) {
-		String visitMethodCode =  "\tmethod immutable "+PREFIX+clazz.getSimpleName()+" rewrite" + PREFIX + clazz.getSimpleName() 
+		String visitMethodCode =  "\tmethod immutable "+PREFIX+clazz.getSimpleName()+" rewrite" + PREFIX + clazz.getSimpleName()
 			+ "(immutable " + PREFIX + clazz.getSimpleName() + " node)";
 		if(includeBody){
 			visitMethodCode += " {\n";
@@ -198,7 +198,7 @@ public class TransliterateToPlaid<T> {
 			for(Field field:getAllFields(clazz)) {
 				if ( List.class.isAssignableFrom(field.getType())) {
 					visitMethodCode += "\t\tval new_"+field.getName() + " = makeLinkedList();\n" ;
-					visitMethodCode += "\t\tnode."+field.getName()+".map(fn (item) => { new"+field.getName()+".add(item.rewrite(this)) });\n";
+					visitMethodCode += "\t\tnode."+field.getName()+".map(fn (item) => { new_"+field.getName()+".add(item.rewrite(this)) });\n";
 				} else if ( ASTNode.class.isAssignableFrom(field.getType()) ) {
 					visitMethodCode += "\t\tval new_" + field.getName() + " = node."+field.getName()+".rewrite(this);\n";
 				}
@@ -207,10 +207,10 @@ public class TransliterateToPlaid<T> {
 			// create new object
 			visitMethodCode += "\n\t\tnew " + PREFIX + clazz.getSimpleName() + "{\n";
 			for ( Field field : getAllFields(clazz) ) {
-				if ( Token.class.isAssignableFrom(field.getType())) {
-					visitMethodCode += "\t\t\tval token = node.token;\n"; 
-				} else if (  List.class.isAssignableFrom(field.getType()) || ASTNode.class.isAssignableFrom(field.getType()) ) {
+				if (  List.class.isAssignableFrom(field.getType()) || ASTNode.class.isAssignableFrom(field.getType()) ) {
 					visitMethodCode += "\t\t\tval " + field.getName() + " = new_"+field.getName() +";\n";
+				} else {
+					visitMethodCode += "\t\t\tval "+field.getName()+" = node."+field.getName()+";\n"; 				
 				}
 			}
 			visitMethodCode += "\t\t}\n";
@@ -301,6 +301,7 @@ public class TransliterateToPlaid<T> {
 		
 		StringBuilder sbRewriteLeafVisitor = new StringBuilder();
 		sbRewriteLeafVisitor.append("package plaid.ast.parsed;\n\n");
+		sbRewriteLeafVisitor.append("import plaid.collections.makeLinkedList;\n");
 		sbRewriteLeafVisitor.append("state "+PREFIX+"RewriteLeafVisitor {\n");
 		
 		StringBuilder sbASTViewerVisitor = new StringBuilder(); 
