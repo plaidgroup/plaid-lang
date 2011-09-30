@@ -205,7 +205,8 @@ public class TransliterateToPlaid<T> {
 			}
 			
 			// create new object
-			visitMethodCode += "\n\t\tnew " + PREFIX + clazz.getSimpleName() + "{\n";
+			visitMethodCode += "\t\t// create new object";
+			visitMethodCode += "\t\tnew " + PREFIX + clazz.getSimpleName() + "{\n";
 			for ( Field field : getAllFields(clazz) ) {
 				if (  List.class.isAssignableFrom(field.getType()) || ASTNode.class.isAssignableFrom(field.getType()) ) {
 					visitMethodCode += "\t\t\tval " + field.getName() + " = new_"+field.getName() +";\n";
