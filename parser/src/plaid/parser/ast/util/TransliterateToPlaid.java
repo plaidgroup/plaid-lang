@@ -85,6 +85,21 @@ public class TransliterateToPlaid<T> {
 			sb.append(";\n");
 		}
 		
+		//rewrite(v)
+		sb.append("\n");
+		if ( clazz.getSimpleName().toString().equals("ASTNode")) {
+			sb.append("\tmethod immutable ASTNode rewrite(unique "+PREFIX+"ASTRewriteVisitor v)");
+		} else {
+			sb.append("\toverride method immutable "+PREFIX+clazz.getSimpleName()+" rewrite(unique "+PREFIX+"ASTVisitor v)");
+		}
+		if(isConcrete){
+			sb.append("{\n");
+			sb.append("\t\tv.rewrite"+PREFIX+clazz.getSimpleName() +"(this);\n");
+			sb.append("\t}\n");
+		} else {
+			sb.append(";\n");
+		}
+		
 		if ( clazz.getSimpleName().toString().equals("ASTNode")) {
 			sb.append("\n\tmethod immutable String nodeName() {\"ASTNode\"}") ;
 		} else {
@@ -172,7 +187,41 @@ public class TransliterateToPlaid<T> {
 		}
 		return visitMethodCode;
 	}
-	
+
+	private static String rewriteMethod(Class<?> clazz, boolean includeBody) {
+		String visitMethodCode =  "\tmethod immutable "+PREFIX+clazz.getSimpleName()+" rewrite" + PREFIX + clazz.getSimpleName() 
+			+ "(immutable " + PREFIX + clazz.getSimpleName() + " node)";
+		if(includeBody){
+			visitMethodCode += " {\n";
+			
+			// compute new values
+			for(Field field:getAllFields(clazz)) {
+				if ( List.class.isAssignableFrom(field.getType())) {
+					visitMethodCode += "\t\tval new_"+field.getName() + " = makeLinkedList();\n" ;
+					visitMethodCode += "\t\tnode."+field.getName()+".map(fn (item) => { new"+field.getName()+".add(item.rewrite(this)) });\n";
+				} else if ( ASTNode.class.isAssignableFrom(field.getType()) ) {
+					visitMethodCode += "\t\tval new_" + field.getName() + " = node."+field.getName()+".rewrite(this);\n";
+				}
+			}
+			
+			// create new object
+			visitMethodCode += "\n\t\tnew " + PREFIX + clazz.getSimpleName() + "{\n";
+			for ( Field field : getAllFields(clazz) ) {
+				if ( Token.class.isAssignableFrom(field.getType())) {
+					visitMethodCode += "\t\t\tval token = node.token;\n"; 
+				} else if (  List.class.isAssignableFrom(field.getType()) || ASTNode.class.isAssignableFrom(field.getType()) ) {
+					visitMethodCode += "\t\t\tval " + field.getName() + " = new_"+field.getName() +";\n";
+				}
+			}
+			visitMethodCode += "\t\t}\n";
+			
+			visitMethodCode += "\t}\n";
+		}else {
+			visitMethodCode +=";\n";
+		}
+		return visitMethodCode;
+	}
+
 	private static String showMethod(Class<?> clazz) {
 		StringBuilder sb = new StringBuilder();
 		String nodeName = "node" + clazz.getSimpleName(); 
@@ -246,6 +295,14 @@ public class TransliterateToPlaid<T> {
 		sbLeafVisitor.append("package plaid.ast.parsed;\n\n");
 		sbLeafVisitor.append("state "+PREFIX+"LeafVisitor {\n");
 		
+		StringBuilder sbRewriteVisitor = new StringBuilder();
+		sbRewriteVisitor.append("package plaid.ast.parsed;\n\n");
+		sbRewriteVisitor.append("state "+PREFIX+"ASTRewriteVisitor {\n");		
+		
+		StringBuilder sbRewriteLeafVisitor = new StringBuilder();
+		sbRewriteLeafVisitor.append("package plaid.ast.parsed;\n\n");
+		sbRewriteLeafVisitor.append("state "+PREFIX+"RewriteLeafVisitor {\n");
+		
 		StringBuilder sbASTViewerVisitor = new StringBuilder(); 
 		sbASTViewerVisitor.append("package plaid.ast.parsed;\n\n");
 		sbASTViewerVisitor.append("import java.lang.Thread;\n");
@@ -290,6 +347,8 @@ public class TransliterateToPlaid<T> {
 				sbTranslator.append(matchCase(clazz));
 				sbVisitor.append(visitMethod(clazz,false));
 				sbLeafVisitor.append(visitMethod(clazz,true));
+				sbRewriteVisitor.append(rewriteMethod(clazz, false));
+				sbRewriteLeafVisitor.append(rewriteMethod(clazz, true));
 				sbASTViewerVisitor.append(showMethod(clazz));
 			}
 		}
@@ -304,6 +363,10 @@ public class TransliterateToPlaid<T> {
 		writePlaidFile(outputASTDir, sbVisitor.toString(), PREFIX+"ASTVisitor");
 		sbLeafVisitor.append("}\n");
 		writePlaidFile(outputASTDir, sbLeafVisitor.toString(), PREFIX+"LeafVisitor");
+		sbRewriteVisitor.append("}\n");
+		writePlaidFile(outputASTDir, sbRewriteVisitor.toString(), PREFIX+"ASTRewriteVisitor");
+		sbRewriteLeafVisitor.append("}\n");
+		writePlaidFile(outputASTDir, sbRewriteLeafVisitor.toString(), PREFIX+"RewriteLeafVisitor");
 		sbASTViewerVisitor.append("}\n");
 		writePlaidFile(outputASTDir, sbASTViewerVisitor.toString(), PREFIX+"ASTViewerVisitor");
 		
