@@ -60,75 +60,87 @@ state UnpackedStructure case of ObjectStructure {
   }
   
   method unique Option<immutable Signature> getMember(immutable String memberName) {
-    DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure> searching for '"+memberName+"' in 'UNPACKED(" + this.symbol.getFQN() + ")'");
+    DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure> searching for '"+memberName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
     match (this.unpackedFields.containsKey(memberName)) {
       case True { 
         DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found unpacked field for '"+memberName+"'");
         makeSome(this.unpackedFields.get(memberName)) 
       }
       case False {
-        val memberSymbolOpt = this.symbol.getMember(memberName);
+        val memberSymbolOpt = this.unpackedStructure.symbol.getMember(memberName);
         match (memberSymbolOpt) {
           case Some {
             match (memberSymbolOpt.value) {
               case FieldSymbol {
                 DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found FieldSymbol for '"+memberName+"'");
-                match (this.unpackedFields.contains(memberSymbolOpt.value)) {
+                match (this.unpackedFields.containsKey(memberSymbolOpt.value)) {
                   case True {
-                    this.unpackedFields.get(memberSymbolOpt.value)
+                     makeSome(this.unpackedFields.get(memberName))
                   }
                   case False {
-                     memberSymbolOpt.value.getSignature();
+                     makeSome(memberSymbolOpt.value.getSignature())
                   }
                 }
               }
               case MethodSymbol {
                 DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found MethodSymbol for '"+memberName+"'");
-                memberSymbolOpt.value.getSignature();
+                makeSome(memberSymbolOpt.value.getSignature())
               }
               default {
-                DEBUG(DEBUG_PRIO_HIGH, "<UnpackedStructure>   found unrecognized symbol type for '"+memberName+"' in 'UNPACKED(" + this.symbol.getFQN() + ")'");
+                DEBUG(DEBUG_PRIO_HIGH, "<UnpackedStructure>   found unrecognized symbol type for '"+memberName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
                 new None
                 //ABORT("Unsupported member type ");
               }
             }
           }
           case None {
-            DEBUG(DEBUG_PRIO_HIGH, "<UnpackedStructure>   Cannot find member '"+memberName+"' in 'UNPACKED(" + this.symbol.getFQN() + ")'");
+            DEBUG(DEBUG_PRIO_HIGH, "<UnpackedStructure>   Cannot find member '"+memberName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
             new None
-            //ABORT("Cannot find member '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+            //ABORT("Cannot find member '"+memberName+"' in '" + this.unpackedStructure.symbol.getFQN() + "'");
           }
         }
       }
     }
   }
   
-  method immutable Structure restoreToField(immutable String fieldName, immutable Permission perm) {
+  method immutable Structure restoreToField(immutable String fieldName, immutable Type retType, immutable Integer objectID) {
     match (this.unpackedFields.containsKey(fieldName)) {
       case True {
-        val immutable Signature newFieldSig = this.unpackedFields.get(fieldName).restore(perm);
+        val immutable Signature newFieldSig = this.unpackedFields.get(fieldName).restore(retType,objectID);
         match (newFieldSig) {
           case FieldSignature {
             ifElse (this.unpackedFields.size() == 1) {
               this.unpackedStructure
             } {
               val unique Map<immutable String, immutable UnpackedFieldSignature> newMap = java.util.HashMap.new();
-              newMap.addAll(this.unpackedFields);
+              newMap.putAll(this.unpackedFields);
               newMap.remove(fieldName);
               makeUnpackedStructureWithFieldMap(this.unpackedStructure, newMap)
             }
           }
           case UnpackedFieldSignature {//TODO: fix when match local variable scoping is fixed
             val unique Map<immutable String, immutable UnpackedFieldSignature> newMap2 = java.util.HashMap.new();
-            newMap2.addAll(this.unpackedFields);
+            newMap2.putAll(this.unpackedFields);
             newMap2.put(fieldName,newFieldSig);
             makeUnpackedStructureWithFieldMap(this.unpackedStructure, newMap2)
           }
         }
       }
-      case False { ABORT("field not there"); }
+      case False { 
+        val unique Option<immutable Symbol> memberSymbolOption = this.unpackedStructure.symbol.getMember(fieldName);
+        match (memberSymbolOption) {
+          case Some {
+            match (memberSymbolOption.value) {
+              case FieldSymbol { this } //restoring to a packed field has no effect
+              default { ABORT("Permissions can only be restored to fields") }
+            }
+          }
+          case None {
+            ABORT("field not there"); 
+          }
+        }
+      }
     }
-    
   }
   
 }
