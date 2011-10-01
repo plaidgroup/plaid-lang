@@ -18,7 +18,7 @@ state NominalStructure case of ObjectStructure {
   }
   
   method immutable String toString()[immutable NominalStructure this] {
-    this.name;
+    "STRUCT(" +this.name + ")";
   }
   
   /**
@@ -85,17 +85,17 @@ state NominalStructure case of ObjectStructure {
 
   method unique Option<immutable Signature> getMember(immutable String memberName) {
       DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> searching for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
-      val memberSymbol = this.symbol.getMember(memberName);
-      match (memberSymbol) {
+      val memberSymbolOption = this.symbol.getMember(memberName);
+      match (memberSymbolOption) {
           case Some {
-              match (memberSymbol.value) {
+              match (memberSymbolOption.value) {
                   case FieldSymbol {
                       DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+memberName+"'");
-                      makeSome(memberSymbol.value.getSignature())
+                      makeSome(memberSymbolOption.value.getSignature())
                   }
                   case MethodSymbol {
                       DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+memberName+"'");
-                      makeSome(memberSymbol.value.getSignature())
+                      makeSome(memberSymbolOption.value.getSignature())
                   }
                   default {
                       DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   found unrecognized symbol type for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
@@ -110,5 +110,66 @@ state NominalStructure case of ObjectStructure {
               new None
           }
       }
+  }
+  
+  /**
+   *  As long as the return is well formed (there exists a field with this name), we do nothing
+   *  otherwise, abort for now
+   */
+  method immutable Structure restoreToField(immutable String fieldName, immutable Type retType, immutable Integer objectID) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> restoring field '"+fieldName+"' in '" + this.symbol.getFQN() + "'");
+    val memberSymbolOption = this.symbol.getMember(fieldName);
+    match (memberSymbolOption) {
+      case Some {
+        match (memberSymbolOption.value) {
+          case FieldSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+fieldName+"'");
+            this
+          }
+          case MethodSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+fieldName+"'");
+            ABORT("Cannot restore to a method")
+          }
+          default {
+            DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   found unrecognized symbol type for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+            ABORT("Attempting to restore to unsupported member type");
+          }
+        }
+      }
+      case None {
+        DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   Cannot find member '"+fieldName+"' in '" + this.symbol.getFQN() + "' to unpack");
+        ABORT("Cannot find member '"+fieldName+"' in '" + this.symbol.getFQN() + "' to restore to");
+      }
+    }
+  }
+  
+  method immutable Structure unpackField(immutable UnpackedFieldSignature newFieldSig) {
+    val immutable String fieldName = newFieldSig.packedSignature.name;
+    DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> unpacking field '"+fieldName+"' in '" + this.symbol.getFQN() + "'");
+    val memberSymbolOption = this.symbol.getMember(fieldName);
+    match (memberSymbolOption) {
+      case Some {
+        match (memberSymbolOption.value) {
+          case FieldSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+fieldName+"'");
+            val unpackedFields = java.util.HashMap.new();
+            unpackedFields.put(fieldName,newFieldSig);
+            makeUnpackedStructureWithFieldMap(this,unpackedFields)
+          }
+          case MethodSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+fieldName+"'");
+            ABORT("Cannot unpack a method")
+          }
+          default {
+            DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   found unrecognized symbol type for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+            ABORT("Attempting to unpack unsupported member type");
+          }
+        }
+      }
+      case None {
+        DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   Cannot find member '"+fieldName+"' in '" + this.symbol.getFQN() + "' to unpack");
+        ABORT("Cannot find member '"+fieldName+"' in '" + this.symbol.getFQN() + "' to unpack");
+      }
+    }
   }
 }

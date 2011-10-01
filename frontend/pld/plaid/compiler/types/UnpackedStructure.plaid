@@ -50,13 +50,13 @@ state UnpackedStructure case of ObjectStructure {
   }
   
   method immutable String toString()[immutable UnpackedStructure] {
-    var immutable String ret = this.unpackedStructure.toString() + "(";
+    var immutable String ret = this.unpackedStructure.toString() + " UNPACKED Fields: ";
     val unique Iterator iter = this.unpackedFields.keySet().iterator();
     while {iter.hasNext() } {
-       val shared FieldSymbol fieldSym = iter.next();
-       s = s + fieldSym.name + " : " + this.unpackedFields.get(fieldSym).toString()
+       val immutable String fieldName = iter.next();
+       ret = ret + this.unpackedFields.get(fieldName).toString() + ","
     };
-    s
+    ret
   }
   
   method unique Option<immutable Signature> getMember(immutable String memberName) {
@@ -137,6 +137,49 @@ state UnpackedStructure case of ObjectStructure {
           }
           case None {
             ABORT("field not there"); 
+          }
+        }
+      }
+    }
+  }
+  
+  method immutable UnpackedStructure unpackField(immutable UnpackedFieldSignature newFieldSig) {
+    val immutable String fieldName = newFieldSig.packedSignature.name;
+    DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure> unpacking field '"+fieldName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
+    
+    match (this.unpackedFields.containsKey(fieldName)) {
+      case True {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>  updating already unpacked field '"+fieldName+"'");
+        val newUnpackedFields = java.util.HashMap.new();
+        newUnpackedFields.putAll(this.unpackedFields);
+        newUnpackedFields.put(fieldName,newFieldSig); //replaces existing unpackedsig
+        makeUnpackedStructureWithFieldMap(this.unpackedStructure,newUnpackedFields)
+      }
+      case False {
+        val memberSymbolOption = this.unpackedStructure.symbol.getMember(fieldName);
+        match (memberSymbolOption) {
+          case Some {
+            match (memberSymbolOption.value) {
+              case FieldSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found FieldSymbol for '"+fieldName+"'");
+                val newUnpackedFields = java.util.HashMap.new();
+                newUnpackedFields.putAll(this.unpackedFields);
+                newUnpackedFields.put(fieldName,newFieldSig);
+                makeUnpackedStructureWithFieldMap(this.unpackedStructure,newUnpackedFields)
+              }
+              case MethodSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found MethodSymbol for '"+fieldName+"'");
+                ABORT("Cannot unpack a method")
+              }
+              default {
+                DEBUG(DEBUG_PRIO_HIGH, "<UnpackedStructure>   found unrecognized symbol type for '"+memberName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
+                ABORT("Attempting to unpack unsupported member type");
+              }
+            }
+          }
+          case None {
+            DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   Cannot find member '"+fieldName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")' to unpack");
+            ABORT("Cannot find member '"+fieldName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")' to unpack");
           }
         }
       }
