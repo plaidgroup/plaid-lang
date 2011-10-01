@@ -42,6 +42,8 @@ state SymbolTestFactory case of TestFactory {
     ast.initASTs();
     val symbols = new SymbolsForTests;
     symbols.initSymbols(ast);
+    val types = new TypesForTests;
+    types.initTypes(ast,symbols);
 
     val astCMP = new ASTsForTests;
     astCMP.initASTs();
@@ -49,56 +51,6 @@ state SymbolTestFactory case of TestFactory {
     symbolsCMP.initSymbols(astCMP);
    
     val unique SymbolFactory symFac = new SymbolFactory;
-    
-    //package structures
-    val immutable PackageStructure packageStruct1 = makePackageStructure(TOPSTRUCT,ast.packageName1);
-    val immutable PackageStructure packageStruct2 = makePackageStructure(TOPSTRUCT,ast.packageName2);
-    val immutable PackageStructure packageStruct3 = makePackageStructure(packageStruct1,ast.packageName3);
-    
-    //field Signatures for comparison
-    val immutable NominalStructure nomStruct1 = makeNominalStructure(symbols.stateSym1,packageStruct1,ast.stateName1);
-    val immutable NominalStructure nomStruct2 = makeNominalStructure(symbols.stateSym2,packageStruct1,ast.stateName2);
-    
-    val immutable Type nomType1 = makeType(UNIQUE,nomStruct1);
-    val immutable Type nomType1alt = makeType(NONEP,nomStruct1);
-    val immutable Type nomType1altshared = makeType(SHARED,nomStruct1);
-    val immutable Type nomType2 = makeType(UNIQUE,nomStruct2);
-    val immutable Type nomType2alt = makeType(IMMUTABLE,nomStruct2);
-    
-    val immutable FieldSignature fieldSig1 = makeFieldSignature(false,nomType1,ast.fieldName1);
-    val immutable FieldSignature fieldSig1alt = makeFieldSignature(false,nomType1altshared,ast.fieldName1);
-    val immutable FieldSignature fieldSig2 = makeFieldSignature(false,nomType2,ast.fieldName2);
-     
-    //method signatures for comparison
-    val /*unique LinkedList<immutable Pair<immutable VariableSymbol, immutable ArgSpec>>*/
-      mArgsSig = makeLinkedList();
-    mArgsSig.add(makePair(symbols.argSym2,makeArgSpec(nomType1,nomType1)));
-    mArgsSig.add(makePair(symbols.argSym1,makeArgSpec(nomType1,nomType1alt)));
-    
-    val unique Map<immutable VariableSymbol, immutable ArgSpec> envSigP1 = java.util.HashMap.new();
-    envSigP1.put(symbols.envSym1,makeArgSpec(nomType1,nomType1));
-    envSigP1.put(symbols.envSym2,makeArgSpec(nomType1,nomType1));
-    val unique Map<immutable VariableSymbol, immutable ArgSpec> envSigP2 = java.util.HashMap.new();
-    envSigP2.put(symbols.envSym1,makeArgSpec(nomType1,nomType1));
-    val unique Map<immutable VariableSymbol, immutable ArgSpec> envSigS1 = java.util.HashMap.new();
-    val unique Map<immutable VariableSymbol, immutable ArgSpec> envSigS2 = java.util.HashMap.new();
-    
-    val immutable MethodSignature methodSigP1 = 
-      makeMethodSignature(nomType1, ast.methodName1, mArgsSig, 
-                          makeArgSpec(VOID,VOID), envSigP1, 
-                          makeLinkedList());
-    val immutable MethodSignature methodSigP2 = 
-      makeMethodSignature(nomType1, ast.methodName2, mArgsSig, 
-                          makeArgSpec(nomType1,nomType1alt), envSigP2, 
-                          makeLinkedList());
-    val immutable MethodSignature methodSigS1 = 
-      makeMethodSignature(nomType1, ast.methodName1, mArgsSig, 
-                          makeArgSpec(nomType1,nomType1alt), envSigS1, 
-                          makeLinkedList());
-    val immutable MethodSignature methodSigS2 = 
-      makeMethodSignature(nomType1, ast.methodName2, mArgsSig, 
-                          makeArgSpec(nomType1,nomType1), envSigS2, 
-                          makeLinkedList());
 
     /********************** Top Symbol *************************/
     test("Top Symbol equality", fn(ctx) => { 
@@ -107,7 +59,7 @@ state SymbolTestFactory case of TestFactory {
       ctx.assertFalse(TOPSYM == symbols.stateSym1);
       ctx.assertFalse(TOPSYM == symbols.fvalSym1u1Op1);
       ctx.assertFalse(TOPSYM == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
-      ctx.assertFalse(TOPSYM == symbols.argSym1);
+      ctx.assertFalse(TOPSYM == symbols.varSym1);
       ctx.assertFalse(TOPSYM == symbols.thisSym1);
     }); 
     
@@ -126,13 +78,13 @@ state SymbolTestFactory case of TestFactory {
       ctx.assertFalse(symbols.packageSym1 == symbols.stateSym1);
       ctx.assertFalse(symbols.packageSym1 == symbols.fvalSym1u1Op1);
       ctx.assertFalse(symbols.packageSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
-      ctx.assertFalse(symbols.packageSym1 == symbols.argSym1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.varSym1);
       ctx.assertFalse(symbols.packageSym1 == symbols.thisSym1);
     }); 
     
     test("Package symbol getStructure", fn(ctx) => {
-      ctx.assertTrue(symbols.packageSym1.getStructure() == packageStruct1);
-      ctx.assertTrue(symbols.packageSym3.getStructure() == packageStruct3);
+      ctx.assertTrue(symbols.packageSym1.getStructure() == types.packageStruct1);
+      ctx.assertTrue(symbols.packageSym3.getStructure() == types.packageStruct3);
     });
     
     /********************** State Symbols *************************/
@@ -146,21 +98,21 @@ state SymbolTestFactory case of TestFactory {
       ctx.assertFalse(symbols.stateSym3 == symbols.stateSym1);
       ctx.assertFalse(symbols.stateSym1 == symbols.fvalSym1u1Op1);
       ctx.assertFalse(symbols.stateSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
-      ctx.assertFalse(symbols.stateSym1 == symbols.argSym1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.varSym1);
       ctx.assertFalse(symbols.stateSym1 == symbols.thisSym1);
     }); 
     
     test("State Symbol getStructure", fn(ctx) => { 
-      ctx.assertTrue(symbols.stateSym1.getStructure() == nomStruct1);
+      ctx.assertTrue(symbols.stateSym1.getStructure() == types.nominalStruct1);
     });
     
     test("State Symbol default State Permission", fn(ctx) => { 
-      ctx.assertTrue(match(symbols.stateSym2.defaultStatePermission()) { case ImmutablePermission { true } default { false } });
-      ctx.assertTrue(match(symbols.stateSym1.defaultStatePermission()) { case UniquePermission { true } default { false } });
+      ctx.assertTrue( symbols.stateSym2.defaultStatePermission() == IMMUTABLE );
+      ctx.assertTrue(symbols.stateSym1.defaultStatePermission() == UNIQUE);
     }); 
     
     test("State Symbol default State Type", fn(ctx) => { 
-      ctx.assertTrue(symbols.stateSym1.defaultStateType() == makeType(UNIQUE,nomStruct1));
+      ctx.assertTrue(symbols.stateSym1.defaultStateType() == types.nominalType_u1);
     }); 
     
     test("State Symbol getMember", fn(ctx) => { 
@@ -201,12 +153,12 @@ state SymbolTestFactory case of TestFactory {
       ctx.assertFalse(symbols.fvalSym1u1Os1 == symbols.fvalSym1u1Op1);
       ctx.assertFalse(symbols.fvalSym1u1Os1 == symbols.fvalSym2e2Op1);
       ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
-      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.argSym1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.varSym1);
       ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.thisSym1);
     });
     
     test("Field Symbol getSignature", fn(ctx) => {
-      ctx.assertTrue(symbols.fvalSym1u1Os1.getSignature() == makeFieldSignature(false,makeType(UNIQUE,nomStruct1),ast.fieldName1));
+      ctx.assertTrue(symbols.fvalSym1u1Os1.getSignature() == types.fvalSig1u1);
     }); 
     
     /********************** Method Symbols *************************/
@@ -220,33 +172,33 @@ state SymbolTestFactory case of TestFactory {
       ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E);
       ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
       ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E == symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1);
-      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.argSym1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.varSym1);
       ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.thisSym1);
     }); 
     
     test("Method Symbol getSignature", fn(ctx) => { 
-      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1.getSignature() == methodSigP1);
+      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1.getSignature() == types.methodSig1Ru1A1u1n12u1u1TvvE1u1u12u1u1);
       //java.lang.System.out.println(symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1.getSignature().toString());
-      //java.lang.System.out.println(methodSigP2.toString());
-      ctx.assertTrue(symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1.getSignature() == methodSigP2);
+      //java.lang.System.out.println(types.methodSig2Ru1A1u1n12u1u1Tu1n1E1u1u1.toString());
+      ctx.assertTrue(symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1.getSignature() == types.methodSig2Ru1A1u1n12u1u1Tu1n1E1u1u1);
       //java.lang.System.out.println(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E.getSignature().toString());
-      //java.lang.System.out.println(methodSigS1.toString());
-      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E.getSignature() == methodSigS1);
+      //java.lang.System.out.println(types.methodSig1Ru1A1u1n12u1u1Tu1n1E.toString());
+      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E.getSignature() == types.methodSig1Ru1A1u1n12u1u1Tu1n1E);
       //java.lang.System.out.println(symbols.methodSym2Ru1A1u1n12u1u1TE.getSignature().toString());
-      //java.lang.System.out.println(methodSigS2.toString());
-      ctx.assertTrue(symbols.methodSym2Ru1A1u1n12u1u1TE.getSignature() == methodSigS2);
+      //java.lang.System.out.println(types.methodSig2Ru1A1u1n12u1u1Tu1u1E.toString());
+      ctx.assertTrue(symbols.methodSym2Ru1A1u1n12u1u1TE.getSignature() == types.methodSig2Ru1A1u1n12u1u1Tu1u1E);
     }); 
     
-    /********************** Variable (Arg) Symbols *************************/
+    /********************** Variable Symbols *************************/
     test("Variable Symbol equality", fn(ctx) => { 
-      ctx.assertTrue(symbols.argSym1 == symbolsCMP.argSym1);
-      ctx.assertFalse(symbols.argSym1 == TOPSYM);
-      ctx.assertFalse(symbols.argSym1 == symbols.packageSym1);
-      ctx.assertFalse(symbols.argSym1 == symbols.stateSym1);
-      ctx.assertFalse(symbols.argSym1 == symbols.fvalSym1u1Op1);
-      ctx.assertFalse(symbols.argSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
-      ctx.assertFalse(symbols.argSym1 == symbols.argSym2);
-      ctx.assertFalse(symbols.argSym1 == symbols.thisSym1);
+      ctx.assertTrue(symbols.varSym1 == symbolsCMP.varSym1);
+      ctx.assertFalse(symbols.varSym1 == TOPSYM);
+      ctx.assertFalse(symbols.varSym1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.varSym1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.varSym1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.varSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.varSym1 == symbols.varSym2);
+      ctx.assertFalse(symbols.varSym1 == symbols.thisSym1);
     });
     
     /********************** This Symbol *************************/
@@ -257,7 +209,7 @@ state SymbolTestFactory case of TestFactory {
       ctx.assertFalse(symbols.thisSym1 == symbols.stateSym1);
       ctx.assertFalse(symbols.thisSym1 == symbols.fvalSym1u1Op1);
       ctx.assertFalse(symbols.thisSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
-      ctx.assertFalse(symbols.thisSym1 == symbols.argSym1);
+      ctx.assertFalse(symbols.thisSym1 == symbols.varSym1);
       ctx.assertFalse(symbols.thisSym1 == symbols.thisSym2);
     });
     
