@@ -25,7 +25,9 @@ import plaid.compiler.*;
 import plaid.ast.parsed.ParsedEmptyExpr;
 import plaid.compiler.permissions.UniquePermission;
 import plaid.compiler.permissions.ImmutablePermission;
+import plaid.compiler.permissions.*;
 import plaid.compiler.types.*;
+import plaid.compiler.tests.*;
 
 import plaid.collections.makeLinkedList;
 
@@ -35,289 +37,180 @@ state SymbolTestFactory case of TestFactory {
     val tests = makeLinkedList();
     val test = fn(name,body) => { tests.add(mktest(name, body)) };
     var result = unit; //dummy result variable
+    
+    val ast = new ASTsForTests;
+    ast.initASTs();
+    val symbols = new SymbolsForTests;
+    symbols.initSymbols(ast);
+    val types = new TypesForTests;
+    types.initTypes(ast,symbols);
+
+    val astCMP = new ASTsForTests;
+    astCMP.initASTs();
+    val symbolsCMP = new SymbolsForTests;
+    symbolsCMP.initSymbols(astCMP);
    
-    val immutable ParsedASTNode dummyAST = new ParsedEmptyExpr; //TODO: testing full symbols will require AST's to be built
     val unique SymbolFactory symFac = new SymbolFactory;
-    
-    //Top symbol/structure
-    val immutable TopSymbol topSym = TOPSYM;
-    val immutable TopStructure topStruct = TOPSTRUCT;
-    
-    //package symbols
-    val immutable PackageSymbol packSym1 = symFac.makePackageSymbol("pack1",topSym);
-    val immutable PackageSymbol packSym2 = symFac.makePackageSymbol("pack2",topSym);
-    val immutable PackageSymbol packSymN = symFac.makePackageSymbol("packN",packSym1);
-    
-    //package structures
-    val immutable PackageStructure packStruct1 = makePackageStructure(topStruct,"pack1");
-    val immutable PackageStructure packStruct2 = makePackageStructure(topStruct,"pack2");
-    val immutable PackageStructure packStructN = makePackageStructure(packStruct1,"packN");
-    
-    //state Symbols
-    val immutable String stateName1 = "state1";
-    val immutable String stateName2 = "state2";
-    val immutable ParsedIdentifier stateID1 = new ParsedIdentifier { val name = stateName1; };
-    val immutable ParsedIdentifier stateID2 = new ParsedIdentifier { val name = stateName2; };
-    val immutable ParsedAbstractStateDecl stateAST1 = new ParsedStateDecl {
-      val name = stateID1;
-      val modifiers = makeLinkedList();
-      val caseOf = new ParsedEmptyQualifiedIdentifier;
-      val StaticArgsSpec = makeLinkedList();
-      val metaCaseOfArgs = makeLinkedList();
-    };
-    
-    val stateModifiers2 = makeLinkedList();
-    stateModifiers2.add(new ParsedImmutableModifier);
-    val stateCaseOf2IDs = makeLinkedList();
-    stateCaseOf2IDs.add(stateID1);
-    val stateCaseOf2 = new ParsedQualifiedIdentifier { val identifiers = stateCaseOf2IDs; };
-    val immutable ParsedAbstractStateDecl stateAST2 = new ParsedStateDecl {
-      val name = stateID2;
-      val modifiers = stateModifiers2;
-      val caseOf = stateCaseOf2;
-      val StaticArgsSpec = makeLinkedList();
-      val metaCaseOfArgs = makeLinkedList();
-    };
-    
-    val immutable StateSymbol stateSym1 = symFac.makeStateSymbol("state1", stateAST1, packSym1);
-    val immutable StateSymbol stateSym2 = symFac.makeStateSymbol("state2", stateAST2, packSym1);
-    val immutable StateSymbol stateSymNS = symFac.makeStateSymbol("stateNS", dummyAST, stateSym1);
-    val immutable StateSymbol stateSymNP = symFac.makeStateSymbol("stateNP", dummyAST, packSymN);
-    
-    val unique LinkedList QIlist1 = makeLinkedList();
-    QIlist1.add(stateID1);
-    val unique LinkedList QIlist2 = makeLinkedList();
-    QIlist2.add(stateID2);
-    
-    val immutable ParsedQualifiedIdentifier stateQID1 = new ParsedQualifiedIdentifier { val identifiers = QIlist1; };
-    val immutable ParsedQualifiedIdentifier stateQID2 = new ParsedQualifiedIdentifier { val identifiers = QIlist2; };
-    
-    addSymbolForAST(stateQID1,stateSym1);
-    addSymbolForAST(stateQID2,stateSym2);
-    addSymbolForAST(stateCaseOf2,stateSym1);
-    
-    val immutable ParsedNominalStructure nomStructAST1 = new ParsedNominalStructure { val stateQi = stateQID1; val metaTypes = makeLinkedList(); };
-    val immutable ParsedNominalStructure nomStructAST2 = new ParsedNominalStructure { val stateQi = stateQID2; val metaTypes = makeLinkedList(); };
-    
-    val immutable ParsedConcreteType nomTypeAST1 = new ParsedConcreteType {
-      val permission = new ParsedUniquePermission;
-      val structure = nomStructAST1;
-    };
-    val immutable ParsedConcreteType nomTypeAST1alt = new ParsedConcreteType {
-      val permission = new ParsedNonePermission;
-      val structure = nomStructAST1;
-    };
-    val immutable ParsedConcreteType nomTypeAST2 = new ParsedConcreteType {
-      val permission = new ParsedEmptyPermission;
-      val structure = nomStructAST2;
-    };
-    
-    //FieldASTs
-    val immutable String fieldName1 = "field1";
-    val immutable String fieldName2 = "field2";
-    val immutable ParsedASTNode fieldAST1 =new ParsedFieldDecl {
-      val name = new ParsedIdentifier { val name = fieldName1; };
-      val modifiers = makeLinkedList();
-      val specifier = new ParsedValSpecifier;
-      val fieldType = nomTypeAST1;
-    };
-    val immutable ParsedASTNode fieldAST1alt =new ParsedFieldDecl {
-      val name = new ParsedIdentifier { val name = fieldName1; };
-      val modifiers = makeLinkedList();
-      val specifier = new ParsedValSpecifier;
-      val fieldType = nomTypeAST1alt;
-    };
-    val immutable ParsedASTNode fieldAST2 =new ParsedFieldDecl {
-      val name = new ParsedIdentifier { val name = fieldName2; };
-      val modifiers = makeLinkedList();
-      val specifier = new ParsedValSpecifier;
-      val fieldType = nomTypeAST2;
-    };
-    
-    //Field Symbols
-    val immutable FieldSymbol fieldSymP1 = symFac.makeFieldSymbol("field1",fieldAST1, packSym1);
-    val immutable FieldSymbol fieldSymP1alt = symFac.makeFieldSymbol("field1",fieldAST1alt, packSym1);
-    val immutable FieldSymbol fieldSymP2 = symFac.makeFieldSymbol("field2",fieldAST2, packSym1);
-    val immutable FieldSymbol fieldSymS1 = symFac.makeFieldSymbol("field1",fieldAST1, stateSym1);
-    val immutable FieldSymbol fieldSymS1alt = symFac.makeFieldSymbol("field1",fieldAST1alt, stateSym1);
-    val immutable FieldSymbol fieldSymS2 = symFac.makeFieldSymbol("field2",fieldAST2, stateSym1);
-    
-    addSymbolForAST(fieldAST1,fieldSymP1);
-    addSymbolForAST(fieldAST1alt,fieldSymP1alt);
-    addSymbolForAST(fieldAST2,fieldSymP2);
-    
-    //add fields to states
-    stateSym1.addMember(fieldSymS1);
-    stateSym1.addMember(fieldSymS2);
-    
-    //field Signatures for comparison
-    val immutable NominalStructure nomStruct1 = makeNominalStructure(stateSym1,packStruct1,stateName1);
-    val immutable NominalStructure nomStruct2 = makeNominalStructure(stateSym2,packStruct1,stateName2);
-    
-    val immutable FieldSignature fieldSig1 = makeFieldSignature(false,makeType(UNIQUE,nomStruct1),fieldName1);
-    val immutable FieldSignature fieldSig1alt = makeFieldSignature(false,makeType(NONEP,nomStruct1),fieldName1);
-    val immutable FieldSignature fieldSig2 = makeFieldSignature(false,makeType(UNIQUE,nomStruct2),fieldName2);
-    
-    //Method Symbols
-    val immutable MethodSymbol methodSymP1 = symFac.makeMethodSymbol("method1",dummyAST, packSym1);
-    val immutable MethodSymbol methodSymP2 = symFac.makeMethodSymbol("method2",dummyAST, packSym1);
-    val immutable MethodSymbol methodSymS1 = symFac.makeMethodSymbol("method1",dummyAST, stateSym1);
-    val immutable MethodSymbol methodSymS2 = symFac.makeMethodSymbol("method2",dummyAST, stateSym1);
-    
-    //variable symbol
-    val immutable VariableSymbol varSym1 = symFac.makeVariableSymbol("var1",dummyAST);
-    val immutable VariableSymbol varSym2 = symFac.makeVariableSymbol("var2",dummyAST);
-    
-    //this symbol
-    val immutable ThisSymbol thisSym1 = symFac.makeThisSymbol(stateSym1,dummyAST);
-    val immutable ThisSymbol thisSym2 = symFac.makeThisSymbol(stateSym2,dummyAST);
 
     /********************** Top Symbol *************************/
     test("Top Symbol equality", fn(ctx) => { 
-      ctx.assertTrue(topSym == symFac.makeTopSymbol());
-      ctx.assertFalse(topSym == packSym1);
-      ctx.assertFalse(topSym == stateSym1);
-      ctx.assertFalse(topSym == fieldSymP1);
-      ctx.assertFalse(topSym == methodSymP1);
-      ctx.assertFalse(topSym == varSym1);
-      ctx.assertFalse(topSym == thisSym1);
+      ctx.assertTrue(TOPSYM == symFac.makeTopSymbol());
+      ctx.assertFalse(TOPSYM == symbols.packageSym1);
+      ctx.assertFalse(TOPSYM == symbols.stateSym1);
+      ctx.assertFalse(TOPSYM == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(TOPSYM == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(TOPSYM == symbols.varSym1);
+      ctx.assertFalse(TOPSYM == symbols.thisSym1);
     }); 
     
     test("Top symbol getStructure", fn(ctx) => {
-      ctx.assertTrue(topSym.getStructure() == TOPSTRUCT);
+      ctx.assertTrue(TOPSYM.getStructure() == TOPSTRUCT);
     });
     
     
     /********************** Package Symbols *************************/
     test("Package Symbol equality", fn(ctx) => { 
-      ctx.assertTrue(packSym1 == symFac.makePackageSymbol("pack1",topSym));
-      ctx.assertFalse(packSym1 == topSym);
-      ctx.assertFalse(packSym1 == packSym2);
-      ctx.assertFalse(packSym1 == packSymN);
-      ctx.assertFalse(packSymN == packSym1);
-      ctx.assertFalse(packSym1 == stateSym1);
-      ctx.assertFalse(packSym1 == fieldSymP1);
-      ctx.assertFalse(packSym1 == methodSymP1);
-      ctx.assertFalse(packSym1 == varSym1);
-      ctx.assertFalse(packSym1 == thisSym1);
+      ctx.assertTrue(symbols.packageSym1 == symbolsCMP.packageSym1);
+      ctx.assertFalse(symbols.packageSym1 == TOPSYM);
+      ctx.assertFalse(symbols.packageSym1 == symbols.packageSym2);
+      ctx.assertFalse(symbols.packageSym1 == symbols.packageSym3);
+      ctx.assertFalse(symbols.packageSym3 == symbols.packageSym1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.varSym1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.thisSym1);
     }); 
     
     test("Package symbol getStructure", fn(ctx) => {
-      ctx.assertTrue(packSym1.getStructure() == packStruct1);
-      ctx.assertTrue(packSymN.getStructure() == packStructN);
+      ctx.assertTrue(symbols.packageSym1.getStructure() == types.packageStruct1);
+      ctx.assertTrue(symbols.packageSym3.getStructure() == types.packageStruct3);
     });
     
     /********************** State Symbols *************************/
     test("State Symbol equality", fn(ctx) => { 
-      ctx.assertTrue(stateSym1 == symFac.makeStateSymbol("state1", dummyAST, packSym1));
-      ctx.assertFalse(stateSym1 == topSym);
-      ctx.assertFalse(stateSym1 == packSym1);
-      ctx.assertFalse(stateSym1 == stateSym2);
-      ctx.assertFalse(stateSym1 == stateSymNP);
-      ctx.assertFalse(stateSym1 == stateSymNS);
-      ctx.assertFalse(stateSymNS == stateSym1);
-      ctx.assertFalse(stateSym1 == fieldSymP1);
-      ctx.assertFalse(stateSym1 == methodSymP1);
-      ctx.assertFalse(stateSym1 == varSym1);
-      ctx.assertFalse(stateSym1 == thisSym1);
+      ctx.assertTrue(symbols.stateSym1 == symbolsCMP.stateSym1);
+      ctx.assertFalse(symbols.stateSym1 == TOPSYM);
+      ctx.assertFalse(symbols.stateSym1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.stateSym2);
+      ctx.assertFalse(symbols.stateSym1 == symbols.stateSym4);
+      ctx.assertFalse(symbols.stateSym1 == symbols.stateSym3);
+      ctx.assertFalse(symbols.stateSym3 == symbols.stateSym1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.varSym1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.thisSym1);
     }); 
     
     test("State Symbol getStructure", fn(ctx) => { 
-      ctx.assertTrue(stateSym1.getStructure() == nomStruct1);
+      ctx.assertTrue(symbols.stateSym1.getStructure() == types.nominalStruct1);
     });
     
     test("State Symbol default State Permission", fn(ctx) => { 
-      ctx.assertTrue(match(stateSym2.defaultStatePermission()) { case ImmutablePermission { true } default { false } });
-      ctx.assertTrue(match(stateSym1.defaultStatePermission()) { case UniquePermission { true } default { false } });
+      ctx.assertTrue( symbols.stateSym2.defaultStatePermission() == IMMUTABLE );
+      ctx.assertTrue(symbols.stateSym1.defaultStatePermission() == UNIQUE);
     }); 
     
     test("State Symbol default State Type", fn(ctx) => { 
-      ctx.assertTrue(stateSym1.defaultStateType() == makeType(UNIQUE,nomStruct1));
+      ctx.assertTrue(symbols.stateSym1.defaultStateType() == types.nominalType_u1);
     }); 
     
     test("State Symbol getMember", fn(ctx) => { 
-      result = stateSym1.getMember(fieldName1);
-      ctx.assertTrue(match(result) { case Some { result.value == fieldSymS1 } case None { false } });
-      result = stateSym2.getMember(fieldName1);
+      result = symbols.stateSym1.getMember(ast.fieldName1);
+      ctx.assertTrue(match(result) { case Some { result.value == symbols.fvalSym1u1Os1 } case None { false } });
+      result = symbols.stateSym2.getMember(ast.fieldName1);
       ctx.assertTrue(match(result) { case Some { false } case None { true } });
     });
     
     
     test("State Symbol getSuperStateSymbol", fn(ctx) => {
-      ctx.assertTrue(stateSym2.getSuperStateSymbol() == stateSym1);
-      ctx.assertTrue(stateSym1.getSuperStateSymbol() == TOPSYM);
+      ctx.assertTrue(symbols.stateSym2.getSuperStateSymbol() == symbols.stateSym1);
+      ctx.assertTrue(symbols.stateSym1.getSuperStateSymbol() == TOPSYM);
     }); 
 
     test("State Symbol getDimension", fn(ctx) => {
       val dimCmp1 = makeLinkedList();
       dimCmp1.add(TOPSYM);
-      dimCmp1.add(stateSym1);
+      dimCmp1.add(symbols.stateSym1);
       
       val dimCmp2 = makeLinkedList();
       dimCmp2.add(TOPSYM);
-      dimCmp2.add(stateSym1);
-      dimCmp2.add(stateSym2);
+      dimCmp2.add(symbols.stateSym1);
+      dimCmp2.add(symbols.stateSym2);
       
-      ctx.assertTrue(stateSym2.getDimension().zipReverse(dimCmp2).reduce(true,fn(acc,symPair) => acc && symPair.fst == symPair.snd));
-      ctx.assertTrue(stateSym1.getDimension().zipReverse(dimCmp1).reduce(true,fn(acc,symPair) => acc && symPair.fst == symPair.snd));
+      ctx.assertTrue(symbols.stateSym2.getDimension().zipReverse(dimCmp2).reduce(true,fn(acc,symPair) => acc && symPair.fst == symPair.snd));
+      ctx.assertTrue(symbols.stateSym1.getDimension().zipReverse(dimCmp1).reduce(true,fn(acc,symPair) => acc && symPair.fst == symPair.snd));
     }); 
     
     /********************** Field Symbols *************************/
     test("Field Symbol equality", fn(ctx) => { 
-      ctx.assertTrue(fieldSymP1 == symFac.makeFieldSymbol("field1",dummyAST, packSym1));
-      ctx.assertFalse(fieldSymP1 == topSym);
-      ctx.assertFalse(fieldSymP1 == packSym1);
-      ctx.assertFalse(fieldSymP1 == stateSym1);
-      ctx.assertFalse(fieldSymP1 == fieldSymP2);
-      ctx.assertFalse(fieldSymP1 == fieldSymS1);
-      ctx.assertFalse(fieldSymS1 == fieldSymP1);
-      ctx.assertFalse(fieldSymS1 == fieldSymP2);
-      ctx.assertFalse(fieldSymP1 == methodSymP1);
-      ctx.assertFalse(fieldSymP1 == varSym1);
-      ctx.assertFalse(fieldSymP1 == thisSym1);
+      ctx.assertTrue(symbols.fvalSym1u1Op1 == symbolsCMP.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == TOPSYM);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.fvalSym2e2Op1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.fvalSym1u1Os1);
+      ctx.assertFalse(symbols.fvalSym1u1Os1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.fvalSym1u1Os1 == symbols.fvalSym2e2Op1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.varSym1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.thisSym1);
     });
     
     test("Field Symbol getSignature", fn(ctx) => {
-      ctx.assertTrue(fieldSymS1.getSignature() == makeFieldSignature(false,makeType(UNIQUE,nomStruct1),fieldName1));
+      ctx.assertTrue(symbols.fvalSym1u1Os1.getSignature() == types.fvalSig1u1);
     }); 
     
     /********************** Method Symbols *************************/
     test("Method Symbol equality", fn(ctx) => { 
-      ctx.assertTrue(methodSymP1 == symFac.makeMethodSymbol("method1",dummyAST, packSym1));
-      ctx.assertFalse(methodSymP1 == topSym);
-      ctx.assertFalse(methodSymP1 == packSym1);
-      ctx.assertFalse(methodSymP1 == stateSym1);
-      ctx.assertFalse(methodSymP1 == fieldSymP1);
-      ctx.assertFalse(methodSymP1 == methodSymP2);
-      ctx.assertFalse(methodSymP1 == methodSymS1);
-      ctx.assertFalse(methodSymS1 == methodSymP1);
-      ctx.assertFalse(methodSymS1 == methodSymP2);
-      ctx.assertFalse(methodSymP1 == varSym1);
-      ctx.assertFalse(methodSymP1 == thisSym1);
+      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbolsCMP.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == TOPSYM);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E == symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.varSym1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.thisSym1);
+    }); 
+    
+    test("Method Symbol getSignature", fn(ctx) => { 
+      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1.getSignature() == types.methodSig1Ru1A1u1n12u1u1TvvE1u1u12u1u1);
+      //java.lang.System.out.println(symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1.getSignature().toString());
+      //java.lang.System.out.println(types.methodSig2Ru1A1u1n12u1u1Tu1n1E1u1u1.toString());
+      ctx.assertTrue(symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1.getSignature() == types.methodSig2Ru1A1u1n12u1u1Tu1n1E1u1u1);
+      //java.lang.System.out.println(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E.getSignature().toString());
+      //java.lang.System.out.println(types.methodSig1Ru1A1u1n12u1u1Tu1n1E.toString());
+      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E.getSignature() == types.methodSig1Ru1A1u1n12u1u1Tu1n1E);
+      //java.lang.System.out.println(symbols.methodSym2Ru1A1u1n12u1u1TE.getSignature().toString());
+      //java.lang.System.out.println(types.methodSig2Ru1A1u1n12u1u1Tu1u1E.toString());
+      ctx.assertTrue(symbols.methodSym2Ru1A1u1n12u1u1TE.getSignature() == types.methodSig2Ru1A1u1n12u1u1Tu1u1E);
     }); 
     
     /********************** Variable Symbols *************************/
     test("Variable Symbol equality", fn(ctx) => { 
-      ctx.assertTrue(varSym1 == symFac.makeVariableSymbol("var1",dummyAST));
-      ctx.assertFalse(varSym1 == topSym);
-      ctx.assertFalse(varSym1 == packSym1);
-      ctx.assertFalse(varSym1 == stateSym1);
-      ctx.assertFalse(varSym1 == fieldSymP1);
-      ctx.assertFalse(varSym1 == methodSymP1);
-      ctx.assertFalse(varSym1 == varSym2);
-      ctx.assertFalse(varSym1 == thisSym1);
+      ctx.assertTrue(symbols.varSym1 == symbolsCMP.varSym1);
+      ctx.assertFalse(symbols.varSym1 == TOPSYM);
+      ctx.assertFalse(symbols.varSym1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.varSym1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.varSym1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.varSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.varSym1 == symbols.varSym2);
+      ctx.assertFalse(symbols.varSym1 == symbols.thisSym1);
     });
     
     /********************** This Symbol *************************/
     test("This Symbol equality", fn(ctx) => { 
-      ctx.assertTrue(thisSym1 == symFac.makeThisSymbol(stateSym1,dummyAST));
-      ctx.assertFalse(thisSym1 == topSym);
-      ctx.assertFalse(thisSym1 == packSym1);
-      ctx.assertFalse(thisSym1 == stateSym1);
-      ctx.assertFalse(thisSym1 == fieldSymP1);
-      ctx.assertFalse(thisSym1 == methodSymP1);
-      ctx.assertFalse(thisSym1 == varSym1);
-      ctx.assertFalse(thisSym1 == thisSym2);
+      ctx.assertTrue(symbols.thisSym1 == symbolsCMP.thisSym1);
+      ctx.assertFalse(symbols.thisSym1 == TOPSYM);
+      ctx.assertFalse(symbols.thisSym1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.thisSym1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.thisSym1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.thisSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.thisSym1 == symbols.varSym1);
+      ctx.assertFalse(symbols.thisSym1 == symbols.thisSym2);
     });
     
     
