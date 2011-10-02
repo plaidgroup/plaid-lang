@@ -19,22 +19,44 @@ state UnpackedFieldSignature case of Signature {
         default { false } 
       }
   }
-    
-  method immutable String toString()[immutable FieldSignature this] {
-    "UNPACKED(" + this.packedSignature.toString() + " ," + this.objectID + ") : " + this.currentType.toString() + ";";
+  
+  method immutable Type getDeclaredType() {
+    this.packedSignature.getDeclaredType()
   }
   
-  method immutable Signature restore(immutable Permission perm) {
-    val unique Option<immutable Permission> restoredPermOption = this.currentType.permission.returnPerm(perm);
-    match (restoredPermOption) {
-      case Some {
-        val immutable Type newType = makeType(restoredPermOption.value, this.currentType.structure);
-        match (newType.isSubTypeOf(this.packedSignature.fieldType)) {
-          case True { this.packedSignature }
-          case False { makeUnpackedFieldSignature(this.packedSignature, this.objectID, newType) }
+  method immutable Type getCurrentType() {
+    this.currentType
+  }
+    
+  method immutable String toString()[immutable FieldSignature this] {
+    "UNPACKED(" + this.packedSignature.toString() + ", " + this.objectID + ") : " + this.currentType.toString()
+  }
+  
+  /**
+   * restores the given type to the unpacked field, returning the new state (packed or unpacked) of the field
+   * the resulting permission is the incoming permission restored to the current permission
+   * the resulting structure is the more specific of the two structures.  Both cannot have been changed because
+   *    a change to one must necessarily downgrade the other type.
+   * if the restored type is a subtype of the declared field type, then we return a packed field
+   *    otherwise the field remains unpacked at the restored type
+   */
+  method immutable Signature restore(immutable Type retType, immutable Integer restoreObjectID) {
+    match (this.objectID == restoreObjectID) {
+      case True {
+        val unique Option<immutable Permission> restoredPermOption = this.currentType.permission.returnPerm(retType.permission);
+        match (restoredPermOption) {
+          case Some {
+            val immutable Structure restoredStructure = mergeStructures(retType.structure, this.currentType.structure);
+            val immutable Type restoredType = makeType(restoredPermOption.value, restoredStructure);
+            match (restoredType.isSubTypeOf(this.packedSignature.fieldType)) {
+              case True { this.packedSignature }
+              case False { makeUnpackedFieldSignature(this.packedSignature, this.objectID, restoredType) }
+            }
+          }
+          case None { ABORT("could not return " + perm.toString() + " to " + this.currentType.permission ) }
         }
       }
-      case None { ABORT("could not return " + perm.toString() + " to " + this.currentType.permission ) }
+      case False { this } //mismatched objects - no restoration done
     }
   }
 }

@@ -606,14 +606,18 @@ public class PlaidObjectMap implements PlaidObject {
 
 		// We need to find out if retval is a (Plaid) integer and return its value
 		// TODO: This is a hack!
-		if (!(retval instanceof PlaidJavaObject))
+		if (retval instanceof PlaidJavaObject) {
+			return ((PlaidJavaObject) retval).getJavaObject().hashCode();			
+		} else if ( retval.matchesTag(Util.getTag("plaid.lang.Int32")) ) {
+			PlaidMemberDef nativeValMemberDef = retval.getMember("nativeVal");
+			if (nativeValMemberDef != null && nativeValMemberDef.getValue() instanceof PlaidJavaObject) {
+				return ((PlaidJavaObject) nativeValMemberDef.getValue()).getJavaObject().hashCode();
+			} else 
+				return super.hashCode();
+			
+		} else 
 			return super.hashCode();
-		
-		//Object jo = ((PlaidJavaObject) retval).getJavaObject();
-		//if (!(jo instanceof Integer))
-			return super.hashCode();
-		
-		//return ((Integer) jo).intValue();
+
 	}
 
 	@Override
