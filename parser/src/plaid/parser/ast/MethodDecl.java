@@ -28,17 +28,17 @@ public abstract class MethodDecl extends Decl {
 	private final Type returnType;
 	private final List<StaticArg> StaticArgsSpec;
 	private final List<Arg> arguments;
-	private final List<Arg> env;
+	private final List<Arg> environment;
 	
 	public MethodDecl(Token t, List<Modifier> modifiers, 
 			Type returnType, Identifier name,
 			List<StaticArg> StaticArgsSpec, List<Arg> arguments,
-			List<Arg> env) {
+			List<Arg> environment) {
 		super(t, modifiers, name);
 		this.returnType = returnType;
 		this.StaticArgsSpec = StaticArgsSpec;
 		this.arguments = arguments;
-		this.env = env;
+		this.environment = environment;
 	}
 
 	public Type getReturnType() {
@@ -52,7 +52,7 @@ public abstract class MethodDecl extends Decl {
 	public List<Arg> getArguments() {
 		return arguments;
 	}
-	public List<Arg> getEnv() {
-		return env;
+	public List<Arg> getEnvironment() {
+		return environment;
 	}
 }
