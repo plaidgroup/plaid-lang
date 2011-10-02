@@ -15,6 +15,7 @@ import plaid.compiler.symbol.*;
 import plaid.compiler.*;
 import plaid.compiler.types.*;
 
+import plaid.ast.parsed.*;
 
 state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
     var unique SymbolFactory sf = new SymbolFactory;
@@ -31,7 +32,13 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 this.reporter   = job.reporter;
                 this.resolver   = job.resolver;
 
+                //val viewer1 = new ParsedASTViewerVisitor{ override val title = "[BEFORE]" + job.source.path.toString();};
+                //job.ast.value.accept(viewer1);
+
                 job.ast = makeSome(job.ast.value.rewrite(this));
+
+                //val viewer2 = new ParsedASTViewerVisitor{ override val title = " [AFTER]" + job.source.path.toString();};
+                //job.ast.value.accept(viewer2);
 
                 DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> finished");
                 !this.hasErrors;
@@ -79,6 +86,103 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         };
 
         new_node
+	}
+
+
+	override method immutable ParsedApplication rewriteParsedApplication(immutable ParsedApplication node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Application");
+        match (node.function) {
+            case ParsedIdentifier {
+                // check for global method or variable with lambda
+                val symbol = symbolForAST(node.function);
+                match (symbol) {
+                    case Some {
+                        match (symbol.value) {
+                            case VariableSymbol {
+                                // check for lambda
+                            }
+                            case MethodSymbol {
+                                // top-level method
+                            }
+                            default {
+                                val msg = "'"+node.function.name+"' is neither a lambda nor a method.";
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.funtion.token, msg);
+                                this.reporter.report();
+                                ABORT(msg);                        
+                            }
+                        }
+                    } 
+                    case None {
+                        val msg = "Cannot find symbol information for '" + node.function.name +"'";
+                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.funtion.token, msg);
+                        this.reporter.report();
+                        ABORT(msg);                        
+                        
+                    }
+                }
+            }
+            case ParsedDereference {
+                // check that if dereference is a method
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    check dereference for possible method.");
+                
+                val new_receiver = node.function.left.rewrite(this);
+                val receiverStruct = structureForAST(new_receiver);
+                match (receiverStruct) {
+                    case Some {
+                        val signature = receiverStruct.value.getMember(node.function.right.name);
+                        match (signature) {
+                            case Some {
+                                match (signature.value) {
+                                    case FieldSignature {
+                                        
+                                    }
+                                    case MethodSignature {
+                                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>     Found method call");
+                                        val returnType = signature.value.returnType;
+                                        
+                                        val new_argument = node.argument.rewrite(this);
+                                        val new_staticArgs = makeLinkedList();
+                                        val new_methodId = node.function.right.rewrite(this);
+                                        node.staticArgs.map( fn (item) => new_staticArgs.add(item.rewrite(this)) );
+                                        val methodCall = new ParsedMethodCall {
+                                            val argument = new_argument;
+                                            val staticArgs = new_staticArgs;
+                                            val receiver = new_receiver;
+                                            val methodId = new_methodId;
+                                            val token = node.function.token;
+                                        };
+                                        addStructureForAST(methodCall, returnType.structure);
+                                        methodCall
+                                    }
+                                    default {
+                                        ABORT("FIXME3 " + signature.value.toString());
+                                    }
+                                }
+                            }
+                            case None {
+                                ABORT("FIXME2")
+                            }
+                        }
+                    }
+                    case None {
+                        ABORT("FIXME");
+                    }
+                }
+            }
+            default {
+                val new_function = node.function.rewrite(this);
+		        val new_argument = node.argument.rewrite(this);
+		        val new_staticArgs = makeLinkedList();
+		        node.staticArgs.map(fn (item) => { new_staticArgs.add(item.rewrite(this)) });
+		        // create new object
+		        new ParsedApplication{
+			        val function = new_function;
+			        val argument = new_argument;
+			        val staticArgs = new_staticArgs;
+			        val token = node.token;
+		        }
+            }
+        }
 	}
 
 
@@ -131,11 +235,9 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 		val new_StaticArgsSpec = makeLinkedList();
 		node.StaticArgsSpec.map(fn (item) => { new_StaticArgsSpec.add(item.rewrite(this)) });
 		val new_arguments = makeLinkedList();
-		node.arguments.map(fn (item) => { new_arguments.add(item.rewrite(this)) });
-		val new_environment = makeLinkedList();
-		node.environment.map(fn (item) => { 
+		node.arguments.map(fn (item) => { 
             val new_item = item.rewrite(this);
-            new_environment.add(new_item); 
+            new_arguments.add(new_item); 
             val symbol = symbolForAST(item);
             match (symbol) {
                 case Some {
@@ -152,6 +254,11 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                     ABORT("Cannot find symbol for parameter.");
                 }
             }
+        });
+		val new_environment = makeLinkedList();
+		node.environment.map(fn (item) => { 
+            val new_item = item.rewrite(this);
+            new_environment.add(new_item); 
         });
 		val new_name = node.name.rewrite(this);
 		val new_modifiers = makeLinkedList();
@@ -332,7 +439,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 	}
 
    	override method immutable ParsedIdentifier rewriteParsedIdentifier(immutable ParsedIdentifier node) {
-        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Identifier");
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Identifier '" + node.name +"'");
 		val new_node = new ParsedIdentifier{
 			val name = node.name;
 			val token = node.token;
@@ -398,6 +505,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 
         new_node
 	}
+
 
 
 }
