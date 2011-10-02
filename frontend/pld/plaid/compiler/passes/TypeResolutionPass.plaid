@@ -285,10 +285,54 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 			val token = node.token;
 		};
 
+        val leftStruct = structureForAST(new_left);
+        match (leftStruct) {
+            case Some {
+                match (leftStruct.value) {
+                    case NominalStructure {
+                        val signature = leftStruct.value.getMember(node.right.name);
+                        match ( signature ) {
+                            case Some {
+                                match (signature.value) {
+                                    case MethodSignature {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a method signature for '" + node.right.name +"'");
+                                    }
+                                    case FieldSignature {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a field signature for '" + node.right.name +"'");
+                                        addStructureForAST(new_node, signature.value.getFieldType().structure);
+                                    }
+                                    default {
+                                        ERROR("<TypeResolutionPass> Found unsupported signature.");
+                                    }
+                                }
+                            }
+                            case None {
+                                val msg = "Type '" + leftStruct.value.toString() + "' has no member '" + new_node.right.name + "'" ;
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_node.right.token, msg);
+                                this.reporter.report();
+                                ABORT(msg);
+                            }
+                        }
+                    }
+                    default {
+                        val x = leftStruct.value; x = 1;
+                        ABORT("Found invalid type! " + leftStruct.value.toString());
+                    }
+                }
+            }
+            case None {
+                val msg = "Cannot find structure for left part of the dereference.";
+                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_node.token, msg);
+                this.reporter.report();
+                ABORT(msg);
+            }
+        };
+
         new_node
 	}
 
    	override method immutable ParsedIdentifier rewriteParsedIdentifier(immutable ParsedIdentifier node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Identifier");
 		val new_node = new ParsedIdentifier{
 			val name = node.name;
 			val token = node.token;
@@ -305,13 +349,19 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 // resolve type information if possible
                 match (symbol.value) {
                     case OwningSymbol {
-                        val idStruct = symbol.value.getStructure();     
+                        val idStruct = symbol.value.getStructure();
                         addStructureForAST(new_node, idStruct);
                     }
-                    default { /* do nothing */ }
+                    case VariableSymbol {
+                        val idStruct = symbol.value.getStructure();
+                        addStructureForAST(new_node, idStruct);
+                    }
+                    default { 
+                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> Cannot  resolve type for '" + node.name +"'"); 
+                    }
                 }
             }
-            case None { /* ignore for now */  printLine("missed " + node.name); }
+            case None { /* ignore for now */ }
         };
 
         new_node
@@ -345,7 +395,6 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 ABORT("Cannot find symbol for variable declaration.");
             }
         };
-
 
         new_node
 	}
