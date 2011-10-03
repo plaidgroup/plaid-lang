@@ -117,7 +117,6 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         this.reporter.errorToken(java.io.File.new(this.sourceFile), node.funtion.token, msg);
                         this.reporter.report();
                         ABORT(msg);                        
-                        
                     }
                 }
             }
@@ -125,8 +124,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 // check that if dereference is a method
                 DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    check dereference for possible method.");
                 
-                val new_receiver = node.function.left.rewrite(this);
-                val receiverStruct = structureForAST(new_receiver);
+                val new_function = node.function.left.rewrite(this);
+                val receiverStruct = structureForAST(new_function);
                 match (receiverStruct) {
                     case Some {
                         val signature = receiverStruct.value.getMember(node.function.right.name);
@@ -136,13 +135,26 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                     case FieldSignature {
                                          DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>     Found field");
                                          val new_application = new ParsedApplication {
-                                             val function   = node.function.rewrite(this);
+                                             val function   = new_function;
                                              val argument   = node.argument.rewrite(this);
                                              val staticArgs = node.staticArgs.map( fn (arg) => arg.rewrite(this) );
                                              val token      = node.token;
                                          };
                                          val fieldType = signature.value.getCurrentType();
-                                         addStructureForAST(new_application, fieldType.structure);
+                                         match (fieldType.structure) {
+                                             case LambdaStructure {
+                                                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     Field contains Lambda ");
+                                                 addStructureForAST(new_application, fieldType.structure.returnType.structure);
+                                                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Lambda returns '" + fieldType.structure.returnType.toString() +"'");
+                                             }
+                                             default { 
+                                                 val msg = "Cannot apply to '" + fieldType.structure +"'"; 
+                                                 this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                                                 this.reporter.report();
+                                                 ABORT(msg);                                                 
+                                             } 
+                                         };
+                                         
                                          new_application
                                     }
                                     case MethodSignature {
@@ -152,15 +164,16 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                         val new_argument = node.argument.rewrite(this);
                                         val new_staticArgs = makeLinkedList();
                                         val new_methodId = node.function.right.rewrite(this);
-                                        node.staticArgs.map( fn (item) => new_staticArgs.add(item.rewrite(this)) );
+                                        node.staticArgs.map( fn (item) => new_staticArgs.add( item.rewrite(this)) );
                                         val methodCall = new ParsedMethodCall {
                                             val argument = new_argument;
                                             val staticArgs = new_staticArgs;
-                                            val receiver = new_receiver;
+                                            val receiver = new_function;
                                             val methodId = new_methodId;
                                             val token = node.function.token;
                                         };
                                         addStructureForAST(methodCall, returnType.structure);
+                                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Method returns '" + returnType.toString()  +"'");
                                         methodCall
                                     }
                                     default {
@@ -168,28 +181,61 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                     }
                                 }
                             }
-                            case None {
-                                ABORT("FIXME2")
+                            case None { 
+                                val msg = "Cannot find '" + node.function.right.name + "' in type " + receiverStruct.toString();
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                                this.reporter.report();
+                                ABORT(msg);
                             }
                         }
                     }
                     case None {
-                        ABORT("FIXME");
+                        val msg = "Cannot find type for '" + node.function.nodeName() + "'";
+                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                        this.reporter.report();
+                        ABORT(msg);
                     }
                 }
             }
             default {
-                val new_function = node.function.rewrite(this);
-		        val new_argument = node.argument.rewrite(this);
-		        val new_staticArgs = makeLinkedList();
-		        node.staticArgs.map(fn (item) => { new_staticArgs.add(item.rewrite(this)) });
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>  Resolve standard function for application");
+                val new_function   = node.function.rewrite(this);
+		        val new_argument   = node.argument.rewrite(this);
+		        val new_staticArgs = node.staticArgs.map( fn (item) => item.rewrite(this) );
+
 		        // create new object
-		        new ParsedApplication{
-			        val function = new_function;
-			        val argument = new_argument;
+		        val new_node = new ParsedApplication {
+			        val function   = new_function;
+			        val argument   = new_argument;
 			        val staticArgs = new_staticArgs;
-			        val token = node.token;
-		        }
+			        val token      = node.token;
+		        };
+
+                val functionStruct = structureForAST(new_function);
+                match ( functionStruct ) {
+                    case Some {
+                        match ( functionStruct.value ) {
+                            case LambdaStructure { 
+                                 val returnType = functionStruct.value.returnType;
+                                 addStructureForAST(new_node, returnType.structure);
+                            }
+                            default {
+                                val msg = "Cannot apply to non-lambda object " + functionStruct.value.toString() ;
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_function.token, msg);
+                                this.reporter.report();
+                                ABORT(msg);                                  
+                            }
+                        }
+                    }
+                    case None {
+                        val msg = "Cannot find type for '" + node.function.nodeName() + "'";
+                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                        this.reporter.report();
+                        ABORT(msg);
+                    }
+                };
+
+                new_node
             }
         }
 	}
