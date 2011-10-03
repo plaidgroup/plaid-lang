@@ -1,0 +1,207 @@
+package plaid.compiler.types;
+
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+
+state NominalStructure case of ObjectStructure {
+  val shared StateSymbol symbol;
+  val immutable Structure owner;
+  val immutable String name;
+
+  method immutable Boolean ==(immutable Structure other)
+                             [immutable NominalStructure this] 
+  {
+    match (other) {
+      case NominalStructure { this.symbol == other.symbol } //TODO: symbol seems like it would be unique, is this correct?
+      default { false }
+    } 
+  }
+  
+  method immutable String toString()[immutable NominalStructure this] {
+    "STRUCT(" +this.name + ")";
+  }
+  
+  /**
+   * unpacked structures cannot be used in place of any other structures
+   * might want to relax this in the future
+   */
+  method immutable Boolean isSubStructureOf(immutable Structure other)[immutable NominalStructure this] {
+    match (other) {
+      case TopStructure { true }
+      case NominalStructure {
+        val immutable StateSymbol otherSymbol = other.symbol;
+        var immutable Symbol thisSuperStateSymbol = this.symbol;
+        var immutable Boolean found = false;
+        while { !found && !(thisSuperStateSymbol == TOPSYM) } {
+          ifElse (thisSuperStateSymbol == otherSymbol) 
+            { found = true }
+            { thisSuperStateSymbol = thisSuperStateSymbol.getSuperStateSymbol() }
+        };
+        found
+      }
+      default { false }
+    }
+  }
+  
+  /**
+   * LUB is defined only on nominal types and the top type.  If the .  If the two nominal types are on different
+   * arms of the same dimension, then the least common supertype will be returned.  If one of the nominal
+   * types is a supertype of the other, it is returned 
+   */
+  method unique Option<immutable Structure> leastUpperBound(immutable Structure other)[immutable NominalStructure this] {
+    match (other) {
+      case TopStructure { makeSome(TOPSTRUCT) }
+      case NominalStructure {
+        var thisDimension = this.symbol.getDimension();
+        var otherDimension = other.symbol.getDimension();
+        
+        //reduce to same size by trimming from front (lub cannot be lower than last element in smaller list)
+        val sizeCmp = thisDimension.size() - otherDimension.size();
+        if (sizeCmp > 0) { //reduce thisDimension
+          thisDimension = thisDimension.reduceRight(fn (elem, acc) => {
+            if (acc.snd > sizeCmp) { acc.fst.add(elem) };
+            makePair(acc.fst,acc.snd - 1)
+          },makePair(makeLinkedList(),thisDimension.size())).fst
+        };
+        if (sizeCmp < 0) { //reduce otherDimension
+          otherDimension = otherDimension.reduceRight(fn (elem, acc) => {
+            if (acc.snd > (0 - sizeCmp) ) { acc.fst.add(elem) }; //Fix negation once unary ops work
+            makePair(acc.fst,acc.snd - 1)
+          },makePair(makeLinkedList(),otherDimension.size())).fst
+        };
+        
+        val dimCmp = thisDimension.zipReverse(otherDimension);
+        val lub = dimCmp.reduce(TOPSYM,fn (acc,pair) => {
+          match (pair.fst == pair.snd) {
+            case True { pair.fst }
+            case False { acc }
+          }
+        });
+        makeSome(lub.getStructure());
+      }
+      default { new None }
+    }
+  }
+
+  method unique Option<immutable Signature> getMember(immutable String memberName) {
+      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> searching for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+      val memberSymbolOption = this.symbol.getMember(memberName);
+      match (memberSymbolOption) {
+          case Some {
+              match (memberSymbolOption.value) {
+                  case FieldSymbol {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+memberName+"'");
+                      makeSome(memberSymbolOption.value.getSignature())
+                  }
+                  case MethodSymbol {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+memberName+"'");
+                      makeSome(memberSymbolOption.value.getSignature())
+                  }
+                  default {
+                      DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   found unrecognized symbol type for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+                      //ABORT("Unsupported member type ");
+                      new None
+                  }
+              }
+          }
+          case None {
+              DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   Cannot find member '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+              //ABORT("Cannot find member '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+              new None
+          }
+      }
+  }
+  
+  /**
+   *  As long as the return is well formed (there exists a field with this name), we do nothing
+   *  otherwise, abort for now
+   */
+  method immutable Structure restoreToField(immutable String fieldName, immutable Type retType, immutable Integer objectID) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> restoring field '"+fieldName+"' in '" + this.symbol.getFQN() + "'");
+    val memberSymbolOption = this.symbol.getMember(fieldName);
+    match (memberSymbolOption) {
+      case Some {
+        match (memberSymbolOption.value) {
+          case FieldSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+fieldName+"'");
+            this
+          }
+          case MethodSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+fieldName+"'");
+            ABORT("Cannot restore to a method")
+          }
+          default {
+            DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   found unrecognized symbol type for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+            ABORT("Attempting to restore to unsupported member type");
+          }
+        }
+      }
+      case None {
+        DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   Cannot find member '"+fieldName+"' in '" + this.symbol.getFQN() + "' to unpack");
+        ABORT("Cannot find member '"+fieldName+"' in '" + this.symbol.getFQN() + "' to restore to");
+      }
+    }
+  }
+  
+  method immutable Structure unpackField(immutable UnpackedFieldSignature newFieldSig) {
+    val immutable String fieldName = newFieldSig.packedSignature.name;
+    DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> unpacking field '"+fieldName+"' in '" + this.symbol.getFQN() + "'");
+    val memberSymbolOption = this.symbol.getMember(fieldName);
+    match (memberSymbolOption) {
+      case Some {
+        match (memberSymbolOption.value) {
+          case FieldSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+fieldName+"'");
+            val unpackedFields = java.util.HashMap.new();
+            unpackedFields.put(fieldName,newFieldSig);
+            makeUnpackedStructureWithFieldMap(this,unpackedFields)
+          }
+          case MethodSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+fieldName+"'");
+            ABORT("Cannot unpack a method")
+          }
+          default {
+            DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   found unrecognized symbol type for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+            ABORT("Attempting to unpack unsupported member type");
+          }
+        }
+      }
+      case None {
+        DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   Cannot find member '"+fieldName+"' in '" + this.symbol.getFQN() + "' to unpack");
+        ABORT("Cannot find member '"+fieldName+"' in '" + this.symbol.getFQN() + "' to unpack");
+      }
+    }
+  }
+  
+  method immutable NominalStructure assignToField(immutable String fieldName) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure> assigning to field '"+fieldName+"' in 'UNPACKED(" + this.symbol.getFQN() + ")'");
+
+    //verify that this assignment was well-formed (TODO - may be redundant)
+    val memberSymbolOption = this.symbol.getMember(fieldName);
+    match (memberSymbolOption) {
+      case Some {
+        match (memberSymbolOption.value) {
+          case FieldSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+fieldName+"'");
+            match (memberSymbolOption.value.getSignature().isVar) {
+              case True { this }
+              case False { ABORT("Cannot assign to 'val' variable '" + fieldName + "'") } 
+            }
+          }
+          case MethodSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+fieldName+"'");
+            ABORT("Cannot assign to a method")
+          }
+          default {
+            DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   found unrecognized symbol type for '"+memberName+"' in 'UNPACKED(" + this.symbol.getFQN() + ")'");
+            ABORT("Attempting to assign to an unsupported member type");
+          }
+        }
+      }
+      case None {
+        DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   Cannot find member '"+fieldName+"' in 'UNPACKED(" + this.symbol.getFQN() + ")' to assign to");
+        ABORT("Cannot find member '"+fieldName+"' in 'UNPACKED(" + this.symbol.getFQN() + ")' to assign to");
+      }
+    }
+  }
+}
