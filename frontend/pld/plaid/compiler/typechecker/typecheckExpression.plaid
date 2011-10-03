@@ -8,15 +8,14 @@ import plaid.collections.makeLinkedList;
 
 /**
  * To typecheck an expression, we attempt to give the Expression exp the permission needed Perm
- * given the context ctx.  We also take the pass to use for reporting errors.
+ * given the context ctx.
  *
  * If there are no errors, we return an updated linear context along with the type
  * of the expression and an expression list
  */
 method unique TypecheckResult typecheckExpression(unique LinearContext ctx, 
                           immutable Permission neededPerm, 
-                          immutable ParsedExpression exp, 
-                          shared TypeCheckPass typecheckPass) 
+                          immutable ParsedExpression exp) 
 {
 
   match (exp) {
@@ -27,19 +26,19 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
       match (neededPerm) {
         case NonePermission {
           match (exp.target) {
-            case EmptyExpression { //local-assign
+            case ParsedEmptyExpr { //local-assign
               val unique Option<immutable VariableSymbol> localVarSymbolOption = symbolForAST(exp.field);
               match (localVarSymbolOption) {
                 case Some {
-                  match (ctx.hasSymbol(localVarSymbolOption.value)) {
+                  match (ctx.containsSymbol(localVarSymbolOption.value)) {
                     case True {
                       val immutable Type neededType = localVarSymbolOption.value.getDeclaredType();
-                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value, typecheckPass);
+                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
                       match (valueResult.expType.isSubTypeOf(neededType)) {
                         case True { 
                           val unique LinearContext ctxReturn = valueResult.ctxResult.copy();
                           ctxReturn.update(localVarSymbolOption.value, neededType);
-                          makeTypecheckResult(VOID, ctxReturn, makeLinkedList()) 
+                          makeTypecheckResult(VOID, ctxReturn, valueResult.sourceLocList) 
                         }
                         case False { ABORT("<typecheckExpression>(Assignment) value has wrong structure") }
                       }
@@ -61,7 +60,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
               val unique Option<immutable VariableSymbol> targetVarSymbolOption = symbolForAST(exp.target);
               match (targetVarSymbolOption) {
                 case Some {
-                  match (ctx.hasSymbol(targetVarSymbolOption.value)) {
+                  match (ctx.containsSymbol(targetVarSymbolOption.value)) {
                     case True {
                       val immutable Type targetType = ctx.get(targetVarSymbolOption.value);
                       match (targetType.permission.isSubPermOf(LOCALSHARED)) {
@@ -74,26 +73,39 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                                   match (fieldSigOption.value) {
                                     case FieldSignature {
                                       val immutable Type neededType = fieldSigOption.value.fieldType;
-                                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value, typecheckPass);
+                                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
                                       match (valueResult.expType.isSubTypeOf(neededType)) {
                                         case True { 
-                                          val immutable ObjectStructure newStructure = targetType.structure.packField(exp.field.name);
+                                          val immutable ObjectStructure newStructure = targetType.structure.assignToField(exp.field.name);
                                           val unique LinearContext ctxReturn = valueResult.ctxResult.copy();
-                                          ctxReturn.update(localVarSymbolOption.value, makeType(targetType.permission, newStructure));
+                                          ctxReturn.update(targetVarSymbolOption.value, makeType(targetType.permission, newStructure));
                                           makeTypecheckResult(VOID, ctxReturn, makeLinkedList()) 
                                         }
                                         case False { ABORT("<typecheckExpression>(Assignment) value has wrong structure") }
                                       }
-                                    } 
+                                    }
+                                    case UnpackedFieldSignature {
+                                      val immutable Type neededType = fieldSigOption.value.packedSignature.fieldType;
+                                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
+                                      match (valueResult.expType.isSubTypeOf(neededType)) {
+                                        case True { 
+                                          val immutable ObjectStructure newStructure = targetType.structure.assignToField(exp.field.name);
+                                          val unique LinearContext ctxReturn = valueResult.ctxResult.copy();
+                                          ctxReturn.update(targetVarSymbolOption.value, makeType(targetType.permission, newStructure));
+                                          makeTypecheckResult(VOID, ctxReturn, makeLinkedList()) 
+                                        }
+                                        case False { ABORT("<typecheckExpression>(Assignment) value has wrong structure") }
+                                      }
+                                    }  
                                     case MethodSignature {
-                                      ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.name + "." + exp.field.name + "' is a method")
+                                      ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.toString() + "." + exp.field.name + "' is a method")
                                     }
                                     default {
-                                      ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.name + "." + exp.field.name + "' has an unrecognized signature type") 
+                                      ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.toString() + "." + exp.field.name + "' has an unrecognized signature type") 
                                     }
                                   }
                                 }
-                                case None { ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.name + "." + exp.field.name + "' does not exist") }
+                                case None { ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.toString() + "." + exp.field.name + "' does not exist") }
                               } 
                             }
                             default { ABORT("<typecheckExpression>(Assignment) Target variable '" + targetVarSymbolOption.value.name + "' has a non-object structure") }
@@ -120,7 +132,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
       val unique Option<immutable Symbol> idSymbolOption = symbolForAST(exp);
       match (idSymbolOption) {
         case Some {
-          match (ctx.hasSymbol(idSymbolOption.value)) {
+          match (ctx.containsSymbol(idSymbolOption.value)) {
             case True {
               val immutable Symbol idSymbol = idSymbolOption.value;
               val immutable Type currentType = ctx.get(idSymbol);
@@ -129,8 +141,9 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                 case Some {
                   val unique LinearContext newCtx = ctx.copy();
                   newCtx.update(idSymbol, makeType(newPermissionOption.value,currentType.structure));
-                  val unique VarSourceLocation varSL = makeVarSourceLocation(idSymbol);
-                  makeTypecheckResult(makeType(neededPermission,currentType.structure),newCtx,varSL)
+                  val slList = makeLinkedList();
+                  slList.add(makeVarSourceLoc(idSymbol));
+                  makeTypecheckResult(makeType(neededPerm,currentType.structure),newCtx,slList)
                 }
                 case None {ABORT("<typecheckExpression>(Identifier) could not split permission '" + neededPerm.toString() + "' from permission '" + currentType.permission.toString() + "'") }
               }
