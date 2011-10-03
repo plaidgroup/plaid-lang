@@ -186,4 +186,56 @@ state UnpackedStructure case of ObjectStructure {
     }
   }
   
+  method immutable ObjectStructure assignToField(immutable String fieldName) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure> assigning to field '"+fieldName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
+    
+    match (this.unpackedFields.containsKey(fieldName)) {
+      case True {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>  assigning to unpacked field '"+fieldName+"'");
+        match (this.unpackedFields.get(fieldName).packedSignature.isVar) {
+          case True {
+            match (this.unpackedFields.size() == 1) {
+              case True { this.unpackedStructure } //PACKED!!
+              case False { //still some unpacked fields
+                 val newUnpackedFields = java.util.HashMap.new();
+                newUnpackedFields.putAll(this.unpackedFields);
+                newUnpackedFields.remove(fieldName); //remove 
+                makeUnpackedStructureWithFieldMap(this.unpackedStructure,newUnpackedFields)
+              }
+            }
+          }
+          case False { ABORT("Cannot assign to 'val' variable '" + fieldName + "'") } 
+        }
+      }
+      case False {  //otherwise make sure that this assignment was well formed (TODO: this is potentially redundant)
+        val memberSymbolOption = this.unpackedStructure.symbol.getMember(fieldName);
+        match (memberSymbolOption) {
+          case Some {
+            match (memberSymbolOption.value) {
+              case FieldSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found FieldSymbol for '"+fieldName+"'");
+                match (memberSymbolOption.value.getSignature().isVar) {
+                  case True { this }
+                  case False { ABORT("Cannot assign to 'val' variable '" + fieldName + "'") } 
+                }
+              }
+              case MethodSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found MethodSymbol for '"+fieldName+"'");
+                ABORT("Cannot assign to a method")
+              }
+              default {
+                DEBUG(DEBUG_PRIO_HIGH, "<UnpackedStructure>   found unrecognized symbol type for '"+memberName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
+                ABORT("Attempting to assign to an unsupported member type");
+              }
+            }
+          }
+          case None {
+            DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   Cannot find member '"+fieldName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")' to assign to");
+            ABORT("Cannot find member '"+fieldName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")' to assign to");
+          }
+        }
+      }
+    }
+  }
+  
 }
