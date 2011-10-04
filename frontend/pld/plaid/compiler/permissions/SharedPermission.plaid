@@ -1,0 +1,126 @@
+package plaid.compiler.permissions;
+
+import plaid.compiler.Permission;
+
+/**
+ *	Shared Permission
+ */
+state SharedPermission case of SymmetricPerm {
+	var unique Option<ID> groupID = new None;
+	
+	//shared references can write
+	method immutable Boolean isWritable()[immutable SharedPermission >> void] { true }
+
+	//shared references do not have their state guaranteed
+	method immutable Boolean guaranteesState()[immutable SharedPermission >> void] { false }
+
+	method immutable Boolean ==(immutable Permission >> void p2)[immutable SharedPermission >> void] {
+		match(p2) {
+			case SharedPermission { true }
+			default { false }
+		};
+	}
+	
+	method immutable String toString()[immutable SharedPermission >> void] {
+	    match (groupID) {
+	        case Some {
+	            "shared<" + groupID.value.name.toString() +">"
+	        }
+		    default {
+		        "shared"
+		    }
+		};
+	}
+
+	// Shared can only be split up into more shared or pure or none or dyn
+	method unique Option<immutable Permission> 
+			splitPerm(immutable Permission >> void p2)
+					 [immutable SharedPermission >> void] 
+	{
+		match(p2) {
+			case SharedPermission { makeSome(this) }	// shared => shared/shared
+			case LocalPermission {
+				ifElse(p2.thePerm == SHARED)
+					{ makeSome(SHARED) }
+					{ new None }
+			}
+			case NonePermission { makeSome(this) }		// shared => none/shared
+			default { new None }
+			
+			//unused cases
+			//case PurePermission { makeSome(this) }	// shared => pure/shared
+			//case DynPermission { createSOme(this) }	// shared => Dyn/shared  KBN - is this correct?
+		};
+	}
+	
+	//shared can coexist with dyn, shared, none, and pure permissions
+	method unique Option<immutable Permission> 
+			returnPerm(immutable Permission >> void p2)
+				[immutable SharedPermission >> void] 
+	{
+		match (p2) {
+			case SharedPermission { makeSome(this) } //shared/shared => shared
+			case LocalPermission {
+				ifElse(p2.thePerm == SHARED)
+					{ makeSome(SHARED) }
+					{ new None }
+			}
+			case NonePermission { makeSome(this) } //shared/none => shared
+			default { new None }  //everything else can't coexist - return nothing
+			
+			//unused cases
+			//case DynPermission { makeSome(p2) } //shared/dyn => dyn
+			//case PurePermission { makeSome(this) } //shared/pure => shared
+		}	
+	}
+	
+	
+	 
+  //USE IMPLEMENTATION IN SOURCEPERMISSION (less efficient than this, but less code updates)
+	//Immutable is at the same level on different branches of the lattice than Shared,
+	//in this case the lower bound is UNIQUE
+	/*method immutable Permission greatestLowerBound(immutable SourcePermission p2)[immutable SharedPermission] {
+		match (p2) {
+			case UniquePermission { UNIQUE }
+			case ImmutablePermission { UNIQUE }
+			case SharedPermission { SHARED }
+			case LocalPermission {
+				ifElse(p2.thePerm == SHARED)
+					{ SHARED }
+					{ UNIQUE }
+			}
+			case NonePermission { SHARED }
+			default { UNIQUE }  //error - not a permission, default to UNIQUE - KBN error handling?
+			
+			//unused cases
+			//case DynPermission { DYNP }
+			//case FullPermission { FULL }
+			//case ImmutablePermission { FULL }
+			//case PurePermission { SHARED }
+		}
+	}*/
+	
+	//NOT CURRENTLY USED
+	//Immutable is at the same level on different branches of the lattice than Shared,
+	//in this case the lower bound is PURE
+	/*method immutable Permission leastUpperBound(immutable Permission p2)[immutable SharedPermission] {
+		match (p2) {
+			case UniquePermission { SHARED }
+			case ImmutablePermission { NONEP }
+			case SharedPermission { SHARED }
+			case LocalPermission {
+				ifElse(p2.thePerm == SHARED)
+					{ LOCALSHARED }
+					{ NONEP }
+			}
+			case NonePermission { NONEP }
+			default { NONEP } //error - not a permission, default to NONEP - KBN error handling? 
+			
+			//unused cases
+			//case PurePermission { PURE }
+			//case FullPermission { SHARED }
+			//case ImmutablePermission { PURE }
+			//case DynPermission { DYNP }
+		}
+	}*/
+}

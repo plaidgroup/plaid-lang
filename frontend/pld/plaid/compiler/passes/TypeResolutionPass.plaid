@@ -1,0 +1,566 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.ParsedRewriteLeafVisitor;
+
+import plaid.compiler.ERROR;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.Pass;
+
+import plaid.compiler.symbolForAST;
+import plaid.compiler.haveSymbolForAST;
+import plaid.compiler.addSymbolForAST;
+
+import plaid.compiler.symbol.*;
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+
+import plaid.ast.parsed.*;
+
+state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
+    var unique SymbolFactory sf = new SymbolFactory;
+    var immutable Source sourceFile;
+    var shared Resolver resolver;
+    var shared Reporter reporter;
+    var hasErrors = false;
+
+    method immutable Boolean run(unique Job job) {
+        match (job.ast) {
+            case Some {
+                DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> started");
+                this.sourceFile = job.source.path;
+                this.reporter   = job.reporter;
+                this.resolver   = job.resolver;
+
+                //val viewer1 = new ParsedASTViewerVisitor{ override val title = "[BEFORE]" + job.source.path.toString();};
+                //job.ast.value.accept(viewer1);
+
+                job.ast = makeSome(job.ast.value.rewrite(this));
+
+                //val viewer2 = new ParsedASTViewerVisitor{ override val title = " [AFTER]" + job.source.path.toString();};
+                //job.ast.value.accept(viewer2);
+
+                DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> finished");
+                !this.hasErrors;
+            }
+            default { 
+                ERROR("<TypeResolutionPass> AST invalid");
+                false 
+            }
+        }
+    }
+
+	override method immutable ParsedAbstractFieldDecl rewriteParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite AbstractFieldDecl");
+
+		val new_specifier = node.specifier.rewrite(this);
+		val new_fieldType = node.fieldType.rewrite(this);
+		val new_name = node.name.rewrite(this);
+		val new_modifiers = makeLinkedList();
+		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+
+		val new_node = new ParsedAbstractFieldDecl{
+			val specifier = new_specifier;
+			val fieldType = new_fieldType;
+			val name = new_name;
+			val modifiers = new_modifiers;
+			val token = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {
+                match (symbol.value) {
+                    case FieldSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for state declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for state declaration.");
+            }
+        };
+
+        new_node
+	}
+
+
+	override method immutable ParsedApplication rewriteParsedApplication(immutable ParsedApplication node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Application");
+        match (node.function) {
+            case ParsedIdentifier {
+                // check for global method or variable with lambda
+                val symbol = symbolForAST(node.function);
+                match (symbol) {
+                    case Some {
+                        match (symbol.value) {
+                            case VariableSymbol {
+                                // check for lambda
+                            }
+                            case MethodSymbol {
+                                // top-level method
+                            }
+                            default {
+                                val msg = "'"+node.function.name+"' is neither a lambda nor a method.";
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.funtion.token, msg);
+                                this.reporter.report();
+                                ABORT(msg);                        
+                            }
+                        }
+                    } 
+                    case None {
+                        val msg = "Cannot find symbol information for '" + node.function.name +"'";
+                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.funtion.token, msg);
+                        this.reporter.report();
+                        ABORT(msg);                        
+                    }
+                }
+            }
+            case ParsedDereference {
+                // check that if dereference is a method
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    check dereference for possible method.");
+                
+                val new_function = node.function.left.rewrite(this);
+                val receiverStruct = structureForAST(new_function);
+                match (receiverStruct) {
+                    case Some {
+                        val signature = receiverStruct.value.getMember(node.function.right.name);
+                        match (signature) {
+                            case Some {
+                                match (signature.value) {
+                                    case FieldSignature {
+                                         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>     Found field");
+                                         val new_application = new ParsedApplication {
+                                             val function   = new_function;
+                                             val argument   = node.argument.rewrite(this);
+                                             val staticArgs = node.staticArgs.map( fn (arg) => arg.rewrite(this) );
+                                             val token      = node.token;
+                                         };
+                                         val fieldType = signature.value.getCurrentType();
+                                         match (fieldType.structure) {
+                                             case LambdaStructure {
+                                                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     Field contains Lambda ");
+                                                 addStructureForAST(new_application, fieldType.structure.returnType.structure);
+                                                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Lambda returns '" + fieldType.structure.returnType.toString() +"'");
+                                             }
+                                             default { 
+                                                 val msg = "Cannot apply to '" + fieldType.structure +"'"; 
+                                                 this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                                                 this.reporter.report();
+                                                 ABORT(msg);                                                 
+                                             } 
+                                         };
+                                         
+                                         new_application
+                                    }
+                                    case MethodSignature {
+                                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>     Found method call");
+                                        val returnType = signature.value.returnType;
+                                        
+                                        val new_argument = node.argument.rewrite(this);
+                                        val new_staticArgs = makeLinkedList();
+                                        val new_methodId = node.function.right.rewrite(this);
+                                        node.staticArgs.map( fn (item) => new_staticArgs.add( item.rewrite(this)) );
+                                        val methodCall = new ParsedMethodCall {
+                                            val argument = new_argument;
+                                            val staticArgs = new_staticArgs;
+                                            val receiver = new_function;
+                                            val methodId = new_methodId;
+                                            val token = node.function.token;
+                                        };
+                                        addStructureForAST(methodCall, returnType.structure);
+                                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Method returns '" + returnType.toString()  +"'");
+                                        methodCall
+                                    }
+                                    default {
+                                        ABORT("FIXME3 " + signature.value.toString());
+                                    }
+                                }
+                            }
+                            case None { 
+                                val msg = "Cannot find '" + node.function.right.name + "' in type " + receiverStruct.toString();
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                                this.reporter.report();
+                                ABORT(msg);
+                            }
+                        }
+                    }
+                    case None {
+                        val msg = "Cannot find type for '" + node.function.nodeName() + "'";
+                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                        this.reporter.report();
+                        ABORT(msg);
+                    }
+                }
+            }
+            default {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>  Resolve standard function for application");
+                val new_function   = node.function.rewrite(this);
+		        val new_argument   = node.argument.rewrite(this);
+		        val new_staticArgs = node.staticArgs.map( fn (item) => item.rewrite(this) );
+
+		        // create new object
+		        val new_node = new ParsedApplication {
+			        val function   = new_function;
+			        val argument   = new_argument;
+			        val staticArgs = new_staticArgs;
+			        val token      = node.token;
+		        };
+
+                val functionStruct = structureForAST(new_function);
+                match ( functionStruct ) {
+                    case Some {
+                        match ( functionStruct.value ) {
+                            case LambdaStructure { 
+                                 val returnType = functionStruct.value.returnType;
+                                 addStructureForAST(new_node, returnType.structure);
+                            }
+                            default {
+                                val msg = "Cannot apply to non-lambda object " + functionStruct.value.toString() ;
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_function.token, msg);
+                                this.reporter.report();
+                                ABORT(msg);                                  
+                            }
+                        }
+                    }
+                    case None {
+                        val msg = "Cannot find type for '" + node.function.nodeName() + "'";
+                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                        this.reporter.report();
+                        ABORT(msg);
+                    }
+                };
+
+                new_node
+            }
+        }
+	}
+
+
+	override method immutable ParsedConcreteFieldDecl rewriteParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ConcreteFieldDecl");
+
+		val new_expression = node.expression.rewrite(this);
+		val new_specifier = node.specifier.rewrite(this);
+		val new_fieldType = node.fieldType.rewrite(this);
+		val new_name = node.name.rewrite(this);
+		val new_modifiers = makeLinkedList();
+		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+
+		val new_node = new ParsedConcreteFieldDecl{
+			val expression = new_expression;
+			val specifier = new_specifier;
+			val fieldType = new_fieldType;
+			val name = new_name;
+			val modifiers = new_modifiers;
+			val token = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {
+                match (symbol.value) {
+                    case FieldSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for state declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for state declaration.");
+            }
+        };
+
+        new_node
+	}
+
+
+	override method immutable ParsedConcreteMethodDecl rewriteParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ConcreteMethodDecl");
+
+		val new_body = node.body.rewrite(this);
+		val new_returnType = node.returnType.rewrite(this);
+		val new_StaticArgsSpec = makeLinkedList();
+		node.StaticArgsSpec.map(fn (item) => { new_StaticArgsSpec.add(item.rewrite(this)) });
+		val new_arguments = makeLinkedList();
+		node.arguments.map(fn (item) => { 
+            val new_item = item.rewrite(this);
+            new_arguments.add(new_item); 
+            val symbol = symbolForAST(item);
+            match (symbol) {
+                case Some {
+                    match (symbol.value) {
+                        case VariableSymbol {
+                            symbo.value.updateDeclaration(new_item);
+                        }
+                        default {
+                            ABORT("Found invalid symbol for parameter.");
+                        }
+                    }
+                }
+                case None {
+                    ABORT("Cannot find symbol for parameter.");
+                }
+            }
+        });
+		val new_environment = makeLinkedList();
+		node.environment.map(fn (item) => { 
+            val new_item = item.rewrite(this);
+            new_environment.add(new_item); 
+        });
+		val new_name = node.name.rewrite(this);
+		val new_modifiers = makeLinkedList();
+		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+
+		val new_node = new ParsedConcreteMethodDecl{
+			val body = new_body;
+			val returnType = new_returnType;
+			val StaticArgsSpec = new_StaticArgsSpec;
+			val arguments = new_arguments;
+			val environment = new_environment;
+			val name = new_name;
+			val modifiers = new_modifiers;
+			val token = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {                
+                match (symbol.value) {
+                    case MethodSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for state declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for state declaration.");
+            }
+        };
+
+        new_node
+	}
+
+
+    override method immutable ParsedConcreteStateDecl rewriteParsedConcreteStateDecl(immutable ParsedConcreteStateDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite statedecl");
+        
+		val new_stateBinding = node.stateBinding.rewrite(this);
+		val new_caseOf = node.caseOf.rewrite(this);
+		val new_StaticArgsSpec = makeLinkedList();
+		node.StaticArgsSpec.map(fn (item) => { new_StaticArgsSpec.add(item.rewrite(this)) });
+		val new_metaCaseOfArgs = makeLinkedList();
+		node.metaCaseOfArgs.map(fn (item) => { new_metaCaseOfArgs.add(item.rewrite(this)) });
+		val new_name = node.name.rewrite(this);
+		val new_modifiers = makeLinkedList();
+		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+
+		val new_node = new ParsedConcreteStateDecl{
+			val stateBinding = new_stateBinding;
+			val caseOf = new_caseOf;
+			val StaticArgsSpec = new_StaticArgsSpec;
+			val metaCaseOfArgs = new_metaCaseOfArgs;
+			val name = new_name;
+			val modifiers = new_modifiers;
+			val token = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {                
+                match (symbol.value) {
+                    case StateSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for state declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for state declaration.");
+            }
+        };
+
+        new_node
+	}
+
+
+	override method immutable ParsedConcreteStateValDecl rewriteParsedConcreteStateValDecl(immutable ParsedConcreteStateValDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite statevaldecl");
+
+		val new_stateBinding = node.stateBinding.rewrite(this);
+		val new_StaticArgsSpec = makeLinkedList();
+		node.StaticArgsSpec.map(fn (item) => { new_StaticArgsSpec.add(item.rewrite(this)) });
+		val new_name = node.name.rewrite(this);
+		val new_modifiers = makeLinkedList();
+		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+
+		val new_node = new ParsedConcreteStateValDecl{
+			val stateBinding = new_stateBinding;
+			val StaticArgsSpec = new_StaticArgsSpec;
+			val name = new_name;
+			val modifiers = new_modifiers;
+			val token = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {                
+                match (symbol.value) {
+                    case StateValSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for state declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for state declaration.");
+            }
+        };
+
+        new_node
+	}
+
+    
+	override method immutable ParsedDereference rewriteParsedDereference(immutable ParsedDereference node) {
+		val new_left = node.left.rewrite(this);
+		val new_right = node.right.rewrite(this);
+
+		val new_node = new ParsedDereference{
+			val left = new_left;
+			val right = new_right;
+			val token = node.token;
+		};
+
+        val leftStruct = structureForAST(new_left);
+        match (leftStruct) {
+            case Some {
+                match (leftStruct.value) {
+                    case NominalStructure {
+                        val signature = leftStruct.value.getMember(node.right.name);
+                        match ( signature ) {
+                            case Some {
+                                match (signature.value) {
+                                    case MethodSignature {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a method signature for '" + node.right.name +"'");
+                                    }
+                                    case FieldSignature {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a field signature for '" + node.right.name +"'");
+                                        addStructureForAST(new_node, signature.value.getFieldType().structure);
+                                    }
+                                    default {
+                                        ERROR("<TypeResolutionPass> Found unsupported signature.");
+                                    }
+                                }
+                            }
+                            case None {
+                                val msg = "Type '" + leftStruct.value.toString() + "' has no member '" + new_node.right.name + "'" ;
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_node.right.token, msg);
+                                this.reporter.report();
+                                ABORT(msg);
+                            }
+                        }
+                    }
+                    default {
+                        val x = leftStruct.value; x = 1;
+                        ABORT("Found invalid type! " + leftStruct.value.toString());
+                    }
+                }
+            }
+            case None {
+                val msg = "Cannot find structure for left part of the dereference.";
+                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_node.token, msg);
+                this.reporter.report();
+                ABORT(msg);
+            }
+        };
+
+        new_node
+	}
+
+   	override method immutable ParsedIdentifier rewriteParsedIdentifier(immutable ParsedIdentifier node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Identifier '" + node.name +"'");
+		val new_node = new ParsedIdentifier{
+			val name = node.name;
+			val token = node.token;
+		};
+
+        // try to get symbol
+        val symbol = symbolForAST(node);
+        match ( symbol ) {
+            case Some {
+                // update symbol 
+                delSymbolForAST(node);
+                addSymbolForAST(new_node, symbol.value);
+
+                // resolve type information if possible
+                match (symbol.value) {
+                    case OwningSymbol {
+                        val idStruct = symbol.value.getStructure();
+                        addStructureForAST(new_node, idStruct);
+                    }
+                    case VariableSymbol {
+                        val idStruct = symbol.value.getStructure();
+                        addStructureForAST(new_node, idStruct);
+                    }
+                    default { 
+                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> Cannot  resolve type for '" + node.name +"'"); 
+                    }
+                }
+            }
+            case None { /* ignore for now */ }
+        };
+
+        new_node
+	}
+
+  	override method immutable ParsedVarDecl rewriteParsedVarDecl(immutable ParsedVarDecl node) {
+		val new_specifier = node.specifier.rewrite(this);
+		val new_varType = node.varType.rewrite(this);
+		val new_id = node.id.rewrite(this);
+		val new_expr = node.expr.rewrite(this);
+
+		val new_node = new ParsedVarDecl{
+			val specifier = new_specifier;
+			val varType = new_varType;
+			val id = new_id;
+			val expr = new_expr;
+			val token = node.token;
+		};        
+
+        // try to get symbol
+        val symbol = symbolForAST(node);
+        match ( symbol ) {
+            case Some {
+                // update symbol 
+                delSymbolForAST(node);
+                addSymbolForAST(new_node, symbol.value);
+                delSymbolForAST(node.id);
+                addSymbolForAST(new_node.id, symbol.value);
+            }
+            case None {
+                ABORT("Cannot find symbol for variable declaration.");
+            }
+        };
+
+        new_node
+	}
+
+
+
+}

@@ -1,0 +1,168 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler;
+
+import plaid.compiler.permissions.DYNAMICP;
+import plaid.compiler.permissions.BorrowedPermission;
+import plaid.compiler.permissions.UNIQUE;
+
+/**
+ *	Top level state representing all Permissions.
+ *	We have two main classes of Permission:
+ *		Source Permissions - these are permissions that can appear
+ *			in a source program attached to a reference.  They include
+ *			Base Permissions and Local Permissions and the dynamic permission
+ *		System Permissions - these are permissions that are needed for
+ *			for tracking during typechecking but are not normally
+ *			expressible in the source.  These included Borrowed Permissions
+ *			and the none permission (only expressible as a end state and then
+ *			only with no state information).
+ *
+ *  We give the full Permission hierarchy here and explain the details in
+ *  the various source files
+ *
+ *  Permission ::= SourcePermission | SystemPermission
+ *  SourcePermission ::= BasePermission | local(SymmetricPermission) | dynamic
+ *  BasePermission ::= SingularPermission | SymmetricPermission
+ *  SingularPermission ::= unique ( | full )
+ *  SymmetricPermission ::= immutable | shared ( | pure )
+ *  SystemPermission ::= borrow(SymmetricPermission,Integer,SourcePermission)
+ *  			       | none 
+ *
+ *
+ *  This is what the permission lattice looks like based on current and (future) permissions
+ *  This lattice is defined by the splitting operations.  A permission, p, is
+ *  a subpermission of another permission p' if and only if p' can be split from p.
+ *  Note that dynamic is not comparable with any other permissions
+ *  and that the borrow forms are only comparable to the corresponding
+ *  local permission and none.
+ *
+ *                            none                              weakest
+ *                              |                                 |
+ *                           (pure)                               |
+ *                           /    \                               |
+ *               local immutable  local shared                    |
+ *                /         |       |        \                    |
+ *borrowed(immutable,n,p)   |       |       borrowed(shared,n,p)  |
+ *                      immutable  shared                         |
+ *                           \    /                               |
+ *                           (full)                               |
+ *                             |                                  V
+ *                          unique        dynamic              strongest
+ */
+state Permission {
+	/**
+	 * Determines whether a specific permission is writable.  If this permission 
+	 * allows a stage change, then the permission is writable and this function 
+	 * returns true.  Returns false otherwise.
+	 */
+	method immutable Boolean isWritable()[immutable Permission];
+	
+	/**
+	 * Determines whether a specific permission guarantees that the state of
+	 * of the object does not change.  Weak permissions (none, pure, shared)
+	 * return false, and strong permissions (unique, full, immutable) return
+	 * true
+	 */
+	method immutable Boolean guaranteesState()[immutable Permission];
+	
+	/**
+	 * Compares this permission to the specified permission.  If they are of the
+	 * same type, then they are considered equal.  Returns true if the two
+	 * permissions are equal and false otherwise.
+	 */
+	method immutable Boolean ==(immutable Permission p2)[immutable Permission];
+	
+	/** 
+	 * for Printing
+	 */
+	method immutable String toString()[immutable Permission];
+	
+	/**
+	 * determines whether the current permission can be split into
+	 * the requested source permission.  
+	 * If it can, the function returns Some(newPerm),
+	 *    where newPerm is the residue after splitting.  
+	 * If it cannot, it returns None
+	 */
+	method unique Option<immutable Permission> splitPerm(immutable Permission p2)
+												[immutable Permission];
+	
+	/**
+	 * determines the result of returning a permission to the
+	 * receiving Permission.  
+	 * If this is a well formed return, then Some with the resulting
+	 * 	  Permission is returned.  
+	 * Otherwise, None is returned. 
+	 */
+	method unique Option<immutable Permission> returnPerm(immutable Permission p2)
+												 [immutable Permission];
+
+	/**
+	 * returns true if this permission is a subpermission of the permission p2
+	 *   in other words, the receiver is "stronger" than p2
+	 *   or, anything that can be pulled from p2 can be pulled from this permission
+	 *   or, p2 can be pulled from this permission
+	 * returns false otherwise
+	 */
+	method immutable Boolean isSubPermOf(immutable Permission p2)
+										[immutable Permission] {
+		match(this.splitPerm(p2)) {
+			case Some { true }
+			case None { false }
+		}
+	}
+	
+	/**
+   *  Because of borrowed and dynamic permissions, we do not form a meet bounded lattice, so we cannot always
+   *  guarantee a greatest lower bound.  If one is a subpermission of the other, then we can
+   *  return that.  Otherwise, as long as we don't have a borrowed or dynamic permission, unqiue will be out
+   *  lower bound.  If we do have a borrowed permission in this case, then none is returned.  
+   *  (Note that a local can be split from a borrowed so borrowed is a subtype of local
+   *  in some cases, so it may succeed with a borrow and a local).
+   */
+  method unique Option<immutable Permission> greatestLowerBound(immutable Permission p2)
+                           [immutable Permission] {
+    
+    ifElse ((this == DYNAMICP ) XOR (p2 == DYNAMICP)) { //if both dynamic, then they are subperms
+      new None
+    } /*else*/ {
+      match(this.isSubPermOf(p2)) {
+        case True { makeSome(this) }
+        case False {
+          match (p2.isSubPermOf(this)) {
+            case True { makeSome(p2) }
+            case False { 
+              match (this) {
+                case BorrowedPermission { new None }
+                default {
+                  match (p2) {
+                    case BorrowedPermission { new None }
+                    default { makeSome(UNIQUE) }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }   
+    }                                            
+  }
+}
