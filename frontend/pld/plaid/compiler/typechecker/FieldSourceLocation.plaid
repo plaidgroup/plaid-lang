@@ -23,7 +23,16 @@ immutable state FieldSourceLocation case of SourceLocation {
   val immutable VariableSymbol objectVarSymbol;
   val immutable String fieldName;
   val immutable Integer objectID;
-  
+
+  /**
+   *  restores retType to objectVarSymbol.fieldName
+   *  If the objectVarSymbol is still in scope (exists in the context),
+   *  and has an object structure, then 
+   *    - the incoming type is restored to the field of the structure, producing a (possibly) 
+   *      new structure
+   *    - objectVarSymbol is updated in the context with the type formed from its existing
+   *      permission and the new structure
+   */  
   method unique LinearContext restore(immutable Type retType, unique LinearContext ctx) {
     val unique Option<immutable Type> curObjectTypeOption = ctx.getOption(this.objectVarSymbol);
     match (curObjectTypeOption) {
@@ -32,14 +41,13 @@ immutable state FieldSourceLocation case of SourceLocation {
         match (curStruct) {
           case ObjectStructure {
             val immutable Structure newStruct = curStruct.restoreToField(this.fieldName, retType, this.objectID);
-            val newCtx = ctx.copy();
-            newCtx.update(this.objectVarSymbol, makeType(curObjectTypeOption.value.permission, newStruct));
-            newCtx;
+            ctx.update(this.objectVarSymbol, makeType(curObjectTypeOption.value.permission, newStruct));
+            unit
           }
-          default { ABORT(objectSymbol.name + "is not an object structure - cannot restore to its fields") }
+          default { unit /* no op - variable must have been assigned to a lambda in between */ }
         }
       }
-      case None { ctx.copy() /* no op - object not in scope to return to*/ }
+      case None { unit /* no op - object not in scope to return to*/ }
     }
   }
   
