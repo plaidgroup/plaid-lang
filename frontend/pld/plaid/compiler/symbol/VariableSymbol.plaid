@@ -15,7 +15,8 @@ import plaid.ast.parsed.ParsedEmptyType;
 
 state VariableSymbol case of Symbol {
     var immutable ASTNode declaration;
-    var immutable Option typeOpt = NONE;
+    var immutable Option<immutable Type> typeOpt = NONE;
+    var immutable Option<immutable Boolean> isVarOption = new None;
 
     method updateDeclaration(immutable ASTNode declaration) {
         delSymbolForAST(this.declaration);
@@ -23,12 +24,41 @@ state VariableSymbol case of Symbol {
         addSymbolForAST(this.declaration);
     }
 
-
     override method immutable Boolean ==(immutable Symbol other)[immutable VariableSymbol this] {
         match (other) {
           case VariableSymbol { this.name.equals(other.name) }
           default { false }
         }
+    }
+    
+    method immutable Boolean isVar() {
+      match (this.isVarOption) {
+        case Some { this.isVarOption.value }
+        case None {
+          val immutable Boolean isVar = match (this.declaration) {
+            case ParsedVarDecl {  //local variable
+              match (this.declaration.specifier) {
+                case ParsedVarSpecifier { true }
+                case ParsedValSpecifier { false }
+                default { ABORT("Variable Symbol has malformed specifier: " + this.declaration.specifier.nodeName()) }
+              }
+            }
+            case ParsedArg {  // parameter
+              false
+            }
+            case ParsedFieldDecl { //top level field
+              match (this.declaration.specifier) {
+                case ParsedVarSpecifier { true }
+                case ParsedValSpecifier { false }
+                default { ABORT("Variable Symbol has malformed specifier: " + this.declaration.specifier.nodeName()) }
+              }
+            }
+            default { ABORT("Variable Symbol tied to unrecognized declaration type: " + this.declaration.nodeName()) }
+          };
+          this.isVarOption = makeSome(isVar);
+          isVar
+        }
+      }
     }
 
     method immutable Type getDeclaredType() {
@@ -58,18 +88,29 @@ state VariableSymbol case of Symbol {
     }
 
     method immutable Type computeType(){
-        match (this.declaration.varType) {
-            case ParsedEmptyType {
-                DEBUG(DEBUG_PRIO_LOW, "<VariableSymbol> variable declaration has no type information.");
-                DYNAMICTYPE;
-            }
-            case ParsedType {
-                DEBUG(DEBUG_PRIO_LOW, "<VariableSymbol> variable declaration has type information.");
-                makeTypeFromAST(this.declaration.varType);
-            }
-            default  {
-                DYNAMICTYPE;
-            }
+      val immutable ParsedType declaredType = match (this.declaration) {
+        case ParsedVarDecl { //local variable
+          this.declaration.varType
         }
+        case ParsedArg { // parameter
+          this.declaration.argSpec.inputType
+        }
+        case ParsedFieldDecl { // top level field
+          this.declaration.fieldType
+        }
+      };
+      match (declaredType) {
+        case ParsedEmptyType {
+          DEBUG(DEBUG_PRIO_LOW, "<VariableSymbol> variable declaration has no type information.");
+          DYNAMICTYPE;
+        }
+        case ParsedType {
+          DEBUG(DEBUG_PRIO_LOW, "<VariableSymbol> variable declaration has type information.");
+          makeTypeFromAST(declaredType);
+        }
+        default  {
+          DYNAMICTYPE;
+        }
+      }
     }
 }
