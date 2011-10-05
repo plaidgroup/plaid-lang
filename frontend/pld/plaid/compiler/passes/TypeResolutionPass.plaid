@@ -89,6 +89,43 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 	}
 
 
+	override method immutable ParsedArgumentExpr rewriteParsedArgumentExpr(immutable ParsedArgumentExpr node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ArgumentExpression");
+
+     	// create new object
+		val new_node = new ParsedArgumentExpr{
+			val args = node.args.map(fn (item) => item.rewrite(this) );
+			val token = node.token;
+		};
+
+        ifElse ( new_node.args.size() == 0 ) {
+            addStructureForAST(new_node, TOPSTRUCT);
+        }{
+            ifElse ( new_node.args.size() == 1 ) {
+                val elemStruc = structureForAST(new_node.args.get(0));
+                match (elemStruc) {
+                    case Some {
+                        addStructureForAST(new_node, elemStruc.value);
+                    }
+                    case None {
+                        val msg = "Cannot find type for '" + new_node.args.get(0) + "'";
+                        //this.reporter.errorToken(java.io.File.new(this.sourceFile),  new_node.args.get(0).token, msg);
+                        this.reporter.report();
+                        ABORT(msg);            
+                    }
+                }
+            }{
+                val msg = "No tuple support yet.";
+                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_node.token, msg);
+                this.reporter.report();
+                ABORT(msg);            
+            }
+        };
+
+        new_node	
+	}
+
+
 	override method immutable ParsedApplication rewriteParsedApplication(immutable ParsedApplication node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Application");
         match (node.function) {
