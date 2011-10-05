@@ -16,6 +16,7 @@ import plaid.ast.util.makeTokenForQualifiedIdentifier;
 import plaid.lang.math.min;
 import plaid.lang.math.max;
 
+import plaid.collections.makeLinkedList;
 
 state ImportCheckPass case of Pass {
     var shared Resolver resolver;
@@ -43,13 +44,28 @@ state ImportCheckPass case of Pass {
     method immutable Boolean checkImports(immutable List imports, 
                                           unique Reporter reporter,
                                           immutable String sourceFile) {
-        imports.map(fn (imp) => {
+        val unique LinkedList names = makeLinkedList(); 
+        imports.do(fn (imp) => {
             if ( !imp.star ) {
+                // check that we do not import the same name twice
+                names.do( fn (name) => {
+                    val impName = imp.qualifiedIdentifier.identifiers.get(imp.qualifiedIdentifier.identifiers.size() - 1);
+                    if ( impName == name ) {
+                        ERROR("<ImportCheckPass> Cannot import the same name '" + impName + "'");
+                        val token = makeTokenForQualifiedIdentifier(imp.qualifiedIdentifier);
+                        reporter.warningToken(java.io.File.new(sourceFile), 
+                                              token,
+                                              "Cannot import the same name '" + impName + "'");
+                    }
+                });
+                names.add(imp.qualifiedIdentifier.identifiers.get(imp.qualifiedIdentifier.identifiers.size() - 1));
+                
+                // check that we can actually resolve the import
                 val fqn = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
                 val optSymbol = resolver.lookup(fqn);
                 match (optSymbol) {
                     case None {
-                        WARNING("<ImportCheckPass> Cannot resolve '" + fqn + "'");
+                        ERROR("<ImportCheckPass> Cannot resolve '" + fqn + "'");
                         val token = makeTokenForQualifiedIdentifier(imp.qualifiedIdentifier);
                         reporter.warningToken(java.io.File.new(sourceFile), 
                                               token,
@@ -58,8 +74,7 @@ state ImportCheckPass case of Pass {
                     }
                     default {}
                 }
-            };
-            imp
+            };            
         });
     }
 }
