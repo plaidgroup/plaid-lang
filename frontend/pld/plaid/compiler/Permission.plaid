@@ -19,9 +19,7 @@
 
 package plaid.compiler;
 
-import plaid.compiler.permissions.DYNAMICP;
-import plaid.compiler.permissions.BorrowedPermission;
-import plaid.compiler.permissions.UNIQUE;
+import plaid.compiler.permissions.*;
 
 /**
  *	Top level state representing all Permissions.
@@ -68,34 +66,32 @@ import plaid.compiler.permissions.UNIQUE;
  *                             |                                  V
  *                          unique        dynamic              strongest
  */
-state Permission {
+/* immutable */ state Permission {
 	/**
-	 * Determines whether a specific permission is writable.  If this permission 
-	 * allows a stage change, then the permission is writable and this function 
-	 * returns true.  Returns false otherwise.
-	 * TODO: field writes
+	 * Returns true if the permission allows writing to object
+	 * fields.  Returns false otherwise.
 	 */
-	method immutable Boolean isWritable()[immutable Permission];
+	method immutable Boolean isWritable();
 	
 	/**
-	 * Determines whether a specific permission guarantees that the state of
-	 * of the object does not change.  Weak permissions (none, pure, shared)
-	 * return false, and strong permissions (unique, full, immutable) return
-	 * true
+	 * Returns true if the permission guarantees that the state of
+	 * of the object does not change and false otherwise.  
+	 * Weak permissions (none, pure, shared) return false, 
+	 * and strong permissions (unique, full, immutable) return true
 	 */
-	method immutable Boolean guaranteesState()[immutable Permission];
+	method immutable Boolean guaranteesState();
 	
 	/**
 	 * Compares this permission to the specified permission.  If they are of the
 	 * same type, then they are considered equal.  Returns true if the two
 	 * permissions are equal and false otherwise.
 	 */
-	method immutable Boolean ==(immutable Permission p2)[immutable Permission];
+	method immutable Boolean ==(immutable Permission p2);
 	
 	/** 
 	 * for Printing
 	 */
-	method immutable String toString()[immutable Permission];
+	method immutable String toString();
 	
 	/**
 	 * determines whether the current permission can be split into
@@ -108,8 +104,7 @@ state Permission {
    *   Errors:
    *     None
    */
-	method unique Option<immutable Permission> splitPerm(immutable Permission p2)
-												[immutable Permission];
+	method unique Option<immutable Permission> splitPerm(immutable Permission p2);
 	
 	/**
 	 * determines the result of returning a permission to the
@@ -123,8 +118,7 @@ state Permission {
 	 *   Errors:
 	 *     If precondition not met, ABORT will be called
 	 */
-	method immutable Permission returnPerm(immutable Permission p2)
-												 [immutable Permission];
+	method immutable Permission returnPerm(immutable Permission p2);
 
 	/**
 	 * returns true if this permission is a subpermission of the permission p2
@@ -137,18 +131,102 @@ state Permission {
    *   Errors:
    *     None
 	 */
-	method immutable Boolean isSubPermOf(immutable Permission p2)
-										[immutable Permission] {
+	method immutable Boolean isSubPermOf(immutable Permission p2) {
 		match(this.splitPerm(p2)) {
 			case Some { true }
 			case None { false }
 		}
 	}
-	
+
+  /**
+   *  the least upper bound, p, of p1 and p2 is the strongest permission that 
+   *  can be pulled from p1 and p2.  
+   *  In other words, p is a superpermission of p1 and p2
+   * 
+   *  Because of dynamic permissions, we do not form a join bounded lattice, so we cannot always
+   *  guarantee a least upper bound.  If one is a superpermission of the other, then we can
+   *  return that.  Otherwise, as long as we don't have a dynamic permission and a
+   *  non-dynamic permission, we must have one borrowed permission.  If the other
+   *  permission is on the same "branch", then a local is returned, otherwise we
+   *  return a none permission.
+   *   Preconditions:
+   *     None
+   *   Errors:
+   *     None
+   */
+  method immutable Option<immutable Permission> leastUpperBound(immutable Permission p2)
+	{
+    ifElse ((this == DYNAMICP ) XOR (p2 == DYNAMICP)) { //if both dynamic, then they are subperms
+      NONE
+    } /*else*/ {
+      match(this.isSubPermOf(p2)) {
+        case True { makeSome(p2) }
+        case False {
+          match (p2.isSubPermOf(this)) {
+            case True { makeSome(this) }
+            case False { 
+              match (this) {
+                case BorrowedPermission { p2.lubBorrowedHelper(this) }
+                default {
+                  match (p2) {
+                    case BorrowedPermission { this.lubBorrowedHelper(p2) }
+                    default { makeSome(NONEP) }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }   
+    }                                            
+  }
+  
+  /**
+   * Helper function for least upper bound
+   */
+  method immutable Option<immutable Permission> 
+    lubBorrowedHelper(immutable BorrowedPermission borrow) 
+  {
+    val immutable Permission internalPerm = borrow.thePerm;
+    val immutable Permission localPerm = match (internalPerm) {
+      case ImmutablePermission { LOCALIMMUTABLE }
+      case SharedPermission { LOCALSHARED }
+      default { 
+         ABORT("(implementation error) Encountered borrowed of a non-symmetric " +
+               "permission: '" + borrow.toString() + "'") 
+      }
+    };
+    match (this) {
+      case UniquePermission { makeSome(localPerm) }
+      case BorrowedPermission {
+        match (this.thePerm == internalPerm) {
+          case True { makeSome(localPerm) }
+          case False { makeSome(NONEP) }
+        }
+      }
+      case SymmetricPermission{
+        ifElse ( this == internalPerm )
+          { makeSome(localPerm) }
+          { makeSome(NONEP) }
+      }
+      case LocalPermission {
+        ifElse ( this == localPerm )
+          { makeSome(localPerm) }
+          { makeSome(NONEP) }
+      }
+      default {
+        ABORT("(implementation error) other cases of lub should have been convered: " + this.toString() + ".lub(" + borrow.toString() + ")") 
+      }
+    }  
+  }
 	/**
+   *  the greatest lower bound, p, of p1 and p2 is the weakest permission 
+   *  such that p1 and p2 can both be split from p.  
+   *  In other words, p is a subpermission of p1 and p2.
+   *
    *  Because of borrowed and dynamic permissions, we do not form a meet bounded lattice, so we cannot always
    *  guarantee a greatest lower bound.  If one is a subpermission of the other, then we can
-   *  return that.  Otherwise, as long as we don't have a borrowed or dynamic permission, unique will be out
+   *  return that.  Otherwise, as long as we don't have a borrowed or dynamic permission, unique will be our
    *  lower bound.  If we do have a borrowed permission in this case, then none is returned.  
    *  (Note that a local can be split from a borrowed so borrowed is a subtype of local
    *  in some cases, so it may succeed with a borrow and a local).
@@ -157,11 +235,10 @@ state Permission {
    *   Errors:
    *     None
    */
-  method unique Option<immutable Permission> greatestLowerBound(immutable Permission p2)
-                           [immutable Permission] {
-    
+  method immutable Option<immutable Permission> greatestLowerBound(immutable Permission p2) {
+
     ifElse ((this == DYNAMICP ) XOR (p2 == DYNAMICP)) { //if both dynamic, then they are subperms
-      new None
+      NONE
     } /*else*/ {
       match(this.isSubPermOf(p2)) {
         case True { makeSome(this) }
@@ -170,10 +247,10 @@ state Permission {
             case True { makeSome(p2) }
             case False { 
               match (this) {
-                case BorrowedPermission { new None }
+                case BorrowedPermission { NONE }
                 default {
                   match (p2) {
-                    case BorrowedPermission { new None }
+                    case BorrowedPermission { NONE }
                     default { makeSome(UNIQUE) }
                   }
                 }
