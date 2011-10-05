@@ -5,30 +5,32 @@ import plaid.compiler.Permission;
 /**
  *	Unique Permission
  */
-state UniquePermission case of SingularPerm {
+state UniquePermission case of SingularPermission{
 	
-	//unique permissions give write access
-	method immutable Boolean isWritable()[immutable UniquePermission >> void] { true }
+	/**
+	 *  Unique permissions give write access to fields
+	 */
+	method immutable Boolean isWritable() { true }
 	
-	//unique permission guarantee the state
-	method immutable Boolean guaranteesState()[immutable UniquePermission >> void] { true }
+	/**
+   *  Unique permissions give write access to fields
+   */
+	method immutable Boolean guaranteesState() { true }
 	
-	method immutable Boolean ==(immutable Permission >> void p2)[immutable UniquePermission >> void] {
+	method immutable Boolean ==(immutable Permission p2) {
 		match(p2) {
 			case UniquePermission { true }
 			default { false }
 		};
 	}
 	
-	method immutable String toString()[immutable UniquePermission >> void] {
-		"unique"
-	}
+	method immutable String toString() { "unique" }
 
-	//I can split anything off of a unique
-	method unique Option<immutable Permission> 
-			splitPerm(immutable Permission >> void p2)
-					 [immutable UniquePermission >> void] 
-	{
+	/**
+	 * Any non-borrowed, non-dynamic permission can be split from
+	 * a unique
+	 */
+	method immutable Option<immutable Permission> splitPerm(immutable Permission p2) {
 		match(p2) {
 			case UniquePermission { makeSome(NONEP) }  // unique => unique/none
 			case SharedPermission { makeSome(SHARED) } // unique => shared/shared
@@ -38,67 +40,19 @@ state UniquePermission case of SingularPerm {
 				//unique => local(sym)/borrow(sym,unique,1)
 				makeSome(makeBorrowedPerm(p2.thePerm,UNIQUE,1)) 
 			}
-			default { new None }
-			
-			//unused cases
-			//case FullPermission { makeSome(PURE) } // unique => full/pure
-			//case PurePermission { makeSome(FULL) } // unique => pure/full
-			//case DynPermission { makeSome(this) } //unique => dyn/unique
+			default { NONE }
 		};
 	}
 	
-	//unique permissions can only coexist with none and dyn permissions
-	//method unique Option<immutable Permission>
-	method immutable Permission
-			returnPerm(immutable Permission >> void p2)
-				[immutable UniquePermission >> void] 
+	/**
+	 * none is the only permission that should ever be returned to
+	 * a unique permission, otherwise, something went wrong
+	 */
+	method immutable Permission returnPerm(immutable Permission p2)
 	{
 		match (p2) {
 		  case NonePermission { this }
 		  default { this.incompatibleReturnError(p2) }
-			//case NonePermission { makeSome(this) } //unique/none => unique
-			//default { new None }
-			
-			//unused cases
-			//case DynPermission { makeSome(p2) } //unique/dyn => dyn
 		}
 	}
-	
-	 
-  //USE IMPLEMENTATION IN SOURCEPERMISSION (less efficient than this, but less code updates)
-	
-	//UNIQUE is below all permissions in the lattice
-	/*method immutable Permission greatestLowerBound(immutable SourcePermission p2)[immutable UniquePermission >> void] {
-		match (p2) {
-			case UniquePermission { UNIQUE }
-			case ImmutablePermission { UNIQUE }
-			case SharedPermission { UNIQUE }
-			case LocalPermission { UNIQUE }
-			default { UNIQUE }  //error - not a permission, default to UNIQUE - KBN error handling?
-			
-			//unused cases
-			//case PurePermission { UNIQUE }
-			//case FullPermission { UNIQUE }
-			//case DynPermission { DYNP }
-			//case NonePermission { UNIQUE } - none not a source Permission
-		}
-	}*/
-	
-	//NOT CURRENTLY USED
-	//All permissions are above UNIQUE in the permission lattice
-	/*method immutable Permission leastUpperBound(immutable Permission p2)[immutable UniquePermission] {
-		match (p2) {
-			case UniquePermission { UNIQUE }
-			case ImmutablePermission { IMMUTABLE }
-			case SharedPermission { SHARED }
-			case LocalPermission { p2 } //return whatever local permission we got
-			case NonePermission { NONEP }
-			default { NONEP } //error - not a permission, default to NONEP - KBN error handling?
-			
-			//unused cases
-			//case DynPermission { DYNP }
-			//case FullPermission { FULL }
-			//case PurePermission { PURE }
-		}
-	}*/
 }

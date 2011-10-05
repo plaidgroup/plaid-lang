@@ -29,22 +29,21 @@ import plaid.compiler.Permission;
  *  splits have been returned.	
  */
 state BorrowedPermission case of SystemPermission {
-	val immutable SymmetricPerm thePerm;
+	val immutable SymmetricPermission thePerm;
 	val immutable SourcePermission originalPerm;
 	val immutable Integer splitCount;
 	
-	//delegate to underlying permission
-	method immutable Boolean isWritable()[immutable BorrowedPermission >> void] {
-		this.thePerm.isWritable();
-	}	
+	/**
+	 * if the underlying permission allows writing, so does the borrowed
+	 */
+	method immutable Boolean isWritable() { this.thePerm.isWritable() }	
 
-	//delegate to underlying permission
-	method immutable Boolean guaranteesState()[immutable BorrowedPermission >> void] {
-		this.thePerm.guaranteesState();
-	}
+	 /**
+   * if the underlying permission guarantees the state, so does the borrowed
+   */
+	method immutable Boolean guaranteesState() { this.thePerm.guaranteesState() }
 	
-	method immutable Boolean ==(immutable Permission >> void other)
-							   [immutable BorrowedPermission >> void] {
+	method immutable Boolean ==(immutable Permission other) {
 		match (other) {
 			case BorrowedPermission { 
 				this.thePerm == other.thePerm &&
@@ -55,7 +54,7 @@ state BorrowedPermission case of SystemPermission {
 		}
 	}
 	
-	method immutable String toString()[immutable BorrowedPermission >> void] {
+	method immutable String toString() {
 		"borrow(local " + this.thePerm.toString() + ", " 
 		+ this.originalPerm.toString() + ", " + this.splitCount + ")"
 	}
@@ -66,8 +65,7 @@ state BorrowedPermission case of SystemPermission {
 	 *  If they do, then we increment the split counter in the returned
 	 *  borrowed permission
 	 */
-	method unique Option<immutable Permission> splitPerm(immutable Permission >> void p2)
-												[immutable BorrowedPermission >> void] {
+	method immutable Option<immutable Permission> splitPerm(immutable Permission p2) {
 		match (p2) {
 			case LocalPermission {
 				ifElse ( p2.thePerm == this.thePerm ) 
@@ -86,10 +84,7 @@ state BorrowedPermission case of SystemPermission {
 	 * of this borrow, then we decrement the split counter.  If the split
 	 * counter reaches 0, then we return the original permission.
 	 */
-	//method unique Option<immutable Permission> returnPerm(immutable SourcePermission >> void p2)
-	method immutable Permission returnPerm(immutable SourcePermission p2)
-											 	 [immutable BorrowedPermission this]
-	{
+	method immutable Permission returnPerm(immutable SourcePermission p2) {
 		match (p2) {
 			case LocalPermission {
 			  ifElse ( this.thePerm == p2.thePerm ) 
@@ -105,73 +100,7 @@ state BorrowedPermission case of SystemPermission {
       }
       case NonePermission { this }
       default { this.incompatibleReturnError(p2) }
-			/*case LocalPermission {
-				ifElse ( this.thePerm == p2.thePerm ) 
-					{
-						ifElse ( this.splitCount == 1 )
-							{ makeSome( this.originalPerm ) }
-							{ makeSome( makeBorrowedPerm(this.thePerm,
-														 this.originalPerm,
-														 this.splitCount - 1))
-							}
-					}
-					{ new None }
-			}
-			case NonePermission { makeSome(this) }
-			default { new None }*/
 		}
 	}
-
-/* NOT USED CURRENTLY	*/
-	/**
-	 * For the purposes of least upper bounds, we treat borrowed as local
-	 * permissions with the same underlying permission 
-	 * NOTE - this may not be correct
-	 */
-/*	method immutable Permission leastUpperBound(immutable Permission p2)
-											   [immutable Permission]
-	{
-		match (p2) {
-			case UniquePermission { UNIQUE }
-			case LocalPermission {
-				ifElse (this.thePerm == p2.thePerm)
-					{ this }
-					{ UNIQUE }
-			}
-			case SymmetricPermission {
-				ifElse (this.thePerm == p2) 
-					{ p2 }
-					{ UNIQUE }
-			}
-			case NonePermission { this }
-			default { UNIQUE } //error
-		}									   
-	}*/
-	
-	/**
-	 * For the purposes of greatest lower bounds, we treat borrowed as local
-	 * permissions with the same underlying permission 
-	 * NOTE - this may not be correct
-	 */
-/*	method immutable Permission greatestLowerBound(immutable Permission p2)
-												  [immutable Permission]
-	{
-		match (p2) {
-			case UniquePermission { this }
-			case LocalPermission {
-				ifElse (this.thePerm == p2.thePerm)
-					{ this }
-					{ NONEP }
-			}
-			case SymmetricPermission {
-				ifElse (this.thePerm == p2) 
-					{ this }
-					{ NONEP }
-			}
-			case NonePermission { NONEP }
-			default { NONEP } //error
-		}
-	}*/
-
 }
 
