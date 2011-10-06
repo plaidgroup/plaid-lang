@@ -194,22 +194,14 @@ public class TransliterateToPlaid<T> {
 		if(includeBody){
 			visitMethodCode += " {\n";
 			
-			// compute new values
-			for(Field field:getAllFields(clazz)) {
-				if ( List.class.isAssignableFrom(field.getType())) {
-					visitMethodCode += "\t\tval new_"+field.getName() + " = makeLinkedList();\n" ;
-					visitMethodCode += "\t\tnode."+field.getName()+".map(fn (item) => { new_"+field.getName()+".add(item.rewrite(this)) });\n";
-				} else if ( ASTNode.class.isAssignableFrom(field.getType()) ) {
-					visitMethodCode += "\t\tval new_" + field.getName() + " = node."+field.getName()+".rewrite(this);\n";
-				}
-			}
-			
 			// create new object
 			visitMethodCode += "\t\t// create new object\n";
 			visitMethodCode += "\t\tnew " + PREFIX + clazz.getSimpleName() + "{\n";
 			for ( Field field : getAllFields(clazz) ) {
-				if (  List.class.isAssignableFrom(field.getType()) || ASTNode.class.isAssignableFrom(field.getType()) ) {
-					visitMethodCode += "\t\t\tval " + field.getName() + " = new_"+field.getName() +";\n";
+				if (  List.class.isAssignableFrom(field.getType()) ) {
+					visitMethodCode += "\t\t\tval " + field.getName() + "= node."+field.getName()+".map(fn (item) => { item.rewrite(this) });\n";
+				} else if ( ASTNode.class.isAssignableFrom(field.getType()) ) {			
+					visitMethodCode += "\t\t\tval " + field.getName() + " = node."+field.getName()+".rewrite(this);\n";
 				} else {
 					visitMethodCode += "\t\t\tval "+field.getName()+" = node."+field.getName()+";\n"; 				
 				}
