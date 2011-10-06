@@ -93,7 +93,11 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         }
     }
 
-    
+    override method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> " + msg);
+    }    
+
+
     method immutable Option getQualifiedIdentifierFromDereference(immutable Dereference dref) {
         match (dref.left) {
             case ParsedIdentifier {
@@ -165,7 +169,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                      while {x < count }{
                          resolvedFqn = resolvedFqn + "." + qi.identifiers.get(x).value.name;
                          symbol = this.resolver.lookup(resolvedFqn);
-                         addSymbolForAST(qi.identifiers.get(x).value, symbol.value);                         
+                         addSymbolForAST(qi.identifiers.get(x).value, symbol.value);                 
                          x = x + 1;
                      };
                      // check for class we should have found
@@ -173,7 +177,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                          match (symbol.value) {
                              case PackageSymbol {
                                  WARNING("<NameResolutionPass> Cannot resolve '" + fqn + "." + qi.identifiers.get(count).value.name  + "'");
-                                 val first = qi.identifiers.car();
+                                 val first = qi.identifiers.get(0).value;
                                  val last  = qi.identifiers.get(count).value;
                                  val beginLine   = min(first.token.beginLine, last.token.beginLine);
                                  val endLine     = max(first.token.endLine, last.token.endLine);
@@ -205,6 +209,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 
 	override method void visitParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAbstractFieldDecl");
         match (this.currentState.peek() ) {
             case Some {
                 // member
@@ -227,6 +232,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
     
 
 	override method void visitParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAbstractMethodDecl");
         match (this.currentState.peek() ) {
             case Some {
                 // member
@@ -249,6 +255,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 	}
 
 	override method void visitParsedAssignment(immutable ParsedAssignment node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAssignment");
 		//node.target.accept(this);
 		//node.field.accept(this);
         match ( node.target ) {
@@ -329,6 +336,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 
 	override method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedConcreteFieldDecl");
         match (this.currentState.peek() ) {
             case Some {
                 // member
@@ -412,6 +420,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 
   	override method void visitParsedConcreteStateDecl(immutable ParsedConcreteStateDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedConcreteStateDecl");
         match (this.currentState.peek() ) {
             case Some {
                  // inner state
@@ -496,6 +505,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
     
 
 	override method void visitParsedDereference(immutable ParsedDereference node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedDereference");
         val qiOpt = this.getQualifiedIdentifierFromDereference(node);
         match (qiOpt) {
             case Some {
@@ -542,6 +552,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 	}
 
 	override method void visitParsedLambda(immutable ParsedLambda node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedLambda");
         val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value;};
         this.stack.push(ctxt);
 
@@ -584,15 +595,16 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 	}
 
 	override method void visitParsedQualifiedIdentifier(immutable ParsedQualifiedIdentifier node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedQualifiedIdentifier");
         val resolveCount = this.resolveQualifiedIdentifier(this.stack.peek().value, node, false);
         ifElse ( resolveCount == node.identifiers.size() ) {
             DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
             if ( !haveSymbolForAST(node) ) {
-                printLine("==> ERROR not QI in cache !!!!! ");
+                ABORT("QI not in cache !!!!!");
             };
         }{
             ERROR("Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
-            val first = node.identifiers.car();
+            val first = node.identifiers.get(0).value;
             val last  = node.identifiers.get(node.identifiers.size() - 1).value;
             val beginLine   = min(first.token.beginLine, last.token.beginLine);
             val endLine     = max(first.token.endLine, last.token.endLine);
@@ -624,6 +636,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 	}
 
     override method void visitParsedVarDecl(immutable ParsedVarDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedVarDecl");
 
         node.specifier.accept(this);
         node.varType.accept(this);
@@ -633,7 +646,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(node.id.name, node);
         val ctx = this.stack.peek().value;
         val result = ctx.put(node.id.name, mySymbol);
-        ifElse ( result ) {            
+        ifElse ( result ) {
             addSymbolForAST(node.id, mySymbol);
             addSymbolForAST(node, mySymbol);
         }{

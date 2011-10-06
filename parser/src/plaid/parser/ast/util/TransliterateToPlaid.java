@@ -174,6 +174,7 @@ public class TransliterateToPlaid<T> {
 			+ "(immutable " + PREFIX + clazz.getSimpleName() + " node)";
 		if(includeBody){
 			visitMethodCode += " {\n";
+			visitMethodCode += "\t\tLOG(\"visit "+PREFIX+clazz.getSimpleName()+"\");\n";
 			for(Field field:getAllFields(clazz)) {
 				if ( List.class.isAssignableFrom(field.getType())) {
 					visitMethodCode += "\t\tnode."+field.getName()+".map(fn (item) => { item.accept(this); item });\n";
@@ -193,6 +194,7 @@ public class TransliterateToPlaid<T> {
 			+ "(immutable " + PREFIX + clazz.getSimpleName() + " node)";
 		if(includeBody){
 			visitMethodCode += " {\n";
+			visitMethodCode += "\t\tLOG(\"rewrite "+PREFIX+clazz.getSimpleName()+"\");\n";
 			
 			// create new object
 			visitMethodCode += "\t\t// create new object\n";
@@ -287,6 +289,7 @@ public class TransliterateToPlaid<T> {
 		StringBuilder sbLeafVisitor = new StringBuilder();
 		sbLeafVisitor.append("package plaid.ast.parsed;\n\n");
 		sbLeafVisitor.append("state "+PREFIX+"LeafVisitor {\n");
+		sbLeafVisitor.append("\tmethod void LOG(immutable String msg);\n");
 		
 		StringBuilder sbRewriteVisitor = new StringBuilder();
 		sbRewriteVisitor.append("package plaid.ast.parsed;\n\n");
@@ -294,8 +297,9 @@ public class TransliterateToPlaid<T> {
 		
 		StringBuilder sbRewriteLeafVisitor = new StringBuilder();
 		sbRewriteLeafVisitor.append("package plaid.ast.parsed;\n\n");
-		sbRewriteLeafVisitor.append("import plaid.collections.makeLinkedList;\n");
+		sbRewriteLeafVisitor.append("import plaid.collections.makeLinkedList;\n\n");
 		sbRewriteLeafVisitor.append("state "+PREFIX+"RewriteLeafVisitor {\n");
+		sbRewriteLeafVisitor.append("\tmethod void LOG(immutable String msg);\n");
 		
 		StringBuilder sbASTViewerVisitor = new StringBuilder(); 
 		sbASTViewerVisitor.append("package plaid.ast.parsed;\n\n");

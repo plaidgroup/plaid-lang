@@ -50,6 +50,11 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         }
     }
 
+
+    override method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> " + msg);
+    }
+
 	override method immutable ParsedAbstractFieldDecl rewriteParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite AbstractFieldDecl");
 
@@ -282,19 +287,19 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ConcreteFieldDecl");
 
 		val new_expression = node.expression.rewrite(this);
-		val new_specifier = node.specifier.rewrite(this);
-		val new_fieldType = node.fieldType.rewrite(this);
-		val new_name = node.name.rewrite(this);
-		val new_modifiers = makeLinkedList();
+		val new_specifier  = node.specifier.rewrite(this);
+		val new_fieldType  = node.fieldType.rewrite(this);
+		val new_name       = node.name.rewrite(this);
+		val new_modifiers  = makeLinkedList();
 		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
 
 		val new_node = new ParsedConcreteFieldDecl{
 			val expression = new_expression;
-			val specifier = new_specifier;
-			val fieldType = new_fieldType;
-			val name = new_name;
-			val modifiers = new_modifiers;
-			val token = node.token;
+			val specifier  = new_specifier;
+			val fieldType  = new_fieldType;
+			val name       = new_name;
+			val modifiers  = new_modifiers;
+			val token      = node.token;
 		};
 
         // update symbol
@@ -390,7 +395,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 
 
     override method immutable ParsedConcreteStateDecl rewriteParsedConcreteStateDecl(immutable ParsedConcreteStateDecl node) {
-        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite statedecl");
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ParsedConcreteStateDecl");
         
 		val new_stateBinding = node.stateBinding.rewrite(this);
 		val new_caseOf = node.caseOf.rewrite(this);
@@ -475,16 +480,15 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 
     
 	override method immutable ParsedDereference rewriteParsedDereference(immutable ParsedDereference node) {
-		val new_left = node.left.rewrite(this);
-		val new_right = node.right.rewrite(this);
+        LOG("visit ParsedDereference");
 
 		val new_node = new ParsedDereference{
-			val left = new_left;
-			val right = new_right;
+			val left = node.left.rewrite(this);
+			val right = node.right.rewrite(this);
 			val token = node.token;
 		};
 
-        val leftStruct = structureForAST(new_left);
+        val leftStruct = structureForAST(new_node.left);
         match (leftStruct) {
             case Some {
                 match (leftStruct.value) {
@@ -498,7 +502,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                     }
                                     case FieldSignature {
                                         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a field signature for '" + node.right.name +"'");
-                                        addStructureForAST(new_node, signature.value.getFieldType().structure);
+                                        addStructureForAST(new_node, signature.value.getCurrentType().structure);
                                     }
                                     default {
                                         ERROR("<TypeResolutionPass> Found unsupported signature.");
@@ -531,7 +535,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 	}
 
    	override method immutable ParsedIdentifier rewriteParsedIdentifier(immutable ParsedIdentifier node) {
-        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Identifier '" + node.name +"'");
+        LOG("rewrite ParsedIdentifier '" + node.name +"'");
 		val new_node = new ParsedIdentifier{
 			val name = node.name;
 			val token = node.token;
@@ -542,7 +546,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         match ( symbol ) {
             case Some {
                 // update symbol 
-                delSymbolForAST(node);
+                LOG("  remap symbol for '" + node.name +"'");
+                //delSymbolForAST(node);
                 addSymbolForAST(new_node, symbol.value);
 
                 // resolve type information if possible
@@ -560,11 +565,35 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                     }
                 }
             }
-            case None { /* ignore for now */ }
+            case None { LOG("   no symbol to remap for '" + node.name +"'"); }
         };
 
         new_node
 	}
+
+	override method immutable ParsedQualifiedIdentifier rewriteParsedQualifiedIdentifier(immutable ParsedQualifiedIdentifier node) {
+		LOG("visit ParsedQualifiedIdentifier");
+		val new_node = new ParsedQualifiedIdentifier{
+			val identifiers= node.identifiers.map(fn (item) => { item.rewrite(this) });
+			val token = node.token;
+		};
+        
+        val symbol = symbolForAST(node);
+        match ( symbol ) {
+            case None  {
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   no symbol to remap QualifiedIdentifier");
+            }
+            case Some {
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   remap symbol for QualifiedIdentifier");
+                //delSymbolForAST(node);
+                addSymbolForAST(new_node, symbol.value);
+            }
+        };
+
+        new_node
+	}
+
+
 
   	override method immutable ParsedVarDecl rewriteParsedVarDecl(immutable ParsedVarDecl node) {
 		val new_specifier = node.specifier.rewrite(this);
@@ -585,9 +614,9 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         match ( symbol ) {
             case Some {
                 // update symbol 
-                delSymbolForAST(node);
+                //delSymbolForAST(node);
                 addSymbolForAST(new_node, symbol.value);
-                delSymbolForAST(node.id);
+                //delSymbolForAST(node.id);
                 addSymbolForAST(new_node.id, symbol.value);
             }
             case None {
