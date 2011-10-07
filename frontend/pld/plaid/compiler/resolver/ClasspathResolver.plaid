@@ -61,6 +61,7 @@ state ClasspathResolver case of Resolver {
              DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver> found '" + fqn + "' in cache");
              makeSome(this.cache.get(fqn));
          }{
+             DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver> could not find '" + fqn + "' in cache");
              val /* List<...> */ lookupFunctions = makeEmptyList();
              lookupFunctions.add(this.lookupFromPlaidSource);
              lookupFunctions.add(this.lookupPackages);
@@ -100,9 +101,12 @@ state ClasspathResolver case of Resolver {
      }
 
 
-     method void addCompilationUnit(unique CompilationUnit cu) {
+     method void addCompilationUnit(unique CompilationUnit cu, immutable String path) {
          DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    resolver add compilation unit");
  
+         // add file to visited files
+         this.visitedFiles.add(path);
+
          // add package declarations
          var packageSymbol = this.sf.makeTopSymbol();
          val packages = cu.packageName.identifiers;
@@ -133,7 +137,6 @@ state ClasspathResolver case of Resolver {
             ifElse(this.cache.containsKey(declName)) {
                 ERROR("<ClasspathResolver> Name " + declName + " already declared.");
             }{
-                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  declName + "'");
                 var declSymbol = this.sf.makeTopSymbol();
                 match(d) {
                     case ParsedFieldDecl {
@@ -152,6 +155,7 @@ state ClasspathResolver case of Resolver {
                         declSymbol = this.sf.makeStateValSymbol(d.name.name, d, packageSymbol);
                     }
                 };
+                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  declName + "'");
                 this.cache.put(declName, declSymbol);
             };
             
@@ -169,17 +173,17 @@ state ClasspathResolver case of Resolver {
              val fqnQI = makeQualifiedIdentifierFromString(fqn);
     
              var parent = this.sf.makeTopSymbol();
-             if ( fqnQI.identifiers.length() > 1 ) {
+             if ( fqnQI.identifiers.size() > 1 ) {
                  // top level 
-                 var curName = fqnQI.identifiers.get(0).name;
+                 var curName = fqnQI.identifiers.get(0).value.name;
                  var i = 1;
                  if(!this.cache.containsKey(curName)) {
                      parent = this.sf.makePackageSymbol(curName,this.sf.makeTopSymbol());
                      this.cache.put(curName, parent);
                      DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
                  };
-                 while {i < ( fqnQI.identifiers.length() - 1 ) } {
-                    curName = curName + "." + fqnQI.identifiers.get(i).name;
+                 while {i < ( fqnQI.identifiers.size() - 1 ) } {
+                    curName = curName + "." + fqnQI.identifiers.get(i).value.name;
                     if(!this.cache.containsKey(curName)) {
                         parent = this.sf.makePackageSymbol(curName,this.sf.makeTopSymbol());
                         this.cache.put(curName, parent);
