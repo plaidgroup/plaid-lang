@@ -32,8 +32,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 this.reporter   = job.reporter;
                 this.resolver   = job.resolver;
 
-                //val viewer1 = new ParsedASTViewerVisitor{ override val title = "[BEFORE]" + job.source.path.toString();};
-                //job.ast.value.accept(viewer1);
+                val viewer1 = new ParsedASTViewerVisitor{ override val title = "[BEFORE]" + job.source.path.toString();};
+                job.ast.value.accept(viewer1);
 
                 job.ast = makeSome(job.ast.value.rewrite(this));
 
@@ -571,6 +571,29 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         new_node
 	}
 
+
+	override method immutable ParsedNewInstance rewriteParsedNewInstance(immutable ParsedNewInstance node) {
+		LOG("rewrite ParsedNewInstance");
+		// create new object
+		val new_node = new ParsedNewInstance{
+			val stateExpr = node.stateExpr.rewrite(this);
+			val token = node.token;
+		};
+
+        val stateExprStruct = structureForAST(new_node.stateExpr);
+        match (stateExprStruct) {
+            case Some {
+                addStructureForAST(new_node, stateExprStruct.value);
+            }
+            case None {
+                ABORT("Cannot find type for new expression.");
+            }
+        };
+
+        new_node 
+	}
+
+
 	override method immutable ParsedQualifiedIdentifier rewriteParsedQualifiedIdentifier(immutable ParsedQualifiedIdentifier node) {
 		LOG("visit ParsedQualifiedIdentifier");
 		val new_node = new ParsedQualifiedIdentifier{
@@ -594,6 +617,27 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 	}
 
 
+	override method immutable ParsedStateRef rewriteParsedStateRef(immutable ParsedStateRef node) {
+		LOG("rewrite ParsedStateRef");
+		// create new object
+		val new_node = new ParsedStateRef{
+			val stateExpr = node.stateExpr.rewrite(this);
+			val specializations= node.specializations.map(fn (item) => { item.rewrite(this) });
+			val token = node.token;
+		};
+
+        val stateExprStruct = structureForAST(new_node.stateExpr);
+        match(stateExprStruct) {
+            case Some {
+                addStructureForAST(new_node, stateExprStruct.value);
+            }
+            case None {
+                ABORT("Cannot find type of state reference.");
+            }
+        };
+
+        new_node
+	}
 
   	override method immutable ParsedVarDecl rewriteParsedVarDecl(immutable ParsedVarDecl node) {
 		val new_specifier = node.specifier.rewrite(this);
@@ -626,7 +670,4 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 
         new_node
 	}
-
-
-
 }
