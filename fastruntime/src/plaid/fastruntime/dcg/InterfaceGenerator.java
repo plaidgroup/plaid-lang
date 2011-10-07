@@ -26,8 +26,7 @@ public class InterfaceGenerator implements Opcodes{
 		} catch(ClassNotFoundException e) {
 			final String className =  getGeneratedInterfaceInternalName(methodName, numargs);
 			
-			//TODO: See if it is okay to use 0 as argument to ClassWriter constructor when generating an interface
-			ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
+			ClassWriter cw = new ClassWriter(0);
 			
 			cw.visit(V1_5, 
 					ACC_PUBLIC + ACC_ABSTRACT + ACC_INTERFACE, 

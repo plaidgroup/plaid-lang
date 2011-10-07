@@ -10,6 +10,7 @@ import org.objectweb.asm.Opcodes;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidState;
+import plaid.fastruntime.errors.PlaidInternalException;
 
 
 public final class DispatchGenerator implements Opcodes {
@@ -72,12 +73,15 @@ public final class DispatchGenerator implements Opcodes {
 		try {
 			result =  (PlaidState)cl.createClass(name, cw).newInstance();
 		} catch (InstantiationException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new PlaidInternalException("Count not construct dispatch object.", e);
 		} catch (IllegalAccessException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new PlaidInternalException("Count not construct dispatch object because " +
+					"constructor was not accessible.", e);
+		} catch (ClassCastException e) {
+			throw new PlaidInternalException("Failed to cast generated dispatch to PlaidState", e);
 		}
+		int y = 2 + 3 * Math.max(5, 3);
+		int[] x = new int[y];
 		return result;
 	}
 	
