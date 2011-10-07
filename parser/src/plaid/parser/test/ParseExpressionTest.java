@@ -214,7 +214,7 @@ public class ParseExpressionTest {
 		final String code = "()";
 		final ArgumentExpr goal = ArgumentExpr();
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Expr e = pp.SimpleExpr1();
+		final Expr e = pp.ArgumentExpr();
 		assertTrue( e instanceof ArgumentExpr );
 		assertTrue( goal.equivalent(e) );
 	}
@@ -224,7 +224,7 @@ public class ParseExpressionTest {
 		final String code = "(1)";
 		final ArgumentExpr goal = ArgumentExpr(IntLiteral(1));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Expr e = pp.SimpleExpr1();
+		final Expr e = pp.ArgumentExpr();
 		assertTrue( e instanceof ArgumentExpr );
 		assertTrue( goal.equivalent(e) );
 	}
@@ -238,7 +238,7 @@ public class ParseExpressionTest {
 				IntLiteral(2)
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Expr e = pp.SimpleExpr1();
+		final Expr e = pp.ArgumentExpr();
 		assertTrue(e instanceof ArgumentExpr );
 		assertTrue( goal.equivalent(e) );
 	}
