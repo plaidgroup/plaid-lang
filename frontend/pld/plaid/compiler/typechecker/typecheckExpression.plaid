@@ -81,7 +81,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                                 case Some {
                                   match (fieldSigOption.value) {
                                     case FieldSignature {
-                                      val immutable Type neededType = fieldSigOption.value.fieldType;
+                                      val immutable Type neededType = fieldSigOption.value.getDeclaredType();
                                       val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
                                       match (valueResult.expType.isSubTypeOf(neededType)) {
                                         case True { 
@@ -93,19 +93,6 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                                         case False { ABORT("<typecheckExpression>(Assignment) value has wrong structure") }
                                       }
                                     }
-                                    case UnpackedFieldSignature {
-                                      val immutable Type neededType = fieldSigOption.value.packedSignature.fieldType;
-                                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
-                                      match (valueResult.expType.isSubTypeOf(neededType)) {
-                                        case True { 
-                                          val immutable ObjectStructure newStructure = targetType.structure.assignToField(exp.field.name);
-                                          val unique LinearContext newCtx = valueResult.ctxResult;
-                                          newCtx.update(targetVarSymbolOption.value, makeType(targetType.permission, newStructure));
-                                          makeTypecheckResult(VOID, newCtx, makeLinkedList()) 
-                                        }
-                                        case False { ABORT("<typecheckExpression>(Assignment) value has wrong structure") }
-                                      }
-                                    }  
                                     case MethodSignature {
                                       ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.toString() + "." + exp.field.name + "' is a method")
                                     }
@@ -182,10 +169,73 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
       blockResult;
       
     }
-    //case ParsedCast { }
-    //case ParsedDereference { }
+    case ParsedCast { // Cast requires dynamic permission - may want to generalize this later - probably could also grab none?
+      val unique TypecheckResult castExpResult = typecheckExpression(ctx, DYNAMICP, exp.expression);
+      makeTypecheckResult(makeTypeFromAST(exp.targetType), castExpResult.resultCtx, makeLinkedList());
+    }
+    case ParsedDereference { /* Chained Dereferences not implemented currently */
+      match (exp.left) {
+        case ParsedIdentifier {
+          val unique Option<immutable Symbol> targetSymbolOption = symbolForAST(exp.left);
+          match (targetSymbolOption) {
+            case Some {
+              val immutable Symbol targetSymbol = targetSymbolOption.value;
+              match (ctx.containsSymbol(targetSymbol)) {
+                case True {
+                  val immutable Type targetType = ctx.get(targetSymbol);
+                  val immutable Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.right.name);
+                  match (fieldSigOption) {
+                    case Some {
+                      val immutable Signature fieldSig = fieldSigOption.value;
+                      match (fieldSig) {
+                        case FieldSignature {
+                          val immutable Option<immutable FieldSignature> newFieldSigOption = fieldSig.splitPermFromField(neededPerm, targetType.permission);
+                          match (newFieldSigOption) {
+                            case Some {
+                              val immutable FieldSignature newFieldSig = newFieldSigOption.value;
+                              val immutable LinkedList<immutable FieldSourceLocation> sourceLocList = makeLinkedList(); 
+                              match (newFieldSig == fieldSig) {
+                                case True { /* no op - no updates made, no returns needed */ }
+                                case False { 
+                                  val immutable Structure updatedTargetStruct = targetType.structure.unpackField(newFieldSig);
+                                  ctx.update(targetSymbol, makeType(targetType.permission, updatedTargetStruct));
+                                  //note will not typecheck - need to check that newFieldSig is an unpackedFieldSig
+                                  //must be because if it is different than the old fieldSig, it must be unpacked
+                                  sourceLocList.add(makeFieldSourceLoc(targetSymbol, newFieldSig));                                                                
+                                }
+                              };
+                              makeTypecheckResult(makeType(neededPerm, fieldSig.getCurrentType().structure), ctx, sourceLocList);
+                            } 
+                            case None {
+                              ABORT("<typecheckExpression>(Deref) Permission '" + neededPerm.toString() + "' could not be split from field '" + exp.left.name + "." +
+                                    exp.right.name + "' with permission '" + fieldSig.getCurrentType().permission.toString() + "' when target has permission '" +
+                                    targetType.permission.toString() + "'");
+                            }
+                          }
+                        }
+                        case MethodSignature {
+                          ABORT("<typecheckExpression>(Deref) Deref target '" + exp.left.name + "' has structure '" + targetType.structure.toString() + 
+                                "' in which member '" + exp.right.name + "' is a method, not a field") 
+                        }
+                      }
+                    }
+                    case None { 
+                      ABORT("<typecheckExpression>(Deref) Deref target '" + exp.left.name + "' has structure '" + targetType.structure.toString() + 
+                            "' which does not contain member '" + exp.right.name + "'") 
+                    }
+                  }
+                }
+                case False { ABORT("<typecheckExpression>(Deref) Deref target '" + exp.left.name + "' not in the context") }
+              }
+            }
+            case None { ABORT("<typecheckExpression>(Deref) no symbol found for target identifier '" + exp.left.name + "'") }
+          }     
+        }
+        default { ABORT("(implementation error) chained dereferences not yet implemented") }
+      }
+    }
     //case ParsedDoubleLiteral { }
-    //case ParsedEmptyExpr { }
+    case ParsedEmptyExpr { ABORT("(implementation error) Encountered EmptyExpression") }
     case ParsedIdentifier {
       val unique Option<immutable Symbol> idSymbolOption = symbolForAST(exp);
       match (idSymbolOption) {
@@ -239,7 +289,16 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
     }
     //case ParsedOperatorExpr { }
     //case ParsedStateChange { }
-    //case ParsedStringLiteral { }
+    /*case ParsedStringLiteral {  **** NEED PRIMITIVE TYPES ****
+      match (neededPerm) {
+        case ImmutablePermission {
+          makeTypecheckResult(makeType(IMMUTABLE, StringType), ctx, makeLinkedList());
+        }
+        default {
+          ABORT("<typecheckExpression>(StringLiteral) String can only be given immutable permission")
+        }
+      }
+    }*/
     //case ParsedUnaryOperatorExpr { }
     case ParsedUnitLiteral { 
       match (neededPerm) {
