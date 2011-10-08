@@ -1,0 +1,513 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.types;
+
+import plaid.lang.testing.TestFactory;
+import plaid.lang.testing.Test;
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+import plaid.compiler.permissions.*;
+import plaid.ast.parsed.*;
+import plaid.compiler.tests.*;
+
+import plaid.collections.makeLinkedList;
+
+state TypeTestFactory case of TestFactory {
+  
+  method unique List<unique Test> createTests() {
+    val tests = makeLinkedList();
+    val test = fn(name,body) => { tests.add(mktest(name, body)) };
+    var result = unit; //dummy result variable
+    var cmp = unit;
+    
+    val ast = new ASTsForTests;
+    ast.initASTs();
+    val symbols = new SymbolsForTests;
+    symbols.initSymbols(ast);
+    val types = new TypesForTests;
+    types.initPermissions();
+    types.initTypes(ast,symbols);
+
+    val astCMP = new ASTsForTests;
+    astCMP.initASTs();
+    val symbolsCMP = new SymbolsForTests;
+    symbolsCMP.initSymbols(astCMP);
+    val typesCMP = new TypesForTests;
+    typesCMP.initPermissions();
+    typesCMP.initTypes(astCMP,symbolsCMP);
+    
+    
+ 
+   
+    /********************** Top Structure *************************/
+    
+    test("TopStructure equality", fn(ctx) => {
+      
+      ctx.assertTrue(TOPSTRUCT == new TopStructure);
+      ctx.assertFalse(TOPSTRUCT == DYNAMICSTRUCT);
+      ctx.assertFalse(TOPSTRUCT == types.nominalStruct1);
+      ctx.assertFalse(TOPSTRUCT == types.unpackedStruct1Val3u1_1Bs1);
+    }); 
+    
+    test("TopStructure isSubStructureOf", fn(ctx) => {
+      ctx.assertFalse(TOPSTRUCT.isSubStructureOf(types.nominalStruct2));
+      ctx.assertTrue(TOPSTRUCT.isSubStructureOf(new TopStructure));
+      ctx.assertFalse(TOPSTRUCT.isSubStructureOf(DYNAMICSTRUCT));
+      ctx.assertFalse(TOPSTRUCT.isSubStructureOf(types.unpackedStruct1Val3u1_1Bs1));
+    });
+    
+    test("TopStructure leastUpperBound", fn(ctx) => {
+      result = TOPSTRUCT.leastUpperBound(types.nominalStruct2); 
+      result = match (result) {
+        case Some { result.value == TOPSTRUCT }
+        case None { false }
+      };
+      ctx.assertTrue(result);
+      
+      result = TOPSTRUCT.leastUpperBound(new TopStructure); 
+      result = match (result) {
+        case Some { result.value == TOPSTRUCT }
+        case None { false }
+      };
+      ctx.assertTrue(result);
+      
+      result = TOPSTRUCT.leastUpperBound(DYNAMICSTRUCT); 
+      result = match (result) {
+        case Some { false }
+        case None { true }
+      };
+      ctx.assertTrue(result);
+      
+      result = TOPSTRUCT.leastUpperBound(types.unpackedStruct1Val3u1_1Bs1); 
+      result = match (result) {
+        case Some { false }
+        case None { true }
+      };
+      ctx.assertTrue(result);
+    });
+
+    /********************** Dynamic Structure *************************/
+    
+    test("DynamicStructure equality", fn(ctx) => {
+      
+      ctx.assertTrue(DYNAMICSTRUCT == new DynamicStructure);
+      ctx.assertFalse(DYNAMICSTRUCT == TOPSTRUCT);
+      ctx.assertFalse(DYNAMICSTRUCT == types.nominalStruct1);
+      ctx.assertFalse(DYNAMICSTRUCT == types.unpackedStruct1Val3u1_1Bs1);
+    }); 
+    
+    test("DynamicStructure isSubStructureOf", fn(ctx) => {
+      ctx.assertFalse(DYNAMICSTRUCT.isSubStructureOf(types.nominalStruct2));
+      ctx.assertFalse(DYNAMICSTRUCT.isSubStructureOf(TOPSTRUCT));
+      ctx.assertFalse(DYNAMICSTRUCT.isSubStructureOf(new DynamicStructure));
+      ctx.assertFalse(DYNAMICSTRUCT.isSubStructureOf(types.unpackedStruct1Val3u1_1Bs1));
+    });
+
+    test("DynamicStructure leastUpperBound", fn(ctx) => {
+      ctx.assertTrue(match (DYNAMICSTRUCT.leastUpperBound(types.nominalStruct2)) { case Some { false } case None { true } });
+      ctx.assertTrue(match (DYNAMICSTRUCT.leastUpperBound(TOPSTRUCT)) { case Some { false } case None { true } });
+      result = DYNAMICSTRUCT.leastUpperBound(new DynamicStructure);
+      ctx.assertTrue(match (result) { case Some { result.value == DYNAMICSTRUCT } case None { false } });
+      ctx.assertTrue(match (DYNAMICSTRUCT.leastUpperBound(types.unpackedStruct1Val3u1_1Bs1)) { case Some { false } case None { true } });
+    });
+    
+    /********************** Nominal Structure *************************/
+    test("NominalStructure equality", fn(ctx) => {
+      
+      ctx.assertFalse(types.nominalStruct1 == DYNAMICSTRUCT);
+      ctx.assertFalse(types.nominalStruct1 == TOPSTRUCT);
+      ctx.assertTrue(types.nominalStruct1 == types.nominalStruct1);
+      ctx.assertFalse(types.nominalStruct1 == types.nominalStruct2);
+      ctx.assertFalse(types.nominalStruct1 == types.unpackedStruct1Val3u1_1Bs1);
+    });   
+
+    test("NominalStructure isSubStructureOf", fn(ctx) => {
+      ctx.assertFalse(types.nominalStruct1.isSubStructureOf(types.nominalStruct2));
+      ctx.assertTrue(types.nominalStruct2.isSubStructureOf(types.nominalStruct1));
+      ctx.assertTrue(types.nominalStruct1.isSubStructureOf(TOPSTRUCT));
+      ctx.assertFalse(types.nominalStruct1.isSubStructureOf(DYNAMICSTRUCT));
+      ctx.assertFalse(types.nominalStruct1.isSubStructureOf(types.unpackedStruct1Val3u1_1Bs1));
+    }); 
+    
+    test("NominalStructure toString", fn(ctx) => {
+      ctx.assertTrue(types.nominalStruct1.toString().equals("STRUCT(pack1.state1)"));
+    });
+    
+    test("NominalStructure leastUpperBound", fn(ctx) => {
+      result = types.nominalStruct1.leastUpperBound(types.nominalStruct2); 
+      result = match (result) {
+        case Some { result.value == types.nominalStruct1 }
+        case None { false }
+      };
+      ctx.assertTrue(result);
+      
+      result = types.nominalStruct2.leastUpperBound(types.nominalStruct1); 
+      result = match (result) {
+        case Some { result.value == types.nominalStruct1 }
+        case None { false }
+      };
+      ctx.assertTrue(result);
+      
+      result = types.nominalStruct1.leastUpperBound(TOPSTRUCT); 
+      result = match (result) {
+        case Some { result.value == TOPSTRUCT }
+        case None { false }
+      };
+      ctx.assertTrue(result);
+      
+      result = types.nominalStruct2.leastUpperBound(types.nominalStruct3); 
+      result = match (result) {
+        case Some { result.value == types.nominalStruct1 }
+        case None { false }
+      };
+      ctx.assertTrue(result);
+      
+      result = types.nominalStruct2.leastUpperBound(types.nominalStruct4); 
+      result = match (result) {
+        case Some { result.value == TOPSTRUCT }
+        case None { false }
+      };
+      ctx.assertTrue(result);
+            
+      result = types.nominalStruct2.leastUpperBound(DYNAMICSTRUCT); 
+      result = match (result) {
+        case Some { false }
+        case None { true }
+      };
+      ctx.assertTrue(result);
+      
+      result = types.nominalStruct2.leastUpperBound(types.unpackedStruct1Val3u1_1Bs1); 
+      result = match (result) {
+        case Some { false }
+        case None { true }
+      };
+      ctx.assertTrue(result);
+    }); 
+    
+    test("NominalStructure getMember", fn(ctx) => {
+      result = types.nominalStruct1.getMember(ast.methodName1);
+      ctx.assertTrue(match (result) { case Some { result.value == types.methodSig1Ru1A1u1n12u1u1Tu1n1E } case None { false } });
+      result = types.nominalStruct1.getMember(ast.fieldName1);
+      ctx.assertTrue(match (result) { case Some { result.value == types.fvalSig1u1 } case None { false } });
+      result = types.nominalStruct1.getMember(ast.fieldName4);
+      ctx.assertTrue(match (result) { case Some { false } case None { true } });
+    }); 
+    
+    test("NominalStructure unpackField", fn(ctx) => {
+      ctx.assertTrue(types.nominalStruct1.unpackField(types.upkfvalSig3u1_1Bs1) == types.unpackedStruct1Val3u1_1Bs1); //unpack a new field
+      //test failure cases when exceptions working
+    });
+    
+    test("NominalStructure packField", fn(ctx) => {
+      ctx.assertTrue(types.nominalStruct4.assignToField(ast.fieldName3) == typesCMP.nominalStruct4); //pack a field that is already packed
+      //test failure cases when exceptions working
+    });
+    
+    /********************** Unpacked Structure *************************/
+    test("UnpackedStructure equality", fn(ctx) => {
+      
+      ctx.assertFalse(types.unpackedStruct1Val3u1_1Bs1 == DYNAMICSTRUCT);
+      ctx.assertFalse(types.unpackedStruct1Val3u1_1Bs1 == TOPSTRUCT);
+      ctx.assertFalse(types.unpackedStruct1Val3u1_1Bs1 == types.nominalStruct1);
+      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1 == typesCMP.unpackedStruct1Val3u1_1Bs1);
+      ctx.assertFalse(types.unpackedStruct1Val1u1_1vVal3u1_1Bs2 == 
+                      types.unpackedStruct1Val1u1_1vVal3u1_1Bs1);
+      ctx.assertFalse(types.unpackedStruct1Val3u1_1Bs1 == types.unpackedStruct1Val1u1_1vVal3u1_1Bs1);
+    }); 
+    
+    test("UnpackedStructure isSubStructureOf", fn(ctx) => {
+      ctx.assertFalse(types.unpackedStruct1Val3u1_1Bs1.isSubStructureOf(types.nominalStruct2));
+      ctx.assertFalse(types.unpackedStruct1Val3u1_1Bs1.isSubStructureOf(TOPSTRUCT));
+      ctx.assertFalse(types.unpackedStruct1Val3u1_1Bs1.isSubStructureOf(DYNAMICSTRUCT));
+      ctx.assertFalse(types.unpackedStruct1Val3u1_1Bs1.isSubStructureOf(types.unpackedStruct1Val3u1_1Bs1));
+    }); 
+    
+    test("UnpackedStructure leastUpperBound", fn(ctx) => {
+      ctx.assertTrue(match (types.unpackedStruct1Val3u1_1Bs1.leastUpperBound(types.nominalStruct2)) { case Some { false } case None { true } });
+      ctx.assertTrue(match (types.unpackedStruct1Val3u1_1Bs1.leastUpperBound(TOPSTRUCT)) { case Some { false } case None { true } });
+      ctx.assertTrue(match (types.unpackedStruct1Val3u1_1Bs1.leastUpperBound(new DynamicStructure)) { case Some { false } case None { true } });
+      ctx.assertTrue(match (types.unpackedStruct1Val3u1_1Bs1.leastUpperBound(types.unpackedStruct1Val3u1_1Bs1)) { case Some { false } case None { true } });
+    });
+    
+    test("UnpackedStructure getMember", fn(ctx) => {
+      result = types.unpackedStruct1Val3u1_1Bs1.getMember(ast.methodName1);
+      ctx.assertTrue(match (result) { case Some { result.value == types.methodSig1Ru1A1u1n12u1u1Tu1n1E } case None { false } });
+      result = types.unpackedStruct1Val3u1_1Bs1.getMember(ast.fieldName1);
+      ctx.assertTrue(match (result) { case Some { result.value == types.fvalSig1u1 } case None { false } });
+      result = types.unpackedStruct1Val3u1_1Bs1.getMember(ast.fieldName3);
+      ctx.assertTrue(match (result) { case Some { result.value == types.upkfvalSig3u1_1Bs1 } case None { false } });
+      result = types.unpackedStruct1Val3u1_1Bs1.getMember(ast.fieldName4);
+      ctx.assertTrue(match (result) { case Some { false } case None { true } });
+    }); 
+    
+    test("UnpackedStructure restoreToField", fn(ctx) => {
+      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName3,types.nominalType_ls1,1) == types.nominalStruct1); //return and pack
+      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName3,types.nominalType_ls1,2) == types.unpackedStruct1Val3u1_1Bs1); //return with stale object ID
+      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_ls1,1) == types.unpackedStruct1Val3u1_1Bs1); //return to packed field
+      ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_u1,1) == types.unpackedStruct1Val3u1_1Bs1); //pack one field
+      ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_i1,1) == types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1 ); // restore but don't pack
+      //test failure cases when exceptions working
+    });
+    
+    test("UnpackedStructure unpackField", fn(ctx) => {
+      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.unpackField(types.upkfvalSig1u1_1v) == types.unpackedStruct1Val1u1_1vVal3u1_1Bs1); //unpack a new field
+      ctx.assertTrue(types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1.unpackField(types.upkfvalSig1u1_1v) == types.unpackedStruct1Val1u1_1vVal3u1_1Bs1); //update unpacked field
+      //test failure cases when exceptions working
+    }); 
+    
+    test("UnpackedStructure packField", fn(ctx) => {
+      ctx.assertTrue(types.unpackedStruct4Var3u1_1Bs1.assignToField(ast.fieldName3) == types.nominalStruct4); //pack structure
+      ctx.assertTrue(types.unpackedStruct4Var3u1_1Bs1.assignToField(ast.fieldName1) == types.unpackedStruct4Var3u1_1Bs1); //return to packed field
+      ctx.assertTrue(types.unpackedStruct4Var1u1_1vVar3u1_1Bs1.assignToField(ast.fieldName1) == types.unpackedStruct4Var3u1_1Bs1); //pack one field
+      //test failure cases when exceptions working
+    });
+    
+    /********************** Packed Field Signatures *************************/
+   
+    test("Packed Field Signature equality", fn(ctx) => {
+      ctx.assertTrue(types.fvalSig1u1 == typesCMP.fvalSig1u1);
+      ctx.assertFalse(types.fvalSig1u1 == types.fvarSig1u1);
+      ctx.assertFalse(types.fvalSig1u1 == types.fvalSig1s1);
+      ctx.assertFalse(types.fvalSig1u1 == types.fvalSig2u1);
+    }); 
+    
+    test("Packed Field Signature getFieldName", fn(ctx) => {
+      ctx.assertTrue(types.fvalSig1u1.getFieldName().equals(ast.fieldName1));
+    });
+    
+    test("Packed Field Signature getDeclaredType", fn(ctx) => {
+      ctx.assertTrue(types.fvalSig1u1.getDeclaredType() == typesCMP.nominalType_u1);
+    });
+      
+    test("Packed Field Signature getCurrentType", fn(ctx) => {
+      ctx.assertTrue(types.fvalSig1u1.getCurrentType() == typesCMP.nominalType_u1);
+    }); 
+    
+    test("Packed Field Signature splitPermFromField", fn(ctx) => {
+      ctx.assertTrue(match (types.fvalSig1u1.splitPermFromField(UNIQUE, IMMUTABLE)) { case Some { false } case None { true } });
+      cmp = makeUnpackedFieldSignature(types.fvalSig1u1, locationIDcount+1, types.nominalType_i1);
+      result = types.fvalSig1u1.splitPermFromField(IMMUTABLE, UNIQUE);
+      ctx.assertTrue(match (result) { case Some { result.value == cmp } case None { false } });
+      result = types.fvalSig1s1.splitPermFromField(SHARED, SHARED);
+      ctx.assertTrue(match (result) { case Some { result.value == typesCMP.fvalSig1s1 } case None { false } });
+    });
+    
+    test("Packed Field Signature restore", fn(ctx) => {
+      ctx.assertTrue(types.fvalSig1u1.restore(types.nominalType_u1,1) == typesCMP.fvalSig1u1);
+    });
+
+    test("Packed Field Signature toString", fn(ctx) => {
+      //java.lang.System.out.println(types.fvalSig1u1.toString());
+      ctx.assertTrue(types.fvalSig1u1.toString().equals("val unique STRUCT(pack1.state1) field1"));
+    });    
+    /********************** Unpacked Field Signatures *************************/
+    
+    test("Unpacked Field Signature equality", fn(ctx) => {  
+      ctx.assertTrue(types.upkfvalSig1u1_1v == typesCMP.upkfvalSig1u1_1v);
+      ctx.assertFalse(types.upkfvalSig1u1_1v == types.upkfvalSig1u1_1Bs1);
+      ctx.assertFalse(types.upkfvalSig1u1_1v == types.upkfvalSig1u1_2v);
+      ctx.assertFalse(types.upkfvalSig1u1_1v == types.upkfvarSig1u1_1v);
+    }); 
+    
+    test("Unpacked Field Signature getFieldName", fn(ctx) => {
+      ctx.assertTrue(types.upkfvalSig1u1_1v.getFieldName().equals(ast.fieldName1));
+    });
+    
+    test("Unpacked Field Signature getDeclaredType", fn(ctx) => {
+      ctx.assertTrue(types.upkfvalSig1u1_1v.getDeclaredType() == typesCMP.nominalType_u1);
+    });
+      
+    test("Unpacked Field Signature getCurrentType", fn(ctx) => {
+      ctx.assertTrue(types.upkfvalSig1u1_1v.getCurrentType() == VOID);
+    }); 
+    
+    test("Unpacked Field Signature splitPermFromField", fn(ctx) => {
+      ctx.assertTrue(match (types.upkfvalSig1u1_1v.splitPermFromField(UNIQUE, UNIQUE)) { case Some { false } case None { true } });
+      result = types.upkfvalSig1u1_1Bs1.splitPermFromField(LOCALSHARED, UNIQUE);
+      ctx.assertTrue(match (result) { case Some { result.value == types.upkfvalSig1u1_1Bs2 } case None { false } });
+      result = types.upkfvalSig1u1_1Bs1.splitPermFromField(NONEP, UNIQUE);
+      ctx.assertTrue(match (result) { case Some { result.value == types.upkfvalSig1u1_1Bs1 } case None { false } });
+    });
+    
+    test("Unpacked Field Signature restore", fn(ctx) => {
+      ctx.assertTrue(types.upkfvalSig1u1_1v.restore(types.nominalType_u1,1) == types.fvalSig1u1);
+      ctx.assertTrue(types.upkfvalSig1u1_1v.restore(types.nominalType_u1,2) == typesCMP.upkfvalSig1u1_1v);
+      ctx.assertTrue(types.upkfvalSig1u1_1Bs2.restore(types.nominalType_ls1,1) == types.upkfvalSig1u1_1Bs1);
+      ctx.assertTrue(types.upkfvalSig1u1_1v.restore(VOID,1) == types.upkfvalSig1u1_1v);
+    });
+    
+    test("Unpacked Field toString", fn(ctx) => {
+      //java.lang.System.out.println(types.upkfvalSig1u1_1v.toString());
+      ctx.assertTrue(types.upkfvalSig1u1_1v.toString().equals("UNPACKED(val unique STRUCT(pack1.state1) field1, 1) : none TOP"));
+    });
+    
+    /********************** Method Signatures *************************/
+     
+     /*********************************************************************/
+    // METHOD SIGNATURES - used for equality testing only, not kept around //
+     /*********************************************************************/
+     
+    val unique LinkedList<immutable ArgSpec> argsA = makeLinkedList();
+    argsA.add(makePair(symbols.argSym1,types.argSpec_vv));
+    val unique LinkedList<immutable ArgSpec> argsAeq = makeLinkedList();
+    argsAeq.add(makePair(symbols.argSym2,types.argSpec_vv));
+    val unique LinkedList<immutable ArgSpec> argsB = makeLinkedList();
+    val unique LinkedList<immutable ArgSpec> argsC = makeLinkedList();
+    argsC.add(makePair(symbols.argSym3,types.argSpec_dd));
+    
+    val unique Map<immutable Symbol,immutable ArgSpec> envA = java.util.HashMap.new();
+    envA.put(symbols.envSym1,types.argSpec_vv);
+    val unique Map<immutable Symbol,immutable ArgSpec> envAeq = java.util.HashMap.new();
+    envAeq.put(symbolsCMP.envSym1,types.argSpec_vv);
+    val unique Map<immutable Symbol,immutable ArgSpec> envB = java.util.HashMap.new();
+    val unique Map<immutable Symbol,immutable ArgSpec> envC = java.util.HashMap.new();
+    envC.put(symbols.envSym1,types.argSpec_dd);
+    val unique Map<immutable Symbol,immutable ArgSpec> envD = java.util.HashMap.new();
+    envD.put(symbols.envSym2,types.argSpec_dd);
+    
+    //TODO replace integers with static args later - not sure what these
+    //should be now, but want to test equality method
+    //types aren't checked now
+    val unique LinkedList<immutable ArgSpec> staticArgsA = makeLinkedList();
+    staticArgsA.add(5);
+    val unique LinkedList<immutable ArgSpec> staticArgsB = makeLinkedList();
+    val unique LinkedList<immutable ArgSpec> staticArgsC = makeLinkedList();
+    staticArgsC.add(6);
+
+    val immutable MethodSignature mSig = 
+      makeMethodSignature(VOID,ast.methodName1,argsA,types.argSpec_vv,envA,staticArgsA);
+    val immutable MethodSignature mSigEQ = 
+      makeMethodSignature(VOID,ast.methodName1,argsAeq,typesCMP.argSpec_vv,envAeq,staticArgsA);    
+    val immutable MethodSignature mSigRetType = 
+      makeMethodSignature(DYNAMICTYPE,ast.methodName1,argsA,types.argSpec_vv,envA,staticArgsA);
+    val immutable MethodSignature mSigName = 
+      makeMethodSignature(VOID,ast.methodName2,argsA,types.argSpec_vv,envA,staticArgsA);
+    val immutable MethodSignature mSigArgs2 = 
+      makeMethodSignature(VOID,ast.methodName1,argsB,types.argSpec_vv,envA,staticArgsA);
+    val immutable MethodSignature mSigArgs3 = 
+      makeMethodSignature(VOID,ast.methodName1,argsC,types.argSpec_vv,envA,staticArgsA);
+    val immutable MethodSignature mSigReceiverSpec = 
+      makeMethodSignature(VOID,ast.methodName1,argsA,types.argSpec_dd,envA,staticArgsA);
+    val immutable MethodSignature mSigEnv2 = 
+      makeMethodSignature(VOID,ast.methodName2,argsA,types.argSpec_vv,envB,staticArgsA);
+    val immutable MethodSignature mSigEnv3 = 
+      makeMethodSignature(VOID,ast.methodName2,argsA,types.argSpec_vv,envC,staticArgsA);
+    val immutable MethodSignature mSigEnv4 = 
+      makeMethodSignature(VOID,ast.methodName2,argsA,types.argSpec_vv,envD,staticArgsA);
+    val immutable MethodSignature mSigSA2 = 
+      makeMethodSignature(VOID,ast.methodName2,argsA,types.argSpec_vv,envA,staticArgsB);
+    val immutable MethodSignature mSigSA3 = 
+      makeMethodSignature(VOID,ast.methodName2,argsA,types.argSpec_vv,envA,staticArgsC);
+    
+    test("Method Signature equality", fn(ctx) => {
+      
+      ctx.assertTrue(mSig == mSigEQ);
+      ctx.assertFalse(mSig == mSigRetType);
+      ctx.assertFalse(mSig == mSigName);
+      ctx.assertFalse(mSig == mSigArgs2);
+      ctx.assertFalse(mSig == mSigArgs3);
+      ctx.assertFalse(mSig == mSigReceiverSpec);
+      ctx.assertFalse(mSig == mSigEnv2);
+      ctx.assertFalse(mSig == mSigEnv3);
+      ctx.assertFalse(mSig == mSigEnv4);
+      ctx.assertFalse(mSig == mSigSA2);
+      ctx.assertFalse(mSig == mSigSA3);
+    }); 
+    
+    test("Method Signature toString", fn(ctx) => {
+      ctx.assertTrue(mSig.toString().equals(
+        "method none TOP method1(none TOP >> none TOP arg1)[none TOP >> none TOP, none TOP >> none TOP env1];"
+      ));
+    });
+    
+    /********************** Types *************************/
+    
+    test("Type equality", fn(ctx) => {
+      
+      ctx.assertTrue(types.nominalType_u1 == typesCMP.nominalType_u1);
+      ctx.assertFalse(types.nominalType_u1 == types.nominalType_u2);
+      ctx.assertFalse(types.nominalType_u1 == types.nominalType_i1);
+      ctx.assertFalse(VOID == types.nominalType_i1);
+      ctx.assertTrue(VOID == makeType(new NonePermission,new TopStructure));
+      ctx.assertFalse(DYNAMICTYPE == VOID);
+      ctx.assertTrue(DYNAMICTYPE == makeType(new DynamicPermission,new DynamicStructure));
+    }); 
+    
+    test("Type downgrade", fn(ctx) => {
+      
+      ctx.assertTrue(types.nominalType_u1.downgrade() == typesCMP.nominalType_u1);
+      ctx.assertTrue(types.nominalType_i1.downgrade() == typesCMP.nominalType_i1);
+      ctx.assertTrue(types.nominalType_li1.downgrade() == typesCMP.nominalType_li1);
+      ctx.assertTrue(types.nominalType_s1.downgrade() == types.nominalType_sT);
+      ctx.assertTrue(VOID.downgrade() == makeType(NONEP,TOPSTRUCT));
+      ctx.assertTrue(DYNAMICTYPE.downgrade() == makeType(new DynamicPermission,new DynamicStructure));
+    });
+    
+    test("Type leastUpperBound", fn(ctx) => {
+      result = types.nominalType_i1.leastUpperBound(types.nominalType_s2); 
+      result = match (result) {
+        case Some { result.value == types.nominalType_n1 }
+        case None { false }
+      };
+      ctx.assertTrue(result);
+            
+      result = types.nominalType_iT.leastUpperBound(makeType(LOCALIMMUTABLE,types.unpackedStruct1Val3u1_1Bs1)); 
+      result = match (result) {
+        case Some { false }
+        case None { true }
+      };
+      ctx.assertTrue(result);
+      
+      result = DYNAMICTYPE.leastUpperBound(makeType(DYNAMICP,DYNAMICSTRUCT)); 
+      result = match (result) {
+        case Some { result.value == DYNAMICTYPE }
+        case None { false }
+      };
+      ctx.assertTrue(result);
+      
+    }); 
+    
+    test("Type isSubTypeOf", fn(ctx) => {
+      ctx.assertFalse(makeType(IMMUTABLE,TOPSTRUCT).isSubTypeOf(makeType(SHARED,TOPSTRUCT)));
+      ctx.assertFalse(makeType(IMMUTABLE,TOPSTRUCT).isSubTypeOf(makeType(LOCALIMMUTABLE,types.unpackedStruct1Val3u1_1Bs1)));
+      ctx.assertTrue(makeType(UNIQUE,types.nominalStruct2).isSubTypeOf(makeType(IMMUTABLE,types.nominalStruct1)));
+    }); 
+    
+    test("Type splitType", fn(ctx) => {
+      result = makeType(IMMUTABLE,TOPSTRUCT).splitType(makeType(SHARED,TOPSTRUCT));
+      ctx.assertTrue(match (result) { case Some { false } case None { true } });
+      result = makeType(IMMUTABLE,TOPSTRUCT).splitType(makeType(LOCALIMMUTABLE,types.unpackedStruct1Val3u1_1Bs1));
+      ctx.assertTrue(match (result) { case Some { false } case None { true } });
+      result = makeType(UNIQUE,types.nominalStruct2).splitType(makeType(IMMUTABLE,types.nominalStruct1));
+      ctx.assertTrue(match (result) { case Some { result.value == makeType(IMMUTABLE,types.nominalStruct2) } case None { false } });
+    }); 
+            
+    /********************** ArgSpecs *************************/
+    test("ArgSpec equality", fn(ctx) => {
+      ctx.assertTrue(makeArgSpec(DYNAMICTYPE,VOID) == makeArgSpec(makeType(DYNAMICP,DYNAMICSTRUCT),makeType(NONEP,TOPSTRUCT)));
+      ctx.assertFalse(makeArgSpec(DYNAMICTYPE,VOID) == makeArgSpec(DYNAMICTYPE,DYNAMICTYPE));
+      ctx.assertFalse(makeArgSpec(DYNAMICTYPE,VOID) == makeArgSpec(VOID,VOID));
+    }); 
+    
+    tests
+  }
+  
+  
+}

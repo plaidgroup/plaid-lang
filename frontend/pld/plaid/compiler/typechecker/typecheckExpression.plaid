@@ -1,0 +1,340 @@
+package plaid.compiler.typechecker;
+
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+import plaid.compiler.permissions.*;
+import plaid.compiler.util.makeTypeFromAST;
+import plaid.compiler.util.makePermissionFromAST;
+
+import plaid.collections.makeLinkedList;
+
+/**
+ * To typecheck an expression, we attempt to give the Expression exp the permission needed Perm
+ * given the context ctx.
+ *
+ * If there are no errors, we return an updated linear context along with the type
+ * of the expression and an expression list
+ *
+ * NOTE: the linear context is treated imperatively and so is destructively updated
+ *       during each typechecking case.  However, in the case of match we may
+ *       need to merge multiple contexts together.  In this case, the returned
+ *       context is a new context.  Thus, we cannot assume that the returned
+ *       context is the same object as the incoming context.
+ *
+ */
+method unique TypecheckResult typecheckExpression(unique LinearContext ctx, 
+                          immutable Permission neededPerm, 
+                          immutable ParsedExpression exp) 
+{
+
+  match (exp) {
+    /*case ParsedApplication {
+      ABORT("Lambdas not implemented in typechecker");
+    }*/
+    case ParsedAssignment {
+      match (neededPerm) {
+        case NonePermission {
+          match (exp.target) {
+            case ParsedEmptyExpr { //local-assign
+              val unique Option<immutable VariableSymbol> localVarSymbolOption = symbolForAST(exp.field);
+              match (localVarSymbolOption) {
+                case Some {
+                  match (ctx.containsSymbol(localVarSymbolOption.value)) {
+                    case True {
+                      val immutable Type neededType = localVarSymbolOption.value.getDeclaredType();
+                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
+                      match (valueResult.expType.isSubTypeOf(neededType)) {
+                        case True { 
+                          val unique LinearContext newCtx = valueResult.ctxResult;
+                          newCtx.update(localVarSymbolOption.value, neededType);
+                          makeTypecheckResult(VOID, newCtx, valueResult.sourceLocList) 
+                        }
+                        case False { ABORT("<typecheckExpression>(Assignment) value has wrong structure") }
+                      }
+                    }
+                    case False {
+                      ABORT("<typecheckExpression>(Assignment) Variable '" + localVarSymbolOption.value.name + "' not found in the context")
+                    }
+                  }
+                }
+                case None {
+                  match (exp.field) {
+                    case ParsedIdentifier { ABORT("<typecheckExpression>(Assignment) No Symbol found for Variable '" + exp.target.name + "'") }
+                    default { ABORT("<typecheckExpression>(Assignment) field not an identifier") }
+                  }
+                }
+              }
+            }
+            case ParsedIdentifier { //field-Assign
+              val unique Option<immutable VariableSymbol> targetVarSymbolOption = symbolForAST(exp.target);
+              match (targetVarSymbolOption) {
+                case Some {
+                  match (ctx.containsSymbol(targetVarSymbolOption.value)) {
+                    case True {
+                      val immutable Type targetType = ctx.get(targetVarSymbolOption.value);
+                      match (targetType.permission.isSubPermOf(LOCALSHARED)) {
+                        case True {    
+                          match(targetType.structure) {
+                            case ObjectStructure {
+                              val unique Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.field.name);
+                              match (fieldSigOption) {
+                                case Some {
+                                  match (fieldSigOption.value) {
+                                    case FieldSignature {
+                                      val immutable Type neededType = fieldSigOption.value.getDeclaredType();
+                                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
+                                      match (valueResult.expType.isSubTypeOf(neededType)) {
+                                        case True { 
+                                          val immutable ObjectStructure newStructure = targetType.structure.assignToField(exp.field.name);
+                                          val unique LinearContext newCtx = valueResult.ctxResult;
+                                          newCtx.update(targetVarSymbolOption.value, makeType(targetType.permission, newStructure));
+                                          makeTypecheckResult(VOID, newCtx, makeLinkedList()) 
+                                        }
+                                        case False { ABORT("<typecheckExpression>(Assignment) value has wrong structure") }
+                                      }
+                                    }
+                                    case MethodSignature {
+                                      ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.toString() + "." + exp.field.name + "' is a method")
+                                    }
+                                    default {
+                                      ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.toString() + "." + exp.field.name + "' has an unrecognized signature type") 
+                                    }
+                                  }
+                                }
+                                case None { ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.toString() + "." + exp.field.name + "' does not exist") }
+                              } 
+                            }
+                            default { ABORT("<typecheckExpression>(Assignment) Target variable '" + targetVarSymbolOption.value.name + "' has a non-object structure") }
+                          }
+                        }
+                        case False { ABORT("<typecheckExpression>(Assignment) Target variable '" + targetVarSymbolOption.value.name + 
+                                           "' cannot be modified with permission '" + targetType.permission.toString() + "'")
+                        }
+                      }
+                    }
+                    case False { ABORT("<typecheckExpression>(Assignment) Target variable '" + targetVarSymbolOption.value.name + "' not found in the context") }
+                  }
+                }
+                case None { ABORT("<typecheckExpression>(Assignment) no symbol found for target object '" + exp.target.name + "'") }
+              }
+            }
+            default { ABORT("<typecheckExpression>(Assignment) target object must be an identifier") }
+          }  
+        }
+        default { ABORT("<typecheckExpression>(Assignment) Assignments can only be given none permission; needed '" + neededPerm.toString()) } 
+      }
+    }
+    case ParsedBlockExpr {
+      val immutable Integer blockSize = exp.statements.size();
+      var immutable Integer count = 1;
+      val /*unique LinkedList<immutable Pair<immutable Symbol, immutable LinkedList<immutable SourceLocation>>>*/ introducedLocalVars = makeLinkedList();
+      val unique TypecheckResult seedResult = makeTypecheckResult(VOID, ctx, makeLinkedList());
+      
+      val unique TypecheckResult blockResult = exp.statements.reduce(seedResult,fn (prevResult,stmt)
+                           [immutable Integer count, immutable Permission neededPerm, unique LinkedList/*<...>*/ introducedLocalVars] => {
+        val immutable Permission stmtNeededPerm = match (count == blockSize) {
+          case True { neededPerm } //last statement in list gets neededPerm
+          case False { NONEP }  // all others get NONEP
+        };
+        count = count+1;
+        
+        val unique TypecheckResult stmtResult = typecheckExpression(prevResult.ctxResult,stmtNeededPerm,stmt);
+        match (stmt) {
+          case ParsedVarDecl { //this should be removed from scope and permissions returned at the end of the block
+            match (haveSymbolForAST(stmt)) {
+              case True {
+                introducedLocalVars.add(makePair(symbolForAST(stmt).value,stmtResult.sourceLocList));
+                makeTypecheckResult(VOID, stmtResult.ctxResult, makeLinkedList());  //take source locations out
+              }
+              case False { ABORT("(implementation error) Symbol not found for '" + stmt.nodeName() + "' during block expr typechecking") }
+            }
+          }
+          default { stmtResult }
+        };
+      });
+      
+      //remove introduced variables from scope, returning to their source locations,
+      //this updates blockResult.ctxResult, which gets returned  (will never create a new context - no merging) 
+      introducedLocalVars.do(fn (pairToRet) => {
+        val immutable Symbol symLeavingScope = pairToRet.fst;
+        match (blockResult.ctxResult.containsSymbol(symLeavingScope)) {
+          case True {
+            val immutable Type restoreType = blockResult.ctxResult.remove(symLeavingScope);
+            listRestore(pairToRet.snd, restoreType, blockResult.ctxResult)
+          }
+          case False { ABORT("(implementation error) variable '" + symLeavingScope.name + "' leaving scope is already gone in block expr typechecking") }
+        }
+      });
+      
+      blockResult;
+      
+    }
+    case ParsedCast { // Cast requires dynamic permission - may want to generalize this later - probably could also grab none?
+      val unique TypecheckResult castExpResult = typecheckExpression(ctx, DYNAMICP, exp.expression);
+      makeTypecheckResult(makeTypeFromAST(exp.targetType), castExpResult.resultCtx, makeLinkedList());
+    }
+    case ParsedDereference { /* Chained Dereferences not implemented currently */
+      match (exp.left) {
+        case ParsedIdentifier {
+          val unique Option<immutable Symbol> targetSymbolOption = symbolForAST(exp.left);
+          match (targetSymbolOption) {
+            case Some {
+              val immutable Symbol targetSymbol = targetSymbolOption.value;
+              match (ctx.containsSymbol(targetSymbol)) {
+                case True {
+                  val immutable Type targetType = ctx.get(targetSymbol);
+                  val immutable Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.right.name);
+                  match (fieldSigOption) {
+                    case Some {
+                      val immutable Signature fieldSig = fieldSigOption.value;
+                      match (fieldSig) {
+                        case FieldSignature {
+                          val immutable Option<immutable FieldSignature> newFieldSigOption = fieldSig.splitPermFromField(neededPerm, targetType.permission);
+                          match (newFieldSigOption) {
+                            case Some {
+                              val immutable FieldSignature newFieldSig = newFieldSigOption.value;
+                              val immutable LinkedList<immutable FieldSourceLocation> sourceLocList = makeLinkedList(); 
+                              match (newFieldSig == fieldSig) {
+                                case True { /* no op - no updates made, no returns needed */ }
+                                case False { 
+                                  val immutable Structure updatedTargetStruct = targetType.structure.unpackField(newFieldSig);
+                                  ctx.update(targetSymbol, makeType(targetType.permission, updatedTargetStruct));
+                                  //note will not typecheck - need to check that newFieldSig is an unpackedFieldSig
+                                  //must be because if it is different than the old fieldSig, it must be unpacked
+                                  sourceLocList.add(makeFieldSourceLoc(targetSymbol, newFieldSig));                                                                
+                                }
+                              };
+                              makeTypecheckResult(makeType(neededPerm, fieldSig.getCurrentType().structure), ctx, sourceLocList);
+                            } 
+                            case None {
+                              ABORT("<typecheckExpression>(Deref) Permission '" + neededPerm.toString() + "' could not be split from field '" + exp.left.name + "." +
+                                    exp.right.name + "' with permission '" + fieldSig.getCurrentType().permission.toString() + "' when target has permission '" +
+                                    targetType.permission.toString() + "'");
+                            }
+                          }
+                        }
+                        case MethodSignature {
+                          ABORT("<typecheckExpression>(Deref) Deref target '" + exp.left.name + "' has structure '" + targetType.structure.toString() + 
+                                "' in which member '" + exp.right.name + "' is a method, not a field") 
+                        }
+                      }
+                    }
+                    case None { 
+                      ABORT("<typecheckExpression>(Deref) Deref target '" + exp.left.name + "' has structure '" + targetType.structure.toString() + 
+                            "' which does not contain member '" + exp.right.name + "'") 
+                    }
+                  }
+                }
+                case False { ABORT("<typecheckExpression>(Deref) Deref target '" + exp.left.name + "' not in the context") }
+              }
+            }
+            case None { ABORT("<typecheckExpression>(Deref) no symbol found for target identifier '" + exp.left.name + "'") }
+          }     
+        }
+        default { ABORT("(implementation error) chained dereferences not yet implemented") }
+      }
+    }
+    //case ParsedDoubleLiteral { }
+    case ParsedEmptyExpr { ABORT("(implementation error) Encountered EmptyExpression") }
+    case ParsedIdentifier {
+      val unique Option<immutable Symbol> idSymbolOption = symbolForAST(exp);
+      match (idSymbolOption) {
+        case Some {
+          match (ctx.containsSymbol(idSymbolOption.value)) {
+            case True {
+              val immutable Symbol idSymbol = idSymbolOption.value;
+              val immutable Type currentType = ctx.get(idSymbol);
+              val immutable Option<immutable Permission> newPermissionOption = currentType.permission.splitPerm(neededPerm);
+              match (newPermissionOption) {
+                case Some {
+                  ctx.update(idSymbol, makeType(newPermissionOption.value,currentType.structure));
+                  val slList = makeLinkedList();
+                  slList.add(makeVarSourceLoc(idSymbol));
+                  makeTypecheckResult(makeType(neededPerm,currentType.structure), ctx, slList)
+                }
+                case None {ABORT("<typecheckExpression>(Identifier) could not split permission '" + neededPerm.toString() + "' from permission '" + currentType.permission.toString() + "'") }
+              }     
+            }
+            case False { ABORT("<typecheckExpression>(Identifier) ID '" + exp.name + "' not in the context") }
+          }
+        }
+        case None { ABORT("<typecheckExpression>(Identifier) no symbol found for identifier '" + exp.name + "'") }
+      }
+    }
+    //case ParsedInfixOperatorExpr { }
+    //case ParsedIntLiteral { }
+    //case ParsedLambda { }
+    //case ParsedMatch { }
+    //case ParsedMethodCall { }
+    case ParsedNewInstance { 
+      match (exp.stateExpr) {
+        case ParsedIdentifier { 
+          val immutable Symbol stateSymOption = symbolForAST(exp.stateExpr);
+          match ( stateSymOption ) {
+            case Some {
+              val immutable Symbol stateSym = stateSymOption.value;
+              match (stateSym) {
+                case StateSymbol {
+                  val immutable Structure stateStruct = makeNominalStructure(stateSym);
+                  makeTypecheckResult(makeType(neededPerm,stateStruct),ctx,makeLinkedList());
+                }
+                default { ABORT("(implementation error) Identifier state Exprs not yet implemented") }
+              } 
+            }
+            case None { ABORT("<typecheckExpression>(New) no symbol found for stateExpr '" + exp.stateExpr.name + "'") }
+          }
+        }
+        case ParsedDereference { ABORT("(implementation error) deref state Exprs not yet implemented") } 
+      }
+    }
+    //case ParsedOperatorExpr { }
+    //case ParsedStateChange { }
+    /*case ParsedStringLiteral {  **** NEED PRIMITIVE TYPES ****
+      match (neededPerm) {
+        case ImmutablePermission {
+          makeTypecheckResult(makeType(IMMUTABLE, StringType), ctx, makeLinkedList());
+        }
+        default {
+          ABORT("<typecheckExpression>(StringLiteral) String can only be given immutable permission")
+        }
+      }
+    }*/
+    //case ParsedUnaryOperatorExpr { }
+    case ParsedUnitLiteral { 
+      match (neededPerm) {
+        case NonePermission { makeTypecheckResult(VOID,ctx,makeLinkedList()) }
+        default { ABORT("<typecheckExpression>(UnitLiteral) unit can only be given permission none") }
+      }
+    }
+    case ParsedVarDecl { 
+      val immutable Option<immutable Symbol> idSymOption = symbolForAST(exp.id);
+      match (idSymOption) {
+        case Some {
+          val immutable Symbol idSym = idSymOption.value;
+          match (ctx.containsSymbol(idSym)) {
+            case True { //TODO: scoping/shadowing of local variables/global fields, etc
+              ABORT("<typecheckExpression>(VarDecl) id '" + exp.id.name + "' already in scope") 
+            }
+            case False {
+              val immutable Type neededType = makeTypeFromAST(exp.varType);
+              val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.expr);
+              match (valueResult.expType.isSubTypeOf(neededType)) {
+                case True {
+                  valueResult.ctxResult.put(idSym,neededType);
+                  makeTypecheckResult(VOID,valueResult.ctxResult, valueResult.sourceLocList);
+                }
+                case False {
+                  ABORT("<typecheckExpression>(VarDecl) type '" + valueResult.expType.toString() +
+                        "' not compatible with declared type of local variable '" + 
+                        exp.id.name + "': '" + neededType.toString() + "'") 
+                }
+              }
+            }
+          }
+        }
+        case None { ABORT("<typecheckExpression>(VarDecl) no symbol found for var id '" + exp.id.nodeName() + "'") }
+      }
+    }
+    default { ABORT("<typecheckExpression> Unexpected '" + exp.nodeName() + "' found during Expression typechecking") }
+  }
+}
