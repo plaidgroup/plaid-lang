@@ -35,7 +35,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 val viewer1 = new ParsedASTViewerVisitor{ override val title = "[BEFORE]" + job.source.path.toString();};
                 job.ast.value.accept(viewer1);
 
-                job.ast = makeSome(job.ast.value.rewrite(this));
+                //job.ast = makeSome(job.ast.value.rewrite(this));
 
                 //val viewer2 = new ParsedASTViewerVisitor{ override val title = " [AFTER]" + job.source.path.toString();};
                 //job.ast.value.accept(viewer2);
@@ -282,6 +282,34 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         }
 	}
 
+
+	override method immutable ParsedBlockExpr rewriteParsedBlockExpr(immutable ParsedBlockExpr node) {
+		LOG("rewrite ParsedBlockExpr");
+		// create new object
+		val new_node = new ParsedBlockExpr{
+			val statements= node.statements.map(fn (item) => { item.rewrite(this) });
+			val token = node.token;
+		};
+
+        ifElse ( new_node.statements.size() == 0 ) {
+            // empty expression => void 
+            DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> empty BlockExpr -> void");
+            addStructureForAST(new_node, VOID.structure);
+        }{
+            val lastStmt = new_node.statements.get(new_node.statements.size() - 1).value;
+            val lastStmtStruct = structureForAST(lastStmt);
+            match (lastStmtStruct) {
+               case Some {
+                   addStructureForAST(new_node, lastStmtStruct.value);
+               }
+               case None {
+                   ABORT("<TypeResolutionPass> Cannot find strucuture of last statement.");
+               }
+            }
+        };
+        
+        new_node
+	}
 
 	override method immutable ParsedConcreteFieldDecl rewriteParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ConcreteFieldDecl");
