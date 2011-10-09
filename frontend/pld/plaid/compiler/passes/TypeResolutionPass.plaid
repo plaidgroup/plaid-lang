@@ -601,6 +601,60 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 	}
 
 
+	override method immutable ParsedInfixOperatorExpr rewriteParsedInfixOperatorExpr(immutable ParsedInfixOperatorExpr node) {
+		LOG("rewrite ParsedInfixOperatorExpr");
+		// create new object
+        val new_left = node.left.rewrite(this);
+        val new_right = node.right.rewrite(this);
+
+        val leftStructOpt = structureForAST(new_left);
+        match (leftStructOpt) {
+            case Some {
+                match (leftStructOpt.value) {
+                    case NominalStructure {
+                        val memberSignatureOpt = leftStructOpt.value.getMember(node.operator.name);
+                        match (memberSignatureOpt) {
+                            case Some {
+                                match (memberSignatureOpt.value) {
+                                    case MethodSignature {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> replace Unary operator with method call");
+                                        val returnType = memberSignatureOpt.value.returnType;
+
+                                        val args = makeLinkedList();
+                                        args.addLast(new_right);
+                                        val new_node = new ParsedMethodCall {
+                                            val argument = new ParsedArgumentExpr { val args = args; val token = EMPTY_TOKEN; };
+                                            val staticArgs = makeLinkedList();
+                                            val receiver = new_left;
+                                            val methodId = node.operator;
+                                            val token = node.token;
+                                        };
+
+                                        addStructureForAST(new_node, returnType.structure);
+                                        new_node
+                                    }
+                                    default {
+                                        ABORT("Operator definiton needs to be a method declaration.");
+                                    }
+                                }
+                            }
+                            case None {
+                                ABORT("Cannot find operator definition '" + node.operator.name +"' in " + exprStructOpt.value.toString());
+                            }
+                        }
+                    }
+                    default {
+                        ABORT("Cannot call method on non-nominal structure.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find structure of expression.");
+            }
+        };        
+	}
+
+
 	override method immutable ParsedNewInstance rewriteParsedNewInstance(immutable ParsedNewInstance node) {
 		LOG("rewrite ParsedNewInstance");
 		// create new object
