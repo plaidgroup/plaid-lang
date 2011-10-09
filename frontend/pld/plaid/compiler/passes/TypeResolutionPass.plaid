@@ -18,6 +18,8 @@ import plaid.compiler.types.*;
 
 import plaid.ast.parsed.*;
 
+import plaid.collections.makeLinkedList;
+
 state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
     var unique SymbolFactory sf = new SymbolFactory;
     var immutable Source sourceFile;
@@ -33,13 +35,13 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 this.reporter   = job.reporter;
                 this.resolver   = job.resolver;
 
-                val viewer1 = new ParsedASTViewerVisitor{ override val title = "[BEFORE]" + job.source.path.toString();};
-                job.ast.value.accept(viewer1);
+                //val viewer1 = new ParsedASTViewerVisitor{ override val title = "[BEFORE]" + job.source.path.toString();};
+                //job.ast.value.accept(viewer1);
 
                 job.ast = makeSome(job.ast.value.rewrite(this));
 
-                val viewer2 = new ParsedASTViewerVisitor{ override val title = " [AFTER]" + job.source.path.toString();};
-                job.ast.value.accept(viewer2);
+                //val viewer2 = new ParsedASTViewerVisitor{ override val title = " [AFTER]" + job.source.path.toString();};
+                //job.ast.value.accept(viewer2);
 
                 DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> finished");
                 !this.hasErrors;
@@ -304,7 +306,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                    addStructureForAST(new_node, lastStmtStruct.value);
                }
                case None {
-                   ABORT("<TypeResolutionPass> Cannot find strucuture of last statement.");
+                   ABORT("<TypeResolutionPass> Cannot find strucuture of last statement." + new_node.toString());
                }
             }
         };
@@ -506,8 +508,28 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 
         new_node
 	}
+ 
+	override method immutable ParsedDefaultCase rewriteParsedDefaultCase(immutable ParsedDefaultCase node) {
+		LOG("rewrite ParsedDefaultCase");
+		// create new object
+		val new_node = new ParsedDefaultCase{
+			val body = node.body.rewrite(this);
+			val token = node.token;
+		};
 
-    
+        val newNodeStruct = structureForAST(new_node.body);
+        match ( newNodeStruct ) {
+            case Some {
+                addStructureForAST(new_node, newNodeStruct.value);
+            }
+            case None {
+                ABORT("Cannot find structure for default case.");
+            }
+        };
+
+        new_node
+	}
+   
 	override method immutable ParsedDereference rewriteParsedDereference(immutable ParsedDereference node) {
         LOG("visit ParsedDereference");
 
@@ -654,6 +676,41 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         };        
 	}
 
+	override method immutable ParsedMatch rewriteParsedMatch(immutable ParsedMatch node) {
+		LOG("rewrite ParsedMatch");
+		// create new object
+		val new_node = new ParsedMatch{
+			val expression = node.expression.rewrite(this);
+			val caseList= node.caseList.map(fn (item) => { item.rewrite(this) });
+			val token = node.token;
+		};
+
+        // compute the least upper bound of all cases
+        val caseStructs = new_node.caseList.map( fn (item) => {
+            val itemStruct = structureForAST(item);
+            match (itemStruct) {
+                case Some { itemStruct.value }
+                case None { ABORT("Cannot find struct for match case.") }
+            }
+        });
+
+        var lub = caseStructs.get(0).value;
+        caseStructs.do(fn (struct) => {
+           val lubOpt = lub.leastUpperBound(struct);
+           match (lubOpt) {
+               case Some {
+                   lub = lubOpt.value
+               }
+               case None {
+                   ABORT("Cannot compute least upper bound.");
+               }
+           }
+        });
+
+        addStructureForAST(new_node, lub);
+
+        new_node;
+	}
 
 	override method immutable ParsedNewInstance rewriteParsedNewInstance(immutable ParsedNewInstance node) {
 		LOG("rewrite ParsedNewInstance");
@@ -674,6 +731,28 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         };
 
         new_node 
+	}
+
+	override method immutable ParsedPatternCase rewriteParsedPatternCase(immutable ParsedPatternCase node) {
+		LOG("rewrite ParsedPatternCase");
+		// create new object
+		val new_node = new ParsedPatternCase{
+			val pattern = node.pattern.rewrite(this);
+			val body = node.body.rewrite(this);
+			val token = node.token;
+		};
+
+        val newNodeStruct = structureForAST(new_node.body);
+        match ( newNodeStruct ) {
+            case Some {
+                addStructureForAST(new_node, newNodeStruct.value);
+            }
+            case None {
+                ABORT("Cannot find structure for default case.");
+            }
+        };
+
+        new_node
 	}
 
 
