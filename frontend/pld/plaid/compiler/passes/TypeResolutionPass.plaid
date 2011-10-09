@@ -1,6 +1,7 @@
 package plaid.compiler.passes;
 
 import plaid.ast.parsed.ParsedRewriteLeafVisitor;
+import plaid.ast.util.*;
 
 import plaid.compiler.ERROR;
 import plaid.compiler.DEBUG;
@@ -35,10 +36,10 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 val viewer1 = new ParsedASTViewerVisitor{ override val title = "[BEFORE]" + job.source.path.toString();};
                 job.ast.value.accept(viewer1);
 
-                //job.ast = makeSome(job.ast.value.rewrite(this));
+                job.ast = makeSome(job.ast.value.rewrite(this));
 
-                //val viewer2 = new ParsedASTViewerVisitor{ override val title = " [AFTER]" + job.source.path.toString();};
-                //job.ast.value.accept(viewer2);
+                val viewer2 = new ParsedASTViewerVisitor{ override val title = " [AFTER]" + job.source.path.toString();};
+                job.ast.value.accept(viewer2);
 
                 DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> finished");
                 !this.hasErrors;
@@ -665,6 +666,55 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         };
 
         new_node
+	}
+
+
+	override method immutable ParsedUnaryOperatorExpr rewriteParsedUnaryOperatorExpr(immutable ParsedUnaryOperatorExpr node) {
+		LOG("rewrite ParsedUnaryOperatorExpr");
+        val new_expression = node.expression.rewrite(this);
+        val exprStructOpt = structureForAST(new_expression);
+        match (exprStructOpt) {
+            case Some {
+                match (exprStructOpt.value) {
+                    case NominalStructure {
+                        val memberSignatureOpt = exprStructOpt.value.getMember(node.operator.name);
+                        match (memberSignatureOpt) {
+                            case Some {
+                                match (memberSignatureOpt.value) {
+                                    case MethodSignature {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> replace Unary operator with method call");
+                                        val returnType = memberSignatureOpt.value.returnType;
+
+                                        val new_node = new ParsedMethodCall {
+                                            val argument = new ParsedArgumentExpr { val args = makeLinkedList(); val token = EMPTY_TOKEN; };
+                                            val staticArgs = makeLinkedList();
+                                            val receiver = new_expression;
+                                            val methodId = node.operator;
+                                            val token = node.token;
+                                        };
+
+                                        addStructureForAST(new_node, returnType.structure);
+                                        new_node
+                                    }
+                                    default {
+                                        ABORT("Operator definiton needs to be a method declaration.");
+                                    }
+                                }
+                            }
+                            case None {
+                                ABORT("Cannot find operator definition '" + node.operator.name +"' in " + exprStructOpt.value.toString());
+                            }
+                        }
+                    }
+                    default {
+                        ABORT("Cannot call method on non-nominal structure.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find structure of expression.");
+            }
+        };        
 	}
 
   	override method immutable ParsedVarDecl rewriteParsedVarDecl(immutable ParsedVarDecl node) {
