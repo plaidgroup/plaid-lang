@@ -4,6 +4,7 @@ import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.PlaidStorage;
+import plaid.fastruntime.dcg.DispatchGenerator;
 
 public abstract class AbstractPlaidState implements PlaidState {
 
@@ -46,8 +47,7 @@ public abstract class AbstractPlaidState implements PlaidState {
 	@Override
 	public PlaidState change(PlaidState s) {
 		ObjectValue changedValue = metadata.changeState(s.getObjectValue());
-		//TODO: Complete method
-		return null;
+		return (new DispatchGenerator()).createClass(changedValue);
 	}
 
 	@Override

@@ -1,7 +1,7 @@
 package plaid.fastruntime.benchmarks.castderef;
-public class PlaidObject {
+public class PlaidObjectTemplate {
 	
-	public PlaidObject(Object dispatch, Object[] fields) {
+	public PlaidObjectTemplate(Object dispatch, Object[] fields) {
 		this.dispatch = dispatch;
 		this.fields = fields;
 	}
