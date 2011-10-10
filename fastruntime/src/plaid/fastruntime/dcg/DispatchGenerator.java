@@ -80,8 +80,6 @@ public final class DispatchGenerator implements Opcodes {
 		} catch (ClassCastException e) {
 			throw new PlaidInternalException("Failed to cast generated dispatch to PlaidState", e);
 		}
-		int y = 2 + 3 * Math.max(5, 3);
-		int[] x = new int[y];
 		return result;
 	}
 	

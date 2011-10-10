@@ -6,12 +6,12 @@ import com.google.caliper.SimpleBenchmark;
 public class MethodCallBenchmark extends SimpleBenchmark {
 	
 	private CachedFoo foo;
-	private PlaidObject o;
+	private PlaidObjectTemplate o;
 	private int test = 0;
 	
 	@Override protected void setUp() throws Exception {
 		this.foo = new CachedFoo();
-		this.o = new PlaidObject(foo, null);
+		this.o = new PlaidObjectTemplate(foo, null);
 		this.test = 0;
 	}
 	public void timeCastDerefCall(int reps) {
