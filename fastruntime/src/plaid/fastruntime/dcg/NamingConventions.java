@@ -35,7 +35,6 @@ public class NamingConventions {
 	
 	public static final String getMethodDescriptor(int numArgs) {
 		StringBuilder sb = new StringBuilder("(");
-		sb.append(PLAID_OBJECT_DESCRIPTOR); // receiver
 		for(int i=0; i<numArgs; i++) {
 			sb.append(PLAID_OBJECT_DESCRIPTOR); //args
 		}
@@ -43,4 +42,6 @@ public class NamingConventions {
 		sb.append(PLAID_OBJECT_DESCRIPTOR); // return
 		return sb.toString();
 	}
+	
+	
 }
