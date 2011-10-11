@@ -5,6 +5,7 @@ import plaid.compiler.types.*;
 import plaid.compiler.permissions.*;
 import plaid.compiler.util.makeTypeFromAST;
 import plaid.compiler.util.makePermissionFromAST;
+import plaid.ast.util.makeStringForQualifiedIdentifier;
 
 import plaid.collections.makeLinkedList;
 
@@ -261,10 +262,121 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
         case None { ABORT("<typecheckExpression>(Identifier) no symbol found for identifier '" + exp.name + "'") }
       }
     }
-    //case ParsedInfixOperatorExpr { }
     //case ParsedIntLiteral { }
     //case ParsedLambda { }
-    //case ParsedMatch { }
+    case ParsedMatch { 
+      match (exp.expression) {
+        case ParsedIdentifier {
+          val unique Option<immutable Symbol> targetSymOption = symbolForAST(exp.expression);
+          match (targetSymOption) {
+            case Some {
+              val immutable Symbol targetSym = targetSymOption.value;
+              match (ctx.containsSymbol(targetSym)) {
+                case True {
+                  val immutable Type targetType = ctx.get(targetSym);
+                  val unique LinkedList<unique TypecheckResult> caseResults = exp.caseList.map(fn (/*immutable ParsedCase*/ theCase) => 
+                  {  /***** for each case *****/
+                    match (theCase) {
+                      case ParsedPatternCase {
+                        /* check that the structure of the case is a substructure of the target type*/
+                        val immutable Option<immutable Symbol> patternSymOption = symbolForAST(theCase.pattern);
+                        match (patternSymOption) {
+                          case Some {
+                            val immutable Symbol patternSym = patternSymOption.value;
+                            match (patternSym) {
+                              case StateSymbol {
+                                val patternStruct = patternSym.getStructure();
+                                match (patternStruct.isSubStructureOf(targetType.structure)) {
+                                  case True {
+                                    /* copy and update linear context with info from case */
+                                    val unique LinearContext caseContext = ctx.copy();
+                                    ctx.update(targetSym, makeType(targetType.permission, patternStruct));
+                                    
+                                    /* return result from typechecking the body */
+                                    typecheckExpression(caseContext, neededPerm, theCase.body);
+                                  }
+                                  case False {
+                                    ABORT("<typecheckExpression>(Case) pattern '" + makeStringForQualifiedIdentifier(theCase.pattern) + 
+                                           + "' is not a substructure of '" + targetType.structure.toString()) 
+                                  }
+                                }
+                              }
+                              default { 
+                                ABORT("(implementation error) patterns must be mapped to state symbols, '" + 
+                                      makeStringForQualifiedIdentifier(theCase.pattern) + "' is not") 
+                              }
+                            }
+                          }
+                          case None { 
+                            ABORT("<typecheckExpression>(Case) no symbol found for case pattern '" + 
+                                  makeStringForQualifiedIdentifier(theCase.pattern) + "'") 
+                          }
+                        } 
+                      }
+                      case ParsedDefaultCase {
+                        /* copy linear context */
+                        val unique LinearContext defaultContext = ctx.copy();
+                        
+                        /* return result from typechecking the body */
+                        typecheckExpression(defaultContext, neededPerm, theCase.body);
+                      }
+                    }
+                  }); /****** end for each case *****/
+                  
+                  match (caseResults.size() > 0) {
+                    case True {
+                      /* take lub of return types, merge of the contexts, and accumulation of the location lists */
+                      
+                      /* first element is the seed (has at least one) */
+                      val unique TypecheckResult seedCaseResult = caseResults.get(0).value;
+                      var immutable Boolean skippedFirst = false;
+                      /* collect all but first element of the list */
+                      val restCaseRes = caseResults.collect(fn (caseRes) => {
+                        ifElse (!skippedFirst) 
+                          { skippedFirst = true; false }
+                          { true } 
+                      });
+                      
+                      /* reduce rest of list starting with first element as seed */
+                      restCaseRes.reduce(seedCaseResult, fn (accResult, caseRes) => {
+                        val immutable Option<immutable Type> returnTypeLUBopt = 
+                                        accResult.expType.leastUpperBound(caseRes.expType);
+                        match ( returnTypeLUBopt ) {
+                          case Some {
+                            val unique Option<unique LinearContext> mergedContextOpt = 
+                                        accResult.ctxResult.merge(caseRes.ctxResult);
+                            match ( mergedContextOpt ) {
+                              case Some {
+                                accResult.sourceLocList.append(caseRes.sourceLocList); //append is in place
+                                makeTypecheckResult(returnTypeLUBopt.value, 
+                                                    mergedContextOpt.value, 
+                                                    accResult.sourceLocList);
+                              }
+                              case None {
+                                ABORT("<typecheckExpression>(Match) cannot merge contexts " +
+                                      " coming from different cases") 
+                              }
+                            }
+                          }
+                          case None { 
+                            ABORT("<typecheckExpression>(Match) no least upper bound " +
+                                  " for return type of different cases") 
+                          }
+                        }
+                      });
+                    }
+                    case False { ABORT("<typecheckExpression>(Match) no cases found") }
+                  }
+                }
+                case False { ABORT("<typecheckExpression>(Match) target ID '" + exp.expression.name + "' not in the context") }
+              }
+            }
+            case None { ABORT("<typecheckExpression>(Match) no symbol found for match target '" + exp.expresssion.name + "'") }
+          }
+        }
+        default { ABORT("(implementation error) match target can only be an identifier for now") }
+      }
+    }
     //case ParsedMethodCall { }
     case ParsedNewInstance { 
       match (exp.stateExpr) {
@@ -287,7 +399,6 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
         case ParsedDereference { ABORT("(implementation error) deref state Exprs not yet implemented") } 
       }
     }
-    //case ParsedOperatorExpr { }
     case ParsedReplace { 
       match (neededPerm) {
         case NonePermission {
@@ -314,7 +425,6 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
         }
       }
     }*/
-    //case ParsedUnaryOperatorExpr { }
     case ParsedUnitLiteral { 
       match (neededPerm) {
         case NonePermission { makeTypecheckResult(VOID,ctx,makeLinkedList()) }
