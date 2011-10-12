@@ -377,7 +377,120 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
         default { ABORT("(implementation error) match target can only be an identifier for now") }
       }
     }
-    //case ParsedMethodCall { }
+    case ParsedMethodCall { 
+      /* receiver AST should be mapped to a type which gives us the signature of the method */
+      val immutable Option<immutable Structure> receiverStructureOption = structureForAST(exp.receiver);
+      val immutable MethodSignature methodSig = match(receiverStructureOption) {
+        case Some {
+          val immutable Structure receiverStructure = receiverStructureOption.value;
+          match (receiverStructure) {
+            case ObjectStructure {
+              val immutable Option<immutable Signature> memberSigOption = 
+                                    receiverStructure.getMember(exp.methodId.name);
+              match (memberSigOption) {
+                case Some {
+                  val memberSig = memberSigOption.value;
+                  match (memberSig) {
+                    case MethodSignature {
+                      memberSig
+                    }
+                    default {
+                      ABORT("<typecheckExpression>(MethodCall) '" + receiverStructure.getName() + "." +
+                        exp.methodId.name + "' is not a method")
+                    }
+                  }
+                }
+                case None { 
+                  ABORT("<typecheckExpression>(MethodCall) '" + receiverStructure.getName() + "." +
+                        exp.methodId.name + "' does not exist")
+                }
+              }
+            }
+            default { ABORT("<typecheckExpression>(MethodCall) receiver is not an object" ) }
+          }
+        }
+        case None {
+          ABORT("(implementation error) receiver structure not mapped - cannot get needed permission")
+        }
+      };
+      
+      /* check that the neededPerm can be split from the return permission of the method */
+      match (methodSig.returnType.permission.splitPerm(neededPerm)) {
+        case Some {/* no op - continue */}
+        case None {
+          ABORT("<typecheckExpression>(MethodCall) cannot split needed permission '" + neededPerm.toString() +
+                "' from method return permission '" + methodSig.returnType.permission.toString() + "'")
+        }
+      };
+      
+      /* use method signature to find the permissions needed for the receiver and the arguments */
+      
+      //build list of (argSpec, expression) with receiver followed by arguments
+      val unique LinkedList<immutable ArgSpec> argSpecs = makeLinkedList();
+      argSpecs.add(methodSig.receiverSpec);
+      argSpecs.append(methodSig.arguments.map(fn (arg) => arg.snd));
+      
+      val unique LinkedList<immutable ParsedASTNode> inputExprs = makeLinkedList();
+      inputExprs.add(exp.receiver);
+      match (exp.argument) {
+        case ParsedArgumentExpr { inputExprs.append(exp.argument.args.map(fn (arg) => arg)) }
+        default { inputExprs.addLast(exp.argument) }
+      };
+      
+      if (!( argSpecs.size() == inputExprs.size()) ) {
+        ABORT("<typecheckExpression>(MethodCall) wrong number of arguments provided")
+      };
+      
+      val /*immutable LinkedList<immutable Pair<immutable ParsedASTNode, immutable ArgSpec>>*/
+          inputArgSpecList = inputExprs.zip(argSpecs); 
+      
+      var unique LinearContext currentContext = ctx;
+      var immutable Integer inputCount = 0;
+      
+      //go through list in order typechecking each expression with the input permission
+      val unique LinkedList<unique TypecheckResult> returnLocations = 
+        inputArgSpecList.map(fn (ias) => {
+          val immutable ParsedASTNode inputAST = ias.fst;
+          val immutable ArgSpec inputSpec = ias.snd;
+          
+          val unique TypecheckResult inputResult = 
+            typecheckExpression(currentContext, inputSpec.inputType.permission, inputAST);
+          //once we have exceptions, catch errors here
+          
+          //check returned structure
+          if (!(inputResult.expType.structure.isSubStructureOf(inputSpec.inputType.structure))) {
+            ABORT("<typecheckExpression>(MethodCall) structure of argument " + inputCount +  
+                  " not a substructure of required type")
+          };
+          
+          inputCount = inputCount + 1;
+          currentContext = inputResult.ctxResult;
+          inputResult.sourceLocList;
+        });
+      
+      //downgrade context
+      currentContext.downgrade();
+      
+      //go through list in reverse order returning the output permission to generated sourceLocationList
+      val /*immutable LinkedList<immutable Pair<immutable LinkedList<immutable SourceLocation>, immutable ArgSpec>>*/
+          returnLocArgSpecList = returnLocations.zip(argSpecs); 
+          
+      val unique LinearContext outputContext = 
+        returnLocArgSpecList.reduceRight(fn (rlas, reducedContext) => {
+          val immutable LinkedList<immutable SourceLocaiton> returnList = rlas.fst;
+          val immutable ArgSpec inputSpec = rlas.snd;
+          
+          listRestore(returnList, inputSpec.outputType, reducedContext);
+          reducedContext
+        
+        }, currentContext);
+        
+      /* return needed permission with structure of method return 
+       * (already checked return perm could be split)
+       * with outputContext and no return locations  */
+      makeTypecheckResult(makeType(neededPerm, methodSig.returnType.structure), outputContext, makeLinkedList());
+    
+    }
     case ParsedNewInstance { 
       match (exp.stateExpr) {
         case ParsedIdentifier { 
