@@ -1,0 +1,173 @@
+package plaid.typechecker.rewriting.tests;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.ast.visitor.PrintVisitor;
+import plaid.typechecker.rewriting.LetNormalFormVisitor;
+import plaid.testing.Tester;
+import java.lang.System;
+import plaid.ast.types.permissions.*;
+
+method main() {
+	val tester = new Tester;
+	
+	varTests(tester);
+	fieldReadTests(tester);
+	assignmentTests(tester);
+	methodCallTests(tester);
+	appTests(tester);
+	newTests(tester);
+	changeStateTests(tester);
+	lambdaTests(tester);	
+	matchTests(tester);
+	letBindingTests(tester);
+	plaid.typechecker.rewriting.tests.permissioninference.permInferenceTests(tester);
+	wholeProgramTest("testInputs/simpleLambda/package.plaid",tester);
+
+
+	wholeProgramTest("testInputs/fibonacci/package.plaid",tester);
+	wholeProgramTest("testInputs/basicAeminium/package.plaid",tester);
+	wholeProgramTest("testInputs/functionalMergeSort/package.plaid",tester);
+	wholeProgramTest("testInputs/stateTests/package.plaid",tester);
+	//wholeProgramTest("testInputs/imperativeMergeSort/package.plaid",tester);
+	wholeProgramTest("testInputs/publisher/package.plaid",tester);
+	
+	System.out.println("");
+	tester.printSummary();
+	
+}
+
+
+val (unique Expression) -> void rewrite = fn (unique Expression e) => {
+	val unique PrintVisitor printVisitor = new PrintVisitor;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	
+	java.lang.System.out.println("\nREWRITE TEST");
+	e.accept(printVisitor);
+	java.lang.System.out.println("---------------------");
+	val newAst = e.accept(lnfVisitor).first();
+	newAst.accept(printVisitor);
+};
+
+val printErrorASTs = fn (immutable ASTNode oldAst, immutable ASTNode newAst, immutable ASTNode goalAst) => {
+	val unique PrintVisitor printVisitor = new PrintVisitor;
+	java.lang.System.out.println("AST: ");
+	oldAst.accept(printVisitor);
+	java.lang.System.out.println("Translated to: ");
+	newAst.accept(printVisitor);
+	java.lang.System.out.println("But wanted: ");
+	goalAst.accept(printVisitor);
+};
+
+//a faster version of createPermType, in order to writing test
+//the permission is default immutable
+method putPerm(context, id, oType) {
+	var tBind =  new BorrowType {
+		val immutable Boolean stronglyBorrowed = true; 
+		val immutable Permission lowerBound = IMMUTABLE;
+		var unique PermType currentType = createPermType(IMMUTABLE, createNominalType(makeID(makeToken(), oType)));
+		
+	};	//assume all borrow binding
+	
+	context.put(makeID(makeToken(), id), tBind);
+}
+
+method putPermLam(context, id, lType) {
+	var tBind =  new BorrowType {
+		val immutable Boolean stronglyBorrowed = true; 
+		val immutable Permission lowerBound = IMMUTABLE;
+		var unique PermType currentType = createPermType(IMMUTABLE, lType);
+	};	//assume all borrow binding
+	
+	context.put(makeID(makeToken(), id), tBind);
+}
+
+method getObjectType(st) {
+	val stType = createNominalType(makeID(makeToken(), st));
+	stType;
+}
+
+method putState(stateTable, st) {
+	val stId = makeID(makeToken(), st);
+	val stType = new StateType { val name = stId; val superType = new None;};
+	stateTable.put(stId, stType);
+}
+
+//add a field to a state, the field type and 
+//the state type should already in stateTable
+method addField(stateTable, stStr, fieldStr, fTypeStr) {
+	val stType = stateTable.get(makeID(makeToken(), stStr)).value;
+	//val fType =  stateTable.get(makeID(makeToken(), fTypeStr)).value;
+	
+	val field = makeFieldType(makeID(makeToken(), fieldStr), createTakeBinding(IMM, createNominalType(makeID(makeToken(), fTypeStr))), true);
+	
+	stType.providedTypes.put(makeID(makeToken(), fieldStr), field);
+	stType.declaredTypes.put(makeID(makeToken(), fieldStr), field);
+}
+
+//add a method to a state, and don't use advanced type features
+//the state type should already in stateTable
+method addMethod(stateTable, stStr, metStr, retTypeStr, argTypesStr) {
+	val stType = stateTable.get(makeID(makeToken(), stStr)).value;
+	val retType =  stateTable.get(makeID(makeToken(), retTypeStr)).value;
+
+	
+	val stPermType = createPermType(IMM, createNominalType(makeID(makeToken(), stStr)));
+	
+	val args = makeEmptyList();
+	
+	argTypesStr.map( fn(argTypeStr) => {
+		val aType = createPermType(IMM, createNominalType(makeID(makeToken(), argTypeStr)));
+		val argType = new ChangeType { val immutable PermType input = aType; val immutable PermType output = aType; val strongBorrow = false; };
+		args.add(argType);
+	});	
+	
+	val metType = new MethodType { 
+		val unique ID name = makeID(makeToken(), metStr); 
+		val unique PermType returnType = createPermType(IMMUTABLE, createNominalType(makeID(makeToken(), retTypeStr)));	//now assume only return immutable
+		val argTypes = args;
+		val environmentTypes = java.util.HashMap.new();	//assume no stuff here
+		val unique ChangeType receiverType = new ChangeType { 
+			val immutable PermType input = stPermType; 
+			val immutable PermType output = stPermType; 
+			val strongBorrow = false; 
+		};
+	};
+	
+	stType.providedTypes.put(makeID(makeToken(), metStr), metType);
+	stType.declaredTypes.put(makeID(makeToken(), metStr), metType);
+}
+
+//TODO: add a lambda to a state, and don't use advanced type features
+//the state type should already in stateTable
+//it will return the lambdaType been created
+method addLambda(stateTable, stStr, fnStr, retTypeStr, argTypesStr) {
+	val stType = stateTable.get(makeID(makeToken(), stStr)).value;
+	val retType = stateTable.get(makeID(makeToken(), retTypeStr)).value;
+
+	val args = makeEmptyList();
+	
+	argTypesStr.map( fn(argTypeStr) => {
+		val aType = createPermType(IMM,  createNominalType(makeID(makeToken(), argTypeStr)));
+		val argType = new ChangeType { 
+			val immutable PermType input = aType;
+			val immutable PermType output = aType;
+			val immutable Boolean strongBorrow = false;
+		};
+		args.add(argType);
+	});	
+	
+	val lambdaType = new LambdaType { 
+		var immutable PermType returnType = createPermType(IMMUTABLE, createNominalType(makeID(makeToken(), retTypeStr)));	//now assume only return immutable
+		val argTypes = args;
+		val environmentTypes = java.util.HashMap.new();	//assume no stuff here
+	};
+	
+	val lambdaField = makeFieldType(makeID(makeToken(), fnStr), createTakeBinding(IMM, lambdaType), true);
+	
+	stType.providedTypes.put(makeID(makeToken(), fnStr), lambdaField);
+	stType.declaredTypes.put(makeID(makeToken(), fnStr), lambdaField);
+	lambdaType;
+}
+
+

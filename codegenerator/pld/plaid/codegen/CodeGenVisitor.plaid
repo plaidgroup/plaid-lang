@@ -1,0 +1,68 @@
+package plaid.codegen;
+
+import plaid.ast.*;
+import plaid.ast.visitor.ASTVisitor;
+import plaid.codegen.fragments.*;
+
+state CodeGenVisitor = ASTVisitor
+                       with ApplicationFragment
+                       with AssignmentFragment
+                       with ChangeStateFragment
+                       with CompilationUnitFragment
+                       with DereferenceFragment
+                       with FieldDeclFragment
+                       with IDFragment
+                       with ImportListFragment
+                       with LambdaFragment
+                       with LetBindingFragment
+                       with LiteralFragment
+                       with MatchFragment
+                       with MethodCallFragment
+                       with MethodDeclFragment
+                       with NewFragment
+                       with QIFragment
+                       with SplitJoinCastFragment 
+                       with StateDeclFragment 
+                       with WithFragment {
+	
+	val jCodeGen = plaid.compilerjava.util.CodeGen;
+	var cc;
+	var /* CodeGen */ out = "";	// Java codegen helper object.
+	var /* IdGen */ idgen = ""; // Plaid ID generator.
+
+	// Additional fields for passing state around accept() calls.
+	// Invariant: Assigned before accept() call, and copied to local variables
+	// at the beginning of method call.
+	// TODO: Reimplement using state change once that's working properly?
+	var /* CompilationUnit */ currentCU;
+	var /* QualifiedID */ packageName = "";
+	var /* ImportList */ imports = "";
+	var /* ID */ y = "";
+	var /* Boolean */ top = false;
+	var /*String*/ stateContext= "";
+	
+	// The state table is used like the PackageRep in the Java codegen. 
+	val /*StateTable*/ stateTable;
+	
+
+	method setLocation(token) {
+		match (token) {
+			case Some {
+				val plaidToken = token.value;
+				this.out.setLocation(this.currentCU.sourceFile, plaidToken.beginLine, plaidToken.beginColumn);
+			}
+			case None {
+			}
+		}
+	}
+	
+	method visitDeclList(node) {
+		this.setLocation(node.token);
+		this.out.assignToNewStateObject(this.y.name);
+		node.decls.map(fn (d) => d.accept(this));
+	}
+	
+	method debugToConsole(debugInfo){
+		java.lang.System.out.println(debugInfo);
+	}
+}
