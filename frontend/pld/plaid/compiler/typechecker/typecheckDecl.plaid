@@ -1,0 +1,131 @@
+package plaid.compiler.typechecker;
+
+import plaid.compiler.*;
+
+/**
+ * return a boolean indicating if the declaration was abstract (false) or concrete (true)
+ */
+method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
+
+  val unique Option<immutable FieldSymbol> declSymOption = symbolForAST(declNode);
+  match (declSymOption) {
+    case Some {
+      match (declSymOption.value) {
+        case StateSymbol {
+        
+        }
+        case StateValSymbol {
+        
+        }
+        case FieldSymbol {
+        
+        }
+        case MethodSymbol {
+          match (declNode) {
+            case ParsedConcreteMethodDecl {
+              val immutable MethodSymbol methodSym = declSymOption.value;
+              val immutable MethodSignature methodSig = methodSym.getSignature();
+              
+              /* create starting context for method body */
+              val unique LinearContext methodContext = new LinearContext;
+              
+              val immutable VariableSymbol thisSymbol = methodSym.getThisSymbol();
+              methodContext.put(thisSymbol, methodSig.receiverSpec.inputType);
+              
+              //args
+              methodSig.arguments.do(fn (symSpecPair) => {
+                val immutable VariableSymbol argSym = symSpecPair.fst;
+                val immutable ArgSpec argSpec = symSpecPair.snd;
+                match (methodContext.containsSymbol(argSym)) {
+                  case False {
+                    methodContext.put(argSym, argSpec.inputType);
+                  }
+                  case True {
+                    ABORT("<typecheckMethod> multiple arguments declared with name '" + argSym.name + "'")
+                  }
+                }
+              });
+              
+              //environment
+              val iter = methodSig.environment.keySet().iterator();
+              while { iter.hasNext() } {
+                val immutable VariableSymbol envSym = iter.next();
+                val immutable ArgSpec envSpec = methodSig.environment.get(envSym);
+                match (methodContext.containsSymbol(envSym)) {
+                  case False {
+                    methodContext.put(envSym, envSpec.inputType);
+                  }
+                  case True {
+                    ABORT("<typecheckMethod> multiple inputs declared with name '" + envSym.name + "'")
+                  }
+                }
+              };
+              
+              /* typecheck method body in context asking for permission of return type */
+              val unique TypecheckResult methodResult = 
+                typecheckExpression(methodContext, 
+                                    methodSig.returnType.permission,
+                                    declNode.body);
+               
+              /* check that return structure is consistent with return type */                     
+              if (!(methodResult.expType.isSubTypeOf(methodSig.returnType))) {
+                ABORT("<typecheckMethod> method body returns structure '" + 
+                      methodResult.expType.structure.toString() + 
+                      "' which is not a substructure of declared return structure '" +
+                      methodSig.returnType.structure.toString() + "'")
+              };
+              
+              /* check that the context contains the required ending permissions */
+              val unique LinearContext resultContext = methodResult.ctxResult;
+              
+              //receiver
+              val immutable Type endTypeThis = resultContext.get(thisSymbol);
+              if (!(endTypeThis.isSubTypeOf(methodSig.receiverSpec.outputType))) {
+                ABORT("<typecheckMethod> Receiver ended method as '" + 
+                      endTypeThis.toString() + 
+                      "' which is not a subtype of declared end type '" +
+                      methodSig.receiverSpec.outputType.toString() + "'")
+              };
+              //args
+              methodSig.arguments.do(fn (symSpecPair) => {
+                val immutable VariableSymbol argSym = symSpecPair.fst;
+                val immutable ArgSpec argSpec = symSpecPair.snd;
+                val immutable Type endTypeArg = resultContext.get(argSym);
+                if (!(endTypeArg.isSubTypeOf(argSpec.outputType))) {
+                  ABORT("<typecheckMethod> arg '" + argSym.name +
+                        "' ended method as '" + endTypeArg.toString() + 
+                        "' which is not a subtype of declared end type '" +
+                        argSpec.outputType.toString() + "'")
+                };
+              });
+              
+              //environment
+              val iter2 = methodSig.environment.keySet().iterator();
+              while { iter2.hasNext() } {
+                val immutable VariableSymbol envSym = iter2.next();
+                val immutable ArgSpec envSpec = methodSig.environment.get(envSym);
+                val immutable Type endTypeEnv = resultContext.get(envSym);
+                if (!(endTypeEnv.isSubTypeOf(envSpec.outputType))) {
+                  ABORT("<typecheckMethod> environment variable '" + envSym.name +
+                        "' ended method as '" + endTypeEnv.toString() + 
+                        "' which is not a subtype of declared end type '" +
+                        envSpec.outputType.toString() + "'")
+                };
+              };
+              
+              /* checks out - concrete */
+              true
+            }
+            case ParsedAbstractMethodDecl { false }
+            default {
+              ABORT("(implementation error) method symbol '" + declNode.name + "' not associated with method AST ")
+            }
+          }
+          
+        }
+        default { ABORT("<typecheckDecl> unrecognized symbol for decl '" + declNode.name + "'") }
+      }
+    }
+    case None { ABORT("<typecheckDecl> No Symbol for decl '" + declNode.name + "'") }
+  } 
+}
