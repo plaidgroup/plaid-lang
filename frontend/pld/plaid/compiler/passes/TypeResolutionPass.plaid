@@ -827,6 +827,54 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         new_node
 	}
 
+
+	override method immutable ParsedReplace rewriteParsedReplace(immutable ParsedReplace node) {
+		LOG("rewrite ParsedReplace");
+		// create new object
+		val new_node = new ParsedReplace{
+			val expression = node.expression.rewrite(this);
+			val stateExpr = node.stateExpr.rewrite(this);
+			val token = node.token;
+		};
+
+        // state change has always type void
+        addStructureForAST(new_node, VOID.structure);        
+
+        // statechange variable 
+        match ( new_node.expression ) {
+            case ParsedIdentifier {
+                ifElse ( node.expression.name == "this" ) {
+                    val symbolOpt = symbolForAST(new_node.expression);
+                    match (symbolOpt) {
+                        case Some {
+                            val structOpt = structureForAST(new_node.stateExpr);
+                            match (structOpt) {
+                                case Some {
+                                     DEBUG(DEBUG_PRIO_MEDIUM,"<TypeResolutionPass>     set structure for '"+ new_node.expression.name +"' to '" + structOpt.value.toString() +"'" );
+                                     setStructureForSymbol(symbolOpt.value, structOpt.value);
+                                }
+                                case None {
+                                     ABORT("Cannot find structure for state expression");
+                                }
+                            }
+                        }
+                        case None {
+                            ABORT("Cannot find symbol for 'this'.");
+                        }
+                    }
+                }{
+                    ABORT("Can only perform state change operation on 'this'.");
+                }
+            }
+            default {
+                ABORT("Can only perform state change operation on 'this'.");
+            }
+        };    
+        
+
+        new_node
+	}
+
 	override method immutable ParsedStateChange rewriteParsedStateChange(immutable ParsedStateChange node) {
 		LOG("rewrite ParsedStateChange");
 		// create new object
