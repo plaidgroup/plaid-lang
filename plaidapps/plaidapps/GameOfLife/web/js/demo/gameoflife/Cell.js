@@ -3,7 +3,7 @@ plaidNewState_Cell.tree = [['', [], 'with'], [['Cell', [], 'with']]];
 var plaidNewState_NilCell = new PlaidState();
 plaidNewState_NilCell.tree = [['', [], 'with'], [['Cell', [], 'with'], [['NilCell', [], '']]]];
 var plaidNewState_AliveCell = new PlaidState();
-plaidNewState_AliveCell['update'] = function update (array) {
+plaidNewState_AliveCell['updatePopulation'] = function updatePopulation (surroundCells) {
 var this$plaid=this;
 var numActive = 0;
 var numDead = 0;
@@ -21,7 +21,7 @@ var returnVal = numDead;
 }
 return returnVal;
 };
-var plaidNewVar4 = array.each(plaidNewVar1);
+var plaidNewVar4 = surroundCells.each(plaidNewVar1);
 var vAr13$plaid = plaidNewVar4;
 var plaidNewVar5 = function(vAr12$plaid) {
 var plaidNewVar6 = function(vAr11$plaid) {
@@ -48,6 +48,23 @@ var plaidNewVar15 = plaidNewVar14(plaidNewVar12);
 var plaidNewVar16 = plaidNewVar15(plaidNewVar5);
 return plaidNewVar16;
 }
+plaidNewState_AliveCell['updateCell'] = function updateCell () {
+var this$plaid=this;
+var matchVar = this$plaid;
+if (matchVar.match("Survive")) {
+this$plaid.stateChange(plaidNewState_AliveCell);
+var returnVal = this$plaid;
+}
+else if (matchVar.match("Lonely")) {
+this$plaid.stateChange(plaidNewState_DeadCell);
+var returnVal = this$plaid;
+}
+else if (matchVar.match("OverPopulated")) {
+this$plaid.stateChange(plaidNewState_DeadCell);
+var returnVal = this$plaid;
+}
+return returnVal;
+}
 plaidNewState_AliveCell['onAliveCell'] = function onAliveCell () {
 var this$plaid=this;
 var plaidNewVar18 = "#" + this$plaid.id;
@@ -62,9 +79,9 @@ var plaidNewVar22 = jQuery(plaidNewVar21);
 var plaidNewVar20 = plaidNewVar22.removeClass("alive");
 return plaidNewVar20;
 }
-plaidNewState_AliveCell.tree = [['', [], 'with'], [['Cell', [], 'with'], [['AliveCell', ['update', 'onAliveCell', 'offAliveCell'], '']]]];
+plaidNewState_AliveCell.tree = [['', [], 'with'], [['Cell', [], 'with'], [['AliveCell', ['updatePopulation', 'updateCell', 'onAliveCell', 'offAliveCell'], '']]]];
 var plaidNewState_DeadCell = new PlaidState();
-plaidNewState_DeadCell['update'] = function update (array) {
+plaidNewState_DeadCell['updatePopulation'] = function updatePopulation (surroundCells) {
 var this$plaid=this;
 var numActive = 0;
 var plaidNewVar23 = function(cell) {
@@ -76,7 +93,7 @@ var returnVal = numActive;
 }
 return returnVal;
 };
-var plaidNewVar25 = array.each(plaidNewVar23);
+var plaidNewVar25 = surroundCells.each(plaidNewVar23);
 var vAr16$plaid = plaidNewVar25;
 var plaidNewVar26 = function(vAr15$plaid) {
 this$plaid.stateChange(plaidNewState_Unpopulated);
@@ -92,6 +109,19 @@ var plaidNewVar30 = plaidNewVar29(plaidNewVar27);
 var plaidNewVar31 = plaidNewVar30(plaidNewVar26);
 return plaidNewVar31;
 }
+plaidNewState_DeadCell['updateCell'] = function updateCell () {
+var this$plaid=this;
+var matchVar = this$plaid;
+if (matchVar.match("Populated")) {
+this$plaid.stateChange(plaidNewState_AliveCell);
+var returnVal = this$plaid;
+}
+else if (matchVar.match("Unpopulated")) {
+this$plaid.stateChange(plaidNewState_DeadCell);
+var returnVal = this$plaid;
+}
+return returnVal;
+}
 plaidNewState_DeadCell['onDeadCell'] = function onDeadCell () {
 var this$plaid=this;
 var plaidNewVar33 = "#" + this$plaid.id;
@@ -106,4 +136,4 @@ var plaidNewVar37 = jQuery(plaidNewVar36);
 var plaidNewVar35 = plaidNewVar37.removeClass("dead");
 return plaidNewVar35;
 }
-plaidNewState_DeadCell.tree = [['', [], 'with'], [['Cell', [], 'with'], [['DeadCell', ['update', 'onDeadCell', 'offDeadCell'], '']]]];
+plaidNewState_DeadCell.tree = [['', [], 'with'], [['Cell', [], 'with'], [['DeadCell', ['updatePopulation', 'updateCell', 'onDeadCell', 'offDeadCell'], '']]]];
