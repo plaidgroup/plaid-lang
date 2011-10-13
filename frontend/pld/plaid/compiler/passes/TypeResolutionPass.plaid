@@ -54,6 +54,11 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         }
     }
 
+    override method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> " + msg);
+    }
+
+
     method void setStructureForSymbol(shared Symbol sym, shared Structure struct) {
         this.symbolToStructureMap.put(sym, struct);
     }
@@ -67,9 +72,30 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         }
     }
 
-
-    override method void LOG(immutable String msg) {
-        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> " + msg);
+    
+    method void computeStateChangeForMethodCall(immutable ParsedMethodCall mcall,
+                                                immutable MethodSignature msig) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> computeStateChangeForMethodCall");
+        // check receiver 
+        if (msig.receiverSpec.changesState() ) {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>   receiver changes state from '" + msig.receiverSpec.inputType.structure.toString() + "' to '" + msig.receiverSpec.outputType.structure.toString() + "'" );
+            match (mcall.receiver) {
+                case ParsedIdentifier {
+                    val symbolOpt = symbolForAST(mcall.receiver);
+                    match (symbolOpt) {
+                        case Some {
+                            setStructureForSymbol(symbolOpt.value, msig.receiverSpec.outputType.structure);       
+                        }
+                        case None {
+                            ABORT("Cannot find symbol for receiver.");
+                        }
+                    }
+                }
+                default {
+                    ABORT("Only support statechange operations on variables.");
+                }
+            };
+        };
     }
 
 	override method immutable ParsedAbstractFieldDecl rewriteParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
@@ -232,6 +258,10 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                             val token = node.function.token;
                                         };
                                         addStructureForAST(methodCall, returnType.structure);
+                                        
+                                        // compute statechanges 
+                                        computeStateChangeForMethodCall(methodCall, signature.value);
+
                                         DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Method returns '" + returnType.toString()  +"'");
                                         methodCall
                                     }
@@ -701,6 +731,9 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                             val token = node.token;
                                         };
 
+                                        // compute state changes 
+                                        computeStateChangeForMethodCall(new_node, memberSignatureOpt.value);
+
                                         addStructureForAST(new_node, returnType.structure);
                                         new_node
                                     }
@@ -968,6 +1001,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                             val methodId = node.operator;
                                             val token = node.token;
                                         };
+
+                                        computeStateChangeForMethodCall(new_node, methodSigOption.value);
 
                                         addStructureForAST(new_node, returnType.structure);
                                         new_node
