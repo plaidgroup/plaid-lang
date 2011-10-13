@@ -96,6 +96,45 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 }
             };
         };
+
+        // check parameters
+        match (mcall.argument) {
+            case ParsedArgumentExpr {
+                ifElse ( mcall.argument.args.size() == msig.arguments.size() ) {
+                    var i = 0;
+                    while { i < msig.arguments.size() }{
+                        val argSpec = msig.arguments.get(i).value.second();                        
+                        
+                        if ( argSpec.changesState() ) {
+                            DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>     "+i+". parameter changes structure from '" + argSpec.inputType.structure.toString()+"' to '" + argSpec.outputType.structure.toString()+"'");
+                            match (mcall.argument.args.get(i).value) {
+                                case ParsedIdentifier {
+                                    val symbol = symbolForAST(mcall.argument.args.get(i).value);
+                                    match (symbol) {
+                                        case Some {
+                                            setStructureForSymbol(symbol.value, argSpec.outputType.structure);
+                                        }
+                                        case None {
+                                            ABORT("Cannot find symbol for '" + mcall.arguments.args.get(i).value.name +"'");
+                                        }
+                                    }
+                                }
+                                default {
+                                    ABORT("Only support state changes on variables.");
+                                }
+                            }
+                        }; 
+
+                        i = i + 1;
+                    }
+                }{
+                    ABORT("Method '" +msig.name +"' takes " + msig.arguments.size() +" parameters.");
+                }
+            }
+            default {
+                ABORT("Only support argument expression for method calls at the moment.");
+            }
+        }
     }
 
 	override method immutable ParsedAbstractFieldDecl rewriteParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
@@ -150,7 +189,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
             addStructureForAST(new_node, TOPSTRUCT);
         }{
             ifElse ( new_node.args.size() == 1 ) {
-                val elemStruc = structureForAST(new_node.args.get(0));
+                val elemStruc = structureForAST(new_node.args.get(0).value);
                 match (elemStruc) {
                     case Some {
                         addStructureForAST(new_node, elemStruc.value);
@@ -178,6 +217,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Application");
         match (node.function) {
             case ParsedIdentifier {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    function is identifier check for lambda or method");
                 // check for global method or variable with lambda
                 val symbol = symbolForAST(node.function);
                 match (symbol) {
@@ -185,11 +225,35 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         match (symbol.value) {
                             case VariableSymbol {
                                 // check for lambda
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    found variable check for lambda type");
                             }
                             case MethodSymbol {
                                 // top-level method
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    found global method");
+                                val signature = symbol.value.getSignature();
+                                val returnType = signature.returnType;
+                                        
+                                val new_argument = node.argument.rewrite(this);
+                                val new_staticArgs = makeLinkedList();
+                                val new_methodId = node.function.rewrite(this);
+                                node.staticArgs.map( fn (item) => new_staticArgs.add( item.rewrite(this)) );
+
+                                val methodCall = new ParsedMethodCall {
+                                    val argument   = new_argument;
+                                    val staticArgs = new_staticArgs;
+                                    val receiver   = new_function;
+                                    val methodId   = new_methodId;
+                                    val token      = node.function.token;
+                                };
+                                addStructureForAST(methodCall, returnType.structure);
+                                        
+                                // compute statechanges 
+                                computeStateChangeForMethodCall(methodCall, signature);
+                                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Method returns '" + returnType.toString()  +"'");
+                                methodCall           
                             }
                             default {
+                                
                                 val msg = "'"+node.function.name+"' is neither a lambda nor a method.";
                                 this.reporter.errorToken(java.io.File.new(this.sourceFile), node.funtion.token, msg);
                                 this.reporter.report();
@@ -677,21 +741,27 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                     case OwningSymbol {
                         val idStruct = symbol.value.getStructure();
                         addStructureForAST(new_node, idStruct);
+                        //DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    set '"+ new_node.name+"' to '"+ idStruct.toString()+"'");
                     }
                     case VariableSymbol {
                         val structOpt = getStructureForSymbol(symbol.value);
                         match ( structOpt ) {
                             case Some {
                                 addStructureForAST(new_node, structOpt.value);
+                                //DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    set '"+ new_node.name+"' to '"+ structOpt.value.toString()+"'");
                             }
                             case None {
                                 val idStruct = symbol.value.getStructure();
                                 addStructureForAST(new_node, idStruct);
+                                //DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    set '"+ new_node.name+"' to '"+ idStruct.toString()+"'");
                             }
                         }
                     }
+                    case MethodSymbol {
+                        // we don't have method types. therefore do nothing
+                    }
                     default { 
-                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> Cannot  resolve type for '" + node.name +"'"); 
+                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> Cannot resolve type for '" + node.name +"'"); 
                     }
                 }
             }
