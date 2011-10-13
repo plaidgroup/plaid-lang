@@ -58,8 +58,13 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         this.symbolToStructureMap.put(sym, struct);
     }
 
-    method shared Structure getStructureForSymbol(shared Symbol sym) {
-
+    method unique Option getStructureForSymbol(shared Symbol sym) {
+        ifElse (this.symbolToStructureMap.containsKey(sym) ) {
+            makeSome(this.symbolToStructureMap.get(sym))
+        }{
+            //ABORT("Cannot find structure for symbol. " + sym.toString());
+            new None
+        }
     }
 
 
@@ -237,7 +242,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                             }
                             case None { 
                                 val msg = "Cannot find '" + node.function.right.name + "' in type " + receiverStruct.toString();
-                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.function.left.token, msg);
                                 this.reporter.report();
                                 ABORT(msg);
                             }
@@ -644,8 +649,16 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         addStructureForAST(new_node, idStruct);
                     }
                     case VariableSymbol {
-                        val idStruct = symbol.value.getStructure();
-                        addStructureForAST(new_node, idStruct);
+                        val structOpt = getStructureForSymbol(symbol.value);
+                        match ( structOpt ) {
+                            case Some {
+                                addStructureForAST(new_node, structOpt.value);
+                            }
+                            case None {
+                                val idStruct = symbol.value.getStructure();
+                                addStructureForAST(new_node, idStruct);
+                            }
+                        }
                     }
                     default { 
                         DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> Cannot  resolve type for '" + node.name +"'"); 
@@ -825,6 +838,37 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 
         // state change has always type void
         addStructureForAST(new_node, VOID.structure);        
+
+        // statechange variable 
+        match ( new_node.expression ) {
+            case ParsedIdentifier {
+                ifElse ( node.expression.name == "this" ) {
+                    val symbolOpt = symbolForAST(new_node.expression);
+                    match (symbolOpt) {
+                        case Some {
+                            val structOpt = structureForAST(new_node.stateExpr);
+                            match (structOpt) {
+                                case Some {
+                                     DEBUG(DEBUG_PRIO_MEDIUM,"<TypeResolutionPass>     set structure for '"+ new_node.expression.name +"' to '" + structOpt.value.toString() +"'" );
+                                     setStructureForSymbol(symbolOpt.value, structOpt.value);
+                                }
+                                case None {
+                                     ABORT("Cannot find structure for state expression");
+                                }
+                            }
+                        }
+                        case None {
+                            ABORT("Cannot find symbol for 'this'.");
+                        }
+                    }
+                }{
+                    ABORT("Can only perform state change operation on 'this'.");
+                }
+            }
+            default {
+                ABORT("Can only perform state change operation on 'this'.");
+            }
+        };    
 
         new_node
 	}
