@@ -18,7 +18,47 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
         
         }
         case FieldSymbol {
-        
+          match (declNode) {
+            case ParsedConcreteFieldDecl {
+              val immutable MethodSymbol fieldSym = declSymOption.value;
+              val immutable MethodSignature fieldSig = fieldSym.getSignature();
+              
+              //TODO: create starting context using visitor that
+              // sven is writing to get needed top level field
+              // and method symbols
+              
+              /* create starting context for field initializer */
+              val unique LinearContext fieldContext = new LinearContext;
+              val immutable Type fieldType = fieldSig.getDeclaredType();
+              
+              
+              val unique TypecheckResult fieldResult = 
+                  typecheckExpression(fieldContext,
+                                      fieldType.permission,
+                                      declNode.expression);            
+              
+              if (!(fieldResult.expType.isSubTypeOf(fieldType))) {
+                ABORT("<typecheckField> initializer for field '" + 
+                      fieldSig.getFieldName() + "' has type '" +
+                      fieldResult.expType.toString() + 
+                      "' which is not a subtype of declared field type '" +
+                      fieldType.toString() + "'");      
+              };
+              
+              
+              //TODO: check we didn't change any used fields to a state
+              // not a subtype of their declared type 
+              
+              //this is a concrete field
+              true
+            }
+            case ParsedAbstractFieldDecl {
+              false
+            }
+            default {
+              ABORT("(implementation error) field symbol '" + declNode.name + "' not associated with method AST ")
+            }
+          }
         }
         case MethodSymbol {
           match (declNode) {
@@ -46,7 +86,7 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                 }
               });
               
-              //environment
+              //environment - TODO: need to check the environment
               val iter = methodSig.environment.keySet().iterator();
               while { iter.hasNext() } {
                 val immutable VariableSymbol envSym = iter.next();
