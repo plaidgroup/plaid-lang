@@ -54,6 +54,19 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         }
     }
 
+    method void setStructureForSymbol(shared Symbol sym, shared Structure struct) {
+        this.symbolToStructureMap.put(sym, struct);
+    }
+
+    method unique Option getStructureForSymbol(shared Symbol sym) {
+        ifElse (this.symbolToStructureMap.containsKey(sym) ) {
+            makeSome(this.symbolToStructureMap.get(sym))
+        }{
+            //ABORT("Cannot find structure for symbol. " + sym.toString());
+            new None
+        }
+    }
+
 
     override method void LOG(immutable String msg) {
         DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> " + msg);
@@ -229,7 +242,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                             }
                             case None { 
                                 val msg = "Cannot find '" + node.function.right.name + "' in type " + receiverStruct.toString();
-                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
+                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.function.left.token, msg);
                                 this.reporter.report();
                                 ABORT(msg);
                             }
@@ -359,39 +372,66 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 	override method immutable ParsedConcreteMethodDecl rewriteParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ConcreteMethodDecl");
 
-		val new_body = node.body.rewrite(this);
+        // populate context with variable mappings 
+        this.symbolToStructureMap.clear();
+
 		val new_returnType = node.returnType.rewrite(this);
-		val new_StaticArgsSpec = makeLinkedList();
-		node.StaticArgsSpec.map(fn (item) => { new_StaticArgsSpec.add(item.rewrite(this)) });
-		val new_arguments = makeLinkedList();
-		node.arguments.map(fn (item) => { 
+		val new_StaticArgsSpec = node.StaticArgsSpec.map(fn (item) => { item.rewrite(this) } );
+		val new_arguments = node.arguments.map( fn (item) => { 
             val new_item = item.rewrite(this);
-            new_arguments.add(new_item); 
             val symbol = symbolForAST(item);
             match (symbol) {
                 case Some {
                     match (symbol.value) {
                         case VariableSymbol {
-                            symbo.value.updateDeclaration(new_item);
+                             symbol.value.updateDeclaration(new_item);
+                             val struct = symbol.value.getStructure();
+                             DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>     add '" + symbol.value.name +"' to symbol context with structure " + struct.toString() );
+                             setStructureForSymbol(symbol.value, struct);
                         }
                         default {
-                            ABORT("Found invalid symbol for parameter.");
+                            ABORT("Found invalid symbol for parameter.  " + symbol.value);
                         }
                     }
                 }
                 case None {
                     ABORT("Cannot find symbol for parameter.");
                 }
-            }
+            };
+
+            new_item
         });
-		val new_environment = makeLinkedList();
-		node.environment.map(fn (item) => { 
-            val new_item = item.rewrite(this);
-            new_environment.add(new_item); 
+
+		val new_environment = node.environment.map(fn (item) => { 
+            val new_item = item.rewrite(this); 
+            
+            val symbol = symbolForAST(item);
+            match (symbol) {
+                case Some {
+                    match (symbol.value) {
+                        case VariableSymbol {
+                             symbol.value.updateDeclaration(new_item);
+                             val struct = symbol.value.getStructure();
+                             DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>     add '" + symbol.value.name +"' to symbol context with structure " + struct.toString());
+                             setStructureForSymbol(symbol.value, struct);
+                        }
+                        default {
+                            ABORT("Found invalid symbol for parameter.  " + symbol.value);
+                        }
+                    }
+                }
+                case None {
+                    ABORT("Cannot find symbol for parameter.");
+                }
+            };
+
+            new_item
         });
 		val new_name = node.name.rewrite(this);
-		val new_modifiers = makeLinkedList();
-		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+		val new_modifiers = node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+
+		val new_body = node.body.rewrite(this);
+
 
 		val new_node = new ParsedConcreteMethodDecl{
 			val body = new_body;
@@ -609,8 +649,16 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         addStructureForAST(new_node, idStruct);
                     }
                     case VariableSymbol {
-                        val idStruct = symbol.value.getStructure();
-                        addStructureForAST(new_node, idStruct);
+                        val structOpt = getStructureForSymbol(symbol.value);
+                        match ( structOpt ) {
+                            case Some {
+                                addStructureForAST(new_node, structOpt.value);
+                            }
+                            case None {
+                                val idStruct = symbol.value.getStructure();
+                                addStructureForAST(new_node, idStruct);
+                            }
+                        }
                     }
                     default { 
                         DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> Cannot  resolve type for '" + node.name +"'"); 
@@ -779,6 +827,52 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         new_node
 	}
 
+	override method immutable ParsedStateChange rewriteParsedStateChange(immutable ParsedStateChange node) {
+		LOG("rewrite ParsedStateChange");
+		// create new object
+		val new_node = new ParsedStateChange{
+			val expression = node.expression.rewrite(this);
+			val stateExpr = node.stateExpr.rewrite(this);
+			val token = node.token;
+		};
+
+        // state change has always type void
+        addStructureForAST(new_node, VOID.structure);        
+
+        // statechange variable 
+        match ( new_node.expression ) {
+            case ParsedIdentifier {
+                ifElse ( node.expression.name == "this" ) {
+                    val symbolOpt = symbolForAST(new_node.expression);
+                    match (symbolOpt) {
+                        case Some {
+                            val structOpt = structureForAST(new_node.stateExpr);
+                            match (structOpt) {
+                                case Some {
+                                     DEBUG(DEBUG_PRIO_MEDIUM,"<TypeResolutionPass>     set structure for '"+ new_node.expression.name +"' to '" + structOpt.value.toString() +"'" );
+                                     setStructureForSymbol(symbolOpt.value, structOpt.value);
+                                }
+                                case None {
+                                     ABORT("Cannot find structure for state expression");
+                                }
+                            }
+                        }
+                        case None {
+                            ABORT("Cannot find symbol for 'this'.");
+                        }
+                    }
+                }{
+                    ABORT("Can only perform state change operation on 'this'.");
+                }
+            }
+            default {
+                ABORT("Can only perform state change operation on 'this'.");
+            }
+        };    
+
+        new_node
+	}
+
 
 	override method immutable ParsedStateRef rewriteParsedStateRef(immutable ParsedStateRef node) {
 		LOG("rewrite ParsedStateRef");
@@ -871,7 +965,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
             case Some {
                 // update symbol 
                 //delSymbolForAST(node);
-                addSymbolForAST(new_node, symbol.value);
+                addSymbolForAST(new_node, VOID.structure);
                 //delSymbolForAST(node.id);
                 addSymbolForAST(new_node.id, symbol.value);
             }

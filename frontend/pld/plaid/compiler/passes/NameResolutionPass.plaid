@@ -349,7 +349,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 val fieldSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
                 match (fieldSymbol) {
                     case Some {
-                        addSymbolForAST(node, fieldSymbol.value);
+s                        addSymbolForAST(node, fieldSymbol.value);
                     }
                     case None {
                         ERROR("<NameResolutionPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
@@ -397,23 +397,28 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 
         // add arguments to context
-        node.arguments.map( fn (arg) => {
-            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(arg.name.name, node);
-            addSymbolForAST(arg.name, mySymbol);
+        node.arguments.do( fn (arg) => {
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(arg.name.name, arg);
+            addSymbolForAST(arg, mySymbol);
+            //addSymbolForAST(arg.name, mySymbol);
             val ctx = this.stack.peek().value;
             ctx.put(arg.name.name, mySymbol);
-            arg
+            arg.argSpec.accept(this);
         });
         
-        node.modifiers.map(fn (item) => { item.accept(this); item });
-        node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
+        node.modifiers.do(fn (item) => { item.accept(this)  });
+        node.StaticArgsSpec.do(fn (item) => { item.accept(this) });
         node.returnType.accept(this);
         //node.arguments.map(fn (item) => { item.accept(this); item });
-        node.environment.map(fn (item) => { item.accept(this); item });
+        node.environment.do(fn (item) => { 
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.name.name, item);
+            addSymbolForAST(item, mySymbol);            
+            item.argSpec.accept(this);            
+         });
         //node.name.accept(this);
 
         //node.body.accept(this);
-        node.body.statements.map( fn (stmt) => { stmt.accept(this); stmt });
+        node.body.statements.do( fn (stmt) => { stmt.accept(this) });
         
         this.stack.pop();
     }
