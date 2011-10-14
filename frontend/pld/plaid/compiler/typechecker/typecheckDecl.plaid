@@ -12,10 +12,93 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
     case Some {
       match (declSymOption.value) {
         case StateSymbol {
-        
+          match (declNode) {
+            case ParsedConcreteStateDecl {
+              val immutable StateSymbol stateSym = declSymOption.value;
+              //Check the binding
+              match (declNode.stateBinding) {
+                case ParsedDeclList {
+                  declNode.stateBinding.decls.reverseMap(
+                    fn (decl) => typecheckDecl(decl) 
+                  );
+                }
+                default {
+                  ABORT("(implementation error) only decl lists supported for state bindings")
+                }
+              };
+              
+              //check case of
+              match (declNode.caseOf) {
+                case ParsedEmptyQualifiedIdentifier { /* no op */ }
+                case ParsedQualifiedIdentifier {
+                  val immutable Option<immutable Symbol> caseOfSymOption = 
+                    symbolForAST(declNode.caseOf);
+                  match (caseOfSymOption) {
+                    case Some {
+                      val immutable Symbol caseOfSym = caseOfSymOption.value;
+                      match (caseOfSym) {
+                        case StateSymbol {
+                          /* - for a state to be a valid 'case of' if there are
+                               any members that are declared in this state and
+                               the super state, then either they must be abstract
+                               in the super state or overridden in the substate
+                             - If an abstract member is defined or a member is overriden
+                               then the declared signature must be a subsignature
+                               of the original declaration
+                          */
+                          val memberIterator = stateSym.declaredMembersIterator();
+                          while { memberIterator.hasNext() } {
+                            val currentMember = memberIterator.next();
+                            val superMemberOption = caseOfSym.getMember(currentMember.name);
+                            match (superMemberOption) {
+                              case Some {
+                                val immutable DeclSymbol superMember = superMemberOption.value;
+                                if (!(superMember.isAbstract()) && !(currentMember.isOverride())) {
+                                  ABORT("<typecheckState> state '" + stateSym.name + "' declares member '" +
+                                        currentMember.name + "' which is not abstract in its super state '" +
+                                        caseOfSym.name + "'");
+                                };
+                                
+                                
+                              }
+                              case None { /* nothing to check - new member */ }
+                            };
+
+                           
+                          
+                          };
+                             
+                          
+                        }
+                        default {
+                          ABORT("(implementation error) symbol for 'case of' QID '" + 
+                                makeStringFromQualifiedIdentifier(declNode.caseOf) + 
+                                "' is not a state symbol - don't know how to handle")
+                        }
+                      }
+                    }
+                    case None {
+                      ABORT("(implementation error) no symbol for 'case of' QID '" + 
+                            makeStringFromQualifiedIdentifier(declNode.caseOf) + "'")
+                    }
+                  }
+                  
+                  
+                }
+              };
+              
+              true
+            }
+            case ParsedAbstractStateDecl {
+              false 
+            }
+            default {
+              ABORT("(implementation error) state symbol '" + declNode.name + "' not associated with state AST ")
+            }
+          } 
         }
         case StateValSymbol {
-        
+          ABORT("(implementation error) not typing state symbols yet");
         }
         case FieldSymbol {
           match (declNode) {

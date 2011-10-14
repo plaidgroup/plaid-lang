@@ -13,10 +13,14 @@ import plaid.collections.makeLinkedList;
 state StateSymbol case of OwningSymbol {
     var immutable ParsedStateDecl declaration;
     val immutable OwningSymbol owner;
-    val unique Map<immutable String,immutable Symbol> members = java.util.HashMap.new();
+    val unique Map<immutable String,immutable Symbol> declaredMembers = java.util.HashMap.new();
+    val unique LinkedList<immutable DeclSymbol> declaredAbstractMembers = java.util.HashMap.new();
+    var /*unique Option<unique LinkedList<immutable DeclSymbol>>*/ 
+      computedAbstractMembersOption = new None;
     var unique Option<immutable Structure> stateStructureOption = new None;
     var unique Option<immutable Symbol> superStateSymbolOption = new None;
-    var /*unique Option<immutable LinkedList<immutable Symbol>>*/ dimensionOption = new None;
+    var /*unique Option<immutable LinkedList<immutable Symbol>>*/ 
+      dimensionOption = new None;
     var unique Option<immutable Permission> defaultPermOption = new None;
     var unique Option<immutable ThisSymbol> thisSymbol = NONE;
 
@@ -112,14 +116,61 @@ state StateSymbol case of OwningSymbol {
     }
 
     method void addMember(immutable Symbol member)[unique StateSymbol this] {
-        this.members.put(member.name, member);
+        this.declaredMembers.put(member.name, member);
+    }
+    
+    method void addAbstractMember(immutable Symbol member)[unique StateSymbol this] {
+        this.declaredMembers.put(member.name, member);
+        this.declaredAbstractMembers.add(member);
     }
 
     method unique Option<immutable Symbol> getMember(immutable String name) {
-        match (this.members.containsKey(name)) {
-          case True { makeSome(this.members.get(name)) }
+        match (this.declaredMembers.containsKey(name)) {
+          case True { makeSome(this.declaredMembers.get(name)) }
           case False { new None }
         }
+    }
+    
+    method unique Iterator<immutable DeclSymbol> declaredMembersIterator() {
+      this.declaredMembers.values().iterator()
+    }
+    
+    /**
+     *  returns a list of the abstract members declared in this state
+     *  or a super state (and not yet given a definition)
+     */
+    method immutable LinkedList<immutable Symbol> getAbstractMembers() {
+      
+      val camList = match (this.computedAbstractMembersOption  ) {
+        case Some { this.computedAbstractMembersOption.value }
+        case None { /* compute them */
+          // get abstract members declared in this state
+          val abstractMembers = this.declaredAbstractMembers.reverseMap(fn (sym) => sym);
+         
+          //get the abstract members from the super state
+          val superStateSymbol = this.getSuperStateSymbol();
+          val superStateAbstractMembers = match (superStateSymbol) {
+            case TopSymbol { makeLinkedList() }
+            case StateSymbol { superStateSymbol.getAbstractMembers() }
+          };
+          
+          //if a member with the same name as the abstract member
+          //is NOT declared in this state, then add the abstract
+          //member to the computed list.  Otherwise, it is abstract
+          //or concrete in this state and compatibility will be
+          //checked elsewhere
+          superStateAbstractMembers.do(fn (memberDecl) => {            
+            if (!(this.declaredMembers.containsKey(memberDecl.name))) {
+              abstractMembers.add(memberDecl)
+            }
+          });
+          this.computedAbstractMembersOption = makeSome(abstractMembers);
+          abstractMembers
+        }
+      
+      };
+      //return a copy of the list
+      camList.reverseMap(fn (decl) => decl);
     }
 
     method immutable Structure getStructure() {        
