@@ -6,11 +6,11 @@ var width = 21;
 var height = 21;
 var plaidNewVar1 = (plaidNewState_Box.specialize('Box', 'id', id).with(plaidNewState_Board.specialize('Board', 'width', width).specialize('Board', 'height', height))).instantiate();
 this$plaid.board = plaidNewVar1;
-var vAr174$plaid = this$plaid.board;
+var vAr176$plaid = this$plaid.board;
 var plaidNewVar2 = this$plaid.board.init();
-var vAr173$plaid = plaidNewVar2;
+var vAr175$plaid = plaidNewVar2;
 this$plaid.board.stateChange(plaidNewState_Glider);
-var vAr172$plaid = this$plaid.board;
+var vAr174$plaid = this$plaid.board;
 var id = "buttonStart";
 var plaidNewVar4 = function() {
 this$plaid.stateChange(plaidNewState_RunningPeriodicalTimer);
@@ -20,7 +20,7 @@ var onclick = plaidNewVar4;
 var plaidNewVar3 = plaidNewState_Button.specialize('Button', 'id', id).specialize('Button', 'onclick', onclick).instantiate();
 var buttonStart = plaidNewVar3;
 var plaidNewVar5 = buttonStart.init();
-var vAr171$plaid = plaidNewVar5;
+var vAr173$plaid = plaidNewVar5;
 var id = "buttonStop";
 var plaidNewVar7 = function() {
 this$plaid.stateChange(plaidNewState_StoppingPeriodicalTimer);
@@ -30,7 +30,7 @@ var onclick = plaidNewVar7;
 var plaidNewVar6 = plaidNewState_Button.specialize('Button', 'id', id).specialize('Button', 'onclick', onclick).instantiate();
 var buttonStop = plaidNewVar6;
 var plaidNewVar8 = buttonStop.init();
-var vAr170$plaid = plaidNewVar8;
+var vAr172$plaid = plaidNewVar8;
 var id = "buttonNext";
 var plaidNewVar10 = function() {
 var plaidNewVar11 = this$plaid.forward();
@@ -40,45 +40,45 @@ var onclick = plaidNewVar10;
 var plaidNewVar9 = plaidNewState_Button.specialize('Button', 'id', id).specialize('Button', 'onclick', onclick).instantiate();
 var buttonNext = plaidNewVar9;
 var plaidNewVar12 = buttonNext.init();
-var vAr169$plaid = plaidNewVar12;
+var vAr171$plaid = plaidNewVar12;
 var id = "selectBoard";
 var plaidNewVar14 = function(evt) {
 this$plaid.stateChange(plaidNewState_StoppingPeriodicalTimer);
-var vAr168$plaid = this$plaid;
+var vAr170$plaid = this$plaid;
 var v = evt.target.value;
-var plaidNewVar15 = function(vAr159$plaid) {
+var plaidNewVar15 = function(vAr161$plaid) {
 this$plaid.board.stateChange(plaidNewState_Glider);
 return this$plaid.board;
 };
 var plaidNewVar16 = v == "Glider";
 var plaidNewVar17 = if$plaid(plaidNewVar16);
 var plaidNewVar18 = plaidNewVar17(plaidNewVar15);
-var vAr167$plaid = plaidNewVar18;
-var plaidNewVar19 = function(vAr160$plaid) {
+var vAr169$plaid = plaidNewVar18;
+var plaidNewVar19 = function(vAr162$plaid) {
 this$plaid.board.stateChange(plaidNewState_TenCellRow);
 return this$plaid.board;
 };
 var plaidNewVar20 = v == "TenCellRow";
 var plaidNewVar21 = if$plaid(plaidNewVar20);
 var plaidNewVar22 = plaidNewVar21(plaidNewVar19);
-var vAr166$plaid = plaidNewVar22;
-var plaidNewVar23 = function(vAr161$plaid) {
+var vAr168$plaid = plaidNewVar22;
+var plaidNewVar23 = function(vAr163$plaid) {
 this$plaid.board.stateChange(plaidNewState_SmallExploder);
 return this$plaid.board;
 };
 var plaidNewVar24 = v == "SmallExploder";
 var plaidNewVar25 = if$plaid(plaidNewVar24);
 var plaidNewVar26 = plaidNewVar25(plaidNewVar23);
-var vAr165$plaid = plaidNewVar26;
-var plaidNewVar27 = function(vAr162$plaid) {
+var vAr167$plaid = plaidNewVar26;
+var plaidNewVar27 = function(vAr164$plaid) {
 this$plaid.board.stateChange(plaidNewState_Exploder);
 return this$plaid.board;
 };
 var plaidNewVar28 = v == "Exploder";
 var plaidNewVar29 = if$plaid(plaidNewVar28);
 var plaidNewVar30 = plaidNewVar29(plaidNewVar27);
-var vAr164$plaid = plaidNewVar30;
-var plaidNewVar31 = function(vAr163$plaid) {
+var vAr166$plaid = plaidNewVar30;
+var plaidNewVar31 = function(vAr165$plaid) {
 this$plaid.board.stateChange(plaidNewState_Spaceship);
 return this$plaid.board;
 };
@@ -107,7 +107,7 @@ return undefined;
 plaidNewState_DebugWriter.tree = [['', [], 'with'], [['DebugWriter', ['write'], 'with']]];
 function main () {
 var this$plaid=this;
-var plaidNewVar37 = function(vAr175$plaid) {
+var plaidNewVar37 = function(vAr177$plaid) {
 var plaidNewVar38 = plaidNewState_DebugWriter.instantiate();
 window.DebugWriter = plaidNewVar38;
 return window.DebugWriter;
@@ -115,7 +115,7 @@ return window.DebugWriter;
 var plaidNewVar39 = window.DebugWriter == undefined;
 var plaidNewVar40 = if$plaid(plaidNewVar39);
 var plaidNewVar41 = plaidNewVar40(plaidNewVar37);
-var vAr176$plaid = plaidNewVar41;
+var vAr178$plaid = plaidNewVar41;
 var interval = 500;
 var plaidNewVar43 = function() {
 var plaidNewVar44 = game.forward();
