@@ -35,6 +35,8 @@ import plaid.compiler.runJobToParsingBarrierPass;
 import plaid.compiler.CompilerJob;
 import plaid.compiler.util.classpathToList;
 
+import plaid.compiler.passes.*;
+
 import plaid.compiler.reporter.ConsoleReporter;
 
 import plaid.ast.parsed.*;
@@ -63,6 +65,7 @@ state ClasspathResolver case of Resolver {
          }{
              DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver> could not find '" + fqn + "' in cache");
              val /* List<...> */ lookupFunctions = makeEmptyList();
+             lookupFunctions.add(this.lookupBuiltIn);
              lookupFunctions.add(this.lookupFromPlaidSource);
              lookupFunctions.add(this.lookupPackages);
              lookupFunctions.add(this.lookupJavaClass);
@@ -161,6 +164,25 @@ state ClasspathResolver case of Resolver {
             
             d
          });
+     }
+
+
+     method /* Option<Symbol> */ lookupBuiltIn(immutable String fqn) {
+         DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver> Try to lookup built-in definition for '" + fqn +"'");
+
+         val buildInDir = "builtin/"; // TODO: make this depending on the compiler installation diretory
+
+         val templatePath = buildInDir + fqn.replace(".", "/") + ".plaid";
+         val unique File file = java.io.File.new(templatePath);
+         DEBUG(DEBUG_PRIO_MEDIUM,"<ClasspathResolver>    checking for '" + file.getAbsolutePath() +"'");
+         ifElse ( file.exists() ) {
+             DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    Found buildin definition");
+             loadBuiltInTypeFromPlaidSourceStream(fqn,
+                                                  java.io.FileInputStream.new(file),
+                                                  file.getAbsolutePath());     
+         }{
+             new None
+         }
      }
 
      method /* Option<Symbol> */ lookupJavaClass(immutable String fqn) {
@@ -377,4 +399,57 @@ state ClasspathResolver case of Resolver {
             NONE
          }
      }
+
+     method unique List getBuiltInJobPasses() {
+          val passes = makeEmptyList();
+
+          // parsing and basic checks pass 
+          passes.add(new ParsePass);
+          passes.add(new FileSystemCheckPass);
+          passes.add(new ImportCheckPass);
+          passes.add(new ParsingBarrierPass);
+          //passes.add(new ASTViewerPass);
+
+          // name expanding passes
+          passes.add(new NameResolutionPass);
+          passes.add(new NameResolutionBarrierPass);
+
+          // type resolution pass 
+          passes.add(new TypeResolutionBarrierPass);
+
+          passes
+     }
+
+
+     method /* Option<Symbol> */ loadBuiltInTypeFromPlaidSourceStream(immutable String fqn, 
+                                                                      unique InputStream fqnStream,
+                                                                      immutable String path) {
+
+         val source = new Source { val path = path; val stream = fqnStream; };
+         val job = new CompilerJob { 
+             val source = source; 
+             val resolver = this;
+             val reporter = new ConsoleReporter;
+             var passes = this.getBuiltInJobPasses();
+         };
+
+         // add job to global jobs
+         addJob(job);
+         // run 1st phase of job to get symbols
+         runJobToParsingBarrierPass(job);
+
+         ifElse ( job.status ) {
+             ifElse ( this.cache.containsKey(fqn) ) {
+                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>      found '" + fqn + "'");
+                makeSome(this.cache.get(fqn))
+             }{
+                NONE
+             }
+         }{
+            ERROR("<ClasspathResolver>     Could not parse '" + fqn + "'");
+            NONE
+         }
+     }
+
+
 }
