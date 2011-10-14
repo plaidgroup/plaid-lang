@@ -20,6 +20,7 @@
 package plaid.parser;
 
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
 import plaid.parser.ast.CompilationUnit;
@@ -28,6 +29,10 @@ import plaid.parser.ast.Expr;
 public class Parser {
 	private CompilationUnit cu;
 	private ParseException error;
+	
+	public Parser(String toParse, int tabSize) {
+		this(new ByteArrayInputStream(toParse.getBytes()), tabSize);
+	}
 	
 	public Parser(InputStream toParse, int tabSize) {
 		try {
