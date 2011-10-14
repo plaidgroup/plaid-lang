@@ -233,7 +233,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 	override method void visitParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAbstractMethodDecl");
-        match (this.currentState.peek() ) {
+        match ( this.currentState.peek() ) {
             case Some {
                 // member
                 val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.currentState.peek().value);
@@ -247,12 +247,59 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             }
         };
 		node.returnType.accept(this);
-		node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
-		node.arguments.map(fn (item) => { item.argSpec.accept(this); item });
-		node.environment.map(fn (item) => { item.accept(this); item });
+		node.StaticArgsSpec.do(fn (item) => { item.accept(this) });
+		node.arguments.do(fn (item) => { item.argSpec.accept(this) });
+		node.environment.do(fn (item) => { 
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.name.name, item);
+            addSymbolForAST(item, mySymbol);
+            addSymbolForAST(item.name, mySymbol);        
+            item.argSpec.accept(this);
+        });
 		//node.name.accept(this);
 		node.modifiers.map(fn (item) => { item.accept(this); item });
 	}
+
+	override method void visitParsedAbstractStateDecl(immutable ParsedAbstractStateDecl node) {
+		LOG("visit ParsedAbstractStateDecl");
+
+        match (this.currentState.peek() ) {
+            case Some {
+                 // inner state
+                 val stateSymbol = this.sf.makeStateSybmbol(node.name.name, node, this.currentState.peek().value);
+                 this.currentState.push(stateSymbol);
+                 addSymbolForAST(node.name, stateSymbol);
+                 addSymbolForAST(node, stateSymbol);
+         
+                 val ctx = this.stack.peek().value;
+                 ctx.put(node.name.name, stateSymbol);
+                 this.currentState.peek().value.addMember(stateSymbol);
+            }
+            case None {
+                // top-level  state
+                //val unique Option stateSymbol = this.stack.peek().value.find(node.name.name);
+                val unique Option stateSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
+                match (stateSymbol) {
+                    case None {
+                        ERROR("<NameResolutionPass> Cannot find symbol for state '" + node.name.name + "'");                        
+                    }
+                    case Some {
+                        this.currentState.push(stateSymbol.value);
+                        addSymbolForAST(node.name, stateSymbol.value);
+                        addSymbolForAST(node, stateSymbol.value);
+                    }
+                };
+            }
+        };
+
+		node.caseOf.accept(this);
+		node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
+		node.metaCaseOfArgs.map(fn (item) => { item.accept(this); item });
+		node.name.accept(this);
+		node.modifiers.map(fn (item) => { item.accept(this); item });
+
+        this.currentState.pop();
+	}
+
 
 	override method void visitParsedAssignment(immutable ParsedAssignment node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAssignment");
@@ -398,22 +445,28 @@ s                        addSymbolForAST(node, fieldSymbol.value);
 
         // add arguments to context
         node.arguments.do( fn (arg) => {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>     add parameter entry '" + item.name.name +"'");
             val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(arg.name.name, arg);
             addSymbolForAST(arg, mySymbol);
-            //addSymbolForAST(arg.name, mySymbol);
             val ctx = this.stack.peek().value;
             ctx.put(arg.name.name, mySymbol);
             arg.argSpec.accept(this);
         });
-        
+
         node.modifiers.do(fn (item) => { item.accept(this)  });
         node.StaticArgsSpec.do(fn (item) => { item.accept(this) });
         node.returnType.accept(this);
-        //node.arguments.map(fn (item) => { item.accept(this); item });
         node.environment.do(fn (item) => { 
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>     add environment entry '" + item.name.name +"'");
             val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.name.name, item);
             addSymbolForAST(item, mySymbol);            
-            item.argSpec.accept(this);            
+            item.argSpec.accept(this);
+
+            // add this to the context
+            if ( item.name.name == "this") {
+                val ctx = this.stack.peek().value;
+                ctx.put(item.name.name, mySymbol);  
+            };
          });
         //node.name.accept(this);
 
@@ -458,8 +511,8 @@ s                        addSymbolForAST(node, fieldSymbol.value);
         // create this and add new context
         val stateCtx = new LocalContext{ parent = this.stack.peek().value;};
         this.stack.push(stateCtx);
-        val shared ThisSymbol thisSymbol = this.currentState.peek().value.getThisSymbol();
-        stateCtx.put("this", thisSymbol);
+        //val shared ThisSymbol thisSymbol = this.currentState.peek().value.getThisSymbol();
+        //stateCtx.put("this", thisSymbol);
 
 
 		node.caseOf.accept(this);
