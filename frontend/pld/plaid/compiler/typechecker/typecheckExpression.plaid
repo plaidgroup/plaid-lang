@@ -73,7 +73,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                   match (ctx.containsSymbol(targetVarSymbolOption.value)) {
                     case True {
                       val immutable Type targetType = ctx.get(targetVarSymbolOption.value);
-                      match (targetType.permission.isSubPermOf(LOCALSHARED)) {
+                      match (targetType.permission.isSubPermOf(LOCALSHARED)) { //need at least local shared to assign to a field
                         case True {    
                           match(targetType.structure) {
                             case ObjectStructure {
@@ -527,23 +527,105 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
     }
     case ParsedNewInstance { 
       match (exp.stateExpr) {
-        case ParsedIdentifier { 
-          val immutable Symbol stateSymOption = symbolForAST(exp.stateExpr);
-          match (stateSymOption) {
-            case Some {
-              val immutable Symbol stateSym = stateSymOption.value;
-              match (stateSym) {
-                case StateSymbol {
-                  val immutable Structure stateStruct = makeNominalStructure(stateSym);
-                  makeTypecheckResult(makeType(neededPerm,stateStruct),ctx,makeLinkedList());
+        case ParsedStateRef {
+          match (exp.stateExpr.stateExpr) {
+            case ParsedIdentifier { 
+              val immutable Symbol stateSymOption = symbolForAST(exp.stateExpr.stateExpr);
+              match (stateSymOption) {
+                case Some {
+                  val immutable Symbol stateSym = stateSymOption.value;
+                  match (stateSym) {
+                    case StateSymbol {
+                      val immutable LinkedList<immutable DeclSymbol> abstractMembers = stateSym.getAbstractMembers();
+                      abstractMembers.do(fn (abstractMemberSymbol) => {
+                        //look for a concrete decl in the specializations
+                        val immutable Option<immutable Signature> declOption = exp.stateExpr.specializations.find(fn (sp) => {
+                          match (sp) {
+                            case ParsedDecl {
+                              sp.name.name.equals(abstractMemberSymbol.name)
+                            }
+                            default { false }
+                          }
+                        });
+                        
+
+                        val immutable Signature declSig = match (declOption) {
+                          case Some { //if there is one, grab its signature
+                            val decl = declOption.value;
+                            match (decl) {
+                              case ParsedConcreteFieldDecl {
+                                val immutable Option<immutable Symbol> fieldSymOption = symbolForAST(decl);
+                                match (fieldSymOption) {
+                                  case Some {
+                                    val immutable Symbol fieldSym = fieldSymOption.value;
+                                    match (fieldSym) {
+                                      case FieldSymbol {
+                                        fieldSym.getSignature()
+                                      }
+                                      default { ABORT("(implementation error) unexpected symbol for field Decl specialization in new instance") }
+                                    } 
+                                  }
+                                  case None { ABORT("(implementation error) no symbol for field Decl specialization in new instance") }
+                                } 
+                              }
+                              case ParsedConcreteMethodDecl {
+                                val immutable Option<immutable Symbol> methodSymOption = symbolForAST(sp);
+                                match (methodSymOption) {
+                                  case Some {
+                                    val immutable Symbol methodSym = methodSymOption.value;
+                                    match (methodSym) {
+                                      case MethodSymbol {
+                                        methodSym.getSignature();
+                                      }
+                                      default { ABORT("(implementation error) unexpected symbol for method Decl specialization in new instance") }
+                                    } 
+                                  }
+                                  case None { ABORT("(implementation error) no symbol for method Decl specialization in new instance") }
+                                } 
+                              }
+                              case ParsedConcreteStateDecl { ABORT("(implementation error) state decls not implemented in specializers") }
+                              case ParsedAbstractStateDecl { ABORT("(implementation error) state decls not implemented in specializers") }
+                              case ParsedAbstractMethodDecl {
+                                ABORT("<typecheckExpression>(newInstance) abstract specialization declaration cannot implement abstract member '" +
+                                      abstractMemberSymbol.name + "' when instantiating state '" + stateSym.name + "'")
+                              }
+                              case ParsedAbstractFieldDecl {
+                                ABORT("<typecheckExpression>(newInstance) abstract specialization declaration cannot implement abstract member '" +
+                                      abstractMemberSymbol.name + "' when instantiating state '" + stateSym.name + "'")
+                              }
+                            }
+                          }
+                          case None { //otherwise error - not all members of state concrete
+                            ABORT("<typecheckExpression>(newInstance) no concrete declaration for abstract member '" +
+                                  abstractMemberSymbol.name + "' when instantiating state '" + stateSym.name + "'")
+                          }                       
+                        };
+                        
+                        //check that the concrete signature is a subsignature of the abstract declaration
+                        // error if not
+                        if (!(declSig.isSubSignatureOf(abstractMemberSymbol.getSignature()))) {
+                          ABORT("<typecheckExpression>(newInstance) concrete declaration for abstract member '" +
+                                  abstractMemberSymbol.name + "' no a substate of original declaration when instantiating state '" 
+                                  + stateSym.name + "'")
+                        }
+                        //otherwise, pass
+                      });
+                    
+                      //if all abstract members were found (no errors), then create a nominal type from the state for the return structure
+                      val immutable Structure stateStruct = makeNominalStructure(stateSym);
+                      makeTypecheckResult(makeType(neededPerm,stateStruct),ctx,makeLinkedList());
+                    }
+                    default { ABORT("(implementation error) unexpected symbol found for state '" + stateSym.name + "'") } 
+                  }
                 }
-                default { ABORT("(implementation error) Identifier state Exprs not yet implemented") }
-              } 
+                case None { ABORT("<typecheckExpression>(New) no symbol found for stateExpr '" + exp.stateExpr.name + "'") }
+              }
             }
-            case None { ABORT("<typecheckExpression>(New) no symbol found for stateExpr '" + exp.stateExpr.name + "'") }
+            default { ABORT("(implementation error) non-ID state refs not yet implemented") } 
           }
         }
-        case ParsedDereference { ABORT("(implementation error) deref state Exprs not yet implemented") } 
+        case ParsedWith { ABORT("(implementation error) composition not yet implemented") }
+        default { ABORT("(implementation error) unexpected state node '" + exp.stateExpr.nodeName() + "' when typechecking new instance") }
       }
     }
     case ParsedReplace { 
