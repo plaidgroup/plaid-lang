@@ -43,6 +43,42 @@ state MethodSignature case of Signature {
       }
     }
     
+    /**
+     * contravariant in the inputs, covariant in the outputs
+     * EXCEPT receiver input STRUCTURE
+     *   because of dynamic dispatch, we can disregard the structure of the input type of the
+     *   receiver.  If this method is executed, then we know the receiver
+     *   must have the type of the state it is declared in.  Therefore, we just have to guarantee
+     *   as a part of method declaration that the receiver input is a supertype of the type
+     *   represented by the declaring state.  However, this does not extend to the permission
+     *   nor does it extend to states outside the dimension along which the method is
+     *   overridden once we get composition.  Therefore, it will need to be modified at
+     *   that time. 
+     * same number of arguments, names don't matter
+     * don't worry about environment right now
+     */
+    method immutable Boolean isSubSignatureOf(immutable Signature other) {
+      match (other) {
+        case MethodSignature {
+          match (this.returnType.isSubTypeOf(other.returnType) &&
+                 other.receiverSpec.inputType.permission.isSubPermOf(this.receiverSpec.inputType.permission) &&
+                 this.receiverSpec.outputType.isSubTypeOf(other.receiverSpec.outputType) &&
+                 this.name.equals(other.name) &&
+                 this.arguments.size() == other.arguments.size()) 
+          {
+            case True {
+              this.arguments.zipReverse(other.arguments).reduce(true, 
+                fn (acc, argPair) => acc && (argPair.snd.snd.inputType.isSubTypeOf(argPair.fst.snd.inputType))
+                                         && (argPair.fst.snd.outputType.isSubTypeOf(argPair.snd.snd.outputType))
+              )
+            }
+            case False { false }
+          }  
+        }
+        default { false }
+      }
+    }
+    
     //TODO - ignoring static Args for now
     method immutable String toString() {
       val immutable String argString = 
