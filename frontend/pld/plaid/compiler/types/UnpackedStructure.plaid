@@ -37,18 +37,85 @@ state UnpackedStructure case of ObjectStructure {
   }
   
   /**
-   * Unpacked structures do not have least upper bounds
+   * LUB of a unpacked structure and a nominal structure is either the unpacked structure
+   *   if the underlying structure of the unpacked structure is the same as the nominal structure, or nothing
+   * LUB of two unpacked structures is the combination of their unpacked fields as long as they have the
+   *   same underlying nominal structure and any unpacked fields they share are unpacked to the same type
+   * LUB of an unpacked structure and TOP is TOP
    */
   method unique Option<immutable Structure> leastUpperBound(immutable Structure other)[immutable UnpackedStructure this] {
-    new None;
+    match (other) {
+      case NominalStructure {
+        match (other.isSubStructureOf(this)) {
+          case True { makeSome(this) }
+          case False { new None }
+        }
+      }
+      case UnpackedStructure {
+        match (this.unpackedStructure == other.unpackedStructure) {
+          case True {
+            val newUnpackedFieldsMap = HashMap.new();
+            newUnpackedFieldsMap.putAll(this.unpackedFields);
+            val iter = other.unpackedFields.keySet().iterator();
+            var ok = true;
+            while { ok && iter.hasNext() } {
+              val fieldName = iter.next();
+              match (newUnpackedFieldsMap.containsKey(fieldName)) {
+                case True {
+                  //either they are the same in which case no adding is needed, or they are differe
+                  //in which case the lub fails
+                  ok = newUnpackedFieldsMap.get(fieldName) == other.unpackedFields.get(fieldName);
+                }
+                case False {
+                  newUnpackedFieldsMap.put(fieldName, other.unpackedFields.get(fieldName));
+                }
+              }
+            
+            };
+            match (ok) {
+              case True { makeSome(makeUnpackedStructureWithFieldMap(this.unpackedStructure, newUnpackedFieldsMap)) }
+              case False { new None }
+            }
+          }
+          case False { new None }
+        }
+      }
+      case TopStructure { makeSome(TOPSTRUCT) }
+      default { new None }
+    }
   }
   
   /**
-   * unpacked structures cannot be used in place of any other structures
-   * might want to relax this in the future
+   * unpacked structures are substructures of other unpacked structures that have the same underlying
+   * nominal type and have a superset of the collection of unpacked fields.  The types that the fields
+   * are unpacked to must be equivalent.
    */
   method immutable Boolean isSubStructureOf(immutable Structure other)[immutable UnpackedStructure this] {
-    false
+    match (other) {
+      case UnpackedStructure {
+        match (this.unpackedStructure == other.unpackedStructure &&
+               this.unpackedFields.size() <= other.unpackedFields.size())
+        {
+          case True {
+            val iter = this.unpackedFields.keySet().iterator();
+            var ok = true;
+            while { ok && iter.hasNext() } {
+              val fieldName = iter.next();
+              match (other.unpackedFields.containsKey(fieldName)) {
+                case True {
+                  ok = this.unpackedFields.get(fieldName) == other.unpackedFields.get(fieldName);
+                }
+                case False { ok = false; }
+              };
+              ok
+            }
+          }
+          case False { false }
+        } 
+      }
+      case TopStructure { true }
+      default { false }
+    }
   }
   
   method immutable String toString()[immutable UnpackedStructure] {
