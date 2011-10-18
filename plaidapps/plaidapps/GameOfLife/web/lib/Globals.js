@@ -85,3 +85,18 @@ var while$plaid = function(cond) {
 	};
 	return plaidNewVar15;
 };
+
+var Plaid = {
+	//determine callback function from name
+	isCallback: function(name) {
+		return this.isCallbackOnActivate(name) || this.isCallbackOnPassivate(name);
+	},
+
+	isCallbackOnActivate: function(name) {
+		return name.indexOf("on") == 0;
+	},
+
+	isCallbackOnPassivate: function (name) {
+		return name.indexOf("off") == 0;
+	}
+};
