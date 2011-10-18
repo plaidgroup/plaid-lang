@@ -4,32 +4,52 @@ state GameOfLife {
   var board;
 
 	method init() {
+		var startTimer = fn() => {
+     	this <- RunningPeriodicalTimer;
+    	buttonStop <- Visible;
+    	buttonStart <- Invisible;
+    	buttonNext <- Disabled;
+    };					 
+		var stopTimer = fn() => {
+		  this <- StoppingPeriodicalTimer;
+			buttonStop <- Invisible;
+  		buttonStart <- Visible;
+	  	buttonNext <- Enabled;
+  	};
+
 	  this.board = new Box { id = "gameBoard"; }  with Board { width = 21; height = 21;};
 	  this.board.init();
     this.board <- Glider;
 
 		var buttonStart = new Button{
 		  id = "buttonStart";
-			click = fn()=>{this <- RunningPeriodicalTimer;};
-    };
+			click = fn()=>{
+			  startTimer();
+			};
+    } with Visibility;
 		buttonStart.init();
+		buttonStart <- Visible;
 
 		var buttonStop = new Button{
 		  id = "buttonStop";
-			click = fn()=>{this <- StoppingPeriodicalTimer;};
-	  };
+			click = fn()=>{
+			  stopTimer();
+			};
+	  } with Visibility;
 		buttonStop.init();
+		buttonStop <- Invisible;
 
 		var buttonNext = new Button{
 		  id = "buttonNext";
 			click = fn()=>{this.forward();};
-		};
+		} with Availability;
 		buttonNext.init();
+		buttonNext <- Enabled;
 		
     var selectBoard = new DropDownList{
 		  id = "selectBoard";
-			change = fn(evt)=>{
-  		  this <- StoppingPeriodicalTimer;
+			beforeChange = fn(evt)=>{
+  		  stopTimer();
   		};
 		};
 		selectBoard.init();
@@ -49,6 +69,28 @@ state GameOfLife {
 		var optionSpaceship = new Option { name = "Spaceship"; value = "Spaceship"; onSelectedOption = fn()=>{ this.board <- Spaceship; }; };
 		optionSpaceship.init(selectBoard);
 
+
+		var selectSpeed = new DropDownList {
+		  id = "selectSpeed";
+			afterChange = fn(evt)=>{
+			  match(this) {
+				  case RunningPeriodicalTimer {
+    			  stopTimer();
+		     	  startTimer();
+					}
+		    };
+			};
+		};
+		selectSpeed.init();
+
+		var optionSlow = new Option { name = "slow"; value = "slow"; onSelectedOption = fn()=>{ this <- SlowGameOfLife; }; };
+		optionSlow.init(selectSpeed);
+
+		var optionFast = new Option { name = "fast"; value = "fast"; onSelectedOption = fn()=>{ this <- FastGameOfLife; }; };
+		optionFast.init(selectSpeed);
+
+		var optionHyper = new Option { name = "hyper"; value = "hyper"; onSelectedOption = fn()=>{ this <- HyperGameOfLife; }; };
+		optionHyper.init(selectSpeed);
   }
 
 	method forward() {
@@ -56,14 +98,29 @@ state GameOfLife {
 	}
 }
 
+state SlowGameOfLife case of GameOfLife {
+  method onSlowGameOfLife(){ this.interval = 500; }
+  method offSlowGameOfLife(){}
+}
+
+state FastGameOfLife case of GameOfLife {
+  method onFastGameOfLife(){ this.interval = 300; }
+  method offFastGameOfLife(){}
+}
+
+state HyperGameOfLife case of GameOfLife {
+  method onHyperGameOfLife(){ this.interval = 100; }
+  method offHyperGameOfLife(){}
+}
 
 method main() {
 	if(window.DebugWriter == undefined){
 	  window.DebugWriter = new DebugWriter{};
 	};
 
-  var game = new GameOfLife{} with PeriodicalTimer{ interval = 500; callback = fn() => { game.forward(); }; };
+  var game = new GameOfLife{} with PeriodicalTimer{ callback = fn() => { game.forward(); }; };
   game.init();
+	game <- SlowGameOfLife;
 }
 
 state DebugWriter {
