@@ -23,13 +23,13 @@ plaidNewState_TextBox['node'] = plaidNewState_UIComponent['node'];
 plaidNewState_TextBox['init'] = function init () {
 var this$plaid=this;
 this$plaid.stateChange(plaidNewState_EmptyTextBox);
-var vAr199$plaid = this$plaid;
+var vAr197$plaid = this$plaid;
 var plaidNewVar6 = this$plaid.onEmpty();
-var vAr198$plaid = plaidNewVar6;
+var vAr196$plaid = plaidNewVar6;
 var plaidNewVar7 = function() {
 var plaidNewVar8 = this$plaid.node(this$plaid.id);
 var plaidNewVar9 = this$plaid.update(plaidNewVar8.value);
-var vAr195$plaid = plaidNewVar9;
+var vAr193$plaid = plaidNewVar9;
 var plaidNewVar11 = this$plaid.members();
 var plaidNewVar10 = plaidNewVar11.toString();
 var plaidNewVar15 = this$plaid.tags();
@@ -40,17 +40,17 @@ var plaidNewVar16 = plaidNewVar17 + plaidNewVar14;
 var plaidNewVar13 = plaidNewVar16 + "<br />";
 var plaidNewVar12 = plaidNewVar13 + plaidNewVar10;
 str = plaidNewVar12;
-var vAr194$plaid = str;
+var vAr192$plaid = str;
 var plaidNewVar19 = DebugWriter.write(str);
 return plaidNewVar19;
 };
 var f = plaidNewVar7;
 var plaidNewVar21 = this$plaid.node(this$plaid.id);
 var plaidNewVar20 = plaidNewVar21.addEventListener("keyup",f);
-var vAr197$plaid = plaidNewVar20;
+var vAr195$plaid = plaidNewVar20;
 var plaidNewVar23 = this$plaid.node(this$plaid.id);
 var plaidNewVar22 = plaidNewVar23.addEventListener("focusout",f);
-var vAr196$plaid = plaidNewVar22;
+var vAr194$plaid = plaidNewVar22;
 var plaidNewVar24 = function() {
 var plaidNewVar25 = this$plaid.node(this$plaid.id);
 var plaidNewVar26 = this$plaid.update(plaidNewVar25.value);
@@ -61,16 +61,16 @@ return plaidNewVar27;
 }
 plaidNewState_TextBox['update'] = function update (text) {
 var this$plaid=this;
-var plaidNewVar28 = function(vAr203$plaid) {
+var plaidNewVar28 = function(vAr201$plaid) {
 this$plaid.stateChange(plaidNewState_EmptyTextBox);
 return this$plaid;
 };
-var plaidNewVar29 = function(vAr202$plaid) {
-var plaidNewVar30 = function(vAr201$plaid) {
+var plaidNewVar29 = function(vAr200$plaid) {
+var plaidNewVar30 = function(vAr199$plaid) {
 this$plaid.stateChange(plaidNewState_InvalidTextBox);
 return this$plaid;
 };
-var plaidNewVar31 = function(vAr200$plaid) {
+var plaidNewVar31 = function(vAr198$plaid) {
 this$plaid.stateChange(plaidNewState_ValidTextBox);
 return this$plaid;
 };
@@ -140,98 +140,204 @@ return undefined;
 plaidNewState_ValidTextBox.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['TextBox', ['init', 'update'], ''], [['ValidTextBox', ['validate', 'onValid', 'offValid'], '']]]]];
 var plaidNewState_Button = new PlaidState();
 plaidNewState_Button['node'] = plaidNewState_UIComponent['node'];
-var plaidNewVar44 = function() {
-return undefined;
-};
-plaidNewState_Button['onclick'] = plaidNewVar44;
 plaidNewState_Button['init'] = function init () {
 var this$plaid=this;
-var plaidNewVar46 = this$plaid.node(this$plaid.id);
-var plaidNewVar45 = plaidNewVar46.addEventListener("click",this$plaid.onclick);
+var plaidNewVar44 = function() {
+var plaidNewVar45 = this$plaid.mousedown();
 return plaidNewVar45;
+};
+var plaidNewVar47 = this$plaid.node(this$plaid.id);
+var plaidNewVar46 = plaidNewVar47.addEventListener("mousedown",plaidNewVar44);
+var vAr203$plaid = plaidNewVar46;
+var plaidNewVar48 = function() {
+var plaidNewVar49 = this$plaid.mouseup();
+return plaidNewVar49;
+};
+var plaidNewVar51 = this$plaid.node(this$plaid.id);
+var plaidNewVar50 = plaidNewVar51.addEventListener("mouseup",plaidNewVar48);
+var vAr202$plaid = plaidNewVar50;
+var plaidNewVar52 = function() {
+var plaidNewVar53 = this$plaid.mouseout();
+return plaidNewVar53;
+};
+var plaidNewVar55 = this$plaid.node(this$plaid.id);
+var plaidNewVar54 = plaidNewVar55.addEventListener("mouseout",plaidNewVar52);
+return plaidNewVar54;
 }
-plaidNewState_Button.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['Button', ['onclick', 'init'], '']]]];
+plaidNewState_Button['mousedown'] = function mousedown () {
+var this$plaid=this;
+this$plaid.stateChange(plaidNewState_PressedButton);
+return this$plaid;
+}
+plaidNewState_Button['mouseup'] = function mouseup () {
+var this$plaid=this;
+var matchVar = this$plaid;
+if (matchVar.match("PressedButton")) {
+var plaidNewVar56 = this$plaid.click();
+var vAr204$plaid = plaidNewVar56;
+this$plaid.stateChange(plaidNewState_UnpressedButton);
+var returnVal = this$plaid;
+}
+return returnVal;
+}
+plaidNewState_Button['mouseout'] = function mouseout () {
+var this$plaid=this;
+this$plaid.stateChange(plaidNewState_UnpressedButton);
+return this$plaid;
+}
+plaidNewState_Button.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['Button', ['init', 'mousedown', 'mouseup', 'mouseout'], '']]]];
+var plaidNewState_PressedButton = new PlaidState();
+plaidNewState_PressedButton['node'] = plaidNewState_Button['node'];
+plaidNewState_PressedButton['init'] = plaidNewState_Button['init'];
+plaidNewState_PressedButton['mousedown'] = plaidNewState_Button['mousedown'];
+plaidNewState_PressedButton['mouseup'] = plaidNewState_Button['mouseup'];
+plaidNewState_PressedButton['mouseout'] = plaidNewState_Button['mouseout'];
+plaidNewState_PressedButton['onPressedButton'] = function onPressedButton () {
+var this$plaid=this;
+return undefined;
+}
+plaidNewState_PressedButton['offPressedButton'] = function offPressedButton () {
+var this$plaid=this;
+return undefined;
+}
+plaidNewState_PressedButton.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['Button', ['init', 'mousedown', 'mouseup', 'mouseout'], ''], [['PressedButton', ['onPressedButton', 'offPressedButton'], '']]]]];
+var plaidNewState_UnpressedButton = new PlaidState();
+plaidNewState_UnpressedButton['node'] = plaidNewState_Button['node'];
+plaidNewState_UnpressedButton['init'] = plaidNewState_Button['init'];
+plaidNewState_UnpressedButton['mousedown'] = plaidNewState_Button['mousedown'];
+plaidNewState_UnpressedButton['mouseup'] = plaidNewState_Button['mouseup'];
+plaidNewState_UnpressedButton['mouseout'] = plaidNewState_Button['mouseout'];
+plaidNewState_UnpressedButton['onUnpressedButton'] = function onUnpressedButton () {
+var this$plaid=this;
+return undefined;
+}
+plaidNewState_UnpressedButton['offUnpressedButton'] = function offUnpressedButton () {
+var this$plaid=this;
+return undefined;
+}
+plaidNewState_UnpressedButton.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['Button', ['init', 'mousedown', 'mouseup', 'mouseout'], ''], [['UnpressedButton', ['onUnpressedButton', 'offUnpressedButton'], '']]]]];
 var plaidNewState_DropDownList = new PlaidState();
 plaidNewState_DropDownList['node'] = plaidNewState_UIComponent['node'];
-var plaidNewVar47 = function() {
+var plaidNewVar57 = returnArray();
+plaidNewState_DropDownList['options'] = plaidNewVar57;
+var plaidNewVar58 = function() {
 return undefined;
 };
-plaidNewState_DropDownList['onchange'] = plaidNewVar47;
+plaidNewState_DropDownList['change'] = plaidNewVar58;
 plaidNewState_DropDownList['init'] = function init () {
 var this$plaid=this;
-var plaidNewVar49 = this$plaid.node(this$plaid.id);
-var plaidNewVar48 = plaidNewVar49.addEventListener("change",this$plaid.onchange);
-return plaidNewVar48;
+var plaidNewVar59 = function(evt) {
+var plaidNewVar60 = this$plaid.change();
+var vAr207$plaid = plaidNewVar60;
+var v = evt.target.value;
+var plaidNewVar61 = function(o) {
+var matchVar = o;
+if (matchVar.match("SelectedOption")) {
+o.stateChange(plaidNewState_UnselectedOption);
+var returnVal = o;
 }
-plaidNewState_DropDownList.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['DropDownList', ['onchange', 'init'], '']]]];
+var vAr206$plaid = returnVal;
+var plaidNewVar62 = function(vAr205$plaid) {
+o.stateChange(plaidNewState_SelectedOption);
+return o;
+};
+var plaidNewVar63 = o.value == v;
+var plaidNewVar64 = if$plaid(plaidNewVar63);
+var plaidNewVar65 = plaidNewVar64(plaidNewVar62);
+return plaidNewVar65;
+};
+var plaidNewVar66 = this$plaid.options.each(plaidNewVar61);
+return plaidNewVar66;
+};
+var plaidNewVar68 = this$plaid.node(this$plaid.id);
+var plaidNewVar67 = plaidNewVar68.addEventListener("change",plaidNewVar59);
+return plaidNewVar67;
+}
+plaidNewState_DropDownList['addOption'] = function addOption (option) {
+var this$plaid=this;
+var plaidNewVar69 = this$plaid.options.push(option);
+return plaidNewVar69;
+}
+plaidNewState_DropDownList.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['DropDownList', ['options', 'change', 'init', 'addOption'], '']]]];
 var plaidNewState_Option = new PlaidState();
 plaidNewState_Option['node'] = plaidNewState_UIComponent['node'];
 plaidNewState_Option['init'] = function init (parent) {
 var this$plaid=this;
-var plaidNewVar52 = jQuery("<option />");
-var plaidNewVar51 = plaidNewVar52.attr("value",this$plaid.value);
-var plaidNewVar50 = plaidNewVar51.text(this$plaid.name);
-var plaidNewVar54 = "#" + parent.id;
-var plaidNewVar55 = jQuery(plaidNewVar54);
-var plaidNewVar53 = plaidNewVar55.append(plaidNewVar50);
-return plaidNewVar53;
+var plaidNewVar70 = parent.addOption(this$plaid);
+return plaidNewVar70;
 }
-plaidNewState_Option['onOption'] = function onOption () {
+plaidNewState_Option.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['Option', ['init'], '']]]];
+var plaidNewState_SelectedOption = new PlaidState();
+plaidNewState_SelectedOption['node'] = plaidNewState_Option['node'];
+plaidNewState_SelectedOption['init'] = plaidNewState_Option['init'];
+plaidNewState_SelectedOption['onSelectedOption'] = function onSelectedOption () {
 var this$plaid=this;
 return undefined;
 }
-plaidNewState_Option['offOption'] = function offOption () {
+plaidNewState_SelectedOption['offSelectedOption'] = function offSelectedOption () {
 var this$plaid=this;
 return undefined;
 }
-plaidNewState_Option.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['Option', ['init', 'onOption', 'offOption'], '']]]];
+plaidNewState_SelectedOption.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['Option', ['init'], ''], [['SelectedOption', ['onSelectedOption', 'offSelectedOption'], '']]]]];
+var plaidNewState_UnselectedOption = new PlaidState();
+plaidNewState_UnselectedOption['node'] = plaidNewState_Option['node'];
+plaidNewState_UnselectedOption['init'] = plaidNewState_Option['init'];
+plaidNewState_UnselectedOption['onUnselectedOption'] = function onUnselectedOption () {
+var this$plaid=this;
+return undefined;
+}
+plaidNewState_UnselectedOption['offUnselectedOption'] = function offUnselectedOption () {
+var this$plaid=this;
+return undefined;
+}
+plaidNewState_UnselectedOption.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['Option', ['init'], ''], [['UnselectedOption', ['onUnselectedOption', 'offUnselectedOption'], '']]]]];
 var plaidNewState_DatePicker = new PlaidState();
 plaidNewState_DatePicker['node'] = plaidNewState_UIComponent['node'];
 plaidNewState_DatePicker['init'] = function init () {
 var this$plaid=this;
-var plaidNewVar57 = "#" + this$plaid.id;
-var plaidNewVar58 = jQuery(plaidNewVar57);
-var plaidNewVar56 = plaidNewVar58.datepicker();
-return plaidNewVar56;
+var plaidNewVar72 = "#" + this$plaid.id;
+var plaidNewVar73 = jQuery(plaidNewVar72);
+var plaidNewVar71 = plaidNewVar73.datepicker();
+return plaidNewVar71;
 }
 plaidNewState_DatePicker['init_'] = function init_ () {
 var this$plaid=this;
-var plaidNewVar59 = function() {
+var plaidNewVar74 = function() {
 this$plaid.stateChange(plaidNewState_Visible);
-var vAr204$plaid = this$plaid;
-var plaidNewVar60 = this$plaid.onVisible();
-return plaidNewVar60;
+var vAr208$plaid = this$plaid;
+var plaidNewVar75 = this$plaid.onVisible();
+return plaidNewVar75;
 };
-var focusin = plaidNewVar59;
-var plaidNewVar61 = function() {
+var focusin = plaidNewVar74;
+var plaidNewVar76 = function() {
 this$plaid.stateChange(plaidNewState_Invisible);
-var vAr205$plaid = this$plaid;
-var plaidNewVar62 = this$plaid.onInvisible();
-return plaidNewVar62;
+var vAr209$plaid = this$plaid;
+var plaidNewVar77 = this$plaid.onInvisible();
+return plaidNewVar77;
 };
-var focusout = plaidNewVar61;
-var plaidNewVar63 = function() {
-var plaidNewVar64 = this$plaid.node(this$plaid.target);
-plaidNewVar64.value = "09/30/2011";
-var vAr207$plaid = plaidNewVar64.value;
+var focusout = plaidNewVar76;
+var plaidNewVar78 = function() {
+var plaidNewVar79 = this$plaid.node(this$plaid.target);
+plaidNewVar79.value = "09/30/2011";
+var vAr211$plaid = plaidNewVar79.value;
 this$plaid.stateChange(plaidNewState_Invisible);
-var vAr206$plaid = this$plaid;
-var plaidNewVar65 = this$plaid.onInvisible();
-return plaidNewVar65;
+var vAr210$plaid = this$plaid;
+var plaidNewVar80 = this$plaid.onInvisible();
+return plaidNewVar80;
 };
-var mouseup = plaidNewVar63;
-var plaidNewVar66 = this$plaid.node(this$plaid.id);
-plaidNewVar66.className = "calendar";
-var vAr210$plaid = plaidNewVar66.className;
-var plaidNewVar68 = this$plaid.node(this$plaid.target);
-var plaidNewVar67 = plaidNewVar68.addEventListener("focusin",focusin);
-var vAr209$plaid = plaidNewVar67;
-var plaidNewVar70 = this$plaid.node(this$plaid.id);
-var plaidNewVar69 = plaidNewVar70.addEventListener("mouseup",mouseup);
-var vAr208$plaid = plaidNewVar69;
-var plaidNewVar71 = this$plaid.node(this$plaid.id);
-plaidNewVar71.innerText = "09/30/2011";
-return plaidNewVar71.innerText;
+var mouseup = plaidNewVar78;
+var plaidNewVar81 = this$plaid.node(this$plaid.id);
+plaidNewVar81.className = "calendar";
+var vAr214$plaid = plaidNewVar81.className;
+var plaidNewVar83 = this$plaid.node(this$plaid.target);
+var plaidNewVar82 = plaidNewVar83.addEventListener("focusin",focusin);
+var vAr213$plaid = plaidNewVar82;
+var plaidNewVar85 = this$plaid.node(this$plaid.id);
+var plaidNewVar84 = plaidNewVar85.addEventListener("mouseup",mouseup);
+var vAr212$plaid = plaidNewVar84;
+var plaidNewVar86 = this$plaid.node(this$plaid.id);
+plaidNewVar86.innerText = "09/30/2011";
+return plaidNewVar86.innerText;
 }
 plaidNewState_DatePicker.tree = [['', [], 'with'], [['UIComponent', ['node'], 'with'], [['DatePicker', ['init', 'init_'], '']]]];
 var plaidNewState_Availability = new PlaidState();
@@ -239,9 +345,9 @@ plaidNewState_Availability.tree = [['', [], 'with'], [['Availability', [], 'with
 var plaidNewState_Enabled = new PlaidState();
 plaidNewState_Enabled['onEnabled'] = function onEnabled () {
 var this$plaid=this;
-var plaidNewVar73 = this$plaid.node(this$plaid.id);
-var plaidNewVar72 = plaidNewVar73.removeAttribute("disabled");
-return plaidNewVar72;
+var plaidNewVar88 = this$plaid.node(this$plaid.id);
+var plaidNewVar87 = plaidNewVar88.removeAttribute("disabled");
+return plaidNewVar87;
 }
 plaidNewState_Enabled['offEnabled'] = function offEnabled () {
 var this$plaid=this;
@@ -251,9 +357,9 @@ plaidNewState_Enabled.tree = [['', [], 'with'], [['Availability', [], 'with'], [
 var plaidNewState_Disabled = new PlaidState();
 plaidNewState_Disabled['onDisabled'] = function onDisabled () {
 var this$plaid=this;
-var plaidNewVar75 = this$plaid.node(this$plaid.id);
-var plaidNewVar74 = plaidNewVar75.setAttribute("disabled","disabled");
-return plaidNewVar74;
+var plaidNewVar90 = this$plaid.node(this$plaid.id);
+var plaidNewVar89 = plaidNewVar90.setAttribute("disabled","disabled");
+return plaidNewVar89;
 }
 plaidNewState_Disabled['offDisabled'] = function offDisabled () {
 var this$plaid=this;
@@ -265,9 +371,9 @@ plaidNewState_Visibility.tree = [['', [], 'with'], [['Visibility', [], 'with']]]
 var plaidNewState_Visible = new PlaidState();
 plaidNewState_Visible['onVisible'] = function onVisible () {
 var this$plaid=this;
-var plaidNewVar77 = this$plaid.node(this$plaid.id);
-var plaidNewVar76 = plaidNewVar77.removeAttribute("hidden");
-return plaidNewVar76;
+var plaidNewVar92 = this$plaid.node(this$plaid.id);
+var plaidNewVar91 = plaidNewVar92.removeAttribute("hidden");
+return plaidNewVar91;
 }
 plaidNewState_Visible['offVisible'] = function offVisible () {
 var this$plaid=this;
@@ -277,9 +383,9 @@ plaidNewState_Visible.tree = [['', [], 'with'], [['Visibility', [], 'with'], [['
 var plaidNewState_Invisible = new PlaidState();
 plaidNewState_Invisible['onInvisible'] = function onInvisible () {
 var this$plaid=this;
-var plaidNewVar79 = this$plaid.node(this$plaid.id);
-var plaidNewVar78 = plaidNewVar79.setAttribute("hidden","true");
-return plaidNewVar78;
+var plaidNewVar94 = this$plaid.node(this$plaid.id);
+var plaidNewVar93 = plaidNewVar94.setAttribute("hidden","true");
+return plaidNewVar93;
 }
 plaidNewState_Invisible['offVisible'] = function offVisible () {
 var this$plaid=this;
