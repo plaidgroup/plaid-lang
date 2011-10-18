@@ -323,7 +323,7 @@ function m_stateChange(obj1,obj2){
 
 	var returnItem=stateChangeFindParent(md1,md2,returnItem,[]);
 	if (returnItem.matched===false){
-		//			 throw "Error: Attempting to change to an undeclared state (" + md2[1][0][0] + ")"; 
+		throw "Error: Attempting to change to an undeclared state (" + md2[1][0][0] + ")"; 
 		//target dimension does not yet exist in the object to be changed
 		var md2Length=md2.length;
 		for (var i=1;i<md2Length;i++){
