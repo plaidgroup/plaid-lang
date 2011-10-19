@@ -1,5 +1,6 @@
 package plaid.demo;
 
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,14 +46,10 @@ public class PlaidCellProxy implements Cell<PlaidCellProxy> {
 	}
 
 	@Override
-	public boolean isAlive() {
-		PlaidMethod isAliveMethod = (PlaidMethod)rep.getMember("isAlive").getValue();
-		PlaidObject bool = Util.call(isAliveMethod, plaid.runtime.Util.unit());
-		if(bool.toString().startsWith("true")) {
-			return true;
-		} else {
-			return false;
-		}
+	public Color getColor() {
+		PlaidMethod isAliveMethod = (PlaidMethod)rep.getMember("getColor").getValue();
+		PlaidJavaObjectMap color = (PlaidJavaObjectMap)Util.call(isAliveMethod, plaid.runtime.Util.unit());
+		return (Color)color.getJavaObject();
 	}
 
 

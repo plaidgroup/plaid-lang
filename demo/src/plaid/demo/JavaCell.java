@@ -1,5 +1,6 @@
 package plaid.demo;
 
+import java.awt.Color;
 import java.util.List;
 
 public class JavaCell implements Cell<JavaCell>{
@@ -41,9 +42,14 @@ public class JavaCell implements Cell<JavaCell>{
 		alive = next;
 	}
 
+
 	@Override
-	public boolean isAlive() {
-		return alive;
+	public Color getColor() {
+		if (alive) {
+			return Color.BLUE;
+		} else {
+			return Color.GRAY;
+		}
 	}
 	
 }

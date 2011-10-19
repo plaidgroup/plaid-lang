@@ -108,8 +108,9 @@ public class CellGridCanvas extends Canvas {
 		g.drawImage(offScreenImageDrawed, 0, 0, null);
 		// draw populated cells
 		g.setColor(Color.red);
-		Iterable<Coordinate> coordinates = cellGrid.getLiveCellCoordinates();
+		Iterable<Coordinate> coordinates = cellGrid.getCellCoordinates();
 		for(Coordinate coordinate : coordinates) {
+			g.setColor(coordinate.getColor());
 			g.fillRect(coordinate.getColumn() * cellSize, 
 					coordinate.getRow() * cellSize, cellSize - 1, cellSize - 1);
 		}

@@ -1,5 +1,6 @@
 package plaid.demo;
 
+import java.awt.Color;
 import java.util.List;
 
 /*
@@ -24,8 +25,8 @@ public interface Cell<T extends Cell<T>> {
 	public void change();
 	
 	/*
-	 * @returns a boolean representing whether this cell is alive
+	 * @returns the Color of the cell
 	 */
-	public boolean isAlive();
+	public Color getColor();
 	
 }
