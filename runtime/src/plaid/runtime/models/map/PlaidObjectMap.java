@@ -364,17 +364,22 @@ public class PlaidObjectMap implements PlaidObject {
 		//Set<PlaidTag> noAddHierarchies = new HashSet<PlaidTag>(); // optimized collection of tag hierarchies that remain in the object;
 		for (PlaidTag newTag : update.getPrototype().getTopTags()) {
 			boolean added = false;
-			for (Entry<PlaidTag,PlaidTag> existingTag : this.getTags().entrySet()) {
-				if (newTag.rootTag().equals(existingTag.getKey().rootTag())) {
-					
-					//TODO: figure out what these restrictions should be - they are not clear and the second one is definitely wrong (too conservative)
-					//They will be checked below when the tags are actually added, so perhaps they are not needed
-					//if (outIn.keySet().contains(existingTag.getKey())) throw new PlaidRuntimeException(existingTag + " already a member of this object");
-					//if (outIn.values().contains(existingTag.getKey())) throw new PlaidRuntimeException(newTag + " already a member of the new object");
-					outIn.put(existingTag.getKey(), newTag);
-					preserveEnclosing.put(newTag,existingTag.getValue());  //where this tag was 
-					removeHierarchies.add(existingTag.getKey());
-					added = true;
+			if (this.getTags().containsKey(newTag)) {
+				outIn.put(newTag,newTag);
+				added = true;  //already in this state - doesn't need to be added to the object
+			} else {
+				for (Entry<PlaidTag,PlaidTag> existingTag : this.getTags().entrySet()) {
+					if (newTag.rootTag().equals(existingTag.getKey().rootTag())) {
+						
+						//TODO: figure out what these restrictions should be - they are not clear and the second one is definitely wrong (too conservative)
+						//They will be checked below when the tags are actually added, so perhaps they are not needed
+						//if (outIn.keySet().contains(existingTag.getKey())) throw new PlaidRuntimeException(existingTag + " already a member of this object");
+						//if (outIn.values().contains(existingTag.getKey())) throw new PlaidRuntimeException(newTag + " already a member of the new object");
+						outIn.put(existingTag.getKey(), newTag);
+						preserveEnclosing.put(newTag,existingTag.getValue());  //where this tag was 
+						removeHierarchies.add(existingTag.getKey());
+						added = true;
+					}
 				}
 			}
 			if (!added) {
@@ -388,6 +393,11 @@ public class PlaidObjectMap implements PlaidObject {
 		Set<PlaidTag> toRemove = new HashSet<PlaidTag>();
 		//List<String> removedOverrides = new ArrayList<String>();
 		for (PlaidTag existingTag : outIn.keySet()) {
+			
+			if (existingTag.equals(outIn.get(existingTag))) { //don't add any of these tags - no state change in this dimension
+				noAdd.addAll(existingTag.getHierarchy());
+				continue;
+			}
 			
 			List<PlaidTag> existingHierarchy = existingTag.getHierarchy();
 			int existingCount = existingHierarchy.size()-1;
@@ -403,7 +413,7 @@ public class PlaidObjectMap implements PlaidObject {
 			}
 			
 			//we are transitioning down - already added stuff above to noAdd list
-			if ( newCount < 0 ) { //we are transitioning up
+			if ( newCount < 0 && existingCount >= 0 ) { //we are transitioning up
 				// remove members here and below
 				while ( existingCount >= 0 ) toRemove.add(existingHierarchy.get(existingCount--));
 			} else if ( existingCount >= 0 ) { //we are transitioning across
@@ -422,8 +432,8 @@ public class PlaidObjectMap implements PlaidObject {
 		Map<PlaidMemberDef,PlaidObject> willAdd = new HashMap<PlaidMemberDef,PlaidObject>();
 		Map<String, PlaidMemberDef> newMembers = update.getPrototype().getMembers();
 		for (PlaidMemberDef incomingMember : newMembers.values()) {
-			if (!noAdd.contains(incomingMember.definedIn()) || //in the noAdd list, or
-					(members().get(members().get(incomingMember.getMemberName())) != null && 
+			if (!noAdd.contains(incomingMember.definedIn()) || //not in the noAdd list, or
+					(members().get(members().get(incomingMember.getMemberName())) != null && // exists in this object, but is abstract
 							members().get(members().get(incomingMember.getMemberName()).getValue()) instanceof PlaidAbstractValueMap)) //abstract
 			{ 
 				PlaidMemberDef newMemberDef = Util.memberDef(incomingMember);
