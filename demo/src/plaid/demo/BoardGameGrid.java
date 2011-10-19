@@ -101,15 +101,15 @@ public class BoardGameGrid<T extends Cell<T>>{
 	}
 	
 	/**
-	 * Get the live cells
-	 * @see org.bitstorm.gameoflife.CellGrid#getEnum)
+	 * Get color of each coordinate
 	 */
-	public Iterable<Coordinate> getLiveCellCoordinates() {
+	public Iterable<Coordinate> getCellCoordinates() {
 		ArrayList<Coordinate> coordinates = new ArrayList<Coordinate>();
-		for ( int c=0; c<cellCols; c++)
-			for ( int r=0; r<cellRows; r++ )
-				if (grid.get(c).get(r).isAlive())
-					coordinates.add(new Coordinate(c,r));
+		for ( int c=0; c<cellCols; c++) {
+			for ( int r=0; r<cellRows; r++ ) {
+				coordinates.add(new Coordinate(c,r,grid.get(c).get(r).getColor()));
+			}
+	}
 		return coordinates;
 	}
 
