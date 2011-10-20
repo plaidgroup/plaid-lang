@@ -3,6 +3,8 @@ package plaid.demo;
 
 import javax.swing.JFrame;
 
+import plaid.runtime.PlaidRuntime;
+
 public class GameBoardApp extends JFrame{
 
 	private static final long serialVersionUID = 3701846206299130963L;
@@ -20,7 +22,8 @@ public class GameBoardApp extends JFrame{
 	    add ("Center", ui);   
 	  }
 
-	  static public void main (String argv[]) {     
+	  static public void main (String argv[]) {
+		PlaidRuntime.getRuntime().init();
 		GameBoardApp a = new GameBoardApp();
 		a.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	    a.setResizable(false);   
