@@ -2,7 +2,8 @@
 
 /*Helper method clones objects and arrays*/
 PlaidState.prototype.clone = function() {
-	var obj = (this instanceof Array) ? [] : new PlaidState();
+//	var obj = (this instanceof Array) ? [] : new PlaidState();
+	var obj = new PlaidState();
   var i;
   for (i in this) {
     if (i == 'clone') continue;
