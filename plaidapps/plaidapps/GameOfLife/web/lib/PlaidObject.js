@@ -2,7 +2,7 @@
 
 /*Helper method clones objects and arrays*/
 Array.prototype.clone = function() {
-	var obj = (this instanceof Array) ? [] : {};
+	var obj = [];
 	var i;
 	for (i in this) {
 		if (i == 'clone') continue;
@@ -25,7 +25,7 @@ Array.prototype.each = function(f) {
 }
 
 PlaidObject.prototype.clone = function() {
-	var obj = (this instanceof Array) ? [] : new PlaidObject(this.tree.clone());
+	var obj = new PlaidObject(this.tree.clone());
 	var i;
 	for (i in this) {
 		if (i == 'clone') continue;
@@ -49,7 +49,7 @@ PlaidObject.prototype.executeMethodChain = function(name){
 
 	for(var i = 0; i < this.prepend[name].length; i++){
 		var result = this.prepend[name][i]();
-		if(result == false){
+		if(result === false){
 			return false;
 		}
 	}
@@ -389,7 +389,7 @@ function m_stateChange(obj1,obj2){
 		//document.write("remove "+remove[j]+"<br>");
 		if(Plaid.isCallbackOnPassivate(remove[j])){
 			var result = obj1.executeMethodChain(remove[j]);
-			if(result){
+			if(result !== false){
 				obj1[remove[j]]();
 			}
 		}
