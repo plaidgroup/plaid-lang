@@ -405,7 +405,7 @@ function m_stateChange(obj1,obj2){
 		
 		if(Plaid.isCallbackOnActivate(mn)){
 			var result = obj1.executeMethodChain(mn);
-			if(result){
+			if(result !== false){
 				obj1[mn]();
 			}
 		}
