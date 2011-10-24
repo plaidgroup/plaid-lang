@@ -1,0 +1,199 @@
+package plaid.ui;
+
+//UIComponent.plaid
+state UIComponent {
+  var id;
+	var node = fn(id) => { document.getElementById(id); };
+}
+
+//Box.plaid
+state Box case of UIComponent{}
+
+//Accordion.plaid
+state Accordion case of UIComponent {
+  method init() {
+	  jQuery("#"+this.id).accordion();
+	}
+}
+
+//TextBox.plaid
+state TextBox case of UIComponent{
+  var text;
+	var min;
+	var max;
+
+	// initialize method. use constructor if possible
+  method init() {
+	  this <- EmptyTextBox;
+		this.onEmpty();
+  	var f = fn() => { this.update(this.node(this.id).value);
+  										str  = this.node(this.id).value.length + "<br />" +
+  										       this.tags().toString() + "<br />" +
+  										       this.members().toString();
+  										DebugWriter.write(str);
+  	                };
+  	this.node(this.id).addEventListener("keyup", f);
+		this.node(this.id).addEventListener("focusout", f);
+		window.setInterval(fn()=>{this.update(this.node(this.id).value);}, 100);
+	}
+
+	method update(text) {
+	  ifElse (text.length > 0) {
+		  ifElse (this.min <= text.length && text.length <= this.max){
+			  this <- ValidTextBox;
+			}{
+			  this <- InvalidTextBox;
+			};
+		}{
+		  this <- EmptyTextBox;
+		};
+	}
+}
+
+state EmptyTextBox case of TextBox {
+  method onEmpty() {}
+	method offEmpty() {}
+}
+
+state InvalidTextBox case of TextBox {
+  method validate(){ returnFalse(); }
+	method onInvalid(){}
+	method offInvalid(){}
+}
+
+state ValidTextBox case of TextBox {
+  method validate(){ returnTrue(); }
+	method onValid(){}
+	method offValid(){}
+}
+
+
+//Button.plaid
+state Button case of UIComponent {
+  var click;
+
+  method init() {
+	  this.node(this.id).addEventListener("mousedown", fn() => {this.mousedown()});
+	  this.node(this.id).addEventListener("mouseup", fn() => {this.mouseup()});
+	  this.node(this.id).addEventListener("mouseout", fn() => {this.mouseout()});
+	}
+
+	method mousedown() {
+	  this <- PressedButton;
+	}
+
+	method mouseup() {
+	  match(this) {
+		  case PressedButton {
+			  this.click();
+				this <- UnpressedButton;
+			}
+		}
+	}
+
+  method mouseout() {
+	  this <- UnpressedButton;
+	}
+}
+
+state PressedButton case of Button {
+  method onPressedButton() {}
+	method offPressedButton() {}
+}
+
+state UnpressedButton case of Button {
+  method onUnpressedButton() {}
+	method offUnpressedButton() {}
+}
+
+//DropDownList.plaid
+state DropDownList case of UIComponent {
+  var options = returnArray();
+  var beforeChange = fn() => {};
+	var afterChange = fn() => {};
+  method init() {
+//	  this.node(this.id).addEventListener("change", this.onchange);
+	  this.node(this.id).addEventListener("change", fn(evt)=>{
+		  this.beforeChange();
+
+      var v = evt.target.value;
+			this.options.each(fn(o) =>{
+			  match(o) {
+				  case SelectedOption {
+					  o <- UnselectedOption;
+					}
+				};
+				if(o.value == v){
+				  o <- SelectedOption;
+				};
+			});
+
+			this.afterChange();			
+		});
+	}
+
+	method addOption(option){
+	  this.options.push(option);
+	}
+}
+
+state Option case of UIComponent {
+  var name;
+  var value;
+
+	method init(parent) {
+    //jQuery("#"+parent.id).append(jQuery("<option />").attr("value", this.value).text(this.name));
+		parent.addOption(this);
+	}
+}
+
+state SelectedOption case of Option {
+  method onSelectedOption(){}
+  method offSelectedOption(){}
+}
+
+state UnselectedOption case of Option {
+  method onUnselectedOption(){}
+	method offUnselectedOption(){}
+}
+
+//DatePicker.plaid
+state DatePicker case of UIComponent{
+//	var target;
+
+	method init() {
+	  jQuery("#"+this.id).datepicker();
+	}
+}
+
+//Availability.plaid
+state Availability{}
+state Enabled case of Availability {
+	method onEnabled() {
+		this.node(this.id).removeAttribute("disabled");
+	}
+	method offEnabled(){}
+}
+
+state Disabled case of Availability {
+  method onDisabled() {
+		this.node(this.id).setAttribute("disabled", "disabled");
+	}
+	method offDisabled() {}
+}
+
+//Visibility.plaid
+state Visibility {}
+
+state Visible case of Visibility {
+  method onVisible() {
+		this.node(this.id).removeAttribute("hidden");
+	}
+	method offVisible() {}
+}
+state Invisible case of Visibility {
+  method onInvisible() {
+		this.node(this.id).setAttribute("hidden", "true");
+	}
+	method offVisible() {}
+}
