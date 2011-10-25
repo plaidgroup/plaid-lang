@@ -1,0 +1,607 @@
+package plaid.ast.types.tests;
+
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import java.lang.System;
+
+val () -> void bindingTests = fn () => {
+
+	System.out.println("---------------------------");
+	System.out.println("|      BINDING TESTS      |");
+	System.out.println("---------------------------");
+
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = makeID(makeToken(),"unit");
+	temp.put(u, new StateType { val name = u; val superType = new None; });
+	
+	//Top
+	val top = makeID(makeToken(),"Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = makeID(makeToken(),"A");
+	val aType = new StateType { val name = a; val superType = makeSome(topType);};
+	temp.put(a,aType);
+	
+	//B
+	val b = makeID(makeToken(),"B");
+	val bType = new StateType { val name = b; val superType = makeSome(topType);};
+	temp.put(b,bType);
+	
+	//B
+	val c = makeID(makeToken(),"C");
+	val cType = new StateType { val name = c; val superType = makeSome(aType);};
+	temp.put(c,cType);
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	System.out.println("Testing state configuration:");
+	st.printTable();
+	System.out.println("");
+
+	//Testing Downgrade
+	System.out.println("Testing Downgrade");
+	val unique TakeType TBuT = new TakeType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"Top");	
+			};
+		};
+	};
+	System.out.print("\t(" + TBuT.toString() + ").downgrade() = ");
+	TBuT.downgrade();
+	System.out.print(TBuT.toString() + " - ");
+	match (TBuT.currentType.type.typeName == makeID(makeToken(),"Top")) {
+		case True { ok() }
+		case False { fail() }
+	};
+	val unique TakeType TBiT = new TakeType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = IMMUTABLE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"Top");	
+			};
+		};
+	};
+	System.out.print("\t(" + TBiT.toString() + ").downgrade() = ");
+	TBuT.downgrade();
+	System.out.print(TBiT.toString() + " - ");
+	match (TBuT.currentType.type.typeName == makeID(makeToken(),"Top")) {
+		case True { ok() }
+		case False { fail() }
+	};
+	val unique TakeType TBnT = new TakeType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = NONEP;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"Top");	
+			};
+		};
+	};
+	System.out.print("\t(" + TBnT.toString() + ").downgrade() = ");
+	TBnT.downgrade();
+	System.out.print(TBnT.toString() + " - ");
+	match (TBnT.currentType.type.typeName == makeID(makeToken(),"unit")) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.println("");
+	
+	//testing least upper bound
+	System.out.println("Testing leastUpperBound");
+	val unique TakeType TBnA = new TakeType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = NONEP;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"A");	
+			};
+		};
+	};
+	val unique TakeType TBuB = new TakeType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"B");	
+			};
+		};
+	};
+	testName("least upper bound take-take succeed");
+	testCall("(" + TBnA.toString() + ").leastUpperBound(" + TBuB.toString() + ")");
+	var unique TypeBinding res = TBnA.leastUpperBound(TBuB,st);
+	testResult(res.toString()); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm0 = res.value.currentType.perm;
+			val immutable ObjectType resType0 = res.value.currentType.type;
+			match (resPerm0) {
+				case NonePermission {
+					match(resType0) {
+						case NominalType {
+							match (resType0.typeName == makeID(makeToken(),"Top")) {
+								case True { testPassed(true) }
+								case False { testPassedMsg(false,"object type not top") }
+							}
+						}	
+						default { testPassedMsg(false,"Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					testPassedMsg(false,"Wrong Permission");
+				}
+			}
+		}
+		case None { testPassedMsg(false,"No lub"); }
+	};
+	testName("greatest lower bound take-take fail");
+	testCall("(" + TBnA.toString() + ").greatestLowerBound(" + TBuB.toString() + ")");
+	res = TBnA.greatestLowerBound(TBuB,st);
+	testResult(res.toString());
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("least upper bound take-take succeed reversed");
+	testCall("(" + TBuB.toString() + ").leastUpperBound(" + TBnA.toString() + ")");
+	res = TBuB.leastUpperBound(TBnA,st);
+	testResult(res.toString()); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm1 = res.value.currentType.perm;
+			val immutable ObjectType resType1 = res.value.currentType.type;
+			match (resPerm1) {
+				case NonePermission {
+					match(resType1) {
+						case NominalType {
+							match (resType1.typeName == makeID(makeToken(),"Top")) {
+								case True { testPassed(true) }
+								case False { testPassedMsg(false,"object type not top") }
+							}
+						}	
+						default { testPassedMsg(false,"Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					testPassedMsg(false,"Wrong Permission");
+				}
+			}
+		}
+		case None { testPassedMsg(false,"No lub"); }
+	};
+	testName("greatest lower bound take-take fail reversed");
+	testCall("(" + TBuB.toString() + ").greatestLowerBound(" + TBnA.toString() + ")");
+	res = TBuB.greatestLowerBound(TBnA,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	val unique TakeType TBuC = new TakeType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"C");	
+			};
+		};
+	};
+	testName("greatest lower bound take-take succeed");
+	testCall("(" + TBuC.toString() + ").leastUpperBound(" + TBnA.toString() + ")");
+	res = TBuC.leastUpperBound(TBnA,st);
+	testResult(res.toString()); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm2 = res.value.currentType.perm;
+			val immutable ObjectType resType2 = res.value.currentType.type;
+			match (resPerm2) {
+				case NonePermission {
+					match(resType2) {
+						case NominalType {
+							match (resType2.typeName == makeID(makeToken(),"C")) {
+								case True { testPassed(true) }
+								case False { testPassedMsg(false,"object type not C") }
+							}
+						}	
+						default { testPassedMsg(false,"Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					testPassedMsg(false,"Wrong Permission");
+				}
+			}
+		}
+		case None { testPassedMsg(false,"No glb"); }
+	};
+	testName("greatest lower bound take-take succeed - reversed");
+	testCall("(" + TBnA.toString() + ").leastUpperBound(" + TBuC.toString() + ")");
+	res = TBuC.leastUpperBound(TBnA,st);
+	testResult(res.toString()); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm3 = res.value.currentType.perm;
+			val immutable ObjectType resType3 = res.value.currentType.type;
+			match (resPerm3) {
+				case NonePermission {
+					match(resType3) {
+						case NominalType {
+							match (resType3.typeName == makeID(makeToken(),"C")) {
+								case True { testPassed(true) }
+								case False { testPassedMsg(false,"object type not C") }
+							}
+						}	
+						default { testPassedMsg(false,"Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					testPassedMsg(false,"Wrong Permission");
+				}
+			}
+		}
+		case None { testPassedMsg(false,"No glb"); }
+	};
+	val unique BorrowType BBnA = new BorrowType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = NONEP;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"A");	
+			};
+		};
+		val immutable Boolean stronglyBorrowed = true;
+		val immutable Permission lowerBound = NONEP;
+	};
+	testName("LUB take and borrow fails");
+	testCall("(" + BBnA.toString() + ").leastUpperBound(" + TBuB.toString() + ")");
+	res = BBnA.leastUpperBound(TBuB,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("GLB take and borrow fails");
+	testCall("(" + BBnA.toString() + ").greatestLowerBound(" + TBuB.toString() + ")");
+	res = BBnA.greatestLowerBound(TBuB,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("LUB take and borrow fails - reversed");
+	testCall("(" + TBuB.toString() + ").leastUpperBound(" + BBnA.toString() + ")");
+	res = TBuB.leastUpperBound(BBnA,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("GLB take and borrow fails - reversed");
+	testCall("(" + TBuB.toString() + ").greatestLowerBound(" + BBnA.toString() + ")");
+	res = TBuB.greatestLowerBound(BBnA,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	val unique BorrowType BBuBdb = new BorrowType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"B");	
+			};
+		};
+		val immutable Boolean stronglyBorrowed = false;
+		val immutable Permission lowerBound = NONEP;
+	};
+	testName("LUB: Both BorrowTypes must be strongly borrowed or not");
+	testCall("(" + BBuBdb.toString() + ").leastUpperBound(" + BBnA.toString() + ")");
+	res = BBuBdb.leastUpperBound(BBnA,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("LUB: Both BorrowTypes must be strongly borrowed or not - reveresed");
+	testCall("(" + BBnA.toString() + ").leastUpperBound(" + BBuBdb.toString() + ")");
+	res = BBnA.leastUpperBound(BBuBdb,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("GLB: Both BorrowTypes must be strongly borrowed or not");
+	testCall("(" + BBuBdb.toString() + ").greatestLowerBound(" + BBnA.toString() + ")");
+	res = BBuBdb.greatestLowerBound(BBnA,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("GLB: Both BorrowTypes must be strongly borrowed or not - reveresed");
+	testCall("(" + BBnA.toString() + ").greatestLowerBound(" + BBuBdb.toString() + ")");
+	res = BBnA.greatestLowerBound(BBuBdb,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	val unique BorrowType BBuBdl = new BorrowType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"B");	
+			};
+		};
+		val immutable Boolean stronglyBorrowed = true;
+		val immutable Permission lowerBound = IMMUTABLE;
+	};
+	testName("LUB: Both BorrowTypes must have the same lower bound");
+	testCall("t(" + BBuBdl.toString() + ").leastUpperBound(" + BBnA.toString() + ")");
+	res = BBuBdl.leastUpperBound(BBnA,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("LUB: Both BorrowTypes must have the same lower bound - reversed");
+	testCall("(" + BBnA.toString() + ").leastUpperBound(" + BBuBdl.toString() + ")");
+	res = BBnA.leastUpperBound(BBuBdl,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("GLB: Both BorrowTypes must have the same lower bound");
+	testCall("t(" + BBuBdl.toString() + ").greatestLowerBound(" + BBnA.toString() + ")");
+	res = BBuBdl.greatestLowerBound(BBnA,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("GLB: Both BorrowTypes must have the same lower bound - reversed");
+	testCall("(" + BBnA.toString() + ").greatestLowerBound(" + BBuBdl.toString() + ")");
+	res = BBnA.greatestLowerBound(BBuBdl,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	val unique BorrowType BBuB = new BorrowType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"B");	
+			};
+		};
+		val immutable Boolean stronglyBorrowed = true;
+		val immutable Permission lowerBound = NONEP;
+	};
+	testName("LUB borow-borrow succeed");
+	testCall("(" + BBuB.toString() + ").leastUpperBound(" + BBnA.toString() + ")");
+	res = BBuB.leastUpperBound(BBnA,st);
+	testResult(res.toString()); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm4 = res.value.currentType.perm;
+			val immutable ObjectType resType4 = res.value.currentType.type;
+			match (resPerm4) {
+				case NonePermission {
+					match(resType4) {
+						case NominalType {
+							match (resType4.typeName == makeID(makeToken(),"Top")) {
+								case True { testPassed(true) }
+								case False { testPassedMsg(false,"object type not top") }
+							}
+						}	
+						default { testPassedlMsg(false,"Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					testPassedMsg(false,"Wrong Permission");
+				}
+			}
+		}
+		case None { testPassedMsg(false,"No lub"); }
+	};
+	testName("LUB borow-borrow succeed - reversed");
+	testCall("(" + BBnA.toString() + ").leastUpperBound(" + BBuB.toString() + ")");
+	res = BBnA.leastUpperBound(BBuB,st);
+	testResult(res.toString()); 
+	match (res) {
+		case Some {
+			val immutable Permission resPerm5 = res.value.currentType.perm;
+			val immutable ObjectType resType5 = res.value.currentType.type;
+			match (resPerm5) {
+				case NonePermission {
+					match(resType5) {
+						case NominalType {
+							match (resType5.typeName == makeID(makeToken(),"Top")) {
+								case True { testPassed(true) }
+								case False { testPassedMsg(false,"object type not top") }
+							}
+						}	
+						default { testPassedMsg(false,"Something went wrong - not a NominalType") }
+					}
+				}
+				default {
+					testPassedMsg(false,"Wrong Permission");
+				}
+			}
+		}
+		case None { testPassedMsg(false,"No lub"); }
+	};
+	testName("GLB borow-borrow fail");
+	testCall("(" + BBuB.toString() + ").greatestLowerBound(" + BBnA.toString() + ")");
+	res = BBuB.greatestLowerBound(BBnA,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("GLB borow-borrow fail - reversed");
+	testCall("(" + BBnA.toString() + ").greatestLowerBound(" + BBuB.toString() + ")");
+	res = BBnA.greatestLowerBound(BBuB,st);
+	testResult(res.toString()); 
+	match(res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	System.out.println("");
+	
+	System.out.println("Testing object Update");
+	val unique BorrowType updateBB = new BorrowType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"B");	
+			};
+		};
+		val immutable Boolean stronglyBorrowed = true;
+		val immutable Permission lowerBound = NONEP;
+	};
+	testName("Update object type of a borrow Binding");
+	testCall("(" + updateBB.toString() + ").updateObjectType(" + createNominalType(c).toString() + ")");
+	updateBB.updateObjectType(createNominalType(c));
+	testResult(updateBB.toString());
+	match (updateBB.currentType.type == createNominalType(c)) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	val unique TakeType updateTB = new TakeType {
+		var unique PermType currentType = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique ObjectType type = new NominalType {
+				val immutable ID typeName = makeID(makeToken(),"B");	
+			};
+		};
+	};
+	testName("Update object type of a take Binding");
+	testCall("(" + updateTB.toString() + ").updateObjectType(" + createNominalType(c).toString() + ")");
+	updateTB.updateObjectType(createNominalType(c));
+	testResult(updateTB.toString());
+	match (updateTB.currentType.type == createNominalType(c)) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	System.out.println("");
+	
+	System.out.println("Testing getPerm()");
+	testName("get perm of borrow binding");
+	testCall("(" + updateBB.toString() + ").getPerm()");
+	res = updateBB.getPerm();
+	testResult(res.toString());
+	match (res) {
+		case UniquePermission { testPassed(true) }
+		default { testPassed(false) }
+	};
+	testName("get perm of take binding");
+	testCall("(" + updateTB.toString() + ").getPerm()");
+	res = updateTB.getPerm();
+	testResult(res.toString());
+	match (res) {
+		case UniquePermission { testPassed(true) }
+		default { testPassed(false) }
+	};
+	System.out.println("");
+	
+	System.out.println("Testing getObjectType()");
+	testName("get object type of borrow binding");
+	testCall("(" + updateBB.toString() + ").getObjectType()");
+	res = updateBB.getObjectType();
+	testResult(res.toString());
+	match (res == createNominalType(c)) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	testName("get objectType of take binding");
+	testCall("(" + updateTB.toString() + ").getObjectType()");
+	res = updateTB.getObjectType();
+	testResult(res.toString());
+	match (res == createNominalType(c)) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	System.out.println("");
+	
+	System.out.println("Testing declaredType()");
+	testName("get declaredType of field in borrow binding");
+	testCall("(" + updateBB.toString() + ").declaredType(f)");
+	res = updateBB.declaredType(makeID(makeToken(),"f"),st);
+	testResult(res.toString());
+	match (res) {
+		case None { testPassed(true) }
+		case Some { testPassed(false) }
+	};
+	testName("get declaredType of field in take binding");
+	testCall("(" + updateTB.toString() + ").declaredType(f)");
+	res = updateTB.declaredType(makeID(makeToken(),"f"),st);
+	testResult(res.toString());
+	match (res) {
+		case None { testPassed(true) }
+		case Some { testPassed(false) }
+	};
+	System.out.println("");
+	
+	System.out.println("Testing notBorrowed()");
+	testName("notBorrowed borrow binding");
+	testCall("(" + updateBB.toString() + ").notBorrowed()");
+	res = updateBB.notBorrowed();
+	testResult(res.toString());
+	match (res) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	testName("notBorrowed take binding");
+	testCall("(" + updateTB.toString() + ").notBorrowed()");
+	res = updateTB.notBorrowed();
+	testResult(res.toString());
+	match (res) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	System.out.println("");
+	
+	System.out.println("Testing pack()");
+	testName("pack borrow binding");
+	testCall("(" + updateBB.toString() + ").pack()");
+	updateBB.pack(st);
+	testResult(updateBB.toString());
+	match (updateBB.currentType.type == createNominalType(c)) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	testName("pack take binding");
+	testCall("(" + updateTB.toString() + ").pack()");
+	updateTB.pack(st);
+	testResult(updateTB.toString());
+	match (updateTB.currentType.type == createNominalType(c)) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	System.out.println("");		
+	
+	System.out.println("Testing memberUpdate");
+	testName("memberUpdate borrow binding");
+	testCall("(" + updateBB.toString() + ").memberUpdate(f,_)");
+	updateBB.memberUpdate(makeID(makeToken(),"f"),unit,st); //won't update, just want to test pass through
+	testResult(updateBB.toString());
+	match (updateBB.currentType.type == createNominalType(c)) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	testName("memberUpdate take binding");
+	testCall("(" + updateTB.toString() + ").memberUpdate(f,_)");
+	updateTB.memberUpdate(makeID(makeToken(),"f"),unit,st);
+	testResult(updateTB.toString());
+	match (updateTB.currentType.type == createNominalType(c)) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	System.out.println("");
+	
+	
+};

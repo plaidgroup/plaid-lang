@@ -1,0 +1,227 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.collections;
+
+import plaid.lang.testing.TestFactory;
+import plaid.lang.math.min;
+
+state AANodeTest case of TestFactory {
+
+	method unique List<unique Test> createTests() {
+		val tests = makeEmptyList();
+		val test = fn(name,body) => { tests.add(mktest(name, body)) };
+
+		val mkLeaf = fn(data) => { new AANode { var level = 1; var data = data; } };
+		val mkNode = fn(left, right, level, data) => { 
+			new AANode { 
+				override var left = left; 
+				override var right = right;
+				var level = level;
+				var data = data;
+			}
+		};
+
+		val some = fn(v) => { new Some { val value = v; } };
+
+		val nodeEquals = fn(a, b) => {
+			match(a) {
+				case None {
+					match(b) {
+						case None { true }
+						default { false }
+					}
+				}
+				case Some {
+					match(b) {
+						case Some {
+							val aNode = a.getValue();
+							val bNode = b.getValue();
+							aNode.level == bNode.level &&
+							aNode.data == bNode.data &&
+							nodeEquals(aNode.left, bNode.left) &&
+							nodeEquals(aNode.right, bNode.right)
+						}
+						default { false }
+					}
+				}
+				default { printLine("a is not an option!"); false }
+			}
+		};
+
+		val assertLeaf = fn(ctx, expectedData, node) => {
+			ctx.assertTrue(node.data == expectedData);
+			ctx.assertTrue(node.level == 1);
+			ctx.assertFalse(node.left.hasValue());
+			ctx.assertFalse(node.right.hasValue());
+		};
+		
+		test("skewOp on node with no left sub-tree should return self", fn(ctx) => {
+			val node = mkLeaf(1);
+			val result = node.skewOp();
+			ctx.assertTrue(nodeEquals(some(node), some(result)));
+		});
+
+		test("skewOp on node with left sub-tree at lower level should return self", fn(ctx) => {
+			val node = mkNode(some(mkLeaf(1)), new None, 2, 2);
+			val result = node.skewOp();
+			ctx.assertTrue(nodeEquals(some(node), some(result)));
+		});
+
+		test("skewOp on node with left sub-tree at same level should return rebalanced tree", fn(ctx) => {
+			val llNode = mkLeaf("LL");
+			val lrNode = mkLeaf("LR");
+			val lNode = mkNode(some(llNode), some(lrNode), 2, "L");
+			val rNode = mkLeaf("R");
+			val top = mkNode(some(lNode), some(rNode), 2, "T");
+
+			// tree is structured like:
+			//              |
+			// LVL2:   L <- T
+			//        / \    \
+			// LVL1: LL LR    R
+
+			val result = top.skewOp();
+
+			// tree should become:
+			//             /
+			// LVL2:      L -> T
+			//           /    / \
+			// LVL1:    LL   LR  R
+
+			ctx.assertTrue(result.data == "L");
+			ctx.assertTrue(result.level == 2);
+			ctx.assertTrue(result.left.hasValue());
+			ctx.assertTrue(result.right.hasValue());
+
+			val newLeft = result.left.getValue();
+			assertLeaf(ctx, "LL", newLeft);
+			
+			val newRight = result.right.getValue();
+			ctx.assertTrue(newRight.data == "T");
+			ctx.assertTrue(newRight.level == 2);
+			ctx.assertTrue(newRight.left.hasValue());
+			ctx.assertTrue(newRight.right.hasValue());
+
+			val newRightLeft = newRight.left.getValue();
+			assertLeaf(ctx, "LR", newRightLeft);
+			
+			val newRightRight = newRight.right.getValue();
+			assertLeaf(ctx, "R", newRightRight);
+		});
+
+		test("splitOp on node with no right sub-tree should return self", fn(ctx) => {
+			val lNode = mkLeaf(1);
+			val top = mkNode(some(lNode), new None, 2, 2);
+
+			val result = top.splitOp();
+			ctx.assertTrue(nodeEquals(some(top), some(result)));
+		});
+
+		test("splitOp on node with no right-right sub-tree should return self", fn(ctx) => {
+			val lNode = mkLeaf(1);
+			val rNode = mkLeaf(3);
+			val top = mkNode(some(lNode), some(rNode), 2, 2);
+
+			val result = top.splitOp();
+			ctx.assertTrue(nodeEquals(some(top), some(result)));
+		});
+
+		test("splitOp on node with right-right sub-tree at lower level should return self", fn(ctx) => {
+			val lNode = mkLeaf(1);
+			
+			val rrNode = mkLeaf(4);
+			val rNode = mkNode(new None, some(rrNode), 2, 3);
+
+			val top = mkNode(some(lNode), some(rNode), 2, 2);
+
+			val result = top.splitOp();
+			ctx.assertTrue(nodeEquals(some(top), some(result)));
+		});
+
+		test("splitOp on node with right-right sub-tree at same level should return rebalanced tree", fn(ctx) => {
+			val lNode = mkLeaf("L");
+			val rlNode = mkLeaf("RL");
+			val rrNode = mkNode(new None, new None, 2, "RR");
+			val rNode = mkNode(some(rlNode), some(rrNode), 2, "R");
+			val top = mkNode(some(lNode), some(rNode), 2, "T");
+
+			// tree is structured like:
+			//         |
+			// LVL2:   T -> R -> RR
+			//        /    /
+			// LVL1: L    RL
+			//
+			// NOTE: technically, this is not a legal tree as RR should have children in order
+			// to be in level 2. However, for brevity the children are omitted as they are irrelevant
+			// to the test case (they are not manipulated by splitOp).
+
+			val result = top.splitOp();
+
+			// tree should become:
+			//           |
+			// LVL3:     R
+			//          / \
+			// LVL2:   T   RR
+			//        / \
+			// LVL1: L  RL
+
+			ctx.assertTrue(result.data == "R");
+			ctx.assertTrue(result.level == 3);
+			ctx.assertTrue(result.right.hasValue());
+			ctx.assertTrue(result.left.hasValue());
+
+			val newRight = result.right.getValue();
+			ctx.assertTrue(newRight.data == "RR");
+			ctx.assertTrue(newRight.level == 2);
+			ctx.assertFalse(newRight.left.hasValue());
+			ctx.assertFalse(newRight.left.hasValue());
+			
+			val newLeft = result.left.getValue();
+			ctx.assertTrue(newLeft.data == "T");
+			ctx.assertTrue(newLeft.level == 2);
+			ctx.assertTrue(newLeft.left.hasValue());
+			ctx.assertTrue(newLeft.right.hasValue());
+
+			val newLeftLeft = newLeft.left.getValue();
+			assertLeaf(ctx, "L", newLeftLeft);
+			
+			val newLeftRight = newLeft.right.getValue();
+			assertLeaf(ctx, "RL", newLeftRight);
+		});
+
+		test("isLeaf() is true on node with no children", fn(ctx) => {
+			ctx.assertTrue(mkLeaf(1).isLeaf());
+		});
+
+		test("isLeaf() is false on node with left child", fn(ctx) => {
+			ctx.assertFalse(mkNode(some(mkLeaf(1)), new None, 1, 2).isLeaf());
+		});
+
+		test("isLeaf() is false on node with right child", fn(ctx) => {
+			ctx.assertFalse(mkNode(new None, some(mkLeaf(2)), 1, 1).isLeaf());
+		});
+
+		test("isLeaf() is false on node with children", fn(ctx) => {
+			ctx.assertFalse(mkNode(some(mkLeaf(1)), some(mkLeaf(3)), 2, 2).isLeaf());
+		});
+
+		tests
+	}
+}

@@ -1,0 +1,285 @@
+package plaid.compiler.typechecker;
+
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+import plaid.compiler.types.*;
+import plaid.compiler.permissions.*;
+import plaid.ast.parsed.*;
+
+
+/**
+ * return a boolean indicating if the declaration was abstract (false) or concrete (true)
+ */
+method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
+
+  val unique Option<immutable FieldSymbol> declSymOption = symbolForAST(declNode);
+  match (declSymOption) {
+    case Some {
+      match (declSymOption.value) {
+        case StateSymbol {
+          match (declNode) {
+            case ParsedConcreteStateDecl {
+              val immutable StateSymbol stateSym = declSymOption.value;
+              //Check the binding
+              match (declNode.stateBinding) {
+                case ParsedDeclList {
+                  declNode.stateBinding.decls.reverseMap(
+                    fn (decl) => typecheckDecl(decl) 
+                  );
+                }
+                default {
+                  ABORT("(implementation error) only decl lists supported for state bindings")
+                }
+              };
+              
+              //check case of
+              match (declNode.caseOf) {
+                case ParsedEmptyQualifiedIdentifier { /* no op */ }
+                case ParsedQualifiedIdentifier {
+                  val immutable Option<immutable Symbol> caseOfSymOption = 
+                    symbolForAST(declNode.caseOf);
+                  match (caseOfSymOption) {
+                    case Some {
+                      val immutable Symbol caseOfSym = caseOfSymOption.value;
+                      match (caseOfSym) {
+                        case StateSymbol {
+                          /* - for a state to be a valid 'case of' if there are
+                               any members that are declared in this state and
+                               the super state, then either they must be abstract
+                               in the super state or overridden in the substate
+                             - If an abstract member is defined or a member is overridden
+                               then the declared signature must be a subsignature
+                               of the original declaration
+                          */
+                          val memberIterator = stateSym.declaredMembersIterator();
+                          while { memberIterator.hasNext() } {
+                            val currentMember = memberIterator.next();
+                            val superMemberOption = caseOfSym.getMember(currentMember.name);
+                            match (superMemberOption) {
+                              case Some {
+                                val immutable DeclSymbol superMember = superMemberOption.value;
+                                if (!(superMember.isAbstract()) && !(currentMember.isOverride())) {
+                                  ABORT("<typecheckState> state '" + stateSym.name + "' declares non-overridden member '" +
+                                        currentMember.name + "' which is not abstract in its super state '" +
+                                        caseOfSym.name + "'");
+                                };
+                                
+                                val superMemberSig = superMember.getSignature();
+                                val currentMemberSig = currentMember.getSignature();
+                                if (!(currentMemberSig.isSubSignatureOf(superMemberSig))) {
+                                  ABORT("<typecheckState> state '" + stateSym.name + "' declares member '" +
+                                        currentMember.name + "' with signature '" + currentMemberSig.toString() +
+                                        "' which is not a sub signature of the declared signature '" +
+                                        superMemberSig.toString() + "' in super state '" +
+                                        caseOfSym.name + "'");
+                                };
+                              }
+                              case None { /* nothing to check - new member */ }
+                            };
+                          };
+                        }
+                        default {
+                          ABORT("(implementation error) symbol for 'case of' QID '" + 
+                                makeStringFromQualifiedIdentifier(declNode.caseOf) + 
+                                "' is not a state symbol - don't know how to handle")
+                        }
+                      }
+                    }
+                    case None {
+                      ABORT("(implementation error) no symbol for 'case of' QID '" + 
+                            makeStringFromQualifiedIdentifier(declNode.caseOf) + "'")
+                    }
+                  }
+                }
+              };
+              
+              true
+            }
+            case ParsedAbstractStateDecl {
+              false 
+            }
+            default {
+              ABORT("(implementation error) state symbol '" + declNode.name.name + "' not associated with state AST ")
+            }
+          } 
+        }
+        case StateValSymbol {
+          ABORT("(implementation error) not typing state symbols yet");
+        }
+        case FieldSymbol {
+          match (declNode) {
+            case ParsedConcreteFieldDecl {
+              val immutable MethodSymbol fieldSym = declSymOption.value;
+              val immutable MethodSignature fieldSig = fieldSym.getSignature();
+              
+              //TODO: create starting context using visitor that
+              // sven is writing to get needed top level field
+              // and method symbols
+              
+              /* create starting context for field initializer */
+              val unique LinearContext fieldContext = new LinearContext;
+              val immutable Type fieldType = fieldSig.getDeclaredType();
+              
+              
+              val unique TypecheckResult fieldResult = 
+                  typecheckExpression(fieldContext,
+                                      fieldType.permission,
+                                      declNode.expression);            
+              
+              if (!(fieldResult.expType.isSubTypeOf(fieldType))) {
+                ABORT("<typecheckField> initializer for field '" + 
+                      fieldSig.getFieldName() + "' has type '" +
+                      fieldResult.expType.toString() + 
+                      "' which is not a subtype of declared field type '" +
+                      fieldType.toString() + "'");      
+              };
+              
+              
+              //TODO: check we didn't change any used fields to a state
+              // not a subtype of their declared type 
+              
+              //this is a concrete field
+              true
+            }
+            case ParsedAbstractFieldDecl {
+              false
+            }
+            default {
+              ABORT("(implementation error) field symbol '" + declNode.name.name + "' not associated with method AST ")
+            }
+          }
+        }
+        case MethodSymbol {
+          match (declNode) {
+            case ParsedConcreteMethodDecl {
+              val immutable MethodSymbol methodSym = declSymOption.value;
+              val immutable MethodSignature methodSig = methodSym.getSignature();
+              
+              /* check that the input structure of the receiver is guaranteed by the
+                 state the method is declared in.   This is needed because based on
+                 dynamic dispatch, that's the type of reciever we'll have 
+                 This will have to change to something more complicated once we have
+                 composition
+              */
+              val immutable Structure receiverInputStructure = methodSig.receiverSpec.inputType.structure;
+              val immutable Structure ownerStructure = methodSym.owner.getStructure();
+              match (ownerStructure) {
+                case PackageStructure {
+                  /* nothing to check in this case */
+                }
+                case NominalStructure {
+                  if (!(ownerStructure.isSubStructureOf(receiverInputStructure))) {
+                    ABORT("<typecheckMethodDecl> receiver input structure '" + receiverInputStructure.toString() + 
+                          "' is not guaranteed by structure of the declared owner of this method '" +
+                          ownerStructure.toString() + "'") 
+                  };
+                }
+                default { ABORT("(implementation error) bad owner structure for method decl") }
+              
+              };
+              
+              
+              
+              /* create starting context for method body */
+              val unique LinearContext methodContext = new LinearContext;
+              
+              val immutable VariableSymbol thisSymbol = methodSym.getThisSymbol();
+              methodContext.put(thisSymbol, methodSig.receiverSpec.inputType);
+              
+              //args
+              methodSig.arguments.do(fn (symSpecPair) => {
+                val immutable VariableSymbol argSym = symSpecPair.fst;
+                val immutable ArgSpec argSpec = symSpecPair.snd;
+                match (methodContext.containsSymbol(argSym)) {
+                  case False {
+                    methodContext.put(argSym, argSpec.inputType);
+                  }
+                  case True {
+                    ABORT("<typecheckMethodDecl> multiple arguments declared with name '" + argSym.name + "'")
+                  }
+                }
+              });
+              
+              //environment - TODO: need to check the environment
+              val iter = methodSig.environment.keySet().iterator();
+              while { iter.hasNext() } {
+                val immutable VariableSymbol envSym = iter.next();
+                val immutable ArgSpec envSpec = methodSig.environment.get(envSym);
+                match (methodContext.containsSymbol(envSym)) {
+                  case False {
+                    methodContext.put(envSym, envSpec.inputType);
+                  }
+                  case True {
+                    ABORT("<typecheckMethodDecl> multiple inputs declared with name '" + envSym.name + "'")
+                  }
+                }
+              };
+              
+              /* typecheck method body in context asking for permission of return type */
+              val unique TypecheckResult methodResult = 
+                typecheckExpression(methodContext, 
+                                    methodSig.returnType.permission,
+                                    declNode.body);
+               
+              /* check that return structure is consistent with return type */                     
+              if (!(methodResult.expType.isSubTypeOf(methodSig.returnType))) {
+                ABORT("<typecheckMethodDecl> method body returns structure '" + 
+                      methodResult.expType.structure.toString() + 
+                      "' which is not a substructure of declared return structure '" +
+                      methodSig.returnType.structure.toString() + "'")
+              };
+              
+              /* check that the context contains the required ending permissions */
+              val unique LinearContext resultContext = methodResult.ctxResult;
+              
+              //receiver
+              val immutable Type endTypeThis = resultContext.get(thisSymbol);
+              if (!(endTypeThis.isSubTypeOf(methodSig.receiverSpec.outputType))) {
+                ABORT("<typecheckMethodDecl> Receiver ended method as '" + 
+                      endTypeThis.toString() + 
+                      "' which is not a subtype of declared end type '" +
+                      methodSig.receiverSpec.outputType.toString() + "'")
+              };
+              //args
+              methodSig.arguments.do(fn (symSpecPair) => {
+                val immutable VariableSymbol argSym = symSpecPair.fst;
+                val immutable ArgSpec argSpec = symSpecPair.snd;
+                val immutable Type endTypeArg = resultContext.get(argSym);
+                if (!(endTypeArg.isSubTypeOf(argSpec.outputType))) {
+                  ABORT("<typecheckMethodDecl> arg '" + argSym.name +
+                        "' ended method as '" + endTypeArg.toString() + 
+                        "' which is not a subtype of declared end type '" +
+                        argSpec.outputType.toString() + "'")
+                };
+              });
+              
+              //environment
+              val iter2 = methodSig.environment.keySet().iterator();
+              while { iter2.hasNext() } {
+                val immutable VariableSymbol envSym = iter2.next();
+                val immutable ArgSpec envSpec = methodSig.environment.get(envSym);
+                val immutable Type endTypeEnv = resultContext.get(envSym);
+                if (!(endTypeEnv.isSubTypeOf(envSpec.outputType))) {
+                  ABORT("<typecheckMethodDecl> environment variable '" + envSym.name +
+                        "' ended method as '" + endTypeEnv.toString() + 
+                        "' which is not a subtype of declared end type '" +
+                        envSpec.outputType.toString() + "'")
+                };
+              };
+              
+              /* checks out - concrete */
+              true
+            }
+            case ParsedAbstractMethodDecl { false }
+            default {
+              ABORT("(implementation error) method symbol '" + declNode.name.name + "' not associated with method AST ")
+            }
+          }
+          
+        }
+        default { ABORT("<typecheckDecl> unrecognized symbol for decl '" + declNode.name.name + "'") }
+      }
+    }
+    case None { ABORT("<typecheckDecl> No Symbol for decl '" + declNode.name.name + "'") }
+  } 
+}
