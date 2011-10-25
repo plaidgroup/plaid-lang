@@ -7,7 +7,6 @@ import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
 
 
 public class CellGridCanvas extends Canvas {
@@ -44,12 +43,6 @@ public class CellGridCanvas extends Canvas {
 					draw(e.getX(), e.getY());
 				}
 			});
-
-		addMouseMotionListener(new MouseMotionAdapter() {
-			public void mouseDragged(MouseEvent e) {
-				draw(e.getX(), e.getY());
-			}
-		});
 	}
 
 	/**
