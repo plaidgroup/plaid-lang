@@ -17,7 +17,7 @@ public class GameBoardApp extends JFrame{
 
 	  private GameBoardApp() {
 	    ui = new GameBoardPanel(
-	    		new BoardGameGrid<PlaidCellProxy>(COLS, ROWS, new PlaidCellProxyFactory()),
+	    		new BoardGameGrid<JavaCell>(COLS, ROWS, new JavaCellFactory()),
 	    		CELLSIZE);     
 	    add ("Center", ui);   
 	  }
