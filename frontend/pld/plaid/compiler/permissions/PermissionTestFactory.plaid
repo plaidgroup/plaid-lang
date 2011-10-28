@@ -1,0 +1,1267 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.permissions;
+
+import plaid.lang.testing.TestFactory;
+import plaid.lang.testing.Test;
+
+import plaid.collections.makeLinkedList;
+
+import plaid.compiler.tests.TypesForTests;
+
+state PermissionTestFactory case of TestFactory {
+	
+	method unique List<unique Test> createTests() {
+		val tests = makeLinkedList();
+		val test = fn(name,body) => { tests.add(mktest(name, body)) };
+		var t = new None;  //dummy variable to get around match scoping bug
+		
+		val types = new TypesForTests;
+		types.initPermissions();
+
+		/********** UNIQUE *************/
+		test("Unique is writable", fn(ctx) => {
+			ctx.assertTrue(UNIQUE.isWritable());
+		});
+		
+		test("Unique guarantees state", fn(ctx) => {
+			ctx.assertTrue(UNIQUE.guaranteesState());
+		});
+		
+		test("Unique ==", fn(ctx) => { 
+      ctx.assertTrue(UNIQUE == UNIQUE);
+      ctx.assertFalse(UNIQUE == IMMUTABLE);
+      ctx.assertFalse(UNIQUE == SHARED);
+      ctx.assertFalse(UNIQUE == LOCALIMMUTABLE);
+      ctx.assertFalse(UNIQUE == LOCALSHARED);
+      ctx.assertFalse(UNIQUE == NONEP);
+      ctx.assertFalse(UNIQUE == DYNAMICP);
+      ctx.assertFalse(UNIQUE == types.permBi3u);
+      ctx.assertFalse(UNIQUE == types.permBs1u);
+    });
+    
+    test("Unique toString", fn(ctx) => { 
+      ctx.assertTrue(UNIQUE.toString().equals("unique"));
+    });
+		
+		test("Unique splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(UNIQUE)) {
+					case Some {
+						match (UNIQUE.splitPerm(UNIQUE).value) {
+							case NonePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(IMMUTABLE)) {
+					case Some {
+						match (UNIQUE.splitPerm(IMMUTABLE).value) {
+							case ImmutablePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(SHARED)) {
+					case Some {
+						match (UNIQUE.splitPerm(SHARED).value) {
+							case SharedPermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(NONEP)) {
+					case Some {
+						match (UNIQUE.splitPerm(NONEP).value) {
+							case UniquePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(LOCALIMMUTABLE)) {
+					case Some {
+						t = UNIQUE.splitPerm(LOCALIMMUTABLE).value;
+						match (t) {
+							case BorrowedPermission { 
+								ifElse( t.thePerm == IMMUTABLE &&
+										t.originalPerm == UNIQUE &&
+										t.splitCount == 1 )
+								{ true }
+								{ false }
+							}
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(LOCALSHARED)) {
+					case Some {
+						t = UNIQUE.splitPerm(LOCALSHARED).value;
+						match (t) {
+							case BorrowedPermission { 
+								ifElse( t.thePerm == SHARED &&
+										t.originalPerm == UNIQUE &&
+										t.splitCount == 1 )
+								{ true }
+								{ false }
+							}
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (UNIQUE.splitPerm(types.permBi3u)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+		  ctx.assertTrue(
+        match (UNIQUE.splitPerm(DYNAMICP)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+		});
+
+    test("Unique returns", fn(ctx) => {
+      //ctx.assertFalse(UNIQUE.returnPerm(UNIQUE))  //EXCEPTION
+      //ctx.assertFalse(UNIQUE.returnPerm(IMMUTABLE))  //EXCEPTION
+      //ctx.assertFalse(UNIQUE.returnPerm(SHARED))  //EXCEPTION
+      //ctx.assertFalse(UNIQUE.returnPerm(LOCALIMMUTABLE))  //EXCEPTION
+      //ctx.assertFalse(UNIQUE.returnPerm(LOCALSHARED))  //EXCEPTION
+      //ctx.assertFalse(UNIQUE.returnPerm(types.permBi3u))  //EXCEPTION
+      ctx.assertTrue(UNIQUE.returnPerm(NONEP) == UNIQUE);
+      //ctx.assertFalse(UNIQUE.returnPerm(DYNAMICP)); //EXCEPTION
+    });
+
+		test("Unique isSubPermOf", fn(ctx) => {	
+			ctx.assertTrue(UNIQUE.isSubPermOf(UNIQUE));
+			ctx.assertTrue(UNIQUE.isSubPermOf(IMMUTABLE));
+			ctx.assertTrue(UNIQUE.isSubPermOf(SHARED));
+			ctx.assertTrue(UNIQUE.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertTrue(UNIQUE.isSubPermOf(LOCALSHARED));
+			ctx.assertTrue(UNIQUE.isSubPermOf(NONEP));
+			ctx.assertFalse(UNIQUE.isSubPermOf(types.permBi3u));
+			ctx.assertFalse(UNIQUE.isSubPermOf(DYNAMICP));
+		});
+		
+		test("Unique greatestLowerBound", fn (ctx) => {
+			t = UNIQUE.greatestLowerBound(UNIQUE);
+			ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+			t = UNIQUE.greatestLowerBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+			t = UNIQUE.greatestLowerBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = UNIQUE.greatestLowerBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = UNIQUE.greatestLowerBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = UNIQUE.greatestLowerBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = UNIQUE.greatestLowerBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = UNIQUE.greatestLowerBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+			
+		});
+		
+		test("Unique leastUpperBound", fn (ctx) => {
+      t = UNIQUE.leastUpperBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = UNIQUE.leastUpperBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = UNIQUE.leastUpperBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = UNIQUE.leastUpperBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = UNIQUE.leastUpperBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALSHARED } case None { false } });
+      t = UNIQUE.leastUpperBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = UNIQUE.leastUpperBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = UNIQUE.leastUpperBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } }); 
+    });
+		
+		test("split field permissions from unique receiver", fn (ctx) => {
+      t = splitFieldPermission(UNIQUE,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = splitFieldPermission(UNIQUE,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = splitFieldPermission(UNIQUE,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = splitFieldPermission(UNIQUE,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBs1u } case None { false } });
+      t = splitFieldPermission(UNIQUE,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(UNIQUE,types.permBi2u,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBi3u } case None { false } });
+      t = splitFieldPermission(UNIQUE,SHARED,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+    });
+		
+		/********** IMMUTABLE *************/
+		
+		test("Immutable is not writable", fn(ctx) => {
+			ctx.assertFalse(IMM.isWritable());
+		});
+		
+		test("Immutable guarantees state", fn(ctx) => {
+			ctx.assertTrue(IMM.guaranteesState());
+		});
+		
+		test("Immutable ==", fn(ctx) => { 
+      ctx.assertFalse(IMM == UNIQUE);
+      ctx.assertTrue(IMM == IMMUTABLE);
+      ctx.assertFalse(IMM == SHARED);
+      ctx.assertFalse(IMM == LOCALIMMUTABLE);
+      ctx.assertFalse(IMM == LOCALSHARED);
+      ctx.assertFalse(IMM == NONEP);
+      ctx.assertFalse(IMM == types.permBi3u);
+      ctx.assertFalse(IMM == DYNAMICP);
+    });
+    
+    test("Immutable toString", fn(ctx) => { 
+      ctx.assertTrue(IMM.toString().equals("immutable"));
+    });
+		
+		test("Immutable splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (IMM.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = IMM.splitPerm(IMMUTABLE);
+			ctx.assertTrue(
+				match (t ) {
+					case Some {
+						match (t.value) {
+							case ImmutablePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (IMM.splitPerm(SHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = IMM.splitPerm(LOCALIMMUTABLE);
+			ctx.assertTrue(
+				match (t) {
+					case Some {
+						match (t.value) {
+							case ImmutablePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (IMM.splitPerm(LOCALSHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (IMM.splitPerm(NONEP)) {
+					case Some {
+						match (IMM.splitPerm(NONEP).value) {
+							case ImmutablePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (IMM.splitPerm(types.permBi3u)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+        match (IMM.splitPerm(DYNAMICP)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+		});
+		
+		test("Immutable returns", fn(ctx) => {
+      //ctx.assertFalse(IMM.returnPerm(UNIQUE))  //EXCEPTION
+      ctx.assertTrue(IMM.returnPerm(IMMUTABLE) == IMMUTABLE);
+      //ctx.assertFalse(IMM.returnPerm(SHARED))  //EXCEPTION
+      ctx.assertTrue(IMM.returnPerm(LOCALIMMUTABLE) == IMMUTABLE);
+      //ctx.assertFalse(IMM.returnPerm(LOCALSHARED))  //EXCEPTION
+      //ctx.assertFalse(IMM.returnPerm(types.permBi3u))  //EXCEPTION
+      ctx.assertTrue(IMM.returnPerm(NONEP) == IMMUTABLE);
+      //ctx.assertFalse(IMM.returnPerm(DYNAMICP)); //EXCEPTION
+    });
+
+		test("Immutable isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(IMM.isSubPermOf(UNIQUE));
+			ctx.assertTrue(IMM.isSubPermOf(IMMUTABLE));
+			ctx.assertTrue(IMM.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertFalse(IMM.isSubPermOf(SHARED));
+			ctx.assertFalse(IMM.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(IMM.isSubPermOf(types.permBi3u));
+			ctx.assertTrue(IMM.isSubPermOf(NONEP));
+			ctx.assertFalse(IMM.isSubPermOf(DYNAMICP));
+		});
+		
+		test("Immutable greatestLowerBound", fn (ctx) => {
+      t = IMM.greatestLowerBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = IMM.greatestLowerBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = IMM.greatestLowerBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = IMM.greatestLowerBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = IMM.greatestLowerBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = IMM.greatestLowerBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = IMM.greatestLowerBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = IMM.greatestLowerBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+    });
+    
+    test("Immutable leastUpperBound", fn (ctx) => {
+      t = IMM.leastUpperBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = IMM.leastUpperBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = IMM.leastUpperBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = IMM.leastUpperBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = IMM.leastUpperBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = IMM.leastUpperBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = IMM.leastUpperBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = IMM.leastUpperBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+    });
+    
+    test("split field permissions from immutable receiver", fn (ctx) => {
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(IMMUTABLE,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(IMMUTABLE,SHARED,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = splitFieldPermission(IMMUTABLE,IMMUTABLE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(IMMUTABLE,IMMUTABLE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+    });
+		
+		/********** SHARED *************/
+		
+		test("Shared is writable", fn(ctx) => {
+			ctx.assertTrue(SHARED.isWritable());
+		});
+		
+		test("Shared does not guarantee state", fn(ctx) => {
+			ctx.assertFalse(SHARED.guaranteesState());
+		});
+		
+		test("Shared ==", fn(ctx) => { 
+      ctx.assertFalse(SHARED == UNIQUE);
+      ctx.assertFalse(SHARED == IMMUTABLE);
+      ctx.assertTrue(SHARED == SHARED);
+      ctx.assertFalse(SHARED == LOCALIMMUTABLE);
+      ctx.assertFalse(SHARED == LOCALSHARED);
+      ctx.assertFalse(SHARED == NONEP);
+      ctx.assertFalse(SHARED == types.permBi3u);
+      ctx.assertFalse(SHARED == DYNAMICP);
+    });
+    
+    test("Shared toString", fn(ctx) => { 
+      ctx.assertTrue(SHARED.toString().equals("shared"));
+    });
+		
+		test("Shared splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (SHARED.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(SHARED)) {
+					case Some {
+						match (SHARED.splitPerm(SHARED).value) {
+							case SharedPermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(IMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = SHARED.splitPerm(LOCALSHARED);
+			ctx.assertTrue(
+				match (t) {
+					case Some {
+						match (t.value) {
+							case SharedPermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(LOCALIMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(NONEP)) {
+					case Some {
+						match (SHARED.splitPerm(NONEP).value) {
+							case SharedPermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+				match (SHARED.splitPerm(types.permBi3u)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+        match (SHARED.splitPerm(types.permBs1u)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+			ctx.assertTrue(
+        match (SHARED.splitPerm(DYNAMICP)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+		});
+		
+		test("Shared returns", fn(ctx) => {
+      //ctx.assertFalse(SHARED.returnPerm(UNIQUE))  //EXCEPTION
+      ctx.assertTrue(SHARED.returnPerm(SHARED) == SHARED);
+      //ctx.assertFalse(SHARED.returnPerm(IMMUTABLE))  //EXCEPTION
+      ctx.assertTrue(SHARED.returnPerm(LOCALSHARED) == SHARED);
+      //ctx.assertFalse(SHARED.returnPerm(LOCALIMMUTABLE))  //EXCEPTION
+      //ctx.assertFalse(SHARED.returnPerm(types.permBi3u))  //EXCEPTION
+      ctx.assertTrue(SHARED.returnPerm(NONEP) == SHARED);
+      //ctx.assertFalse(SHARED.returnPerm(DYNAMICP)); //EXCEPTION
+    });
+		
+		test("Shared isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(SHARED.isSubPermOf(UNIQUE));
+			ctx.assertFalse(SHARED.isSubPermOf(IMMUTABLE));
+			ctx.assertFalse(SHARED.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertTrue(SHARED.isSubPermOf(SHARED));
+			ctx.assertTrue(SHARED.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(SHARED.isSubPermOf(types.permBi3u));
+			ctx.assertTrue(SHARED.isSubPermOf(NONEP));
+			ctx.assertFalse(SHARED.isSubPermOf(DYNAMICP));
+		});
+		
+		test("Shared greatestLowerBound", fn (ctx) => {
+		  t = SHARED.greatestLowerBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = SHARED.greatestLowerBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = SHARED.greatestLowerBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = SHARED.greatestLowerBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = SHARED.greatestLowerBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = SHARED.greatestLowerBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = SHARED.greatestLowerBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = SHARED.greatestLowerBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+		});
+		
+		test("Shared leastUpperBound", fn (ctx) => {
+      t = SHARED.leastUpperBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = SHARED.leastUpperBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = SHARED.leastUpperBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = SHARED.leastUpperBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = SHARED.leastUpperBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALSHARED } case None { false } });
+      t = SHARED.leastUpperBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = SHARED.leastUpperBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = SHARED.leastUpperBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+    });
+		
+		 test("split field permissions from shared receiver", fn (ctx) => {
+      t = splitFieldPermission(SHARED,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(SHARED,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(SHARED,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(SHARED,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(SHARED,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(SHARED,UNIQUE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(SHARED,IMMUTABLE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = splitFieldPermission(SHARED,SHARED,SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = splitFieldPermission(SHARED,SHARED,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      //not a valid test situation and not the behavior
+      //t = splitFieldPermission(SHARED,types.permBs1u,LOCALSHARED);
+      //ctx.assertTrue(match(t) { case Some { t.value == types.permBs2u } case None { false } });
+    });
+		
+		/********** NONE *************/
+		
+		test("None is not writable", fn(ctx) => {
+			ctx.assertFalse(NONEP.isWritable());
+		});
+		
+		test("None does not guarantee state", fn(ctx) => {
+			ctx.assertFalse(NONEP.guaranteesState());
+		});
+		
+		test("None ==", fn(ctx) => { 
+      ctx.assertFalse(NONEP == UNIQUE);
+      ctx.assertFalse(NONEP == IMMUTABLE);
+      ctx.assertFalse(NONEP == SHARED);
+      ctx.assertFalse(NONEP == LOCALIMMUTABLE);
+      ctx.assertFalse(NONEP == LOCALSHARED);
+      ctx.assertTrue(NONEP == NONEP);
+      ctx.assertFalse(NONEP == types.permBi3u);
+      ctx.assertFalse(NONEP == DYNAMICP);
+    });
+    
+    test("None toString", fn(ctx) => { 
+      ctx.assertTrue(NONEP.toString().equals("none"));
+    });
+		
+		test("None splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (NONEP.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(SHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(IMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(LOCALSHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(LOCALIMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (NONEP.splitPerm(NONEP)) {
+					case Some {
+						match (NONEP.splitPerm(NONEP).value) {
+							case NonePermission { true }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+			ctx.assertTrue(
+        match (NONEP.splitPerm(DYNAMICP)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+		});
+		
+		test("None returns", fn(ctx) => {
+      ctx.assertTrue(NONEP.returnPerm(UNIQUE) == UNIQUE);
+      ctx.assertTrue(NONEP.returnPerm(SHARED) == SHARED);
+      ctx.assertTrue(NONEP.returnPerm(IMMUTABLE) == IMMUTABLE);
+      ctx.assertTrue(NONEP.returnPerm(LOCALSHARED) == LOCALSHARED);
+      ctx.assertTrue(NONEP.returnPerm(LOCALIMMUTABLE) == LOCALIMMUTABLE);
+      //ctx.assertFalse(NONEP.returnPerm(types.permBi3u))  //EXCEPTION
+      ctx.assertTrue(NONEP.returnPerm(NONEP) == NONEP);
+      //ctx.assertFalse(NONEP.returnPerm(DYNAMICP)); //EXCEPTION
+    });
+
+		test("None isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(NONEP.isSubPermOf(UNIQUE));
+			ctx.assertFalse(NONEP.isSubPermOf(IMMUTABLE));
+			ctx.assertFalse(NONEP.isSubPermOf(SHARED));
+			ctx.assertFalse(NONEP.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertFalse(NONEP.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(NONEP.isSubPermOf(types.permBi3u));
+			ctx.assertTrue(NONEP.isSubPermOf(NONEP));
+			ctx.assertFalse(NONEP.isSubPermOf(DYNAMICP));
+		});
+		
+		test("NONE greatestLowerBound", fn (ctx) => {
+      t = NONEP.greatestLowerBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = NONEP.greatestLowerBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = NONEP.greatestLowerBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == SHARED } case None { false } });
+      t = NONEP.greatestLowerBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = NONEP.greatestLowerBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALSHARED } case None { false } });
+      t = NONEP.greatestLowerBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = NONEP.greatestLowerBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = NONEP.greatestLowerBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBi3u } case None { false } });
+    });
+    
+    test("NONE leastUpperBound", fn (ctx) => {
+      t = NONEP.leastUpperBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = NONEP.leastUpperBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = NONEP.leastUpperBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = NONEP.leastUpperBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = NONEP.leastUpperBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = NONEP.leastUpperBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = NONEP.leastUpperBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = NONEP.leastUpperBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+    });
+    
+    test("split field permissions from none receiver", fn (ctx) => {
+      t = splitFieldPermission(NONEP,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,UNIQUE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(NONEP,IMMUTABLE,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+    });
+		
+		
+		/********** LOCAL *************/
+		
+		test("Local is writable if underlying permission is", fn(ctx) => {
+			ctx.assertFalse(LOCALIMMUTABLE.isWritable());
+			ctx.assertTrue(LOCALSHARED.isWritable());
+		});
+		
+		test("Local guarantees state if underlying permission does", fn(ctx) => {
+			ctx.assertTrue(LOCALIMMUTABLE.guaranteesState());
+			ctx.assertFalse(LOCALSHARED.guaranteesState());
+		});
+		
+		test("Local ==", fn(ctx) => { 
+      ctx.assertFalse(LOCALIMMUTABLE == UNIQUE);
+      ctx.assertFalse(LOCALIMMUTABLE == IMMUTABLE);
+      ctx.assertFalse(LOCALIMMUTABLE == SHARED);
+      ctx.assertTrue(LOCALIMMUTABLE == LOCALIMMUTABLE);
+      ctx.assertFalse(LOCALIMMUTABLE == LOCALSHARED);
+      ctx.assertFalse(LOCALIMMUTABLE == NONEP);
+      ctx.assertFalse(LOCALIMMUTABLE == types.permBi3u);
+      ctx.assertFalse(LOCALIMMUTABLE == DYNAMICP);
+    });
+    
+    test("Local toString", fn(ctx) => { 
+      ctx.assertTrue(LOCALIMMUTABLE.toString().equals("local immutable"));
+      ctx.assertTrue(LOCALSHARED.toString().equals("local shared"));
+    });
+		
+		test("Local splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (LOCALIMMUTABLE.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (LOCALIMMUTABLE.splitPerm(SHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (LOCALIMMUTABLE.splitPerm(IMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (LOCALIMMUTABLE.splitPerm(LOCALSHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = LOCALIMMUTABLE.splitPerm(LOCALIMMUTABLE);
+			ctx.assertTrue(
+				match (t) {
+					case Some { 
+						match (t.value) {
+							case BorrowedPermission {
+								t.value.thePerm == IMMUTABLE &&
+								t.value.originalPerm == LOCALIMMUTABLE &&
+								t.value.splitCount == 1
+							}
+							default { false }
+						}
+ 					}
+					case None { false }
+				}
+			);
+			t = LOCALIMMUTABLE.splitPerm(NONEP);
+			ctx.assertTrue(
+				match (t) {
+					case Some {
+						match (t.value) {
+							case LocalPermission { t.value.thePerm == IMMUTABLE }
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+      ctx.assertTrue(
+        match (LOCALIMMUTABLE.splitPerm(DYNAMICP)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+		});
+  
+    test("Local returns", fn(ctx) => {
+      //ctx.assertFalse(LOCALIMM.returnPerm(UNIQUE))  //EXCEPTION
+      //ctx.assertFalse(LOCALIMM.returnPerm(IMMUTABLE))  //EXCEPTION
+      //ctx.assertFalse(LOCALIMM.returnPerm(SHARED))  //EXCEPTION
+      //ctx.assertFalse(LOCALIMM.returnPerm(LOCALIMMUTABLE));//EXCEPTION
+      //ctx.assertFalse(LOCALIMM.returnPerm(LOCALSHARED))  //EXCEPTION
+      //ctx.assertFalse(LOCALIMM.returnPerm(types.permBi3u))  //EXCEPTION
+      ctx.assertTrue(LOCALIMM.returnPerm(NONEP) == LOCALIMMUTABLE);
+      //ctx.assertFalse(LOCALIMM.returnPerm(DYNAMICP)); //EXCEPTION
+    });
+
+		test("local isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(UNIQUE));
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(IMMUTABLE));
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(SHARED));
+			ctx.assertTrue(LOCALIMMUTABLE.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(types.permBi3u));
+			ctx.assertTrue(LOCALIMMUTABLE.isSubPermOf(NONEP));
+			ctx.assertFalse(LOCALIMMUTABLE.isSubPermOf(DYNAMICP));
+			
+		});
+		
+		test("Local greatestLowerBound", fn (ctx) => {
+      t = LOCALIMMUTABLE.greatestLowerBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = LOCALIMMUTABLE.greatestLowerBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == IMMUTABLE } case None { false } });
+      t = LOCALIMMUTABLE.greatestLowerBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = LOCALIMMUTABLE.greatestLowerBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = LOCALIMMUTABLE.greatestLowerBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = LOCALIMMUTABLE.greatestLowerBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = LOCALIMMUTABLE.greatestLowerBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = LOCALIMMUTABLE.greatestLowerBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBi3u } case None { false } });
+      t = LOCALIMMUTABLE.greatestLowerBound(types.permBs1u);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+		});
+
+    test("Local leastUpperBound", fn (ctx) => {
+      t = LOCALIMMUTABLE.leastUpperBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = LOCALIMMUTABLE.leastUpperBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = LOCALIMMUTABLE.leastUpperBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = LOCALIMMUTABLE.leastUpperBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = LOCALIMMUTABLE.leastUpperBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = LOCALIMMUTABLE.leastUpperBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = LOCALIMMUTABLE.leastUpperBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = LOCALIMMUTABLE.leastUpperBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = LOCALIMMUTABLE.leastUpperBound(types.permBs1u);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+    });
+		
+		test("split field permissions from local receiver", fn (ctx) => {
+      t = splitFieldPermission(LOCALIMMUTABLE,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(LOCALIMMUTABLE,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(LOCALIMMUTABLE,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(LOCALIMMUTABLE,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(LOCALSHARED,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBs1u } case None { false } });
+      t = splitFieldPermission(LOCALIMMUTABLE,types.permBi2u,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBi3u } case None { false } });
+    });
+	
+			/********** Borrowed *************/
+		
+		//declared above - here for ease of looking
+		//val types.permBs1u = makeBorrowedPerm(SHARED,UNIQUE,1);
+		//val types.permBi3u = makeBorrowedPerm(IMM,UNIQUE,3); (same as types.permBi3u)
+		
+		test("Borrowed is writable if underlying permission is", fn(ctx) => {
+			ctx.assertFalse(types.permBi3u.isWritable());
+			ctx.assertTrue(types.permBs1u.isWritable());
+		});
+		
+		test("Borrowed guarantees state if underlying permission does", fn(ctx) => {
+			ctx.assertTrue(types.permBi3u.guaranteesState());
+			ctx.assertFalse(types.permBs1u.guaranteesState());
+		});
+    
+    test("Borrowed ==", fn(ctx) => { 
+      ctx.assertFalse(types.permBi3u == UNIQUE);
+      ctx.assertFalse(types.permBi3u == IMMUTABLE);
+      ctx.assertFalse(types.permBi3u == SHARED);
+      ctx.assertFalse(types.permBi3u == LOCALIMMUTABLE);
+      ctx.assertFalse(types.permBi3u == LOCALSHARED);
+      ctx.assertFalse(types.permBi3u == NONEP);
+      ctx.assertTrue(types.permBi3u == types.permBi3u);
+      ctx.assertFalse(types.permBi3u == types.permBs1u);
+      ctx.assertFalse(types.permBi3u == DYNAMICP);
+    });
+    
+    test("types.permBi3u toString", fn(ctx) => { 
+      ctx.assertTrue(types.permBs1u.toString().equals("borrow(local shared, unique, 1)"));
+      ctx.assertTrue(types.permBi3u.toString().equals("borrow(local immutable, unique, 3)"));
+    });
+		
+		test("Borrowed splitting", fn(ctx) => {
+			//splitting
+			ctx.assertTrue(
+				match (types.permBs1u.splitPerm(UNIQUE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (types.permBs1u.splitPerm(SHARED)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (types.permBs1u.splitPerm(IMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = types.permBs1u.splitPerm(LOCALSHARED);
+			ctx.assertTrue(
+				match (t) {
+					case Some { 
+						match (t.value) {
+							case BorrowedPermission { 
+								t.value.thePerm == SHARED &&
+								t.value.originalPerm == UNIQUE &&
+								t.value.splitCount == 2
+							}
+							default { false }
+						}
+					}
+					case None { true }
+				}
+			);
+			ctx.assertTrue(
+				match (types.permBs1u.splitPerm(LOCALIMMUTABLE)) {
+					case Some { false }
+					case None { true }
+				}
+			);
+			t = types.permBs1u.splitPerm(NONEP);
+			ctx.assertTrue(
+				match (t) {
+					case Some {
+						match (t.value) {
+							case BorrowedPermission { 
+								t.value.thePerm == SHARED &&
+								t.value.originalPerm == UNIQUE &&
+								t.value.splitCount == 1
+							}
+							default { false }
+						}
+					}
+					case None { false }
+				}
+			);
+		  ctx.assertTrue(
+        match (types.permBs1u.splitPerm(DYNAMICP)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+		});
+		
+		test("Borrowed returns", fn(ctx) => {
+      //ctx.assertFalse(types.permBs1u.returnPerm(UNIQUE))  //EXCEPTION
+      //ctx.assertFalse(types.permBs1u.returnPerm(SHARED))  //EXCEPTION
+      //ctx.assertFalse(types.permBs1u.returnPerm(IMMUTABLE))  //EXCEPTION
+      ctx.assertTrue(types.permBs1u.returnPerm(LOCALSHARED) == UNIQUE);
+      ctx.assertTrue(types.permBi3u.returnPerm(LOCALIMMUTABLE) == types.permBi2u);
+      //ctx.assertFalse(types.permBs1u.returnPerm(LOCALIMMUTABLE))  //EXCEPTION
+      //ctx.assertFalse(types.permBs1u.returnPerm(types.permBi3u))  //EXCEPTION
+      ctx.assertTrue(types.permBs1u.returnPerm(NONEP) == types.permBs1u);
+      //ctx.assertFalse(types.permBs1u.returnPerm(DYNAMICP)); //EXCEPTION
+    });
+
+		test("borrow isSubPermOf", fn(ctx) => {	
+			ctx.assertFalse(types.permBs1u.isSubPermOf(UNIQUE));
+			ctx.assertFalse(types.permBs1u.isSubPermOf(IMMUTABLE));
+			ctx.assertFalse(types.permBs1u.isSubPermOf(SHARED));
+			ctx.assertFalse(types.permBs1u.isSubPermOf(LOCALIMMUTABLE));
+			ctx.assertTrue(types.permBs1u.isSubPermOf(LOCALSHARED));
+			ctx.assertFalse(types.permBs1u.isSubPermOf(types.permBi3u));
+			ctx.assertTrue(types.permBs1u.isSubPermOf(NONEP));
+			ctx.assertFalse(types.permBs1u.isSubPermOf(DYNAMICP));
+		});
+		
+		test("borrow greatestLowerBound", fn (ctx) => {
+      t = types.permBi3u.greatestLowerBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = types.permBi3u.greatestLowerBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = types.permBi3u.greatestLowerBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = types.permBi3u.greatestLowerBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBi3u } case None { false } });
+      t = types.permBi3u.greatestLowerBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = types.permBi3u.greatestLowerBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBi3u } case None { false } });
+      t = types.permBi3u.greatestLowerBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = types.permBi3u.greatestLowerBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = types.permBi3u.greatestLowerBound(types.permBs1u);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+    });
+    
+    test("borrow leastUpperBound", fn (ctx) => {
+      t = types.permBi3u.leastUpperBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = types.permBi3u.leastUpperBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = types.permBi3u.leastUpperBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = types.permBi3u.leastUpperBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = types.permBi3u.leastUpperBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = types.permBi3u.leastUpperBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+      t = types.permBi3u.leastUpperBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = types.permBi3u.leastUpperBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { t.value == LOCALIMMUTABLE } case None { false } });
+      t = types.permBi3u.leastUpperBound(types.permBs1u);
+      ctx.assertTrue(match(t) { case Some { t.value == NONEP } case None { false } });
+    });
+    
+    test("split field permissions from types.permBi3u receiver", fn (ctx) => {
+      t = splitFieldPermission(types.permBi3u,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(types.permBi3u,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(types.permBi3u,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { t.value == UNIQUE } case None { false } });
+      t = splitFieldPermission(types.permBi3u,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(types.permBs2u,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBs1u } case None { false } });
+      t = splitFieldPermission(types.permBi3u,types.permBi2u,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { t.value == types.permBi3u } case None { false } });
+    });
+	
+	   /********** Dynamic *************/
+    
+    test("Dynamic is writable", fn(ctx) => {
+      ctx.assertTrue(DYNAMICP.isWritable());
+    });
+    
+    test("Dynamic does not guarantee state", fn(ctx) => {
+      ctx.assertFalse(DYNAMICP.guaranteesState());
+    });
+    
+    test("Dynamic ==", fn(ctx) => { 
+      ctx.assertFalse(DYNAMICP == UNIQUE);
+      ctx.assertFalse(DYNAMICP == IMMUTABLE);
+      ctx.assertFalse(DYNAMICP == SHARED);
+      ctx.assertFalse(DYNAMICP == LOCALIMMUTABLE);
+      ctx.assertFalse(DYNAMICP == LOCALSHARED);
+      ctx.assertFalse(DYNAMICP == NONEP);
+      ctx.assertFalse(DYNAMICP == types.permBi3u);
+      ctx.assertTrue(DYNAMICP == new DynamicPermission);
+    });
+    
+    test("Dynamic toString", fn(ctx) => { 
+      ctx.assertTrue(DYNAMICP.toString().equals("dynamic"));
+    });
+    
+    test("Dynamic splitting", fn(ctx) => {
+      //splitting
+      ctx.assertTrue(
+        match (DYNAMICP.splitPerm(UNIQUE)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+      ctx.assertTrue(
+        match (DYNAMICP.splitPerm(SHARED)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+      ctx.assertTrue(
+        match (DYNAMICP.splitPerm(IMMUTABLE)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+      ctx.assertTrue(
+        match (DYNAMICP.splitPerm(LOCALIMMUTABLE)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+      ctx.assertTrue(
+        match (DYNAMICP.splitPerm(NONEP)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+      ctx.assertTrue(
+        match (DYNAMICP.splitPerm(types.permBi3u)) {
+          case Some { false }
+          case None { true }
+        }
+      );
+      t = DYNAMICP.splitPerm(new DynamicPermission);
+      ctx.assertTrue(
+        match (t) {
+          case Some { t.value == DYNAMICP }
+          case None { false }
+        }
+      );
+    });
+    
+   
+    
+    test("Dynamic returns", fn(ctx) => {
+      //ctx.assertFalse(DYNAMICP.returnPerm(UNIQUE))  //EXCEPTION
+      //ctx.assertFalse(DYNAMICP.returnPerm(SHARED))  //EXCEPTION
+      //ctx.assertFalse(DYNAMICP.returnPerm(IMMUTABLE))  //EXCEPTION
+      //ctx.assertFalse(DYNAMICP.returnPerm(LOCALSHARED)) //EXCEPTION
+      //ctx.assertFalse(DYNAMICP.returnPerm(LOCALIMMUTABLE))  //EXCEPTION
+      //ctx.assertFalse(DYNAMICP.returnPerm(types.permBi3u))  //EXCEPTION
+      //ctx.assertFalse(DYNAMICP.returnPerm(NONEP)) //EXCEPTION
+      ctx.assertTrue(DYNAMICP.returnPerm(DYNAMICP) == DYNAMICP);
+    });
+
+    test("dynamic isSubPermOf", fn(ctx) => { 
+      ctx.assertFalse(DYNAMICP.isSubPermOf(UNIQUE));
+      ctx.assertFalse(DYNAMICP.isSubPermOf(IMMUTABLE));
+      ctx.assertFalse(DYNAMICP.isSubPermOf(SHARED));
+      ctx.assertFalse(DYNAMICP.isSubPermOf(LOCALIMMUTABLE));
+      ctx.assertFalse(DYNAMICP.isSubPermOf(LOCALSHARED));
+      ctx.assertFalse(DYNAMICP.isSubPermOf(types.permBi3u));
+      ctx.assertFalse(DYNAMICP.isSubPermOf(NONEP));
+      ctx.assertTrue(DYNAMICP.isSubPermOf(new DynamicPermission));
+    });
+    
+    test("dynamic greatestLowerBound", fn (ctx) => {
+      t = DYNAMICP.greatestLowerBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.greatestLowerBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.greatestLowerBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.greatestLowerBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.greatestLowerBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.greatestLowerBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.greatestLowerBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.greatestLowerBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { t.value == DYNAMICP } case None { false } });
+    });
+    
+    test("dynamic leastUpperBound", fn (ctx) => {
+      t = DYNAMICP.leastUpperBound(UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.leastUpperBound(IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.leastUpperBound(SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.leastUpperBound(LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.leastUpperBound(LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.leastUpperBound(NONEP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.leastUpperBound(types.permBi3u);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = DYNAMICP.leastUpperBound(DYNAMICP);
+      ctx.assertTrue(match(t) { case Some { t.value == DYNAMICP } case None { false } });
+    });
+    
+    test("split field permissions from dynamic receiver", fn (ctx) => {
+      t = splitFieldPermission(DYNAMICP,UNIQUE,UNIQUE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,UNIQUE,SHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,UNIQUE,NONEP);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,UNIQUE,IMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,UNIQUE,LOCALSHARED);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+      t = splitFieldPermission(DYNAMICP,types.permBi2u,LOCALIMMUTABLE);
+      ctx.assertTrue(match(t) { case Some { false } case None { true } });
+    });
+    
+		/********** Globals *************/
+		
+		test("global definitions", fn(ctx) => { 
+      ctx.assertTrue(UNIQUE == new UniquePermission);
+      ctx.assertTrue(IMMUTABLE == new ImmutablePermission);
+      ctx.assertTrue(IMM == new ImmutablePermission);
+      ctx.assertTrue(SHARED == new SharedPermission);
+      ctx.assertTrue(NONEP == new NonePermission);
+      ctx.assertTrue(LOCALIMMUTABLE == new LocalPermission { val thePerm = new ImmutablePermission; });
+      ctx.assertTrue(LOCALIMM == new LocalPermission { val thePerm = new ImmutablePermission; });
+      ctx.assertTrue(LOCALSHARED == new LocalPermission { val thePerm = new SharedPermission; });
+      ctx.assertTrue(DYNP == new DynamicPermission);
+      ctx.assertTrue(DYNAMICP == new DynamicPermission);
+    });
+    
+		tests
+	}
+	
+	
+}

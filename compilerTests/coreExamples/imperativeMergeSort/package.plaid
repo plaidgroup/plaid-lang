@@ -1,0 +1,138 @@
+package coreExamples.imperativeMergeSort;
+
+state MyList {
+	method void add(immutable Integer >> immutable Integer i)[unique MyList >> unique MyList];
+	method unique MyList splitList()[unique MyList >> unique MyList];
+}
+
+state MyCons case of MyList {
+	var unique MyList next;
+	val immutable Integer data;
+	
+	method void add(immutable Integer >> immutable Integer i)[unique MyCons >> unique MyCons] {
+		val unique MyList addTo = this.next; //unpack this
+		addTo.add(i);
+		this.next = addTo; //repack this
+	}
+	
+	method unique MyList splitList()[unique MyCons >> unique MyCons] {
+		match (this.next) {
+			case MyCons {
+				val unique MyList odd = this.next; //unpack this
+				this.next = odd.splitList(); //pack this
+				odd; //odd is unique MyList
+			}
+			case MyNil {
+				new MyNil; // keep the single element and return a new MyNil list
+			}
+		}
+	}
+	
+}
+
+state MyNil case of MyList {
+	method void add(immutable Integer >> immutable Integer i)[unique MyNil >> unique MyCons] {
+		this <- MyCons {
+			val unique MyList next = new MyNil;
+			val immutable Integer data = i;
+		}
+	}
+	
+	method unique MyList splitList()[unique MyNil >> unique MyNil] {
+		new MyNil;
+	}
+}
+
+val (unique MyList >> none MyList) -> unique MyList mergeSort = 
+	fn (unique MyList >> none MyList list) => {
+		match (list) {
+			case MyNil {
+				list
+			}
+			case MyCons {
+				match (list.next) {
+					case MyNil {
+						list
+					}
+					case MyCons {
+						val unique MyList half = list.splitList();
+						val unique MyList sorted1 = mergeSort(list);
+						val unique MyList sorted2 = mergeSort(half);
+						merge(sorted1, sorted2);
+					}
+				}
+			}
+		}
+		
+	};
+
+val (unique MyList >> none MyList, unique MyList >> none MyList) -> unique MyList merge = 
+	fn (unique MyList >> none MyList l, unique MyList >> none MyList r) => {
+		match (l) {
+			case MyCons {
+				match (r) {
+					case MyCons {
+						match (l.data <= r.data) {
+							case True {
+								val unique MyList rest = l.next; //unpack l
+								val unique MyList toAppend = merge(rest,r);
+								l.next = toAppend; //pack l
+								l
+							}
+							case False {
+								val unique MyList rest = r.next; //unpack r
+								val unique MyList toAppend = merge(l,rest);
+								r.next = toAppend; //pack r
+								r
+							}
+						}
+					}
+					case MyNil {
+						l
+					}
+				}
+			}
+			case MyNil {
+				r
+			}
+		}
+	};
+	
+val (immutable MyList >> immutable MyList) -> void printList = 
+	fn (immutable MyList >> immutable MyList list) => { 
+		match(list) {
+			case MyNil { }
+			case MyCons { 
+				print("" + list.data + " ");
+				printList(list.next);
+			}
+		}
+	};	
+	
+method main() {
+	val unique MyList testList = 
+		new MyCons {
+			val immutable Integer data = 4;
+			var unique MyList next = new MyCons {
+				val immutable Integer data = 8;
+				var unique MyList next = new MyCons {
+					val immutable Integer data = 1;
+					var unique MyList next = new MyCons {
+						val immutable Integer data = 2;
+						var unique MyList next = new MyCons {
+							val immutable Integer data = 5;
+							var unique MyList next = new MyCons {
+								val immutable Integer data = 0;
+								var unique MyList next = new MyNil;
+							};
+						};	
+					};
+				};
+			};
+		};
+	printList(testList);
+	val unique MyList sortedList = mergeSort(testList);
+	printLine("");
+	printList(sortedList);
+	printLine("");
+}
