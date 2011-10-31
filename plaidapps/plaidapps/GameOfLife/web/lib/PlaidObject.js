@@ -312,8 +312,8 @@ function m_stateChange(obj1,obj2){
 		tree:md1,
 		members1:obj1.membersUnique(),
 		withMembers1:[],
-		withMembers2:[],
-	}
+		withMembers2:[]
+  }
 
 	//ensure that the state (to which the object is changing) has unique members
 	var unique = m_checkUniqueMembers(md2,[],[]);
