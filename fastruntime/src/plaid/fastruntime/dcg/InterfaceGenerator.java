@@ -18,7 +18,7 @@ public class InterfaceGenerator implements Opcodes{
 	 * @param methodName the method to include in the interface
 	 * @param numargs, the number of arguments taken by the method including the receiver if applicable
 	 */
-	public void createInterface(String methodName, int numargs) {
+	public void saveInterfaceFile(String methodName, int numargs) {
 		//TODO: Add interface caching and check if interface is in cache
 		
 		//check if interface already exists in file system
@@ -27,21 +27,32 @@ public class InterfaceGenerator implements Opcodes{
 			System.out.println("Interface already exists");
 			//TODO: Check if interface exists without catching an exception
 		} catch(ClassNotFoundException e) {
-			final String className =  getGeneratedInterfaceInternalName(methodName, numargs);
-			
-			ClassWriter cw = new ClassWriter(0);
-			
-			cw.visit(V1_5, 
-					ACC_PUBLIC + ACC_ABSTRACT + ACC_INTERFACE, 
-					className, null, "java/lang/Object", null);
-			cw.visitMethod(ACC_PUBLIC + ACC_ABSTRACT, getIdentifierName(methodName), 
-					NamingConventions.getMethodDescriptor(numargs), 
-					null, null).visitEnd();
-			cw.visitEnd();
-			ClassFileWriter.writeFile(cw.toByteArray(), 
+			byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
+			ClassFileWriter.writeFile(interfacebytes, 
 					new File(NamingConventions.GENERATED_INTERFACES_DIR), 
 					new File(getGeneratedInterfaceFilePath(methodName, numargs)));
 		}
+	}
+
+	public byte[] createInterfaceAsBytes(String methodName, int numargs) {
+		final String className =  getGeneratedInterfaceInternalName(methodName, numargs);
+		
+		ClassWriter cw = new ClassWriter(0);
+		
+		cw.visit(V1_5, 
+				ACC_PUBLIC + ACC_ABSTRACT + ACC_INTERFACE, 
+				className, null, "java/lang/Object", null);
+		cw.visitMethod(ACC_PUBLIC + ACC_ABSTRACT, getIdentifierName(methodName), 
+				NamingConventions.getMethodDescriptor(numargs), 
+				null, null).visitEnd();
+		cw.visitEnd();
+		return cw.toByteArray();
+	}
+	
+	public Class<?> createInterfaceAsClass (String methodName, int numargs) {
+		final String className =  getGeneratedInterfaceInternalName(methodName, numargs);
+		byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
+		return DynamicClassLoader.DYNAMIC_CLASS_LOADER.createClass(className, interfacebytes);
 	}
 }
 
