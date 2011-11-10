@@ -284,6 +284,7 @@ public class CompilerCore {
 			Iterable<? extends JavaFileObject> fileObjects = fileManager.getJavaFileObjectsFromFiles(allFiles);
 
 			List<String> optionList = new ArrayList<String>();
+			optionList.addAll(Arrays.asList("-target", "1.5"));
 			// Set compiler's classpath to be same as the runtime's
 			optionList.addAll(Arrays.asList("-classpath", System.getProperty("java.class.path")));
 			// TODO: Add a separate compiler flag for this.
