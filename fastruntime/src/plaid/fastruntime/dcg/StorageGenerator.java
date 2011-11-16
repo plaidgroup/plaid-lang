@@ -4,6 +4,7 @@ import static plaid.fastruntime.dcg.DynamicClassLoader.DYNAMIC_CLASS_LOADER;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
@@ -14,98 +15,19 @@ import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidStorage;
 import plaid.fastruntime.errors.PlaidInternalException;
 
-import fj.data.List;
+import com.google.monitoring.runtime.instrumentation.asm.Type;
+
 import fj.P2;
+import fj.data.List;
 
 public class StorageGenerator implements Opcodes {
 	
 	public PlaidStorage createStorage(List<P2<Boolean, String>> fields) {
-		
-		String name = "plaid/generated/Example";
-
-		ClassWriter cw = new ClassWriter(0);
-		FieldVisitor fv;
-		MethodVisitor mv;
-
-		cw.visit(V1_6, ACC_PUBLIC + ACC_SUPER,
-				name, null,
-				"java/lang/Object",
-				new String[] { "plaid/fastruntime/PlaidStorage" });
-
-		StringBuilder constructorDescBuilder = new StringBuilder("(");
-		for(P2<Boolean,String> field : fields)
-		{
-			fv = cw.visitField(ACC_PRIVATE + ACC_FINAL, field._2(),
-					"Lplaid/fastruntime/PlaidObject;", null, null);
-			fv.visitEnd();
-			constructorDescBuilder.append("Lplaid/fastruntime/PlaidObject;");
-		}
-		constructorDescBuilder.append(")V");
-		{
-			mv = cw.visitMethod(
-					ACC_PUBLIC,
-					"<init>",
-					constructorDescBuilder.toString(),
-					null, null);
-			mv.visitCode();
-			
-			mv.visitVarInsn(ALOAD, 0);
-			mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>",
-			"()V");
-			int count = 1;
-			for(P2<Boolean,String> field : fields)
-			{
-				mv.visitVarInsn(ALOAD, 0);
-				mv.visitVarInsn(ALOAD, count);
-				mv.visitFieldInsn(PUTFIELD,
-						name, field._2(),
-				"Lplaid/fastruntime/PlaidObject;");
-				count++;
-			}
-			
-			mv.visitInsn(RETURN);
-			mv.visitMaxs(2, count);
-			mv.visitEnd();
-		}
-		for(P2<Boolean,String> field : fields)
-		{
-			{
-				mv = cw.visitMethod(ACC_PUBLIC, "get" + field._2(),
-						"()Lplaid/fastruntime/PlaidObject;", null, null);
-				mv.visitCode();
-				mv.visitVarInsn(ALOAD, 0);
-				mv.visitFieldInsn(GETFIELD,
-						name, field._2(),
-				"Lplaid/fastruntime/PlaidObject;");
-				mv.visitInsn(ARETURN);
-				mv.visitMaxs(1, 1);
-				mv.visitEnd();
-			}
-			if(field._1()) { // if settable
-				mv = cw.visitMethod(ACC_PUBLIC, "set" + field._2(),
-						"(Lplaid/fastruntime/PlaidObject;)V", null, null);
-				mv.visitCode();
-				mv.visitVarInsn(ALOAD, 0);
-				mv.visitVarInsn(ALOAD, 1);
-				mv.visitFieldInsn(PUTFIELD,
-						name, field._2(),
-				"Lplaid/fastruntime/PlaidObject;");
-				mv.visitInsn(RETURN);
-				mv.visitMaxs(2, 2);
-				mv.visitEnd();
-			}
-		}
-		cw.visitEnd();
-
 		PlaidStorage result = null;
 		try {
-			System.out.println("1");
-			Class<?> storageClass = 
-				DYNAMIC_CLASS_LOADER.createClass(name, cw.toByteArray());
-			System.out.println("2");
+			Class<?> storageClass = createStorageClass(fields);
 			Constructor<?> storageConstructor = 
 				storageClass.getConstructor(PlaidObject.class, PlaidObject.class);
-			System.out.println("3");
 			result = (PlaidStorage)storageConstructor.newInstance(null, null);
 		} catch (InstantiationException e) {
 			throw new PlaidInternalException("Could not construct dispatch object.", e);
@@ -126,5 +48,109 @@ public class StorageGenerator implements Opcodes {
 			e.printStackTrace();
 		}
 		return result;
+	}
+	
+	public Class<?> createStorageClass(List<P2<Boolean, String>> fields) {
+		
+		String className = NamingConventions.getGeneratedStorageInternalName(fields);
+		try {
+			Class<?> storageClass = DYNAMIC_CLASS_LOADER.loadClass(className);
+			System.out.println(className + " interface already exists");
+			return storageClass;
+		} catch(ClassNotFoundException e) {
+			System.out.println(className + " interface doesn't exist");
+			
+			ClassWriter cw = new ClassWriter(0);
+			FieldVisitor fv;
+			MethodVisitor mv;
+			
+			InterfaceGenerator ig = new InterfaceGenerator();
+			
+			ArrayList<String> interfaceInternalNames = new ArrayList<String>();
+			interfaceInternalNames.add("plaid/fastruntime/PlaidStorage");
+			for(P2<Boolean,String> field : fields)
+			{
+				Class<?> getInterface = ig.createInterfaceAsClass("get" + field._2(), 0);
+				interfaceInternalNames.add(Type.getInternalName(getInterface));
+				if(field._1()) { // if settable
+					Class<?> setInterface = ig.createInterfaceAsClass("set" + field._2(), 1);
+					interfaceInternalNames.add(Type.getInternalName(setInterface));
+				}
+			}
+			String[] s = new String[0];
+			cw.visit(V1_6, ACC_PUBLIC + ACC_SUPER,
+					className, null,
+					"java/lang/Object",
+					interfaceInternalNames.toArray(s));
+
+			StringBuilder constructorDescBuilder = new StringBuilder("(");
+			for(P2<Boolean,String> field : fields)
+			{
+				fv = cw.visitField(ACC_PRIVATE + ACC_FINAL, field._2(),
+						"Lplaid/fastruntime/PlaidObject;", null, null);
+				fv.visitEnd();
+				constructorDescBuilder.append("Lplaid/fastruntime/PlaidObject;");
+			}
+			constructorDescBuilder.append(")V");
+			{
+				mv = cw.visitMethod(
+						ACC_PUBLIC,
+						"<init>",
+						constructorDescBuilder.toString(),
+						null, null);
+				mv.visitCode();
+				
+				mv.visitVarInsn(ALOAD, 0);
+				mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>",
+				"()V");
+				int count = 1;
+				for(P2<Boolean,String> field : fields)
+				{
+					mv.visitVarInsn(ALOAD, 0);
+					mv.visitVarInsn(ALOAD, count);
+					mv.visitFieldInsn(PUTFIELD,
+							className, field._2(),
+					"Lplaid/fastruntime/PlaidObject;");
+					count++;
+				}
+				
+				mv.visitInsn(RETURN);
+				mv.visitMaxs(2, count);
+				mv.visitEnd();
+			}
+			for(P2<Boolean,String> field : fields)
+			{
+				{
+					mv = cw.visitMethod(ACC_PUBLIC, "get" + field._2(),
+							"()Lplaid/fastruntime/PlaidObject;", null, null);
+					mv.visitCode();
+					mv.visitVarInsn(ALOAD, 0);
+					mv.visitFieldInsn(GETFIELD,
+							className, field._2(),
+					"Lplaid/fastruntime/PlaidObject;");
+					mv.visitInsn(ARETURN);
+					mv.visitMaxs(1, 1);
+					mv.visitEnd();
+				}
+				if(field._1()) { // if settable
+					mv = cw.visitMethod(ACC_PUBLIC, "set" + field._2(),
+							"(Lplaid/fastruntime/PlaidObject;)V", null, null);
+					mv.visitCode();
+					mv.visitVarInsn(ALOAD, 0);
+					mv.visitVarInsn(ALOAD, 1);
+					mv.visitFieldInsn(PUTFIELD,
+							className, field._2(),
+					"Lplaid/fastruntime/PlaidObject;");
+					mv.visitInsn(RETURN);
+					mv.visitMaxs(2, 2);
+					mv.visitEnd();
+				}
+			}
+			cw.visitEnd();
+			
+			byte[] storageBytes = cw.toByteArray();
+			Class<?> storageClass = DYNAMIC_CLASS_LOADER.createClass(className, storageBytes);
+			return storageClass;
+		}
 	}
 }
