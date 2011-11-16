@@ -1,5 +1,6 @@
 package plaid.fastruntime.dcg;
 
+import static plaid.fastruntime.dcg.DynamicClassLoader.DYNAMIC_CLASS_LOADER;
 import static plaid.fastruntime.dcg.NamingConventions.getGeneratedInterfaceFilePath;
 import static plaid.fastruntime.dcg.NamingConventions.getGeneratedInterfaceInternalName;
 import static plaid.fastruntime.dcg.NamingConventions.getGeneratedInterfaceName;
@@ -29,7 +30,7 @@ public class InterfaceGenerator implements Opcodes{
 		} catch(ClassNotFoundException e) {
 			byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
 			ClassFileWriter.writeFile(interfacebytes, 
-					new File(NamingConventions.GENERATED_INTERFACES_DIR), 
+					new File(NamingConventions.GENERATED_DIR), 
 					new File(getGeneratedInterfaceFilePath(methodName, numargs)));
 		}
 	}
@@ -51,8 +52,17 @@ public class InterfaceGenerator implements Opcodes{
 	
 	public Class<?> createInterfaceAsClass (String methodName, int numargs) {
 		final String className =  getGeneratedInterfaceInternalName(methodName, numargs);
-		byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
-		return DynamicClassLoader.DYNAMIC_CLASS_LOADER.createClass(className, interfacebytes);
+
+		try {
+			Class<?> interfaceClass = DYNAMIC_CLASS_LOADER.loadClass(className);
+			System.out.println(className + " interface already exists");
+			return interfaceClass;
+		} catch(ClassNotFoundException e) {
+			System.out.println(className + " interface doesn't exist");
+			byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
+			Class<?> interfaceClass = DYNAMIC_CLASS_LOADER.createClass(className, interfacebytes);
+			return interfaceClass;
+		}
 	}
 }
 
