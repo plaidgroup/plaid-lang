@@ -1,0 +1,101 @@
+package plaid.ast.types.permissions;
+
+/**
+ *	Dynamic Permission (separate from Dynamic object type)
+ */
+state DynPermission case of Permission {
+	
+	//changes can be made to an object with dynamic permission
+	method immutable Boolean isWritable()[pure DynPermission] {
+		true;
+	}
+	
+	//objects with dynamic permission could be changed, though it doesn't much impact the dynamic permission object
+	method immutable Boolean guaranteesState()[pure DynPermission] {
+		false;
+	}
+	
+	method immutable Boolean ==(immutable Permission p2)[immutable DynPermission] {
+		match(p2) {
+			case DynPermission { true }
+			default { false }
+		};
+	}
+	
+	method immutable String toString()[pure DynPermission] {
+		"DynP"
+	}
+
+	//You can split anything from a Dynamic permission and keep the dynPermission as the residue
+	//(KBN - this probably isn't actually true - would you want to be able split an immutable out?) - look at gradual typestate stuff...
+	method /* unique Option<immutable Permission*/ splitPerm(immutable Permission p2)
+															[immutable DynPermission >> void] {
+		makeSome(this);
+	}
+	
+	//Always join to Dyn
+	method /*unique Option<immutable Permission>*/ join(immutable Permission >> void p2)
+													   [immutable DynPermission >> void] {
+		makeSome(this); //Dyn/p => Dyn
+	}
+	
+	//only join to dyn, None otherwise
+	method /*unique Option<immutable Permission>*/
+			joinTo(immutable Permission >> void p2,immutable Permission >> void target)
+				  [immutable DynPermission >> void] {
+		match (target) {
+			case DynPermission { makeSome(this) } // Dyn/p =>_dyn Dyn
+			default { NONE } //everything else fails
+		}
+	}
+	
+	//if we can split anything from Dyn then this is right, otherwise, we might need to change it
+	//Sub-typing in the face of Dyn is tricky, so this is probably wrong
+	override method immutable Boolean isSubPermOf(immutable Permission p2)[immutable DynPermission] {
+		true
+	}
+	
+	//dyn is outside of the lattice and captures
+	method immutable Permission leastUpperBound(immutable Permission p2)[immutable DynPermission >> void] {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { DYNP }
+			case FullPermission { DYNP }
+			case ImmutablePermission { DYNP }
+			case SharedPermission { DYNP }
+			case PurePermission { DYNP }
+			case NonePermission { DYNP }
+			default { 
+				java.lang.System.out.println("not a permission"); 
+				DYNP; 
+			}
+		}
+	}
+	
+	//Dyn is outside of the lattice and captures
+	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable DynPermission] {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { DYNP }
+			case FullPermission { DYNP }
+			case ImmutablePermission { DYNP }
+			case SharedPermission { DYNP }
+			case PurePermission { DYNP }
+			case NonePermission { DYNP }
+			default { 
+				java.lang.System.out.println("not a permission"); 
+				DYNP; 
+			}
+		}
+	}
+	
+	//weaker
+	method /*Permission*/ merge(p2) {
+		DYNP //dyn special (I think)
+	}
+	
+	// Dyn permission always stronger
+	method /*boolean*/ asStrongAs(p2) {
+		true
+	}
+}
