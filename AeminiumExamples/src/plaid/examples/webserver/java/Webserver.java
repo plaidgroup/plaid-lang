@@ -90,6 +90,7 @@ public class Webserver {
 	public static void transferData(Writer outWriter, Reader inReader, long count) throws IOException {
 		if ( count > 0 ) {
 			CharBuffer cb = CharBuffer.allocate((int)Math.max(4096, count));
+
 			int result = inReader.read(cb); 
 			if ( result >= 0 ) {
 				outWriter.write(cb.array());
