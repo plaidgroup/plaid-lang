@@ -1,0 +1,128 @@
+package plaid.examples.webserver.plaid;
+
+state WebServer {
+	
+	method immutable String getRoot() [immutable WebServer this] {
+    	"/Users/sven/Research/homepage/"
+	}
+	
+	method run() {
+		val unique ServerSocket ss = new ServerSocket;
+		
+		this.acceptLoop(ss);
+	}
+	
+	method void acceptLoop(unique Socket serverSocket) [immutable WebServer this]  {
+		val unique Socket client = serverSocket.accept();
+		this.serveClient(client);
+		this.acceptLoop(serverSocket);
+	}
+	
+	// unsafe
+	method immutable Boolean fileExists(immutable String path)  [immutable WebServer this]  {
+		val file = java.io.File.new(getRoot() + path );
+		
+		file.exists() && file.isFile() && file.canRead()
+	}
+	
+	// unsafe 
+	method void LOG(immutable String msg)  [immutable WebServer this]  {
+		java.lang.System.out.println("LOG: " + msg);
+	}
+
+	method void serveClient(unique Socket >> void client)  [immutable WebServer this]  {
+		
+		// get request string 
+		val immutable String request = client.readLine();
+		this.LOG("serve request '" + request + "'");
+	
+		match ( request.toLowerCase().startsWith("get ") ) {
+			 case True {
+				  // compute path
+				  val immutable String reqSuffix = request.substring(4);
+				  val immutable Integer index = reqSuffix.indexOf(" ");
+				  match ( index >= 0 ) {
+					  case True { 
+						  val immutable String path = reqSuffix.substring(0, index);
+						  this.transferFile(client, path);
+					  }
+					  case False {
+						  this.transferFile(client, reqSuffix);
+					  }
+				  } 
+			 }
+			 case False { } 
+		};
+		
+		client.close();
+	}
+
+	// unsafe 
+	method void transferData(unique Socket client, immutable String path)  [immutable WebServer this]  {
+		match ( this.fileExists(path) ) {
+			case True {
+				val file = java.io.File.new(getRoot() + path );
+				this.LOG("transfer file '" + file.getAbsolutePath() +"'");
+			   
+				val cb     = java.nio.CharBuffer.allocate(file.length().asInt32());
+				val reader = java.io.BufferedReader.new(java.io.FileReader.new(file));
+				val count  = reader.read(cb);
+				client.writer.write(cb.array());
+			}
+			case False {
+				client.writeLine("<html><body><h1>404 File not found</h1></body></html>");
+			}
+		}
+	}
+
+	method void transferFile(unique Socket client, immutable String path)  [immutable WebServer this]  {
+		match ( path == "/" ) {
+			case True {
+				this.transferHeader(client, "index.html");
+				this.transferData(client, "index.html");        
+			}
+			case False {
+				this.transferHeader(client, path);
+				this.transferData(client, path);
+			}
+		};
+		client.flush();
+	}
+
+	method void transferHeader(unique Socket client, immutable String path)  [immutable WebServer this]  {
+	
+		match ( this.fileExists(path) ) {
+			case True {
+				client.writeLine("HTTP/1.1 200 Script output follows");
+				
+				// HTML 
+				match ( path.endsWith(".html") ) {
+					case True  { client.writeLine("Content-Type: text/html; charset=UTF-8"); }
+					case False {}
+				};
+				
+				// CSS 
+				match ( path.endsWith(".css") ) {
+					case True  { client.writeLine("Content-Type: text/css; charset=UTF-8"); }
+					case False {}
+				};
+				
+				// Java Script  
+				match ( path.endsWith(".js") ) {
+					case True  { client.writeLine("Content-Type: text/javascript; charset=UTF-8"); }
+					case False {}
+				};
+				
+				// close connection
+				client.writeLine("Connection: close");
+				
+				// separator to content
+				client.writeLine("");
+			}
+			case False {            
+				client.writeLine("HTTP/1.1 404 File not found");
+				client.writeLine("");
+			}
+	   }
+	}
+}
