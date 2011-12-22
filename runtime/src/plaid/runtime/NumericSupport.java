@@ -82,6 +82,8 @@ public class NumericSupport {
 	public static boolean lessThanInt16(Short a, Short b) { return a < b; }
 	public static boolean lessThanInt32(Integer a, Integer b) { return a < b; }
 	public static boolean lessThanInt64(Long a, Long b) { return a < b; }
+	public static boolean lessThanFloat32(Float a, Float b) { return a < b; }
+	public static boolean lessThanFloat64(Double a, Double b) { return a < b; }
 	public static boolean lessThanInteger(BigInteger a, BigInteger b) { return a.compareTo(b) == -1; }
 	public static boolean lessThanDecimal(BigDecimal a, BigDecimal b) { return a.compareTo(b) == -1; }
 	public static boolean lessThanRational(BigRational a, BigRational b) { return a.compareTo(b) == -1; }
