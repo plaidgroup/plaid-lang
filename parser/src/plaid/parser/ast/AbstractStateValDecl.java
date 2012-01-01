@@ -6,9 +6,9 @@ import plaid.parser.Token;
 
 public final class AbstractStateValDecl extends StateValDecl {
 
-	public AbstractStateValDecl(Token t, List<Modifier> modifiers,
+	public AbstractStateValDecl(Token t, List<Annotation> annotations, List<Modifier> modifiers,
 			Identifier name, List<StaticArg> StaticArgsSpec) {
-		super(t, modifiers, name, StaticArgsSpec);
+		super(t, annotations, modifiers, name, StaticArgsSpec);
 	}
 	
 }

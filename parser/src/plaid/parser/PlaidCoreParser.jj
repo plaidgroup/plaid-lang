@@ -261,6 +261,7 @@ TOKEN :
 |       < DOT : "." > 
 |		< SEMICOLON : ";">
 | 		< COMMA : "," >
+|       < AT : "@" >
 }
 
 /* Operators with Java Precedence */
@@ -543,6 +544,21 @@ List<StaticArg> StaticArgsSpec(boolean isMethod) :
 }
 
 
+Annotation Annotation() : {
+   Token t; 
+   Identifier id;
+}{
+    t = <AT> id = Identifier() { return new Annotation(t, id); }
+}
+
+List<Annotation> Annotations() :{
+    Annotation anno;
+    List<Annotation> annotations = new ArrayList<Annotation>();}{
+    (        anno = Annotation() { annotations.add(anno); }
+    )+
+    { return annotations; }
+}
+
 
 List<Modifier> Modifiers() : {
     Token t;
@@ -593,20 +609,22 @@ Decl Decl() :
 {
     Decl d;
     List<Modifier> modifiers = new ArrayList<Modifier>();
+    List<Annotation> annotations = new ArrayList<Annotation>();
 }
 {
+    [ annotations = Annotations() ]
     [ modifiers = Modifiers() ]     
 
-    (LOOKAHEAD(2) // check for 'immutable' field vs state
-    	d = StateDecl(modifiers)  { return d; }
-      | d = GroupDecl(modifiers)  { return d; }
-      | d = FieldDecl(modifiers)  { return d; }
-      | d = MethodDecl(modifiers) { return d; }
+    (LOOKAHEAD(2)  // check for 'immutable' field vs state
+    	d = StateDecl(annotations, modifiers)  { return d; }
+      | d = GroupDecl(annotations, modifiers)  { return d; }
+      | d = FieldDecl(annotations, modifiers)  { return d; }
+      | d = MethodDecl(annotations, modifiers) { return d; }
     )
 }
 
 
-Decl StateDecl(List< Modifier > modifiers) :
+Decl StateDecl(List<Annotation> annotations, List< Modifier > modifiers) :
 {
     Identifier name;
 	Token t;
@@ -619,15 +637,15 @@ Decl StateDecl(List< Modifier > modifiers) :
 {
     LOOKAHEAD(2) [ t = <IMMUTABLE>  { modifiers.add(new ImmutableModifier(t)); } ]
     t= <STATE> name = Identifier() [LOOKAHEAD(StaticArgsSpec(false)) metaArgsSpec = StaticArgsSpec(false)] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(StaticArgs()) metaCaseOfArgs = StaticArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {
-        if (stb == null) {            return new AbstractStateDecl(t, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs);
+        if (stb == null) {            return new AbstractStateDecl(t, annotations, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs);
         } else {
-            return new ConcreteStateDecl(t, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs,stb);
+            return new ConcreteStateDecl(t, annotations, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs,stb);
         }    }    | 
     [ t = <IMMUTABLE>  { modifiers.add(new ImmutableModifier(t)); } ]
     t = <STATEVAL> name = Identifier() [LOOKAHEAD(StaticArgsSpec(false)) metaArgsSpec = StaticArgsSpec(false)] [stb = StateBinding()] // <SEMICOLON>    {        if (stb == null) {
-            return new AbstractStateValDecl(t,modifiers, name, metaArgsSpec);
+            return new AbstractStateValDecl(t, annotations, modifiers, name, metaArgsSpec);
         } else {
-            return new ConcreteStateValDecl(t, modifiers, name, metaArgsSpec, stb);
+            return new ConcreteStateValDecl(t, annotations, modifiers, name, metaArgsSpec, stb);
         }    }
 }
 
@@ -704,7 +722,7 @@ StateOp StateOp () : {
      }
 }
 
-Decl FieldDecl(List<Modifier> modifiers) :
+Decl FieldDecl(List<Annotation> annotations, List<Modifier> modifiers) :
 {
 	Expr e;
 	Identifier name;
@@ -714,56 +732,56 @@ Decl FieldDecl(List<Modifier> modifiers) :
 }
 {
   (  
-     LOOKAHEAD(Specifier() Identifier() <SEMICOLON>)     specifier = Specifier() name = Identifier() t=<SEMICOLON>     {        return new AbstractFieldDecl(combineTokens(specifier.getToken(), t, "AbstractFieldDecl"), modifiers, specifier, type, name);     }
+     LOOKAHEAD(Specifier() Identifier() <SEMICOLON>)     specifier = Specifier() name = Identifier() t=<SEMICOLON>     {        return new AbstractFieldDecl(combineTokens(specifier.getToken(), t, "AbstractFieldDecl"), annotations, modifiers, specifier, type, name);     }
   |
      LOOKAHEAD(Specifier() Type() Identifier() <SEMICOLON>)
      specifier = Specifier() type=Type() name = Identifier() t=<SEMICOLON>
      {
-        return new AbstractFieldDecl(combineTokens(specifier.getToken(), t, "AbstractFieldDecl"), modifiers, specifier, type, name);
+        return new AbstractFieldDecl(combineTokens(specifier.getToken(), t, "AbstractFieldDecl"), annotations, modifiers, specifier, type, name);
      }
   |
      LOOKAHEAD(Type() Identifier() <SEMICOLON>)
      type = Type() name = Identifier() t=<SEMICOLON>
      {
-        return new AbstractFieldDecl(combineTokens(type.getToken(), t, "AbstractFieldDecl"), modifiers, specifier, type, name);
+        return new AbstractFieldDecl(combineTokens(type.getToken(), t, "AbstractFieldDecl"), annotations, modifiers, specifier, type, name);
      }
   |  // concrete field decl
      LOOKAHEAD(Specifier() type = Type() Identifier() <EQUALS> )
      specifier = Specifier() type = Type() name = Identifier() <EQUALS> e = Expr() t=<SEMICOLON> 
      {
         return new ConcreteFieldDecl
-            (combineTokens(specifier.getToken(), t, "ConcreteFieldDecl"), modifiers, specifier, type, name, e);
+            (combineTokens(specifier.getToken(), t, "ConcreteFieldDecl"), annotations, modifiers, specifier, type, name, e);
      }     
   |  
      LOOKAHEAD(Specifier() Identifier() <EQUALS>)
      specifier = Specifier() name = Identifier() <EQUALS> e = Expr() t=<SEMICOLON> 
      {
         return new ConcreteFieldDecl
-            (combineTokens(specifier.getToken(), t, "ConcreteFieldDecl"), modifiers, specifier, type, name, e);
+            (combineTokens(specifier.getToken(), t, "ConcreteFieldDecl"), annotations, modifiers, specifier, type, name, e);
      }
   |  
      LOOKAHEAD(Type() Identifier() <EQUALS>)
      type = Type() name = Identifier() <EQUALS> e = Expr() t=<SEMICOLON> 
      {
         return new ConcreteFieldDecl
-            (combineTokens(type.getToken(), t, "ConcreteFieldDecl"), modifiers, specifier, type, name, e);
+            (combineTokens(type.getToken(), t, "ConcreteFieldDecl"), annotations, modifiers, specifier, type, name, e);
      }
   |  
      LOOKAHEAD(Identifier() <EQUALS>)
      name = Identifier() t=<EQUALS> e = Expr() <SEMICOLON> 
      {
         return new ConcreteFieldDecl
-            (t, modifiers, specifier, type, name, e);
+            (t, annotations, modifiers, specifier, type, name, e);
      }
   ) 
 }
 
 
-Decl GroupDecl(List<Modifier> modifiers) :{
+Decl GroupDecl(List<Annotation> annotations, List<Modifier> modifiers) :{
     Token t;
     Identifier id;
 }{    t = <GROUP> id = Identifier() <EQUALS> <NEW> <GROUP> <SEMICOLON> 
-    {        return new GroupDecl(t, modifiers, id);
+    {        return new GroupDecl(t, annotations, modifiers, id);
     }
 }
 
@@ -775,7 +793,7 @@ GroupPermission GroupPermission() : {
  |  t = <PROTECTED> { return new ProtectedGroupPermission(t); }   }
 
 
-Decl MethodDecl(List<Modifier> modifiers) :
+Decl MethodDecl(List<Annotation> annotations, List<Modifier> modifiers) :
 {
     Token t;
 	Identifier methodName;
@@ -803,6 +821,7 @@ Decl MethodDecl(List<Modifier> modifiers) :
          {
             if (e==null) {
                 return new AbstractMethodDecl(t, 
+                                   annotations,
                                    modifiers, 
                                    returnType,
                                    methodName, 
@@ -810,7 +829,8 @@ Decl MethodDecl(List<Modifier> modifiers) :
                                    argList,
                                    env);
              } else {
-                return new ConcreteMethodDecl(t, 
+                return new ConcreteMethodDecl(t,
+                                   annotations, 
                                    modifiers, 
                                    returnType,
                                    methodName, 

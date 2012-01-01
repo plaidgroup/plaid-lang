@@ -27,9 +27,11 @@ public abstract class Decl extends ASTNode implements DeclOrStateOp{
 	
 	protected final Identifier name;
 	protected final List<Modifier> modifiers;
+	protected final List<Annotation> annotations;
 	
-	public Decl(Token t, List<Modifier> modifiers, Identifier name) {
+	public Decl(Token t, List<Annotation> annotations, List<Modifier> modifiers, Identifier name) {
 		super(t);
+		this.annotations = annotations;
 		this.modifiers = modifiers;
 		this.name = name;
 	}
@@ -40,6 +42,24 @@ public abstract class Decl extends ASTNode implements DeclOrStateOp{
 
 	public List<Modifier> getModifiers() {
 		return modifiers;
+	}
+	
+	public List<Annotation> getAnnotations() {
+		return annotations;
+	}
+	
+	public static String annotationsToString(List<Annotation> annotations) {
+		StringBuilder sb = new StringBuilder();
+		
+		if ( annotations.size() > 0 ) {
+			sb.append("@"+annotations.get(0).getName());
+			for ( int i = 1; i < annotations.size(); i++ ) {
+				sb.append(" ");
+				sb.append("@"+annotations.get(i).getName());
+			}
+		}
+		
+		return sb.toString();
 	}
 	
 	public static String modifiersToString(List<Modifier> modifiers) {

@@ -30,11 +30,11 @@ public abstract class MethodDecl extends Decl {
 	private final List<Arg> arguments;
 	private final List<Arg> environment;
 	
-	public MethodDecl(Token t, List<Modifier> modifiers, 
+	public MethodDecl(Token t, List<Annotation> annotations, List<Modifier> modifiers, 
 			Type returnType, Identifier name,
 			List<StaticArg> StaticArgsSpec, List<Arg> arguments,
 			List<Arg> environment) {
-		super(t, modifiers, name);
+		super(t, annotations, modifiers, name);
 		this.returnType = returnType;
 		this.StaticArgsSpec = StaticArgsSpec;
 		this.arguments = arguments;

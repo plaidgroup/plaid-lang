@@ -7,10 +7,10 @@ import plaid.parser.Token;
 public class ConcreteFieldDecl extends FieldDecl {
 	private final Expr expression;
 
-	public ConcreteFieldDecl(Token t, List<Modifier> modifiers, 
+	public ConcreteFieldDecl(Token t, List<Annotation> annotations, List<Modifier> modifiers, 
 			Specifier specifier, Type fieldType,
 			Identifier name,  Expr expr) {
-		super(t, modifiers, specifier, fieldType, name);
+		super(t, annotations, modifiers, specifier, fieldType, name);
 		this.expression = expr;
 	}
 
@@ -22,6 +22,7 @@ public class ConcreteFieldDecl extends FieldDecl {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		
+		if ( getAnnotations().size() > 0 ) sb.append(annotationsToString(getAnnotations())+" ");
 		if (getSpecifier()!= Specifier.EMPTY ) sb.append(getSpecifier().toString() + " ");
 		if (getFieldType() != Type.EMPTY ) sb.append(getFieldType().toString()+ " ");
 		sb.append(getName());

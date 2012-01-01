@@ -29,10 +29,10 @@ public abstract class StateDecl extends Decl {
 	private final List<StaticArg> StaticArgsSpec;
 	private final List<Expr> metaCaseOfArgs;
 	
-	public StateDecl(Token t, List<Modifier> modifiers, Identifier name, 
+	public StateDecl(Token t, List<Annotation> annotations, List<Modifier> modifiers, Identifier name, 
 			List<StaticArg> StaticArgsSpec, QualifiedIdentifier caseOf, 
 			List<Expr> metaCaseOfArgs) {
-		super(t, modifiers, name);
+		super(t, annotations, modifiers, name);
 		this.StaticArgsSpec = StaticArgsSpec;
 		this.caseOf = caseOf;
 		this.metaCaseOfArgs = metaCaseOfArgs;

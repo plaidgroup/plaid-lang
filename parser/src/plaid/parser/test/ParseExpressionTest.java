@@ -27,9 +27,9 @@ import static plaid.parser.test.astfactory.ASTFactory.DoubleLiteral;
 import static plaid.parser.test.astfactory.ASTFactory.Freeze;
 import static plaid.parser.test.astfactory.ASTFactory.GroupArg;
 import static plaid.parser.test.astfactory.ASTFactory.GroupDecl;
+import static plaid.parser.test.astfactory.ASTFactory.IMMUTABLE;
 import static plaid.parser.test.astfactory.ASTFactory.Identifier;
 import static plaid.parser.test.astfactory.ASTFactory.Immutable;
-import static plaid.parser.test.astfactory.ASTFactory.IMMUTABLE;
 import static plaid.parser.test.astfactory.ASTFactory.Import;
 import static plaid.parser.test.astfactory.ASTFactory.InfixOperator;
 import static plaid.parser.test.astfactory.ASTFactory.IntLiteral;
@@ -40,6 +40,7 @@ import static plaid.parser.test.astfactory.ASTFactory.NewInstance;
 import static plaid.parser.test.astfactory.ASTFactory.NominalObjectType;
 import static plaid.parser.test.astfactory.ASTFactory.None;
 import static plaid.parser.test.astfactory.ASTFactory.OVERRIDE;
+import static plaid.parser.test.astfactory.ASTFactory.Annotation;
 import static plaid.parser.test.astfactory.ASTFactory.Package;
 import static plaid.parser.test.astfactory.ASTFactory.PatternCase;
 import static plaid.parser.test.astfactory.ASTFactory.Protected;
@@ -77,6 +78,7 @@ import plaid.parser.ast.AbstractFieldDecl;
 import plaid.parser.ast.AbstractMethodDecl;
 import plaid.parser.ast.AbstractStateDecl;
 import plaid.parser.ast.AbstractStateValDecl;
+import plaid.parser.ast.Annotation;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.Arg;
 import plaid.parser.ast.ArgumentExpr;
@@ -1127,7 +1129,7 @@ public class ParseExpressionTest {
 		final String code = "group foo = new group;";
 		final Decl goal = GroupDecl(Identifier("foo"));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.GroupDecl(new ArrayList<Modifier>());
+		Decl e = pp.GroupDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof GroupDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1140,17 +1142,18 @@ public class ParseExpressionTest {
 		final String code = "val f;";
 		final FieldDecl goal = AbstractFieldDecl(Val(), Type.EMPTY, Identifier("f"));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		final Decl e = pp.FieldDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractFieldDecl );
 		assertTrue(e.equivalent(goal));
 	}
+	
 	
 	@Test
 	public void parseAbstractFieldSpecifierType() throws ParseException, UnsupportedEncodingException {
 		final String code = "val Foo f;";
 		final FieldDecl goal = AbstractFieldDecl(Val(), NominalObjectType(QualifiedIdentifier("Foo")), Identifier("f"));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		final Decl e = pp.FieldDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractFieldDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1160,7 +1163,7 @@ public class ParseExpressionTest {
 		final String code = "Foo f;";
 		final FieldDecl goal = AbstractFieldDecl(Specifier.EMPTY, NominalObjectType(QualifiedIdentifier("Foo")), Identifier("f"));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		final Decl e = pp.FieldDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractFieldDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1170,7 +1173,7 @@ public class ParseExpressionTest {
 		final String code = "val Foo f=0;";
 		final FieldDecl goal = ConcreteFieldDecl(Val(), NominalObjectType(QualifiedIdentifier("Foo")), Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		Decl e = pp.FieldDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1180,7 +1183,7 @@ public class ParseExpressionTest {
 		final String code = "val f=0;";
 		final FieldDecl goal = ConcreteFieldDecl(Val(), Type.EMPTY, Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		final Decl e = pp.FieldDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1190,7 +1193,7 @@ public class ParseExpressionTest {
 		final String code = "Foo f=0;";
 		final FieldDecl goal = ConcreteFieldDecl(Specifier.EMPTY, NominalObjectType(QualifiedIdentifier("Foo")), Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		final Decl e = pp.FieldDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1200,7 +1203,7 @@ public class ParseExpressionTest {
 		final String code = "f=0;";
 		final FieldDecl goal = ConcreteFieldDecl(Specifier.EMPTY, Type.EMPTY, Identifier("f"), IntLiteral(0));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.FieldDecl(new ArrayList<Modifier>());
+		Decl e = pp.FieldDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteFieldDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1220,7 +1223,7 @@ public class ParseExpressionTest {
 					Arg.EMPTY
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		final Decl e = pp.MethodDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractMethodDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1237,7 +1240,7 @@ public class ParseExpressionTest {
 				Arg.EMPTY
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		final Decl e = pp.MethodDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractMethodDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1262,7 +1265,7 @@ public class ParseExpressionTest {
 				
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		final Decl e = pp.MethodDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractMethodDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1286,7 +1289,7 @@ public class ParseExpressionTest {
 				Arg.EMPTY
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		final Decl e = pp.MethodDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue( code.equals(e.toString()));
 		assertTrue(e.equivalent(goal));
 	}
@@ -1311,7 +1314,7 @@ public class ParseExpressionTest {
 				)
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		final Decl e = pp.MethodDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractMethodDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1336,7 +1339,7 @@ public class ParseExpressionTest {
 				)
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		final Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		final Decl e = pp.MethodDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof AbstractMethodDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1356,7 +1359,7 @@ public class ParseExpressionTest {
 				)
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		Decl e = pp.MethodDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteMethodDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1397,7 +1400,7 @@ public class ParseExpressionTest {
 				)
 			); 
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
-		Decl e = pp.MethodDecl(new ArrayList<Modifier>());
+		Decl e = pp.MethodDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
 		assertTrue(e instanceof ConcreteMethodDecl );
 		assertTrue(e.equivalent(goal));
 	}
@@ -1410,6 +1413,31 @@ public class ParseExpressionTest {
 		final String code = "requires override method foo();";
 		final MethodDecl goal = 
 			AbstractMethodDecl(
+				Arrays.asList(
+					REQUIRES(),
+					OVERRIDE()
+				),
+				Type.EMPTY, 
+				Identifier("foo"), 
+				StaticArg.EMPTY, 
+				Arg.EMPTY, 
+				Arg.EMPTY
+			); 
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final Decl e = pp.Decl();
+		assertTrue(e instanceof AbstractMethodDecl );
+		assertTrue(e.equivalent(goal));
+	}
+	
+	@Test
+	public void parseAnnotationModifierlDecl() throws ParseException, UnsupportedEncodingException {
+		final String code = "@sequential @noop requires override method foo();";
+		final MethodDecl goal = 
+			AbstractMethodDecl(
+				Arrays.asList(
+				    Annotation("sequential"),
+					Annotation("noop")
+				),
 				Arrays.asList(
 					REQUIRES(),
 					OVERRIDE()

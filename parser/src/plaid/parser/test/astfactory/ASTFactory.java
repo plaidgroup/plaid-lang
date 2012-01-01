@@ -9,6 +9,7 @@ import plaid.parser.ast.AbstractFieldDecl;
 import plaid.parser.ast.AbstractMethodDecl;
 import plaid.parser.ast.AbstractStateDecl;
 import plaid.parser.ast.AbstractStateValDecl;
+import plaid.parser.ast.Annotation;
 import plaid.parser.ast.Application;
 import plaid.parser.ast.Arg;
 import plaid.parser.ast.ArgSpec;
@@ -84,27 +85,32 @@ import plaid.parser.ast.With;
 
 public class ASTFactory {
 	public static FieldDecl AbstractFieldDecl(Specifier specifier, Type type, Identifier name) {
-		return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, specifier, type, name);
+		return new AbstractFieldDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Modifier.EMPTY, specifier, type, name);
+	}
+
+	public static MethodDecl AbstractMethodDecl(List<Annotation> annotations, List<Modifier> modifiers, Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env) {
+		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, annotations, modifiers, type, name, metaArgs, args, env);
 	}
 	
+	
 	public static MethodDecl AbstractMethodDecl(List<Modifier> modifiers, Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env) {
-		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, modifiers, type, name, metaArgs, args, env);
+		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, modifiers, type, name, metaArgs, args, env);
 	}
 
 	public static MethodDecl AbstractMethodDecl(Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env) {
-		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env);
+		return new AbstractMethodDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Modifier.EMPTY, type, name, metaArgs, args, env);
 	}
 	
 	public static StateDecl AbstractStateDecl(Identifier name, List<StaticArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs) {
-		return new AbstractStateDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, caseOf, metaCaseOfArgs);
+		return new AbstractStateDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Modifier.EMPTY, name, metaArgsSpec, caseOf, metaCaseOfArgs);
 	}
 	
 	public static StateValDecl AbstractStateValDecl(Identifier name, List<StaticArg> metaArgsSpec) {
-		return new AbstractStateValDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec);
+		return new AbstractStateValDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Modifier.EMPTY, name, metaArgsSpec);
 	}
 	
 	public static StateValDecl AbstractStateValDecl(Identifier name, Modifier m, List<StaticArg> metaArgsSpec) {
-		return new AbstractStateValDecl(ASTNode.DEFAULT_TOKEN, Collections.singletonList(m), name, metaArgsSpec);
+		return new AbstractStateValDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Collections.singletonList(m), name, metaArgsSpec);
 	}
 	
 	public static Application Application(Expr left, Expr right) {
@@ -152,23 +158,23 @@ public class ASTFactory {
 	}
 	
 	public static FieldDecl ConcreteFieldDecl(Specifier specifier, Type type, Identifier name, Expr body) {
-		return new ConcreteFieldDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, specifier, type, name, body);
+		return new ConcreteFieldDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Modifier.EMPTY, specifier, type, name, body);
 	}
 	
 	public static MethodDecl ConcreteMethodDecl(Type type, Identifier name, List<StaticArg> metaArgs, List<Arg> args, List<Arg> env, BlockExpr body) {
-		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, type, name, metaArgs, args, env, body);
+		return new ConcreteMethodDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Modifier.EMPTY, type, name, metaArgs, args, env, body);
 	}
 	
 	public static StateDecl ConcreteStateDecl(Modifier m, Identifier name, List<StaticArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs, StateExpr statebinding) {
-		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Collections.singletonList(m), name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
+		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Collections.singletonList(m), name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
 	}
 	
 	public static StateDecl ConcreteStateDecl(Identifier name, List<StaticArg> metaArgsSpec, QualifiedIdentifier caseOf, List<Expr> metaCaseOfArgs, StateExpr statebinding) {
-		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
+		return new ConcreteStateDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Modifier.EMPTY, name, metaArgsSpec, caseOf, metaCaseOfArgs, statebinding);
 	}
 	
 	public static StateValDecl ConcreteStateValDecl(Identifier name, List<StaticArg> metaArgsSpec, StateExpr stateBinding) {
-		return new ConcreteStateValDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name, metaArgsSpec, stateBinding);
+		return new ConcreteStateValDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Modifier.EMPTY, name, metaArgsSpec, stateBinding);
 	}
 	
 	public static DeclList DeclList(Decl ...decls) {
@@ -200,7 +206,7 @@ public class ASTFactory {
 	}
 	
 	public static GroupDecl GroupDecl(Identifier name) {
-		return new GroupDecl(ASTNode.DEFAULT_TOKEN, Modifier.EMPTY, name);
+		return new GroupDecl(ASTNode.DEFAULT_TOKEN, Annotation.EMPTY, Modifier.EMPTY, name);
 	}
 	
 	public static Identifier Identifier(String value) {
@@ -270,6 +276,10 @@ public class ASTFactory {
 	
 	public static QualifiedIdentifier Package(String ...names) {
 		return QualifiedIdentifier(names);
+	}
+	
+	public static Annotation Annotation(String name) {
+		return new Annotation(ASTNode.DEFAULT_TOKEN, Identifier(name));
 	}
 	
 	public static Case PatternCase(QualifiedIdentifier qi, Expr e) {
