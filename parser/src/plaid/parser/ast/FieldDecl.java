@@ -9,9 +9,9 @@ public abstract class FieldDecl extends Decl {
 	private final Specifier specifier;
 	private final Type fieldType; 
 	
-	public FieldDecl(Token t, List<Modifier> modifiers,
+	public FieldDecl(Token t, List<Annotation> annotations, List<Modifier> modifiers,
 			Specifier specifier, Type type, Identifier name) {
-		super(t, modifiers, name);
+		super(t, annotations, modifiers, name);
 		this.specifier = specifier;
 		this.fieldType = type;
 	}

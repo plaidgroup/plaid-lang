@@ -4,6 +4,7 @@
 package plaid.parser.test;
 
 
+import static junit.framework.Assert.assertTrue;
 import static plaid.parser.test.astfactory.ASTFactory.CompilationUnit;
 import static plaid.parser.test.astfactory.ASTFactory.Val;
 
@@ -12,12 +13,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import junit.framework.Assert;
-import static junit.framework.Assert.*;
 
 import org.junit.Test;
 
 import plaid.parser.ParseException;
 import plaid.parser.Parser;
+import plaid.parser.ast.Annotation;
 import plaid.parser.ast.CompilationUnit;
 import plaid.parser.ast.ConcreteFieldDecl;
 import plaid.parser.ast.Decl;
@@ -48,7 +49,7 @@ public class ParserTests {
 		assertTrue( parser.hasCompilationUnit() );
 		CompilationUnit parsedCU = parser.getCompilationUnit();
 		Decl field = 
-			new ConcreteFieldDecl(null, new ArrayList<Modifier>(), 
+			new ConcreteFieldDecl(null, new ArrayList<Annotation>(), new ArrayList<Modifier>(), 
 					Val(),
 					Type.EMPTY,
 					new Identifier(null,"foo"), 
