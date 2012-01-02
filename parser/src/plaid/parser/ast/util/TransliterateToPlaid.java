@@ -124,6 +124,7 @@ public class TransliterateToPlaid<T> {
 	private static String matchCase(Class<?> clazz) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("\t\t\tcase " + clazz.getName() + "{ \n");
+		sb.append("\t\t\t\tLOG(\"translate '"+clazz.getName()+"'\");\n");
 		sb.append("\t\t\t\tnew " + PREFIX + clazz.getSimpleName() + " {\n");
 		List<Field> allFields = getAllFields(clazz);
 		for (Field field : allFields) {
@@ -278,6 +279,7 @@ public class TransliterateToPlaid<T> {
 		sbTranslator.append("import plaid.ast.util.makeListFromJavaCollection;\n");
 		sbTranslator.append("import plaid.ast.util.makeTokenFromJavaToken;\n\n");
 		sbTranslator.append("state ASTTranslator {\n");
+		sbTranslator.append("\tmethod void LOG(immutable String msg) {}");
 		sbTranslator.append("\tmethod immutable ASTNode translateAST(" +
 				"/* immutable " + ASTNode.class.getName() + "*/ root){\n");
 		sbTranslator.append("\t\t match(root){\n");
