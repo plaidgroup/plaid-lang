@@ -16,6 +16,8 @@ import plaid.compiler.symbol.*;
 import plaid.compiler.*;
 import plaid.compiler.types.*;
 
+import plaid.compiler.typechecker.*;
+
 import plaid.ast.parsed.*;
 
 import plaid.collections.makeLinkedList;
@@ -225,11 +227,11 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         ifElse ( new_node.args.size() == 0 ) {
             addStructureForAST(new_node, TOPSTRUCT);
         }{
-            ifElse ( new_node.args.size() == 1 ) {
-                val elemStruc = structureForAST(new_node.args.get(0).value);
+            new_node.args.do(fn (arg) => {
+                val elemStruc = structureForAST(arg);
                 match (elemStruc) {
                     case Some {
-                        addStructureForAST(new_node, elemStruc.value);
+                        addStructureForAST(arg, elemStruc.value);
                     }
                     case None {
                         val msg = "Cannot find type for '" + new_node.args.get(0) + "'";
@@ -238,12 +240,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         ABORT(msg);            
                     }
                 }
-            }{
-                val msg = "No tuple support yet.";
-                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_node.token, msg);
-                this.reporter.report();
-                ABORT(msg);            
-            }
+            });
         };
 
         new_node	
@@ -523,7 +520,13 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 	override method immutable ParsedConcreteFieldDecl rewriteParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ConcreteFieldDecl");
 
-		val new_expression = node.expression.rewrite(this);
+	
+		val new_expression = ifElse ( typecheckingEnabled(node) ) {
+				node.expression.rewrite(this);
+			}{
+				DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>  SKIP resolution of field initializer [typechecking DISABLED");
+				node.expression;
+			};
 		val new_specifier  = node.specifier.rewrite(this);
 		val new_fieldType  = node.fieldType.rewrite(this);
 		val new_name       = node.name.rewrite(this);
@@ -571,7 +574,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 		val new_returnType = node.returnType.rewrite(this);
 		val new_StaticArgsSpec = node.StaticArgsSpec.map(fn (item) => { item.rewrite(this) } );
 		val new_arguments = node.arguments.map( fn (item) => { 
-            val new_item = item.rewrite(this);
+            val new_item = item; //item.rewrite(this);
             val symbol = symbolForAST(item);
             match (symbol) {
                 case Some {
@@ -596,7 +599,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         });
 
 		val new_environment = node.environment.map(fn (item) => { 
-            val new_item = item.rewrite(this); 
+            val new_item = item; //item.rewrite(this); 
             
             val symbol = symbolForAST(item);
             match (symbol) {
@@ -621,11 +624,15 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
             new_item
         });
 		val new_name = node.name.rewrite(this);
-		val new_modifiers = makeLinkedList(); 
-		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+		val new_modifiers = node.modifiers.map(fn (item) => { item.rewrite(this) });
         val new_annotations = node.annotations.map(fn (item) => { item.rewrite(this) });
 
-		val new_body = node.body.rewrite(this);
+		val new_body = ifElse ( typecheckingEnabled(node) ) {
+				node.body.rewrite(this);
+			}{
+				DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>  SKIP resolution of method body [typechecking DISABLED");
+				node.body;
+			};
 
 
 		val new_node = new ParsedConcreteMethodDecl{
