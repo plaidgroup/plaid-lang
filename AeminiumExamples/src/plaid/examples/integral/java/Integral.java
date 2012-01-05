@@ -12,7 +12,7 @@ public class Integral {
 	}
 
 	public static double f(final double x) {
-		return x*x +1;
+		return x*x ;
 	}
 	
 	public static double compute(final double x1, final double x2) {
