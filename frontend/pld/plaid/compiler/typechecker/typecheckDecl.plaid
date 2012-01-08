@@ -1,11 +1,12 @@
 package plaid.compiler.typechecker;
 
+
 import plaid.compiler.*;
 import plaid.compiler.symbol.*;
 import plaid.compiler.types.*;
 import plaid.compiler.permissions.*;
 import plaid.ast.parsed.*;
-
+import plaid.compiler.aeminium.*;
 
 /**
  * return a boolean indicating if the declaration was abstract (false) or concrete (true)
@@ -156,6 +157,8 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                   val immutable MethodSymbol methodSym = declSymOption.value;
                   val immutable MethodSignature methodSig = methodSym.getSignature();
                   
+                  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckerDecl> start checking '" + methodSym.name +"' method");
+                  
                   /* check that the input structure of the receiver is guaranteed by the
                      state the method is declared in.   This is needed because based on
                      dynamic dispatch, that's the type of reciever we'll have 
@@ -187,6 +190,15 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                   val immutable VariableSymbol thisSymbol = methodSym.getThisSymbol();
                   methodContext.put(thisSymbol, methodSig.receiverSpec.inputType);
                   
+                  match  ( AEMINIUM_MODE() ) {
+                      case True {
+                          DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckMethodDecl> add '" + thisSymbol.name +"' as start marker");
+                          val unique DependencyInformation depInfo = makeASTInformation(thisSymbol.declaration);
+                          setDepInfoForSymbol(thisSymbol, depInfo);
+                      }
+                      case False {}
+                  };
+                  
                   //args
                   methodSig.arguments.do(fn (symSpecPair) => {
                     val immutable VariableSymbol argSym = symSpecPair.fst;
@@ -194,6 +206,14 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                     match (methodContext.containsSymbol(argSym)) {
                       case False {
                         methodContext.put(argSym, argSpec.inputType);
+                        match  ( AEMINIUM_MODE() ) {
+                            case True {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckMethodDecl> add '" + argSym.name +"' as start marker");
+                                val unique DependencyInformation depInfo = makeASTInformation(argSym.declaration);
+                                setDepInfoForSymbol(argSym, depInfo);
+                            }
+                            case False {}
+                        };
                       }
                       case True {
                         ABORT("<typecheckMethodDecl> multiple arguments declared with name '" + argSym.name + "'")

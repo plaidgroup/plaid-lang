@@ -276,6 +276,20 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
               val immutable Option<immutable Permission> newPermissionOption = currentType.permission.splitPerm(neededPerm);
               match (newPermissionOption) {
                 case Some {
+                  if ( AEMINIUM_MODE() ) {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) split permission of '" + exp.name + "' from " + currentType.permission + "=>" + neededPerm);
+                      // create split node
+                      val unique DependencyInformation splitInfo = makeSplitInformation(idSymbol, currentType.permission, neededPerm);
+                      splitInfo.deps.add(depInfoForSymbol(idSymbol));
+                      setDepInfoForSymbol(idSymbol, splitInfo);
+                      
+                      // create ASTNode 
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) create ASTInformation node for '" + exp.name + "'");
+                      val unique DependencyInformation expInfo = makeASTInformation(exp);
+                      expInfo.deps.add(splitInfo);
+                      setDepInfoForSymbol(idSymbol, expInfo);
+                      addDepInfoForAST(exp, expInfo);
+                  };
                   ctx.update(idSymbol, makeType(newPermissionOption.value,currentType.structure));
                   val slList = makeLinkedList();
                   slList.add(makeVarSourceLoc(idSymbol));
@@ -425,7 +439,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
       }
     }
     case ParsedMethodCall { 
-    DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedMethodCall");
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedMethodCall");
       /* receiver AST should be mapped to a type which gives us the signature of the method */
       val immutable Option<immutable Structure> receiverStructureOption = structureForAST(exp.receiver);
       val immutable MethodSignature methodSig = match(receiverStructureOption) {
@@ -495,6 +509,10 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
       var unique LinearContext currentContext = ctx;
       var immutable Integer inputCount = 0;
       
+      // AEminium dependency information
+      val unique DependencyInformation mcallInfo = makeASTInformation(exp);
+      addDepInfoForAST(exp, mcallInfo);
+      
       //go through list in order typechecking each expression with the input permission
       val unique LinkedList<unique TypecheckResult> returnLocations = 
         inputArgSpecList.map(fn (ias) => {
@@ -504,6 +522,12 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
           val unique TypecheckResult inputResult = 
             typecheckExpression(currentContext, inputSpec.inputType.permission, inputAST);
           //once we have exceptions, catch errors here
+          
+          if ( AEMINIUM_MODE() ) {
+              // add dependency to parameters
+              DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its parameters ");
+              mcallInfo.deps.add(depInfoForAST(inputAST));
+          };
           
           //check returned structure
           if (!(inputResult.expType.structure.isSubStructureOf(inputSpec.inputType.structure))) {
