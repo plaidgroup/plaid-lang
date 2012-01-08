@@ -10,17 +10,40 @@ import plaid.collections.makeLinkedList;
 
 state MethodSymbol case of DeclSymbol {
     var immutable Option<immutable MethodSignature> methodSigOption = NONE;
-    var immutable Symbol thisSym = new VariableSymbol { //**** DUMMY this symbol **** Change 
-      val name = "this";
-    };
-    
+    var immutable Symbol thisSymOpt = NONE; 
 
     /**
      *  returns the symbol mapped to occurrences of this in the body
      *  of the declaration
      *  TODO : update implementation
      */ 
-    method immutable Symbol getThisSymbol() { this.thisSym; }
+    method immutable Symbol getThisSymbol() { 
+        match (this.thisSymOpt) {
+            case Some {
+                this.thisSymOpt.value
+            }
+            case None {
+                // use dummy symbol for 
+                this.thisSymOpt = makeSome(new VariableSymbol { //**** DUMMY this symbol **** Change 
+                    val name = "this";
+                });
+                // try to find this reference in environment
+                this.declaration.environment.do(fn (arg) => {
+                    val immutable Boolean isThis = arg.name.name.equals("this");
+                    match (isThis)  {
+                      case True  { 
+                          DEBUG(DEBUG_PRIO_MEDIUM, "<MethodSymbol> create 'this' symbol from environment");
+                          val sf = new SymbolFactory;
+                          this.thisSymOpt = makeSome(sf.makeVariableSymbol("this", arg));
+                      }
+                      case False { }
+                    }
+                });
+                
+                this.thisSymOpt.value
+            }
+        } 
+    }
 
     override method immutable Boolean ==(immutable Symbol other)[immutable MethodSymbol this] {
         match (other) {
