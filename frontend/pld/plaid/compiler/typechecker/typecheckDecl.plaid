@@ -195,6 +195,13 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                           DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckMethodDecl> add '" + thisSymbol.name +"' as start marker");
                           val unique DependencyInformation depInfo = makeASTInformation(thisSymbol.declaration);
                           setDepInfoForSymbol(thisSymbol, depInfo);
+                          // annotate AST 
+                          declNode.environment.do(fn (arg) => {
+                              match (arg.name.name == "this" ) {
+                                  case True { addDepInfoForAST(arg, depInfo) }
+                                  case False {}
+                              }
+                          });
                       }
                       case False {}
                   };
@@ -211,6 +218,12 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                                 DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckMethodDecl> add '" + argSym.name +"' as start marker");
                                 val unique DependencyInformation depInfo = makeASTInformation(argSym.declaration);
                                 setDepInfoForSymbol(argSym, depInfo);
+                                declNode.arguments.do(fn (arg) => {
+                                    match (arg.name.name == argSym.name  ) {
+                                        case True { addDepInfoForAST(arg, depInfo) }
+                                        case False { }
+                                    }
+                                });
                             }
                             case False {}
                         };
@@ -229,6 +242,20 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                     match (methodContext.containsSymbol(envSym)) {
                       case False {
                         methodContext.put(envSym, envSpec.inputType);
+                        match  ( AEMINIUM_MODE() ) {
+                            case True {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckMethodDecl> add '" + envSym.name +"' as start marker");
+                                val unique DependencyInformation depInfo = makeASTInformation(envSym.declaration);
+                                setDepInfoForSymbol(envSym, depInfo);
+                                declNode.environment.do(fn (arg) => {
+                                    match (arg.name.name == envSym.name ) {
+                                        case True { addDepInfoForAST(arg, depInfo) }
+                                        case False {}
+                                    }
+                                });
+                            }
+                            case False {}
+                        };
                       }
                       case True {
                         ABORT("<typecheckMethodDecl> multiple inputs declared with name '" + envSym.name + "'")
@@ -288,6 +315,9 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                     };
                   };
                   
+                  if ( AEMINIUM_MODE() ) {
+                      dumpGraph(declNode);
+                  };
                   /* checks out - concrete */
                   true
                 }

@@ -7,6 +7,7 @@ import plaid.compiler.util.makeTypeFromAST;
 import plaid.compiler.util.makePermissionFromAST;
 import plaid.ast.util.makeStringForQualifiedIdentifier;
 import plaid.ast.parsed.*;
+import plaid.compiler.aeminium.*;
 
 import plaid.collections.makeLinkedList;
 
@@ -281,15 +282,12 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                       DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) create ASTInformation node for '" + exp.name + "'");
                       val unique DependencyInformation expInfo = makeASTInformation(exp);
                       val shared DependencyInformation oldDepInfo = depInfoForSymbol(idSymbol).value;
-                      expInfo.deps.add(oldDepInfo);
-                      oldDepInfo.rdeps.add(expInfo);                      
-                      setDepInfoForSymbol(idSymbol, expInfo);
+                      addDependency(expInfo, oldDepInfo);
                       
                       // create split node
                       DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) split permission of '" + exp.name + "' from " + currentType.permission + "=>" + neededPerm);
                       val shared DependencyInformation splitInfo = makeSplitInformation(idSymbol, currentType.permission, neededPerm);
-                      splitInfo.deps.add(expInfo);
-                      expInfo.rdeps.add(splitInfo);
+                      addDependency(splitInfo, expInfo);
                       setDepInfoForSymbol(idSymbol, splitInfo);
                       addDepInfoForAST(exp, splitInfo);
 
@@ -513,10 +511,6 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
       var unique LinearContext currentContext = ctx;
       var immutable Integer inputCount = 0;
       
-      // AEminium dependency information
-      val unique DependencyInformation mcallInfo = makeASTInformation(exp);
-      addDepInfoForAST(exp, mcallInfo);
-      
       //go through list in order typechecking each expression with the input permission
       val unique LinkedList<unique TypecheckResult> returnLocations = 
         inputArgSpecList.map(fn (ias) => {
@@ -526,17 +520,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
           val unique TypecheckResult inputResult = 
             typecheckExpression(currentContext, inputSpec.inputType.permission, inputAST);
           //once we have exceptions, catch errors here
-          
-          if ( AEMINIUM_MODE() ) {
-              // add dependency to parameters
-              DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its parameters ");
-              val shared DependencyInformation inputDepInfo = match (depInfoForAST(inputAST)) {
-                  case Some { depInfoForAST(inputAST).value }
-                  case None { ABORT("<typecheckExpression>(MethodCall) cannot find dependency information for input parameter") }
-              };
-              mcallInfo.deps.add(inputDepInfo);
-              inputDepInfo.rdeps.add(mcallInfo);
-          };
+
           
           //check returned structure
           if (!(inputResult.expType.structure.isSubStructureOf(inputSpec.inputType.structure))) {
@@ -548,6 +532,38 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
           currentContext = inputResult.ctxResult;
           inputResult.sourceLocList;
         });
+        
+        
+      // connect to parameters/receiver
+      if ( AEMINIUM_MODE() ) {
+           // AEminium dependency information
+           val unique DependencyInformation mcallInfo = makeASTInformation(exp);
+           addDepInfoForAST(exp, mcallInfo);
+      
+           // add dependency to parameters
+           DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its receiver ");
+           val receiverInfo = match (depInfoForAST(exp.receiver)) {
+               case Some { depInfoForAST(exp.receiver).value}
+               case None { ABORT("<typecheckExpression>(MethodCall) cannot find dependency information receiver ") }
+           };
+           addDependency(mcallInfo, receiverInfo);
+
+           DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its parameters ");
+           match (exp.argument) {
+               case ParsedArgumentExpr {
+                   exp.argument.args.do(fn (arg) => {
+                       val argInfo = match (depInfoForAST(arg)) {
+                           case Some { depInfoForAST(arg).value}
+                           case None { ABORT("<typecheckExpression>(MethodCall) cannot find dependency information receiver ") }
+                       };    
+                       addDependency(mcallInfo, argInfo);
+                   });
+               }
+               default {
+                   ABORT("<typecheckExpression>(MethodCall) cannot handle non ArgExpressions yet ");
+               }
+           };
+      };
       
       //downgrade context
       currentContext.downgrade();

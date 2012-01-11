@@ -1,0 +1,238 @@
+package plaid.compiler.aeminium;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.*;
+import plaid.compiler.util.*;
+
+state GraphvizGenerator case of ParsedASTVisitor {
+    val unique Set nodes = java.util.HashSet.new();
+    val unique Map edges = java.util.IdentityHashMap.new();
+    var immutable String name = "";
+    var immutable String path = "";
+
+    method immutable String dump() {
+        val sb = java.lang.StringBuilder.new();
+        
+        sb.append("graph " + this.name + " {\n");
+        sb.append("    rankdir=BT;\n");
+        
+        // dump nodes
+        sb.append("    // nodes\n");
+        val itNodes = this.nodes.iterator();
+        while {itNodes.hasNext()}{
+             val node = itNodes.next();
+             sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\"];\n");
+        };
+        
+        // edges 
+        sb.append("\n     // edges\n");
+        val itEdges = this.edges.entrySet().iterator();
+        while { itEdges.hasNext() }{
+            val entry = itEdges.next();
+            val targetSet = entry.getValue();
+            val targetIt = targetSet.iterator();
+            printLine("number of deps frpm " + entry.getKey() +" is " + targetSet.size() );
+            while { targetIt.hasNext() }{
+                val targetInfo = targetIt.next();
+                sb.append("    n" + entry.getKey().getID() + " -- n" +targetInfo.getID() +";\n");
+            };
+        };
+        
+        sb.append("}\n");
+        
+        sb.toString();
+    }
+
+    method void addNode(shared DependencyInformation depInfo) {        
+        match (this.nodes.contains(depInfo)) {
+            case False {
+                DEBUG(DEBUG_PRIO_LOW, "<GraphvizGenerator> add node "+ depInfo.getID() );
+                this.nodes.add(depInfo);
+                addEdgesTo(depInfo.rdeps, depInfo);
+                addEdgesFrom(depInfo, depInfo.deps);
+            }
+            case True {}
+        }; 
+    }
+
+    method void addEdge(shared DependencyInformation from,
+                        shared DependencyInformation to) {
+        val shared LinkedList toSet = match ( this.edges.containsKey(from) ) {
+            case True  { this.edges.get(from) }
+            case False { 
+                val set = java.util.HashSet.new();
+                this.edges.put(from, set);
+                set 
+            }
+        };
+        DEBUG(DEBUG_PRIO_LOW, "<GraphvizGenerator> add edge  "+ from.getID() + " -> " + to.getID());
+        toSet.add(to);
+    }
+    
+    method void addEdgesTo(shared Set from,
+                           shared DependencyInformation to) {
+        val it = from.iterator();
+        while {it.hasNext()}{
+            val fromDepInfo = it.next();
+            addNode(fromDepInfo);
+            addEdge(fromDepInfo, to);
+        }
+    }
+
+    method void addEdgesFrom(shared DependencyInformation from,
+                             shared Set to) {
+        val it = to.iterator();
+        while {it.hasNext()}{
+            val toDepInfo = it.next();
+            addNode(toDepInfo);
+            addEdge(from, toDepInfo);
+        }
+    }
+    
+	method void visitParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedAbstractStateDecl(immutable ParsedAbstractStateDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedAbstractStateValDecl(immutable ParsedAbstractStateValDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedAnnotation(immutable ParsedAnnotation node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedApplication(immutable ParsedApplication node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedArg(immutable ParsedArg node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedArgSpec(immutable ParsedArgSpec node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	
+	method void visitParsedArgumentExpr(immutable ParsedArgumentExpr node){ 
+	    node.args.do( fn (arg) => {
+	        arg.accept(this);
+	    });
+	}
+	
+	method void visitParsedAssignment(immutable ParsedAssignment node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedAtomicBlock(immutable ParsedAtomicBlock node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	
+	method void visitParsedBlockExpr(immutable ParsedBlockExpr node) { 
+	    node.statements.do( fn (stmt) => {
+	        stmt.accept(this);
+	    });
+	} 
+	
+	method void visitParsedCast(immutable ParsedCast node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedCompilationUnit(immutable ParsedCompilationUnit node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	
+	method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+	    val shared Symbol methSymbol = match (symbolForAST(node)) {
+	        case Some  { symbolForAST(node).value }
+	        case None  { ABORT("<GraphvizGenerator> cannot find symbol for " + node.nodeName()) }
+	    };
+	    this.name = methSymbol.name;
+	    this.path = symbolToString(methSymbol);
+	    DEBUG(DEBUG_PRIO_LOW, "<GraphvizGenerator> create graph for method '" + this.name +"'");
+	    
+	    // nodes/edges for parameters
+	    node.arguments.do(fn (arg) =>{
+	        val shared DependencyInformation depInfo = match (depInfoForAST(arg)) {
+                case Some  { depInfoForAST(arg).value }
+                case None  { ABORT("<GraphvizGenerator> cannot find symbol for argument '" + arg.name.name +"'") }
+	        };
+	        addNode(depInfo);
+	    });
+	    // add nodes/edges for parameters
+	    node.environment.do(fn (arg) =>{
+	        val shared DependencyInformation depInfo = match (depInfoForAST(arg)) {
+                case Some  { depInfoForAST(arg).value }
+                case None  { ABORT("<GraphvizGenerator> cannot find symbol for argument '" + arg.name.name +"'") }
+	        };
+	        addNode(depInfo);
+	    });
+	    
+	    node.body.accept(this);
+	} 
+	
+	method void visitParsedConcreteStateDecl(immutable ParsedConcreteStateDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedConcreteStateValDecl(immutable ParsedConcreteStateValDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedConcreteType(immutable ParsedConcreteType node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedDeclList(immutable ParsedDeclList node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedDefaultCase(immutable ParsedDefaultCase node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedDereference(immutable ParsedDereference node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedDestructiveDereference(immutable ParsedDestructiveDereference node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedDoubleLiteral(immutable ParsedDoubleLiteral node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedEmptyArgSpec(immutable ParsedEmptyArgSpec node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedEmptyExpr(immutable ParsedEmptyExpr node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedEmptyGroupPermission(immutable ParsedEmptyGroupPermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedEmptyPermission(immutable ParsedEmptyPermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedEmptyQualifiedIdentifier(immutable ParsedEmptyQualifiedIdentifier node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedEmptySpecifier(immutable ParsedEmptySpecifier node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedEmptyType(immutable ParsedEmptyType node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedExclusiveGroupPermission(immutable ParsedExclusiveGroupPermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedFreeze(immutable ParsedFreeze node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedGroupArg(immutable ParsedGroupArg node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedGroupDecl(immutable ParsedGroupDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedGroupType(immutable ParsedGroupType node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	
+	method void visitParsedIdentifier(immutable ParsedIdentifier node){
+	     val shared DependencyInformation idInfo = match (depInfoForAST(node)) {
+	         case Some { depInfoForAST(node).value }
+	         case None {  ABORT("<GraphvizGenerator> cannot file method call dependency information"); }
+	     };
+	     
+	     addNode(idInfo);
+	}
+	
+	method void visitParsedImmutableModifier(immutable ParsedImmutableModifier node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedImmutablePermission(immutable ParsedImmutablePermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedImport(immutable ParsedImport node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedInfixOperatorExpr(immutable ParsedInfixOperatorExpr node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedIntLiteral(immutable ParsedIntLiteral node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedLambda(immutable ParsedLambda node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedLambdaStructure(immutable ParsedLambdaStructure node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedLiteral(immutable ParsedLiteral node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedLocalPermission(immutable ParsedLocalPermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedLocalStateValDecl(immutable ParsedLocalStateValDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedMatch(immutable ParsedMatch node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	
+	method void visitParsedMethodCall(immutable ParsedMethodCall node) {
+	     val shared DependencyInformation mcallInfo = match (depInfoForAST(node)) {
+	         case Some { depInfoForAST(node).value }
+	         case None {  ABORT("<GraphvizGenerator> cannot file method call dependency information"); }
+	     };
+	     
+	     addNode(mcallInfo);
+	     
+	     // visit args
+	     node.argument.accept(this);
+	     node.receiver.accept(this);
+	}
+	
+	method void visitParsedMutableGroupPermission(immutable ParsedMutableGroupPermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedNewInstance(immutable ParsedNewInstance node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedNominalStructure(immutable ParsedNominalStructure node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedNonePermission(immutable ParsedNonePermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedOperatorExpr(immutable ParsedOperatorExpr node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedOverrideModifier(immutable ParsedOverrideModifier node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedPatternCase(immutable ParsedPatternCase node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedProtectedGroupPermission(immutable ParsedProtectedGroupPermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedQualifiedIdentifier(immutable ParsedQualifiedIdentifier node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedReadOnlyGroupPermission(immutable ParsedReadOnlyGroupPermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedReplace(immutable ParsedReplace node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedRequiresModifier(immutable ParsedRequiresModifier node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedSharedGroupPermission(immutable ParsedSharedGroupPermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedSharedPermission(immutable ParsedSharedPermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedSplitBlock(immutable ParsedSplitBlock node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedStateChange(immutable ParsedStateChange node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedStateOp(immutable ParsedStateOp node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedStateOpRemove(immutable ParsedStateOpRemove node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedStateOpRename(immutable ParsedStateOpRename node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedStateRef(immutable ParsedStateRef node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedStaticArg(immutable ParsedStaticArg node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedStaticType(immutable ParsedStaticType node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedStringLiteral(immutable ParsedStringLiteral node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedTypeArg(immutable ParsedTypeArg node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedTypeArgType(immutable ParsedTypeArgType node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedUnaryOperatorExpr(immutable ParsedUnaryOperatorExpr node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedUniquePermission(immutable ParsedUniquePermission node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedUnitLiteral(immutable ParsedUnitLiteral node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedUnitType(immutable ParsedUnitType node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedUnpackInnerGroups(immutable ParsedUnpackInnerGroups node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedValSpecifier(immutable ParsedValSpecifier node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedVarDecl(immutable ParsedVarDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedVarSpecifier(immutable ParsedVarSpecifier node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+	method void visitParsedWith(immutable ParsedWith node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
+}
