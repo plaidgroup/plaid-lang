@@ -41,24 +41,61 @@ method immutable Option depInfoForAST(immutable ASTNode node) {
  ** helper functions
  ****************************************************************************/
 
-method unique Set findLastDependents(shared DependencyInformation depInfo) {
-    DEBUG(DEBUG_PRIO_LOW, "<findLastDependents> for " + depInfo.toString());
+method unique Set findLastDependentsForSymbol(shared DependencyInformation depInfo,
+                                              shared Symbol symbol) {
+                                              
+    DEBUG(DEBUG_PRIO_LOW, "<findLastDependents> for " + depInfo.toString() );
     val set = java.util.HashSet.new();
     
-    match ( depInfo.rdeps.size() == 0 ) {
-        case True {
-            set.add(depInfo)
-        }
-        case False {
-            val it = depInfo.rdeps.iterator();
-            while (it.hasNext) {
-                set.addAll(findLastDependents(it.next()))
-            }
-        }
+    val immutable Boolean valid = match (depInfo) {
+        case ASTInformation   { true }
+        case JoinInformation  { depInfo.symbol == symbol }
+        case SplitInformation { depInfo.symbol == symbol }
+    };
+    
+    if ( valid ) {
+        // try to find recursively find last dependent
+        val it = depInfo.rdeps.iterator();
+        while {it.hasNext()}{
+            val recursiveSet = findLastDependentsForSymbol(it.next(), symbol);
+            set.addAll(recursiveSet)
+        };
+        // add current node if recursive serach failed 
+        if ( set.size() == 0 ) {
+            set.add(depInfo);
+        };
     };
      
     set
 }
+
+method void addDependency(shared DependencyInformation from,
+                          shared DependencyInformation to) {
+    DEBUG(DEBUG_PRIO_LOW, "<addDependency> " + from.toString() + " -> " + to.toString() );
+    from.deps.add(to);
+    to.rdeps.add(from);
+}
+
+method void dumpGraph(immutable ParsedDecl declNode) {
+    val unique GraphvizGenerator graphGen = new GraphvizGenerator;
+    
+    declNode.accept(graphGen);
+    
+    val immutable String dump = graphGen.dump();
+    
+    printLine(dump);
+    
+    // dump file 
+    val file = java.io.File.new(graphGen.path +".graphviz");
+    val fw = java.io.FileWriter.new(file);
+    fw.write(dump);
+    fw.flush();
+    fw.close();
+    
+}
+
+
+
 
 
 /*****************************************************************************

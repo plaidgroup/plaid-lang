@@ -45,14 +45,21 @@ immutable state VarSourceLocation case of SourceLocation {
         if (AEMINIUM_MODE() ) {
             DEBUG(DEBUG_PRIO_MEDIUM, "<VarSourceLocation> create join node for '" + this.varSymbol.name + "' from '" + retType.permission +"=>" + restoredPerm+"'");
             val unique DependencyInformation joinInfo = makeJoinInformation(this.varSymbol, retType.permission, restoredPerm);
-            val unique Set lastDependents = findLastDependents(depInfoForSymbol(this.varSymbol).value);
+            val shared DependencyInformation symInfo = match (depInfoForSymbol(this.varSymbol)) {
+                case Some { depInfoForSymbol(this.varSymbol).value }
+                case None { ABORT("<VarSourceLocation> cannot find dependency information for symbol") }
+            };
+            val unique Set lastDependents = findLastDependentsForSymbol(symInfo, this.varSymbol);
             val it = lastDependents.iterator();
             while { it.hasNext() } {
                 val shared DependencyInformation dep = it.next();
-                joinInfo.deps.add(dep);
-                dep.rdeps.add(joinInfo);
+                addDependency(joinInfo, dep);
             };
+            // add dependency to source 
+            addDependency(joinInfo, symInfo);
+            printLine("connect join to " + symInfo.toString());
             setDepInfoForSymbol(this.varSymbol, joinInfo);
+
         };
         ctx.update(this.varSymbol, makeType(restoredPerm, restoredStructure));
         unit
