@@ -6,7 +6,6 @@ import plaid.compiler.util.*;
 
 state GraphvizGenerator case of ParsedASTVisitor {
     val unique Set nodes = java.util.HashSet.new();
-    val unique Map edges = java.util.IdentityHashMap.new();
     var immutable String name = "";
     var immutable String path = "";
 
@@ -17,26 +16,19 @@ state GraphvizGenerator case of ParsedASTVisitor {
         sb.append("    rankdir=BT;\n");
         
         // dump nodes
-        sb.append("    // nodes\n");
         val itNodes = this.nodes.iterator();
         while {itNodes.hasNext()}{
              val node = itNodes.next();
              sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\"];\n");
+            
+             val depsIt = node.deps.iterator();
+             while {depsIt.hasNext()}{
+                 val target = depsIt.next();
+                 sb.append("    n" + node.getID() + " -> n" +target.getID() +";\n");
+             };
+             sb.append("\n");
         };
-        
-        // edges 
-        sb.append("\n     // edges\n");
-        val itEdges = this.edges.entrySet().iterator();
-        while { itEdges.hasNext() }{
-            val entry = itEdges.next();
-            val targetSet = entry.getValue();
-            val targetIt = targetSet.iterator();
-            while { targetIt.hasNext() }{
-                val targetInfo = targetIt.next();
-                sb.append("    n" + entry.getKey().getID() + " -> n" +targetInfo.getID() +";\n");
-            };
-        };
-        
+
         sb.append("}\n");
         
         sb.toString();
@@ -47,46 +39,15 @@ state GraphvizGenerator case of ParsedASTVisitor {
             case False {
                 //DEBUG(DEBUG_PRIO_LOW, "<GraphvizGenerator> add node "+ depInfo.getID() );
                 this.nodes.add(depInfo);
-                addEdgesTo(depInfo.rdeps, depInfo);
-                addEdgesFrom(depInfo, depInfo.deps);
+                val depIt = depInfo.deps.iterator();
+                while {depIt.hasNext()}{ addNode(depIt.next()) };
+                val rdepIt = depInfo.deps.iterator();
+                while {rdepIt.hasNext()}{ addNode(rdepIt.next()) };
             }
             case True {}
         }; 
     }
 
-    method void addEdge(shared DependencyInformation from,
-                        shared DependencyInformation to) {
-        val shared LinkedList toSet = match ( this.edges.containsKey(from) ) {
-            case True  { this.edges.get(from) }
-            case False { 
-                val set = java.util.HashSet.new();
-                this.edges.put(from, set);
-                set 
-            }
-        };
-        //DEBUG(DEBUG_PRIO_LOW, "<GraphvizGenerator> add edge  "+ from.getID() + " -> " + to.getID());
-        toSet.add(to);
-    }
-    
-    method void addEdgesTo(shared Set from,
-                           shared DependencyInformation to) {
-        val it = from.iterator();
-        while {it.hasNext()}{
-            val fromDepInfo = it.next();
-            addNode(fromDepInfo);
-            addEdge(fromDepInfo, to);
-        }
-    }
-
-    method void addEdgesFrom(shared DependencyInformation from,
-                             shared Set to) {
-        val it = to.iterator();
-        while {it.hasNext()}{
-            val toDepInfo = it.next();
-            addNode(toDepInfo);
-            addEdge(from, toDepInfo);
-        }
-    }
     
 	method void visitParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
 	method void visitParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node){ ABORT("<GraphvizGenerator> unsupported ASTNode " + node.nodeName()) } 
