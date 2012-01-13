@@ -317,7 +317,16 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
         case Some {
           val immutable Option<immutable Structure> intStructOption = structureForAST(exp);
           match (intStructOption) {
-            case Some {
+            case Some {            
+              match  ( AEMINIUM_MODE() ) {
+                  case True {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(ParsedIntLiteral) " + exp.value);
+                      val unique DependencyInformation depInfo = makeASTInformation(exp);
+                      addDepInfoForAST(exp, depInfo);
+                  }
+                  case False {}
+              };
+                  
               makeTypecheckResult(makeType(neededPerm, intStructOption.value), ctx, makeLinkedList());
             }
             case None {
@@ -757,6 +766,24 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
               match (valueResult.expType.isSubTypeOf(neededType)) {
                 case True {
                   valueResult.ctxResult.put(idSym,neededType);
+                  
+                  match  ( AEMINIUM_MODE() ) {
+                      case True {
+                          DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(ParsedVarDecl) add '" + idSym.name +"' as start marker for new variable");
+                          val unique DependencyInformation depInfo = makeASTInformation(exp);
+                          setDepInfoForSymbol(idSym, depInfo);
+                          addDepInfoForAST(exp, depInfo);
+                          
+                          // add dependency to expr
+                          val shared DependencyInformatio expInfo = match ( depInfoForAST(exp.expr) ) {
+                              case Some { depInfoForAST(exp.expr).value }
+                              case None { ABORT("<typecheckExpression>(VarDecl) cannot find dependency information for expression") }
+                          };
+                          addDependency(depInfo, expInfo);
+                      }
+                      case False {}
+                  };
+                  
                   makeTypecheckResult(VOID,valueResult.ctxResult, valueResult.sourceLocList);
                 }
                 case False {
