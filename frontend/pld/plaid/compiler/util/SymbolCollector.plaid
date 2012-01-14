@@ -6,10 +6,15 @@ import plaid.ast.parsed.*;
 import plaid.collections.makeLinkedList;
 
 state SymbolCollector = ParsedLeafVisitor with  {
-    val symbols = makeLinkedList();
+    val externalSymbols = java.util.HashSet.new();
+    val localSymbols    = java.util.HashSet.new();
 
 	override method void LOG(immutable String msg) {
         DEBUG(DEBUG_PRIO_LOW, "<SymbolCollector> " + msg);
+    }
+
+    override method void visitParsedPatternCase(immutable ParsedPatternCase node) {
+        node.body.accept(this)    
     }
 
 	override method void visitParsedIdentifier(immutable ParsedIdentifier node) {
@@ -17,10 +22,13 @@ state SymbolCollector = ParsedLeafVisitor with  {
         val symbol = symbolForAST(node);
         match (symbol) {
             case Some {
-                this.symbols.add(symbol.value);
+                match (this.localSymbols.contains(symbol.value)) {
+                    case False { this.externalSymbols.add(symbol.value); }
+                    case True  { /* skip local symbols */ }
+                }
             }
             case None {
-                ABORT("Cannot abori");
+                ABORT("<SymbolCollector> Cannot find symbol for " + node.name);
             }
         }
 	}
@@ -28,5 +36,25 @@ state SymbolCollector = ParsedLeafVisitor with  {
     override method void visitParsedDereference(immutable ParsedDereference node) {
 		LOG("visit ParsedDereference");
 		node.left.accept(this);
+	}
+	
+	override method void visitParsedMethodCall(immutable MethodCall node) {
+		LOG("visit MethodCall");
+		node.receiver.accept(this);
+		node.argument.accept(this);
+	}
+	
+	override method void visitParsedVarDecl(immutable ParsedVarDecl node) {
+		LOG("visit ParsedVarDecl");
+		match (symbolForAST(node)) {
+		    case Some {
+		        LOG("add '"+ node.id.name + "' to local symbols");
+		        this.localSymbols.add(symbolForAST(node).value);
+		        node.expr.accept(this);
+		    }
+		    case None {
+		        ABORT("<SymbolCollector> Cannot find symbol for " + node.nodeName());
+		    }
+		};
 	}
 }

@@ -8,6 +8,7 @@ import plaid.compiler.util.makePermissionFromAST;
 import plaid.ast.util.makeStringForQualifiedIdentifier;
 import plaid.ast.parsed.*;
 import plaid.compiler.aeminium.*;
+import plaid.compiler.util.*;
 
 import plaid.collections.makeLinkedList;
 
@@ -138,6 +139,10 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
       var immutable Integer count = 1;
       val /*unique LinkedList<immutable Pair<immutable Symbol, immutable LinkedList<immutable SourceLocation>>>*/ introducedLocalVars = makeLinkedList();
       val unique TypecheckResult seedResult = makeTypecheckResult(VOID, ctx, makeLinkedList());
+      val shared DependencyInformation blockInfo = makeASTInformation(exp);
+      if ( AEMINIUM_MODE() ) {
+          addDepInfoForAST(exp, blockInfo);
+      };
       
       val unique TypecheckResult blockResult = exp.statements.reduce(seedResult,fn (prevResult,stmt)
                            [immutable Integer count, immutable Permission neededPerm, unique LinkedList/*<...>*/ introducedLocalVars] => {
@@ -148,14 +153,28 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
         count = count+1;
         
         val unique TypecheckResult stmtResult = typecheckExpression(prevResult.ctxResult,stmtNeededPerm,stmt);
+        
+        if ( AEMINIUM_MODE() ) {
+            match (count == (blockSize + 1)) {
+                case True {
+                    val shared DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
+                        case Some { depInfoForAST(stmt).value }
+                        case None { ABORT("<typecheckExpression>(BlockExpr) cannot find dependency information for last stmt") }
+                    };
+                    addDependency(blockInfo, stmtInfo);
+                }
+                case False {}
+            };
+        };
+        
         match (stmt) {
           case ParsedVarDecl { //this should be removed from scope and permissions returned at the end of the block
             match (haveSymbolForAST(stmt)) {
               case True {
-                introducedLocalVars.add(makePair(symbolForAST(stmt).value,stmtResult.sourceLocList));
+                introducedLocalVars.add(makePair(symbolForAST(stmt).value,stmtResult.sourceLocList));                
                 makeTypecheckResult(VOID, stmtResult.ctxResult, makeLinkedList());  //take source locations out
               }
-              case False { ABORT("(implementation error) Symbol not found for '" + stmt.nodeName() + "' during block expr typechecking") }
+              case False { ABORT("<typecheckExpression>(implementation error) Symbol not found for '" + stmt.nodeName() + "' during block expr typechecking") }
             }
           }
           default { stmtResult }
@@ -171,9 +190,24 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
             val immutable Type restoreType = blockResult.ctxResult.remove(symLeavingScope);
             listRestore(pairToRet.snd, restoreType, blockResult.ctxResult)
           }
-          case False { ABORT("(implementation error) variable '" + symLeavingScope.name + "' leaving scope is already gone in block expr typechecking") }
+          case False { ABORT("<typecheckExpression>(implementation error) variable '" + symLeavingScope.name + "' leaving scope is already gone in block expr typechecking") }
         }
       });
+      
+      if ( AEMINIUM_MODE() ) {
+          val symbols = new SymbolCollector;
+          exp.accept(symbols);
+          
+          val itSymbols = symbols.externalSymbols.iterator();
+          while { itSymbols.hasNext() }{
+              val nextSymbol = itSymbols.next();
+              val symInfo = match (depInfoForSymbol(nextSymbol)) {
+                  case Some { depInfoForSymbol(nextSymbol).value }
+                  case None { ABORT("<typecheckExpression> cannot find symbol for symbol " + nextSymbol.name ) }
+              };
+              addDependency(blockInfo, symInfo);
+          };
+      };
       
       blockResult;
       
@@ -358,9 +392,42 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
               val immutable Symbol targetSym = targetSymOption.value;
               match (ctx.containsSymbol(targetSym)) {
                 case True {
+                  val shared DependencyInformation enterInfo = makeMatchEnterInformation(exp);
+                  val shared DependencyInformation leaveInfo = makeMatchLeaveInformation(enterInfo);
+                  val symbols = new SymbolCollector;
+                  
+                  if ( AEMINIUM_MODE() ) {
+                       exp.accept(symbols);
+                       
+                       val it = symbols.externalSymbols.iterator();
+                       while { it.hasNext() }{
+                           val next = it.next();
+                           // attach match_enter info for all used symbols
+                           val shared DependencyInformation symInfo = match (depInfoForSymbol(next)) {
+                                case Some { depInfoForSymbol(next).value }
+                                case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
+                           };
+                           addDependency(enterInfo, symInfo);
+                       }; 
+                       
+                       addDepInfoForAST(exp, leaveInfo);
+                  };
+                
                   val immutable Type targetType = ctx.get(targetSym);
                   val unique LinkedList<unique TypecheckResult> caseResults = exp.caseList.map(fn (/*immutable ParsedCase*/ theCase) => 
                   {  /***** for each case *****/
+                    if ( AEMINIUM_MODE() ) {                                           
+                         val itSymbols = symbols.externalSymbols.iterator();
+                         while { itSymbols.hasNext() }{
+                             val nextSym = itSymbols.next();
+                             // attach match_enter info for all used symbols
+                             val shared DependencyInformation symInfo = match (depInfoForSymbol(nextSym)) {
+                                  case Some { depInfoForSymbol(nextSym).value }
+                                  case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
+                             };
+                             setDepInfoForSymbol(nextSym, enterInfo);
+                         }; 
+                    };
                     match (theCase) {
                       case ParsedPatternCase {
                         /* check that the structure of the case is a substructure of the target type*/
@@ -378,7 +445,21 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                                     ctx.update(targetSym, makeType(targetType.permission, patternStruct));
                                     
                                     /* return result from typechecking the body */
-                                    typecheckExpression(caseContext, neededPerm, theCase.body);
+                                    val result = typecheckExpression(caseContext, neededPerm, theCase.body);
+                                    
+                                    if (AEMINIUM_MODE() ) {
+                                        val shared DepenendencyInformation caseInfo = makeASTInformation(theCase);
+                                        val shared DepenendencyInformation bodyInfo = match (depInfoForAST(theCase.body)) {
+                                            case Some { depInfoForAST(theCase.body).value }
+                                            case None { ABORT("<typecheckExpression>(Case) cannot find dependency information for case body") }
+                                        };
+                                        
+                                        addDepInfoForAST(theCase, caseInfo);
+                                        addDependency(caseInfo, bodyInfo);
+                                        addDependency(leaveInfo, caseInfo);
+                                    };
+                                    
+                                    result 
                                   }
                                   case False {
                                     ABORT("<typecheckExpression>(Case) pattern '" + makeStringForQualifiedIdentifier(theCase.pattern) + 
@@ -403,7 +484,21 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                         val unique LinearContext defaultContext = ctx.copy();
                         
                         /* return result from typechecking the body */
-                        typecheckExpression(defaultContext, neededPerm, theCase.body);
+                        val result = typecheckExpression(defaultContext, neededPerm, theCase.body);
+                        
+                        if (AEMINIUM_MODE() ) {
+                            val shared DepenendencyInformation caseInfo = makeASTInformation(theCase);
+                            val shared DepenendencyInformation bodyInfo = match (depInfoForAST(theCase.body)) {
+                                case Some { depInfoForAST(theCase.body).value }
+                                case None { ABORT("<typecheckExpression>(Case) cannot find dependency information for case body") }
+                            };
+                            
+                            addDepInfoForAST(theCase, caseInfo);
+                            addDependency(caseInfo, bodyInfo);
+                            addDependency(leaveInfo, caseInfo);
+                        };
+                        
+                        result
                       }
                     }
                   }); /****** end for each case *****/
@@ -433,6 +528,21 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                             match ( mergedContextOpt ) {
                               case Some {
                                 accResult.sourceLocList.append(caseRes.sourceLocList); //append is in place
+                                
+                                if ( AEMINIUM_MODE() ) {
+                                     val itSymbols = symbols.externalSymbols.iterator();
+                                     while { itSymbols.hasNext() }{
+                                         val nextSym = itSymbols.next();
+                                         // attach match_enter info for all used symbols
+                                         val shared DependencyInformation symInfo = match (depInfoForSymbol(nextSym)) {
+                                              case Some { depInfoForSymbol(nextSym).value }
+                                              case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
+                                         };
+                                         setDepInfoForSymbol(nextSym, leaveInfo);
+                                         addDependency(leaveInfo, symInfo);
+                                     };                                     
+                                };
+                                
                                 makeTypecheckResult(returnTypeLUBopt.value, 
                                                     mergedContextOpt.value, 
                                                     accResult.sourceLocList);
