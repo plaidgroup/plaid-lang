@@ -35,6 +35,9 @@ state DependencyInformationCollector case of ParsedASTVisitor {
         }; 
     }
 
+    method void LOG(immutable String msg) {
+         DEBUG(DEBUG_PRIO_LOW, "<DependencyInformationCollector> " + msg);
+    }
     
 	method void visitParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	method void visitParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
@@ -45,7 +48,8 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedArg(immutable ParsedArg node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	method void visitParsedArgSpec(immutable ParsedArgSpec node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
-	method void visitParsedArgumentExpr(immutable ParsedArgumentExpr node){ 
+	method void visitParsedArgumentExpr(immutable ParsedArgumentExpr node){
+	    LOG("visit " + node.nodeName());
 	    node.args.do( fn (arg) => {
 	        arg.accept(this);
 	    });
@@ -55,6 +59,7 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedAtomicBlock(immutable ParsedAtomicBlock node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
 	method void visitParsedBlockExpr(immutable ParsedBlockExpr node) { 
+	    LOG("visit " + node.nodeName());
 	    node.statements.do( fn (stmt) => {
 	        stmt.accept(this);
 	    });
@@ -65,6 +70,7 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
 	method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+	    LOG("visit " + node.nodeName());
 	    val shared Symbol methSymbol = match (symbolForAST(node)) {
 	        case Some  { symbolForAST(node).value }
 	        case None  { ABORT("<DependencyInformationCollector> cannot find symbol for " + node.nodeName()) }
@@ -98,13 +104,28 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedConcreteType(immutable ParsedConcreteType node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	method void visitParsedDeclList(immutable ParsedDeclList node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	method void visitParsedDefaultCase(immutable ParsedDefaultCase node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
-	method void visitParsedDereference(immutable ParsedDereference node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
+	
+	method void visitParsedDereference(immutable ParsedDereference node){ 
+	    LOG("visit " + node.nodeName());
+	   	 val shared DependencyInformation drefInfo = match (depInfoForAST(node)) {
+	         case Some { depInfoForAST(node).value }
+	         case None {  ABORT("<DependencyInformationCollector> cannot find dereference dependency information"); }
+	     };
+	     
+	     addNode(drefInfo);
+	     match (node.left) {
+	         case ParsedIdentifier {}
+	         default { node.left.accept(this) }  
+	     }
+	}
+	
 	method void visitParsedDestructiveDereference(immutable ParsedDestructiveDereference node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
 	method void visitParsedDoubleLiteral(immutable ParsedDoubleLiteral node){
+	    LOG("visit " + node.nodeName());
 	     val shared DependencyInformation litInfo = match (depInfoForAST(node)) {
 	         case Some { depInfoForAST(node).value }
-	         case None {  ABORT("<DependencyInformationCollector> cannot file method call dependency information"); }
+	         case None {  ABORT("<DependencyInformationCollector> cannot find double dependency information"); }
 	     };
 	     
 	     addNode(litInfo);
@@ -124,9 +145,10 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedGroupType(immutable ParsedGroupType node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
 	method void visitParsedIdentifier(immutable ParsedIdentifier node){
+	    LOG("visit " + node.nodeName());
 	     val shared DependencyInformation idInfo = match (depInfoForAST(node)) {
 	         case Some { depInfoForAST(node).value }
-	         case None {  ABORT("<DependencyInformationCollector> cannot file method call dependency information"); }
+	         case None {  ABORT("<DependencyInformationCollector> cannot find identifier '" + node.name + "' dependency information"); }
 	     };
 	     
 	     addNode(idInfo);
@@ -138,9 +160,10 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedInfixOperatorExpr(immutable ParsedInfixOperatorExpr node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
 	method void visitParsedIntLiteral(immutable ParsedIntLiteral node){ 
+	    LOG("visit " + node.nodeName());
 	     val shared DependencyInformation litInfo = match (depInfoForAST(node)) {
 	         case Some { depInfoForAST(node).value }
-	         case None {  ABORT("<DependencyInformationCollector> cannot file method call dependency information"); }
+	         case None {  ABORT("<DependencyInformationCollector> cannot find method call dependency information"); }
 	     };
 	     
 	     addNode(litInfo);	
@@ -153,15 +176,17 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedLocalStateValDecl(immutable ParsedLocalStateValDecl node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
 	method void visitParsedMatch(immutable ParsedMatch node){
+	    LOG("visit " + node.nodeName());
 	     val shared DependencyInformation matchInfo = match (depInfoForAST(node)) {
 	         case Some { depInfoForAST(node).value }
-	         case None {  ABORT("<DependencyInformationCollector> cannot file method call dependency information"); }
+	         case None {  ABORT("<DependencyInformationCollector> cannot find match dependency information"); }
 	     };
 	     
 	     addNode(matchInfo);	    
 	}
 	
 	method void visitParsedMethodCall(immutable ParsedMethodCall node) {
+	    LOG("visit " + node.nodeName());
 	     val shared DependencyInformation mcallInfo = match (depInfoForAST(node)) {
 	         case Some { depInfoForAST(node).value }
 	         case None {  ABORT("<DependencyInformationCollector> cannot file method call dependency information"); }
@@ -177,9 +202,10 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedMutableGroupPermission(immutable ParsedMutableGroupPermission node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
 	method void visitParsedNewInstance(immutable ParsedNewInstance node) {
+	    LOG("visit " + node.nodeName());
 	     val shared DependencyInformation newInfo = match (depInfoForAST(node)) {
 	         case Some { depInfoForAST(node).value }
-	         case None {  ABORT("<DependencyInformationCollector> cannot file method call dependency information"); }
+	         case None {  ABORT("<DependencyInformationCollector> cannot find new dependency information"); }
 	     };
 	     
 	     addNode(newInfo);
@@ -207,9 +233,10 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedStaticType(immutable ParsedStaticType node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
 	method void visitParsedStringLiteral(immutable ParsedStringLiteral node){
+	    LOG("visit " + node.nodeName());
 	     val shared DependencyInformation litInfo = match (depInfoForAST(node)) {
 	         case Some { depInfoForAST(node).value }
-	         case None {  ABORT("<DependencyInformationCollector> cannot file method call dependency information"); }
+	         case None {  ABORT("<DependencyInformationCollector> cannot find string dependency information"); }
 	     };
 	     
 	     addNode(litInfo);
@@ -225,9 +252,10 @@ state DependencyInformationCollector case of ParsedASTVisitor {
 	method void visitParsedValSpecifier(immutable ParsedValSpecifier node){ ABORT("<DependencyInformationCollector> unsupported ASTNode " + node.nodeName()) } 
 	
 	method void visitParsedVarDecl(immutable ParsedVarDecl node){ 
+	    LOG("visit " + node.nodeName());
 	     val shared DependencyInformation varDeclInfo = match (depInfoForAST(node)) {
 	         case Some { depInfoForAST(node).value }
-	         case None {  ABORT("<DependencyInformationCollector> cannot file method call dependency information"); }
+	         case None {  ABORT("<DependencyInformationCollector> cannot find var decl dependency information"); }
 	     };
 	     
 	     addNode(varDeclInfo);
