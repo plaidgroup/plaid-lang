@@ -36,36 +36,36 @@ immutable state VarSourceLocation case of SourceLocation {
    *      updated permission and structure
    */
   method void restore(immutable Type retType, unique LinearContext ctx) {
-    if (this.varSymbol.isVar()) { ABORT("(implementation Error) Cannot restore to Var local variables/top level fields yet") };
+    if (this.varSymbol.isVar()) { ABORT("<VarSourceLocation>(implementation Error) Cannot restore to Var local variables/top level fields yet") };
     val unique Option<immutable Type> curVarTypeOption = ctx.getOption(this.varSymbol);
     match(curVarTypeOption) {
       case Some {
         val immutable Permission restoredPerm = curVarTypeOption.value.permission.returnPerm(retType.permission);
         val immutable Structure restoredStructure = mergeStructures(curVarTypeOption.value.structure, retType.structure);
+        
         if (AEMINIUM_MODE() ) {
             DEBUG(DEBUG_PRIO_MEDIUM, "<VarSourceLocation> create join node for '" + this.varSymbol.name + "' from '" + retType.permission +"=>" + restoredPerm+"'");
             val unique DependencyInformation joinInfo = makeJoinInformation(this.varSymbol, retType.permission, restoredPerm);
             val shared DependencyInformation symInfo = match (depInfoForSymbol(this.varSymbol)) {
                 case Some { depInfoForSymbol(this.varSymbol).value }
                 case None { ABORT("<VarSourceLocation> cannot find dependency information for symbol") }
+            };            
+            addDependency(joinInfo, symInfo);
+            
+            
+            // last AST that used this variable 
+            val shared DependencyInformation slocOrigin = match  (depInfoForSLoc(this) ) {
+                case Some { depInfoForSLoc(this).value }
+                case None {  ABORT("<VarSourceLocation> cannot find dependency information for symbol") }
             };
-            val unique Set lastDependents = findLastDependentsForSymbol(symInfo, this.varSymbol);
-            val it = lastDependents.iterator();
-            while { it.hasNext() } {
-                val shared DependencyInformation dep = it.next();
+            val unique Set lastASTDependents = findLastDependentsForSymbol(slocOrigin, this.varSymbol, true);
+            val itAST = lastASTDependents.iterator();
+            while { itAST.hasNext() } {
+                val shared DependencyInformation dep = itAST.next();
                 addDependency(joinInfo, dep);
             };
-            // add dependency to source 
-            //addDependency(joinInfo, symInfo);
-            match ( depInfoForSLoc(this) ) {
-                case Some {
-                    val slocInfo = depInfoForSLoc(this).value;
-                    addDependency(joinInfo, slocInfo);
-                }
-                case None { ABORT("<VarSourceLocation> cannot find dependency information for source location") }
-            };
+            
             setDepInfoForSymbol(this.varSymbol, joinInfo);
-
         };
         ctx.update(this.varSymbol, makeType(restoredPerm, restoredStructure));
         unit

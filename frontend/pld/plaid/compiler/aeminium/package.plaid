@@ -37,6 +37,7 @@ method immutable Option depInfoForAST(immutable ASTNode node) {
     }
 }
 
+
 /*****************************************************************************
  ** global type map SourceLocation -> DependecyInformation
  ****************************************************************************/
@@ -54,14 +55,16 @@ method immutable Option depInfoForSLoc(immutable SourceLocation sloc) {
     }
 }
 
+
 /*****************************************************************************
  ** helper functions
  ****************************************************************************/
 
 method unique Set findLastDependentsForSymbol(shared DependencyInformation depInfo,
-                                              shared Symbol symbol) {
+                                              shared Symbol symbol,
+                                              immutable Boolean onlyAST) {
                                               
-    DEBUG(DEBUG_PRIO_LOW, "<findLastDependents> for " + depInfo.toString() );
+    DEBUG(DEBUG_PRIO_LOW, "<findLastDependents> for " + depInfo.toString() + " astOnly="+onlyAST);
     val set = java.util.HashSet.new();
     
     val immutable Boolean valid = match (depInfo) {
@@ -74,12 +77,23 @@ method unique Set findLastDependentsForSymbol(shared DependencyInformation depIn
         // try to find recursively find last dependent
         val it = depInfo.rdeps.iterator();
         while {it.hasNext()}{
-            val recursiveSet = findLastDependentsForSymbol(it.next(), symbol);
+            val recursiveSet = findLastDependentsForSymbol(it.next(), symbol, onlyAST);
             set.addAll(recursiveSet)
         };
         // add current node if recursive serach failed 
         if ( set.size() == 0 ) {
-            set.add(depInfo);
+            match (onlyAST) {
+                case True {
+                    match (depInfo) {
+                        case ASTInformation { set.add(depInfo) } 
+                        default { }
+                    }
+                }
+                case False {
+                    set.add(depInfo);
+                }
+            }
+            
         };
     };
      
