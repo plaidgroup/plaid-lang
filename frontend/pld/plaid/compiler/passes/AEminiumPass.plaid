@@ -11,6 +11,7 @@ import plaid.compiler.Pass;
 import plaid.compiler.*;
 import plaid.compiler.typechecker.*;
 import plaid.compiler.aeminium.*;
+import plaid.compiler.permissions.*;
 
 state AEminiumPass case of Pass = ParsedLeafVisitor with {
   var hasErrors = false;
@@ -57,14 +58,20 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
         val unique Set infos = dic.getNodes();
         DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass>     found " + infos.size() + " information nodes");
         
+        
         //remove join-split connections
         val unique Set joinSplitFree = removeNonsenseJoinSplit(infos);
         dumpGraph(node, "JOIN-SPLIT");
+        
+        // remove split-split connections
+        val unique Set splitSplitFree = removeSplitSplit(joinSplitFree);
+        dumpGraph(node, "SPLIT-SPLIT");
     }
     
     /***********************************************************************
      **                   optimization functions                          **
      ***********************************************************************/
+    
     
     method void removeDependencyInformation(shared DependencyInformation depInfo)  {
         DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> REMOVE " + depInfo.toString() );
@@ -107,38 +114,6 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
         }
     }
  
- 
-    method void deleteJoinSplit(shared joinInformation joinInfo)  {
-        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> REMOVE " + joinInfo.toString() );
-        
-        // remove node from dependents 
-        val depsIt = joinInfo.deps.iterator();
-        while { depsIt.hasNext() }{
-            val shared DepenendencyInformation dep = depsIt.next();
-            
-            // remove from deps
-            dep.rdeps.remove(joinInfo);
-            
-            match (dep) {
-                case ASTInformation {
-                    // connect to lowest join by following splits 
-                }
-                case SplitInformation {
-                    // connect to rdeps
-                    val rdepsIt = joinInfo.rdeps.iterator();
-                    while { rdepsIt.hasNext() }{
-                        val rdep = rdeps.next();
-                        rdep.dep.remove(joinInfo);
-                        rdep.dep.add(dep);
-                    };
-                }
-                case JoinInformation {
-                    ABORT("<AEminiumPass> Found JoinJoin in JoinSplit Optimization");
-                }
-            }
-        }
-    }
- 
     method void fixNonsenseJoinSplit(shared JoinInformation upperJoin,
                                      shared SplitInformation splitInfo,
                                      shared JoinInformation lowerJoin) {
@@ -177,10 +152,8 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                             case JoinInformation {
                                 if ( depInfo.permOut == upperJoin.permIn ) {
                                    DEBUG(DEBUG_PRIO_HIGH, "<AEminiumMode> Found nonsense join/split");
-                                   //this.removeDependencyInformation(dependency);
                                    val splitInfo = depInfo; 
                                    val lowerJoin = findNextJoin(splitInfo);
-                                   printLine("Found lower joins " + lowerJoin.toString() );
                                    fixNonsenseJoinSplit(upperJoin, splitInfo, lowerJoin);
                                }
                             }
@@ -194,5 +167,54 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
         };
         
         result
+    }
+    
+    
+    method void fixSplitSplit(shared DependencyInformation splitInfo) {
+        removeDependencyInformation(splitInfo);
+    }
+    
+    method immutable Permission simplePermission(immutable Permission perm) {
+        match (perm){
+            case ImmutablePermission { perm }
+            case SharedPermission    { perm }
+            case UniquePermission    { perm }
+            case NonePermission      { perm }
+            case LocalPermission     { perm.thePerm }
+            case BorrowedPermission  { perm.thePerm }
+            default                  { ABORT("<AEminiumPass> found not supported permission: " + perm.toString()) }
+        }        
+    }
+
+    method unique Set removeSplitSplit(unique Set infos) {
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case ASTInformation   { result.add(depInfo) }
+                case JoinInformation  { result.add(depInfo) }
+                case SplitInformation {                    
+                    ifElse ( simplePermission(depInfo.permIn) == simplePermission(depInfo.permOut) ) {
+                        val upperSplits = getSplitInformation(depInfo.deps);
+                        ifElse ( upperSplits.size() > 0) {
+                            DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> found split hierarchy ");
+                            if ( upperSplits.size() != 1 ) { ABORT("<AEminiumPass> cannot have more than one split") };
+                            fixSplitSplit(depInfo);                            
+                        }{
+                            printLine("no upper splits " + depInfo.toString());
+                            result.add(depInfo)
+                        }
+                    }{
+                        printLine("different perms  " + depInfo.toString());
+                        result.add(depInfo);
+                    }
+                }
+            }
+        };
+        
+        result      
     }
 }
