@@ -9,8 +9,8 @@ import plaid.compiler.DEBUG_PRIO_MEDIUM;
 import plaid.compiler.Pass;
 
 import plaid.compiler.*;
-
 import plaid.compiler.typechecker.*;
+import plaid.compiler.aeminium.*;
 
 state AEminiumPass case of Pass = ParsedLeafVisitor with {
   var hasErrors = false;
@@ -45,11 +45,154 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
     }
     
     override method void LOG(immutable String msg) {
-        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> " + msg);
+        //DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> " + msg);
     }
     
     override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> found Method Declaration '" + node.name.name + "'");
+        
+        // get dependency information for 
+        val unique DependencyInformationCollector dic = new DependencyInformationCollector;
+        node.accept(dic);
+        val unique Set infos = dic.getNodes();
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass>     found " + infos.size() + " information nodes");
+        
+        //remove join-split connections
+        val unique Set joinSplitFree = removeNonsenseJoinSplit(infos);
+        dumpGraph(node, "JOIN-SPLIT");
+    }
     
+    /***********************************************************************
+     **                   optimization functions                          **
+     ***********************************************************************/
+    
+    method void removeDependencyInformation(shared DependencyInformation depInfo)  {
+        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> REMOVE " + depInfo.toString() );
+        
+        // remove node from dependents 
+        val rdepsIt = depInfo.rdeps.iterator();
+        while { rdepsIt.hasNext() }{
+            val shared DepenendencyInformation rdep = rdepsIt.next();
+            
+            // remove depInfo from rdep
+            rdep.deps.remove(depInfo);
+            
+            // connect to deps of DepInfo
+            val depsIt = depInfo.deps.iterator();
+            while { depsIt.hasNext() }{
+                val shared DependencyInformation dep = depsIt.next();
+                
+                // remove depInfo from dep
+                dep.rdeps.remove(depInfo);
+                
+                // add connection between rdep -> dep
+                addDependency(rdep, dep);
+            }
+        }
+    }
+ 
+    method shared JoinInformation findNextJoin(shared SplitInformation splitInfo) {
+        val joins = getJoinInformation(splitInfo.rdeps);
+        ifElse ( joins.size() > 0 ) {
+            if ( joins.size() != 1 ) { ABORT("<AEminiumPass> found too many joins.") };
+            joins.iterator().next()
+        }{
+            val splits = getSplitInformation(splitInfo.rdeps);
+            ifElse ( splits.size() > 0 ) {
+                if ( splits.size() != 1 ) { ABORT("<AEminiumPass> found too many splits.") };
+                findNextJoin(splits.iterator().next());
+            }{
+                ABORT("<AEminiumPass> couldn't find split information to continue");
+            }
+        }
+    }
+ 
+ 
+    method void deleteJoinSplit(shared joinInformation joinInfo)  {
+        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> REMOVE " + joinInfo.toString() );
+        
+        // remove node from dependents 
+        val depsIt = joinInfo.deps.iterator();
+        while { depsIt.hasNext() }{
+            val shared DepenendencyInformation dep = depsIt.next();
+            
+            // remove from deps
+            dep.rdeps.remove(joinInfo);
+            
+            match (dep) {
+                case ASTInformation {
+                    // connect to lowest join by following splits 
+                }
+                case SplitInformation {
+                    // connect to rdeps
+                    val rdepsIt = joinInfo.rdeps.iterator();
+                    while { rdepsIt.hasNext() }{
+                        val rdep = rdeps.next();
+                        rdep.dep.remove(joinInfo);
+                        rdep.dep.add(dep);
+                    };
+                }
+                case JoinInformation {
+                    ABORT("<AEminiumPass> Found JoinJoin in JoinSplit Optimization");
+                }
+            }
+        }
+    }
+ 
+    method void fixNonsenseJoinSplit(shared JoinInformation upperJoin,
+                                     shared SplitInformation splitInfo,
+                                     shared JoinInformation lowerJoin) {
+        val depsIt = upperJoin.deps.iterator();
+        while { depsIt.hasNext() }{
+            val depNext = depsIt.next();
+            depNext.rdeps.remove(upperJoin);
+            addDependency(lowerJoin, depNext);
+        };
+        
+        val upperSplit = getSplitInformation(upperJoin.deps).iterator().next();
+        val splitsIt = splitInfo.rdeps.iterator();
+        while {splitsIt.hasNext()}{
+            val splitNext = splitsIt.next();
+            splitNext.deps.remove(splitInfo);
+            
+            addDependency(splitNext, upperSplit);
+        }
+    }
+                                     
+ 
+    method unique Set removeNonsenseJoinSplit(unique Set infos) {
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case ASTInformation   { result.add(depInfo) }
+                case JoinInformation { result.add(depInfo) }
+                case SplitInformation  {                    
+                    ifElse ( depInfo.deps.size() == 1 ) {
+                        val shared DependencyInformation upperJoin = depInfo.deps.iterator().next();
+                        match (upperJoin) {
+                            case JoinInformation {
+                                if ( depInfo.permOut == upperJoin.permIn ) {
+                                   DEBUG(DEBUG_PRIO_HIGH, "<AEminiumMode> Found nonsense join/split");
+                                   //this.removeDependencyInformation(dependency);
+                                   val splitInfo = depInfo; 
+                                   val lowerJoin = findNextJoin(splitInfo);
+                                   printLine("Found lower joins " + lowerJoin.toString() );
+                                   fixNonsenseJoinSplit(upperJoin, splitInfo, lowerJoin);
+                               }
+                            }
+                            default { result.add(depInfo) }
+                        }
+                    }{
+                        result.add(depInfo);
+                    }                
+                }
+            }
+        };
+        
+        result
     }
 }
