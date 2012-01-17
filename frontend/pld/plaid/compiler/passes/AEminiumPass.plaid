@@ -66,6 +66,10 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
         // remove split-split connections
         val unique Set splitSplitFree = removeSplitSplit(joinSplitFree);
         dumpGraph(node, "SPLIT-SPLIT");
+        
+        // remove join-join connections
+        val unique Set joinJoinFree = removeJoinJoin(splitSplitFree);
+        dumpGraph(node, "JOIN-JOIN");
     }
     
     /***********************************************************************
@@ -143,9 +147,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
             val shared DependencyInformation depInfo = it.next();
             
             match (depInfo) {
-                case ASTInformation   { result.add(depInfo) }
-                case JoinInformation { result.add(depInfo) }
-                case SplitInformation  {                    
+                case SplitInformation {                    
                     ifElse ( depInfo.deps.size() == 1 ) {
                         val shared DependencyInformation upperJoin = depInfo.deps.iterator().next();
                         match (upperJoin) {
@@ -163,6 +165,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                         result.add(depInfo);
                     }                
                 }
+                default { result.add(depInfo) }
             }
         };
         
@@ -171,6 +174,10 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
     
     
     method void fixSplitSplit(shared DependencyInformation splitInfo) {
+        removeDependencyInformation(splitInfo);
+    }
+
+    method void fixJoinJoin(shared DependencyInformation splitInfo) {
         removeDependencyInformation(splitInfo);
     }
     
@@ -194,8 +201,6 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
             val shared DependencyInformation depInfo = it.next();
             
             match (depInfo) {
-                case ASTInformation   { result.add(depInfo) }
-                case JoinInformation  { result.add(depInfo) }
                 case SplitInformation {                    
                     ifElse ( simplePermission(depInfo.permIn) == simplePermission(depInfo.permOut) ) {
                         val upperSplits = getSplitInformation(depInfo.deps);
@@ -204,14 +209,42 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                             if ( upperSplits.size() != 1 ) { ABORT("<AEminiumPass> cannot have more than one split") };
                             fixSplitSplit(depInfo);                            
                         }{
-                            printLine("no upper splits " + depInfo.toString());
                             result.add(depInfo)
                         }
                     }{
-                        printLine("different perms  " + depInfo.toString());
                         result.add(depInfo);
                     }
                 }
+                default { result.add(depInfo) }
+            }
+        };
+        
+        result      
+    }
+    
+    method unique Set removeJoinJoin(unique Set infos) {
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case JoinInformation {                    
+                    ifElse ( simplePermission(depInfo.permIn) == simplePermission(depInfo.permOut) ) {
+                        val lowerJoins = getJoinInformation(depInfo.rdeps);
+                        ifElse ( lowerJoins.size() > 0) {
+                            DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> found join hierarchy ");
+                            if ( lowerJoins.size() != 1 ) { ABORT("<AEminiumPass> cannot have more than one split") };
+                            fixJoinJoin(depInfo);                            
+                        }{
+                            result.add(depInfo)
+                        }
+                    }{
+                        result.add(depInfo);
+                    }
+                }
+                default { result.add(depInfo) }
             }
         };
         
