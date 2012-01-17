@@ -71,8 +71,13 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                  result
             });
             ops.addLast( fn (depInfos) => {
-                 val result = removeNonsenseJoinSplit(depInfos);
-                 dumpGraph(node, "JOIN-SPLIT");
+                 val result = removeNonsenseUniqueJoinSplit(depInfos);
+                 dumpGraph(node, "UNIQUE-JOIN-SPLIT");
+                 result
+            });  
+            ops.addLast( fn (depInfos) => {
+                 val result = removeNonsenseSymetricJoinSplit(depInfos);
+                 dumpGraph(node, "SYMETRIC-JOIN-SPLIT");
                  result
             });  
             ops.addLast( fn (depInfos) => {
@@ -176,10 +181,10 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
         }
     } 
  
-    method void fixNonsenseJoinSplit(shared JoinInformation upperJoin,
-                                     shared SplitInformation splitInfo,
-                                     shared JoinInformation lowerJoin) {
-        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> fixNonsenseJoinSplit");
+    method void fixNonsenseSymetricJoinSplit(shared JoinInformation upperJoin,
+                                             shared SplitInformation splitInfo,
+                                             shared JoinInformation lowerJoin) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> fixNonsenseSymetricJoinSplit");
         DEBUG(DEBUG_PRIO_MEDIUM, "               upperJoin = "+ upperJoin.toString());
         DEBUG(DEBUG_PRIO_MEDIUM, "               splitInfo = "+ splitInfo.toString());
         DEBUG(DEBUG_PRIO_MEDIUM, "               lowerJoin = "+ lowerJoin.toString());
@@ -205,8 +210,8 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
     }
                                      
  
-    method unique Set removeNonsenseJoinSplit(unique Set infos) {
-        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeNonsenseJoinSplit");
+    method unique Set removeNonsenseSymetricJoinSplit(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeNonsenseSymetricJoinSplit");
         val unique Set result = java.util.HashSet.new();
         
         val it = infos.iterator();
@@ -220,10 +225,11 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                         match (upperJoin) {
                             case JoinInformation {
                                 if ( depInfo.permOut == upperJoin.permIn ) {
-                                   DEBUG(DEBUG_PRIO_HIGH, "<AEminiumMode> Found nonsense join/split");
-                                   val splitInfo = depInfo; 
-                                   val lowerJoin = findNextJoin(splitInfo);
-                                   fixNonsenseJoinSplit(upperJoin, splitInfo, lowerJoin);
+                                    match (depInfo) { case UniquePermission { ABORT("<AEminium found unqiue nonsense join/split in symetric pass -> run after removeNonsenseUniqueJoinSplit") } default {} };
+                                    DEBUG(DEBUG_PRIO_HIGH, "<AEminiumMode> Found symetric nonsense join/split");
+                                    val splitInfo = depInfo; 
+                                    val lowerJoin = findNextJoin(splitInfo);
+                                    fixNonsenseSymetricJoinSplit(upperJoin, splitInfo, lowerJoin);
                                }
                             }
                             default { result.add(depInfo) }
@@ -239,6 +245,53 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
         result
     }
     
+
+    method unique Set removeNonsenseUniqueJoinSplit(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeNonsenseUniqueJoinSplit");
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case SplitInformation {
+                    val splitInfo = depInfo;
+                    if ( depInfo.permOut == depInfo.permIn ) {
+                        match (depInfo.permOut) {
+                            case UniquePermission {
+                                DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> found unique nonsense join/split ");
+                                
+                                val joins = getJoinInformation(depInfo.rdeps);
+                                if ( joins.size() == 1 ) {
+                                    val joinInfo = joins.iterator().next();
+                                    
+                                    // remove 'none' connection
+                                    splitInfo.rdeps.remove(joinInfo);
+                                    joinInfo.deps.remove(splitInfo);
+                                    
+                                    // remove join node
+                                    this.removeDependencyInformation(joinInfo);
+                                };
+                                
+                                // remove split node
+                                this.removeDependencyInformation(splitInfo);
+                            }
+                            default {
+                                // ignore symmetic cases are handled later 
+                                result.add(depInfo);
+                            }
+                        }
+                    }
+                }
+                default {
+                    result.add(depInfo);
+                }
+            }
+        };
+        
+        result
+    }
     
     method void fixSplitSplit(shared DependencyInformation splitInfo) {
         removeDependencyInformation(splitInfo);
