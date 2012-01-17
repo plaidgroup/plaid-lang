@@ -52,26 +52,47 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
     override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> found Method Declaration '" + node.name.name + "'");
         
+        // TODO: disbable for @Sequential 
+        
         // get dependency information for 
         val unique DependencyInformationCollector dic = new DependencyInformationCollector;
         node.accept(dic);
         val unique Set infos = dic.getNodes();
         DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass>     found " + infos.size() + " dependency information nodes");
         
+        val unique LinkedList ops = makeLinkedList();
+        ops.addLast( fn (depInfos) => {
+             val result = removeJoinJoin(depInfos);
+             dumpGraph(node, "PRE-JOIN-JOIN");
+             result
+        });
+        ops.addLast( fn (depInfos) => {
+             val result = removeSplitSplit(depInfos);
+             dumpGraph(node, "PRE-SPLIT-SPLIT");
+             result
+        });
+        ops.addLast( fn (depInfos) => {
+             val result = removeNonsenseJoinSplit(depInfos);
+             dumpGraph(node, "JOIN-SPLIT");
+             result
+        });  
+        ops.addLast( fn (depInfos) => {
+             val result = removeJoinJoin(depInfos);
+             dumpGraph(node, "POST-JOIN-JOIN");
+             result
+        });
+        ops.addLast( fn (depInfos) => {
+             val result = removeSplitSplit(depInfos);
+             dumpGraph(node, "POST-SPLIT-SPLIT");
+             result
+        });        
         
-        //remove join-split connections
-        val unique Set joinSplitFree = removeNonsenseJoinSplit(infos);
-        dumpGraph(node, "JOIN-SPLIT");
+        // execute ops
+        var unique Set nodes = infos; 
+        ops.do( fn (op) => {
+            nodes = op(nodes);
+        });
         
-        // remove split-split connections
-        val unique Set splitSplitFree = removeSplitSplit(joinSplitFree);
-        dumpGraph(node, "SPLIT-SPLIT");
-        
-        // remove join-join connections
-        val unique Set joinJoinFree = removeJoinJoin(splitSplitFree);
-        dumpGraph(node, "JOIN-JOIN");
-        
-        // rebalance AST operations
     }
     
     /***********************************************************************
@@ -181,6 +202,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                                      
  
     method unique Set removeNonsenseJoinSplit(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeNonsenseJoinSplit");
         val unique Set result = java.util.HashSet.new();
         
         val it = infos.iterator();
@@ -235,6 +257,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
     }
 
     method unique Set removeSplitSplit(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeSplitSplit");
         val unique Set result = java.util.HashSet.new();
         
         val it = infos.iterator();
@@ -264,6 +287,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
     }
     
     method unique Set removeJoinJoin(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeJoinJoin");
         val unique Set result = java.util.HashSet.new();
         
         val it = infos.iterator();
