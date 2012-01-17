@@ -33,7 +33,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                     }
                   }
                   default {
-                    ERROR("<AEminiumPass> AST invalid");
+                      ERROR("<AEminiumPass> AST invalid");
                       false
                   }
               }
@@ -56,7 +56,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
         val unique DependencyInformationCollector dic = new DependencyInformationCollector;
         node.accept(dic);
         val unique Set infos = dic.getNodes();
-        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass>     found " + infos.size() + " information nodes");
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass>     found " + infos.size() + " dependency information nodes");
         
         
         //remove join-split connections
@@ -70,6 +70,8 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
         // remove join-join connections
         val unique Set joinJoinFree = removeJoinJoin(splitSplitFree);
         dumpGraph(node, "JOIN-JOIN");
+        
+        // rebalance AST operations
     }
     
     /***********************************************************************
@@ -118,9 +120,46 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
         }
     }
  
+ 
+    method shared SplitInformation findPreviousSplit(shared DependencyInformation depInfo, shared Symbol symbol) {
+        val splits = getSplitInformation(depInfo.deps);
+        ifElse ( splits.size() > 0 ) {
+            if ( splits.size() != 1 ) { ABORT("<AEminiumPass> found too many splits.") };
+            val previousSplit = splits.iterator().next();
+            if ( !(previousSplit.symbol == symbol) ) { ABORT("<AEminiumPass> split does not match") };
+            previousSplit
+        }{
+            val it = depInfo.deps.iterator();
+            var result = new None;
+            while { it.hasNext() }{
+                val next = it.next();
+                match (next) {
+                    case SplitInformation {
+                        if ( next.symbol == symbol ) {
+                            result = makeSome(depinfo);
+                        }
+                    }
+                    default {
+                        result = makeSome(findPreviousSplit(next, symbol));
+                    }
+                }
+            };
+            match (result) {
+                case Some { result.value }
+                case None { ABORT("<AEminiumPass> cannot find previous split ")}
+            }
+        }
+    } 
+ 
     method void fixNonsenseJoinSplit(shared JoinInformation upperJoin,
                                      shared SplitInformation splitInfo,
                                      shared JoinInformation lowerJoin) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> fixNonsenseJoinSplit");
+        DEBUG(DEBUG_PRIO_MEDIUM, "               upperJoin = "+ upperJoin.toString());
+        DEBUG(DEBUG_PRIO_MEDIUM, "               splitInfo = "+ splitInfo.toString());
+        DEBUG(DEBUG_PRIO_MEDIUM, "               lowerJoin = "+ lowerJoin.toString());
+
+        // make dependencie of upper join dependencies of lower join 
         val depsIt = upperJoin.deps.iterator();
         while { depsIt.hasNext() }{
             val depNext = depsIt.next();
@@ -128,13 +167,15 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
             addDependency(lowerJoin, depNext);
         };
         
-        val upperSplit = getSplitInformation(upperJoin.deps).iterator().next();
+        // make make items that dependend on split depend on next higher split 
+        val previousSplit = findPreviousSplit(upperJoin, upperJoin.symbol);
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPasss> found previous split " + previousSplit );
         val splitsIt = splitInfo.rdeps.iterator();
         while {splitsIt.hasNext()}{
             val splitNext = splitsIt.next();
             splitNext.deps.remove(splitInfo);
             
-            addDependency(splitNext, upperSplit);
+            addDependency(splitNext, previousSplit);
         }
     }
                                      
