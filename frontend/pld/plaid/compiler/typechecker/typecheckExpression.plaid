@@ -28,7 +28,8 @@ import plaid.collections.makeLinkedList;
  */
 method unique TypecheckResult typecheckExpression(unique LinearContext ctx, 
                           immutable Permission neededPerm, 
-                          immutable ParsedExpression exp) 
+                          immutable ParsedExpression exp,
+                          shared Job job) 
 {
 
   match (exp) {
@@ -51,7 +52,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                   match (ctx.containsSymbol(localVarSymbolOption.value)) {
                     case True {
                       val immutable Type neededType = localVarSymbolOption.value.getDeclaredType();
-                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
+                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value, job);
                       match (valueResult.expType.isSubTypeOf(neededType)) {
                         case True { 
                           val unique LinearContext newCtx = valueResult.ctxResult;
@@ -91,7 +92,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                                   match (fieldSigOption.value) {
                                     case FieldSignature {
                                       val immutable Type neededType = fieldSigOption.value.getDeclaredType();
-                                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
+                                      val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value, job);
                                       match (valueResult.expType.isSubTypeOf(neededType)) {
                                         case True { 
                                           val immutable ObjectStructure newStructure = targetType.structure.assignToField(exp.field.name);
@@ -169,7 +170,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
         };
         count = count+1;
         
-        val unique TypecheckResult stmtResult = typecheckExpression(prevResult.ctxResult,stmtNeededPerm,stmt);
+        val unique TypecheckResult stmtResult = typecheckExpression(prevResult.ctxResult,stmtNeededPerm,stmt, job);
         
         if ( AEMINIUM_MODE() ) {
             match (count == (blockSize + 1)) {
@@ -220,7 +221,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
               val nextSymbol = itSymbols.next();
               val symInfo = match (depInfoForSymbol(nextSymbol)) {
                   case Some { depInfoForSymbol(nextSymbol).value }
-                  case None { ABORT("<typecheckExpression> cannot find symbol for symbol " + nextSymbol.name ) }
+                  case None { job.addError(exp.token, "<typecheckExpression> cannot find symbol for symbol '" + nextSymbol.name + "'" ); ABORT_WITH_JOB(job); }
               };
               addDependency(blockInfo, symInfo);
           };
@@ -231,7 +232,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
     }
     case ParsedCast { // Cast requires dynamic permission - may want to generalize this later - probably could also grab none?
       DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedCast");
-      val unique TypecheckResult castExpResult = typecheckExpression(ctx, DYNAMICP, exp.expression);
+      val unique TypecheckResult castExpResult = typecheckExpression(ctx, DYNAMICP, exp.expression, job);
       makeTypecheckResult(makeTypeFromAST(exp.targetType), castExpResult.resultCtx, makeLinkedList());
     }
     case ParsedDereference { /* Chained Dereferences not implemented currently */
@@ -373,7 +374,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                   
                   makeTypecheckResult(makeType(neededPerm,currentType.structure), ctx, slList)
                 }
-                case None {ABORT("<typecheckExpression>(Identifier) could not split permission '" + neededPerm.toString() + "' from permission '" + currentType.permission.toString() + "'") }
+                case None { job.addError(exp.token, "<typecheckExpression>(Identifier) could not split permission '" + neededPerm.toString() + "' from permission '" + currentType.permission.toString() + "'"); ABORT_WITH_JOB(job) }
               }     
             }
             case False { ABORT("<typecheckExpression>(Identifier) ID '" + exp.name + "' not in the context") }
@@ -474,7 +475,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                                     caseContext.update(targetSym, makeType(targetType.permission, patternStruct));
                                     
                                     /* return result from typechecking the body */
-                                    val result = typecheckExpression(caseContext, neededPerm, theCase.body);
+                                    val result = typecheckExpression(caseContext, neededPerm, theCase.body, job);
                                     
                                     if (AEMINIUM_MODE() ) {
                                         val shared DepenendencyInformation caseInfo = makeASTInformation(theCase);
@@ -513,7 +514,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                         val unique LinearContext defaultContext = ctx.copy();
                         
                         /* return result from typechecking the body */
-                        val result = typecheckExpression(defaultContext, neededPerm, theCase.body);
+                        val result = typecheckExpression(defaultContext, neededPerm, theCase.body, job);
                         
                         if (AEMINIUM_MODE() ) {
                             val shared DepenendencyInformation caseInfo = makeASTInformation(theCase);
@@ -679,7 +680,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
           val immutable ArgSpec inputSpec = ias.snd;
           
           val unique TypecheckResult inputResult = 
-            typecheckExpression(currentContext, inputSpec.inputType.permission, inputAST);
+            typecheckExpression(currentContext, inputSpec.inputType.permission, inputAST, job);
           //once we have exceptions, catch errors here
 
           
@@ -922,7 +923,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
             }
             case False {
               val immutable Type neededType = makeTypeFromAST(exp.varType);
-              val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.expr);
+              val unique TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.expr, job);
               match (valueResult.expType.isSubTypeOf(neededType)) {
                 case True {
                   valueResult.ctxResult.put(idSym,neededType);
