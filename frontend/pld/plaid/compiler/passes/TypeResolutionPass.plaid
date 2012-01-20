@@ -949,9 +949,53 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 	override method immutable ParsedMatch rewriteParsedMatch(immutable ParsedMatch node) {
 		LOG("rewrite ParsedMatch");
 		// create new object
+		
+		// todo test for expression = ParsedIdentifier 
+		
+		val expression = node.expression.rewrite(this);
+		val expressionSymbol = match (symbolForAST(expression)) {
+		    case Some { symbolForAST(expression).value }
+		    case None { ABORT("Cannot find symbol for expression") }
+		};
 		val new_node = new ParsedMatch{
-			val expression = node.expression.rewrite(this);
-			val caseList= node.caseList.map(fn (item) => { item.rewrite(this) });
+			val expression = expression;
+			val caseList= node.caseList.map(fn (item) => { 			    
+			        match (expressionSymbol) {
+			            case VariableSymbol {
+			                match (item) {
+			                    case ParsedPatternCase {
+			                        val patternSymbol = match (symbolForAST(item.pattern)) {
+			                            case Some { symbolForAST(item.pattern).value }
+			                            case None { ABORT("Cannot find symbol for pattern") }
+			                        };
+			                        
+			                        val patternStructure = match ( patternSymbol ) {
+			                             case StateSymbol {
+			                                 patternSymbol.getStructure();
+			                             }
+			                             default { ABORT("Can only handle states as patterns") }
+			                        };
+			                        
+			                        val oldStructureOpt = getStructureForSymbol(expressionSymbol);
+			                        setStructureForSymbol(expressionSymbol, patternStructure);
+			                        
+			                        val new_item = item.rewrite(this);
+			                        
+			                        match ( oldStructureOpt) {
+			                            case Some { setStructureForSymbol(expressionSymbol, oldStructureOpt.value) }
+			                            case None {}
+			                        };
+			                        
+			                        new_item
+			                    }
+			                    default {
+			                        item.rewrite(this)  
+			                    }
+			                }
+			            }
+			            default {  ABORT("Can only match on variables at the moment.") }
+			        }
+			});
 			val token = node.token;
 		};
 
@@ -1005,12 +1049,14 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 
 	override method immutable ParsedPatternCase rewriteParsedPatternCase(immutable ParsedPatternCase node) {
 		LOG("rewrite ParsedPatternCase");
+		
 		// create new object
 		val new_node = new ParsedPatternCase{
 			val pattern = node.pattern.rewrite(this);
 			val body = node.body.rewrite(this);
 			val token = node.token;
 		};
+
 
         val newNodeStruct = structureForAST(new_node.body);
         match ( newNodeStruct ) {
