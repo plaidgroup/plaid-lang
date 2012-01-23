@@ -83,7 +83,32 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                     case True {
                       val immutable Type targetType = ctx.get(targetVarSymbolOption.value);
                       match (targetType.permission.isSubPermOf(LOCALSHARED)) { //need at least local shared to assign to a field
-                        case True {    
+                        case True {
+                          // check for proper synronization of shared 
+                          val immutable Boolean needsAtomic = match (targetType.permission) {
+                              case SharedPermission { true } 
+                              case LocalPermission {
+                                  match (targetType.permission.thePerm) {
+                                      case SharedPermission { true } 
+                                      default { false }
+                                  }
+                              }
+                              default { false }
+                          };
+                          match ( needsAtomic ) {
+                              case True {
+                                  match (ctx.inAtomic) {
+                                       case True { /* noop */ }
+                                       case False {
+                                           job.addError(exp.target.token, "<typecheckExpression> Assignment to fields of shared objects require protection of an atomic block.");
+                                           ABORT_WITH_JOB(job);
+                                       }
+                                  }
+                              }
+                              case False { /* noop */ } 
+                          };
+                          
+                          
                           match(targetType.structure) {
                             case ObjectStructure {
                               val unique Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.field.name);
@@ -150,6 +175,24 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
         }
         default { ABORT("<typecheckExpression>(Assignment) Assignments can only be given none permission; needed '" + neededPerm.toString()) } 
       }
+    }
+    case ParsedAtomicBlock {
+        DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedAtomicBlock");
+        
+        match (ctx.inAtomic) {
+            case True {
+                job.addError(exp.token, "<typecheckExpression> Nested atomic blocks detected"); 
+                ABORT_WITH_JOB(job);
+            }
+            case False { ctx.inAtomic = true }
+        };
+        
+        val typecheckResult = typecheckExpression(ctx, neededPerm, exp.body, job);
+        
+        // reset inAtomic
+        ctx.inAtomic = false;
+        
+        typecheckResult
     }
     case ParsedBlockExpr {
       DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedBlockExpr");
@@ -247,6 +290,31 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                 case True {
                   val immutable Type targetType = ctx.get(targetSymbol);
                   val immutable Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.right.name);
+                  
+                  // check for proper synronization of shared 
+                  val immutable Boolean needsAtomic = match (targetType.permission) {
+                      case SharedPermission { true } 
+                      case LocalPermission {
+                          match (targetType.permission.thePerm) {
+                              case SharedPermission { true } 
+                              default { false }
+                          }
+                      }
+                      default { false }
+                  };
+                  match ( needsAtomic ) {
+                      case True {
+                          match (ctx.inAtomic) {
+                               case True { /* noop */ }
+                               case False {
+                                   job.addError(exp.left.token, "<typecheckExpression> Reading fields of shared objects require protection of an atomic block.");
+                                   ABORT_WITH_JOB(job);
+                               }
+                          }
+                      }
+                      case False { /* noop */ } 
+                  };
+                     
                   match (fieldSigOption) {
                     case Some {
                       val immutable Signature fieldSig = fieldSigOption.value;
