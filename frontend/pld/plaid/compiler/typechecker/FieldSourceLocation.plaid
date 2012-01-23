@@ -19,6 +19,8 @@
 
 package plaid.compiler.typechecker;
 
+import plaid.compiler.aeminium.*;
+
 immutable state FieldSourceLocation case of SourceLocation { 
   val immutable VariableSymbol objectVarSymbol;
   val immutable String fieldName;
@@ -41,6 +43,50 @@ immutable state FieldSourceLocation case of SourceLocation {
         match (curStruct) {
           case ObjectStructure {
             val immutable Structure newStruct = curStruct.restoreToField(this.fieldName, retType, this.objectID);
+            
+            if ( AEMINIUM_MODE() ) {
+                /*
+                val shared DependencyInformation slocOrigin = match (depInfoForSLoc(this)) {
+                    case Some { 
+                        depInfoForSLoc(this).value 
+                    } 
+                    case None { ABORT("<FieldSourceLocation> cannot find dependency information for source location") }
+                };
+                
+                val shared DependencyInformation restoreInfo = makeFieldRestoreInformation(this.objectVarSymbol,
+                                                                                           this.fieldName,
+                                                                                           retType.permission,
+                                                                                           newStruct.getMember(this.fieldName).value.getCurrentType().permission);
+                val unique Set lastASTDependents = findLastDependentsForSymbol(slocOrigin, this.objectVarSymbol, false);
+                val itAST = lastASTDependents.iterator();
+                while { itAST.hasNext() }{
+                    val shared DependencyInformation dep = itAST.next();
+                    addDependency(restoreInfo, dep);
+                }; 
+                addDependency(restoreInfo, slocOrigin);
+                setDepInfoForSymbol(this.objectVarSymbol, restoreInfo);  
+                */
+                
+                match (depInfoForSLoc(this)) {
+                    case Some { 
+                        val shared DependencyInformation slocOrigin  = depInfoForSLoc(this).value;
+                        val shared DependencyInformation restoreInfo = makeFieldRestoreInformation(this.objectVarSymbol,
+                                                                                                   this.fieldName,
+                                                                                                   retType.permission,
+                                                                                                   newStruct.getMember(this.fieldName).value.getCurrentType().permission);
+                        val unique Set lastASTDependents = findLastDependentsForSymbol(slocOrigin, this.objectVarSymbol, false);
+                        val itAST = lastASTDependents.iterator();
+                        while { itAST.hasNext() }{
+                            val shared DependencyInformation dep = itAST.next();
+                            addDependency(restoreInfo, dep);
+                        };
+                        addDependency(restoreInfo, slocOrigin);
+                        setDepInfoForSymbol(this.objectVarSymbol, restoreInfo); 
+                    } 
+                    case None { /* no noting*/ }
+                };
+            };
+            
             ctx.update(this.objectVarSymbol, makeType(curObjectTypeOption.value.permission, newStruct));
             unit
           }
