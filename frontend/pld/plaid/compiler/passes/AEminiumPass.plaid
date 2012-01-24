@@ -98,7 +98,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
             });
             
             // dump final graph
-            dumpGraph(node, "FINAL");
+            dumpGraph(node, "AEMINIUM-FINAL");
         }{
             DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> SKIP method " + node.name.name);
         }
@@ -109,30 +109,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
      ***********************************************************************/
     
     
-    method void removeDependencyInformation(shared DependencyInformation depInfo)  {
-        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> REMOVE " + depInfo.toString() );
-        
-        // remove node from dependents 
-        val rdepsIt = depInfo.rdeps.iterator();
-        while { rdepsIt.hasNext() }{
-            val shared DepenendencyInformation rdep = rdepsIt.next();
-            
-            // remove depInfo from rdep
-            rdep.deps.remove(depInfo);
-            
-            // connect to deps of DepInfo
-            val depsIt = depInfo.deps.iterator();
-            while { depsIt.hasNext() }{
-                val shared DependencyInformation dep = depsIt.next();
-                
-                // remove depInfo from dep
-                dep.rdeps.remove(depInfo);
-                
-                // add connection between rdep -> dep
-                addDependency(rdep, dep);
-            }
-        }
-    }
+
  
     method shared JoinInformation findNextJoin(shared SplitInformation splitInfo) {
         val joins = getJoinInformation(splitInfo.rdeps);
@@ -224,7 +201,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                         val shared DependencyInformation upperJoin = depInfo.deps.iterator().next();
                         match (upperJoin) {
                             case JoinInformation {
-                                if ( depInfo.permOut == upperJoin.permIn ) {
+                                if ( depInfo.permOut == upperJoin.permIn && depInfo.inAtomic == false ) {
                                     match (depInfo) { case UniquePermission { ABORT("<AEminium found unqiue nonsense join/split in symetric pass -> run after removeNonsenseUniqueJoinSplit") } default {} };
                                     DEBUG(DEBUG_PRIO_HIGH, "<AEminiumMode> Found symetric nonsense join/split");
                                     val splitInfo = depInfo; 
@@ -257,7 +234,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
             match (depInfo) {
                 case SplitInformation {
                     val splitInfo = depInfo;
-                    ifElse ( depInfo.permOut == depInfo.permIn ) {
+                    ifElse ( depInfo.permOut == depInfo.permIn && depInfo.inAtomic == false ) {
                         match (depInfo.permOut) {
                             case UniquePermission {
                                 DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> found unique nonsense join/split ");
@@ -271,11 +248,11 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                                     joinInfo.deps.remove(splitInfo);
                                     
                                     // remove join node
-                                    this.removeDependencyInformation(joinInfo);
+                                    removeDependencyInformation(joinInfo);
                                 };
                                 
                                 // remove split node
-                                this.removeDependencyInformation(splitInfo);
+                                removeDependencyInformation(splitInfo);
                             }
                             default {
                                 // ignore symmetic cases are handled later 
@@ -325,7 +302,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
             
             match (depInfo) {
                 case SplitInformation {                    
-                    ifElse ( simplePermission(depInfo.permIn) == simplePermission(depInfo.permOut) ) {
+                    ifElse ( simplePermission(depInfo.permIn) == simplePermission(depInfo.permOut)  && depInfo.inAtomic == false ) {
                         val upperSplits = getSplitInformation(depInfo.deps);
                         ifElse ( upperSplits.size() > 0) {
                             DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> found split hierarchy ");
@@ -355,7 +332,7 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
             
             match (depInfo) {
                 case JoinInformation {                    
-                    ifElse ( simplePermission(depInfo.permIn) == simplePermission(depInfo.permOut) ) {
+                    ifElse ( simplePermission(depInfo.permIn) == simplePermission(depInfo.permOut) && depInfo.inAtomic == false ) {
                         val lowerJoins = getJoinInformation(depInfo.rdeps);
                         ifElse ( lowerJoins.size() > 0) {
                             DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> found join hierarchy ");

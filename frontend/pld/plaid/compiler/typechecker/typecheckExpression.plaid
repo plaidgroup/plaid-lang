@@ -187,7 +187,45 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
             case False { ctx.inAtomic = true }
         };
         
+        val shared DependencyInformation atomicEnter = makeAtomicEnterInformation(exp);
+        val symbols = new SymbolCollector;
+        exp.body.accept(symbols); 
+                 
+        if ( AEMINIUM_MODE() ) {
+            val it = symbols.externalSymbols.iterator();
+            while { it.hasNext() }{
+                val shared Symbol nextSym = it.next();
+                val shared DependencyInformation nextInfo = match (depInfoForSymbol(nextSym)) {
+                    case Some { depInfoForSymbol(nextSym).value }
+                    case None { ABORT("<typecheckExpression>(AtomicBlock) cannot find dependency information for '" + nextSym.name + "'")  }
+                };
+                addDependency(atomicEnter, nextInfo);
+                setDepInfoForSymbol(nextSym, atomicEnter);
+            };
+        };
+        
         val typecheckResult = typecheckExpression(ctx, neededPerm, exp.body, job);
+        
+        if ( AEMINIUM_MODE() ) {
+             val shared DependencyInformation atomicLeave = makeAtomicLeaveInformation(atomicEnter);
+             val it = symbols.externalSymbols.iterator();
+             while { it.hasNext() }{
+                val shared Symbol nextSym = it.next();
+                val shared DependencyInformation nextInfo = match (depInfoForSymbol(nextSym)) {
+                    case Some { depInfoForSymbol(nextSym).value }
+                    case None { ABORT("<typecheckExpression>(AtomicBlock) cannot find dependency information for '" + nextSym.name + "'")  }
+                };
+                addDependency(atomicLeave, nextInfo);
+                setDepInfoForSymbol(nextSym, atomicLeave);
+             };
+             
+             val shared DependencyInformation bodyInfo = match (depInfoForAST(exp.body) ) {
+                case Some { depInfoForAST(exp.body).value }
+                case None { ABORT("<typecheckExpression>(AtomicBlock) cannot find dependency information for body") } 
+             };
+             addDependency(atomicLeave, bodyInfo);
+             addDepInfoForAST(exp, atomicLeave);
+        };
         
         // reset inAtomic
         ctx.inAtomic = false;
@@ -220,7 +258,10 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                 case True {
                     val shared DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
                         case Some { depInfoForAST(stmt).value }
-                        case None { ABORT("<typecheckExpression>(BlockExpr) cannot find dependency information for last stmt") }
+                        case None { 
+                            job.addError(stmt.token, "<typecheckExpression>(BlockExpr) cannot find dependency information for last stmt ");
+                            ABORT_WITH_JOB(job);
+                        }
                     };
                     addDependency(blockInfo, stmtInfo);
                 }
@@ -436,6 +477,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                       // create split node
                       DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) split permission of '" + exp.name + "' from " + currentType.permission + "=>" + neededPerm);
                       val shared DependencyInformation splitInfo = makeSplitInformation(idSymbol, currentType.permission, neededPerm);
+                      splitInfo.inAtomic = ctx.inAtomic;
                       val shared DependencyInformation oldDepInfo = depInfoForSymbol(idSymbol).value;
                       addDependency(splitInfo, oldDepInfo);
                       setDepInfoForSymbol(idSymbol, splitInfo);
@@ -764,8 +806,10 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
           
           //check returned structure
           if (!(inputResult.expType.structure.isSubStructureOf(inputSpec.inputType.structure))) {
-            ABORT("<typecheckExpression>(MethodCall) structure of argument " + inputCount +  
-                  " not a substructure of required type")
+            //ABORT("<typecheckExpression>(MethodCall) structure of argument " + inputCount +  
+            //      " not a substructure of required type")
+            job.addError(inputAST.token, "<typecheckExpression>(MethodCall) structure of argument " + inputCount +  " not a substructure of required type");
+            ABORT_WITH_JOB(job);
           };
           
           inputCount = inputCount + 1;
