@@ -549,7 +549,8 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                 case True {
                   val shared DependencyInformation enterInfo = makeMatchEnterInformation(exp);
                   val shared DependencyInformation leaveInfo = makeMatchLeaveInformation(enterInfo);
-                  val symbols = new SymbolCollector;
+                  val unique SymbolCollector symbols = new SymbolCollector;
+                  val unique Map symbolsToSplit = java.util.IdentityHashMap.new();
                   
                   if ( AEMINIUM_MODE() ) {
                        exp.accept(symbols);
@@ -562,7 +563,11 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                                 case Some { depInfoForSymbol(next).value }
                                 case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
                            };
-                           addDependency(enterInfo, symInfo);
+                           val immutable Type nextType = ctx.get(next);
+                           val shared DependencyInformation splitInfo = makeSplitInformation(next, nextType.permission, nextType.permission);
+                           symbolsToSplit.put(next, splitInfo);
+                           addDependency(splitInfo, symInfo);
+                           addDependency(enterInfo, splitInfo);
                        }; 
                        
                        addDepInfoForAST(exp, leaveInfo);
@@ -671,6 +676,27 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                           { skippedFirst = true; false }
                           { true } 
                       });
+
+                      if ( AEMINIUM_MODE() ) {
+                         val itSymbols = symbols.externalSymbols.iterator();
+                         while { itSymbols.hasNext() }{
+                             val nextSym = itSymbols.next();
+                             // attach match_enter info for all used symbols
+                             val shared DependencyInformation symInfo = match (depInfoForSymbol(nextSym)) {
+                                  case Some { depInfoForSymbol(nextSym).value }
+                                  case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
+                             };
+                             
+                             
+                             val shared DependencyInformation splitInfo = symbolsToSplit.get(nextSym);
+                             val shared DependencyInformation joinInfo = makeJoinInformation(nextSym, splitInfo.permIn, splitInfo.permOut);
+                             //setDepInfoForSymbol(nextSym, leaveInfo);
+                             //addDependency(leaveInfo, symInfo);
+                             addDependency(joinInfo, splitInfo);
+                             addDependency(joinInfo, leaveInfo);
+                             setDepInfoForSymbol(nextSym, joinInfo);
+                         };                                     
+                      };
                       
                       /* reduce rest of list starting with first element as seed */
                       restCaseRes.reduce(seedCaseResult, fn (accResult, caseRes) => {
@@ -683,20 +709,6 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                             match ( mergedContextOpt ) {
                               case Some {
                                 accResult.sourceLocList.append(caseRes.sourceLocList); //append is in place
-                                
-                                if ( AEMINIUM_MODE() ) {
-                                     val itSymbols = symbols.externalSymbols.iterator();
-                                     while { itSymbols.hasNext() }{
-                                         val nextSym = itSymbols.next();
-                                         // attach match_enter info for all used symbols
-                                         val shared DependencyInformation symInfo = match (depInfoForSymbol(nextSym)) {
-                                              case Some { depInfoForSymbol(nextSym).value }
-                                              case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
-                                         };
-                                         setDepInfoForSymbol(nextSym, leaveInfo);
-                                         addDependency(leaveInfo, symInfo);
-                                     };                                     
-                                };
                                 
                                 makeTypecheckResult(returnTypeLUBopt.value, 
                                                     mergedContextOpt.value, 
