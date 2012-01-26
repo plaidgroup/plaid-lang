@@ -21,6 +21,7 @@ import plaid.lang.math.*;
 
 state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     var hasErrors = false;
+    var immutable Boolean USE_SARKAR = true;
     
     method immutable Boolean run(unique Job job) {
         match (job) {
@@ -535,18 +536,33 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                    val edgeIt = curTask.rdeps.iterator();
                    while { zeroed == false && edgeIt.hasNext() } {
                        val rdepTask = edgeIt.next();
-                       val cpLength = computeCriticalPathGraph(tasks);
-                       val cpLenghtWithout = computeCriticalPathGraphWithoutEdge(tasks, curTask, rdepTask);
-                       DEBUG(DEBUG_PRIO_LOW, "    CP from             " + curTask.toString() + " = " +  cpLength );
-                       DEBUG(DEBUG_PRIO_LOW, "    CP from zeroed edge " + curTask.toString() + " = " +  cpLenghtWithout + "    " + curTask.toString() + " -> " + rdepTask.toString());    
-
                        
-                       if ( cpLenghtWithout <= cpLength ) {
+                       val immutable Boolean merge = ifElse ( this.USE_SARKAR ) {
+                           val cpLength = computeCriticalPathGraph(tasks);
+                           val cpLenghtWithout = computeCriticalPathGraphWithoutEdge(tasks, curTask, rdepTask);
+                           DEBUG(DEBUG_PRIO_LOW, "    CP from             " + curTask.toString() + " = " +  cpLength );
+                           DEBUG(DEBUG_PRIO_LOW, "    CP from zeroed edge " + curTask.toString() + " = " +  cpLenghtWithout + "    " + curTask.toString() + " -> " + rdepTask.toString());    
+           
+                           ifElse ( cpLenghtWithout <= cpLength ) {
+                               true                            
+                           }{
+                               false
+                           }
+                       }{
+                           // use simple heuristic and merge nodes if at least one has no more than 1 dependency
+                           ifElse ( curTask.rdeps.size() <= 1 && rdepTask.deps.size() <= 1 ) {  
+                               true
+                           }{
+                               false 
+                           }
+                       };
+                       
+                       if ( merge ) {
                            DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> merge " + curTask.toString() + " into " + rdepTask.toString());
-
+                           
                            //merge tasks
                            val unique Task mergedTask = mergeTasks(curTask, rdepTask);
-
+    
                            // remove rdepTask from tasks list
                            tasks.remove(rdepTask);
                            tasks.remove(curTask);
@@ -559,8 +575,8 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                            dumpTaskGraph(path, "TASK-STEP-" + step, tasks);
                         
                            // increase step counter 
-                           step = step + 1;
-                       }
+                           step = step + 1;                       
+                       };
                    }
                };
            };
