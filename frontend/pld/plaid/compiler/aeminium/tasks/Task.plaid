@@ -1,0 +1,74 @@
+package plaid.compiler.aeminium.tasks;
+
+import plaid.compiler.*;
+import plaid.compiler.aeminium.*;
+import plaid.ast.parsed.*;
+
+state Task {
+    val immutable Integer id; 
+    val unique Set/*<Task>*/ deps = java.util.HashSet.new();
+    val unique Set/*<Task>*/ rdeps  = java.util.HashSet.new();
+    val unique Set infos/*<DependencyInformation>*/ = java.util.HashSet.new();
+
+    method immutable Boolean ==(shared Task other) {
+        this.id == other.id
+    }
+
+    method immutable Boolean !=(shared Task other) {
+        !(this == other)
+    }
+
+    method immutable String getID() {
+        "" + id;
+    }
+    
+    method void reset() {
+        this.deps.clear();
+        this.rdeps.clear();
+        this.infos.clear();
+    }
+    
+    method immutable Integer getWeight() {
+        var weight = 0;
+        
+        val it = this.infos.iterator();
+        while {it.hasNext()}{
+            val nextInfo = it.next();
+            
+            val nodeWeight =  match (nextInfo) {
+                 case ASTInformation {
+                     match (nextInfo.node) {
+                        case ParsedMethodCall  { 10 }
+                        case ParsedVarDecl     {  5 }
+                        case ParsedIdentifier  {  2 }
+                        case ParsedArg         {  2 }
+                        case ParsedBlockExpr   {  2 }
+                        case ParsedLiteral     {  2 }
+                        case ParsedDereference {  5 }
+                        default { ABORT("<Task>(getWeight) Unsupported AST node " + nextInfo.node.nodeName() ) }
+                     }
+                 }
+                 default { ABORT("<Task>(getWeight) Support AST information only.") } 
+            };
+            
+            weight = weight + nodeWeight;
+        };
+        
+        weight
+    }
+    
+    method immutable String toString() {
+        var sb = java.lang.StringBuilder.new();
+        sb.append("[");
+        
+        val it = this.infos.iterator();
+        while { it.hasNext() }{
+            sb.append(it.next().getID() + ",");
+        };
+        
+        if ( sb.length() > 1 ) {
+            sb.deleteCharAt(sb.length() - 1);
+        };
+        sb.append("]");
+    }
+}
