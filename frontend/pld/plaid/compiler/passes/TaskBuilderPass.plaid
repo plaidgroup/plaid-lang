@@ -21,7 +21,7 @@ import plaid.lang.math.*;
 
 state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     var hasErrors = false;
-    var immutable Boolean USE_SARKAR = true;
+    var immutable Boolean USE_SARKAR = false;
     
     method immutable Boolean run(unique Job job) {
         match (job) {
@@ -335,6 +335,57 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
          result.addAll(infoToTask.values());
          result
     }
+
+     method immutable Integer computeMinimimPathNodeWithoutEdge(shared Task task,
+                                                                shared Task edgeFrom,
+                                                                shared Task edgeTo) {
+        var length = match ( task.rdeps.size() == 0 ) {
+            case True {
+                // check if we are the end of the connection 
+                ifElse (task == edgeTo) {
+                    task.getWeight() + edgeFrom.getWeight()
+                }{
+                    task.getWeight()
+                }
+            }
+            case False { 1000000000 }
+        };
+        
+        val it = task.rdeps.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            val immutable Integer curTaskLength = computeMinimimPathNodeWithoutEdge(curTask, edgeFrom, edgeTo);
+            
+            //printLine("curTaskLength = " + curTaskLength);
+            
+            ifElse ( task == edgeFrom ) {
+                ifElse ( curTask == edgeTo) {
+                    val curLength = curTaskLength;
+                    //printLine("curLength = " + curLength);
+                    length = min(length, curLength);
+                }{
+                    val curLength = task.getWeight() + edgeTo.getWeight() + 1 + curTaskLength;
+                    //printLine("curLength = " + curLength);
+                    length = min(length, curLength);
+                }
+            }{
+                ifElse ( task == edgeTo ) {
+                    val curLength = task.getWeight() + edgeFrom.getWeight() + 1 + curTaskLength;
+                    //printLine("curLength = " + curLength);
+                    length = min(length, curLength);                    
+                }{
+                    val curLength = task.getWeight() + 1 + curTaskLength;
+                    //printLine("curLength = " + curLength);
+                    length = min(length, curLength);                
+                }
+            };
+            
+        };   
+
+        //printLine("cs from task " + task.toString() + "   "+ length);
+        length
+    }
  
      method immutable Integer computeCriticalPathTaskWithoutEdge(shared Task task,
                                                                  shared Task edgeFrom,
@@ -407,6 +458,24 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         length;
     }
     
+    
+    method immutable Integer computeMinimimPathNode(shared Task task) {
+        var length = match (task.rdeps.size() == 0 ) {
+             case True { task.getWeight() }
+             case False { 1000000000 } 
+        };
+        
+        val it = task.rdeps.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            val curLength = task.getWeight() + 1 + computeMinimimPathNode(curTask);
+            length = min(length, curLength);
+        };   
+        
+        length
+    }
+    
     method immutable Integer computeCriticalPathTask(shared Task task) {
         var length = 0;
         
@@ -421,6 +490,8 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         length = length + task.getWeight();
         length
     }
+    
+    
     
     method immutable Integer computeCriticalPathGraph(unique Set tasks) {
         val it = tasks.iterator();
@@ -512,14 +583,80 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         result
     }
     
+    method immutable Boolean minimumPathDegressionForGraphWithoutEdge(unique Set tasks,
+                                                                      shared Task from,
+                                                                      shared Task to) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> minimumPathDegressionForGraphWithoutEdge ");
+        
+        var result = false;
+        val it = tasks.iterator();
+        
+        while { it.hasNext() && result == false }{
+            val curTask = it.next();
+            
+            if ( curTask.rdeps.size() > 0 && !(curTask == to)) {
+                val minPathLength         = computeMinimimPathNode(curTask);
+                val minPathLengthWithout  = computeMinimimPathNodeWithoutEdge(curTask, from, to);
+        
+        
+                DEBUG(DEBUG_PRIO_LOW, "        MIN path from             " + curTask.toString() + " = " +  minPathLength );
+                DEBUG(DEBUG_PRIO_LOW, "        MIN path from zeroed edge " + curTask.toString() + " = " +  minPathLengthWithout + "    " + from.toString() + " -> " + to.toString());    
+                
+                if ( minPathLength < minPathLengthWithout ) {
+                    printLine("degresssion !!!!!!!!!!!!!!!!!!!!!!");
+                    result = true
+                };
+            }
+        };
+        
+        result
+    }
+    
     method unique Set/*Task*/ computeTasks(immutable String path, shared Set infos) {
-       DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> comute tasks");
+       DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> comupte tasks");
        
        var unique Set/*Task*/ tasks = this.createTaskGraph(infos);
-       dumpTaskGraph(path, "TASK-STEP-0", tasks);
+       dumpTaskGraph(path, "TASK-STEP-0", tasks);     
        
        tasks = mergeVarDecls(tasks);
        dumpTaskGraph(path, "TASK-STEP-1", tasks);
+    
+       // TODO merge atomic blocks
+    
+       val clusteredTasks = clusterTasks(path, tasks);
+    }
+    
+    val unique Map visitedEdges = java.util.IdentityHashMap.new();
+    
+    method void setEdgeVisited(shared Task from, shared Task to) {
+        val values = match (this.visitedEdges.containsKey(from)) {
+            case True { this.visitedEdges.get(from) } 
+            case False {
+                val newValues = java.util.HashSet.new();
+                this.visitedEdges.put(from, newValues);
+                newValues
+            }
+        };
+        
+        values.add(to);
+    }
+    
+    method immutable Boolean edgeVisited(shared Task from, shared Task to) {
+        match ( this.visitedEdges.containsKey(from) ) {
+            case True { 
+                val values = this.visitedEdges.get(from);
+                values.contains(to)
+            }
+            case False { false } 
+        }
+    }
+    
+    method unique Set/*Task*/ clusterTasks(immutable String path, shared Set tasksInput) {
+       DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> clusterTasks");
+       
+       val unique Set tasks = java.util.HashSet.new();
+       tasks.addAll(tasksInput);
+
        
        var immutable Boolean zeroed  = true;
        var immutable Integer step = 2;
@@ -537,46 +674,59 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                    while { zeroed == false && edgeIt.hasNext() } {
                        val rdepTask = edgeIt.next();
                        
-                       val immutable Boolean merge = ifElse ( this.USE_SARKAR ) {
-                           val cpLength = computeCriticalPathGraph(tasks);
-                           val cpLenghtWithout = computeCriticalPathGraphWithoutEdge(tasks, curTask, rdepTask);
-                           DEBUG(DEBUG_PRIO_LOW, "    CP from             " + curTask.toString() + " = " +  cpLength );
-                           DEBUG(DEBUG_PRIO_LOW, "    CP from zeroed edge " + curTask.toString() + " = " +  cpLenghtWithout + "    " + curTask.toString() + " -> " + rdepTask.toString());    
-           
-                           ifElse ( cpLenghtWithout <= cpLength ) {
-                               true                            
+                       ifElse ( this.edgeVisited(curTask, rdepTask) == false ) {
+                           val immutable Boolean merge = ifElse ( this.USE_SARKAR ) {
+                               val cpLength = computeCriticalPathGraph(tasks);
+                               val cpLenghtWithout = computeCriticalPathGraphWithoutEdge(tasks, curTask, rdepTask);
+                               DEBUG(DEBUG_PRIO_LOW, "    CP from             " + curTask.toString() + " = " +  cpLength );
+                               DEBUG(DEBUG_PRIO_LOW, "    CP from zeroed edge " + curTask.toString() + " = " +  cpLenghtWithout + "    " + curTask.toString() + " -> " + rdepTask.toString());    
+               
+                               val immutable Boolean localDecression = minimumPathDegressionForGraphWithoutEdge(tasks, curTask, rdepTask);
+               
+                               ifElse ( cpLenghtWithout <= cpLength ) {
+                                   ifElse ( localDecression == false  ) {
+                                       true
+                                   }{
+                                       // with next edge continue
+                                       zeroed = true;
+                                       setEdgeVisited(curTask, rdepTask);
+                                       false 
+                                   } 
+                               }{
+                                   false
+                               }
                            }{
-                               false
-                           }
+                               // use simple heuristic and merge nodes if at least one has no more than 1 dependency
+                               ifElse ( curTask.rdeps.size() <= 1 && rdepTask.deps.size() <= 1 ) {  
+                                   true
+                               }{
+                                   false 
+                               }
+                           };
+                           
+                           if ( merge ) {
+                               DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> merge " + curTask.toString() + " into " + rdepTask.toString());
+                               
+                               //merge tasks
+                               val unique Task mergedTask = mergeTasks(curTask, rdepTask);
+        
+                               // remove rdepTask from tasks list
+                               tasks.remove(rdepTask);
+                               tasks.remove(curTask);
+                               tasks.add(mergedTask);
+                               
+                               // abort iterations and retart 
+                               zeroed = true;
+                            
+                               // dump task graph
+                               dumpTaskGraph(path, "TASK-STEP-" + step, tasks);
+                            
+                               // increase step counter 
+                               step = step + 1;                       
+                           };
                        }{
-                           // use simple heuristic and merge nodes if at least one has no more than 1 dependency
-                           ifElse ( curTask.rdeps.size() <= 1 && rdepTask.deps.size() <= 1 ) {  
-                               true
-                           }{
-                               false 
-                           }
-                       };
-                       
-                       if ( merge ) {
-                           DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> merge " + curTask.toString() + " into " + rdepTask.toString());
-                           
-                           //merge tasks
-                           val unique Task mergedTask = mergeTasks(curTask, rdepTask);
-    
-                           // remove rdepTask from tasks list
-                           tasks.remove(rdepTask);
-                           tasks.remove(curTask);
-                           tasks.add(mergedTask);
-                           
-                           // abort iterations and retart 
-                           zeroed = true;
-                        
-                           // dump task graph
-                           dumpTaskGraph(path, "TASK-STEP-" + step, tasks);
-                        
-                           // increase step counter 
-                           step = step + 1;                       
-                       };
+                           DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> edge " + curTask.toString() + " -> " + rdepTask.toString()+ " already visited" );
+                       }
                    }
                };
            };
