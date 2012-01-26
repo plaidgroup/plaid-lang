@@ -1,6 +1,7 @@
 package plaid.compiler.aeminium.tasks;
 
 import plaid.compiler.*;
+import plaid.compiler.types.*;
 import plaid.compiler.aeminium.*;
 import plaid.ast.parsed.*;
 
@@ -9,6 +10,7 @@ state Task {
     val unique Set/*<Task>*/ deps = java.util.HashSet.new();
     val unique Set/*<Task>*/ rdeps  = java.util.HashSet.new();
     val unique Set infos/*<DependencyInformation>*/ = java.util.HashSet.new();
+    var unique Option weightOpt = new None;
 
     method immutable Boolean ==(shared Task other) {
         this.id == other.id
@@ -29,32 +31,56 @@ state Task {
     }
     
     method immutable Integer getWeight() {
-        var weight = 0;
-        
-        val it = this.infos.iterator();
-        while {it.hasNext()}{
-            val nextInfo = it.next();
-            
-            val nodeWeight =  match (nextInfo) {
-                 case ASTInformation {
-                     match (nextInfo.node) {
-                        case ParsedMethodCall  { 10 }
-                        case ParsedVarDecl     {  5 }
-                        case ParsedIdentifier  {  2 }
-                        case ParsedArg         {  2 }
-                        case ParsedBlockExpr   {  2 }
-                        case ParsedLiteral     {  2 }
-                        case ParsedDereference {  5 }
-                        default { ABORT("<Task>(getWeight) Unsupported AST node " + nextInfo.node.nodeName() ) }
-                     }
-                 }
-                 default { ABORT("<Task>(getWeight) Support AST information only.") } 
-            };
-            
-            weight = weight + nodeWeight;
-        };
-        
-        weight
+
+        match ( this.weightOpt) {
+            case Some { this.weightOpt.value }
+            case None {
+                var weight = 0;
+                val it = this.infos.iterator();
+                while {it.hasNext()}{
+                    val nextInfo = it.next();
+                    
+                    val nodeWeight =  match (nextInfo) {
+                         case ASTInformation {
+                             match (nextInfo.node) {
+                                case ParsedMethodCall  {
+                                    val receiverStructure = match ( structureForAST(nextInfo.node.receiver) ) {
+                                        case Some { structureForAST(nextInfo.node.receiver).value } 
+                                        case None { ABORT("<Task> Cannot find structure for receiver") }
+                                    };
+                                    match (receiverStructure) {
+                                        case NominalStructure {
+                                            val fqn = receiverStructure.symbol.getFQN();
+                                            DEBUG(DEBUG_PRIO_LOW, "<Task> receiver has type " + fqn);
+                                            ifElse ( fqn == "plaid.lang.Integer" ) {
+                                                0
+                                            }{
+                                                10
+                                            } 
+                                        }
+                                        default { 10 }
+                                    }
+                                }
+                                case ParsedVarDecl     {  0 }
+                                case ParsedIdentifier  {  2 }
+                                case ParsedArg         {  2 }
+                                case ParsedBlockExpr   {  2 }
+                                case ParsedLiteral     {  2 }
+                                case ParsedDereference {  5 }
+                                default { ABORT("<Task>(getWeight) Unsupported AST node " + nextInfo.node.nodeName() ) }
+                             }
+                         }
+                         default { ABORT("<Task>(getWeight) Support AST information only.") } 
+                    };
+                    
+                    weight = weight + nodeWeight;
+                };
+                
+                this.weightOpt = makeSome(weight);
+                
+                weight
+            }
+        }
     }
     
     method immutable String toString() {
