@@ -21,7 +21,7 @@ import plaid.lang.math.*;
 
 state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     var hasErrors = false;
-    var immutable Boolean USE_SARKAR = false;
+    var immutable Boolean USE_SARKAR = true;
     
     method immutable Boolean run(unique Job job) {
         match (job) {
@@ -603,7 +603,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 DEBUG(DEBUG_PRIO_LOW, "        MIN path from zeroed edge " + curTask.toString() + " = " +  minPathLengthWithout + "    " + from.toString() + " -> " + to.toString());    
                 
                 if ( minPathLength < minPathLengthWithout ) {
-                    printLine("degresssion !!!!!!!!!!!!!!!!!!!!!!");
+                    DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>        LOCAL DEGRESSION");
                     result = true
                 };
             }
@@ -651,6 +651,34 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         }
     }
     
+    method immutable Boolean findTransitiveEdge(shared Task target, shared Set tasks) {
+        val it = tasks.iterator();
+        
+        var found = false;
+        while { found == false && it.hasNext() }{
+            val curTask = it.next();
+            match ( curTask == target ) {
+                case True {
+                    found = true;
+                }
+                case False {
+                    found = findTransitiveEdge(target, curTask.deps);
+                }
+            }
+        };
+        
+        found
+    }
+    method immutable Boolean hasTransitiveEdge(shared Task from, shared Task to) {
+         DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> hasTransitiveEdge " + from.toString() + " -> " + to.toString());
+         
+         val tasks = java.util.HashSet.new();
+         tasks.addAll(to.deps);
+         tasks.remove(from);
+         
+         findTransitiveEdge(from, tasks)
+    }
+    
     method unique Set/*Task*/ clusterTasks(immutable String path, shared Set tasksInput) {
        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> clusterTasks");
        
@@ -674,7 +702,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                    while { zeroed == false && edgeIt.hasNext() } {
                        val rdepTask = edgeIt.next();
                        
-                       ifElse ( this.edgeVisited(curTask, rdepTask) == false ) {
+                       ifElse ( this.edgeVisited(curTask, rdepTask) == false  && hasTransitiveEdge(curTask, rdepTask) == false ) {
                            val immutable Boolean merge = ifElse ( this.USE_SARKAR ) {
                                val cpLength = computeCriticalPathGraph(tasks);
                                val cpLenghtWithout = computeCriticalPathGraphWithoutEdge(tasks, curTask, rdepTask);
