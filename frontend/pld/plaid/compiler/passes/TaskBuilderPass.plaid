@@ -588,23 +588,28 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
             val curTask = it.next();
         
             if ( result.contains(curTask)) { // check if we already remove/merged the task
-                match (curTask.infos.iterator().next().node) {
-                    case ParsedVarDecl {
-                        match (curTask.deps.size() == 1 ) {
-                            case True {
-                                val depTask = curTask.deps.iterator().next();
-                                result.remove(curTask);
-                                result.remove(depTask);
-                                result.add(mergeTasks(depTask, curTask));
-                            }
-                            case False {
-                                if ( curTask.deps.size() > 1 ) {
-                                    ABORT("<TaskBuilderPass> var decl has more than one dependency " + curTask.deps.toString())
+                match ( curTask ) {
+                     case AtomicTask {} 
+                     default {
+                        match (curTask.infos.iterator().next().node) {
+                            case ParsedVarDecl {
+                                match (curTask.deps.size() == 1 ) {
+                                    case True {
+                                        val depTask = curTask.deps.iterator().next();
+                                        result.remove(curTask);
+                                        result.remove(depTask);
+                                        result.add(mergeTasks(depTask, curTask));
+                                    }
+                                    case False {
+                                        if ( curTask.deps.size() > 1 ) {
+                                            ABORT("<TaskBuilderPass> var decl has more than one dependency " + curTask.deps.toString())
+                                        }
+                                    }
                                 }
                             }
+                            default {}
                         }
                     }
-                    default {}
                 }
             }
         };
@@ -641,16 +646,87 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         result
     }
     
+    
+    method void removeTaskGraph(unique Set tasks, unique Task curTask) {
+        if ( tasks.contains(curTask) ) {
+            tasks.remove(curTask);
+            
+            val depsIt = curTask.deps.iterator();
+            while { depsIt.hasNext() }{ removeTaskGraph(tasks, depsIt.next()) };
+        
+            val rdepsIt = curTask.rdeps.iterator();
+            while { rdepsIt.hasNext() }{ removeTaskGraph(tasks, rdepsIt.next()) };        
+        }
+    }
+    
+    
+    method unique Set computeAtomicTasks(unique Set input) {
+         DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> computeAtomicTasks");
+         val unique Set tasks = java.util.HashSet.new();
+         tasks.addAll(input);
+         
+         // compute map: depInfo -> task
+         val mapIt = tasks.iterator();
+         val map = java.util.IdentityHashMap.new();
+         while { mapIt.hasNext() }{
+             val curTask = mapIt.next();
+             val curDepInfo = curTask.infos.iterator().next();
+             map.put(curDepInfo, curTask);
+         };
+         
+         // compute atomic tasks 
+         val atomicIt = input.iterator();
+         while { atomicIt.hasNext() }{
+             val curTask = atomicIt.next();
+             if ( curTask.infos.iterator().hasNext() ) {
+                 val curDepInfo = curTask.infos.iterator().next();
+                 match ( curDepInfo ) {
+                      case AtomicLeaveInformation {
+                          val atomicTask = makeAtomicTask(map.get(curDepInfo.enterInfo), curTask);
+                          
+                          // detach AtomicEnterTask
+                          val enterDepsIt =  atomicTask.atomicEnter.deps.iterator();
+                          while {enterDepsIt.hasNext()}{
+                              val depTask = enterDepsIt.next();
+                              depTask.rdeps.remove(atomicTask.atomicEnter);
+                              depTask.rdeps.add(atomicTask);
+                          };
+                          atomicTask.atomicEnter.deps.clear();
+                          
+                          // detach AtomicLeaveTask
+                          val leaveRDepsIt =  atomicTask.atomicLeave.rdeps.iterator();
+                          while {leaveRDepsIt.hasNext()}{
+                              val rdepTask = leaveRDepsIt.next();
+                              rdepTask.deps.remove(atomicTask.atomicLeave);
+                              rdepTask.deps.add(atomicTask);
+                          };
+                          atomicTask.atomicLeave.rdeps.clear();
+                                                
+                          // detach body expression
+                          removeTaskGraph(tasks, atomicTask.atomicEnter);
+                          
+                          // add atomic Task to tasks
+                          tasks.add(atomicTask);                       
+                      }
+                      default {}
+                 }
+             }
+         };
+         
+         tasks;
+    }
+    
     method unique Set/*Task*/ computeTasks(immutable String path, shared Set infos) {
        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> comupte tasks");
        
        var unique Set/*Task*/ tasks = this.createTaskGraph(infos);
        dumpTaskGraph(path, "TASK-STEP-0", tasks);     
        
-       tasks = mergeVarDecls(tasks);
+       tasks = this.computeAtomicTasks(tasks);
        dumpTaskGraph(path, "TASK-STEP-1", tasks);
-    
-       // TODO merge atomic blocks
+       
+       tasks = mergeVarDecls(tasks);
+       dumpTaskGraph(path, "TASK-STEP-2", tasks);
     
        val clusteredTasks = clusterTasks(path, tasks);
     }
