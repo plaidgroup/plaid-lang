@@ -708,12 +708,55 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
          findTransitiveEdge(from, tasks)
     }
     
+    method immutable String taskListToString(unique List tasks) {
+        val it = tasks.iterator();
+        val sb = java.lang.StringBuilder.new();
+        sb.append("[");
+        while {it.hasNext()}{sb.append( "" + it.next().getWeight() + ",")};
+        sb.deleteCharAt(sb.length() - 1);
+        sb.append("]"); 
+        sb.toString();   
+    }
+    
+    // simple bubble sort 
+    method unique List sortTaskList(unique List inputTasks) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> sortTaskList ");        
+        
+        val unique List tasks = java.util.ArrayList.new();
+        tasks.addAll(inputTasks);
+  
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> input: " + taskListToString(tasks));
+
+        
+        val length = tasks.size();
+        var i = 0; 
+        while { i < (length - 1) }{
+            var j = i + 1;
+            while { j < length }{
+                if ( tasks.get(i).getWeight() > tasks.get(j).getWeight() ) {
+                    // swap elements
+                    val swap = tasks.get(i);
+                    tasks.set(i, tasks.get(j));
+                    tasks.set(j, swap);
+                };
+                j = j + 1;
+            };
+            i = i + 1;
+        };
+        
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> output: " + taskListToString(tasks));
+        
+        tasks
+    }
+    
     method unique Set/*Task*/ clusterTasks(immutable String path, shared Set tasksInput) {
        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> clusterTasks");
        
-       val unique Set tasks = java.util.HashSet.new();
+       var unique List tasks = java.util.ArrayList.new();
        tasks.addAll(tasksInput);
 
+       // sort tasks 
+       tasks = sortTaskList(tasks);
        
        var immutable Boolean zeroed  = true;
        var immutable Integer step = 2;
@@ -731,7 +774,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                    while { zeroed == false && edgeIt.hasNext() } {
                        val rdepTask = edgeIt.next();
                        
-                       ifElse ( this.edgeVisited(curTask, rdepTask) == false  && hasTransitiveEdge(curTask, rdepTask) == false ) {
+                       ifElse ( this.edgeVisited(curTask, rdepTask) == false && hasTransitiveEdge(curTask, rdepTask) == false ) {
                            val immutable Boolean merge = ifElse ( this.USE_SARKAR ) {
                                val cpLength = computeCriticalPathGraph(tasks);
                                val cpLenghtWithout = computeCriticalPathGraphWithoutEdge(tasks, curTask, rdepTask);
@@ -757,7 +800,12 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                                ifElse ( curTask.rdeps.size() <= 1 && rdepTask.deps.size() <= 1 ) {  
                                    true
                                }{
-                                   false 
+                                   //merge nodes if both have weight 0
+                                   ifElse ( curTask.getWeight() == 0 && rdepTask.getWeight() == 0 ) {
+                                        true
+                                   }{
+                                       false
+                                   } 
                                }
                            };
                            
@@ -771,6 +819,9 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                                tasks.remove(rdepTask);
                                tasks.remove(curTask);
                                tasks.add(mergedTask);
+                               
+                               // sort task list 
+                               tasks = sortTaskList(tasks);
                                
                                // abort iterations and retart 
                                zeroed = true;
