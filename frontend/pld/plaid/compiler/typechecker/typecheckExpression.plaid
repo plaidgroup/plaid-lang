@@ -31,7 +31,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                           immutable ParsedExpression exp,
                           shared Job job) 
 {
-
+  //DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check '" + exp.nodeName() + "' with ctx =\n" + ctx.toString());
   match (exp) {
     /*case ParsedApplication {
       ABORT("Lambdas not implemented in typechecker");
@@ -156,7 +156,10 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                                 case None { ABORT("<typecheckExpression>(Assignment) field '" + targetType.structure.toString() + "." + exp.field.name + "' does not exist") }
                               } 
                             }
-                            default { ABORT("<typecheckExpression>(Assignment) Target variable '" + targetVarSymbolOption.value.name + "' has a non-object structure") }
+                            default { 
+                                job.addError(exp.token, "<typecheckExpression>(Assignment) Target variable '" + targetVarSymbolOption.value.name + "' has a non-object structure");
+                                ABORT_WITH_JOB(job);
+                            }
                           }
                         }
                         case False { ABORT("<typecheckExpression>(Assignment) Target variable '" + targetVarSymbolOption.value.name + 
@@ -203,7 +206,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                 setDepInfoForSymbol(nextSym, atomicEnter);
             };
         };
-        
+
         val typecheckResult = typecheckExpression(ctx, neededPerm, exp.body, job);
         
         if ( AEMINIUM_MODE() ) {
@@ -442,7 +445,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
             case Some {
               match  ( AEMINIUM_MODE() ) {
                   case True {
-                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(ParsedIntLiteral) " + exp.value);
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(ParsedDoubleLiteral) " + exp.value);
                       val unique DependencyInformation depInfo = makeASTInformation(exp);
                       addDepInfoForAST(exp, depInfo);
                   }
@@ -456,7 +459,7 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
           }
         }
         case None {
-          ABORT("<typecheckExpression>(DoubleLiteral) Doubles can only be given immutable or less permission")
+          ABORT("<typecheckExpression>(ParsedDoubleLiteral) Doubles can only be given immutable or less permission")
         }
       }
     }
@@ -864,8 +867,10 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
            };
       };
       
-      //downgrade context
-      currentContext.downgrade();
+      if ( AEMINIUM_MODE() == false ) {
+          //downgrade context
+          currentContext.downgrade();
+      };
       
       //go through list in reverse order returning the output permission to generated sourceLocationList
       val /*immutable LinkedList<immutable Pair<immutable LinkedList<immutable SourceLocation>, immutable ArgSpec>>*/
@@ -998,6 +1003,10 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
     }
     case ParsedReplace { 
       DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedReplace");
+      if ( AEMINIUM_MODE() ) {
+          job.addError(exp.token, "<typecheckExpression> State change is not supported in AEminium!");
+          ABORT_WITH_JOB(job);  
+      };
       match (neededPerm) {
         case NonePermission {
           typecheckStateChange(ctx, exp.expression, exp.stateExpr, true)
@@ -1007,6 +1016,10 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
     }
     case ParsedStateChange { 
       DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedStateChange");
+      if ( AEMINIUM_MODE() ) {
+          job.addError(exp.token, "<typecheckExpression> State change is not supported in AEminium!");
+          ABORT_WITH_JOB(job);  
+      };
       match (neededPerm) {
         case NonePermission {
           typecheckStateChange(ctx, exp.expression, exp.stateExpr, false)
