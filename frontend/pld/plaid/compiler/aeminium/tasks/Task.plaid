@@ -5,12 +5,15 @@ import plaid.compiler.types.*;
 import plaid.compiler.aeminium.*;
 import plaid.ast.parsed.*;
 
+import plaid.collections.makeLinkedList;
+
 state Task {
     val immutable Integer id; 
     val unique Set/*<Task>*/ deps = java.util.HashSet.new();
     val unique Set/*<Task>*/ rdeps  = java.util.HashSet.new();
     val unique Set infos/*<DependencyInformation>*/ = java.util.HashSet.new();
     var unique Option weightOpt = new None;
+    val shared Resolver resolver;
 
     method immutable Boolean ==(shared Task other) {
         this.id == other.id
@@ -28,6 +31,42 @@ state Task {
         this.deps.clear();
         this.rdeps.clear();
         this.infos.clear();
+    }
+    
+    method immutable Boolean fastMethod(immutable Structure struct, immutable String name) {
+        val fqn = struct.symbol.getFQN() + "."+name;
+        DEBUG(DEBUG_PRIO_MEDIUM, "<Task> fast method call for '" + fqn + "'" );
+        
+        // check cache
+        match ( fastMethodCacheContains(fqn) ) {
+            case True  { true }
+            case False {
+                var result = false;
+                
+                // check for builtin types  
+                val fastObjects = makeLinkedList();
+                fastObjects.add("plaid.lang.Integer");
+                fastObjects.add("plaid.lang.String");
+                fastObjects.add("plaid.lang.Boolean");
+                fastObjects.add("plaid.lang.Float64");
+                fastObjects.do( fn (stateName) => {
+                    val symOpt = this.resolver.lookup(stateName);
+                    match ( symOpt ) {
+                        case Some {
+                            if (struct.symbol == symOpt.value ) {
+                                fastMethodCacheAdd(fqn);
+                                result = true;
+                            }
+                        }
+                        case None {}
+                    };
+                });
+                
+                // TODO: check for annotations 
+                
+                result
+            }
+        }
     }
     
     method immutable Integer getWeight() {
@@ -50,9 +89,7 @@ state Task {
                                     };
                                     match (receiverStructure) {
                                         case NominalStructure {
-                                            val fqn = receiverStructure.symbol.getFQN();
-                                            DEBUG(DEBUG_PRIO_LOW, "<Task> receiver has type " + fqn);
-                                            ifElse ( fqn == "plaid.lang.Integer" ) {
+                                            ifElse ( fastMethod(receiverStructure, nextInfo.node.methodId.name) ) {
                                                 0
                                             }{
                                                 10
