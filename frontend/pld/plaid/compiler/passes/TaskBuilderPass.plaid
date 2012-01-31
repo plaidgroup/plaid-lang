@@ -331,7 +331,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
          val createIt = infos.iterator();
          while { createIt.hasNext() }{
              val nextInfo = createIt.next();
-             val task = makeTask(this.resolver);
+             val task = makeNormalTask(this.resolver);
              task.infos.add(nextInfo);
              infoToTask.put(nextInfo, task);
              DEBUG(DEBUG_PRIO_LOW, "<TaskBuilder> create task " + task.toString() + " for " + task.infos.iterator().next().toString());
@@ -543,7 +543,15 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     }
     
     method unique Task mergeTasks(shared Task from, shared Task to) {
-        val unique Task task = makeTask(this.resolver);
+        val unique Task task = match (from) {
+            case AtomicTask { makeAtomicTask(this.resolver) }
+            case NormalTask {
+                match (to) {
+                    case AtomicTask { makeAtomicTask(this.resolver) }
+                    case NormalTask { makeNormalTask(this.resolver) }
+                }
+            }
+        };
         
         task.deps.addAll(from.deps);
         task.deps.addAll(to.deps);
@@ -649,16 +657,21 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     }
     
     
-    method void removeTaskGraph(unique Set tasks, unique Task curTask) {
+    method unique Set removeTaskGraph(unique Set tasks, unique Task curTask) {
+        val unique Set removed = java.util.HashSet.new();
+        
         if ( tasks.contains(curTask) ) {
             tasks.remove(curTask);
+            removed.add(curTask);
             
             val depsIt = curTask.deps.iterator();
-            while { depsIt.hasNext() }{ removeTaskGraph(tasks, depsIt.next()) };
+            while { depsIt.hasNext() }{ removed.addAll(removeTaskGraph(tasks, depsIt.next())) };
         
             val rdepsIt = curTask.rdeps.iterator();
-            while { rdepsIt.hasNext() }{ removeTaskGraph(tasks, rdepsIt.next()) };        
-        }
+            while { rdepsIt.hasNext() }{ removed.addAll(removeTaskGraph(tasks, rdepsIt.next())) };        
+        };
+        
+        removed
     }
     
     
@@ -684,31 +697,39 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                  val curDepInfo = curTask.infos.iterator().next();
                  match ( curDepInfo ) {
                       case AtomicLeaveInformation {
-                          val atomicTask = makeAtomicTask(this.resolver, map.get(curDepInfo.enterInfo), curTask);
+                          DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>(computeAtomicTasks) found atomic block " + curDepInfo.toString());
+                          val atomicEnter = map.get(curDepInfo.enterInfo);
+                          val atomicLeave = curTask;
+                          val atomicTask = makeAtomicTask(this.resolver);
                           
                           // detach AtomicEnterTask
-                          val enterDepsIt =  atomicTask.atomicEnter.deps.iterator();
+                          val enterDepsIt = atomicEnter.deps.iterator();
                           while {enterDepsIt.hasNext()}{
                               val depTask = enterDepsIt.next();
-                              depTask.rdeps.remove(atomicTask.atomicEnter);
+                              DEBUG(DEBUG_PRIO_LOW,  "<TaskBuilderPass>(computeAtomicTasks)     connect " + depTask.toString() + " -> " + atomicTask.toString());
+                              depTask.rdeps.remove(atomicEnter);
                               depTask.rdeps.add(atomicTask);
+                              atomicTask.deps.add(depTask);
                           };
-                          atomicTask.atomicEnter.deps.clear();
+                          atomicEnter.deps.clear();
                           
                           // detach AtomicLeaveTask
-                          val leaveRDepsIt =  atomicTask.atomicLeave.rdeps.iterator();
+                          val leaveRDepsIt = atomicLeave.rdeps.iterator();
                           while {leaveRDepsIt.hasNext()}{
                               val rdepTask = leaveRDepsIt.next();
-                              rdepTask.deps.remove(atomicTask.atomicLeave);
+                              DEBUG(DEBUG_PRIO_LOW,  "<TaskBuilderPass>(computeAtomicTasks)     connect " + atomicTask.toString() + " -> " + rdepTask.toString());
+                              rdepTask.deps.remove(atomicLeave);
                               rdepTask.deps.add(atomicTask);
+                              atomicTask.rdeps.add(rdepTask);
                           };
-                          atomicTask.atomicLeave.rdeps.clear();
+                          atomicLeave.rdeps.clear();
                                                 
                           // detach body expression
-                          removeTaskGraph(tasks, atomicTask.atomicEnter);
+                          val unique Set removedTasks = removeTaskGraph(tasks, atomicEnter);
+                          atomicTask.setSubGraph(removedTasks);
                           
                           // add atomic Task to tasks
-                          tasks.add(atomicTask);                       
+                          tasks.add(atomicTask);
                       }
                       default {}
                  }
