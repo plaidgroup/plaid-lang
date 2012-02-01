@@ -123,7 +123,10 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
             dumpGraph(node, "TASK-SIMPLIFIER");
             
             // compute tasks
-            val tasks = computeTasks(path, nodes);
+            var tasks = computeTasks(path, nodes);
+            
+            // expand match blocks
+            tasks = expandMatchBlocks(path, tasks);
             
             dumpTaskGraph(path, "TASK-FINAL", tasks);
         }{
@@ -318,6 +321,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
      **                           Task Builder                             ** 
      ************************************************************************/
     
+    // TODO: reverse direcetion 
     method void connectTasks(shared Task from, shared Task to) {
         //DEBUG(DEBUG_PRIO_LOW,"<TaskBulderPass> create connection " + from.toString() + " -> " + to.toString());
         from.deps.add(to);
@@ -1037,7 +1041,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 // collect sub-graph nodes for case 
                 var caseTasks = findCaseTasks(curCase, matchEnter);                    
                 
-                val unique CaseTaskGraph ctg = new CaseTaskGraph;
+                val unique CaseTaskGraph ctg = makeCaseTaskGraph();
 
                 val caseTasksIt = caseTasks.iterator();
                 while { caseTasksIt.hasNext() }{
@@ -1048,12 +1052,12 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                     
                     if ( curTask.deps.contains(matchEnter) ) {
                         curTask.deps.remove(matchEnter);
-                        ctg.tasksDependingOnMatchEnter.add(curTask);
+                        ctg.infosDependingOnMatchEnter.addAll(curTask.infos);
                     };
 
                     if ( curTask.rdeps.contains(matchLeave) ) {
                         curTask.rdeps.remove(matchLeave);
-                        ctg.tasksMatchLeaveDependsOn.add(curTask);
+                        ctg.infosMatchLeaveDependsOn.addAll(curTask.infos);
                     };
                 };
 
@@ -1149,6 +1153,125 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
          };
          
          result;
+    }
+    
+    method unique Set/*<SimplifiedMatchBlock>*/ findSimplifiedMatches(unique Set tasks) {
+        DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> findSimplifiedMatches");
+        var unique Set result = java.util.HashSet.new();
+        
+        val it = tasks.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            val enterToLeaveMap = java.util.IdentityHashMap.new();
+            val matchEnters = java.util.HashSet.new();
+            val infosIt = curTask.infos.iterator();
+            while { infosIt.hasNext() }{
+                val curInfo = infosIt.next();
+                
+                match ( curInfo ) {
+                    case MatchLeaveInformation { 
+                        enterToLeaveMap.put(curInfo.enterInfo, curInfo);
+                        matchEnters.add(curInfo.enterInfo);
+                    }
+                    default {}
+                }
+            };
+            
+            if ( matchEnters.size() > 0 ) {
+                val depsIt = curTask.deps.iterator();
+                while { depsIt.hasNext() }{
+                    val depTask = depsIt.next();
+                    
+                    val depsInfoIt = depTask.infos.iterator();
+                    while { depsInfoIt.hasNext() }{
+                        val curInfo = depsInfoIt.next();
+                        if ( matchEnters.contains(curInfo) ) {
+                            DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> found simplified match " + curTask.toString());
+                            val smb = makeSimplifiedMatchBlock(depTask, curTask, enterToLeaveMap.get(curInfo));
+                            result.add(smb);
+                        }
+                    }
+                };
+            };
+        };
+  
+        result
+    }
+    
+    method unique Set intersection(unique Set A, unique Set B) {
+        val unique Set intersection = java.util.HashSet.new();
+        
+        val it = A.iterator();
+        while { it.hasNext() }{
+            val a = it.next();
+            if ( B.contains(a) ) {
+                intersection.add(a);
+            }
+        };
+        
+        intersection
+    }
+    
+    method unique Set expandMatchBlocks(immutable String path, unique Set input) {
+       DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> expandMatchBlocks");
+       val unique Set tasks = java.util.HashSet.new();
+       tasks.addAll(input);
+       
+       // find matches that need to be simplified 
+       val unique Set/*<SimplifiedMatchBlock>*/ smbs = findSimplifiedMatches(input);
+       
+       printLine("Found " + smbs.size() + " simplified match blocks " + smbs);
+       
+       val smbsIt = smbs.iterator();
+       while { smbsIt.hasNext() }{
+           val curSMB = smbsIt.next();
+           
+           match (matchFixupTable.containsKey(curSMB.leaveInfo) ) {
+               case False {
+                   ABORT("<TaskBuilderPass> cannot find match expansion information.");
+               }
+               case True {
+                   val unique Set/*<CaseTaskGraph>*/ ctgs = matchFixupTable.get(curSMB.leaveInfo);
+                   var counter = 0;
+           
+                   // remove enter -> leave connection
+                   curSMB.enterTask.rdeps.remove(curSMB.leaveTask);
+                   curSMB.leaveTask.deps.remove(curSMB.enterTask);
+                   
+                   val ctgsIt = ctgs.iterator();
+                   while { ctgsIt.hasNext() }{
+                       val ctg = ctgsIt.next();
+                       
+                       val caseTasks = ctg.allTasks; // FIXME
+                       
+                       val caseTasksIt = caseTasks.iterator();
+                       while { caseTasksIt.hasNext() }{
+                           val caseTask = caseTasksIt.next();
+                           
+                           if ( intersection(caseTask.infos, ctg.infosDependingOnMatchEnter).size() > 0 ) {
+                               DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> connect case with match enter" + caseTask.toString() + " -> " + curSMB.enterTask.toString());
+                               connectTasks(caseTask, curSMB.enterTask);
+                           };
+                           
+                           if ( intersection(caseTask.infos, ctg.infosMatchLeaveDependsOn).size() > 0 ) {
+                               DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> connect match leave to case " + curSMB.leaveTask.toString() + " -> " + caseTask.toString());
+                               connectTasks(curSMB.leaveTask, caseTask);
+                           };
+                           
+                           tasks.add(caseTask);
+                       };
+                       
+                      dumpTaskGraph(path, "TASK-EXPAND-MATCH-" + counter, tasks);
+                      counter = counter + 1; 
+
+                   }
+               }
+           };
+       };  
+       
+       
+       tasks
     }
     
     method unique Set/*Task*/ clusterTasks(immutable String path, shared Set tasksInput) {
