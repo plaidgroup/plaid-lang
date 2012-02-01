@@ -241,6 +241,9 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
       var immutable Integer count = 1;
       val /*unique LinkedList<immutable Pair<immutable Symbol, immutable LinkedList<immutable SourceLocation>>>*/ introducedLocalVars = makeLinkedList();
       val unique TypecheckResult seedResult = makeTypecheckResult(VOID, ctx, makeLinkedList());
+      
+      val immutable Boolean methodBlock = ctx.methodBlock;
+      ctx.methodBlock = false;
       val shared DependencyInformation blockInfo = makeASTInformation(exp);
       if ( AEMINIUM_MODE() ) {
           addDepInfoForAST(exp, blockInfo);
@@ -268,7 +271,18 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
                     };
                     addDependency(blockInfo, stmtInfo);
                 }
-                case False {}
+                case False {
+                    if ( methodBlock == false ) {
+                        val shared DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
+                            case Some { depInfoForAST(stmt).value }
+                            case None { 
+                                job.addError(stmt.token, "<typecheckExpression>(BlockExpr) cannot find dependency information for last stmt ");
+                                ABORT_WITH_JOB(job);
+                            }
+                        };
+                        addDependency(blockInfo, stmtInfo);                    
+                    }
+                }
             };
         };
         
@@ -313,6 +327,8 @@ method unique TypecheckResult typecheckExpression(unique LinearContext ctx,
               addDependency(blockInfo, symInfo);
           };
       };
+      
+      blockResult.ctxResult.methodBlock = methodBlock;
       
       blockResult;
       
