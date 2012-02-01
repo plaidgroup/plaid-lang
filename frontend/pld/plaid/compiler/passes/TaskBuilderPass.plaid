@@ -79,37 +79,37 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
             val unique LinkedList ops = makeLinkedList();
             ops.addLast( fn (depInfos) => {
                  val result = this.removeSplitAndJoinDependencies(depInfos);
-                 dumpGraph(node, "DEL-SPLIT-JOIN");
+                 dumpGraph(node, "TASK-DEL-SPLIT-JOIN");
                  result
             });
             ops.addLast( fn (depInfos) => {
                  val result = this.removeArguments(depInfos);
-                 dumpGraph(node, "DEL-ARGS");
+                 dumpGraph(node, "TASK-DEL-ARGS");
                  result
             });
             ops.addLast( fn (depInfos) => {
                  val result = this.removeLiterals(depInfos);
-                 dumpGraph(node, "DEL-LITERALS");
+                 dumpGraph(node, "TASK-DEL-LITERALS");
                  result
             });
             ops.addLast( fn (depInfos) => {
                  val result = this.removeIds(depInfos);
-                 dumpGraph(node, "DEL-ID");
+                 dumpGraph(node, "TASK-DEL-ID");
                  result
             });
             ops.addLast( fn (depInfos) => {
                  val result = this.removeFieldRestores(depInfos);
-                 dumpGraph(node, "DEL-FIELD-RESTORES");
+                 dumpGraph(node, "TASK-DEL-FIELD-RESTORES");
                  result
             });
             ops.addLast( fn (depInfos) => {
                  val result = this.removeDereferences(depInfos);
-                 dumpGraph(node, "DEL-DREF");
+                 dumpGraph(node, "TASK-DEL-DREF");
                  result
             });
             ops.addLast( fn (depInfos) => {
                  val result = this.removeTransitiveDependencies(depInfos);
-                 dumpGraph(node, "DEL-TRANS");
+                 dumpGraph(node, "TASK-DEL-TRANS");
                  result
             });          
             // execute ops
@@ -119,13 +119,12 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
             });
             
             // dump final graph
-            dumpGraph(node, "TASK-FINAL");
+            dumpGraph(node, "TASK-SIMPLIFIER");
             
             // compute tasks
             val tasks = computeTasks(path, nodes);
             
-            // dump task graph
-            //dumpTaskGraph(path, "TASK-ORIGIN", tasks);
+            dumpTaskGraph(path, "TASK-FINAL", tasks);
         }{
             DEBUG(DEBUG_PRIO_HIGH, "<TaskBuilderPass> SKIP method " + node.name.name);
         }
@@ -331,7 +330,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
          val createIt = infos.iterator();
          while { createIt.hasNext() }{
              val nextInfo = createIt.next();
-             val task = makeNormalTask(this.resolver);
+             val task = makeTask(this.resolver);
              task.infos.add(nextInfo);
              infoToTask.put(nextInfo, task);
              DEBUG(DEBUG_PRIO_LOW, "<TaskBuilder> create task " + task.toString() + " for " + task.infos.iterator().next().toString());
@@ -543,15 +542,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     }
     
     method unique Task mergeTasks(shared Task from, shared Task to) {
-        val unique Task task = match (from) {
-            case AtomicTask { makeAtomicTask(this.resolver) }
-            case NormalTask {
-                match (to) {
-                    case AtomicTask { makeAtomicTask(this.resolver) }
-                    case NormalTask { makeNormalTask(this.resolver) }
-                }
-            }
-        };
+        val unique Task task = makeTask(this.resolver);
         
         task.deps.addAll(from.deps);
         task.deps.addAll(to.deps);
@@ -597,10 +588,9 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         while { it.hasNext() }{
             val curTask = it.next();
         
-            if ( result.contains(curTask)) { // check if we already remove/merged the task
-                match ( curTask ) {
-                     case AtomicTask {} 
-                     default {
+            if ( result.contains(curTask) ) { // check if we already remove/merged the task
+                match (curTask.infos.iterator().next()) {
+                    case ASTInformation {
                         match (curTask.infos.iterator().next().node) {
                             case ParsedVarDecl {
                                 match (curTask.deps.size() == 1 ) {
@@ -620,6 +610,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                             default {}
                         }
                     }
+                    default {}
                 }
             }
         };
@@ -700,7 +691,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                           DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>(computeAtomicTasks) found atomic block " + curDepInfo.toString());
                           val atomicEnter = map.get(curDepInfo.enterInfo);
                           val atomicLeave = curTask;
-                          val atomicTask = makeAtomicTask(this.resolver);
+                          val atomicTask = makeTask(this.resolver);
                           
                           // detach AtomicEnterTask
                           val enterDepsIt = atomicEnter.deps.iterator();
@@ -726,7 +717,11 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                                                 
                           // detach body expression
                           val unique Set removedTasks = removeTaskGraph(tasks, atomicEnter);
-                          atomicTask.setSubGraph(removedTasks);
+                          val removedIt = removedTasks.iterator();
+                          while { removedIt.hasNext() }{
+                               val shared Task curTask = removedIt.next();
+                               atomicTask.infos.addAll(curTask.infos);
+                          };
                           
                           // add atomic Task to tasks
                           tasks.add(atomicTask);
@@ -752,6 +747,8 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
        dumpTaskGraph(path, "TASK-STEP-2", tasks);
     
        val clusteredTasks = clusterTasks(path, tasks);
+       
+       clusteredTasks
     }
     
     val unique Map visitedEdges = java.util.IdentityHashMap.new();
