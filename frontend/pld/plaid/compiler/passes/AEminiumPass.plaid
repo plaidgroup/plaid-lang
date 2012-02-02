@@ -56,8 +56,11 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
             // get dependency information for 
             val unique DependencyInformationCollector dic = new DependencyInformationCollector;
             node.accept(dic);
-            val unique Set infos = dic.getNodes();
+            var unique Set infos = dic.getNodes();
             DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass>     found " + infos.size() + " dependency information nodes");
+            
+            //remove return depdendencies if unecessary 
+            infos = optimizeReturnDependencies(node, infos);
             
             val unique LinkedList ops = makeLinkedList();
             ops.addLast( fn (depInfos) => {
@@ -108,7 +111,77 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
      **                   optimization functions                          **
      ***********************************************************************/
     
-    
+    method unique Set optimizeReturnDependencies(immutable ParsedConcreteMethodDecl node,
+                                                 unique Set infos) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> optimizeReturnDependencies");
+        val unique Set result = java.util.HashSet.new();
+        result.addAll(infos);
+        
+        val shared DependencyInformation blockInfo = match ( depInfoForAST(node.body) ) {
+            case Some { depInfoForAST(node.body).value }
+            case None { ABORT("<AEminiumPass> Cannot find dependency information for method body block") }
+        };
+        
+        // check for dependencies joins resulting on symmetric permissions
+        val depsToRemove = java.util.HashSet.new();
+        val depsIt = blockInfo.deps.iterator();
+        while { depsIt.hasNext() }{
+            val curDep = depsIt.next();
+            match (curDep) {
+                case JoinInformation {
+                    match (curDep.permOut) {
+                        case SymmetricPermission {
+                            depsToRemove.add(curDep);
+                        }
+                        default {} 
+                    }
+                }
+                default {}
+            }
+        };
+        val depsToRemoveIt = depsToRemove.iterator();
+        while { depsToRemoveIt.hasNext() }{
+            val curDep = depsToRemoveIt.next();
+            DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> remove dependency to symmetric permission " + curDep.toString());
+            curDep.rdeps.remove(blockInfo);
+            blockInfo.deps.remove(curDep);
+        };
+        
+        // detach from last statement in the case of unit return type
+        val shared Symbol methodSymbol = match ( symbolForAST(node) ) {
+            case Some { symbolForAST(node).value } 
+            case None { ABORT("<AEminiumPass> Cannot find symbol for method ") }
+        };
+        match (methodSymbol) {
+            case MethodSymbol {
+                val immutable MethodSignature methodSignature = methodSymbol.getSignature();
+                if ( methodSignature.returnType == VOID ) {
+                    DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> Return type is void -> remove dependency to last statement");
+                    if ( node.body.statements.size() > 0 ) {
+                        val stmtOpt = node.body.statements.get(node.body.statements.size() - 1);
+                        match ( stmtOpt ) {
+                             case Some { 
+                                  val immutable ParsedASTNode lastStmt = stmtOpt.value;
+                                  val shared DependencyInformation lastStmtInfo = match ( depInfoForAST(lastStmt) ) {
+                                      case Some { depInfoForAST(lastStmt).value }
+                                      case None { ABORT("<AEminiumPass> Cannot find symbol for last statement") }
+                                  };
+                                  
+                                  blockInfo.deps.remove(lastStmtInfo);
+                                  lastStmtInfo.rdeps.remove(blockInfo);
+                             }
+                             case None { ABORT("<AEminiumPass> Cannot find last statement") }
+                        }
+                    }
+                }
+            }
+            default { ABORT("<AEminiumPass> Found wrong symbol for method ") }
+        };
+        
+        dumpGraph(node, "AEMINIUM-RETURN-OPT");
+        
+        result
+    }
 
  
     method shared JoinInformation findNextJoin(shared SplitInformation splitInfo) {
