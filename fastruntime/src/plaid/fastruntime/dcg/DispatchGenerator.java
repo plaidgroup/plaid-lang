@@ -8,6 +8,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.errors.PlaidInternalException;

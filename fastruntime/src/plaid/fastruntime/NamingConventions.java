@@ -1,4 +1,4 @@
-package plaid.fastruntime.dcg;
+package plaid.fastruntime;
 
 import fj.P2;
 import fj.data.List;
@@ -8,6 +8,7 @@ public class NamingConventions {
 	
 	public static final String GENERATED_PKG = "plaid/generated";
 	public static final String GENERATED_INTERFACES_PREFIX = "I";
+	public static final String GENERATED_VARIABLE_PREFIX = "VaR";
 	public static final String GENERATED_STORAGE_PREFIX = "S";
 	public static final String GENERATED_SUFFIX = "$plaid";
 	public static final String GENERATED_DIR = "../generated/bin/" + GENERATED_PKG;

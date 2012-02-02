@@ -1,7 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.MethodInfo;
-import plaid.fastruntime.dcg.NamingConventions;
+import plaid.fastruntime.NamingConventions;
 import fj.data.List;
 
 public final class MethodValue extends MemberValue implements MethodInfo {
