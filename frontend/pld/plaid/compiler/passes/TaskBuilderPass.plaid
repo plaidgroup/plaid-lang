@@ -62,73 +62,77 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> found Method Declaration '" + node.name.name + "'");
 
-	    val shared Symbol methSymbol = match (symbolForAST(node)) {
-	        case Some  { symbolForAST(node).value }
-	        case None  { ABORT("<TaskBuilderPass> cannot find symbol for " + node.nodeName()) }
-	    };
-	    val name = methSymbol.name;
-	    val path = symbolToString(methSymbol);
-        
-        
-        ifElse ( typecheckingEnabled(node) ) {         
-            // get dependency information for 
-            val unique DependencyInformationCollector dic = new DependencyInformationCollector;
-            node.accept(dic);
-            val shared Set infos = dic.getNodes();
-            DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>     found " + infos.size() + " dependency information nodes");
+        ifElse ( typecheckingEnabled(node) ) {
+            val shared Symbol methSymbol = match (symbolForAST(node)) {
+                case Some  { symbolForAST(node).value }
+                case None  { ABORT("<TaskBuilderPass> cannot find symbol for " + node.nodeName()) }
+            };
+            val name = methSymbol.name;
+            val path = symbolToString(methSymbol);
             
-            val unique LinkedList ops = makeLinkedList();
-            ops.addLast( fn (depInfos) => {
-                 val result = this.removeSplitAndJoinDependencies(depInfos);
-                 dumpGraph(node, "TASK-DEL-SPLIT-JOIN");
-                 result
-            });
-            ops.addLast( fn (depInfos) => {
-                 val result = this.removeArguments(depInfos);
-                 dumpGraph(node, "TASK-DEL-ARGS");
-                 result
-            });
-            ops.addLast( fn (depInfos) => {
-                 val result = this.removeLiterals(depInfos);
-                 dumpGraph(node, "TASK-DEL-LITERALS");
-                 result
-            });
-            ops.addLast( fn (depInfos) => {
-                 val result = this.removeIds(depInfos);
-                 dumpGraph(node, "TASK-DEL-ID");
-                 result
-            });
-            ops.addLast( fn (depInfos) => {
-                 val result = this.removeFieldRestores(depInfos);
-                 dumpGraph(node, "TASK-DEL-FIELD-RESTORES");
-                 result
-            });
-            ops.addLast( fn (depInfos) => {
-                 val result = this.removeDereferences(depInfos);
-                 dumpGraph(node, "TASK-DEL-DREF");
-                 result
-            });
-            ops.addLast( fn (depInfos) => {
-                 val result = this.removeTransitiveDependencies(depInfos);
-                 dumpGraph(node, "TASK-DEL-TRANS");
-                 result
-            });          
-            // execute ops
-            var unique Set nodes = infos; 
-            ops.do( fn (op) => {
-                nodes = op(nodes);
-            });
             
-            // dump final graph
-            dumpGraph(node, "TASK-SIMPLIFIER");
-            
-            // compute tasks
-            var tasks = computeTasks(path, nodes);
-            
-            // expand match blocks
-            tasks = expandMatchBlocks(path, tasks);
-            
-            dumpTaskGraph(path, "TASK-FINAL", tasks);
+            ifElse ( typecheckingEnabled(node) ) {         
+                // get dependency information for 
+                val unique DependencyInformationCollector dic = new DependencyInformationCollector;
+                node.accept(dic);
+                val shared Set infos = dic.getNodes();
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>     found " + infos.size() + " dependency information nodes");
+                
+                val unique LinkedList ops = makeLinkedList();
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeSplitAndJoinDependencies(depInfos);
+                     dumpGraph(node, "TASK-DEL-SPLIT-JOIN");
+                     result
+                });
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeArguments(depInfos);
+                     dumpGraph(node, "TASK-DEL-ARGS");
+                     result
+                });
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeLiterals(depInfos);
+                     dumpGraph(node, "TASK-DEL-LITERALS");
+                     result
+                });
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeIds(depInfos);
+                     dumpGraph(node, "TASK-DEL-ID");
+                     result
+                });
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeFieldRestores(depInfos);
+                     dumpGraph(node, "TASK-DEL-FIELD-RESTORES");
+                     result
+                });
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeDereferences(depInfos);
+                     dumpGraph(node, "TASK-DEL-DREF");
+                     result
+                });
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeTransitiveDependencies(depInfos);
+                     dumpGraph(node, "TASK-DEL-TRANS");
+                     result
+                });          
+                // execute ops
+                var unique Set nodes = infos; 
+                ops.do( fn (op) => {
+                    nodes = op(nodes);
+                });
+                
+                // dump final graph
+                dumpGraph(node, "TASK-SIMPLIFIER");
+                
+                // compute tasks
+                var tasks = computeTasks(path, nodes);
+                
+                // expand match blocks
+                tasks = expandMatchBlocks(path, tasks);
+                
+                dumpTaskGraph(path, "TASK-FINAL", tasks);
+            }{
+                DEBUG(DEBUG_PRIO_HIGH, "<TaskBuilderPass> SKIP method " + node.name.name);
+            }
         }{
             DEBUG(DEBUG_PRIO_HIGH, "<TaskBuilderPass> SKIP method " + node.name.name);
         }
