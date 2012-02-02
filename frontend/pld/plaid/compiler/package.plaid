@@ -91,6 +91,7 @@ method showUsage() {
     printLine(" -p | --plaidpath <DIR>      A path where plaid sources are stored.");
     printLine(" -t | --temp <DIR>           The directory to put temporary generated files.");
     printLine(" -v | --version              The version of the current compiler.");
+    printLine(" -V | --viewAST              View the AST of the compiled files.");
     
 }
 
@@ -110,6 +111,9 @@ method parseCommandLineArgs(args) {
     var inputDir   = "";
     var plaidpath  = makeEmptyList();
     var inputFiles = makeEmptyList();
+    var enableTypechecking = true;
+    var enableAeminium = false;
+    var viewAST = false;
         
     while { !abort && !args.isEmpty() }{
         var handled = false;
@@ -125,12 +129,12 @@ method parseCommandLineArgs(args) {
         };
         if ( args.car().equals("-a") || args.car().equals("--aeminium") ) {
             handled = true;
-            ENABLE_AEMINIUM = true;
-            DEBUG(DEBUG_PRIO_HIGH, "Found enable AEMINIUM option " + ENABLE_AEMINIUM);
+            enableAeminium = true;
+            DEBUG(DEBUG_PRIO_HIGH, "Found enable AEMINIUM option " + enableAeminium);
         };
         if ( args.car().equals("-n") || args.car().equals("--no-typechecking") ) {
             handled = true;
-            ENABLE_TYPECHECKING = false;
+            enableTypechecking = false;
         };
         if ( args.car().equals("-d") || args.car().equals("--debug") ) {
             handled = true;
@@ -205,6 +209,10 @@ method parseCommandLineArgs(args) {
             handled = true;
             force = true
         };    
+        if ( args.car().equals("-V") || args.car().equals("--viewAST") ) {
+            handled = true;
+            viewAST = true;
+        };
         ifElse ( !handled ) {
             ifElse ( args.car().startsWith("-") ) {
                 printLine("Unsupported option: " + args.car());
@@ -245,6 +253,9 @@ method parseCommandLineArgs(args) {
                 val inputDir    = inputDir;
                 val tempDir     = tempDir;
                 val inputFiles  = inputFiles;
+                val enableTypechecking = enableTypechecking;
+                val enableAeminium = enableAeminium;
+                val viewAST = viewAST;
             }).expand()); 
         }        
     }
@@ -380,8 +391,15 @@ method void runJobsToCompletion() {
     });
 }
 
+method unique List getInternalJobPasses(immutable CompilerConfiguration cc) {
+    getJobPassesHelper(cc, false)
+}
 
-method unique List getJobPasses() {
+method unique List getJobPasses(immutable CompilerConfiguration cc) {
+    getJobPassesHelper(cc, true)
+}
+
+method unique List getJobPassesHelper(immutable CompilerConfiguration cc, immutable Boolean userJob) {
     val passes = makeEmptyList();
 
     // parsing and basic checks pass 
@@ -389,7 +407,7 @@ method unique List getJobPasses() {
     passes.add(new FileSystemCheckPass);
     passes.add(new ImportCheckPass);
     passes.add(new ParsingBarrierPass);
-    //passes.add(new ASTViewerPass);
+    if (cc.viewAST && userJob) { passes.add(new ASTViewerPass) }; 
 
     // name expanding passes
     passes.add(new NameResolutionPass);
@@ -400,12 +418,14 @@ method unique List getJobPasses() {
     passes.add(new TypeResolutionBarrierPass);
 
     // type check pass
-    passes.add(new TypecheckPass);
+    if (cc.enableTypechecking) { passes.add(new TypecheckPass) };
     passes.add(new TypecheckBarrierPass);
 
     // AEminium passes
-    passes.add(new AEminiumPass);
-    passes.add(new TaskBuilderPass);
+    if (cc.enableAeminium && cc.enableTypechecking) {
+      passes.add(new AEminiumPass);
+      passes.add(new TaskBuilderPass);
+    };
 
     // report errors pass 
     passes.add(new ReporterPass);
@@ -496,7 +516,9 @@ method main(args) {
         case Some {
             val unique CompilerConfiguration cc = result.value;
             val sourceJobs = makeEmptyList();
-            val shared Resolver resolver = new ClasspathResolver { classpath = cc.plaidpath; };
+            val shared Resolver resolver = new ClasspathResolver { config = cc; };
+
+            val compilerPasses = getJobPasses(cc);
 
             cc.inputFiles.map(fn (path) => {
                 val stream =java.io.FileInputStream.new(java.io.File.new(path));
@@ -505,7 +527,7 @@ method main(args) {
                     val source = source; 
                     val resolver = resolver;
                     val reporter = new reporter.ConsoleReporter;
-                    var passes = getJobPasses();
+                    var passes = compilerPasses;
                 };
                 
                 // add to source jobs
