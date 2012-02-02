@@ -11,6 +11,7 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
+import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidStorage;
 import plaid.fastruntime.errors.PlaidInternalException;
@@ -22,6 +23,9 @@ import fj.data.List;
 
 public class StorageGenerator implements Opcodes {
 	
+	/*
+	 * @param fields, <isSettable, fieldName>
+	 */
 	public PlaidStorage createStorage(List<P2<Boolean, String>> fields) {
 		PlaidStorage result = null;
 		try {

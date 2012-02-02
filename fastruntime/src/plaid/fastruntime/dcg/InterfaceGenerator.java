@@ -1,15 +1,17 @@
 package plaid.fastruntime.dcg;
 
+import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceFilePath;
+import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceInternalName;
+import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceName;
+import static plaid.fastruntime.NamingConventions.getIdentifierName;
 import static plaid.fastruntime.dcg.DynamicClassLoader.DYNAMIC_CLASS_LOADER;
-import static plaid.fastruntime.dcg.NamingConventions.getGeneratedInterfaceFilePath;
-import static plaid.fastruntime.dcg.NamingConventions.getGeneratedInterfaceInternalName;
-import static plaid.fastruntime.dcg.NamingConventions.getGeneratedInterfaceName;
-import static plaid.fastruntime.dcg.NamingConventions.getIdentifierName;
 
 import java.io.File;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
+
+import plaid.fastruntime.NamingConventions;
 
 public class InterfaceGenerator implements Opcodes{
 	
