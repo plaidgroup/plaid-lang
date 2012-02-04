@@ -52,7 +52,7 @@ public final class RegressionTests {
 	
 	protected String[] createCommandLine() {
 		List<String> commandLine = new ArrayList<String>();
-		
+
 		// enable aeminium if in aeminium sub directory
 		if ( job.directory.getAbsolutePath().contains("aeminium")){
 			commandLine.add("-a");
@@ -77,6 +77,7 @@ public final class RegressionTests {
 	    try {
 	    	plaid.compiler.main.main(args);
 	    } catch (Exception e) {
+	    	System.out.println(e.toString());
 	    	Assert.fail();
 	    }
 	}
