@@ -1,0 +1,78 @@
+package plaid.compiler.typechecker;
+
+/**
+ *  Helper method for typechecking state change
+ *  Parameters:
+ *    - ctx : LinearContext representing the current permissions and structures of objects in scope
+ *    - target : ASTNode representing the target of the state change
+ *    - state : ASTNode representing the state that target should transition to
+ *    - replace : Boolean flag controlling which semantics are used - replace if true, restricted update if false
+ *
+ *  Currently the replace flag has no effect as both are treated the same without composition
+ *  Also we currently require both the target and the state to point directly to a variable in the context
+ *  and a stateSymbol
+ *
+ *  Assumes that the incoming state is fully initialized and so leaves the target packed
+ */
+method unique TypecheckResult typecheckStateChange(unique LinearContext ctx,
+                                                   immutable ParsedASTNode target,
+                                                   immutable ParsedASTNode stateRep, 
+                                                   immutable Boolean replace) 
+{
+  /* 1) get symbol representing the new state and create a structure for it */
+  val immutable Structure newStateStruct = match (stateRep) {
+    case ParsedStateRef {
+      match (stateRep.stateExpr) {
+        case ParsedIdentifier {
+          val immutable Symbol stateSymOption = symbolForAST(stateRep.stateExpr);
+          match (stateSymOption) {
+            case Some {
+              val immutable Symbol stateSym = stateSymOption.value;
+              match (stateSym) {
+                case StateSymbol { makeNominalStructure(stateSym) }
+                default { ABORT("(implementation error) Identifier state Exprs not yet implemented") }
+              } 
+            }
+            case None { ABORT("<typecheckExpression>(StateChange) no symbol found for stateExpr '" + stateRep.stateExpr.name + "'") }
+          }
+        }
+        default { ABORT("(implementation error) only supporting IDs for states currently in state change") } 
+      }
+    }
+    default { ABORT("(implementation error) only supporting StateRefs in state change") } 
+  };
+  
+  /* 2) find the target in the context, check if it has unique permission */
+  val immutable Symbol targetSymbol = match (target) {
+    case ParsedIdentifier {
+      val immutable Symbol targetSymOption = symbolForAST(target);
+      match (targetSymOption) {
+        case Some {
+          val immutable Symbol targetSym = targetSymOption.value;
+          match (ctx.containsSymbol(targetSym)) {
+            case True { 
+              val immutable Type targetType = ctx.get(targetSym);
+              match (targetType.permission) {
+                case UniquePermission {
+                  targetSym
+                }
+                default { ABORT("<typecheckExpression>(StateChange) target '" + target.name + "' does not have unique permission") }
+              }
+            }
+            case False { ABORT("<typecheckExpression>(StateChange) target '" + target.name + "' not in the context") }
+          } 
+        }
+        case None { ABORT("<typecheckExpression>(StateChange) no symbol found for ID '" + target.name + "'") }
+      }
+    }
+    default { ABORT("(implementation error) state change of non-identifier not yet implemented") }
+  };
+  
+  /* 3) downgrade the context and update the type of the target symbol with the new structure */
+  ctx.downgrade();
+  ctx.update(targetSymbol, makeType(UNIQUE, newStateStruct));
+  
+  
+  /* 4) return a result with type VOID, the updated context, and an empty location list */
+  makeTypecheckResult(VOID, ctx, makeLinkedList());                                            
+}
