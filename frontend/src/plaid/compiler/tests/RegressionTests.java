@@ -67,15 +67,20 @@ public final class RegressionTests {
 	    final String[] args = createCommandLine();
 	    final boolean failing = job.directory.getAbsolutePath().toLowerCase().contains("failing");
 	    System.out.println("Compile " + this.job.toString() + "  " + Arrays.toString(args));
-	    
+
+		if ( job.directory.getAbsolutePath().toLowerCase().contains("aeminium") ){
+			return;
+		}
+		
 	    try {
 	    	plaid.compiler.main.main(args);
 	    	if ( failing == true ) {
 	    		Assert.fail();
 	    	}
 	    } catch (Exception e) {
-	    	System.out.println("FAILED");
+	    	plaid.runtime.PlaidRuntime.getRuntime().shutdown();
 	    	if ( failing == false ) {
+		    	System.out.println("FAILED ");
 	    	    Assert.fail();
 	    	}
 	    } finally {
