@@ -54,7 +54,7 @@ public final class RegressionTests {
 		List<String> commandLine = new ArrayList<String>();
 
 		// enable aeminium if in aeminium sub directory
-		if ( job.directory.getAbsolutePath().contains("aeminium") || job.directory.getAbsolutePath().contains("AeminiumExamples") ){
+		if ( job.directory.getAbsolutePath().toLowerCase().contains("aeminium") ){
 			commandLine.add("-a");
 		}
 		
@@ -66,15 +66,20 @@ public final class RegressionTests {
 	
 	@Test
 	public void runTest() throws Exception {
-	    String[] args = createCommandLine();
-	    
+	    final String[] args = createCommandLine();
+	    final boolean failing = job.directory.getAbsolutePath().toLowerCase().contains("failing");
 	    System.out.println("Compile " + this.job.toString() + "  " + Arrays.toString(args));
 	    
 	    try {
 	    	plaid.compiler.main.main(args);
+	    	if ( failing == true ) {
+	    		Assert.fail();
+	    	}
 	    } catch (Exception e) {
 	    	System.out.println("FAILED");
-	    	Assert.fail();
+	    	if ( failing == false ) {
+	    	    Assert.fail();
+	    	}
 	    } finally {
 	    	System.gc();
 	    }
