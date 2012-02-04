@@ -67,10 +67,6 @@ public final class RegressionTests {
 	    final String[] args = createCommandLine();
 	    final boolean failing = job.directory.getAbsolutePath().toLowerCase().contains("failing");
 	    System.out.println("Compile " + this.job.toString() + "  " + Arrays.toString(args));
-
-		if ( job.directory.getAbsolutePath().toLowerCase().contains("aeminium") ){
-			return;
-		}
 		
 	    try {
 	    	plaid.compiler.main.main(args);
