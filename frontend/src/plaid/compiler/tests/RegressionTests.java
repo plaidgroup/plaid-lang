@@ -12,7 +12,6 @@ import java.util.List;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.internal.runners.statements.Fail;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -48,7 +47,6 @@ public final class RegressionTests {
 	public RegressionTests(final TestJob job) {
 		this.job = job;
 	}
-	
 	
 	protected String[] createCommandLine() {
 		List<String> commandLine = new ArrayList<String>();
