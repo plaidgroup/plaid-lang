@@ -54,7 +54,7 @@ public final class RegressionTests {
 		List<String> commandLine = new ArrayList<String>();
 
 		// enable aeminium if in aeminium sub directory
-		if ( job.directory.getAbsolutePath().contains("aeminium")){
+		if ( job.directory.getAbsolutePath().contains("aeminium") || job.directory.getAbsolutePath().contains("AeminiumExamples") ){
 			commandLine.add("-a");
 		}
 		
@@ -68,7 +68,7 @@ public final class RegressionTests {
 	public void runTest() throws Exception {
 	    String[] args = createCommandLine();
 	    
-	    System.out.println("Compile " + this.job.toString());
+	    System.out.println("Compile " + this.job.toString() + "  " + Arrays.toString(args));
 	    
 	    try {
 	    	plaid.compiler.main.main(args);
@@ -82,9 +82,14 @@ public final class RegressionTests {
 	
 	@Parameters
 	public static Collection<Object[]> inputFiles() {
+		final List<TestJob> jobs = new ArrayList<TestJob>();
 		final File cwd = new File(".");
-		final String path = cwd.getAbsolutePath() + System.getProperty("file.separator") + "examples";
-		final List<TestJob> jobs = buildTestJobs(new File(path));
+		
+		final String examplesPath = cwd.getAbsolutePath() + System.getProperty("file.separator") + "examples";
+		jobs.addAll(buildTestJobs(new File(examplesPath)));
+
+		final String aeminiumExamplesPath = cwd.getAbsolutePath() + System.getProperty("file.separator") + "../AeminiumExamples/pld";
+		jobs.addAll(buildTestJobs(new File(aeminiumExamplesPath)));
 		
 		final List<Object[]> parameters = new ArrayList<Object[]>();
 		
