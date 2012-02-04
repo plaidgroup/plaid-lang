@@ -67,18 +67,16 @@ public final class RegressionTests {
 	@Test
 	public void runTest() throws Exception {
 	    String[] args = createCommandLine();
-
-	    if ( job.directory.getAbsolutePath().contains("aeminium") ) {
-	    	return;
-	    };
 	    
 	    System.out.println("Compile " + this.job.toString());
 	    
 	    try {
 	    	plaid.compiler.main.main(args);
 	    } catch (Exception e) {
-	    	System.out.println(e.toString());
+	    	System.out.println("FAILED");
 	    	Assert.fail();
+	    } finally {
+	    	System.gc();
 	    }
 	}
 	
