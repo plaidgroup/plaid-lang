@@ -33,28 +33,28 @@ state Task {
         this.infos.clear();
     }
     
-    method immutable Boolean fastMethod(immutable Structure struct, immutable String name) {
+    method immutable Boolean cheapMethod(immutable Structure struct, immutable String name) {
         val fqn = struct.symbol.getFQN() + "."+name;
-        DEBUG(DEBUG_PRIO_MEDIUM, "<Task> fast method call for '" + fqn + "'" );
+        DEBUG(DEBUG_PRIO_MEDIUM, "<Task> checking for cheap method call of '" + fqn + "'" );
         
         // check cache
-        match ( fastMethodCacheContains(fqn) ) {
+        match ( cheapMethodCacheContains(fqn) ) {
             case True  { true }
             case False {
                 var result = false;
                 
                 // check for builtin types  
-                val fastObjects = makeLinkedList();
-                fastObjects.add("plaid.lang.Integer");
-                fastObjects.add("plaid.lang.String");
-                fastObjects.add("plaid.lang.Boolean");
-                fastObjects.add("plaid.lang.Float64");
-                fastObjects.do( fn (stateName) => {
+                val cheapObjects = makeLinkedList();
+                cheapObjects.add("plaid.lang.Integer");
+                cheapObjects.add("plaid.lang.String");
+                cheapObjects.add("plaid.lang.Boolean");
+                cheapObjects.add("plaid.lang.Float64");
+                cheapObjects.do( fn (stateName) => {
                     val symOpt = this.resolver.lookup(stateName);
                     match ( symOpt ) {
                         case Some {
                             if (struct.symbol == symOpt.value ) {
-                                fastMethodCacheAdd(fqn);
+                                cheapMethodCacheAdd(fqn);
                                 result = true;
                             }
                         }
@@ -62,8 +62,22 @@ state Task {
                     };
                 });
                 
-                // TODO: check for annotations 
-                
+                // check for annotations 
+                val immutable Option methodSymbolOpt = struct.symbol.getMember(name);
+                match (methodSymbolOpt) {
+                    case Some {
+                        val immutable LinkedList annotations = methodSymbolOpt.value.getAnnotations();
+                        annotations.do( fn (id) => {
+                            if ( id.name.name == "cheap" ) {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<Task>     found cheap method  '" + fqn + "'" );
+                                cheapMethodCacheAdd(fqn);
+                                result = true
+                            }
+                        });
+                    }
+                    case None {}
+                };
+
                 result
             }
         }
@@ -89,7 +103,7 @@ state Task {
                                     };
                                     match (receiverStructure) {
                                         case NominalStructure {
-                                            ifElse ( fastMethod(receiverStructure, nextInfo.node.methodId.name) ) {
+                                            ifElse ( cheapMethod(receiverStructure, nextInfo.node.methodId.name) ) {
                                                 0
                                             }{
                                                 10
