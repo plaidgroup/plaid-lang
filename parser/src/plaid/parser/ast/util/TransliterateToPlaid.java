@@ -69,6 +69,35 @@ public class TransliterateToPlaid<T> {
 			sb.append(";\n");
 		}
 		
+		//shortString() (name of ast, plus the name field if available
+		sb.append("\n");
+		if ( clazz.getSimpleName().toString().equals("ASTNode")) {
+			sb.append("\tmethod immutable String shortString()");
+		} else {
+			sb.append("\toverride method immutable String shortString()");
+		}
+		if (isConcrete) {
+			String clazzName = clazz.getSimpleName();
+			sb.append(" {\n\t\t");
+			sb.append("\"" + clazzName + "\" + ");
+			if (clazzName.equals("QualifiedIdentifier")) {
+				sb.append("\":\" + plaid.ast.util.makeStringFromQualifiedIdentifier(this) + ");	
+			} else {
+				for(Field field:getAllFields(clazz)) {
+					if (field.getName().equals("name")) {
+						if (clazzName.equals("Identifier"))
+							sb.append("\":\" + this." + field.getName() + " + ");
+						else
+							sb.append("\":\" + this." + field.getName() + ".name + ");
+					}
+				}
+			}
+			sb.append(" this.token.toString();"); //remove last plus
+			sb.append("\n\t}\n");
+		} else {
+			sb.append(";\n");
+		}
+		
 
 		//accept(v)
 		sb.append("\n");
@@ -132,16 +161,16 @@ public class TransliterateToPlaid<T> {
 			if(field.getType().getSimpleName().startsWith("List")) {
 				sb.append("makeListFromJavaCollection(root." +
 						getter(field.getName()) + "()).map(" +
-								"fn(a) => this.translateAST(a));");
+								"fn(a) => this.translateAST(a,fileName));");
 			} else if(field.getType().isPrimitive()
 					|| field.getType() == String.class) {
 				sb.append("root." + getter(field.getName()) + "();");
 			} else if (field.getType() == Token.class) {
-				sb.append("makeTokenFromJavaToken(root." + getter(field.getName()) + "());");
+				sb.append("makeTokenFromJavaToken(root." + getter(field.getName()) + "(),fileName);");
 			}
 			else {
 				sb.append("this.translateAST(root." + 
-						getter(field.getName()) + "());");
+						getter(field.getName()) + "(),fileName);");
 			}
 			sb.append("\n");
 		}
@@ -279,9 +308,9 @@ public class TransliterateToPlaid<T> {
 		sbTranslator.append("import plaid.ast.util.makeListFromJavaCollection;\n");
 		sbTranslator.append("import plaid.ast.util.makeTokenFromJavaToken;\n\n");
 		sbTranslator.append("state ASTTranslator {\n");
-		sbTranslator.append("\tmethod void LOG(immutable String msg) {}");
+		sbTranslator.append("\tmethod void LOG(immutable String msg) {}\n");
 		sbTranslator.append("\tmethod immutable ASTNode translateAST(" +
-				"/* immutable " + ASTNode.class.getName() + "*/ root){\n");
+				"/* immutable " + ASTNode.class.getName() + "*/ root, fileName){\n");
 		sbTranslator.append("\t\t match(root){\n");
 		
 		StringBuilder sbVisitor = new StringBuilder();
