@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.junit.Assert;
@@ -21,10 +22,19 @@ public final class RegressionTests {
 	private static class TestJob {
 		private final File directory;
 		private final Collection<File> files = new HashSet<File>();
+		private final List<String> classpath = new LinkedList<String>();
 		
 		public TestJob(File directory, Collection<File> files) {
 			this.directory = directory;
 			this.files.addAll(files);
+		}
+		
+		public List<String> getClasspath() {
+			return classpath;
+		}
+		
+		public void addClasspath(String path) {
+			classpath.add(path);
 		}
 		
 		public Collection<String> getFileNames() {
@@ -56,6 +66,16 @@ public final class RegressionTests {
 			commandLine.add("-a");
 		}
 		
+		// debug output
+		//commandLine.add("-d");
+		//commandLine.add("3");
+		
+		// add classpath
+		for ( String path : job.getClasspath() ) {
+			commandLine.add("-p");
+			commandLine.add(path);
+		}
+		
 		// add input files 
 		commandLine.addAll(job.getFileNames());
 		
@@ -73,10 +93,10 @@ public final class RegressionTests {
 	    	if ( failing == true ) {
 	    		Assert.fail();
 	    	}
-	    } catch (Exception e) {
+	    } catch (Throwable e) {
 	    	plaid.runtime.PlaidRuntime.getRuntime().shutdown();
 	    	if ( failing == false ) {
-		    	System.out.println("FAILED ");
+		    	System.out.println("FAILED " + e.toString());
 	    	    Assert.fail();
 	    	}
 	    } finally {
@@ -90,10 +110,10 @@ public final class RegressionTests {
 		final File cwd = new File(".");
 		
 		final String examplesPath = cwd.getAbsolutePath() + System.getProperty("file.separator") + "examples";
-		jobs.addAll(buildTestJobs(new File(examplesPath)));
+		jobs.addAll(buildTestJobs(new File(examplesPath), cwd.getAbsolutePath()));
 
 		final String aeminiumExamplesPath = cwd.getAbsolutePath() + System.getProperty("file.separator") + "../AeminiumExamples/pld";
-		jobs.addAll(buildTestJobs(new File(aeminiumExamplesPath)));
+		jobs.addAll(buildTestJobs(new File(aeminiumExamplesPath), aeminiumExamplesPath));
 		
 		final List<Object[]> parameters = new ArrayList<Object[]>();
 		
@@ -113,7 +133,7 @@ public final class RegressionTests {
 		return parameters;
 	}
 	
-	protected static List<TestJob> buildTestJobs(final File file) {
+	protected static List<TestJob> buildTestJobs(final File file, final String classpath) {
 		final List<TestJob> jobs = new ArrayList<TestJob>();
 		
 		if ( file.exists() ) {
@@ -126,12 +146,14 @@ public final class RegressionTests {
 				    }
 				});
 				if ( plaidFiles.length > 0 ) {
-					jobs.add(new TestJob(file, Arrays.asList(plaidFiles)));
+					final TestJob job = new TestJob(file, Arrays.asList(plaidFiles));
+					job.addClasspath(classpath);
+					jobs.add(job);
 				}
 			} else {
 				// search sub directories for jobs
 				for ( File subDir : subDirs ) {
-					jobs.addAll(buildTestJobs(subDir));
+					jobs.addAll(buildTestJobs(subDir, classpath));
 				}
 			}
 		}
