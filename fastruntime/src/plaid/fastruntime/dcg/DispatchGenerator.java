@@ -18,7 +18,7 @@ public final class DispatchGenerator implements Opcodes {
 	private int classCounter = 0;
 	private final DynClassLoader cl = new DynClassLoader();
 	
-	public PlaidState createClass(ObjectValue ov) {
+	public PlaidState createStateInstance(ObjectValue ov) {
 		final String name = "plaid/generatedDispatches/DispatchClass$plaid$"+classCounter++;
 					
 		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);

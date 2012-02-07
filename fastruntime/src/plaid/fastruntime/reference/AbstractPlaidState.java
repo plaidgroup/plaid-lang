@@ -47,7 +47,7 @@ public abstract class AbstractPlaidState implements PlaidState {
 	@Override
 	public PlaidState change(PlaidState s) {
 		ObjectValue changedValue = metadata.changeState(s.getObjectValue());
-		return (new DispatchGenerator()).createClass(changedValue);
+		return (new DispatchGenerator()).createStateInstance(changedValue);
 	}
 
 	@Override
