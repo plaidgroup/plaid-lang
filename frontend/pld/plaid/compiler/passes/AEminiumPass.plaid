@@ -60,6 +60,11 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
             
             val unique LinkedList ops = makeLinkedList();
             ops.addLast( fn (depInfos) => {
+                 val result = removeNoneFieldRestore(depInfos);
+                 dumpGraph(node, "AEMINIUM-NONE-FIELD-RESTORE");
+                 result
+            });
+            ops.addLast( fn (depInfos) => {
                  val result = removeJoinJoin(depInfos);
                  dumpGraph(node, "AEMINIUM-PRE-JOIN-JOIN");
                  result
@@ -410,6 +415,53 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                         }{
                             result.add(depInfo)
                         }
+                    }{
+                        result.add(depInfo);
+                    }
+                }
+                default { result.add(depInfo) }
+            }
+        };
+        
+        result      
+    }
+    
+    method unique Set removeNoneFieldRestore(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeNoneFieldRestore");
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case FieldRestoreInformation {                    
+                    ifElse ( simplePermission(depInfo.permIn) == NONEP ) {
+                        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> found none field restore " + depInfo.toString());
+                        ifElse ( depInfo.rdeps.size() == 1  ) {
+                            //connect lowersplit to upp join 
+                            val shared DependencyInformation rdepInfo = depInfo.rdeps.iterator().next();
+                            rdepInfo.deps.remove(depInfo);
+                            
+                            val itDeps = depInfo.deps.iterator();
+                            while { itDeps.hasNext() }{
+                                val curDep = itDeps.next();
+                                
+                                curDep.rdeps.remove(depInfo);
+                                match (curDep) {
+                                   case JoinInformation {
+                                       curDep.rdeps.add(rdepInfo);
+                                       rdepInfo.deps.add(curDep);   
+                                   }
+                                   default {}
+                                }
+                            };
+                            
+                            depInfo.deps.clear();
+                            depInfo.rdeps.clear();
+                        }{
+                            ABORT("AEminiumPass> Found badly connected field restore information");
+                        }   
                     }{
                         result.add(depInfo);
                     }
