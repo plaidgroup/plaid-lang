@@ -41,6 +41,10 @@ import plaid.compiler.symbol.PackageSymbol;
 import plaid.compiler.symbol.StateValSymbol;
 import plaid.compiler.symbol.StateRefSymbol;
 import plaid.compiler.symbol.DynamicSymbol;
+import plaid.compiler.symbol.JavaClassSymbol;
+
+import java.util.Arrays;
+import java.lang.reflect.Modifier;
 
 import plaid.compiler.typechecker.*;
 
@@ -53,7 +57,7 @@ import java.util.IdentityHashMap;
  */
 state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
-    val unique Stack stack = new Stack;
+    val unique Stack stack = new Stack;  //Stack of scoping contexts
     val immutable SymbolFactory sf = new SymbolFactory;
     var immutable String sourceFile = "";
     var shared Reporter reporter;
@@ -173,9 +177,10 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                          x = x + 1;
                      };
                      // check for class we should have found
+                     // or static members of java classes
                      ifElse ( count < qi.identifiers.size()  ) {
                          match (symbol.value) {
-                             case PackageSymbol {
+                             case PackageSymbol { //lookup stopped at a package
                                  WARNING("<NameResolutionPass> Cannot resolve '" + resolvedFqn + "." + qi.identifiers.get(count).value.name  + "'");
                                  val first = qi.identifiers.get(0).value;
                                  val last  = qi.identifiers.get(count).value;
@@ -189,6 +194,30 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                                                      endLine,
                                                      endColumn,
                                                      "Cannot resolve '" + resolvedFqn + "." + qi.identifiers.get(count).value.name  + "'");
+                             }
+                             case JavaClassSymbol { //might be static members that we should resolve
+                             	DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found Java Class " + fqn + ", looking for static member");
+								val unresolved = qi.identifiers.get(count).value;
+								//val unresolvedFullName = resolvedFqn + "." + unresolved.name;
+								match (symbol.value.checkStaticField(unresolved.name)) {
+									case True {
+										val fieldSymbol = (new SymbolFactory).makeJavaStaticFieldSymbol(unresolved.name, symbol.value);
+										addSymbolForAST(unresolved, fieldSymbol);
+										DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found static field " + unresolved.name);
+									}
+									case False { /* no op */ }
+								
+								};
+								
+								match (symbol.value.checkStaticMethod(unresolved.name)) {
+									case True {
+										val methodSymbol = (new SymbolFactory).makeJavaStaticMethodSymbol(unresolved.name, symbol.value);
+										addSymbolForAST(unresolved, methodSymbol);
+										DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found static method " + unresolved.name);
+									}
+									case False { /* no op */ }
+								
+								};
                              }
                              default {}
                          }
@@ -613,26 +642,44 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         match (qiOpt) {
             case Some {
                 DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass> Found potential QI: " + makeStringFromQualifiedIdentifier(qiOpt.value));
-                // check if left most can be resolved before we try to resolve the whole QI
-                DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   check if left most identifier '"+qiOpt.value.identifiers.get(0).value.name+"' can be resolved");
+                // check if left most has already been resolved
+                DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   check if left most identifier '"+qiOpt.value.identifiers.get(0).value.name+"' has been resolved");
                 val symbol = this.stack.peek().value.find(qiOpt.value.identifiers.get(0).value.name);
-                match (symbol) {
-                    case None {
-                        DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   left most identifier cannot be resolved, try to resolve whole QualifiedIdentifier");
+                val immutable Boolean mustResolve = match (symbol) { //need to resolve if package or JavaClassSymbol or NONE
+                    case None { 
+                    	DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   left most identifier not yet resolved, try to resolve whole QualifiedIdentifier");
+                    	true 
+                    }
+                    case Some {
+                    	match (symbol.value) {
+                    		case PackageSymbol { 
+                    			DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   left most identifier resolves to a package, try to resolve whole QualifiedIdentifier");
+                    			true 
+                    		}
+                    		case JavaClassSymbol { 
+                    			DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   left most identifier resolves to a Java class, try to resolve whole QualifiedIdentifier");
+                    			true 
+                    		}
+                    		default { false }
+                    	}
+                    }
+                };
+                match (mustResolve) {
+                	case True {
                         val immutable Integer resolvedCount = this.resolveQualifiedIdentifier(this.stack.peek().value, qiOpt.value, true);
                         DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass>   resolved  " + resolvedCount + " parts");
                         if ( resolvedCount == 0 ) {
                             //val mostLeftId = qiOpt.value.identifiers.get(0);
                             //this.reporter.errorToken(java.io.File.new(this.sourceFile), mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
-                        node.left.accept(this);
+                        	node.left.accept(this);
                         };
-                    }
-                    case Some {
-                        node.left.accept(this);
-                    }
+                	}
+                	case False {
+                		node.left.accept(this); //if this is a QI and the first thing resolves to a variable, do we really need to do anything?
+                	}
                 }
             }
-            case None {
+            case None { //Not a QI, recurse to find non-ID further back in the deref
                 node.left.accept(this);
             }
         };
