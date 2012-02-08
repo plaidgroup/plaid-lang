@@ -1,18 +1,21 @@
 package plaid.compiler.codegen;
 
+import java.lang.StringBuilder;
+import java.lang.System;
+
 import plaid.compiler.DEBUG;
 import plaid.compiler.DEBUG_PRIO_LOW;
 import plaid.compiler.DEBUG_PRIO_MEDIUM;
 import plaid.compiler.DEBUG_PRIO_HIGH;
 import plaid.ast.parsed.*;
-import java.lang.StringBuilder;
 
 import plaid.compiler.INTERFACE_GEN;
 import plaid.compiler.DISPATCH_GEN;
 import plaid.compiler.STORAGE_GEN;
+import plaid.compiler.COMPILER_CONFIGURATION;
 
 import plaid.fastruntime.NamingConventions;
-
+import plaid.fastruntime.util.FileGen;
 
 method LOG (immutable String msg) {
 	DEBUG(DEBUG_PRIO_LOW, "<CodeGenPass> " + msg);
@@ -25,17 +28,23 @@ method ERROR(immutable String msg) {
 method codegenCU(immutable ParsedCompilationUnit node) {
 	val idGen = new IdGen;
 	LOG("generating code for ParsedCompilationUnit");
-	val qiPackage = node.packageName.identifiers;
-	val addPeriod = fn(id) => { val toReturn = id.name + "."; toReturn; };
-	val packageStringList = qiPackage.map(addPeriod);
-	val appendString = fn (s1, s2) => {s1 + s2};
-	val packageStringWithPeriod = packageStringList.reduce("", appendString);
-	val packageString = packageStringWithPeriod.substring(0, packageStringWithPeriod.length() - 1);
+	val qiPackage = node.packageName.identifiers.map( fn(id) => { id.name } );
+	val packageString = makeSeperatedString(qiPackage, ".");
 	val stringbuilderlist = node.decls.map( fn(item) => {val result = StringBuilder.new(); result} );
 	val declsSbList = node.decls.zip(stringbuilderlist);
 	//first = decl, second = StringBuilder
 	declsSbList.map( fn(item) => { codegenTopLevelDecl(item.first(), packageString, item.second(), idGen); } );
 	stringbuilderlist.map( fn(item) => { DEBUG(DEBUG_PRIO_HIGH, item.toString()); } );
+	
+	//create directories and files for java source output
+	declsSbList.map( fn(item) => {
+		val declName = item.first().name.name;
+		val sep = System.getProperty("file.separator");
+		val qiDir = makeSeperatedString(qiPackage, sep);
+		val outputDir = COMPILER_CONFIGURATION().tempDir;
+		val codeString = item.second().toString();
+		FileGen.createOutputFile(declName, outputDir, codeString, qiDir);
+	} );
 }
 
 method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen) {
