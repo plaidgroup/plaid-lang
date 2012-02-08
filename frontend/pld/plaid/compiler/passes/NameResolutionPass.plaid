@@ -9,6 +9,7 @@ import plaid.ast.parsed.*;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
 import plaid.ast.util.EMPTY_TOKEN;
 
+import plaid.compiler.ABORT;
 import plaid.compiler.ERROR;
 import plaid.compiler.WARNING;
 import plaid.compiler.DEBUG;
@@ -157,17 +158,22 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         while { count  > 0 && !stop }{
              var fqn = qi.identifiers.get(0).value.name;
              var i = 1;
+             var isBase = true;
              while {i < count}{
                  fqn = fqn + "." + qi.identifiers.get(i).value.name; 
                  i = i + 1;
+                 isBase = false;
              };
               
-             val symbolOpt = this.resolver.lookup(fqn);
+             val symbolOpt = match (isBase) {
+                case True { ctx.find(fqn); } 
+                case False { this.resolver.lookup(fqn); }
+             };
              match ( symbolOpt ) {
                  case Some {
                      stop = true;
                      var resolvedFqn = qi.identifiers.get(0).value.name;
-                     var symbol = this.resolver.lookup(resolvedFqn);
+                     var symbol = ctx.find(resolvedFqn);
                      addSymbolForAST(qi.identifiers.get(0).value, symbol.value);
                      var x = 1;
                      while {x < count }{
@@ -222,7 +228,14 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                              default {}
                          }
                      }{
-                         addSymbolForAST(qi, symbol.value);
+                         
+                         match(symbol.value) {
+                            case JavaClassSymbol {
+                                ABORT("<NameResolutionPass> Java class " + resolvedFqn + " cannot be a first class value " +
+                                        node.token.toString());
+                            }
+                            default { addSymbolForAST(qi, symbol.value); } 
+                         }
                      };
                  } 
                  case None {}
@@ -611,8 +624,14 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         val symbol = this.stack.peek().value.find(node.name);
         match (symbol) {
             case Some {
-               DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> Found symbol for '" + node.name + "'");
-               addSymbolForAST(node, symbol.value);
+                DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> Found symbol for '" + node.name + "'");
+                match(symbol.value) {
+                    case JavaClassSymbol {
+                        ABORT("<NameResolutionPass> Java class " + node.name + " cannot be a first class value " +
+                                node.token.toString());
+                    }
+                    default { addSymbolForAST(node, symbol.value); } 
+                }
            }
            case None {
                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.token, "Cannot resolve '" + node.name + "'");
