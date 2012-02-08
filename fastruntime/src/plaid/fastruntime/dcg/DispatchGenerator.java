@@ -74,9 +74,9 @@ public final class DispatchGenerator implements Opcodes {
 		try {
 			result =  (PlaidState)cl.createClass(name, cw).newInstance();
 		} catch (InstantiationException e) {
-			throw new PlaidInternalException("Count not construct dispatch object.", e);
+			throw new PlaidInternalException("Could not construct dispatch object.", e);
 		} catch (IllegalAccessException e) {
-			throw new PlaidInternalException("Count not construct dispatch object because " +
+			throw new PlaidInternalException("Could not construct dispatch object because " +
 					"constructor was not accessible.", e);
 		} catch (ClassCastException e) {
 			throw new PlaidInternalException("Failed to cast generated dispatch to PlaidState", e);

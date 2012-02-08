@@ -73,8 +73,9 @@ public class JavaDispatchGenerator implements Opcodes {
 					mv.visitVarInsn(ASTORE, 5);
 					mv.visitVarInsn(ALOAD, 5);
 					mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
-					//TODO: mutliple arguments
+					//TODO: multiple arguments
 					//TODO: check for static overloading
+					//TODO: convert boolean to Plaid Boolean or unit for void
 					Type[] args = asmMethod.getArgumentTypes();
 					mv.visitTypeInsn(CHECKCAST, args[0].getDescriptor());
 					mv.visitVarInsn(ASTORE, 6);
@@ -115,9 +116,9 @@ public class JavaDispatchGenerator implements Opcodes {
 		try {
 			result =  (PlaidState)cl.createClass(name, cw).newInstance();
 		} catch (InstantiationException e) {
-			throw new PlaidInternalException("Count not construct dispatch object.", e);
+			throw new PlaidInternalException("Could not construct dispatch object.", e);
 		} catch (IllegalAccessException e) {
-			throw new PlaidInternalException("Count not construct dispatch object because " +
+			throw new PlaidInternalException("Could not construct dispatch object because " +
 					"constructor was not accessible.", e);
 		} catch (ClassCastException e) {
 			throw new PlaidInternalException("Failed to cast generated dispatch to PlaidState", e);
