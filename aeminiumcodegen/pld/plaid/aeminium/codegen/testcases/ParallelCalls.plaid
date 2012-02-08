@@ -1,0 +1,168 @@
+package plaid.aeminium.codegen.testcases;
+
+import plaid.ast.types.*;
+import plaid.ast.*;
+
+state ParallelCalls case of TestCase {
+	val methodTypes = java.util.HashMap.new();
+	
+	// method callee(immutable Integer x) {
+	// }
+	method makeCallee() {
+		val calleeBody = new UnitLiteral {
+			val token = new None;
+		};
+	
+		val calleeArgTypes = new List { var head = new Nil; };
+		calleeArgTypes.add(getImmutableIntegerPermType());
+		val calleeArgNames = new List { var head = new Nil; };
+		calleeArgNames.add(makeID(makeToken(),"x"));
+		
+		val calleeMethodType = new MethodTypeDecl {
+			val token = new None;
+			val name = "callee";
+			val retPermType = new Void;
+			val argTypes = calleeArgTypes;
+			val argNames = calleeArgNames;
+		};
+		
+		new MethodDecl {
+			val token = new None;
+			val name = "callee";
+			val body = calleeBody;
+			val arg = new Some { val value = makeID(makeToken(),"x"); };
+			val abstractMethod = false;
+			val methodType = calleeMethodType;
+		};
+	}
+	
+	// method caller(unique Integer x) {
+	//   Split (x : unique Integer => x : immutable Integer / x : immutable Integer) in
+	//    Let temp0 = callee(x) in
+	//     Split (x : immutable Integer => x : immutable Integer / x : immutable Integer) in
+	//      callee(x)
+	// }
+	
+	method makeCaller() {
+		val split2 = new Split {
+			val in = makeIDWithType("x", getImmutableIntegerPermType());
+			val out1 = makeIDWithType("x", getImmutableIntegerPermType());
+			val out2 = makeIDWithType("x", getImmutableIntegerPermType());
+			val body = new Application {
+				val token = new None;
+				val f = makeID(makeToken(),"callee");
+				val arg = makeID(makeToken(),"x");
+			};
+		};
+		
+		val let1 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"temp0");
+			val exp = new Application {
+				val token = new None;
+				val f = makeID(makeToken(),"callee");
+				val arg = makeID(makeToken(),"x");
+			};
+			val body = split2;
+			val mutable = false;
+		};
+		
+		val split1 = new Split {
+			val in = makeIDWithType("x", getUniqueIntegerPermType());
+			val out1 = makeIDWithType("x", getImmutableIntegerPermType());
+			val out2 = makeIDWithType("x", getImmutableIntegerPermType());
+			val body = let1;
+		};
+		
+		val callerBody = split1;
+		
+		val callerArgTypes = new List { var head = new Nil; };
+		callerArgTypes.add(getUniqueIntegerPermType());
+		val callerArgNames = new List { var head = new Nil; };
+		callerArgNames.add(makeID(makeToken(),"x"));
+		
+		val callerMethodType = new MethodTypeDecl {
+			val token = new None;
+			val name = "caller";
+			val retPermType = new Void;
+			val argTypes = callerArgTypes;
+			val argNames = callerArgNames;
+		};
+		
+		new MethodDecl {
+			val token = new None;
+			val name = "caller";
+			val body = callerBody;
+			val arg = new Some { val value = makeID(makeToken(),"x"); };
+			val abstractMethod = false;
+			val methodType = callerMethodType;
+		};
+	}
+	
+	method makeMain() {
+		val mainBody = new Application {
+			val token = new None;
+			val f = new ID {
+				val token = new None;
+				val name = "caller";
+			};
+			val arg = new IntLiteral {
+				val token = new None;
+				val integer = 42;
+			};
+		};
+		
+		val mainMethodType = new MethodTypeDecl {
+			val token = new None;
+			val name = "main";
+			val retPermType = new Void;
+			val argTypes = new List { var head = new Nil; };
+			val argNames = new List { var head = new Nil; };
+		};
+	
+		new MethodDecl {
+			val token = new None;
+			val name = "main";
+			val body = mainBody;
+			val arg = new None;
+			val abstractMethod = false;
+			val methodType = mainMethodType;
+		};
+	}
+	
+	method buildParallelCallsExample() {
+		val thePackageName = new List { var head = new Nil; };
+		thePackageName.add("testInputs");
+		thePackageName.add("parallelCalls");
+		
+		val theDecls = new List { var head = new Nil; };
+		theDecls.add(makeMain());
+		theDecls.add(makeCaller());
+		theDecls.add(makeCallee());
+		
+		theDecls.map(fn (m) => {
+			this.methodTypes.put(m.name, m.methodType);
+		});
+		
+		val theImports = new ImportList {
+			val imports = new List { var head = new Nil; };
+			val token = new None;
+		};
+	
+		new CompilationUnit {
+			val decls = theDecls;
+			val packageName = thePackageName;
+			val imports = theImports;
+			val sourceFile = "parallelCalls.plaid";
+		};
+	}
+
+
+	method getAST() {
+		buildParallelCallsExample();
+	}
+	
+	method getMethodTypes() {
+		this.methodTypes;
+	}
+}
