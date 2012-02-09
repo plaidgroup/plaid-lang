@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.PlaidStorage;
 import fj.data.List;
 
 public final class FieldValue extends MemberValue {
@@ -26,5 +27,11 @@ public final class FieldValue extends MemberValue {
 	@Override
 	public List<MethodInfo> getMethods() {
 		return List.nil();
+	}
+
+	@Override
+	public PlaidStorage getDefaultStorage() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }
