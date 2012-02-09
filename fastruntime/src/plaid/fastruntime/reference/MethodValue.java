@@ -2,6 +2,7 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.NamingConventions;
+import plaid.fastruntime.PlaidStorage;
 import fj.data.List;
 
 public final class MethodValue extends MemberValue implements MethodInfo {
@@ -53,5 +54,11 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	@Override
 	public int numArgs() {
 		return this.numArgs;
+	}
+
+	@Override
+	public PlaidStorage getDefaultStorage() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

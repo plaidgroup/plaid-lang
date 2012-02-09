@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.PlaidStorage;
 import fj.Equal;
 import fj.F;
 import fj.Ord;
@@ -47,12 +48,10 @@ public final class ListValue extends AbstractObjectValue {
 	@Override
 	public ListValue addValue(SingleValue other) {
 		return new ListValue(singleValues.cons(other));
-//		if (other instanceof SingleValue) {
-//			return new ListValue(singleValues.cons((SingleValue) other));
-//		} else {
-//			List<SingleValue> otherValues = ((ListValue) other).singleValues;
-//			return new ListValue(singleValues.append(otherValues));
-//		}
+	}
+	
+	public ListValue addListValue(ListValue other) {
+		return new ListValue(this.singleValues.append(other.singleValues));
 	}
 
 	@Override
@@ -121,6 +120,12 @@ public final class ListValue extends AbstractObjectValue {
 			currentList = currentList.append((sv.getMethods()));
 		}
 		return currentList;
+	}
+
+	@Override
+	public PlaidStorage getDefaultStorage() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 	
 }

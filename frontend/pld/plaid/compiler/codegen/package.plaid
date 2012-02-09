@@ -3,16 +3,17 @@ package plaid.compiler.codegen;
 import java.lang.StringBuilder;
 import java.lang.System;
 
+import plaid.ast.parsed.*;
+
+import plaid.compiler.COMPILER_CONFIGURATION;
 import plaid.compiler.DEBUG;
 import plaid.compiler.DEBUG_PRIO_LOW;
 import plaid.compiler.DEBUG_PRIO_MEDIUM;
 import plaid.compiler.DEBUG_PRIO_HIGH;
-import plaid.ast.parsed.*;
+import plaid.compiler.symbolForAST;
 
-import plaid.compiler.INTERFACE_GEN;
-import plaid.compiler.DISPATCH_GEN;
-import plaid.compiler.STORAGE_GEN;
-import plaid.compiler.COMPILER_CONFIGURATION;
+import plaid.compiler.symbol.*;
+
 
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.util.FileGen;
@@ -56,7 +57,7 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 			sb.append("public class " + node.name.name + "{\n");
 			
 			// begin invoke method
-			sb.append("public PlaidObject invoke$plaid(");
+			sb.append("public static plaid.fastruntime.PlaidObject invoke$plaid(");
 			val addComma = fn(arg1) => { arg1.name.name + "," };
 			if (node.arguments.size() > 0) {
 				val argStringList = node.arguments.map(addComma);
@@ -109,9 +110,30 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 		case ParsedDereference {
 			LOG("generating code for dereference");
 			//TODO: check if left is a Java class
-			//TODO: generate PlaidJavaObject
-			//TODO: check if right is a valid static field
-			sb.append(y + " = " + node.left.name + "." + node.right.name + ";\n");
+			val symbolLeft = symbolForAST(node.left);
+			val symbolRight = symbolForAST(node.right);
+			match(symbolLeft.value) {
+				case JavaClassSymbol {
+					match(symbolRight) {
+						case Some {
+							match(symbolRight.value) {
+								case JavaStaticFieldSymbol  {
+									sb.append(y + " = plaid.fastruntime.Util.JAVA_GEN.createPlaidJavaObject(" + node.left.name + "." + node.right.name + ");\n");
+								}
+								default {
+									ERROR("Unexpected symbol for the right side of a dereference of Java class");
+								}
+							}
+						}
+						default {
+							ERROR("Found no symbol for the right side of a dereference of Java class.");
+						}
+					}
+				}
+				default {
+					ERROR("Unexpected Symbol type for left of dereference.");
+				}
+			}			
 		}
 		case ParsedApplication {
 			LOG("generating code for application");
@@ -148,7 +170,7 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 							sb.append(y + " = ");
 							
 							//generate interface
-							INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
+							//plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
 							
 							//cast
 							sb.append("(");
@@ -158,10 +180,9 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 							sb.append(")");
 							//.<METHOD_NAME>(<ARGS>)
 							sb.append("." + methodId.name + "(");
-							sb.append(makeSeperatedString(yList, ","));
+							sb.append(receiverString + ","); // receiver
+							sb.append(makeSeperatedString(yList, ",")); //normal arguments
 							sb.append(");\n");
-							
-							sb.append(y + " = ");
 						} 
 						case ParsedIdentifier {
 							//function application
@@ -180,7 +201,7 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 			};
 		}
 		case ParsedStringLiteral {
-			sb.append(y + " = Util.string(\"" + node.value + "\");\n");
+			sb.append(y + " = plaid.fastruntime.Util.string(\"" + node.value + "\");\n");
 		}
 		default {
 			LOG("generating code for " + node.nodeName());
