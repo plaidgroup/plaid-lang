@@ -1,0 +1,92 @@
+package plaid.lang;
+
+import plaid.lang.testing.TestFactory;
+
+state OptionTest case of TestFactory {
+	
+	method unique List<unique Test> createTests() {
+		val tests = makeEmptyList();
+		val test = fn(name,body) => { tests.add(mktest(name, body)) };
+
+		test("use of map on None", fn(ctx) => {
+			val opt = new None;
+			val result = opt.map(fn(x) => {x + 1});
+			match(result) {
+				case Some { fail(); }
+				default { }
+			}
+		});
+
+		test("use of map on Some", fn(ctx) => {
+			val opt = makeSome(1);
+			val result = opt.map(fn(x) => { x + 1 });
+			match(result) {
+				case Some { 
+					ctx.assertTrue(result.getValue() == 2);
+					// the original opt should not have changed
+					ctx.assertTrue(opt.getValue() == 1)
+				}
+				default { fail() }
+			}
+		});
+
+		test("chained use of map on Some", fn(ctx) => {
+			val opt = new Some { val value = 1; };
+			val result = opt.map(fn(x) => { x + 1 }).map(fn(x) => { x * 2 });
+			match(result) {
+				case Some { 
+					ctx.assertTrue(result.getValue() == 4);
+					ctx.assertTrue(opt.getValue() == 1)
+				}
+				default { fail() }
+			}
+		});
+
+		test("use of getOrElse on None", fn(ctx) => {
+			val opt = new None;
+			val result = opt.getOrElse(1);
+			ctx.assertTrue(result == 1);
+		});
+
+		test("use of getOrElse on Some", fn(ctx) => {
+			val opt = new Some { val value = 1; };
+			val result = opt.getOrElse(2);
+			ctx.assertTrue(result == 1);
+		});
+
+		test("use of orElse on None", fn(ctx) => {
+			val opt = NONE;
+			val result = opt.orElse { makeSome(1) };
+			ctx.assertTrue(result.hasValue());
+			ctx.assertTrue(result.getValue() == 1);
+		});
+
+		test("use of orElse on Some", fn(ctx) => {
+			val opt = makeSome(1);
+			val result = opt.orElse { makeSome(2) };
+			ctx.assertTrue(result.hasValue());
+			ctx.assertTrue(result.getValue() == 1);
+		});
+
+		test("flatMap to None", fn(ctx) => {
+			val opt = new Some { val value = 1; };
+			val result = opt.flatMap(fn(x) => { ifElse(x == 1) { new None; } { x }});
+			match(result) {
+				case Some { fail(); }
+				default { }
+			}
+		});
+
+		test("flatMap to Some", fn(ctx) => {
+			val opt = new Some { val value = 1; };
+			val result = opt.flatMap(fn(x) => { new Some { val value = x + 1; } });
+			match(result) {
+				case Some { ctx.assertTrue(result.getValue() == 2); }
+				default { fail(); }
+			}
+		});
+
+
+		tests
+	}
+}
