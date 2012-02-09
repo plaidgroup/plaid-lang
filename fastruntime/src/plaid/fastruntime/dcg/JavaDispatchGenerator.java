@@ -30,7 +30,7 @@ public class JavaDispatchGenerator implements Opcodes {
 	 * @param key Java class
 	 * @param value PlaidState that used as proxy for Java class' methods
 	 */
-	void preloadPlaidState(Class<?> key, PlaidState value) {
+	public void preloadPlaidState(Class<?> key, PlaidState value) {
 		this.javaStateCache.put(key, value);
 	}
 	

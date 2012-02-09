@@ -2,10 +2,16 @@ package plaid.fastruntime;
 
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.dcg.*;
+import plaid.lang.DPrintStream$plaid;
+import plaid.lang.String$plaid;
 
 public class Util {
 	
 	public static final JavaDispatchGenerator JAVA_GEN = new JavaDispatchGenerator();
+	static {
+		JAVA_GEN.preloadPlaidState(java.io.PrintStream.class, new DPrintStream$plaid(null));
+		JAVA_GEN.preloadPlaidState(java.lang.String.class, new String$plaid(null));
+	}
 	public static final InterfaceGenerator INTERFACE_GEN = new InterfaceGenerator();
 	public static final StorageGenerator STORAGE_GEN = new StorageGenerator();
 	public static final DispatchGenerator DISPATCH_GEN = new DispatchGenerator();
