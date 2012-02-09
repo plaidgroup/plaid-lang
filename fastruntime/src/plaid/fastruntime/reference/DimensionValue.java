@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.PlaidStorage;
 import fj.Ord;
 import fj.data.List;
 import fj.data.Set;
@@ -114,5 +115,11 @@ public final class DimensionValue extends SingleValue {
 			mi.append(parent.getMethods());
 		}
 		return mi;
+	}
+
+	@Override
+	public PlaidStorage getDefaultStorage() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }
