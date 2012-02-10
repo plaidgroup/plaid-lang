@@ -106,6 +106,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 
 	public boolean uniqueTags() {
 		//TODO: Implement unique tags correctly
+		//TODO: Check what is going on here
 		return true;
 	}
 	

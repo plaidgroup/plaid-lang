@@ -17,6 +17,7 @@ import plaid.compiler.symbol.*;
 import plaid.collections.LinkedList;
 
 import plaid.fastruntime.NamingConventions;
+import plaid.fastruntime.CompilerUtil;
 import plaid.fastruntime.util.FileGen;
 
 method LOG (immutable String msg) {
@@ -189,7 +190,10 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 							sb.append(")");
 							//.<METHOD_NAME>(<ARGS>)
 							sb.append("." + methodId.name + "(");
-							sb.append(receiverString + ","); // receiver
+							sb.append(receiverString ); // receiver
+							if(yList.size() > 0) {
+								sb.append(",");
+							};
 							sb.append(makeSeperatedString(yList, ",")); //normal arguments
 							sb.append(");\n");
 						} 
@@ -212,15 +216,62 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 		case ParsedStringLiteral {
 			sb.append(y + " = plaid.fastruntime.Util.string(\"" + node.value + "\");\n");
 		}
-		default {
-			LOG("generating code for " + node.nodeName());
-			sb.append(node.nodeName() + "\n");
+		case ParsedIntLiteral {
+			sb.append(y + " = plaid.fastruntime.Util.integer(" + node.value + ");\n");
+		}
+		case ParsedInfixOperatorExpr {
+			//preliminaries
+			val op = node.operator;
+			val methodName = convertOpStringToMethodName(op.name);
+			
+			// generate code for receiver
+			val receiverString = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
+			codegenStmt(node.left, sb, idgen, receiverString);
+			
+			//generate code for argument
+			val argId = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + argId + ";\n");
+			codegenStmt(node.right, sb, idgen, argId);
+			
+			
+			//assign result to y
+			sb.append(y + " = ");
+			//generate interface
+			//plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
+							
+			//cast
+			sb.append("(");
+			sb.append("(" + NamingConventions.getGeneratedInterfaceName(methodName, 1) + ")");
+			sb.append(receiverString);
+			sb.append(".getDispatch()");
+			sb.append(")");
+			//.<METHOD_NAME>(<ARGS>)
+			sb.append("." + methodName + "(");
+			sb.append(receiverString + ","); // receiver
+			sb.append(argId); //normal arguments
+			sb.append(");\n");
+		}
+		case ParsedVarDecl {
+			val exprVarName = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + exprVarName + ";\n");
+			codegenStmt(node.expr, sb, idgen, exprVarName);
+			sb.append("final plaid.fastruntime.PlaidObject " + node.id.name + " = " + exprVarName + ";\n"); 
 		}
 	}
 }
+
+method convertOpStringToMethodName(immutable String op) {
+	CompilerUtil.convertOpStringToMethodName(op);
+}
 	
-method makeSeperatedString(immutable List<String> stringList, immutable String sep) {
-	val addSep = fn(s1, s2) => {s1 + sep + s2};
-	val toReturn = stringList.reduceLeft("", addSep);
-	toReturn.substring(1,toReturn.length());
+method makeSeperatedString(immutable LinkedList<String> stringList, immutable String sep) {
+	ifElse(stringList.size() > 0) {
+		val addSep = fn(s1, s2) => {s1 + sep + s2};
+		val toReturn = stringList.reduceLeft("", addSep);
+		toReturn.substring(1,toReturn.length());
+	}
+	{ //
+		"";
+	}
 }
