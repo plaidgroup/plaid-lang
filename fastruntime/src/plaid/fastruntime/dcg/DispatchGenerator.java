@@ -1,5 +1,7 @@
 package plaid.fastruntime.dcg;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -16,12 +18,12 @@ import plaid.fastruntime.errors.PlaidInternalException;
 
 public final class DispatchGenerator implements Opcodes {
 	private int classCounter = 0;
-	private final DynClassLoader cl = new DynClassLoader();
 	
 	public PlaidState createStateInstance(ObjectValue ov) {
 		final String name = "plaid/generatedDispatches/DispatchClass$plaid$"+classCounter++;
 					
 		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
+		
 		
 		// generate class
 		Collection<String> ifaces = new ArrayList<String>();
@@ -32,7 +34,7 @@ public final class DispatchGenerator implements Opcodes {
 			     ACC_PUBLIC,
 			     name,
 			     null,
-			     "plaid/fastruntime/AbstractPlaidState",
+			     "plaid/fastruntime/reference/AbstractPlaidState",
 			     ifaces.toArray(new String[0]));
 		
 		// add methods 
@@ -47,48 +49,52 @@ public final class DispatchGenerator implements Opcodes {
 					mv.visitCode();
 					// add receiver
 
-					mv.visitVarInsn(Opcodes.ALOAD, 0);
+					mv.visitVarInsn(ALOAD, 1);
 					// add parameters
-					for (int x = 1; x <= m.numArgs(); x++ ) {
-						mv.visitVarInsn(Opcodes.ALOAD, x);
+					for (int x = 2; x <= m.numArgs()+1; x++ ) {
+						mv.visitVarInsn(ALOAD, x);
 					}
 					mv.visitMethodInsn(INVOKESTATIC, m.getStaticClassInternalName(), m.getName(), m.getMethodDescriptor());
-					mv.visitInsn(RETURN);
-					mv.visitMaxs(0,0);
+					mv.visitInsn(ARETURN);
+					mv.visitMaxs(2,3);
 					mv.visitEnd();			
 		}
 		
 		
 		// add constructor
-		MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
-		mv.visitCode();
-		mv.visitVarInsn(Opcodes.ALOAD, 0);
-		mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object","<init>", "()V");
-		mv.visitInsn(Opcodes.RETURN);
-		mv.visitMaxs(0,0);
-		mv.visitEnd();
+		{
+			MethodVisitor mv;
+			mv = cw.visitMethod(ACC_PUBLIC, "<init>", "(Lplaid/fastruntime/ObjectValue;)V", null, null);
+			mv.visitCode();
+			mv.visitVarInsn(ALOAD, 0);
+			mv.visitVarInsn(ALOAD, 1);
+			mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/reference/AbstractPlaidState", "<init>", "(Lplaid/fastruntime/ObjectValue;)V");
+			mv.visitInsn(RETURN);
+			mv.visitMaxs(2, 2);
+			mv.visitEnd();
+		}
 
 		// done
 		cw.visitEnd();
 		PlaidState result = null;
 		try {
-			result =  (PlaidState)cl.createClass(name, cw).newInstance();
+			byte[] b = cw.toByteArray();
+			Class<?> plaidStateClass = ClassInjector.defineClass(name, cw.toByteArray(), 0, b.length);
+			Constructor<?> cstr =  plaidStateClass.getConstructor(ObjectValue.class);
+			result = (PlaidState)cstr.newInstance(ov);
+		} catch(NoSuchMethodException e) {
+			throw new PlaidInternalException("Could not construct dispatch object.", e);
+		}  catch (ClassCastException e) {
+			throw new PlaidInternalException("Failed to cast generated dispatch to PlaidState", e);
+		} catch (IllegalArgumentException e) {
+			throw new PlaidInternalException("Could not construct dispatch object.", e);
 		} catch (InstantiationException e) {
 			throw new PlaidInternalException("Could not construct dispatch object.", e);
 		} catch (IllegalAccessException e) {
-			throw new PlaidInternalException("Could not construct dispatch object because " +
-					"constructor was not accessible.", e);
-		} catch (ClassCastException e) {
-			throw new PlaidInternalException("Failed to cast generated dispatch to PlaidState", e);
+			throw new PlaidInternalException("Could not construct dispatch object.", e);
+		} catch (InvocationTargetException e) {
+			throw new PlaidInternalException("Could not construct dispatch object.", e);
 		}
 		return result;
-	}
-	
-
-	private class DynClassLoader extends ClassLoader {
-		public Class<?> createClass(String name, ClassWriter cw) {
-			byte[] b = cw.toByteArray();
-			return defineClass(name.replace("/", "."), b, 0, b.length);
-		}
 	}
 }

@@ -48,7 +48,7 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 
 	@Override
 	public String getMethodDescriptor() {
-		return NamingConventions.getMethodDescriptor(numArgs);
+		return NamingConventions.getMethodDescriptor(numArgs + 1);
 	}
 
 	@Override

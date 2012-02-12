@@ -21,7 +21,6 @@ import plaid.fastruntime.reference.SimplePlaidJavaObject;
 
 public class JavaDispatchGenerator implements Opcodes {
 	private int classCounter = 0;
-	private final DynClassLoader cl = new DynClassLoader();
 	
 	private final Map<Class<?>, PlaidState> javaStateCache = new HashMap<Class<?>,PlaidState>();
 	
@@ -130,7 +129,9 @@ public class JavaDispatchGenerator implements Opcodes {
 			// done
 			cw.visitEnd();
 			try {
-				result =  (PlaidState)cl.createClass(name, cw).newInstance();
+				byte[] b = cw.toByteArray();
+				Class<?> plaidStateClass = ClassInjector.defineClass(name, cw.toByteArray(), 0, b.length);
+				result =  (PlaidState)plaidStateClass.newInstance();
 				javaStateCache.put(javaClass, result);
 			} catch (InstantiationException e) {
 				throw new PlaidInternalException("Could not construct dispatch object.", e);
@@ -146,13 +147,5 @@ public class JavaDispatchGenerator implements Opcodes {
 		
 		SimplePlaidJavaObject toReturn = new SimplePlaidJavaObject(result, null, javaObject);
 		return toReturn;
-	}
-	
-
-	private class DynClassLoader extends ClassLoader {
-		public Class<?> createClass(String name, ClassWriter cw) {
-			byte[] b = cw.toByteArray();
-			return defineClass(name.replace("/", "."), b, 0, b.length);
-		}
 	}
 }
