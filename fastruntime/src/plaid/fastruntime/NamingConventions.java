@@ -12,6 +12,9 @@ public class NamingConventions {
 	public static final String GENERATED_STORAGE_PREFIX = "S";
 	public static final String GENERATED_SUFFIX = "$plaid";
 	public static final String GENERATED_DIR = "../generated/bin/" + GENERATED_PKG;
+	public static final String GENERATED_METHOD_NAME = "invoke" + GENERATED_SUFFIX;
+	public static final String GENERATED_STATE_NAME = "theState" + GENERATED_SUFFIX;
+	public static final String GENERATED_THIS = "this" + GENERATED_SUFFIX;
 	
 	public static final String PLAID_OBJECT_DESCRIPTOR = "Lplaid/fastruntime/PlaidObject;";
 	

@@ -109,10 +109,10 @@ public final class DimensionValue extends SingleValue {
 	public List<MethodInfo> getMethods() {
 		List<MethodInfo> mi = List.nil();
 		if(innerValue!=null) {
-			mi.append(innerValue.getMethods());
+			mi = mi.append(innerValue.getMethods());
 		}
 		if(parent!=null) {
-			mi.append(parent.getMethods());
+			mi = mi.append(parent.getMethods());
 		}
 		return mi;
 	}

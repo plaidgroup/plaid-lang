@@ -59,7 +59,7 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 			sb.append("public class " + node.name.name + "{\n");
 			
 			// begin invoke method
-			sb.append("public static plaid.fastruntime.PlaidObject invoke$plaid(");
+			sb.append("public static plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_METHOD_NAME + "(");
 			val addComma = fn(arg1) => { arg1.name.name + "," };
 			if (node.arguments.size() > 0) {
 				val argStringList = node.arguments.map(addComma);
@@ -76,7 +76,7 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 			//begin main method
 			if(node.arguments.size() == 0) {
 				sb.append("public static void main(String[] args) {\n");
-				sb.append("invoke$plaid();\n");
+				sb.append("" + NamingConventions.GENERATED_METHOD_NAME + "();\n");
 				sb.append("}\n"); // end main method
 			};
 			
@@ -87,12 +87,55 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 		}
 		case ParsedConcreteStateDecl {
 			LOG("generating code for top-level concrete state decl");
+			sb.append("package " + packageName + ";\n");
+			sb.append("public class " + node.name.name + "{\n");
+			
+			//generate methods and field
+			match(node.stateBinding) {
+				case ParsedDeclList {
+					node.stateBinding.decls.map( fn(innerDecl) => { codegenInnerDecl(innerDecl, sb, idgen); } );
+				}
+				default {
+					ERROR("Found unexpected state binding in conrete state declaration.");
+				}
+			};
+			
+			//generate static field containing PlaidState
+			sb.append("public static final plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_STATE_NAME + ";\n");
+			
+			sb.append("}\n"); // end class
 		}
 		case ParsedConcreteStateDecl {
 			LOG("generating code for top-level concrete state val decl");
 		}
 		default {
 			ERROR("Found unexpected node as top-level decl");
+		}
+	}
+}
+
+method codegenInnerDecl(immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen) {
+	match (node) {
+		case ParsedConcreteMethodDecl {
+			// begin invoke method
+			sb.append("public static plaid.fastruntime.PlaidObject " + node.name.name + "(");
+		    
+		    sb.append("plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_THIS);
+		    if(node.arguments.size() > 0) {
+		    	sb.append(",");
+		    	val argsList = node.arguments.map(fn(arg1) => {" plaid.fastruntime.PlaidObject " + arg1.name.name});
+				sb.append(makeSeperatedString(argsList,","));
+		    };
+		    
+			sb.append(") {\n");
+			
+			//method body
+			codegenMethodBody(node.body, sb, idgen);
+			
+			sb.append("}\n"); // end invoke method
+		}
+		default {
+			ERROR("Found unexpected node as inner decl");
 		}
 	}
 }
@@ -257,6 +300,12 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 			sb.append("plaid.fastruntime.PlaidObject " + exprVarName + ";\n");
 			codegenStmt(node.expr, sb, idgen, exprVarName);
 			sb.append("final plaid.fastruntime.PlaidObject " + node.id.name + " = " + exprVarName + ";\n"); 
+		}
+		case ParsedIdentifier {
+			sb.append(y + " = " + node.name + ";\n");
+		}
+		default {
+			ERROR("Unexpected stmt node type,"+ node.nodeName() +" encountered.");
 		}
 	}
 }
