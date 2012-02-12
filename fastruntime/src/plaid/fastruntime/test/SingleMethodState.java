@@ -1,8 +1,5 @@
 package plaid.fastruntime.test;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-
 import junit.framework.Assert;
 
 import org.junit.Test;
@@ -21,25 +18,6 @@ public class SingleMethodState {
 		MethodValue mv = new MethodValue("doAddFive",1,"plaid/fastruntime/test/SingleMethodState");
 		DimensionValue dv = new DimensionValue("plaid/lang/StaticMethod", mv, null);
 		PlaidState ps = Util.DISPATCH_GEN.createStateInstance(dv);
-		Class<?>[] ifaces = ps.getClass().getInterfaces();
-		System.out.println(ifaces.length);
-		for(Class<?> iface : ifaces) {
-			System.out.println(iface.toString());
-		}
-		Method[] methods = ps.getClass().getMethods();
-		for (Method method : methods) {
-			int mod = method.getModifiers();				
-			if (Modifier.isPublic(mod)) {
-				System.out.print("public ");
-			}
-			if (Modifier.isPrivate(mod)) {
-				System.out.print("private ");
-			}
-			if (Modifier.isAbstract(mod)) {
-				System.out.print("abstract ");
-			}
-			System.out.print(method.getName() + "\n");
-		}
 		PlaidJavaObject returnedValue = (PlaidJavaObject) ((IdoAddFive$1$plaid)ps).doAddFive(Util.unit(), Util.integer(7));
 		//System.out.println(returnedValue.getJavaObject().toString());
 		Assert.assertEquals("12", returnedValue.getJavaObject().toString());
