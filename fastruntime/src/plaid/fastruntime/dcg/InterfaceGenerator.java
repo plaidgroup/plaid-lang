@@ -3,8 +3,6 @@ package plaid.fastruntime.dcg;
 import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceFilePath;
 import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceInternalName;
 import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceName;
-import static plaid.fastruntime.NamingConventions.getIdentifierName;
-import static plaid.fastruntime.dcg.DynamicClassLoader.DYNAMIC_CLASS_LOADER;
 
 import java.io.File;
 
@@ -54,15 +52,16 @@ public class InterfaceGenerator implements Opcodes{
 	
 	public Class<?> createInterfaceAsClass (String methodName, int numargs) {
 		final String className =  getGeneratedInterfaceInternalName(methodName, numargs);
-
+		final String qualifiedName = className.replace("/", "."); 
 		try {
-			Class<?> interfaceClass = DYNAMIC_CLASS_LOADER.loadClass(className);
-			System.out.println(className + " interface already exists");
+			ClassLoader cl = this.getClass().getClassLoader();
+			Class<?> interfaceClass = cl.loadClass(qualifiedName);
+			System.out.println(qualifiedName + " interface already exists");
 			return interfaceClass;
 		} catch(ClassNotFoundException e) {
-			System.out.println(className + " interface doesn't exist");
+			System.out.println(qualifiedName + " interface doesn't exist");
 			byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
-			Class<?> interfaceClass = DYNAMIC_CLASS_LOADER.createClass(className, interfacebytes);
+			Class<?> interfaceClass = ClassInjector.defineClass(qualifiedName, interfacebytes, 0, interfacebytes.length);
 			return interfaceClass;
 		}
 	}

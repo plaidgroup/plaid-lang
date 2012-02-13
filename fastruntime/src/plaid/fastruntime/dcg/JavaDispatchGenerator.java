@@ -64,7 +64,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			Collection<String> ifaces = new ArrayList<String>();
 			for (MethodSig mSig : methodMap.keySet()) {
 				ifaces.add(mSig.interfaceName());
-				Util.INTERFACE_GEN.createInterfaceAsClass(mSig.name,mSig.numArgs+1);
+				Util.INTERFACE_GEN.createInterfaceAsClass(mSig.name,mSig.numArgs);
 			}
 			
 			// generate class
@@ -139,11 +139,11 @@ public class JavaDispatchGenerator implements Opcodes {
 					mv.visitInsn(ARETURN);
 					mv.visitLabel(l2);
 					mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/ClassCastException"});
-					mv.visitVarInsn(ASTORE, numArgs+2);
+					mv.visitVarInsn(ASTORE, numArgs+1);
 					mv.visitTypeInsn(NEW, "plaid/fastruntime/errors/PlaidInternalException");
 					mv.visitInsn(DUP);
 					mv.visitLdcInsn("Java state method called on non-java object.");
-					mv.visitVarInsn(ALOAD, numArgs+2);
+					mv.visitVarInsn(ALOAD, numArgs+1);
 					mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/errors/PlaidInternalException", "<init>", "(Ljava/lang/String;Ljava/lang/Throwable;)V");
 					mv.visitInsn(ATHROW);
 					mv.visitMaxs(0, 0); //calculated
@@ -244,7 +244,7 @@ public class JavaDispatchGenerator implements Opcodes {
 		}
 		
 		public String interfaceName() {
-			return NamingConventions.getGeneratedInterfaceInternalName(this.name,this.numArgs+1);
+			return NamingConventions.getGeneratedInterfaceInternalName(this.name,this.numArgs);
 		}
 		public String toString() {
 			return this.name + "(" + this.numArgs + ")";
