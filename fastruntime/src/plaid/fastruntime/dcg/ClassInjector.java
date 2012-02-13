@@ -1,5 +1,7 @@
 package plaid.fastruntime.dcg;
 
+import java.io.FileOutputStream;
+
 
 // NEED TO SWITCH RESTRICTED ACCESS CHECK TO WARNINGS
 // Java -> Compiler -> Errors/Warnings -> Deprecated and restricted API -> Forbidden reference (access rule)
@@ -39,5 +41,18 @@ public final class ClassInjector {
 	
 	public static Class<?> defineClass(String name, byte[] b, int off, int len) {
 		return UNSAFE.defineClass(name, b, off, len);
+	}
+	
+	//For debugging purposes
+	// use javap -c <className> to read the bytecode
+	public static void writeClass(byte[] bytes, String fileName) {
+		try {
+			FileOutputStream out = new FileOutputStream(fileName);
+			out.write(bytes);
+			out.flush();
+			out.close();
+		} catch (Throwable t) {
+			throw new RuntimeException(t);
+		}
 	}
 }

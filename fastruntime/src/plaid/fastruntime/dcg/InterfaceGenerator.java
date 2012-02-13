@@ -25,7 +25,7 @@ public class InterfaceGenerator implements Opcodes{
 		//check if interface already exists in file system
 		try {
 			this.getClass().getClassLoader().loadClass(getGeneratedInterfaceName(methodName, numargs));
-			System.out.println("Interface already exists");
+			//System.out.println("Interface already exists");
 			//TODO: Check if interface exists without catching an exception
 		} catch(ClassNotFoundException e) {
 			byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
@@ -56,10 +56,10 @@ public class InterfaceGenerator implements Opcodes{
 		try {
 			ClassLoader cl = this.getClass().getClassLoader();
 			Class<?> interfaceClass = cl.loadClass(qualifiedName);
-			System.out.println(qualifiedName + " interface already exists");
+			//System.out.println(qualifiedName + " interface already exists");
 			return interfaceClass;
 		} catch(ClassNotFoundException e) {
-			System.out.println(qualifiedName + " interface doesn't exist");
+			//System.out.println(qualifiedName + " interface doesn't exist");
 			byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
 			Class<?> interfaceClass = ClassInjector.defineClass(qualifiedName, interfacebytes, 0, interfacebytes.length);
 			return interfaceClass;
