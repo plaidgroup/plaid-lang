@@ -1,7 +1,5 @@
 package plaid.fastruntime.dcg;
 
-import static plaid.fastruntime.dcg.DynamicClassLoader.DYNAMIC_CLASS_LOADER;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -58,7 +56,7 @@ public class StorageGenerator implements Opcodes {
 		
 		String className = NamingConventions.getGeneratedStorageInternalName(fields);
 		try {
-			Class<?> storageClass = DYNAMIC_CLASS_LOADER.loadClass(className);
+			Class<?> storageClass = this.getClass().getClassLoader().loadClass(className);
 			System.out.println(className + " interface already exists");
 			return storageClass;
 		} catch(ClassNotFoundException e) {
@@ -153,7 +151,7 @@ public class StorageGenerator implements Opcodes {
 			cw.visitEnd();
 			
 			byte[] storageBytes = cw.toByteArray();
-			Class<?> storageClass = DYNAMIC_CLASS_LOADER.createClass(className, storageBytes);
+			Class<?> storageClass = ClassInjector.defineClass(className, storageBytes, 0, storageBytes.length);
 			return storageClass;
 		}
 	}

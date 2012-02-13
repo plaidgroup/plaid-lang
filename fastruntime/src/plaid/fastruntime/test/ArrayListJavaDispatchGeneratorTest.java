@@ -1,7 +1,5 @@
 package plaid.fastruntime.test;
 
-import static org.junit.Assert.*;
-
 import java.util.ArrayList;
 
 import junit.framework.Assert;
@@ -9,7 +7,11 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import plaid.fastruntime.PlaidJavaObject;
+import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.Util;
+
+import plaid.generated.Iget$1$plaid;
+import plaid.generated.Iadd$1$plaid;
 
 public class ArrayListJavaDispatchGeneratorTest {
 
@@ -19,6 +21,22 @@ public class ArrayListJavaDispatchGeneratorTest {
 		PlaidJavaObject alPlaid = Util.JAVA_GEN.createPlaidJavaObject(al);
 		boolean test = alPlaid.getJavaObject() instanceof ArrayList;
 		Assert.assertTrue(test);
+	}
+	
+	@Test
+	public void test2() {
+		ArrayList<PlaidObject> al = new ArrayList<PlaidObject>();
+		PlaidJavaObject alPlaid = Util.JAVA_GEN.createPlaidJavaObject(al);
+		PlaidObject stringToAdd = Util.string("test");
+		Class<?> alDispatch = alPlaid.getDispatch().getClass();
+		for(Class<?> iface : alDispatch.getInterfaces()) {
+			System.out.println(iface.getSimpleName());
+		}
+		((Iadd$1$plaid)alPlaid.getDispatch()).add(alPlaid, stringToAdd);
+		PlaidObject returned = ((Iget$1$plaid)alPlaid.getDispatch()).get(alPlaid, stringToAdd);
+		Assert.assertTrue("returned value is not PlaidJavaObject", returned instanceof PlaidJavaObject);
+		Object javaReturned = ((PlaidJavaObject) returned).getJavaObject();
+		Assert.assertEquals("returned value is not the same string we put in", javaReturned , "test");
 	}
 
 }
