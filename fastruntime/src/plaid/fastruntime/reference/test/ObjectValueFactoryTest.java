@@ -11,8 +11,8 @@ public class ObjectValueFactoryTest {
 	public void addTwoMethodsToTaggedState() {
 		ObjectValueFactory ovf = new ObjectValueFactory();
 		ovf.tag("testTag");
-		ovf.method("foo", 0, "plaid/lang/Foo");
-		ovf.method("bar", 0, "plaid/lang/Baz");
+		ovf.mthd("foo", 0, "plaid/lang/Foo");
+		ovf.mthd("bar", 0, "plaid/lang/Baz");
 		ObjectValue expected = ovf.value();
 		ObjectValue actual = 
 				new DimensionValue("testTag", 
