@@ -4,7 +4,6 @@ import plaid.fastruntime.dcg.DispatchGenerator;
 import plaid.fastruntime.dcg.InterfaceGenerator;
 import plaid.fastruntime.dcg.JavaDispatchGenerator;
 import plaid.fastruntime.dcg.StorageGenerator;
-import plaid.lang.Bool$plaid;
 import plaid.lang.DPrintStream$plaid;
 import plaid.lang.Pint$plaid;
 import plaid.lang.String$plaid;
@@ -16,8 +15,6 @@ public class Util {
 		JAVA_GEN.preloadPlaidState(java.io.PrintStream.class, new DPrintStream$plaid());
 		JAVA_GEN.preloadPlaidState(java.lang.String.class, new String$plaid());
 		JAVA_GEN.preloadPlaidState(java.lang.Integer.class, new Pint$plaid());
-//		JAVA_GEN.preloadPlaidState(plaid.lang.Boolean$plaid.True.class, new Boolean$plaid(null));
-//		JAVA_GEN.preloadPlaidState(plaid.lang.Boolean$plaid.False.class, new Boolean$plaid(null));
 	}
 	public static final InterfaceGenerator INTERFACE_GEN = new InterfaceGenerator();
 	public static final StorageGenerator STORAGE_GEN = new StorageGenerator();
