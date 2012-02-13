@@ -1,13 +1,16 @@
 package plaid.fastruntime.reference;
 
+import plaid.fastruntime.MemberInfo;
 import fj.Ord;
 import fj.data.Set;
 
-public abstract class MemberValue extends SingleValue {
+public abstract class MemberValue extends SingleValue implements MemberInfo{
 	private final String name;
+	private String classInternalName;
 	
-	public MemberValue(String name) {
+	public MemberValue(String name, String classInternalName) {
 		this.name = name;
+		this.classInternalName = classInternalName;
 	}
 	
 	@Override
@@ -32,5 +35,10 @@ public abstract class MemberValue extends SingleValue {
 	@Override
 	public Set<String> getInnerTags() {
 		return Set.empty(Ord.stringOrd);
+	}
+	
+	@Override
+	public String getStaticClassInternalName() {
+		return this.classInternalName;
 	}
 }
