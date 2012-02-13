@@ -182,6 +182,29 @@ method codegenInnerDecl(immutable ParsedDecl node,  shared StringBuilder sb, sha
 			
 			sb.append("}\n"); // end invoke method
 		}
+		case ParsedConcreteFieldDecl {
+			// generate static field to contain initialization code for fields.
+			// begin invoke method
+			sb.append("public static plaid.fastruntime.PlaidFieldInitializer " + node.name.name + ";\n"); // field declaration
+			
+			//preliminiaries
+			sb.append("static {\n");
+			sb.append(node.name.name + " = new plaid.fastruntime.PlaidFieldInitializer() { \n");
+			sb.append("@Override\n");
+			sb.append("public plaid.fastruntime.PlaidObject invoke$plaid() {\n");
+			
+			//body of invoke, generate code for expression, return the value
+			val exprVarName = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + exprVarName + ";\n");
+			codegenStmt(node.expression, sb, idgen, exprVarName);
+			sb.append("return " + exprVarName + ";\n");
+			
+			//finalize
+			sb.append("}\n"); // end invoke$plaidmethod
+			sb.append("};\n"); // end FieldInitializer anonymous class
+			sb.append("}\n"); // end static
+			
+		}
 		default {
 			ERROR("Found unexpected node as inner decl");
 		}
@@ -202,10 +225,16 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 	match(node) {
 		case ParsedDereference {
 			LOG("generating code for dereference");
-			//TODO: check if left is a Java class
 			val symbolLeft = symbolForAST(node.left);
 			val symbolRight = symbolForAST(node.right);
-			match(symbolLeft.value) {
+			var actualLeftSymbol = "";
+			//TODO: remove this once symbols are given for this
+			ifElse(node.left.name.equals("this")) { 
+				actualLeftSymbol = new VariableSymbol{name = "this"; var declaration = node.left;};			
+			} {
+				actualLeftSymbol = symbolLeft.value;
+			};
+			match(actualLeftSymbol) {
 				case JavaClassSymbol {
 					match(symbolRight) {
 						case Some {
@@ -230,6 +259,23 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 							ERROR("Found no symbol for the right side of a dereference of Java class.");
 						}
 					}
+				}
+				case VariableSymbol {
+					var leftName = "";
+					ifElse(node.left.name.equals("this")) {
+						leftName = NamingConventions.GENERATED_THIS;
+					} {
+						leftName = node.left.name;
+					};
+					val getterName = NamingConventions.getGetterName(node.right.name);
+					plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
+					val ifaceName = NamingConventions.getGeneratedInterfaceFullyQualifiedName(getterName, 0);
+					sb.append(y + " = ");
+					sb.append("("); // paretheses around casted object
+					sb.append("(" + ifaceName + ")");
+					sb.append(leftName);
+					sb.append(")"); // end parentheses around casted object  
+					sb.append("." + NamingConventions.getGetterName(node.right.name) + "();\n");
 				}
 				default {
 					ERROR("Unexpected Symbol type for left of dereference.");
