@@ -8,12 +8,11 @@ import fj.data.List;
 public final class MethodValue extends MemberValue implements MethodInfo {
 
 	private int numArgs;
-	private String classInternalName;
+	
 	
 	public MethodValue(String name, int numArgs, String classInternalName) {
-		super(name);
+		super(name, classInternalName);
 		this.numArgs = numArgs;
-		this.classInternalName = classInternalName;
 	}
 
 	@Override
@@ -39,11 +38,6 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	public List<MethodInfo> getMethods() {
 		//the fact that Java requires the MethodInfo cast is annoying
 		return List.single((MethodInfo)this);
-	}
-
-	@Override
-	public String getStaticClassInternalName() {
-		return this.classInternalName;
 	}
 
 	@Override
