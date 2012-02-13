@@ -468,6 +468,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
     override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> visit ConcreteMethodDecl");
+		var immutable Boolean needsThisSymbol = true;
 
         match (this.currentState.peek() ) {
             case Some {
@@ -481,6 +482,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 // top level
                 //val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.packageSymbol);
                 val methodSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
+                needsThisSymbol = false; //top level methods do not have this bound
                 match (methodSymbol) {
                     case Some {
                         addSymbolForAST(node, methodSymbol.value);
@@ -523,8 +525,18 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             if ( item.name.name == "this") {
                 val ctx = this.stack.peek().value;
                 ctx.put(item.name.name, mySymbol);  
+                needsThisSymbol = false; //already mapped
             };
-         });
+        });
+        match (needsThisSymbol) {
+        	case True { //this symbol not declared in method, default one to add to the context
+        		val shared VariableSymbol thisSymbol = this.sf.makeVariableSymbol("this", node); //TODO: is the method decl the right node?
+        		val ctx = this.stack.peek().value;
+        		ctx.put("this", thisSymbol);
+        	}
+        	case False { /*no op*/ }
+        }; 
+        
         //node.name.accept(this);
 
         //node.body.accept(this);
