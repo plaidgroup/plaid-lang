@@ -20,12 +20,12 @@ public class DPrintStream$plaid extends AbstractPlaidState implements Iprintln$1
 	public PlaidObject println(PlaidObject thisVar, PlaidObject other) {
 		try {
 			PrintStream ps = ((PrintStream) ((PlaidJavaObject) thisVar).getJavaObject());
-			String second = ((String) ((PlaidJavaObject) other).getJavaObject());
+			String second = ((PlaidJavaObject) other).getJavaObject().toString();
 			ps.println(second);
 			return Util.unit();
 			
 		} catch (Exception e) {
-			throw new PlaidIllegalArgumentException("string concatenation failed", e.getCause());
+			throw new PlaidIllegalArgumentException("string printing failed", e.getCause());
 		}
 	}
 	
