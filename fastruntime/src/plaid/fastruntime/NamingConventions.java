@@ -15,14 +15,20 @@ public class NamingConventions {
 	public static final String GENERATED_METHOD_NAME = "invoke" + GENERATED_SUFFIX;
 	public static final String GENERATED_STATE_NAME = "theState" + GENERATED_SUFFIX;
 	public static final String GENERATED_THIS = "this" + GENERATED_SUFFIX;
+	public static final String GENERATED_GET_PREFIX = "get";
 	
 	public static final String PLAID_OBJECT_DESCRIPTOR = "Lplaid/fastruntime/PlaidObject;";
+	
+	public static final String getGetterName(String fieldName) {
+		return GENERATED_GET_PREFIX + fieldName + GENERATED_SUFFIX;
+	}
 	
 	public static final String getGeneratedInterfaceSimpleName(String method, int numArgs) {
 		return GENERATED_INTERFACES_PREFIX + 
 		method + "$" + numArgs +
 		GENERATED_SUFFIX;
 	}
+	
 	
 	public static final String getGeneratedStorageSimpleName(List<P2<Boolean, String>> fields) {
 		StringBuilder storageName = new StringBuilder(GENERATED_STORAGE_PREFIX);
@@ -41,6 +47,10 @@ public class NamingConventions {
 	public static final String getGeneratedInterfaceInternalName(String method, int numArgs) {
 		return GENERATED_PKG + "/" + 
 		getGeneratedInterfaceSimpleName(method, numArgs);
+	}
+	
+	public static final String getGeneratedInterfaceFullyQualifiedName(String method, int numArgs) {
+		return getGeneratedInterfaceInternalName(method, numArgs).replace('/', '.');
 	}
 	
 	public static final String getGeneratedStorageInternalName(List<P2<Boolean, String>> fields) {
