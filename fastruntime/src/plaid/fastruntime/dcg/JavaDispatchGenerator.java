@@ -165,7 +165,9 @@ public class JavaDispatchGenerator implements Opcodes {
 			cw.visitEnd();
 			try {
 				byte[] b = cw.toByteArray();
-				Class<?> plaidStateClass = ClassInjector.defineClass(name, cw.toByteArray(), 0, b.length);
+				//ClassInjector.writeClass(b, "/Users/kbn/Documents/test.class");
+				
+				Class<?> plaidStateClass = ClassInjector.defineClass(name, b, 0, b.length);
 				result =  (PlaidState)plaidStateClass.newInstance();
 				javaStateCache.put(javaClass, result);
 			} catch (InstantiationException e) {
@@ -207,6 +209,7 @@ public class JavaDispatchGenerator implements Opcodes {
 	
 	private void unbox(Type type, MethodVisitor mv) {
 		if (type.getSort() == Type.BOOLEAN) {
+			mv.visitTypeInsn(CHECKCAST, "java/lang/Boolean");
 			mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Boolean", "booleanValue", "()Z");
 		} else if (type.getSort() == Type.INT){
 			mv.visitTypeInsn(CHECKCAST, "java/lang/Number");

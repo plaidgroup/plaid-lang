@@ -26,17 +26,18 @@ public class ArrayListJavaDispatchGeneratorTest {
 	@Test
 	public void test2() {
 		ArrayList<PlaidObject> al = new ArrayList<PlaidObject>();
+		PlaidObject stringToAdd = Util.string("Test");
 		PlaidJavaObject alPlaid = Util.JAVA_GEN.createPlaidJavaObject(al);
-		PlaidObject stringToAdd = Util.string("test");
+		PlaidObject indexToGet = Util.integer(0);
 		Class<?> alDispatch = alPlaid.getDispatch().getClass();
 		for(Class<?> iface : alDispatch.getInterfaces()) {
 			System.out.println(iface.getSimpleName());
 		}
 		((Iadd$1$plaid)alPlaid.getDispatch()).add(alPlaid, stringToAdd);
-		PlaidObject returned = ((Iget$1$plaid)alPlaid.getDispatch()).get(alPlaid, stringToAdd);
+		PlaidObject returned = ((Iget$1$plaid)alPlaid.getDispatch()).get(alPlaid, indexToGet);
 		Assert.assertTrue("returned value is not PlaidJavaObject", returned instanceof PlaidJavaObject);
 		Object javaReturned = ((PlaidJavaObject) returned).getJavaObject();
-		Assert.assertEquals("returned value is not the same string we put in", javaReturned , "test");
+		Assert.assertEquals("returned value is not the same string we put in", javaReturned , "Test");
 	}
 
 }
