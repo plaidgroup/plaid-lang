@@ -1,13 +1,14 @@
 package plaid.fastruntime.reference;
 
+import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.PlaidStorage;
 import fj.data.List;
 
-public final class FieldValue extends MemberValue {
+public final class FieldValue extends MemberValue implements FieldInfo {
 
-	public FieldValue(String name) {
-		super(name);
+	public FieldValue(String name, String classInternalName) {
+		super(name, classInternalName);
 	}
 	
 	@Override

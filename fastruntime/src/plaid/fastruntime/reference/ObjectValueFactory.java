@@ -34,13 +34,20 @@ public class ObjectValueFactory {
 	
 	/**
 	 * Name is strangely spelled to avoid collision with plaid keyword.
-	 * @param name
-	 * @param numArgs
-	 * @param fullyQualifiedClassName
 	 */
 	public void mthd(String name, int numArgs, String fullyQualifiedClassName) {
 		String internalClassName = fullyQualifiedClassName.replace('.', '/');
 		MethodValue toAdd = new MethodValue(name, numArgs, internalClassName);
+		member(fullyQualifiedClassName, toAdd);
+	}
+
+	public void field(String name, String fullyQualifiedClassName) {
+		String internalClassName = fullyQualifiedClassName.replace('.', '/');
+		FieldValue toAdd = new FieldValue(name, internalClassName);
+		member(fullyQualifiedClassName, toAdd);
+	}
+	
+	private void member(String internalClassName, MemberValue toAdd) {	
 		if (this.currentValue instanceof DimensionValue) {
 			DimensionValue currentDV = (DimensionValue) this.currentValue;
 			AbstractObjectValue newInnerValue;
@@ -61,6 +68,7 @@ public class ObjectValueFactory {
 					"It's type is " + this.currentValue.getClass().getCanonicalName());
 		}
 	}
+	
 	
 	public ObjectValue value() {
 		// QUESTION: should we kill the object factory after returning this current value to ensure
