@@ -1,6 +1,5 @@
 package plaid.lang;
 
-import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
@@ -22,8 +21,8 @@ public class String$plaid extends AbstractPlaidState
 						  			 Isubstring$2$plaid
 {
 
-	public String$plaid(ObjectValue metadata) {
-		super(metadata);
+	public String$plaid() {
+		super(null);
 	}
 
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject other) {

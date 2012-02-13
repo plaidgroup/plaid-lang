@@ -1,18 +1,23 @@
 package plaid.fastruntime;
 
-import plaid.fastruntime.PlaidObject;
-import plaid.fastruntime.dcg.*;
+import plaid.fastruntime.dcg.DispatchGenerator;
+import plaid.fastruntime.dcg.InterfaceGenerator;
+import plaid.fastruntime.dcg.JavaDispatchGenerator;
+import plaid.fastruntime.dcg.StorageGenerator;
+import plaid.lang.Boolean$plaid;
 import plaid.lang.DPrintStream$plaid;
+import plaid.lang.Integer$plaid;
 import plaid.lang.String$plaid;
-import plaid.lang.Integer32$plaid;
 
 public class Util {
 	
 	public static final JavaDispatchGenerator JAVA_GEN = new JavaDispatchGenerator();
 	static {
-		JAVA_GEN.preloadPlaidState(java.io.PrintStream.class, new DPrintStream$plaid(null));
-		JAVA_GEN.preloadPlaidState(java.lang.String.class, new String$plaid(null));
-		JAVA_GEN.preloadPlaidState(java.lang.Integer.class, new Integer32$plaid());
+		JAVA_GEN.preloadPlaidState(java.io.PrintStream.class, new DPrintStream$plaid());
+		JAVA_GEN.preloadPlaidState(java.lang.String.class, new String$plaid());
+		JAVA_GEN.preloadPlaidState(java.lang.Integer.class, new Integer$plaid());
+//		JAVA_GEN.preloadPlaidState(plaid.lang.Boolean$plaid.True.class, new Boolean$plaid(null));
+//		JAVA_GEN.preloadPlaidState(plaid.lang.Boolean$plaid.False.class, new Boolean$plaid(null));
 	}
 	public static final InterfaceGenerator INTERFACE_GEN = new InterfaceGenerator();
 	public static final StorageGenerator STORAGE_GEN = new StorageGenerator();

@@ -2,7 +2,6 @@ package plaid.lang;
 
 import java.io.PrintStream;
 
-import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.Util;
@@ -12,8 +11,8 @@ import plaid.generated.Iprintln$1$plaid;
 
 public class DPrintStream$plaid extends AbstractPlaidState implements Iprintln$1$plaid {
 
-	public DPrintStream$plaid(ObjectValue metadata) {
-		super(metadata);
+	public DPrintStream$plaid() {
+		super(null);
 	}
 
 	@Override
