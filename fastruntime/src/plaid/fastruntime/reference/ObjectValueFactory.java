@@ -39,7 +39,7 @@ public class ObjectValueFactory {
 	 * @param fullyQualifiedClassName
 	 */
 	public void mthd(String name, int numArgs, String fullyQualifiedClassName) {
-		String internalClassName = fullyQualifiedClassName.replace('/', '.');
+		String internalClassName = fullyQualifiedClassName.replace('.', '/');
 		MethodValue toAdd = new MethodValue(name, numArgs, internalClassName);
 		if (this.currentValue instanceof DimensionValue) {
 			DimensionValue currentDV = (DimensionValue) this.currentValue;
