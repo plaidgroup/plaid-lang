@@ -32,8 +32,15 @@ public class ObjectValueFactory {
 		}
 	}
 	
-	public void method(String name, int numArgs, String fullyQualifiedClassName) {
-		MethodValue toAdd = new MethodValue(name, numArgs, fullyQualifiedClassName);
+	/**
+	 * Name is strangely spelled to avoid collision with plaid keyword.
+	 * @param name
+	 * @param numArgs
+	 * @param fullyQualifiedClassName
+	 */
+	public void mthd(String name, int numArgs, String fullyQualifiedClassName) {
+		String internalClassName = fullyQualifiedClassName.replace('/', '.');
+		MethodValue toAdd = new MethodValue(name, numArgs, internalClassName);
 		if (this.currentValue instanceof DimensionValue) {
 			DimensionValue currentDV = (DimensionValue) this.currentValue;
 			AbstractObjectValue newInnerValue;

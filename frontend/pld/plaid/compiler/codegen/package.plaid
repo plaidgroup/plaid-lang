@@ -90,29 +90,77 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 			sb.append("package " + packageName + ";\n");
 			sb.append("public class " + node.name.name + "{\n");
 			
+			val tag = java.util.UUID.randomUUID().toString();
+
+
+			val fullyQualifiedClassName = packageName + "." + node.name.name;
+			val sbStateInitializer = java.lang.StringBuilder.new();
+			
+			sbStateInitializer.append("plaid.fastruntime.reference.ObjectValueFactory ovf = ");
+			sbStateInitializer.append("new plaid.fastruntime.reference.ObjectValueFactory();\n");
+			sbStateInitializer.append("ovf.tag(\"" + tag + "\");\n");
+			
 			//generate methods and field
 			match(node.stateBinding) {
+				
 				case ParsedDeclList {
-					node.stateBinding.decls.map( fn(innerDecl) => { codegenInnerDecl(innerDecl, sb, idgen); } );
+					node.stateBinding.decls.map( fn(innerDecl) => { 
+						codegenInnerDecl(innerDecl, sb, idgen);
+						match(innerDecl) {
+							case ParsedConcreteMethodDecl {
+								sbStateInitializer.append("ovf.mthd(\"" + innerDecl.name.name + "\"," 
+									+ innerDecl.arguments.size() + ",\"" + fullyQualifiedClassName + "\");\n");
+							}
+							case ParsedConcreteFieldDecl {
+								//TODO: add fields
+							}
+							default {
+								ERROR("Unsupported inner decl ast node. Node name is " + innerDecl.nodeName());
+							}
+						}
+					} );
+				}
+				case ParsedWith {
+					// add List
+				}
+				case ParsedFreeze {
+					ERROR("Code generator does not support freeze yet. Please check back later.");
 				}
 				default {
-					ERROR("Found unexpected state binding in conrete state declaration.");
+					ERROR("Found unexpected state binding in concrete state declaration.");
 				}
 			};
 			
+			match(node.caseOf) {
+				case ParsedEmptyQualifiedIdentifier {
+					//do nothing
+				}
+				case ParsedQualifiedIdentifier {
+					// add parent to object value
+				}
+				default {
+					ERROR("Found unexpected case of statement in concrete state declaration.");
+				}
+			};
+			
+			sbStateInitializer.append("plaid.fastruntime.ObjectValue ov = ovf.value();\n");
+			sbStateInitializer.append("" + NamingConventions.GENERATED_STATE_NAME + " = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(ov);\n");
+			
 			//generate static field containing PlaidState
-			sb.append("public static final plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_STATE_NAME + ";\n");
+			sb.append("public static final plaid.fastruntime.PlaidState " + NamingConventions.GENERATED_STATE_NAME + ";\n");
+			sb.append("static {\n");
+			sb.append(sbStateInitializer.toString());
+			sb.append("}\n");
 			
 			sb.append("}\n"); // end class
-		}
-		case ParsedConcreteStateDecl {
-			LOG("generating code for top-level concrete state val decl");
 		}
 		default {
 			ERROR("Found unexpected node as top-level decl");
 		}
 	}
 }
+
+
 
 method codegenInnerDecl(immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen) {
 	match (node) {
@@ -304,8 +352,39 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 		case ParsedIdentifier {
 			sb.append(y + " = " + node.name + ";\n");
 		}
+		case ParsedNewInstance {
+			val exprVarName = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidState " + exprVarName + ";\n");
+			codegenStateExpr(node.stateExpr, sb, idgen, exprVarName);
+			sb.append(y + " = " + exprVarName + ".instantiate();\n");
+		}
 		default {
 			ERROR("Unexpected stmt node type,"+ node.nodeName() +" encountered.");
+		}
+	}
+}
+
+method codegenStateExpr(immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
+	match(node) {
+		case ParsedStateRef {
+			match(node.stateExpr) {
+				case ParsedIdentifier {
+					val symbolId = symbolForAST(node.stateExpr).getValue();
+					match(symbolId) {
+						case StateSymbol {
+							val parent = symbolId.owner;
+							//TODO: this will throw an error if class has no parent package
+							var packageQualifiedIdentifier = parent.getQualifiedIdentifier();
+							val packageName = makeSeperatedString(
+										packageQualifiedIdentifier.identifiers.map(fn(id) => {id.name}), ".");
+							sb.append(y + " = " + packageName + "." + node.stateExpr.name + "." + NamingConventions.GENERATED_STATE_NAME + ";\n");
+						}
+						default {
+							ERROR("Unepected symbol type for state reference. Expected State Symbol, got " + symbolId.symbolType());
+						}
+					}
+				}
+			}
 		}
 	}
 }
