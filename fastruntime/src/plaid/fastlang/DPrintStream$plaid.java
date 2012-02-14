@@ -1,4 +1,4 @@
-package plaid.lang;
+package plaid.fastlang;
 
 import java.io.PrintStream;
 
