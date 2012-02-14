@@ -29,6 +29,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
     var shared Resolver resolver;
     var shared Reporter reporter;
     var hasErrors = false;
+    var job;
 
     method immutable Boolean run(unique Job job) {
         match (job) {
@@ -39,14 +40,9 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         this.sourceFile = job.source.path;
                         this.reporter   = job.reporter;
                         this.resolver   = job.resolver;
-            
-                        //val viewer1 = new ParsedASTViewerVisitor{ override val title = "[BEFORE]" + job.source.path.toString();};
-                        //job.ast.value.accept(viewer1);
-            
+
+                        this.job = job;
                         job.ast = makeSome(job.ast.value.rewrite(this));
-            
-                        //val viewer2 = new ParsedASTViewerVisitor{ override val title = " [AFTER]" + job.source.path.toString();};
-                        //job.ast.value.accept(viewer2);
             
                         DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> finished");
                         !this.hasErrors;
@@ -936,7 +932,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         }
                     }
                     default {
-                        ABORT("Cannot call method on non-nominal structure.");
+                        this.job.addError(node.token, "Cannot call method on non-nominal structure: " + leftStructOpt.value.toString());
+                        ABORT_WITH_JOB(job);
                     }
                 }
             }
