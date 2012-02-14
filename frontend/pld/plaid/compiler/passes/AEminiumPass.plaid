@@ -185,18 +185,18 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
     }
 
  
-    method shared JoinInformation findNextJoin(shared SplitInformation splitInfo) {
+    method immutable Option/*<JoinInformation>*/ findNextJoin(shared SplitInformation splitInfo) {
         val joins = getJoinInformation(splitInfo.rdeps);
         ifElse ( joins.size() > 0 ) {
             if ( joins.size() != 1 ) { ABORT("<AEminiumPass> found too many joins.") };
-            joins.iterator().next()
+            makeSome(joins.iterator().next())
         }{
             val splits = getSplitInformation(splitInfo.rdeps);
             ifElse ( splits.size() > 0 ) {
                 if ( splits.size() != 1 ) { ABORT("<AEminiumPass> found too many splits.") };
                 findNextJoin(splits.iterator().next());
             }{
-                ABORT("<AEminiumPass> couldn't find split information to continue");
+                new None;
             }
         }
     }
@@ -230,6 +230,35 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                 case None { ABORT("<AEminiumPass> cannot find previous split ")}
             }
         }
+    } 
+ 
+    method void fixNonsenseSymetricJoinSplitWithoutLowerJoin(shared JoinInformation upperJoin,
+                                                             shared SplitInformation splitInfo) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> fixNonsenseSymetricJoinSplitWithoutLowerJoin");
+        DEBUG(DEBUG_PRIO_MEDIUM, "               upperJoin = "+ upperJoin.toString());
+        DEBUG(DEBUG_PRIO_MEDIUM, "               splitInfo = "+ splitInfo.toString());
+        
+        val upperJoinDepsIt = upperJoin.deps.iterator();
+        while { upperJoinDepsIt.hasNext() }{
+            val shared DependencyInformation upperJoinDep = upperJoinDepsIt.next();
+    
+            // remove join from upper dependencies 
+            upperJoinDep.rdeps.remove(upperJoin);
+        };
+            
+        // make make items that dependend on split depend on next higher split 
+        val previousSplit = findPreviousSplit(upperJoin, upperJoin.symbol);
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPasss> found previous split " + previousSplit );
+        val splitRDepsIt = splitInfo.rdeps.iterator();
+        while { splitRDepsIt.hasNext() }{
+             val shared DependencyInformation splitRDep = splitRDepsIt.next();
+             
+             // remove split from reverse dependencies
+             splitRDep.deps.remove(splitInfo);
+             
+             // connect splits dependents dependent on joins
+             addDependency(splitRDep, previousSplit);
+        };
     } 
  
     method void fixNonsenseSymetricJoinSplit(shared JoinInformation upperJoin,
@@ -279,8 +308,12 @@ state AEminiumPass case of Pass = ParsedLeafVisitor with {
                                     match (depInfo) { case UniquePermission { ABORT("<AEminium found unqiue nonsense join/split in symetric pass -> run after removeNonsenseUniqueJoinSplit") } default {} };
                                     DEBUG(DEBUG_PRIO_HIGH, "<AEminiumMode> Found symetric nonsense join/split");
                                     val splitInfo = depInfo; 
-                                    val lowerJoin = findNextJoin(splitInfo);
-                                    fixNonsenseSymetricJoinSplit(upperJoin, splitInfo, lowerJoin);
+                                    printLine(depInfo.toString());
+                                    val lowerJoinOpt = findNextJoin(splitInfo);
+                                    match ( lowerJoinOpt ) {
+                                        case Some { fixNonsenseSymetricJoinSplit(upperJoin, splitInfo, lowerJoinOpt.value) } 
+                                        case None { fixNonsenseSymetricJoinSplitWithoutLowerJoin(upperJoin, splitInfo) } 
+                                    }
                                }
                             }
                             default { result.add(depInfo) }
