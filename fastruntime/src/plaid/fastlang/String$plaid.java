@@ -1,4 +1,4 @@
-package plaid.lang;
+package plaid.fastlang;
 
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;

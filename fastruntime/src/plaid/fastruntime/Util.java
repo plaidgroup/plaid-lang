@@ -1,12 +1,14 @@
 package plaid.fastruntime;
 
+import plaid.fastlang.DPrintStream$plaid;
+import plaid.fastlang.Pint$plaid;
+import plaid.fastlang.String$plaid;
+import plaid.fastlang.True$plaid;
+import plaid.fastlang.False$plaid;
 import plaid.fastruntime.dcg.DispatchGenerator;
 import plaid.fastruntime.dcg.InterfaceGenerator;
 import plaid.fastruntime.dcg.JavaDispatchGenerator;
 import plaid.fastruntime.dcg.StorageGenerator;
-import plaid.lang.DPrintStream$plaid;
-import plaid.lang.Pint$plaid;
-import plaid.lang.String$plaid;
 
 public class Util {
 	
@@ -27,7 +29,11 @@ public class Util {
 		return JAVA_GEN.createPlaidJavaObject(javaString);
 	}
 	public static PlaidObject bool(Boolean javaBool) {
-		return null;
+		if (javaBool) {
+			return True$plaid.TRUE_VALUE;
+		} else {
+			return False$plaid.FALSE_VALUE;
+		}
 	}
 	
 	public static PlaidObject integer(Integer javaInt) {
