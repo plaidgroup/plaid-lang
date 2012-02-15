@@ -1,0 +1,451 @@
+package plaid.compiler.codegen;
+
+import java.lang.StringBuilder;
+import java.lang.System;
+
+import plaid.ast.parsed.*;
+
+import plaid.compiler.COMPILER_CONFIGURATION;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_HIGH;
+import plaid.compiler.symbolForAST;
+
+import plaid.compiler.symbol.*;
+
+import plaid.collections.LinkedList;
+
+import plaid.fastruntime.NamingConventions;
+import plaid.fastruntime.CompilerUtil;
+import plaid.fastruntime.util.FileGen;
+
+method LOG (immutable String msg) {
+	DEBUG(DEBUG_PRIO_LOW, "<CodeGenPass> " + msg);
+}
+
+method ERROR(immutable String msg) {
+	plaid.compiler.ERROR("<CodeGenPass> INTERNAL ERROR: " + msg);
+}
+
+method codegenCU(immutable ParsedCompilationUnit node) {
+	val idGen = new IdGen;
+	LOG("generating code for ParsedCompilationUnit");
+	val qiPackage = node.packageName.identifiers.map( fn(id) => { id.name } );
+	val packageString = makeSeperatedString(qiPackage, ".");
+	val stringbuilderlist = node.decls.map( fn(item) => {val result = StringBuilder.new(); result} );
+	val declsSbList = node.decls.zip(stringbuilderlist);
+	//first = decl, second = StringBuilder
+	declsSbList.map( fn(item) => { codegenTopLevelDecl(item.first(), packageString, item.second(), idGen); } );
+	stringbuilderlist.map( fn(item) => { DEBUG(DEBUG_PRIO_HIGH, item.toString()); } );
+	
+	//create directories and files for java source output
+	declsSbList.map( fn(item) => {
+		val declName = item.first().name.name;
+		val sep = System.getProperty("file.separator");
+		val qiDir = makeSeperatedString(qiPackage, sep);
+		val outputDir = COMPILER_CONFIGURATION().tempDir;
+		val codeString = item.second().toString();
+		FileGen.createOutputFile(declName, outputDir, codeString, qiDir);
+	} );
+}
+
+method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen) {
+	LOG("generating code for Top Level Decl");
+	match(node) {
+		case ParsedConcreteMethodDecl {
+			LOG("generating code for top-level concrete method decl");
+			sb.append("package " + packageName + ";\n");
+			sb.append("public class " + node.name.name + "{\n");
+			
+			// begin invoke method
+			sb.append("public static plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_METHOD_NAME + "(");
+			val addComma = fn(arg1) => { arg1.name.name + "," };
+			if (node.arguments.size() > 0) {
+				val argStringList = node.arguments.map(addComma);
+				val argString = argStringList.reduce("", fn(s1,s2) => {s1 + s2});
+				sb.append(argString.substring(0, argString.length() - 1));
+			};
+			sb.append(") {\n");
+			
+			//method body
+			codegenMethodBody(node.body, sb, idgen);
+			
+			sb.append("}\n"); // end invoke method
+			
+			//begin main method
+			if(node.arguments.size() == 0) {
+				sb.append("public static void main(String[] args) {\n");
+				sb.append("" + NamingConventions.GENERATED_METHOD_NAME + "();\n");
+				sb.append("}\n"); // end main method
+			};
+			
+			sb.append("}\n"); // end class
+		}
+		case ParsedConcreteFieldDecl {
+			LOG("generating code for top-level concrete field decl");
+		}
+		case ParsedConcreteStateDecl {
+			LOG("generating code for top-level concrete state decl");
+			sb.append("package " + packageName + ";\n");
+			sb.append("public class " + node.name.name + "{\n");
+			
+			val tag = java.util.UUID.randomUUID().toString();
+
+
+			val fullyQualifiedClassName = packageName + "." + node.name.name;
+			val sbStateInitializer = java.lang.StringBuilder.new();
+			
+			sbStateInitializer.append("plaid.fastruntime.reference.ObjectValueFactory ovf = ");
+			sbStateInitializer.append("new plaid.fastruntime.reference.ObjectValueFactory();\n");
+			sbStateInitializer.append("ovf.tag(\"" + tag + "\");\n");
+			
+			//generate methods and field
+			match(node.stateBinding) {
+				
+				case ParsedDeclList {
+					node.stateBinding.decls.map( fn(innerDecl) => { 
+						codegenInnerDecl(innerDecl, sb, idgen);
+						match(innerDecl) {
+							case ParsedConcreteMethodDecl {
+								sbStateInitializer.append("ovf.mthd(\"" + innerDecl.name.name + "\"," 
+									+ innerDecl.arguments.size() + ",\"" + fullyQualifiedClassName + "\");\n");
+							}
+							case ParsedConcreteFieldDecl {
+								//TODO: add fields
+							}
+							default {
+								ERROR("Unsupported inner decl ast node. Node name is " + innerDecl.nodeName());
+							}
+						}
+					} );
+				}
+				case ParsedWith {
+					// add List
+				}
+				case ParsedFreeze {
+					ERROR("Code generator does not support freeze yet. Please check back later.");
+				}
+				default {
+					ERROR("Found unexpected state binding in concrete state declaration.");
+				}
+			};
+			
+			match(node.caseOf) {
+				case ParsedEmptyQualifiedIdentifier {
+					//do nothing
+				}
+				case ParsedQualifiedIdentifier {
+					// add parent to object value
+				}
+				default {
+					ERROR("Found unexpected case of statement in concrete state declaration.");
+				}
+			};
+			
+			sbStateInitializer.append("plaid.fastruntime.ObjectValue ov = ovf.value();\n");
+			sbStateInitializer.append("" + NamingConventions.GENERATED_STATE_NAME + " = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(ov);\n");
+			
+			//generate static field containing PlaidState
+			sb.append("public static final plaid.fastruntime.PlaidState " + NamingConventions.GENERATED_STATE_NAME + ";\n");
+			sb.append("static {\n");
+			sb.append(sbStateInitializer.toString());
+			sb.append("}\n");
+			
+			sb.append("}\n"); // end class
+		}
+		default {
+			ERROR("Found unexpected node as top-level decl");
+		}
+	}
+}
+
+
+
+method codegenInnerDecl(immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen) {
+	match (node) {
+		case ParsedConcreteMethodDecl {
+			// begin invoke method
+			sb.append("public static plaid.fastruntime.PlaidObject " + node.name.name + "(");
+		    
+		    sb.append("plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_THIS);
+		    if(node.arguments.size() > 0) {
+		    	sb.append(",");
+		    	val argsList = node.arguments.map(fn(arg1) => {" plaid.fastruntime.PlaidObject " + arg1.name.name});
+				sb.append(makeSeperatedString(argsList,","));
+		    };
+		    
+			sb.append(") {\n");
+			
+			//method body
+			codegenMethodBody(node.body, sb, idgen);
+			
+			sb.append("}\n"); // end invoke method
+		}
+		case ParsedConcreteFieldDecl {
+			// generate static field to contain initialization code for fields.
+			// begin invoke method
+			sb.append("public static plaid.fastruntime.PlaidFieldInitializer " + node.name.name + ";\n"); // field declaration
+			
+			//preliminiaries
+			sb.append("static {\n");
+			sb.append(node.name.name + " = new plaid.fastruntime.PlaidFieldInitializer() { \n");
+			sb.append("@Override\n");
+			sb.append("public plaid.fastruntime.PlaidObject invoke$plaid() {\n");
+			
+			//body of invoke, generate code for expression, return the value
+			val exprVarName = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + exprVarName + ";\n");
+			codegenStmt(node.expression, sb, idgen, exprVarName);
+			sb.append("return " + exprVarName + ";\n");
+			
+			//finalize
+			sb.append("}\n"); // end invoke$plaidmethod
+			sb.append("};\n"); // end FieldInitializer anonymous class
+			sb.append("}\n"); // end static
+			
+		}
+		default {
+			ERROR("Found unexpected node as inner decl");
+		}
+	}
+}
+	
+method codegenMethodBody(immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen) {
+	LOG("generating code for method body block expression");
+	val y = idgen.getId();
+	sb.append("plaid.fastruntime.PlaidObject " + y + ";\n");
+	node.statements.map( fn(item) => { codegenStmt(item, sb, idgen, y); } );
+	sb.append("return " + y + ";\n");
+}
+
+method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, 
+		immutable String y) {
+	LOG("generating code for statement");
+	match(node) {
+		case ParsedDereference {
+			LOG("generating code for dereference");
+			val symbolLeft = symbolForAST(node.left);
+			val symbolRight = symbolForAST(node.right);
+			var actualLeftSymbol = "";
+			//TODO: remove this once symbols are given for this
+			ifElse(node.left.name.equals("this")) { 
+				actualLeftSymbol = new VariableSymbol{name = "this"; var declaration = node.left;};			
+			} {
+				actualLeftSymbol = symbolLeft.value;
+			};
+			match(actualLeftSymbol) {
+				case JavaClassSymbol {
+					match(symbolRight) {
+						case Some {
+							match(symbolRight.value) {
+								case JavaStaticFieldSymbol  {
+									val classSymbol = symbolLeft.value;
+									val parent = classSymbol.owner;
+									
+									//TODO: this will throw an error if class has no parent package
+									var packageQualifiedIdentifier = parent.getQualifiedIdentifier();
+									val packageName = makeSeperatedString(
+										packageQualifiedIdentifier.identifiers.map(fn(id) => {id.name}), ".");
+									sb.append(y + " = plaid.fastruntime.Util.JAVA_GEN.createPlaidJavaObject(" + 
+										packageName +  "." + node.left.name + "." + node.right.name + ");\n");
+								}
+								default {
+									ERROR("Unexpected symbol for the right side of a dereference of Java class");
+								}
+							}
+						}
+						default {
+							ERROR("Found no symbol for the right side of a dereference of Java class.");
+						}
+					}
+				}
+				case VariableSymbol {
+					var leftName = "";
+					ifElse(node.left.name.equals("this")) {
+						leftName = NamingConventions.GENERATED_THIS;
+					} {
+						leftName = node.left.name;
+					};
+					val getterName = NamingConventions.getGetterName(node.right.name);
+					plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
+					val ifaceName = NamingConventions.getGeneratedInterfaceFullyQualifiedName(getterName, 0);
+					sb.append(y + " = ");
+					sb.append("("); // paretheses around casted object
+					sb.append("(" + ifaceName + ")");
+					sb.append(leftName);
+					sb.append(")"); // end parentheses around casted object  
+					sb.append("." + NamingConventions.getGetterName(node.right.name) + "();\n");
+				}
+				default {
+					ERROR("Unexpected Symbol type for left of dereference.");
+				}
+			}			
+		}
+		case ParsedApplication {
+			LOG("generating code for application");
+			val argumentExpr = node.argument;
+			match(argumentExpr) {
+				case ParsedArgumentExpr {
+					val yList = argumentExpr.args.map( fn(item) => { idgen.getId(); } );
+					yList.map( fn(yItem) => { sb.append("plaid.fastruntime.PlaidObject " + yItem + ";\n"); } );
+					val argsYs = argumentExpr.args.zip(yList);
+					argsYs.map( fn(item) => { codegenStmt(item.first(), sb, idgen, item.second()); } );
+					val functionExpr = node.function;
+					match(functionExpr) {
+						case ParsedDereference {
+							//generate code for method call
+							
+							// preliminaries
+							val receiverExpr = functionExpr.left;
+							var receiverString = "";
+							match(receiverExpr) {
+								case ParsedIdentifier {
+									// primitive case, no need to delegate to further code generation
+									receiverString = receiverExpr.name;
+								}
+								default {
+									// complex case need to delegate to codegenStmt
+									receiverString = idgen.getId();
+									sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
+									codegenStmt(receiverExpr, sb, idgen, receiverString);
+								}
+							};
+							val methodId = functionExpr.right;
+							
+							//assign result to y
+							sb.append(y + " = ");
+							
+							//generate interface
+							//plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
+							
+							//cast
+							sb.append("(");
+							sb.append("(" + NamingConventions.getGeneratedInterfaceName(methodId.name, yList.size()) + ")");
+							sb.append(receiverString);
+							sb.append(".getDispatch()");
+							sb.append(")");
+							//.<METHOD_NAME>(<ARGS>)
+							sb.append("." + methodId.name + "(");
+							sb.append(receiverString ); // receiver
+							if(yList.size() > 0) {
+								sb.append(",");
+							};
+							sb.append(makeSeperatedString(yList, ",")); //normal arguments
+							sb.append(");\n");
+						} 
+						case ParsedIdentifier {
+							//function application
+							sb.append(y +  " = " + functionExpr.name + ".invoke$plaid(");
+							sb.append(makeSeperatedString(yList, ","));
+							sb.append(");\n");
+						}
+						default {
+							ERROR("<CodeGenPass> Unexpected node type as function field of Application node");
+						}
+					}
+				}
+				default {
+					ERROR("<CodeGenPass> Unexpected node type as argument field of Application node");
+				}
+			};
+		}
+		case ParsedStringLiteral {
+			sb.append(y + " = plaid.fastruntime.Util.string(\"" + node.value + "\");\n");
+		}
+		case ParsedIntLiteral {
+			sb.append(y + " = plaid.fastruntime.Util.integer(" + node.value + ");\n");
+		}
+		case ParsedInfixOperatorExpr {
+			//preliminaries
+			val op = node.operator;
+			val methodName = convertOpStringToMethodName(op.name);
+			
+			// generate code for receiver
+			val receiverString = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
+			codegenStmt(node.left, sb, idgen, receiverString);
+			
+			//generate code for argument
+			val argId = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + argId + ";\n");
+			codegenStmt(node.right, sb, idgen, argId);
+			
+			
+			//assign result to y
+			sb.append(y + " = ");
+			//generate interface
+			//plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
+							
+			//cast
+			sb.append("(");
+			sb.append("(" + NamingConventions.getGeneratedInterfaceName(methodName, 1) + ")");
+			sb.append(receiverString);
+			sb.append(".getDispatch()");
+			sb.append(")");
+			//.<METHOD_NAME>(<ARGS>)
+			sb.append("." + methodName + "(");
+			sb.append(receiverString + ","); // receiver
+			sb.append(argId); //normal arguments
+			sb.append(");\n");
+		}
+		case ParsedVarDecl {
+			val exprVarName = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + exprVarName + ";\n");
+			codegenStmt(node.expr, sb, idgen, exprVarName);
+			sb.append("final plaid.fastruntime.PlaidObject " + node.id.name + " = " + exprVarName + ";\n"); 
+		}
+		case ParsedIdentifier {
+			sb.append(y + " = " + node.name + ";\n");
+		}
+		case ParsedNewInstance {
+			val exprVarName = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidState " + exprVarName + ";\n");
+			codegenStateExpr(node.stateExpr, sb, idgen, exprVarName);
+			sb.append(y + " = " + exprVarName + ".instantiate();\n");
+		}
+		default {
+			ERROR("Unexpected stmt node type,"+ node.nodeName() +" encountered.");
+		}
+	}
+}
+
+method codegenStateExpr(immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
+	match(node) {
+		case ParsedStateRef {
+			match(node.stateExpr) {
+				case ParsedIdentifier {
+					val symbolId = symbolForAST(node.stateExpr).getValue();
+					match(symbolId) {
+						case StateSymbol {
+							val parent = symbolId.owner;
+							//TODO: this will throw an error if class has no parent package
+							var packageQualifiedIdentifier = parent.getQualifiedIdentifier();
+							val packageName = makeSeperatedString(
+										packageQualifiedIdentifier.identifiers.map(fn(id) => {id.name}), ".");
+							sb.append(y + " = " + packageName + "." + node.stateExpr.name + "." + NamingConventions.GENERATED_STATE_NAME + ";\n");
+						}
+						default {
+							ERROR("Unepected symbol type for state reference. Expected State Symbol, got " + symbolId.symbolType());
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+method convertOpStringToMethodName(immutable String op) {
+	CompilerUtil.convertOpStringToMethodName(op);
+}
+	
+method makeSeperatedString(immutable LinkedList<String> stringList, immutable String sep) {
+	ifElse(stringList.size() > 0) {
+		val addSep = fn(s1, s2) => {s1 + sep + s2};
+		val toReturn = stringList.reduceLeft("", addSep);
+		toReturn.substring(1,toReturn.length());
+	}
+	{ //
+		"";
+	}
+}
