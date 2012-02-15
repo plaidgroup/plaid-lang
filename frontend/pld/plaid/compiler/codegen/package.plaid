@@ -235,23 +235,16 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 	match(node) {
 		case ParsedDereference {
 			LOG("generating code for dereference");
-			val symbolLeft = symbolForAST(node.left);
-			val symbolRight = symbolForAST(node.right);
-			var actualLeftSymbol = "";
-			//TODO: remove this once symbols are given for this
-			ifElse(node.left.name.equals("this")) { 
-				actualLeftSymbol = new VariableSymbol{name = "this"; var declaration = node.left;};			
-			} {
-				actualLeftSymbol = symbolLeft.value;
-			};
-			match(actualLeftSymbol) {
+			val symbolLeftOption = symbolForAST(node.left);
+			val symbolRightOption = symbolForAST(node.right);
+			var symbolLeft = symbolLeftOption.getValue();
+			match(symbolLeft) {
 				case JavaClassSymbol {
-					match(symbolRight) {
+					match(symbolRightOption) {
 						case Some {
-							match(symbolRight.value) {
+							match(symbolRightOption.getValue()) {
 								case JavaStaticFieldSymbol  {
-									val classSymbol = symbolLeft.value;
-									val parent = classSymbol.owner;
+									val parent = symbolLeft.owner;
 									
 									//TODO: this will throw an error if class has no parent package
 									var packageQualifiedIdentifier = parent.getQualifiedIdentifier();
@@ -270,25 +263,24 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 						}
 					}
 				}
-				case VariableSymbol {
-					var leftName = "";
-					ifElse(node.left.name.equals("this")) {
-						leftName = NamingConventions.GENERATED_THIS;
-					} {
-						leftName = node.left.name;
-					};
+				default {
+					// generated code for receiver expression
+					val receiverId = idgen.getId();
+					sb.append("plaid.fastruntime.PlaidObject " + receiverId + ";\n");
+					codegenStmt(node.left, sb, idgen, receiverId);
+					
+					//getter preliminaries
 					val getterName = NamingConventions.getGetterName(node.right.name);
 					plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
 					val ifaceName = NamingConventions.getGeneratedInterfaceFullyQualifiedName(getterName, 0);
+					
+					//call getter and assign result to y
 					sb.append(y + " = ");
-					sb.append("("); // paretheses around casted object
+					sb.append("("); // parentheses around casted object
 					sb.append("(" + ifaceName + ")");
-					sb.append("" + leftName + ".getDispatch()");
+					sb.append("" + receiverId + ".getDispatch()");
 					sb.append(")"); // end parentheses around casted object  
-					sb.append("." + getterName + "(" + leftName + ");\n");
-				}
-				default {
-					ERROR("Unexpected Symbol type for left of dereference.");
+					sb.append("." + getterName + "(" + receiverId + ");\n");
 				}
 			}			
 		}
@@ -337,26 +329,19 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 							
 							// preliminaries
 							val receiverExpr = functionExpr.left;
-							var receiverString = "";
-							match(receiverExpr) {
-								case ParsedIdentifier {
-									// primitive case, no need to delegate to further code generation
-									receiverString = receiverExpr.name;
-								}
-								default {
-									// complex case need to delegate to codegenStmt
-									receiverString = idgen.getId();
-									sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
-									codegenStmt(receiverExpr, sb, idgen, receiverString);
-								}
-							};
+							
+							
+							var receiverString = idgen.getId();
+							sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
+							codegenStmt(receiverExpr, sb, idgen, receiverString);
+							
 							val methodId = functionExpr.right;
 							
 							//assign result to y
 							sb.append(y + " = ");
 							
 							//generate interface
-							//plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
+							plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
 							
 							//cast
 							sb.append("(");
