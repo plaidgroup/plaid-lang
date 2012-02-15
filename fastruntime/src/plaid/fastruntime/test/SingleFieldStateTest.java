@@ -10,6 +10,7 @@ import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.reference.SimplePlaidObject;
 import plaid.generated.Igetx$plaid$0$plaid;
+import plaid.generated.Isetx$plaid$1$plaid;
 
 
 public class SingleFieldStateTest {
@@ -28,13 +29,27 @@ public class SingleFieldStateTest {
 	public void test() {
 		plaid.fastruntime.reference.ObjectValueFactory ovf = new plaid.fastruntime.reference.ObjectValueFactory();
         ovf.tag("8bc23ee5-bcb7-4b8f-b7de-afcda749e09d");
-        ovf.field("x","plaid.fastruntime.test.SingleFieldStateTest");
+        ovf.field(false, "x","plaid.fastruntime.test.SingleFieldStateTest");
         plaid.fastruntime.ObjectValue ov = ovf.value();
         PlaidState ps = Util.DISPATCH_GEN.createStateInstance(ov);
         PlaidObject[] storage = ps.getStorage();
         PlaidObject o = new SimplePlaidObject(ps, storage);
         PlaidJavaObject returnedValue = (PlaidJavaObject) ((Igetx$plaid$0$plaid)o.getDispatch()).getx$plaid(o);
 		Assert.assertEquals("5", returnedValue.getJavaObject().toString());
+	}
+	
+	@Test 
+	public void test2() {
+		plaid.fastruntime.reference.ObjectValueFactory ovf = new plaid.fastruntime.reference.ObjectValueFactory();
+        ovf.tag("8bc23ee5-bcb7-4b8f-b7de-afcda749e09d");
+        ovf.field(true, "x","plaid.fastruntime.test.SingleFieldStateTest");
+        plaid.fastruntime.ObjectValue ov = ovf.value();
+        PlaidState ps = Util.DISPATCH_GEN.createStateInstance(ov);
+        PlaidObject[] storage = ps.getStorage();
+        PlaidObject o = new SimplePlaidObject(ps, storage);
+        ((Isetx$plaid$1$plaid)o.getDispatch()).setx$plaid(o,Util.integer(3));
+        PlaidJavaObject returnedValue = (PlaidJavaObject) ((Igetx$plaid$0$plaid)o.getDispatch()).getx$plaid(o);
+		Assert.assertEquals("3", returnedValue.getJavaObject().toString());
 	}
     
     

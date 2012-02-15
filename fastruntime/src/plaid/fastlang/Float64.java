@@ -102,5 +102,9 @@ public class Float64 extends AbstractPlaidState
 			throw new PlaidIllegalArgumentException("/ failed", e.getCause());
 		}
 	}
-
+	
+	public PlaidObject setx(PlaidObject receiver, PlaidObject arg) {
+		receiver.getStorage()[12] = arg;
+		return Util.unit();
+	}
 }
