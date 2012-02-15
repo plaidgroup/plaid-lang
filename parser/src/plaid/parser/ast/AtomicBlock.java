@@ -1,7 +1,6 @@
 package plaid.parser.ast;
 
 import java.util.List;
-import java.util.Map;
 
 import plaid.parser.Token;
 
