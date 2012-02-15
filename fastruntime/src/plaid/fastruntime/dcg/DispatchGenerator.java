@@ -34,6 +34,10 @@ public final class DispatchGenerator implements Opcodes {
 		for(FieldInfo f: ov.getFields()) {
 			String getterName = NamingConventions.getGetterName(f.getName());
 			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(getterName, 0));
+			if(f.isSettable()) {
+				String setterName = NamingConventions.getSetterName(f.getName());
+				ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(setterName, 1));
+			}
 		}
 		cw.visit(50,
 			     ACC_PUBLIC,
@@ -84,6 +88,22 @@ public final class DispatchGenerator implements Opcodes {
 			mv.visitInsn(ARETURN);
 			mv.visitMaxs(2,2);
 			mv.visitEnd();
+			
+			if(f.isSettable()){
+				mv = cw.visitMethod(ACC_PUBLIC, 
+						NamingConventions.getSetterName(f.getName()),
+						NamingConventions.getMethodDescriptor(2), null, null);
+				mv.visitCode();
+				mv.visitVarInsn(ALOAD, 1);
+				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getStorage", "()[Lplaid/fastruntime/PlaidObject;");
+				mv.visitIntInsn(BIPUSH, index);
+				mv.visitVarInsn(ALOAD, 2);
+				mv.visitInsn(AASTORE);
+				mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", "unit", "()Lplaid/fastruntime/PlaidObject;");
+				mv.visitInsn(ARETURN);
+				mv.visitMaxs(3, 3);
+				mv.visitEnd();
+			}
 					
 			//TODO: add setters
 		}

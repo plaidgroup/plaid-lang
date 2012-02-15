@@ -16,11 +16,17 @@ public class NamingConventions {
 	public static final String GENERATED_STATE_NAME = "theState" + GENERATED_SUFFIX;
 	public static final String GENERATED_THIS = "this" + GENERATED_SUFFIX;
 	public static final String GENERATED_GET_PREFIX = "get";
+	public static final String GENERATED_SET_PREFIX = "set";
 	
 	public static final String PLAID_OBJECT_DESCRIPTOR = "Lplaid/fastruntime/PlaidObject;";
 	
+	
 	public static final String getGetterName(String fieldName) {
 		return GENERATED_GET_PREFIX + fieldName + GENERATED_SUFFIX;
+	}
+	
+	public static final String getSetterName(String fieldName) {
+		return GENERATED_SET_PREFIX + fieldName + GENERATED_SUFFIX;
 	}
 	
 	public static final String getGeneratedInterfaceSimpleName(String method, int numArgs) {

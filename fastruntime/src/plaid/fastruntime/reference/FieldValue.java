@@ -6,8 +6,11 @@ import fj.data.List;
 
 public final class FieldValue extends MemberValue implements FieldInfo {
 
-	public FieldValue(String name, String classInternalName) {
+	private final boolean settable;
+	
+	public FieldValue(boolean settable, String name, String classInternalName) {
 		super(name, classInternalName);
+		this.settable = settable;
 	}
 	
 	@Override
@@ -37,5 +40,9 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	@Override
 	public int compareTo(FieldInfo o) {
 		return  this.getName().compareTo(o.getName());
+	}
+
+	public boolean isSettable() {
+		return settable;
 	}
 }

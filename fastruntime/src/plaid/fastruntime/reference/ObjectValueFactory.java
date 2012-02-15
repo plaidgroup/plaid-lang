@@ -41,9 +41,9 @@ public class ObjectValueFactory {
 		member(fullyQualifiedClassName, toAdd);
 	}
 
-	public void field(String name, String fullyQualifiedClassName) {
+	public void field(boolean settable, String name, String fullyQualifiedClassName) {
 		String internalClassName = fullyQualifiedClassName.replace('.', '/');
-		FieldValue toAdd = new FieldValue(name, internalClassName);
+		FieldValue toAdd = new FieldValue(settable, name, internalClassName);
 		member(fullyQualifiedClassName, toAdd);
 	}
 	
