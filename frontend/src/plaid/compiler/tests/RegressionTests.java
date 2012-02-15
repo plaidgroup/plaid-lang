@@ -25,6 +25,7 @@ import org.junit.runners.Parameterized.Parameters;
 public final class RegressionTests {
 	private static String CONFIG_FILENAME       = "run.properties";
 	private static String MAIN_CLASS            = "Main-Class";
+	private static String CLASS_PATH            = "Class-Path";
 	private static String EXPECTED_OUTPUT_VALUE = "Expected-Output-Value";
 	private static String EXPECTED_OUTPUT_FILE  = "Expected-Output-File";
 
@@ -213,7 +214,12 @@ public final class RegressionTests {
 			}
 			System.out.println("Expected Output '" + expectedOuput +"'");
 
-			ProcessRunner pr = new ProcessRunner(mainClass, job.getClasspath());
+			List<String> classPath = job.getClasspath();
+			if ( config.getProperty(CLASS_PATH) != null ) {
+				classPath.add(0, config.getProperty(CLASS_PATH).trim());
+			}				
+				
+			ProcessRunner pr = new ProcessRunner(mainClass, classPath);
 			final String output = pr.run();
 			System.out.println("Test Output     '" + output +"'");
 			
