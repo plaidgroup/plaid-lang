@@ -2,7 +2,7 @@ package plaid.fastruntime.dcg;
 
 import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceFilePath;
 import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceInternalName;
-import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceName;
+import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceFullyQualifiedName;
 
 import java.io.File;
 
@@ -24,7 +24,7 @@ public class InterfaceGenerator implements Opcodes{
 		
 		//check if interface already exists in file system
 		try {
-			this.getClass().getClassLoader().loadClass(getGeneratedInterfaceName(methodName, numargs));
+			this.getClass().getClassLoader().loadClass(getGeneratedInterfaceFullyQualifiedName(methodName, numargs));
 			//System.out.println("Interface already exists");
 			//TODO: Check if interface exists without catching an exception
 		} catch(ClassNotFoundException e) {
@@ -44,7 +44,7 @@ public class InterfaceGenerator implements Opcodes{
 				ACC_PUBLIC + ACC_ABSTRACT + ACC_INTERFACE, 
 				className, null, "java/lang/Object", null);
 		cw.visitMethod(ACC_PUBLIC + ACC_ABSTRACT, methodName, 
-				NamingConventions.getMethodDescriptor(numargs), 
+				NamingConventions.getMethodDescriptor(numargs+1), 
 				null, null).visitEnd();
 		cw.visitEnd();
 		return cw.toByteArray();
