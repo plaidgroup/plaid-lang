@@ -1,7 +1,7 @@
 package plaid.fastruntime.reference;
 
+import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
-import plaid.fastruntime.PlaidStorage;
 import fj.Ord;
 import fj.data.List;
 import fj.data.Set;
@@ -118,10 +118,17 @@ public final class DimensionValue extends SingleValue {
 		}
 		return mi;
 	}
+	
 
 	@Override
-	public PlaidStorage getDefaultStorage() {
-		// TODO Auto-generated method stub
-		return null;
+	public List<FieldInfo> getFields() {
+		List<FieldInfo> fi = List.nil();
+		if(innerValue!=null) {
+			fi = fi.append(innerValue.getFields());
+		}
+		if(parent!=null) {
+			fi = fi.append(parent.getFields());
+		}
+		return fi;
 	}
 }

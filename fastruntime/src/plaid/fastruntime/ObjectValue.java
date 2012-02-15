@@ -6,6 +6,13 @@ public interface ObjectValue {
 	public ObjectValue changeState(ObjectValue other);
 	
 	public List<MethodInfo> getMethods();
+	
+	public List<FieldInfo> getFields();
 
-	public PlaidStorage getDefaultStorage();
+	/*
+	 * Returns a new instance every time it is called.
+	 */
+	public PlaidObject[] getDefaultStorage();
+
+	int getFieldIndex(String fieldName);
 }

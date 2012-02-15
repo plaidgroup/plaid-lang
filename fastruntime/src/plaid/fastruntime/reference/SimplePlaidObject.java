@@ -2,14 +2,13 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
-import plaid.fastruntime.PlaidStorage;
 
 public class SimplePlaidObject implements PlaidObject {
 
 	private PlaidState dispatch;
-	private PlaidStorage storage;
+	private PlaidObject[] storage;
 	
-	public SimplePlaidObject(PlaidState dispatch, PlaidStorage storage){
+	public SimplePlaidObject(PlaidState dispatch, PlaidObject[] storage){
 		this.dispatch = dispatch;
 		this.storage = storage;
 	}
@@ -20,7 +19,7 @@ public class SimplePlaidObject implements PlaidObject {
 	}
 
 	@Override
-	public PlaidStorage getStorage() {
+	public PlaidObject[] getStorage() {
 		return storage;
 	}
 

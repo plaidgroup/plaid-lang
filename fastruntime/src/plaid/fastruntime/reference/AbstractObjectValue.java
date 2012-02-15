@@ -1,6 +1,14 @@
 package plaid.fastruntime.reference;
 
+import java.lang.reflect.Field;
+
+import plaid.fastruntime.FieldInfo;
+import plaid.fastruntime.PlaidFieldInitializer;
 import plaid.fastruntime.ObjectValue;
+import plaid.fastruntime.PlaidObject;
+import plaid.fastruntime.errors.PlaidInternalException;
+import fj.Ord;
+import fj.data.List;
 import fj.data.Set;
 
 public abstract class AbstractObjectValue implements ObjectValue {
@@ -103,7 +111,67 @@ public abstract class AbstractObjectValue implements ObjectValue {
 					currentValue.getInnerValue(), childrenOfTag(tag, currentValue.getParent(), newParent));
 		}
 	}
+	
+	private List<FieldInfo> sortedFields;
+	
+	@Override
+	/*
+	 * This method uses a reflective mechanism that is pretty slow. We should consider generating code for this
+	 * method.
+	 * Returns a new instance every time it is called.
+	 * @see plaid.fastruntime.ObjectValue#getDefaultStorage()
+	 */
+	public PlaidObject[] getDefaultStorage() {
+		List<FieldInfo> sortedFields = this.getSortedFields();
+		PlaidObject[] storage = new PlaidObject[sortedFields.length()];
+		int i = 0;
+		for(FieldInfo field : sortedFields) {
+			ClassLoader cl = this.getClass().getClassLoader();
+			String className = field.getStaticClassInternalName().replace('/', '.');
+			try {
+				Class<?> fieldClass = cl.loadClass(className);
+				Field myField = fieldClass.getField(field.getName());
+				Object value = myField.get(null); // static field so object can be null, see JavaDoc
+				PlaidFieldInitializer init = (PlaidFieldInitializer) value;
+				storage[i] = init.invoke$plaid();
+			} catch (ClassNotFoundException e) {
+				throw new PlaidInternalException("Could not load field class", e);
+			} catch (SecurityException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			} catch (NoSuchFieldException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			} catch (IllegalArgumentException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			} catch (IllegalAccessException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			}
+			i++;
+		}
+		return storage;
+	}
+	
+	private List<FieldInfo> getSortedFields() {
+		if (this.sortedFields == null) {
+			List<FieldInfo> fields = this.getFields();
+			Ord<FieldInfo> fieldOrd = Ord.comparableOrd();
+			this.sortedFields = fields.sort(fieldOrd);
+		} 
+		return this.sortedFields;
+	}
 
+	@Override
+	public int getFieldIndex(final String fieldName) {
+		List<FieldInfo> sortedFields = this.getSortedFields();
+		int i = 0;
+		for(FieldInfo field : sortedFields) {
+			if(field.getName().equals(fieldName)) {
+				return i;
+			}
+			i++;
+		}
+		throw new PlaidInternalException("Cannot retrieve field index because the field name does not appear in the field list.");
+	}
+	
 	public boolean uniqueTags() {
 		//TODO: Implement unique tags correctly
 		//TODO: Check what is going on here

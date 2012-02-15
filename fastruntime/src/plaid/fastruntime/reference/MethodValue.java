@@ -1,8 +1,8 @@
 package plaid.fastruntime.reference;
 
+import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.NamingConventions;
-import plaid.fastruntime.PlaidStorage;
 import fj.data.List;
 
 public final class MethodValue extends MemberValue implements MethodInfo {
@@ -39,6 +39,11 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 		//the fact that Java requires the MethodInfo cast is annoying
 		return List.single((MethodInfo)this);
 	}
+	
+	@Override
+	public List<FieldInfo> getFields() {
+		return List.nil();
+	}
 
 	@Override
 	public String getMethodDescriptor() {
@@ -50,9 +55,5 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 		return this.numArgs;
 	}
 
-	@Override
-	public PlaidStorage getDefaultStorage() {
-		// TODO Auto-generated method stub
-		return null;
-	}
+
 }

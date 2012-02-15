@@ -9,6 +9,7 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
+import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.ObjectValue;
@@ -29,6 +30,10 @@ public final class DispatchGenerator implements Opcodes {
 		Collection<String> ifaces = new ArrayList<String>();
 		for (MethodInfo m : ov.getMethods()) {
 			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(m.getName(), m.numArgs()));
+		}
+		for(FieldInfo f: ov.getFields()) {
+			String getterName = NamingConventions.getGetterName(f.getName());
+			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(getterName, 0));
 		}
 		cw.visit(50,
 			     ACC_PUBLIC,
@@ -60,6 +65,28 @@ public final class DispatchGenerator implements Opcodes {
 					mv.visitEnd();			
 		}
 		
+		// add fields 
+		for ( FieldInfo f : ov.getFields() ) {
+			//System.out.println("add method: " + m.getName());
+			MethodVisitor mv;
+			mv = cw.visitMethod(ACC_PUBLIC, 
+					NamingConventions.getGetterName(f.getName()),
+					NamingConventions.getMethodDescriptor(1),
+					null,
+					null); // TODO: add exception
+
+			mv.visitCode();
+			mv.visitVarInsn(ALOAD, 1);
+			mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getStorage", "()[Lplaid/fastruntime/PlaidObject;");
+			int index = ov.getFieldIndex(f.getName());
+			mv.visitIntInsn(BIPUSH, index);
+			mv.visitInsn(AALOAD);
+			mv.visitInsn(ARETURN);
+			mv.visitMaxs(2,2);
+			mv.visitEnd();
+					
+			//TODO: add setters
+		}
 		
 		// add constructor
 		{

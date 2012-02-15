@@ -4,7 +4,7 @@ public interface PlaidObject {
 	
 	public PlaidState getDispatch();
 	
-	public PlaidStorage getStorage();
+	public PlaidObject[] getStorage();
 	
 	public void changeState(PlaidState s);
 }

@@ -9,7 +9,7 @@ public interface PlaidState {
 	
 	public abstract PlaidObject instantiate();
 	
-	public abstract PlaidStorage getStorage();
+	public abstract PlaidObject[] getStorage();
 	
 	public abstract PlaidState remove(String member);
 	

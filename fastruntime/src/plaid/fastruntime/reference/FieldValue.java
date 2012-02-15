@@ -2,7 +2,6 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
-import plaid.fastruntime.PlaidStorage;
 import fj.data.List;
 
 public final class FieldValue extends MemberValue implements FieldInfo {
@@ -31,8 +30,12 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	}
 
 	@Override
-	public PlaidStorage getDefaultStorage() {
-		// TODO Auto-generated method stub
-		return null;
+	public List<FieldInfo> getFields() {
+		return List.single((FieldInfo) this);
+	}
+
+	@Override
+	public int compareTo(FieldInfo o) {
+		return  this.getName().compareTo(o.getName());
 	}
 }
