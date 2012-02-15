@@ -1,4 +1,4 @@
-package plaid.fastlang;
+package plaid.lang;
 
 import java.io.PrintStream;
 
@@ -19,7 +19,7 @@ public class DPrintStream$plaid extends AbstractPlaidState implements Iprintln$1
 	public PlaidObject println(PlaidObject thisVar, PlaidObject other) {
 		try {
 			PrintStream ps = ((PrintStream) ((PlaidJavaObject) thisVar).getJavaObject());
-			String second = ((PlaidJavaObject) other).getJavaObject().toString();
+			java.lang.String second = ((PlaidJavaObject) other).getJavaObject().toString();
 			ps.println(second);
 			return Util.unit();
 			

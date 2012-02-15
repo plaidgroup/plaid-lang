@@ -1,4 +1,4 @@
-package plaid.fastlang;
+package plaid.lang;
 
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidJavaObject;
@@ -6,6 +6,8 @@ import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
 import plaid.fastruntime.reference.AbstractPlaidState;
+import plaid.fastruntime.reference.DimensionValue;
+import plaid.fastruntime.reference.SimplePlaidJavaObject;
 import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
@@ -21,7 +23,14 @@ public class Float64 extends AbstractPlaidState
 					Igteq$plaid$1$plaid,
 					Idiv$plaid$1$plaid {
 
-	public Float64(ObjectValue metadata) {
+	public static final plaid.fastruntime.PlaidState theState$plaid;
+	static {
+	theState$plaid = new Float64(new DimensionValue("plaid/lang/Float64", null, null));
+	}
+	
+	public static PlaidObject plaidFloat64(java.lang.Double d) { return new SimplePlaidJavaObject(theState$plaid,null, d); }
+	
+	private Float64(ObjectValue metadata) {
 		super(metadata);
 	}
 
@@ -31,7 +40,7 @@ public class Float64 extends AbstractPlaidState
 			java.lang.Double first = ((java.lang.Double) ((PlaidJavaObject) receiver).getJavaObject());
 			java.lang.Double second = ((java.lang.Double) ((PlaidJavaObject) arg).getJavaObject());
 			boolean b = first.doubleValue() >= second.doubleValue();
-			return Util.JAVA_GEN.createPlaidJavaObject(b);
+			return Util.bool(b);
 
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException(">= failed", e.getCause());
@@ -44,7 +53,7 @@ public class Float64 extends AbstractPlaidState
 			java.lang.Double first = ((java.lang.Double) ((PlaidJavaObject) receiver).getJavaObject());
 			java.lang.Double second = ((java.lang.Double) ((PlaidJavaObject) arg).getJavaObject());
 			double result = first.doubleValue() - second.doubleValue();
-			return Util.JAVA_GEN.createPlaidJavaObject(result);
+			return plaidFloat64(result);
 
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("- failed", e.getCause());
@@ -57,7 +66,7 @@ public class Float64 extends AbstractPlaidState
 			java.lang.Double first = ((java.lang.Double) ((PlaidJavaObject) receiver).getJavaObject());
 			java.lang.Double second = ((java.lang.Double) ((PlaidJavaObject) arg).getJavaObject());
 			double result = first.doubleValue() * second.doubleValue();
-			return Util.JAVA_GEN.createPlaidJavaObject(result);
+			return plaidFloat64(result);
 
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("* failed", e.getCause());
@@ -70,7 +79,7 @@ public class Float64 extends AbstractPlaidState
 			java.lang.Double first = ((java.lang.Double) ((PlaidJavaObject) receiver).getJavaObject());
 			java.lang.Double second = ((java.lang.Double) ((PlaidJavaObject) arg).getJavaObject());
 			boolean b = first.doubleValue() == second.doubleValue();
-			return Util.JAVA_GEN.createPlaidJavaObject(b);
+			return Util.bool(b);
 
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("== failed", e.getCause());
@@ -83,7 +92,7 @@ public class Float64 extends AbstractPlaidState
 			java.lang.Double first = ((java.lang.Double) ((PlaidJavaObject) receiver).getJavaObject());
 			java.lang.Double second = ((java.lang.Double) ((PlaidJavaObject) arg).getJavaObject());
 			double result = first.doubleValue() + second.doubleValue();
-			return Util.JAVA_GEN.createPlaidJavaObject(result);
+			return plaidFloat64(result);
 
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("+ failed", e.getCause());
@@ -96,15 +105,16 @@ public class Float64 extends AbstractPlaidState
 			java.lang.Double first = ((java.lang.Double) ((PlaidJavaObject) receiver).getJavaObject());
 			java.lang.Double second = ((java.lang.Double) ((PlaidJavaObject) arg).getJavaObject());
 			double result = first.doubleValue() / second.doubleValue();
-			return Util.JAVA_GEN.createPlaidJavaObject(result);
+			return plaidFloat64(result);
 
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("/ failed", e.getCause());
 		}
 	}
 	
-	public PlaidObject setx(PlaidObject receiver, PlaidObject arg) {
-		receiver.getStorage()[12] = arg;
-		return Util.unit();
-	}
+	//KBN - what is this for?  Could not find where it was added
+//	public PlaidObject setx(PlaidObject receiver, PlaidObject arg) {
+//		receiver.getStorage()[12] = arg;
+//		return Util.unit();
+//	}
 }
