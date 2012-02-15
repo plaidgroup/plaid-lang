@@ -1,5 +1,7 @@
 package plaid.examples.integral.java;
 
+import java.text.DecimalFormat;
+
 public class Integral {
 	
 	public static double EPSILON = 0.00000001;
@@ -8,7 +10,7 @@ public class Integral {
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		System.out.println("Area = " + compute(0, 1));
+		System.out.println((new DecimalFormat("#.####")).format(compute(0, 1)));
 	}
 
 	public static double f(final double x) {
