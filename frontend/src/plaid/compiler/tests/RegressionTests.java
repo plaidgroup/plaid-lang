@@ -1,7 +1,10 @@
 package plaid.compiler.tests;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.FilenameFilter;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -10,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -19,6 +23,82 @@ import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(value = Parameterized.class)
 public final class RegressionTests {
+	private static String CONFIG_FILENAME       = "run.properties";
+	private static String MAIN_CLASS            = "Main-Class";
+	private static String EXPECTED_OUTPUT_VALUE = "Expected-Output-Value";
+	private static String EXPECTED_OUTPUT_FILE  = "Expected-Output-File";
+
+	private static class ProcessRunner {
+		private final String mainClass;
+		private final List<String> classPath;
+		
+		ProcessRunner(String mainClass, List<String> classPath) {
+			this.mainClass = mainClass;
+			this.classPath = classPath;
+		}
+		
+		private String getClassPath() {
+			StringBuilder sb = new StringBuilder();
+			for (String s : this.classPath ) {
+				sb.append(s);
+				sb.append(System.getProperty("path.separator"));
+			}
+			
+			return sb.toString() + System.getProperty("java.class.path");
+		}
+		
+		public String run() throws Exception {
+			final String classpath = getClassPath();
+			
+			// start program 
+			ProcessBuilder pb = new ProcessBuilder("java", "-cp", classpath, mainClass);
+			pb.redirectErrorStream(true);
+			Process proc = pb.start();
+			
+			AsyncReader ar = new AsyncReader(proc.getInputStream());
+			ar.start();
+			
+			// wait for process 
+			proc.waitFor();
+			
+			// wait for reader
+			ar.join();
+			
+			return ar.getOutput();
+		}
+		
+		private class AsyncReader extends Thread {
+			private final InputStream stream;
+			private final StringBuilder output = new StringBuilder();
+			
+			AsyncReader(InputStream stream) {
+				this.stream = stream;
+			}
+			
+			public String getOutput() {
+				return output.toString();
+			}
+			
+			
+			@Override
+			public void run() {
+				System.out.println("run");
+				try {
+					while ( true ) {
+						int c = stream.read();
+						
+						if ( c  == -1 ) { return; }
+
+						output.append(Character.toString((char) c));
+
+					}
+				} catch (Exception e) {
+					
+				}
+			}
+		}
+	}
+	
 	private static class TestJob {
 		private final File directory;
 		private final Collection<File> files = new HashSet<File>();
@@ -92,7 +172,7 @@ public final class RegressionTests {
 	    final String[] args = createCommandLine();
 	    final boolean failing = job.directory.getAbsolutePath().toLowerCase().contains("failing");
 	    System.out.println("Compile " + this.job.toString() + "  " + Arrays.toString(args));
-		
+	    
 	    try {
 	    	plaid.compiler.main.main(args);
 	    	if ( failing == true ) {
@@ -107,6 +187,40 @@ public final class RegressionTests {
 	    } finally {
 	    	System.gc();
 	    }
+	    
+		// try to execute commands if we generated code for them 
+	    // TODO: remove false to activate this code 
+		if ( false ){
+			Properties config = new Properties();
+			config.load(new FileInputStream(job.directory + System.getProperty("file.separator") + CONFIG_FILENAME));
+			
+			final String mainClass = config.getProperty(MAIN_CLASS).trim();
+			System.out.println(mainClass);
+			
+			String expectedOuput = "";
+			if ( config.getProperty(EXPECTED_OUTPUT_VALUE) != null ) {
+				expectedOuput = config.getProperty(EXPECTED_OUTPUT_VALUE);
+			} else if (config.getProperty(EXPECTED_OUTPUT_FILE) != null) {
+				FileReader fr = new FileReader(new File(job.directory + System.getProperty("file.separator") + config.getProperty(EXPECTED_OUTPUT_FILE).trim() ));
+				
+				StringBuilder sb = new StringBuilder();
+				int c =  fr.read();
+				while ( c != -1 ) {
+					sb.append(Character.toString((char)c));
+					c = fr.read();
+				}
+				expectedOuput = sb.toString();
+			}
+			System.out.println("Expected Output '" + expectedOuput +"'");
+
+			ProcessRunner pr = new ProcessRunner(mainClass, job.getClasspath());
+			final String output = pr.run();
+			System.out.println("Test Output     '" + output +"'");
+			
+			if ( expectedOuput.equals(output) == false ) {
+				Assert.fail("Expetced output does not match test output");
+			}
+		}
 	}
 	
 	@Parameters
