@@ -285,12 +285,41 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 					sb.append("(" + ifaceName + ")");
 					sb.append("" + leftName + ".getDispatch()");
 					sb.append(")"); // end parentheses around casted object  
-					sb.append("." + NamingConventions.getGetterName(node.right.name) + "(" + leftName + ");\n");
+					sb.append("." + getterName + "(" + leftName + ");\n");
 				}
 				default {
 					ERROR("Unexpected Symbol type for left of dereference.");
 				}
 			}			
+		}
+		case ParsedAssignment {
+			match(node.target) {
+				case ParsedEmptyExpr { // assignment to local variable
+				
+				}
+				default { // assignment to field of an object
+					//TODO: deal with assignment to java static fields, very unimportant use case
+					
+					// generated code for receiver expression
+					val receiverId = idgen.getId();
+					sb.append("plaid.fastruntime.PlaidObject " + receiverId + ";\n");
+					codegenStmt(node.target, sb, idgen, receiverId);
+					
+					//generate code for value to assign
+					val valueId = idgen.getId();
+					sb.append("plaid.fastruntime.PlaidObject " + valueId + ";\n");
+					codegenStmt(node.value, sb, idgen, valueId);
+					
+					val setterName = NamingConventions.getSetterName(node.field.name);
+					val ifaceName = NamingConventions.getGeneratedInterfaceFullyQualifiedName(setterName, 1);
+					sb.append(y + " = ");
+					sb.append("("); // paretheses around casted object
+					sb.append("(" + ifaceName + ")");
+					sb.append("" + receiverId + ".getDispatch()");
+					sb.append(")"); // end parentheses around casted object  
+					sb.append("." + setterName + "(" + receiverId + ", " + valueId +");\n");
+				}
+			}
 		}
 		case ParsedApplication {
 			LOG("generating code for application");
@@ -406,7 +435,35 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 			sb.append("final plaid.fastruntime.PlaidObject " + node.id.name + " = " + exprVarName + ";\n"); 
 		}
 		case ParsedIdentifier {
-			sb.append(y + " = " + node.name + ";\n");
+			// need to ensure that this is never called if ParsedIdentifier refers to a JavaClass
+			// we cannot assign java class value to PlaidObject variable
+			val symbolOption = symbolForAST(node);
+			match(symbolOption) {
+				case Some {
+					val symbol = symbolOption.getValue();
+					match(symbol) {
+						case JavaClassSymbol {
+							ERROR("Internal Error. Identifier cannot refer to Java class in ParsedIdentifier case of codegenStmt.");
+						}
+						case VariableSymbol {
+							var varName = "";
+							ifElse(node.name.equals("this")) {
+								varName = NamingConventions.GENERATED_THIS;
+							} 
+							{
+								varName = node.name;
+							};
+							sb.append(y + " = " + varName + ";\n");
+						}
+						default {
+							ERROR("Internal Error. Identifier has unexpected symbol '" + symbol.symbolType() + "'.");
+						}
+					};
+				} case None {
+					ERROR("No symbol found for idententifier. (Identifier named " + node.name + ")");
+				}
+			};
+			
 		}
 		case ParsedNewInstance {
 			val exprVarName = idgen.getId();
