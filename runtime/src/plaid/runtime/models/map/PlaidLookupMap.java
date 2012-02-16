@@ -20,6 +20,8 @@
 package plaid.runtime.models.map;
 
 import plaid.runtime.PlaidPackage;
+import plaid.runtime.PlaidRuntimeException;
+import plaid.runtime.PlaidTag;
 import plaid.runtime.utils.QualifiedIdentifier;
 
 public final class PlaidLookupMap extends PlaidObjectMap implements PlaidPackage {
@@ -59,6 +61,11 @@ public final class PlaidLookupMap extends PlaidObjectMap implements PlaidPackage
 	@Override
 	public QualifiedIdentifier getQI() {
 		return this.thePackage.append(this.toLookup);
+	}
+	
+	@Override
+	public boolean matchesTag(PlaidTag match) {
+		throw new PlaidRuntimeException("matched object not found");
 	}
 	
 }
