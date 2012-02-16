@@ -368,38 +368,89 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 					val functionExpr = node.function;
 					match(functionExpr) {
 						case ParsedDereference {
-							//generate code for method call
-							
-							// preliminaries
-							val receiverExpr = functionExpr.left;
-							
-							
-							var receiverString = idgen.getId();
-							sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
-							codegenStmt(receiverExpr, sb, idgen, receiverString);
-							
-							val methodId = functionExpr.right;
-							
-							//assign result to y
-							sb.append(y + " = ");
-							
-							//generate interface
-							plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
-							
-							//cast
-							sb.append("(");
-							sb.append("(" + NamingConventions.getGeneratedInterfaceName(methodId.name, yList.size()) + ")");
-							sb.append(receiverString);
-							sb.append(".getDispatch()");
-							sb.append(")");
-							//.<METHOD_NAME>(<ARGS>)
-							sb.append("." + methodId.name + "(");
-							sb.append(receiverString ); // receiver
-							if(yList.size() > 0) {
-								sb.append(",");
-							};
-							sb.append(makeSeperatedString(yList, ",")); //normal arguments
-							sb.append(");\n");
+						
+							//check if this is a java constructor or static method if so, it will have a symbol
+							val rightSymbolOpt = symbolForAST(functionExpr.right);
+							match (rightSymbolOpt) {
+							    case Some {
+							        val rightSymbol = rightSymbolOpt.value;
+							        match (rightSymbol) {
+                                        case JavaConstructorSymbol {  //For Java Constructor, just get QI of java class and use java syntax
+                                            val leftSymbol = symbolForAST(functionExpr.left).value; //if no symbol, something went wrong earlier
+                                            match (leftSymbol) {
+                                                case JavaClassSymbol {
+                                                    //call constructor and assign to y
+                                                    sb.append(y + " = plaid.fastruntime.Util.javaToPlaid(new " + leftSymbol.getFQN());
+                                                    //static arguments if appropriate
+                                                    val numStaticArgs = leftSymbol.numStaticParams();
+                                                    match (numStaticArgs > 0) {
+                                                        case True {
+                                                            sb.append("<");
+                                                            var i = 0;
+                                                            while { i < numStaticArgs - 1 } { 
+                                                                sb.append("Object,");
+                                                                i = i+1;
+                                                            };
+                                                            sb.append("Object>");
+                                                        }
+                                                        case False { /* no op */ }
+                                                    };
+                                                    
+                                                    //parameters
+                                                    sb.append("(");
+                                                    sb.append(makeSeperatedString(yList, ",")); //normal arguments
+                                                    sb.append("));\n");
+                                                }
+                                                default {
+                                                    ERROR("<CodeGenPass> non-JavaClassSymbol found as target of java constructor");
+                                                }
+                                            
+                                            }
+                                            
+                                        }
+                                        case JavaStaticMethodSymbol {
+                                            ERROR("<CodeGenPass> static java methods not implemented");
+                                        }
+                                        default {
+                                            ERROR("<CodeGenPass> method id unexpectedly has a symbol");
+                                        }
+                                    }
+							    }
+							    case None {
+							        //generate code for method call
+                                    
+                                    // preliminaries
+                                    val receiverExpr = functionExpr.left;
+                                    
+                                    
+                                    var receiverString = idgen.getId();
+                                    sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
+                                    codegenStmt(receiverExpr, sb, idgen, receiverString);
+                                    
+                                    val methodId = functionExpr.right;
+                                    
+                                    //assign result to y
+                                    sb.append(y + " = ");
+                                    
+                                    //generate interface
+                                    plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
+                                    
+                                    //cast
+                                    sb.append("(");
+                                    sb.append("(" + NamingConventions.getGeneratedInterfaceName(methodId.name, yList.size()) + ")");
+                                    sb.append(receiverString);
+                                    sb.append(".getDispatch()");
+                                    sb.append(")");
+                                    //.<METHOD_NAME>(<RECEIVER>,<ARGS>)
+                                    sb.append("." + methodId.name + "(");
+                                    sb.append(receiverString ); // receiver
+                                    if(yList.size() > 0) {
+                                        sb.append(",");
+                                    };
+                                    sb.append(makeSeperatedString(yList, ",")); //normal arguments
+                                    sb.append(");\n");
+							    }
+							}
 						} 
 						case ParsedIdentifier {
 							//function application
