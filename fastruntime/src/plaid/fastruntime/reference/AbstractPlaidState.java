@@ -61,6 +61,16 @@ public abstract class AbstractPlaidState implements PlaidState {
 	}
 	
 	@Override
+	public boolean matches(String tag) {
+		return getObjectValue().matches(tag);
+	}
+	
+	@Override
+	public String getTopTag() {
+		return getObjectValue().getTopTag();
+	}
+	
+	@Override
 	public PlaidState remove(String member) {
 		// TODO Auto-generated method stub
 		return null;
