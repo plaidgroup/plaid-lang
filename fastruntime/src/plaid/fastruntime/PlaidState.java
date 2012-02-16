@@ -19,5 +19,9 @@ public interface PlaidState {
 
 	public abstract PlaidState change(PlaidState s);
 	
+	public abstract String getTopTag();
+	
+	public abstract boolean matches(String tag);
+	
 	public abstract ObjectValue getObjectValue();
 }
