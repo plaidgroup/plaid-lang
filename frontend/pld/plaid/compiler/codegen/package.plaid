@@ -92,13 +92,44 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 			
 			val tag = java.util.UUID.randomUUID().toString();
 
-
 			val fullyQualifiedClassName = packageName + "." + node.name.name;
 			val sbStateInitializer = java.lang.StringBuilder.new();
 			
 			sbStateInitializer.append("plaid.fastruntime.reference.ObjectValueFactory ovf = ");
 			sbStateInitializer.append("new plaid.fastruntime.reference.ObjectValueFactory();\n");
 			sbStateInitializer.append("ovf.tag(\"" + tag + "\");\n");
+			
+			match(node.caseOf) {
+				case ParsedEmptyQualifiedIdentifier {
+					// no -op
+				}
+				case ParsedQualifiedIdentifier {
+					val caseofSymbolOption = symbolForAST(node.caseOf);
+					match(caseofSymbolOption) {
+						case Some {
+							val caseofSymbol = caseofSymbolOption.getValue();
+							match(caseofSymbol) {
+								case StateSymbol {
+									val parent = caseofSymbol.owner;
+									//TODO: this will throw an error if class has no parent package
+									var packageQualifiedIdentifier = parent.getQualifiedIdentifier();
+									val caseofPackageName = makeSeperatedString(packageQualifiedIdentifier.identifiers.map(fn(id) => {id.name}), ".");
+									val ovId = idgen.getId();
+									sbStateInitializer.append("plaid.fastruntime.ObjectValue " + ovId + " = ");
+									val stateSimpleName = node.caseOf.identifiers.get(node.caseOf.identifiers.size() - 1).getValue().name;
+									sbStateInitializer.append(caseofPackageName + "." + stateSimpleName + "." + NamingConventions.GENERATED_STATE_NAME + ".getObjectValue();\n");
+									sbStateInitializer.append("ovf.parent(" + ovId + ");\n");
+								}
+								default{
+									ERROR("Case of identifier symbol is unexpected value, " + caseOfSymbol.symbolType() + ".");
+								}
+							}
+						} case None {
+							ERROR("no symbol for case of identifier");
+						}
+					}
+				}
+			};
 			
 			//generate methods and field
 			match(node.stateBinding) {
@@ -123,6 +154,12 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 								};
 								sbStateInitializer.append("ovf.field(" + settable + ", \"" + innerDecl.name.name + "\"," 
 									+ "\"" + fullyQualifiedClassName + "\");\n");
+							}
+							case ParsedAbstractFieldDecl {
+								//no-op
+							}
+							case ParsedAbstractMethodDecl {
+								//no-op
 							}
 							default {
 								ERROR("Unsupported inner decl ast node. Node name is " + innerDecl.nodeName());
@@ -214,6 +251,12 @@ method codegenInnerDecl(immutable ParsedDecl node,  shared StringBuilder sb, sha
 			sb.append("};\n"); // end FieldInitializer anonymous class
 			sb.append("}\n"); // end static
 			
+		}
+		case ParsedAbstractFieldDecl {
+			//no-op
+		}
+		case ParsedAbstractMethodDecl {
+			//no-op
 		}
 		default {
 			ERROR("Found unexpected node as inner decl");
