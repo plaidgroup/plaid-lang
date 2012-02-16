@@ -155,7 +155,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             stop = true;
         };
 
-        while { count  > 0 && !stop }{
+        while { count > 0 && !stop }{
              var fqn = qi.identifiers.get(0).value.name;
              var i = 1;
              var isBase = true;
@@ -200,6 +200,30 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                                                      endLine,
                                                      endColumn,
                                                      "Cannot resolve '" + resolvedFqn + "." + qi.identifiers.get(count).value.name  + "'");
+                             }
+                             case JavaClassSymbol { //might be static members that we should resolve
+                             	DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found Java Class " + fqn + ", looking for static member");
+								val unresolved = qi.identifiers.get(count).value;
+								//val unresolvedFullName = resolvedFqn + "." + unresolved.name;
+								match (symbol.value.checkStaticField(unresolved.name)) {
+									case True {
+										val fieldSymbol = (new SymbolFactory).makeJavaStaticFieldSymbol(unresolved.name, symbol.value);
+										addSymbolForAST(unresolved, fieldSymbol);
+										DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found static field " + unresolved.name);
+									}
+									case False { /* no op */ }
+								
+								};
+								
+								match (symbol.value.checkStaticMethod(unresolved.name)) {
+									case True {
+										val methodSymbol = (new SymbolFactory).makeJavaStaticMethodSymbol(unresolved.name, symbol.value);
+										addSymbolForAST(unresolved, methodSymbol);
+										DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found static method " + unresolved.name);
+									}
+									case False { /* no op */ }
+								
+								};
                              }
                              default {}
                          }
