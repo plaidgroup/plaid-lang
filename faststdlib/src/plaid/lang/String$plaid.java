@@ -29,9 +29,9 @@ public class String$plaid extends AbstractPlaidState
 
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject other) {
 		try {
-			String first = ((String) ((PlaidJavaObject) receiver).getJavaObject());
-			String second = ((String) ((PlaidJavaObject) other).getJavaObject());
-			String concat = first + second;
+			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
+			java.lang.String second = ((java.lang.String) ((PlaidJavaObject) other).getJavaObject());
+			java.lang.String concat = first + second;
 			return new SimplePlaidJavaObject(this, null, concat);
 			
 		} catch (Exception e) {
@@ -55,8 +55,8 @@ public class String$plaid extends AbstractPlaidState
 	@Override
 	public PlaidObject endsWith(PlaidObject receiver, PlaidObject arg) {
 		try {
-			String first = ((String) ((PlaidJavaObject) receiver).getJavaObject());
-			String second = ((String) ((PlaidJavaObject) arg).getJavaObject());
+			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
+			java.lang.String second = ((java.lang.String) ((PlaidJavaObject) arg).getJavaObject());
 			boolean concat = first.endsWith(second);
 			return new SimplePlaidJavaObject(this, null, concat);
 			
