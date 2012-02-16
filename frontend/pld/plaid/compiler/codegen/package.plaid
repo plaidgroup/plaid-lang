@@ -496,6 +496,71 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 			codegenStateExpr(node.stateExpr, sb, idgen, exprVarName);
 			sb.append(y + " = " + exprVarName + ".instantiate();\n");
 		}
+		case ParsedMatch {
+			val exprVarName = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + exprVarName + ";\n");
+			codegenStmt(node.expression, sb, idgen, exprVarName);
+			
+			val caseStringList = new LinkedList;
+			node.caseList.map(fn(c) => {
+				match(c) {
+					case ParsedPatternCase {
+						val patternSymbolOption = symbolForAST(c.pattern);
+						match(patternSymbolOption) {
+							case Some {
+								
+								val patternSymbol = patternSymbolOption.getValue();
+								match (patternSymbol) {
+									case StateSymbol {
+										val caseSB = StringBuilder.new();
+										caseSB.append("if(" + exprVarName + ".getDispatch().matches(");
+										caseSB.append(patternSymbol.getFQN() + "." + NamingConventions.GENERATED_STATE_NAME + ".getTopTag())) {\n");
+										val bodyVarName = idgen.getId();
+										sb.append("plaid.fastruntime.PlaidObject " + bodyVarName + ";\n");
+										codegenStmt(c.body, caseSB, idgen, bodyVarName);
+										caseSB.append(y + " = " + bodyVarName + ";\n");
+										caseSB.append("}\n");
+										caseStringList.add(caseSB.toString());
+									}
+									default {
+										ERROR("Case pattern has unexpected symbol '" + patternSymbol.symbolType() + "'.");
+									}
+								}
+							}
+							case None {
+								ERROR("No symbol found for pattern in case.")
+							}			
+						};
+					}
+					case ParsedDefaultCase {
+						val caseSB = StringBuilder.new();
+						val bodyVarName = idgen.getId();
+						caseSB.append("else {\n");
+						caseSB.append("plaid.fastruntime.PlaidObject " + bodyVarName + ";\n");
+						codegenStmt(c.body, caseSB, idgen, bodyVarName);
+						caseSB.append(y + " = " + bodyVarName + ";\n");
+						caseSB.append("}\n");
+						caseStringList.add(caseSB.toString());
+					}
+				};
+			});
+			val caseString = makeSeperatedString(caseStringList, "else ");
+			sb.append(caseString);
+			val lastCase = node.caseList.get(node.caseList.size() - 1).getValue();
+			match (lastCase) {
+				case ParsedPatternCase {
+					sb.append("else {\n");
+					sb.append("throw new plaid.fastruntime.errors.PlaidIllegalOperationException(\"Pattern match exausted.\");\n");
+					sb.append("}");
+				}
+				case ParsedDefaultCase {
+					//no-op
+				}
+			}
+		}
+		case ParsedBlockExpr {
+			node.statements.map(fn(stmtNode) => {codegenStmt(stmtNode, sb, idgen, y)});
+		}
 		default {
 			ERROR("Unexpected stmt node type,"+ node.nodeName() +" encountered.");
 		}
@@ -522,7 +587,13 @@ method codegenStateExpr(immutable Stmt node, shared StringBuilder sb, shared IdG
 						}
 					}
 				}
+				default {
+					ERROR("Unepected node type for state state expression. Expected Identifier, got " + node.stateExpr.nodeName());
+				}
 			}
+		}
+		default {
+			ERROR("Unepected node type for state state expression. Expected StateRef, got " + node.nodeName());
 		}
 	}
 }
@@ -535,7 +606,7 @@ method makeSeperatedString(immutable LinkedList<String> stringList, immutable St
 	ifElse(stringList.size() > 0) {
 		val addSep = fn(s1, s2) => {s1 + sep + s2};
 		val toReturn = stringList.reduceLeft("", addSep);
-		toReturn.substring(1,toReturn.length());
+		toReturn.substring(sep.length(),toReturn.length());
 	}
 	{ //
 		"";
