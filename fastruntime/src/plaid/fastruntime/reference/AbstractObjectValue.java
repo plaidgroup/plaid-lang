@@ -6,6 +6,7 @@ import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.PlaidFieldInitializer;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidObject;
+import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
 import fj.Ord;
 import fj.data.List;
@@ -176,6 +177,18 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		//TODO: Implement unique tags correctly
 		//TODO: Check what is going on here
 		return true;
+	}
+	
+	public boolean matches(String tag) {
+		return getTags().member(tag);
+	}
+	
+	public String getTopTag() {
+		if (this instanceof DimensionValue) {
+			return ((DimensionValue)this).getTag();
+		} else {
+			throw new PlaidIllegalOperationException("Asked for top tag of object value without top tag");
+		}
 	}
 	
 	public abstract Set<String> getTags();

@@ -13,6 +13,10 @@ public interface ObjectValue {
 	 * Returns a new instance every time it is called.
 	 */
 	public PlaidObject[] getDefaultStorage();
+	
+	public String getTopTag();
+	
+	public boolean matches(String tag);
 
 	int getFieldIndex(String fieldName);
 }
