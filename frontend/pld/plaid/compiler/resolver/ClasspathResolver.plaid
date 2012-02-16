@@ -36,6 +36,7 @@ import plaid.compiler.CompilerJob;
 import plaid.compiler.util.classpathToList;
 
 import plaid.compiler.passes.*;
+import plaid.compiler.symbol.JavaClassSymbol;
 
 import plaid.compiler.reporter.ConsoleReporter;
 
@@ -68,6 +69,7 @@ state ClasspathResolver case of Resolver {
             lookupFunctions.add(fn (immutable String fqn) => this.lookupBuiltIn(fqn) );
             lookupFunctions.add(fn (immutable String fqn) => this.lookupFromPlaidSource(fqn));
             lookupFunctions.add(fn (immutable String fqn) => this.lookupPackages(fqn));
+            lookupFunctions.add(fn (immutable String fqn) => this.lookupJavaStaticMember(fqn));
             lookupFunctions.add(fn (immutable String fqn) => this.lookupJavaClass(fqn));
 
             // search through              
@@ -112,24 +114,28 @@ state ClasspathResolver case of Resolver {
         var curName = packages.get(0).value.name;
         var i = 1;
         ifElse(!this.cache.containsKey(curName)) {
-            val packageSymbol = this.sf.makePackageSymbol(curName,this.sf.makeTopSymbol());
+            packageSymbol = this.sf.makePackageSymbol(curName, this.sf.makeTopSymbol());
             this.cache.put(curName, packageSymbol);
-            DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
+            DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "' (" + packageSymbol.symbolType() +") " + packageSymbol.getFQN() );
         }{
             packageSymbol = this.cache.get(curName);
+            DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    FOUND '" +  curName + "' (" + packageSymbol.symbolType() +") " + packageSymbol.getFQN() );
         };
+        
         while {i < packages.size();} {
             curName = curName + "." + packages.get(i).value.name;
-            if(!this.cache.containsKey(curName)) {
-                val packageSymbol = this.sf.makePackageSymbol(curName, packageSymbol); //KBN - should this be owned by the enclosing package instead of top?
+            ifElse(!this.cache.containsKey(curName)) {
+                packageSymbol = this.sf.makePackageSymbol(packages.get(i).value.name, packageSymbol); //KBN - should this be owned by the enclosing package instead of top?
                 this.cache.put(curName, packageSymbol);
-                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
+                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "' (" + packageSymbol.symbolType() +") " + packageSymbol.getFQN() );
+            }{
+                packageSymbol = this.cache.get(curName);
             };
             i = i + 1;
         };
          
         packageSymbol = this.cache.get(curName);
-         
+               
         // add top-level symbols    
         cu.decls.map(fn(d) => {
             val declName = curName + "." + d.name.name;
@@ -154,7 +160,7 @@ state ClasspathResolver case of Resolver {
                         declSymbol = this.sf.makeStateValSymbol(d.name.name, d, packageSymbol);
                     }
                 };
-                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  declName + "'");
+                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  declName + "' (" + declSymbol.symbolType() + ")");
                 this.cache.put(declName, declSymbol);
             };
             
@@ -222,8 +228,71 @@ state ClasspathResolver case of Resolver {
     }
 
     method /* Option<Symbol> */ lookupJavaStaticMember(immutable String fqn) {
-
-     
+        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver> Try loading Java static member '" + fqn + "'");
+        val lastDot = fqn.lastIndexOf(".");
+        match (lastDot != -1) {
+            case True {
+                val classFqn = fqn.substring(0,lastDot);
+                val memberName = fqn.substring(lastDot+1);
+                val classSymbolOpt = this.lookupJavaClass(classFqn);
+                
+                match (classSymbolOpt) {
+                    case Some {
+                        val classSymbol = classSymbolOpt.value;
+                        match (classSymbol) {
+                            case JavaClassSymbol {
+                                match (classSymbol.checkStaticField(memberName)) {
+									case True {
+										DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  fqn + "'");
+										makeSome(this.sf.makeJavaStaticFieldSymbol(memberName, classSymbol));
+									}
+									case False {  
+                                        match (classSymbol.checkStaticMethod(memberName)) {
+                                            case True {
+                                                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  fqn + "'");
+                                                makeSome(this.sf.makeJavaStaticMethodSymbol(memberName, classSymbol));
+                                            }
+                                            case False {  
+                                                match (memberName == "new") {
+                                                    case True { 
+                                                        DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  fqn + "'");
+                                                        makeSome(this.sf.makeJavaConstructorSymbol(memberName, classSymbol));
+                                                    }
+                                                    case False { 
+                                                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java static member '" +
+                                                                                fqn + "': member does not exist");
+                                                        NONE
+                                                    }
+                                                }
+                                            }
+                                        
+                                        };
+									
+									}
+								
+								};
+								
+								
+                            }
+                            default {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java static member '" +
+                                                  fqn + "': '" + classFqn + "' not a Java Class");
+                                NONE
+                            }
+                        }
+                    }
+                    case None {
+                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java static member '" +
+                                                  fqn + "': '" + classFqn + "' not a Java Class");
+                        NONE
+                    }
+                }
+            }
+            case False {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java static member '" + fqn + "'");
+                NONE
+            }
+        }
     }
 
 
