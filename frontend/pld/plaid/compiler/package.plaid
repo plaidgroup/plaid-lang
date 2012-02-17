@@ -8,6 +8,7 @@ import plaid.compiler.resolver.ClasspathResolver;
 
 import plaid.compiler.context.*;
 import plaid.compiler.passes.*;
+import plaid.compiler.javatobytecode.*;
 
 import plaid.compiler.util.classpathToList;
 
@@ -99,6 +100,7 @@ method showUsage() {
     printLine(" -V | --viewAST              View the AST of the compiled files.");  
     printLine(" -s | --symbolMap            Dump symbol map after compilation");
     printLine(" -c | --no-codegen			Do not generate code");
+    printLine(" -b | --no-bytecode          Do not compile generated Java file to byte code ");
 }
 
 
@@ -122,6 +124,7 @@ method parseCommandLineArgs(args) {
     var viewAST = false;
     var dumpSymbolMap = false;
     var enableCodegen = true;
+    var enableBytecode = true;
     
     while { !abort && !args.isEmpty() }{
         var handled = false;
@@ -144,6 +147,10 @@ method parseCommandLineArgs(args) {
         if ( args.car().equals("-n") || args.car().equals("--no-typechecking") ) {
             handled = true;
             enableTypechecking = false;
+        };
+        if ( args.car().equals("-b") || args.car().equals("--no-bytecode") ) {
+            handled = true;
+            enableBytecode = false;
         };
         if ( args.car().equals("-d") || args.car().equals("--debug") ) {
             handled = true;
@@ -275,6 +282,7 @@ method parseCommandLineArgs(args) {
                 val viewAST = viewAST;
                 val dumpSymbolMap = dumpSymbolMap;
                 val enableCodegen = enableCodegen;
+                val enableBytecode = enableBytecode;
             }).expand()); 
         }        
     }
@@ -612,11 +620,32 @@ method main(args) {
 
             // run remaining passes 
             runJobsToCompletion();
-            
+
+            // compile the             
+            if ( cc.enableBytecode && cc.enableCodegen) {
+                DEBUG(DEBUG_PRIO_HIGH, "<main> Compile generated files");
+                val unique LinkedList fileList = java.util.LinkedList.new();
+                jobs.map( fn (job) => {
+                    job.generatedFiles.do( fn (path) => {
+                        printLine(path);
+                        val file = java.io.File.new(path);
+                        //if ( cc.keep == false ) {
+                        //    file.deleteOnExit();
+                        //};
+                        fileList.add(file);
+                    });
+                    job
+                }); 
+                
+                val javaCompiler = getJavaCompiler(cc);
+                javaCompiler.compile(fileList);
+            };
+
             //dump symbol map
             if (cc.dumpSymbolMap) {
             	printLine(printSymbolMap())
             };
+            
 
         }
         default {
