@@ -1,0 +1,408 @@
+package plaid.aeminium.codegen;
+
+import plaid.codegen.CodeGenVisitor;
+
+state LinearAeminiumCodeGenVisitor case of CodeGenVisitor {
+	val aemRt = "aeminium.runtime.implementations.Factory.getRuntime()";
+	
+	var lastNodeNum = -1;
+	var lastNode = "";
+	var currentMethodName = "";
+	var lambdaCounter = 0;
+	
+	method emitAeminiumBodyHeader(name, astNode) {
+		match (astNode.dependencies) {
+			case Some {
+				// TODO: Correct position?
+				this.lastNodeNum = astNode.num;
+				this.lastNode = astNode;
+				
+				this.out.append("aeminium.runtime.Body b" + name + " = new aeminium.runtime.Body() {");
+				this.out.append("public String toString() {");
+				ifElse (name.toString().equals(this.currentMethodName)) {
+					this.out.append("return \"" + name + "\";");
+				} {
+					this.out.append("return \"" + this.currentMethodName + ":" + name + "\";");
+				};
+				this.out.append("}");
+				this.out.append("public void execute(aeminium.runtime.Runtime rt, aeminium.runtime.Task current) {");
+				
+				this.y = this.idgen.getId();
+				this.out.declareFinalVar(this.out.plaidObjectType, this.y.name);
+			}
+			case None {
+			}
+		};
+	}
+	
+	method emitAeminiumBodyFooter(name, astNode) {
+		match (astNode.dependencies) {
+			case Some {
+				this.out.append("current.setResult(" + this.y.name + ");");
+				this.out.closeBlock();
+				this.out.append("};");
+				this.out.append("final aeminium.runtime.Task t" + name + " = " + this.aemRt + ".");
+				this.out.append("createNonBlockingTask(b" + name + ", aeminium.runtime.Runtime.NO_HINTS);");
+				
+				val depIt = astNode.dependencies.value.iterator();
+				ifElse (!depIt.hasNext()) {
+					this.out.append(this.aemRt + ".schedule(t" + astNode.num + ", current, aeminium.runtime.Runtime.NO_DEPS);");
+				} {
+					this.out.append("java.util.Collection<aeminium.runtime.Task> deps" + astNode.num + " = new java.util.ArrayList<aeminium.runtime.Task>();");
+					while { depIt.hasNext(); } {
+						// TODO: Fix this.
+						// Problem: Node 0 is always a MethodDecl/Lambda node which does not correspond to an Aeminium task.
+						val dep = depIt.next();
+						if (dep.to.num != 0) {
+							this.out.append("deps" + astNode.num + ".add(t" + dep.to.num + ");");
+						};
+					};
+					this.out.append(this.aemRt + ".schedule(t" + astNode.num + ", current, deps" + astNode.num + ");");
+				};
+			}
+			case None {
+			}
+		};
+	}
+
+	override method visitUnitLiteral(node) {
+		this.emitAeminiumBodyHeader(node.num, node);
+
+		//this.setLocation(node.token);
+		this.out.assign(this.y.name);
+		this.out.unit2(); // Identical to unit(), but that's a reserved word
+		this.out.append(";");
+		//this.out.updateVarDebugInfo(this.y.name);
+		
+		this.emitAeminiumBodyFooter(node.num, node);
+	}
+	
+	override method visitIntLiteral(node) {
+		this.emitAeminiumBodyHeader(node.num, node);
+		
+		//this.setLocation(node.token);
+		this.out.assign(this.y.name);
+		this.out.plaidInt(node.integer);
+		this.out.append(";");
+		//this.out.updateVarDebugInfo(this.y.name);
+		
+		this.emitAeminiumBodyFooter(node.num, node);
+	}
+	
+	override method visitID(node) {
+		this.emitAeminiumBodyHeader(node.num, node);
+		
+		//this.setLocation(node.token);
+		val /*String*/ newName = this.jCodeGen.convertOpNames(node.name);
+		this.out.assignToLookup(this.y.name, newName, this.out.localScope);
+		
+		this.emitAeminiumBodyFooter(node.num, node);
+	}
+	
+	override method visitLetBinding(node) {
+		this.emitAeminiumBodyHeader(node.num, node);
+		
+		node.exp.accept(this);
+
+		this.out.declareFinalVar(this.out.plaidObjectType, node.x.name);
+		this.out.append(node.x.name + " = " + this.y.name + ";");
+		this.out.insertIntoScope(this.out.localScope, node.x.name, !node.mutable);
+		
+		match (node.body.dependencies) {
+			case Some {
+				this.y = node.x;
+				this.emitAeminiumBodyFooter(this.lastNodeNum, this.lastNode);
+			}
+			
+			case None {
+				this.y = this.idgen.getId();
+				this.out.declareFinalVar(this.out.plaidObjectType, this.y.name);
+			}
+		};
+		
+		node.body.accept(this);
+		
+		match (node.body) {
+			case UnannotatedLetBinding {}
+			case AnnotatedLetBinding {}
+			case Split {}
+			case Join {}
+			default {
+				match (node.body.dependencies) {
+					case Some {}
+					case None {
+						this.emitAeminiumBodyFooter(this.lastNodeNum, this.lastNode);
+					}
+				};
+			}
+		};
+	}
+	
+	override method visitApplication(node) {
+		this.emitAeminiumBodyHeader(node.num, node);
+		
+		//this.setLocation(node.token);
+		val /*ID*/ y = this.y;
+		val /*ID*/ x = this.idgen.getId();
+		val /*ID*/ z = this.idgen.getId();
+		val /*ID*/ w = this.idgen.getId();
+
+		this.out.declareFinalVar(this.out.plaidObjectType, x.name);
+		this.out.declareFinalVar(this.out.plaidObjectType, z.name);
+		this.out.declareFinalVar(this.out.plaidObjectType, w.name);
+		
+		this.y = x;
+		node.f.accept(this);
+		
+		// FIXME:  Multiple arguments.
+		this.y = z;
+		node.arguments.head.value.accept(this);
+		
+		//this.setLocation(node.token);
+		this.out.assignToCall(w.name, x.name, z.name);
+		
+		this.out.append("if ((" + w.name + " instanceof plaid.runtime.models.map.PlaidJavaObjectMap) && ");
+		this.out.append("(((plaid.runtime.models.map.PlaidJavaObjectMap) " + w.name + ").getJavaObject() instanceof aeminium.runtime.Task)) {");
+		this.out.append("aeminium.runtime.Task retTask = (aeminium.runtime.Task) (((plaid.runtime.models.map.PlaidJavaObjectMap) " + w.name + ").getJavaObject());");
+		this.out.append("aeminium.runtime.implementations.Factory.getRuntime().schedule(retTask, current, aeminium.runtime.Runtime.NO_DEPS);");
+		this.out.append(y.name + " = (plaid.runtime.PlaidObject) retTask.getResult();");
+		this.out.append("} else {");
+		this.out.append(y.name + " = " + w.name + ";");
+		this.out.append("}");
+
+		this.y = y;
+		this.emitAeminiumBodyFooter(node.num, node);
+	}
+	
+	override method visitMethodCall(node) {
+		this.emitAeminiumBodyHeader(node.num, node);
+		
+		//this.setLocation(node.token);
+		val /*ID*/ y = this.y;
+		val /*ID*/ o = this.idgen.getId();
+		val /*ID*/ m = this.idgen.getId();
+		val /*ID*/ a = this.idgen.getId();
+		val /*ID*/ w = this.idgen.getId();
+		this.out.declareFinalVar(this.out.plaidObjectType, o.name);
+		this.out.declareFinalVar(this.out.plaidObjectType, m.name);
+		this.out.declareFinalVar(this.out.plaidObjectType, a.name);
+		this.out.declareFinalVar(this.out.plaidObjectType, w.name);
+		
+		// Dereference
+		this.y = o;
+		node.receiver.accept(this);
+		this.out.assignToLookup(m.name, this.jCodeGen.convertOpNames(node.methodName.name), o.name);
+		
+		// FIXME:  Multiple arguments.
+		// Get argument
+		this.y = a;
+		node.arguments.head.value.accept(this);
+		
+		// Call
+		this.out.assignToCall(w.name, m.name, a.name);
+		
+		this.out.append("if ((" + w.name + " instanceof plaid.runtime.models.map.PlaidJavaObjectMap) && ");
+		this.out.append("(((plaid.runtime.models.map.PlaidJavaObjectMap) " + w.name + ").getJavaObject() instanceof aeminium.runtime.Task)) {");
+		this.out.append("aeminium.runtime.Task retTask = (aeminium.runtime.Task) (((plaid.runtime.models.map.PlaidJavaObjectMap) " + w.name + ").getJavaObject());");
+		this.out.append("aeminium.runtime.implementations.Factory.getRuntime().schedule(retTask, current, aeminium.runtime.Runtime.NO_DEPS);");
+		this.out.append(y.name + " = (plaid.runtime.PlaidObject) retTask.getResult();");
+		this.out.append("} else {");
+		this.out.append(y.name + " = " + w.name + ";");
+		this.out.append("}");
+		
+		this.y = y;
+		this.emitAeminiumBodyFooter(node.num, node);
+	}
+	
+	override method visitLambda(node) {
+		this.out.assignToNewLambda(y.name, node.arguments.head.value.name);
+		
+		val lambdaNo = this.lambdaCounter;
+		this.lambdaCounter = this.lambdaCounter + 1;
+		val oldMethodName = this.currentMethodName;
+		val lambdaName = "Lambda" + this.lambdaCounter;
+		this.currentMethodName = lambdaName;
+		
+		this.emitAeminiumBodyHeader(this.currentMethodName, node);
+		node.body.accept(this);
+		
+		this.out.append("current.setResult(t" + this.lastNodeNum + ".getResult());");
+		this.out.closeBlock();
+		this.out.append("};");
+		this.out.append("final aeminium.runtime.Task t" + lambdaName + " = " + this.aemRt + ".");
+		this.out.append("createNonBlockingTask(b" + lambdaName + ", aeminium.runtime.Runtime.NO_HINTS);");
+		this.out.append("return plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packJavaObject(t" + lambdaName + ");");		
+		
+		this.out.closeAnonymousDeclaration(); //}});");
+		this.currentMethodName = oldMethodName;
+		this.y = y;
+	}
+	
+	override method visitMatch(node) {
+		this.emitAeminiumBodyHeader(node.num, node);
+		val y = this.y;
+		
+		//this.setLocation(node.token);
+		val /*ID*/ toMatch = this.idgen.getId();
+
+		this.out.declareFinalVar(this.jCodeGen.plaidObjectType, toMatch.name);
+
+		this.y = toMatch;
+		node.e.accept(this);
+		this.y = y;
+		
+		val oldLastNodeNum = this.lastNodeNum;
+		val oldLastNode = this.lastNode;
+		
+		node.caseList.map(fn (c) => {
+			this.toMatch = toMatch;
+			c.accept(this);
+			
+			this.out.elseCase();
+			this.out.openBlock();
+		});
+		
+		this.out.append("throw new RuntimeException(\"Pattern match exhausted.\");");
+		
+		node.caseList.map(fn (c) => {
+			this.out.closeBlock();
+		});
+		
+		this.lastNodeNum = oldLastNodeNum;
+		this.lastNode = oldLastNode;
+		this.y = y;
+		this.emitAeminiumBodyFooter(node.num, node);
+	}
+	
+	override method visitCase(node) {
+		val oldY = this.y;
+		
+		// if this is the default case
+		ifElse (node.defaultCase) {
+			this.out.ifCondition("true");
+			this.out.openBlock();
+			node.e.accept(this);
+			
+			this.out.append(oldY.name + " = (plaid.runtime.PlaidObject) t" + this.lastNodeNum + ".getResult();"); 
+			this.out.closeBlock();
+		} {
+			// otherwise generate to check this case matches
+			val /*ID*/ potentialMatch = this.idgen.getId();
+			val /*ID*/ potentialMatchTagString = this.idgen.getId();
+			
+			// generate code to get the state to match against
+			this.out.declareFinalVar(this.jCodeGen.plaidStateType, potentialMatch.name);
+			val y = this.y;
+			this.y = potentialMatch;
+			node.qi.value.accept(this);
+			this.y = y;
+			
+			this.out.declareFinalVar("String", potentialMatchTagString.name);
+			this.out.assignToQIDString(potentialMatchTagString.name, potentialMatch.name);
+			
+			// test if the toMatch object has the tag 
+			this.out.ifCondition(this.jCodeGen.objectMatchesTag(toMatch.name, potentialMatchTagString.name));  // if (toMatch.hasState(potentialMatch))
+			this.out.openBlock(); // {
+			
+			if (node.boundVar) { //if there is a bound variable
+				this.out.declareFinalVar(this.jCodeGen.plaidObjectType, x.name); //PlaidObject x;
+				this.out.assignToID(x.name, this.toMatch.name); // x = toMatch
+			};
+			
+			node.e.accept(this);
+			
+			this.out.append(oldY.name + " = (plaid.runtime.PlaidObject) t" + this.lastNodeNum + ".getResult();");
+			this.out.closeBlock(); // }
+		};
+		
+		this.y = oldY;
+	}
+
+	override method visitMethodDecl(node) {
+		val newName = this.jCodeGen.convertOpNames(node.name);
+		this.currentMethodName = newName;
+		java.lang.System.out.println("Generating code for method '" + newName + "'...");
+
+		val freshImports = this.idgen.getId();
+		
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.setPrettyPrint(true);
+		cc.setDebugMode(true);
+		cc.setAeminiumMode(true);
+		cc.setOutputDir("testOutput/");
+		this.out = this.jCodeGen.new(cc);
+		
+		val qid = new QI {val qid = this.packageName;};
+		val thisMethod = newName + "_func";
+		val thePackage = qid.toString();
+		
+		//package and needed imports
+		this.out.declarePackage(thePackage);
+		
+		//annotation and class definition
+		this.out.topMethodAnnotation(newName, thePackage);
+		this.out.declarePublicClass(newName);
+		this.out.openBlock(); //public class newName {
+
+		//generate code to create the package scope with imports
+		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
+		
+		this.y = freshImports;
+		this.imports.accept(this);
+
+		this.out.declareGlobalScope(qid.toString(), freshImports.name);
+		
+		if (newName.equals("main")) {
+			this.out.topLevelMain(newName + "_func");
+		};
+
+		this.out.methodAnnotation(newName);
+		this.out.declarePublicStaticFinalVar(this.out.plaidMethodType, thisMethod);
+		this.out.openStaticBlock(); // static {
+		// add local scope so that the lambda creation works properly
+		this.out.declareLocalScope(this.out.globalScope);
+		
+		ifElse (node.arguments.length() > 0) {
+			this.out.assignToNewLambda(thisMethod, node.arguments.head.value.name);
+		} {
+			this.out.assignToNewLambda(thisMethod, "_"); // FIXME
+		};
+		
+		ifElse (newName.equals("main")) {
+			this.out.append("aeminium.runtime.Body bMain = new aeminium.runtime.Body() {");
+			this.out.append("public String toString(){");
+			this.out.append("return \"main\" ;");
+			this.out.append("}");
+			this.out.append("public void execute(aeminium.runtime.Runtime rt, aeminium.runtime.Task current) {");
+			
+			
+			
+			node.body.accept(this);
+		
+			this.out.append("current.setResult(t" + this.lastNodeNum + ".getResult());");
+			this.out.closeBlock();
+			this.out.append("};");
+			this.out.append("aeminium.runtime.Task tMain = " + this.aemRt + ".");
+			this.out.append("createNonBlockingTask(bMain, aeminium.runtime.Runtime.NO_HINTS);");
+			this.out.append(this.aemRt + ".schedule(tMain, aeminium.runtime.Runtime.NO_PARENT, aeminium.runtime.Runtime.NO_DEPS);");
+			this.out.append("return (plaid.runtime.PlaidObject) tMain.getResult();");
+		} {
+			this.emitAeminiumBodyHeader(newName, node);
+			node.body.accept(this);
+			// TODO: Fix this.
+			this.out.append("current.setResult(t" + this.lastNodeNum + ".getResult());");
+			this.out.closeBlock();
+			this.out.append("};");
+			this.out.append("final aeminium.runtime.Task t" + newName + " = " + this.aemRt + ".");
+			this.out.append("createNonBlockingTask(b" + newName + ", aeminium.runtime.Runtime.NO_HINTS);");
+			this.out.append("return plaid.runtime.PlaidRuntime.getRuntime().getClassLoader().packJavaObject(t" + newName + ");");
+		};
+		
+		this.out.closeAnonymousDeclaration(); // }});
+		
+		this.out.closeBlock(); // }  (for static block)
+		this.out.closeBlock(); // }  (for class declaration)
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(newName, cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+	}
+}
