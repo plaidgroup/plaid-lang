@@ -1,9 +1,13 @@
 package plaid.fastruntime;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
 import plaid.fastruntime.dcg.DispatchGenerator;
 import plaid.fastruntime.dcg.InterfaceGenerator;
 import plaid.fastruntime.dcg.JavaDispatchGenerator;
 import plaid.fastruntime.dcg.StorageGenerator;
+import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.lang.DPrintStream$plaid;
 import plaid.lang.False;
 import plaid.lang.Float64;
@@ -57,6 +61,51 @@ public class Util {
 			return string((java.lang.String) javaObject);
 		else
 			return JAVA_GEN.createPlaidJavaObject(javaObject);
+	}
+	
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object... args) {
+		Class<?>[] argClasses = new Class[args.length];
+		for (int i = 0;i < args.length;i++) argClasses[i] = args[i].getClass();
+		Class<?> receiverClass = receiver.getClass();
+		
+		try {
+			Method toCall = receiverClass.getMethod(mName, argClasses);
+			return toCall.invoke(receiver, args);
+		} catch (SecurityException e) {
+			throw new PlaidIllegalOperationException("Java method " + mName + " not available in class " + receiverClass.getName() ,e.getCause());
+		} catch (NoSuchMethodException e) {
+			throw new PlaidIllegalOperationException("Java method " + mName + " does not exists for provided arguments in class " + receiverClass.getName() ,e.getCause());
+		} catch (IllegalArgumentException e) {
+			throw new PlaidIllegalOperationException("Java method " + mName + " does not exists for provided arguments in class " + receiverClass.getName() ,e.getCause());
+		} catch (IllegalAccessException e) {
+			throw new PlaidIllegalOperationException("Java method " + mName + " not available in class " + receiverClass.getName() ,e.getCause());
+		} catch (InvocationTargetException e) {
+			throw new PlaidIllegalOperationException("Java method " + mName + " does not exists for provided arguments in class " + receiverClass.getName() ,e.getCause());
+		}
+	}
+	
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg) {
+		return staticOverloadingCall(receiver, mName, new Object[] { arg });
+	}
+	
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2) {
+		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2 });
+	}
+	
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2, Object arg3) {
+		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2, arg3 });
+	}
+	
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2, Object arg3, Object arg4) {
+		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2, arg3, arg4 });
+	}
+
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5) {
+		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2, arg3, arg4, arg5 });
+	}
+	
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5, Object arg6) {
+		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2, arg3, arg4, arg5, arg6 });
 	}
 	
 }
