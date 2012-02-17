@@ -18,7 +18,14 @@ public class NamingConventions {
 	public static final String GENERATED_GET_PREFIX = "get";
 	public static final String GENERATED_SET_PREFIX = "set";
 	
-	public static final String PLAID_OBJECT_DESCRIPTOR = "Lplaid/fastruntime/PlaidObject;";
+	public static final String PLAID_OBJECT_INTERNAL_NAME = "plaid/fastruntime/PlaidObject";
+	public static final String PLAID_OBJECT_DESCRIPTOR = "L" + PLAID_OBJECT_INTERNAL_NAME + ";";
+	public static final String PLAID_JAVA_OBJECT_INTERNAL_NAME = "plaid/fastruntime/PlaidJavaObject";
+	public static final String PLAID__JAVA_OBJECT_DESCRIPTOR = "L" + PLAID_JAVA_OBJECT_INTERNAL_NAME + ";";
+	public static final String JAVA_OBJECT_INTERNAL_NAME = "java/lang/Object";
+	public static final String JAVA_OBJECT_DESCRIPTOR = "L" + JAVA_OBJECT_INTERNAL_NAME + ";";
+	public static final String JAVA_STRING_INTERNAL_NAME = "java/lang/String";
+	public static final String JAVA_STRING_DESCRIPTOR = "L" + JAVA_STRING_INTERNAL_NAME + ";";
 	
 	
 	public static final String getGetterName(String fieldName) {
@@ -80,15 +87,43 @@ public class NamingConventions {
 		return sourceID + "$plaid";
 	}
 	
+	/*Generate Method Descriptors*/
+	
+	//Generates method descriptor for function that takes in PlaidObjects and returns a PlaidObject
 	public static final String getMethodDescriptor(int numArgs) {
+		return getMethodDescriptor(numArgs, PLAID_OBJECT_DESCRIPTOR, PLAID_OBJECT_DESCRIPTOR);
+	}
+	
+	public static final String getMethodDescriptor(int numArgs, String argDescriptor, String retDescriptor) {
 		StringBuilder sb = new StringBuilder("(");
 		for(int i=0; i<numArgs; i++) {
-			sb.append(PLAID_OBJECT_DESCRIPTOR); //args
+			sb.append(argDescriptor); //args
 		}
 		sb.append(")");
-		sb.append(PLAID_OBJECT_DESCRIPTOR); // return
+		sb.append(retDescriptor); // return
 		return sb.toString();
 	}
+	
+	public static final String getMethodDescriptor(String firstArgDescriptor, int numArgs, String argDescriptor, String retDescriptor) {
+		String start = getMethodDescriptor(numArgs, argDescriptor, retDescriptor);
+		return start.replace("(", "("+firstArgDescriptor);
+	}
+	
+	public static final String getMethodDescriptor(String firstArgDescriptor, String secondArgDescriptor, int numArgs, String argDescriptor, String retDescriptor) {
+		String start = getMethodDescriptor(numArgs, argDescriptor, retDescriptor);
+		String next = start.replace("(", "("+secondArgDescriptor);
+		return next.replace("(", "("+firstArgDescriptor);
+	}
+	
+	public static final String internalNameToDescriptor(String internalName) {
+		return "L" + internalName + ";";
+	}
+	
+	public static final String staticOverloadCallMethodDescriptor(int numArgs) {
+		return getMethodDescriptor(JAVA_OBJECT_DESCRIPTOR, JAVA_STRING_DESCRIPTOR, numArgs, JAVA_OBJECT_DESCRIPTOR, JAVA_OBJECT_DESCRIPTOR);
+	}
+	
+
 	
 	
 }

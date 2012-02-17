@@ -104,7 +104,7 @@ public class JavaDispatchGenerator implements Opcodes {
 					mv.visitTypeInsn(CHECKCAST, internalClassName);
 					
 					//load java arguments 
-					//if (overloadSet.size() == 1) { TODO: support static overloading
+					if (overloadSet.size() == 1) {
 						org.objectweb.asm.commons.Method asmMethod = org.objectweb.asm.commons.Method.getMethod(overloadSet.get(0));
 						Type[] args = asmMethod.getArgumentTypes();
 						for (int i = 0; i < args.length; i++) {
@@ -129,9 +129,22 @@ public class JavaDispatchGenerator implements Opcodes {
 						if (returnSort != Type.OBJECT && returnSort != Type.ARRAY) {
 							box(asmMethod.getReturnType(), mv);
 						}
-//					} else {
-//						throw new PlaidInternalException("static overloading not supported");
-//					}
+					} else {
+						//choose which method to call with reflection (may want to trying something different in the future)
+						
+						//because I didn't want to have to deal with arrays
+						if (m.numArgs > 6) 
+							throw new PlaidInternalException("handling of java static overloaded methods with > 6 parameters not implemented");
+						
+						mv.visitLdcInsn(m.name); //
+						for (int i = 0; i < m.numArgs; i++) {
+							mv.visitVarInsn(ALOAD, i+2);
+							mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
+							mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
+						}
+						mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
+								   "staticOverloadingCall", NamingConventions.staticOverloadCallMethodDescriptor(m.numArgs));
+					}
 					//wrap Java object into a PlaidJavaObject
 					mv.visitMethodInsn(INVOKEVIRTUAL, "plaid/fastruntime/dcg/JavaDispatchGenerator", 
 									   "createPlaidJavaObject", "(Ljava/lang/Object;)Lplaid/fastruntime/PlaidJavaObject;");
