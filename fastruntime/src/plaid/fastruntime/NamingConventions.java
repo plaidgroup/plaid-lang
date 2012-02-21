@@ -1,5 +1,7 @@
 package plaid.fastruntime;
 
+import java.util.HashMap;
+
 import fj.P2;
 import fj.data.List;
 
@@ -123,7 +125,66 @@ public class NamingConventions {
 		return getMethodDescriptor(JAVA_OBJECT_DESCRIPTOR, JAVA_STRING_DESCRIPTOR, numArgs, JAVA_OBJECT_DESCRIPTOR, JAVA_OBJECT_DESCRIPTOR);
 	}
 	
-
+	private static final HashMap<String,String> javaReservedMap = new HashMap<String,String>();
+	static {
+		javaReservedMap.put("abstract", "abstract" + GENERATED_SUFFIX);
+		javaReservedMap.put("continue", "continue" + GENERATED_SUFFIX);
+		javaReservedMap.put("for", "for" + GENERATED_SUFFIX);
+		javaReservedMap.put("new", "new" + GENERATED_SUFFIX);
+		javaReservedMap.put("switch", "switch" + GENERATED_SUFFIX);
+		javaReservedMap.put("assert", "assert" + GENERATED_SUFFIX);
+		javaReservedMap.put("default", "default" + GENERATED_SUFFIX);
+		javaReservedMap.put("goto", "goto" + GENERATED_SUFFIX);
+		javaReservedMap.put("package", "package" + GENERATED_SUFFIX);
+		javaReservedMap.put("synchronized", "synchronized" + GENERATED_SUFFIX);
+		javaReservedMap.put("boolean", "boolean" + GENERATED_SUFFIX);
+		javaReservedMap.put("do", "do" + GENERATED_SUFFIX);
+		javaReservedMap.put("if", "if" + GENERATED_SUFFIX);
+		javaReservedMap.put("private", "private" + GENERATED_SUFFIX);
+		javaReservedMap.put("this", "this" + GENERATED_SUFFIX);
+		javaReservedMap.put("break", "break" + GENERATED_SUFFIX);
+		javaReservedMap.put("double", "double" + GENERATED_SUFFIX);
+		javaReservedMap.put("implements", "implements" + GENERATED_SUFFIX);
+		javaReservedMap.put("protected", "protected" + GENERATED_SUFFIX);
+		javaReservedMap.put("throw", "throw" + GENERATED_SUFFIX);
+		javaReservedMap.put("byte", "byte" + GENERATED_SUFFIX);
+		javaReservedMap.put("else", "else" + GENERATED_SUFFIX);
+		javaReservedMap.put("import", "import" + GENERATED_SUFFIX);
+		javaReservedMap.put("public", "public" + GENERATED_SUFFIX);
+		javaReservedMap.put("throws", "throws" + GENERATED_SUFFIX);
+		javaReservedMap.put("case", "case" + GENERATED_SUFFIX);
+		javaReservedMap.put("enum", "enum" + GENERATED_SUFFIX);
+		javaReservedMap.put("instanceof", "instanceof" + GENERATED_SUFFIX);
+		javaReservedMap.put("return", "return" + GENERATED_SUFFIX);
+		javaReservedMap.put("transient", "transient" + GENERATED_SUFFIX);
+		javaReservedMap.put("catch", "catch" + GENERATED_SUFFIX);
+		javaReservedMap.put("extends", "extends" + GENERATED_SUFFIX);
+		javaReservedMap.put("int", "int" + GENERATED_SUFFIX);
+		javaReservedMap.put("short", "short" + GENERATED_SUFFIX);
+		javaReservedMap.put("try", "try" + GENERATED_SUFFIX);
+		javaReservedMap.put("char", "char" + GENERATED_SUFFIX);
+		javaReservedMap.put("final", "final" + GENERATED_SUFFIX);
+		javaReservedMap.put("interface", "interface" + GENERATED_SUFFIX);
+		javaReservedMap.put("static", "static" + GENERATED_SUFFIX);
+		javaReservedMap.put("void", "void" + GENERATED_SUFFIX);
+		javaReservedMap.put("class", "class" + GENERATED_SUFFIX);
+		javaReservedMap.put("finally", "finally" + GENERATED_SUFFIX);
+		javaReservedMap.put("long", "long" + GENERATED_SUFFIX);
+		javaReservedMap.put("strictfp", "strictfp" + GENERATED_SUFFIX);
+		javaReservedMap.put("volatile", "volatile" + GENERATED_SUFFIX);
+		javaReservedMap.put("const", "const" + GENERATED_SUFFIX);
+		javaReservedMap.put("float", "float" + GENERATED_SUFFIX);
+		javaReservedMap.put("native", "native" + GENERATED_SUFFIX);
+		javaReservedMap.put("super", "super" + GENERATED_SUFFIX);
+		javaReservedMap.put("while", "while" + GENERATED_SUFFIX);
+	}
 	
 	
+	public static final String getGeneratedIdentifier(String id) {
+		if(javaReservedMap.containsKey(id)) {
+			return javaReservedMap.get(id);
+		} else {
+			return id;
+		}
+	}
 }
