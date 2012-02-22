@@ -277,6 +277,15 @@ method codegenMethodBody(immutable ParsedBlockExpr node, shared StringBuilder sb
 	}
 }
 
+method codegenCaseBody(immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
+	LOG("generating code for case body block expression");
+	ifElse(node.statements.size() > 0) {
+		node.statements.map( fn(item) => { codegenStmt(item, sb, idgen, y); } );
+	} {
+		sb.append(y + " = plaid.fastruntime.Util.unit();\n");
+	}
+}
+
 method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, 
 		immutable String y) {
 	LOG("generating code for statement");
@@ -581,7 +590,7 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 										caseSB.append(patternSymbol.getFQN() + "." + NamingConventions.GENERATED_STATE_NAME + ".getTopTag())) {\n");
 										val bodyVarName = idgen.getId();
 										sb.append("plaid.fastruntime.PlaidObject " + bodyVarName + ";\n");
-										codegenStmt(c.body, caseSB, idgen, bodyVarName);
+										codegenCaseBody(c.body, caseSB, idgen, bodyVarName);
 										caseSB.append(y + " = " + bodyVarName + ";\n");
 										caseSB.append("}\n");
 										caseStringList.addLast(caseSB.toString());
@@ -601,7 +610,7 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 						val bodyVarName = idgen.getId();
 						caseSB.append("{\n");
 						caseSB.append("plaid.fastruntime.PlaidObject " + bodyVarName + ";\n");
-						codegenStmt(c.body, caseSB, idgen, bodyVarName);
+						codegenCaseBody(c.body, caseSB, idgen, bodyVarName);
 						caseSB.append(y + " = " + bodyVarName + ";\n");
 						caseSB.append("}\n");
 						caseStringList.addLast(caseSB.toString());
@@ -623,7 +632,35 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 			}
 		}
 		case ParsedBlockExpr {
+			// this should not be called if parent node is ConcreteMethodDecl, Case, Split, o r
+			//delegate to lambda expression code generator
 			node.statements.map(fn(stmtNode) => {codegenStmt(stmtNode, sb, idgen, y)});
+		}
+		case ParsedLambda {
+			sb.append(y + " = new plaid.fastruntime.PlaidLambda$" + node.arguments.size() + "() {\n");
+			sb.append("public plaid.fastruntime.PlaidObject invoke$plaid(");
+			if(node.arguments.size() > 0) {
+				val argList = node.arguments.map(fn(arg) => {"plaid.fastruntime.PlaidObject " + arg.name.name});
+				sb.append(makeSeperatedString(argList, ","));
+			};
+			sb.append(")"); // end argument list
+			sb.append(" {\n"); // begin invoke method body
+			match(node.body) {
+				case ParsedBlockExpr {
+					val toReturn = idgen.getId();
+					sb.append("plaid.fastruntime.PlaidObject " + y + ";\n");
+					node.body.statements.map( fn(item) => { codegenStmt(item, sb, idgen, y); } );
+					sb.append("return " + y + ";\n");
+				}
+				default {
+					val toReturn = idgen.getId();
+					sb.append("plaid.fastruntime.PlaidObject " + y + ";\n");
+					codegenStmt(node.body, sb, idgen, toReturn);
+					sb.append("return " + y + ";\n");
+				}
+			};
+			sb.append("}\n"); // end invoke method
+			sb.append("};\n"); // end anonymous inner class
 		}
 		default {
 			ERROR("Unexpected stmt node type,"+ node.nodeName() +" encountered.");
