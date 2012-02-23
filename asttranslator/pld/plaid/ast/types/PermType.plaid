@@ -1,0 +1,241 @@
+package plaid.ast.types;
+
+import plaid.ast.types.permissions.*;
+
+/**
+ * General form of all Types in Plaid.  Made up of:
+ *	- a Permission : DynP, Unique, Full, Immutable, Shared, Pure, None
+ *	- an ObjectType : Nominal, Structural, Lambda, Dyn
+ */
+state PermType case of PlaidType {
+	val immutable Permission perm;
+	val unique ObjectType type;
+	
+	/**
+	 * Returns true if this permtype is a sub-permtype of the specified permtype
+	 * as defined by the Plaid typing specification.
+	 */
+	method /*Boolean*/ isSubPermTypeOf(/*PermType*/ other, /*StateTable*/ stateTable) {
+		//requirements:
+		
+		//1) this perm must be as strong as the other perm
+		val /*Boolean*/ permOk = this.perm.isSubPermOf(other.perm);
+		//if (!permOk) { java.lang.System.out.println("TYPECHECK FAILED: " + this.perm.toString() + " not as strong as " + other.perm.toString()) };
+		
+		//2) subtypes
+		val /*Boolean*/ typeOk = this.type.isSubObjectTypeOf(other.type, stateTable); //error elsewhere
+		
+		permOk && typeOk;
+		
+	}
+	
+	method /*unique Option<unique PermType>*/ 
+ 		leastUpperBound(immutable PermType other, unique StateTable st)[immutable PermType]
+	{		
+		val vt = getVoidType();
+		
+		val immutable Permission newPerm = other.perm.greatestLowerBound(this.perm); 						
+ 		val /*unique Option<unique ObjectType>*/ newObjType = other.type.leastUpperBound(this.type,st);
+ 		match(newObjType) {
+ 			case Some {
+ 				makeSome( new PermType {
+ 					val immutable Permission perm = newPerm;
+					val immutable ObjectType type = newObjType.value;
+				})
+				
+ 			}
+ 			case None { new None }
+ 		}	
+ 	}	
+ 	
+ 	method /*unique Option<unique PermType>*/ 
+ 		greatestLowerBound(immutable PermType other, unique StateTable st)[immutable PermType]
+	{		
+		val immutable Permission newPerm = other.perm.leastUpperBound(this.perm); 						
+ 		val /*unique Option<unique ObjectType>*/ newObjType = other.type.greatestLowerBound(this.type,st);
+ 		match(newObjType) {
+ 			case Some {
+ 				makeSome( new PermType {
+ 					val immutable Permission perm = newPerm;
+					val immutable ObjectType type = newObjType.value;
+				})
+ 			}
+ 			case None { new None }
+ 		}	
+ 	}
+	
+	/**
+	 * Compares this PermType with the specified PermType for equality.  They 
+	 * are equal if and only if their Permissions and Types are equal.  The 
+	 * dynamic PermType is only equal to itself and no other PermType.
+	 */
+	 method immutable Boolean ==(immutable PermType other)[immutable PermType] {
+	 	match (other) {
+	 		case PermType {
+	 			this.perm == other.perm && this.type == other.type;
+	 		}
+	 		default {
+	 			false;
+	 		}
+	 	};
+	 }
+	
+	/**
+	 * Creates a deep copy of this PermType.
+	 */
+	method unique PermType copy()[immutable PermType] {
+		new PermType {
+			val perm = this.perm;
+			val type = this.type.copy();
+		};
+	}
+	
+	method immutable String toString()[immutable PermType] {
+		this.perm.toString() + " " + this.type.toString();
+	}
+	
+	
+	//**** The Rest of these functions are currently deprecated******
+	
+//	KBN - borrowing moved away from Perm Type level	
+//	//creates a copy of this perm type, but borrowed
+//	method copyAsBorrowed() {
+//		new PermType {
+//			val perm = this.perm;
+//			val type = this.type;
+//		}
+//	}
+
+	/**
+	 * Merges the two permtypes together.  Merging takes the stronger of the 
+	 * two access permissions and the union of the two types (most specific - I think).
+	 *
+	 * TODO: should this really be the union of the types?  What if the types
+	 * do not have the supertype/subtype relation?  Is this actually a problem?
+	 */
+	method merge(p2, stateTable) {
+		new PermType{ val perm = this.perm.merge(p2.perm); 
+					  val type = this.type.merge(p2.type, stateTable);
+		};
+	}
+	
+	/**
+	 * Joins the two permtypes together.  Joining takes the weaker of the two 
+	 * access permissions and the intersection of the types (least upper bound).
+	 *
+	 * TODO: should this really be the intersection of the types?  What if the 
+	 * types do not have the supertype/subtype relation?  Is this actually a problem?
+	 */
+	method /*PermType*/ join(p2, stateTable) {
+		new PermType{ val perm = this.perm.join(p2.perm);
+					  val type = this.type.join(p2.type, stateTable); 
+		};
+	}
+	
+	method /*Option PermType*/ joinTo(residue, target, stateTable) {
+		var ret = new Some;
+		
+		//get the new permission
+		var /*Permission*/ newPerm = unit; 
+		ifElse(residue.borrowed && this.borrowed)
+			{ newPerm = this.perm.joinTo(residue.perm, target.perm) } //if both borrowed, assume could join the target if potentially allowed
+			{ newPerm = new Some {val value = this.perm.join(residue.perm); } }; //otherwise, just join normally and see what comes out;
+		match (newPerm) {
+			case Some {
+				if ( !(newPerm.value.asStrongAs(target.perm)) ) {
+					java.lang.System.out.println("cannot join to necessary permission");
+					ret = new None;
+				}
+			}
+			case None {
+				java.lang.System.out.println("cannot join to necessary permission");
+				ret = new None;
+			}
+		};
+		//get the new type if permission succeeded
+		match (ret) {
+			case Some {
+				val newType = this.type.join(residue.type, stateTable);
+				ifElse (newType == target.type) 
+					{ ret = new Some { val value = target; } }
+					{ 
+						java.lang.System.out.println("joined type not equal to target type");
+						ret = new None;
+					}
+			}
+			case None {/*already done*/ }
+		};
+		ret
+	}
+	
+	/**
+	 * Splits this permType into the permType p2 and
+	 * the residue left over.  returns the residue
+	 * permType if splitting is possible.  After
+	 * splitting this permtype is no longer valid 
+	 * TODO: should that mean we give a none permission back?
+	 */
+	method /*option PermType*/ splitPerm(/*PermType*/ p2, /*StateTable*/ stateTable) {
+		val otherPerm = p2.perm;
+		val otherType = p2.type;
+		
+		//must return same types for now //TODO: subtyping
+		ifElse ( this.type.subtypeOf(p2.type,stateTable)) { 
+			ifElse (this.borrowed --> p2.borrowed) {
+			
+				val /*Option Permission*/ newPerm = this.perm.splitPerm(otherPerm); //
+				match (newPerm) {
+					case Some {
+						new Some { 
+							value = new PermType {
+								val perm = newPerm.value;
+								val type = this.type;
+								val borrowed = this.borrowed;
+							};
+						}
+					}
+					case None {
+						//permission splitting failed
+						new None;
+					}
+				}
+			} {
+				java.lang.System.out.println("cannot split a borrowed type into an unborrowed type");
+				new None;
+			}
+		
+		} {
+			//java.lang.System.out.println("cannot split to different types");
+			new None;	
+		} 
+	}
+	
+	/**
+	 * Returns the strongest permtype that can be split off from this permtype 
+	 * while maintaining the current permission of this permtype.
+	 * DEPRECATED FOR NOW - just use splitPerm - return type is the residue
+	 */
+	method /*PermType*/ residue(/*StateTable*/ stateTable) {
+		val /*Option PermType*/ residue = this.splitPerm(this, stateTable);
+		match (residue) {
+			case Some { residue.value }
+			case None {
+				java.lang.System.out.println("***IMPLEMENTATION ERROR**** permType could not split to itself");
+				VOID;
+			}
+		}
+	}
+	
+	/**
+	 * Returns true if the permission for this permtype allows a client with 
+	 * an alias of this permtype to initiate a state change on the object to 
+	 * which the alias refers.
+	 */
+	method isWritable() {
+		perm.isWritable();
+	}
+	
+	//override method accept(/*ASTVisitor*/ visitor) {
+	//	visitor.visitPermType(this);
+	//}
+}

@@ -1,0 +1,216 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.gui;
+
+import java.awt.*;
+
+state Window {
+	val name;
+}
+
+state EmptyWindow case of Window {
+	method setPane(p) {
+		p.setParent(this);
+		this.peer.add(p.getPeer());
+		this <- HiddenWindow { val pane = p; }
+	}
+}
+
+state VisibleWindow case of Window {
+	method refresh() {
+		this.peer.pack();
+		this.pane.refresh();
+		//this.peer.repaint();
+	}
+}
+
+state HiddenWindow case of Window {
+	method show() {
+		this.peer.pack();
+		this.peer.setVisible(true);
+		this <- VisibleWindow;
+	}
+}
+
+state WindowState {
+	val peer;
+	method setupPeer() {
+		this.peer.addWindowListener(
+			plaid.gui.JavaWindowListener.new(fn() => notifyClose()));
+	}
+}
+
+state RowPane {
+	val peer;
+	method getPeer() { this.peer }
+	method addFirst(p) { doAddFirst(p); }
+	method doAddFirst(p) {
+		p.setParent(this);
+		// TODO: without "none" this call is ambiguous, but silently
+		// picks the "wrong" (less specific) choice
+		this.peer.add(p.getPeer(),"none",0);
+	}
+	method addLast(p) { doAddLast(p); }
+	method doAddLast(p) {
+		p.setParent(this);
+		this.peer.add(p.getPeer());
+	}
+}
+
+state EmptyRowPane case of RowPane {
+	// TODO: avoid ExceptionInInitializerError when we forget "override" here
+	override method addFirst(p) {
+		doAddFirst(p);
+		this <- UnparentedRowPane
+	}
+	override method addLast(p) {
+		doAddLast(p);
+		this <- UnparentedRowPane
+	}
+}
+
+state UnparentedRowPane case of RowPane {
+	method setParent(w) {
+		this <- ParentedRowPane
+	}
+}
+
+state ParentedRowPane case of RowPane {
+	method refresh() {
+		this.peer.repaint();
+		//this.pane.refresh();
+		//this.peer.repaint();
+	}
+}
+
+state Canvas {
+	val peer;
+	method getPeer() { this.peer }
+}
+
+state UninitializedCanvas case of Canvas {
+	method initialize() {
+		val newPeer = plaid.gui.ExtendedJavaCanvas.new();
+		newPeer.setFunction(fn(graphics) => { this.paint(graphics) });
+		this <- UnsizedCanvas { peer = newPeer; }
+	}
+}
+
+state UnsizedCanvas case of Canvas {
+	method setSize(width, height) {
+		val dim = java.awt.Dimension.new(width,height);
+		this.peer.setPreferredSize(dim);
+		this <- UnparentedCanvas { width = width; height = height; }
+	}
+}
+
+state SizedCanvas case of Canvas {
+	val width;
+	val height;
+}
+
+state UnparentedCanvas case of SizedCanvas {
+	method setParent(w) {
+		this <- ParentedCanvas
+	}
+}
+
+state ParentedCanvas case of SizedCanvas {
+}
+
+method makeWindow(name) {
+	numWindows = numWindows + 1;
+	val win = new EmptyWindow { name = name; }
+		with WindowState { peer = javax.swing.JFrame.new(name); };
+	win.setupPeer();
+	win
+}
+
+method makeRowPane() {
+	new EmptyRowPane { peer = javax.swing.JPanel.new(); }
+}
+
+method makeCanvas() {
+	// TODO: if we just have Canvas below, we get a Non-Java object has a Java constructor error - highly bogus!
+	// TODO: better parser error messages (no exception) - especially when a semicolon is forgotten!
+	val canvas = new UnsizedCanvas {
+		peer = plaid.gui.ExtendedJavaCanvas.new();
+	};
+	canvas.peer.setFunction(
+		fn(graphics) => {
+			java.lang.System.out.println("getting clip");
+			//graphics.getClip();
+			java.lang.System.out.println("got clip");
+			//canvas.paint(graphics);
+		});
+	canvas
+}
+
+var numWindows = 0;
+
+method notifyClose() {
+	numWindows = numWindows - 1;
+	if (numWindows==0) {
+		java.lang.System.exit(0);
+	}
+}
+
+state ColoredPanel = UninitializedCanvas {
+	method paint(g) {
+		// TODO: if g is unit (as constructed from Java), better error message!
+		// TODO: better error message if color is undefined (vs. this.color)
+		g.setColor(this.color);
+		g.fillRect(0, 0, this.width, this.height);
+	}
+	method setColor(newColor) {
+		this.color = newColor;
+	}
+	var color;
+}
+
+method makeColoredPanel(color) {
+	// TODO: if forget var, error message should mention ColoredPanel
+	val cp = new ColoredPanel { var color = color; };
+	cp.initialize();
+	cp
+}
+
+method main() {
+	val w = makeWindow("hi");
+	val pane = makeRowPane();
+	// TODO: support "new makeCanvas() with { ... }"
+	val canvas = makeColoredPanel(java.awt.Color.BLUE);
+	//new UninitializedCanvas with { method paint() { java.lang.System.out.println("painting"); } };
+	//canvas.initialize();
+	// TODO: if we forget "setSize" say which thing needs a setParent (a UnsizedCanvas in this case)
+	// TODO: longer term - suggest how to get from canvas to the thing that has a setParent
+	canvas.setSize(50,100);
+	val canvas2 = makeColoredPanel(java.awt.Color.RED);
+	canvas2.setSize(50,100);
+	val canvas3 = makeColoredPanel(java.awt.Color.GREEN);
+	canvas3.setSize(50,100);
+	pane.addFirst(canvas);
+	pane.addLast(canvas2);
+	pane.addFirst(canvas3);
+	java.lang.System.out.println("index = " + pane.peer.getComponentZOrder(canvas3.peer));
+	w.setPane(pane);
+	
+	w.show();
+}
