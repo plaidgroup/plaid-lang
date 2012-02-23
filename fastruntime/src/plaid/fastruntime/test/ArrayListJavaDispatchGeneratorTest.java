@@ -18,8 +18,8 @@ public class ArrayListJavaDispatchGeneratorTest {
 	@Test
 	public void test() {
 		ArrayList<String> al = new ArrayList<String>();
-		PlaidJavaObject alPlaid = Util.JAVA_GEN.createPlaidJavaObject(al);
-		boolean test = alPlaid.getJavaObject() instanceof ArrayList;
+		PlaidObject alPlaid = Util.javaToPlaid(al);
+		boolean test = ((PlaidJavaObject) alPlaid).getJavaObject() instanceof ArrayList;
 		Assert.assertTrue(test);
 	}
 	
@@ -27,12 +27,12 @@ public class ArrayListJavaDispatchGeneratorTest {
 	public void test2() {
 		ArrayList<PlaidObject> al = new ArrayList<PlaidObject>();
 		PlaidObject stringToAdd = Util.string("Test");
-		PlaidJavaObject alPlaid = Util.JAVA_GEN.createPlaidJavaObject(al);
+		PlaidObject alPlaid = Util.javaToPlaid(al);
 		PlaidObject indexToGet = Util.integer(0);
 		Class<?> alDispatch = alPlaid.getDispatch().getClass();
-		for(Class<?> iface : alDispatch.getInterfaces()) {
-			System.out.println(iface.getSimpleName());
-		}
+//		for(Class<?> iface : alDispatch.getInterfaces()) {
+//			System.out.println(iface.getSimpleName());
+//		}
 		((Iadd$1$plaid)alPlaid.getDispatch()).add(alPlaid, stringToAdd);
 		PlaidObject returned = ((Iget$1$plaid)alPlaid.getDispatch()).get(alPlaid, indexToGet);
 		Assert.assertTrue("returned value is not PlaidJavaObject", returned instanceof PlaidJavaObject);

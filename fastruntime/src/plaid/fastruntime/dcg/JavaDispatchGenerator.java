@@ -16,8 +16,10 @@ import org.objectweb.asm.Type;
 
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.PlaidJavaObject;
+import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
+import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
 
@@ -35,7 +37,9 @@ public class JavaDispatchGenerator implements Opcodes {
 		this.javaStateCache.put(key, value);
 	}
 	
-	public PlaidJavaObject createPlaidJavaObject(Object javaObject) {
+	
+	/* ONLY CALL FROM UTIL - use javaToPlaid method */
+	public PlaidObject createPlaidJavaObject(Object javaObject) {
 		final String name = "plaid/generatedDispatches/PlaidJavaObject$plaid$"+classCounter++;
 		Class<?> javaClass = javaObject.getClass();
 		PlaidState result = null;
@@ -48,7 +52,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			// sort public methods into static overload sets
 			Map<MethodSig,List<Method>> methodMap = new HashMap<MethodSig,List<Method>>();
 			for (Method m : javaObject.getClass().getMethods()) {
-				if (Modifier.isPublic(m.getModifiers()) ) { //&& m.getName().equals("testMethod")) {
+				if (Modifier.isPublic(m.getModifiers()) ) {// && m.getName().equals("set")) {
 					MethodSig mSig = new MethodSig(m.getName(), m.getGenericParameterTypes().length);
 					if (methodMap.containsKey(mSig)) {
 						methodMap.get(mSig).add(m);
@@ -94,9 +98,6 @@ public class JavaDispatchGenerator implements Opcodes {
 					mv.visitTryCatchBlock(l0, l1, l2, "java/lang/ClassCastException");
 					mv.visitLabel(l0);
 					
-					//put java object wrapper object on stack
-					mv.visitFieldInsn(GETSTATIC, "plaid/fastruntime/Util", "JAVA_GEN", "Lplaid/fastruntime/dcg/JavaDispatchGenerator;");
-					
 					//load Java receiver
 					mv.visitVarInsn(ALOAD, 1);
 					mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
@@ -110,23 +111,27 @@ public class JavaDispatchGenerator implements Opcodes {
 						for (int i = 0; i < args.length; i++) {
 							mv.visitVarInsn(ALOAD, i+2);
 							mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
-							mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
 							
-							//If argument to Java method is a primitive, unbox it
 							Type argType = args[i];
-							if (argType.getSort() == Type.OBJECT || argType.getSort() == Type.ARRAY) {
-								mv.visitTypeInsn(CHECKCAST, argType.getInternalName());
-							} else {
+							
+							if (isPrimitiveType(argType)) { //covert Plaid objects to primitives (fails if cannot be done)
+								mv.visitFieldInsn(GETSTATIC, "plaid/fastruntime/PlaidJavaObject$JavaPrimitive", 
+										asmTypeToPrimitive(argType).field, "Lplaid/fastruntime/PlaidJavaObject$JavaPrimitive;"); 
+								mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "asPrimitive", 
+													"(Lplaid/fastruntime/PlaidJavaObject$JavaPrimitive;)Ljava/lang/Object;");
 								unbox(argType, mv);
+							} else { //get java object and cast to the arg type (fails if cannot be done)
+								mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
+								mv.visitTypeInsn(CHECKCAST, argType.getInternalName());
 							}
 						}
 						
 						//invoke java method
 						mv.visitMethodInsn(INVOKEVIRTUAL, internalClassName, asmMethod.getName(), asmMethod.getDescriptor());
 						
-						//returned value is primitive (or void), box it
-						int returnSort = asmMethod.getReturnType().getSort();
-						if (returnSort != Type.OBJECT && returnSort != Type.ARRAY) {
+						//returned value is primitive (or void), box it (void becomes unit)
+						Type returnType = asmMethod.getReturnType();
+						if (isPrimitiveType(returnType) || isVoidType(returnType)) {
 							box(asmMethod.getReturnType(), mv);
 						}
 					} else {
@@ -140,31 +145,43 @@ public class JavaDispatchGenerator implements Opcodes {
 						for (int i = 0; i < m.numArgs; i++) {
 							mv.visitVarInsn(ALOAD, i+2);
 							mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
-							mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
+							//mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
 						}
 						mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
 								   "staticOverloadingCall", NamingConventions.staticOverloadCallMethodDescriptor(m.numArgs));
 					}
 					//wrap Java object into a PlaidJavaObject
-					mv.visitMethodInsn(INVOKEVIRTUAL, "plaid/fastruntime/dcg/JavaDispatchGenerator", 
-									   "createPlaidJavaObject", "(Ljava/lang/Object;)Lplaid/fastruntime/PlaidJavaObject;");
+					mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
+									   "javaToPlaid", "(Ljava/lang/Object;)Lplaid/fastruntime/PlaidObject;");
 					mv.visitLabel(l1);
 					mv.visitInsn(ARETURN);
 					mv.visitLabel(l2);
 					mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/ClassCastException"});
 					mv.visitVarInsn(ASTORE, numArgs+1);
-					mv.visitTypeInsn(NEW, "plaid/fastruntime/errors/PlaidInternalException");
+					mv.visitTypeInsn(NEW, "plaid/fastruntime/errors/PlaidIllegalOperationException");
 					mv.visitInsn(DUP);
-					mv.visitLdcInsn("Java state method called on non-java object.");
+					mv.visitLdcInsn("Invalid argument type passed to java method " + javaClass.getSimpleName() + "." + m.name);
 					mv.visitVarInsn(ALOAD, numArgs+1);
-					mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/errors/PlaidInternalException", "<init>", "(Ljava/lang/String;Ljava/lang/Throwable;)V");
+					mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/errors/PlaidIllegalOperationException", "<init>", "(Ljava/lang/String;Ljava/lang/Throwable;)V");
 					mv.visitInsn(ATHROW);
 					mv.visitMaxs(0, 0); //calculated
 					mv.visitEnd();
 				}
 			}
 			
+			//instantiate method - creates SimplePlaidJavaObject with this as the dispatch object, null as the storage object, and javaObj as the rep
+			{
+				MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC,"instantiate", "()Lplaid/fastruntime/PlaidObject;", null, null); 
+				mv.visitCode();
+				mv.visitTypeInsn(NEW, "plaid/fastruntime/errors/PlaidIllegalOperationException");
+				mv.visitInsn(DUP);
+				mv.visitLdcInsn("Java States cannot be instantiated.");
+				mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/errors/PlaidIllegalOperationException", "<init>", "(Ljava/lang/String;)V");
+				mv.visitInsn(ATHROW);
+				mv.visitMaxs(0, 0); //calculated
+				mv.visitEnd();
 			
+			}
 			// add constructor
 			MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
 			mv.visitCode();
@@ -178,7 +195,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			cw.visitEnd();
 			try {
 				byte[] b = cw.toByteArray();
-				//ClassInjector.writeClass(b, "/Users/kbn/Documents/test.class");
+				ClassInjector.writeClass(b, "/Users/kbn/Documents/test.class");
 				
 				Class<?> plaidStateClass = ClassInjector.defineClass(name, b, 0, b.length);
 				result =  (PlaidState)plaidStateClass.newInstance();
@@ -195,11 +212,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			result = this.javaStateCache.get(javaClass);
 		}
 		
-		//fix dummy boolean values  TODO: discuss this with Josh
-//		if (result instanceof plaid.lang.Boolean$plaid.True) javaObject = java.lang.Boolean.TRUE;
-//		else if (result instanceof plaid.lang.Boolean$plaid.False) javaObject = java.lang.Boolean.FALSE;
-		
-		SimplePlaidJavaObject toReturn = new SimplePlaidJavaObject(result, null, javaObject);
+		PlaidObject toReturn = new SimplePlaidJavaObject(result,null,javaObject);
 		return toReturn;
 	}
 	
@@ -214,7 +227,7 @@ public class JavaDispatchGenerator implements Opcodes {
 		} else if (type.equals(Type.INT_TYPE)) {
 			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;");
 		} else if (type.equals(Type.VOID_TYPE)) {
-			mv.visitMethodInsn(INVOKESTATIC, "plaid/compiler/Util", "unit", "()Lplaid/fastruntime/PlaidObject;");
+			mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", "unit", "()Lplaid/fastruntime/PlaidObject;");
 		} else {
 			throw new PlaidInternalException("unimplemented primitive Java type (box) " + type.getDescriptor());
 		}
@@ -235,6 +248,33 @@ public class JavaDispatchGenerator implements Opcodes {
 			mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Number", "doubleValue", "()D");
 		} else {
 			throw new PlaidInternalException("unimplemented primitive Java type (unbox) " + type.getDescriptor());
+		}
+	}
+	
+	public static boolean isPrimitiveType(Type type) {
+		switch (type.getSort()) {
+		case Type.ARRAY:
+		case Type.VOID:
+		case Type.OBJECT: return false;
+		default: return true;
+		}
+	}
+	
+	public static boolean isVoidType(Type type) {
+		return type.getSort() == Type.VOID;
+	}
+	
+	public static PlaidJavaObject.JavaPrimitive asmTypeToPrimitive(Type type) {
+		switch (type.getSort()) {
+		case Type.BOOLEAN: return PlaidJavaObject.JavaPrimitive.BOOLEAN;
+		case Type.BYTE: return PlaidJavaObject.JavaPrimitive.BYTE;
+		case Type.CHAR: return PlaidJavaObject.JavaPrimitive.CHAR;
+		case Type.DOUBLE: return PlaidJavaObject.JavaPrimitive.DOUBLE;
+		case Type.FLOAT: return PlaidJavaObject.JavaPrimitive.FLOAT;
+		case Type.INT: return PlaidJavaObject.JavaPrimitive.INT;
+		case Type.LONG: return PlaidJavaObject.JavaPrimitive.LONG;
+		case Type.SHORT: return PlaidJavaObject.JavaPrimitive.SHORT;
+		default: throw new PlaidIllegalOperationException("asm type " + type.toString() + " is not a primitive java type");
 		}
 	}
 	

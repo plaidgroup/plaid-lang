@@ -23,7 +23,7 @@ public class NamingConventions {
 	public static final String PLAID_OBJECT_INTERNAL_NAME = "plaid/fastruntime/PlaidObject";
 	public static final String PLAID_OBJECT_DESCRIPTOR = "L" + PLAID_OBJECT_INTERNAL_NAME + ";";
 	public static final String PLAID_JAVA_OBJECT_INTERNAL_NAME = "plaid/fastruntime/PlaidJavaObject";
-	public static final String PLAID__JAVA_OBJECT_DESCRIPTOR = "L" + PLAID_JAVA_OBJECT_INTERNAL_NAME + ";";
+	public static final String PLAID_JAVA_OBJECT_DESCRIPTOR = "L" + PLAID_JAVA_OBJECT_INTERNAL_NAME + ";";
 	public static final String JAVA_OBJECT_INTERNAL_NAME = "java/lang/Object";
 	public static final String JAVA_OBJECT_DESCRIPTOR = "L" + JAVA_OBJECT_INTERNAL_NAME + ";";
 	public static final String JAVA_STRING_INTERNAL_NAME = "java/lang/String";
@@ -122,7 +122,7 @@ public class NamingConventions {
 	}
 	
 	public static final String staticOverloadCallMethodDescriptor(int numArgs) {
-		return getMethodDescriptor(JAVA_OBJECT_DESCRIPTOR, JAVA_STRING_DESCRIPTOR, numArgs, JAVA_OBJECT_DESCRIPTOR, JAVA_OBJECT_DESCRIPTOR);
+		return getMethodDescriptor(JAVA_OBJECT_DESCRIPTOR, JAVA_STRING_DESCRIPTOR, numArgs, PLAID_JAVA_OBJECT_DESCRIPTOR, JAVA_OBJECT_DESCRIPTOR);
 	}
 	
 	private static final HashMap<String,String> javaReservedMap = new HashMap<String,String>();

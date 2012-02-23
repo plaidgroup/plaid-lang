@@ -23,5 +23,13 @@ public class SimplePlaidJavaObject extends SimplePlaidObject implements PlaidJav
 	public void changeState(PlaidState s) {
 		throw new PlaidIllegalOperationException("Cannot change the state of a Java Object.");
 	}
+	
+	@Override
+	public boolean canBePrimitive(JavaPrimitive p) { return false; }
+	
+	@Override
+	public Object asPrimitive(JavaPrimitive p) {
+		throw new PlaidIllegalOperationException("Class" + javaObject.getClass().getSimpleName() + " cannot be used as a " + p.name + " primitive.");
+	}
 
 }

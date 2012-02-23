@@ -5,12 +5,13 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+import plaid.fastruntime.PlaidJavaObject.JavaPrimitive;
 import plaid.fastruntime.dcg.DispatchGenerator;
 import plaid.fastruntime.dcg.InterfaceGenerator;
 import plaid.fastruntime.dcg.JavaDispatchGenerator;
 import plaid.fastruntime.dcg.StorageGenerator;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
-import plaid.lang.DPrintStream$plaid;
+import plaid.fastruntime.errors.PlaidInternalException;
 import plaid.lang.False;
 import plaid.lang.Float64;
 import plaid.lang.Integer32;
@@ -22,9 +23,9 @@ public class Util {
 	
 	public static final JavaDispatchGenerator JAVA_GEN = new JavaDispatchGenerator();
 	static {
-		JAVA_GEN.preloadPlaidState(java.io.PrintStream.class, new DPrintStream$plaid());
-		JAVA_GEN.preloadPlaidState(java.lang.String.class, String.theState$plaid);
-		JAVA_GEN.preloadPlaidState(java.lang.Integer.class, Integer32.theState$plaid);
+//		JAVA_GEN.preloadPlaidState(java.io.PrintStream.class, new DPrintStream$plaid());
+//		JAVA_GEN.preloadPlaidState(java.lang.String.class, String.theState$plaid);
+//		JAVA_GEN.preloadPlaidState(java.lang.Integer.class, Integer32.theState$plaid);
 	}
 	public static final InterfaceGenerator INTERFACE_GEN = new InterfaceGenerator();
 	public static final StorageGenerator STORAGE_GEN = new StorageGenerator();
@@ -65,34 +66,25 @@ public class Util {
 			return JAVA_GEN.createPlaidJavaObject(javaObject);
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object... args) {
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject... params) {
 		Class<?> receiverClass = receiver.getClass();
 		
 		List<Method> candidates = new ArrayList<Method>();
 		Method candidate = null;
 		
+		
+		//check which methods with this name and number of arguments are applicable
 		for (Method m : receiverClass.getMethods()) {
 			if (m.getName().equals(mName)){
-				Class<?>[] mArgTypes = m.getParameterTypes();
-				if ( mArgTypes.length == args.length) {
+				Class<?>[] mArgClasses = m.getParameterTypes();
+				if ( mArgClasses.length == params.length) {
 					boolean match = true;
-					for (int i = 0; i < mArgTypes.length && match; i++) {
-						Class<?> argType = mArgTypes[i];
-						if (argType.isPrimitive()) { //convert to appropriate boxed type
-							
-							if (argType.equals(boolean.class)) {
-								match &= args[i].getClass().equals(Boolean.class);
-							} else if (argType.equals(int.class) ||  //can pass plaid integers into int and long methods
-									   argType.equals(long.class) ) {
-								match &= args[i].getClass().equals(Integer.class);
-							} else if (argType.equals(double.class)) {
-								match &= (args[i].getClass().equals(Double.class) || args[i].getClass().equals(Integer.class));  //can pass plaid Float64 or Integers into double methods
-							} else {
-								match = false;
-							}
-							
+					for (int i = 0; i < mArgClasses.length && match; i++) {
+						Class<?> argClass = mArgClasses[i];
+						if (argClass.isPrimitive()) { //convert to appropriate boxed type
+							if (!params[i].canBePrimitive(PlaidJavaObject.JavaPrimitive.fromClass(argClass))) match = false;
 						} else {
-							match &= argType.isInstance(args[i]);
+							if (!argClass.isInstance(params[i].getJavaObject())) match = false;
 						}
 					}
 					if (match) candidates.add(m);
@@ -125,124 +117,41 @@ public class Util {
 				for (int j = 0; j < mostSpecific.size() && !done; j++ ) { //check again each element in the most specific list
 					Method checkAgainst = mostSpecific.get(j);
 					Class<?>[] checkAgainstParams = checkAgainst.getParameterTypes();
+					
 					// 0 = undecided, 1 = toCheck potentially more specific, 2 = checkAgainst potentially more specific, -1 = ambiguous
-					int toCheckStatus = 0; 
-					for (int k = 0; k < checkAgainstParams.length && toCheckStatus >= 0; k++) {
-						Class<?> caParam = checkAgainstParams[k];
-						Class<?> tcParam = toCheckParams[k];
+					ClassCompare toCheckStatus = ClassCompare.SAME; 
+					for (int k = 0; k < checkAgainstParams.length && toCheckStatus != ClassCompare.INCOMP; k++) {
+						ClassCompare relation = compare(toCheckParams[k],checkAgainstParams[k]);
 						
-						if (caParam.isPrimitive() && tcParam.isPrimitive()) { //special treatment of primitives
-							//Java doesn't have to choose between these things, but we do because we cannot do compile time boxing/unboxing
-							if (!caParam.equals(tcParam)) { //if they are equal, we won't change anything
-								//enumerate valid pairs
-								if (caParam.equals(boolean.class)) {
-									toCheckStatus = -1;//other one is not boolean, so ambiguous
-								} else if (caParam.equals(int.class)) {
-									if (tcParam.equals(long.class) || tcParam.equals(double.class)) {  //treat long and double as less specific than int
-										if (toCheckStatus == 0) toCheckStatus = 2;
-										else if (toCheckStatus == 1) toCheckStatus = -1;
-									} else
-										toCheckStatus = -1;
-								} else if (caParam.equals(long.class)) {
-									if (tcParam.equals(int.class)) { //treat int as more specific than long
-										if (toCheckStatus == 0) toCheckStatus = 1;
-										else if (toCheckStatus == 2) toCheckStatus = -1;
-									} else if (tcParam.equals(double.class)) { //treat double as less specific than long
-										if (toCheckStatus == 0) toCheckStatus = 2;
-										else if (toCheckStatus == 1) toCheckStatus = -1;
-									} else
-										toCheckStatus = -1;
-								} else if (caParam.equals(double.class)) {
-									if (tcParam.equals(long.class) || tcParam.equals(int.class)) {  //treat long and int as more specific than double
-										if (toCheckStatus == 0) toCheckStatus = 1;
-										else if (toCheckStatus == 2) toCheckStatus = -1;
-									} else
-										toCheckStatus = -1;
-								} else {
-									toCheckStatus = -1;  //unhandled primitive type
-								}
-							}
-						} else if (caParam.isPrimitive()) {  
-							if (caParam.equals(boolean.class) && !tcParam.equals(Boolean.class)) { //either ok if both booleans, otherwise ambiguous
-								toCheckStatus = -1;
-							} else if (caParam.equals(int.class)) {
-								if (tcParam.equals(Long.class) || tcParam.equals(Double.class)) {  //treat int as more specific than long and double
-									if (toCheckStatus == 0) toCheckStatus = 2;
-									else if (toCheckStatus == 1) toCheckStatus = -1;
-								} else if (!tcParam.equals(Integer.class)) { //either ok if Integer, otherwise ambiguous
-									toCheckStatus = -1;
-								}
-							} else if (caParam.equals(long.class)) {
-								if (tcParam.equals(Integer.class)) { //treat int as more specific than long
-									if (toCheckStatus == 0) toCheckStatus = 1;
-									else if (toCheckStatus == 2) toCheckStatus = -1;
-								} else if (tcParam.equals(Double.class)) { //treat double as less specific than long
-									if (toCheckStatus == 0) toCheckStatus = 2;
-									else if (toCheckStatus == 1) toCheckStatus = -1;
-								} else if (!tcParam.equals(Long.class))
-									toCheckStatus = -1;
-							} else if (caParam.equals(double.class)) {
-								if (tcParam.equals(Long.class) || tcParam.equals(Integer.class)) {  //treat double as less specific than long and int
-									if (toCheckStatus == 0) toCheckStatus = 1;
-									else if (toCheckStatus == 2) toCheckStatus = -1;
-								} else if (!tcParam.equals(Double.class)) { //either ok if Double, otherwise ambiguous
-									toCheckStatus = -1;
-								}
-							} else {
-								toCheckStatus = -1;  //unhandled primitive type
-							}
-							
-						} else if (tcParam.isPrimitive()) {
-							if (tcParam.equals(boolean.class) && !caParam.equals(Boolean.class)) { //either ok if both booleans, otherwise ambiguous
-								toCheckStatus = -1;
-							} else if (tcParam.equals(int.class)) {
-								if (caParam.equals(Long.class) || caParam.equals(Double.class)) {  //treat int as more specific than long and double
-									if (toCheckStatus == 0) toCheckStatus = 1;
-									else if (toCheckStatus == 2) toCheckStatus = -1;
-								} else if (!caParam.equals(Integer.class)) { //either ok if Integer, otherwise ambiguous
-									toCheckStatus = -1;
-								}
-							} else if (tcParam.equals(long.class)) {
-								if (caParam.equals(Integer.class)) { //treat int as more specific than long
-									if (toCheckStatus == 0) toCheckStatus = 2;
-									else if (toCheckStatus == 1) toCheckStatus = -1;
-								} else if (caParam.equals(Double.class)) { //treat double as less specific than long
-									if (toCheckStatus == 0) toCheckStatus = 1;
-									else if (toCheckStatus == 2) toCheckStatus = -1;
-								} else if (!caParam.equals(Long.class))
-									toCheckStatus = -1;
-							} else if (tcParam.equals(double.class)) {
-								if (caParam.equals(Long.class) || caParam.equals(Integer.class)) {  //treat double as less specific than long and int
-									if (toCheckStatus == 0) toCheckStatus = 2;
-									else if (toCheckStatus == 1) toCheckStatus = -1;
-								} else if (!caParam.equals(Double.class)) { //either ok if Double, otherwise ambiguous
-									toCheckStatus = -1;
-								}
-							} else {
-								toCheckStatus = -1;  //unhandled primitive type
-							}
-							
-						} else { 
-							
-							if (toCheckStatus == 0) {
-								if (caParam.isAssignableFrom(toCheckParams[k])) {  				 //tcp[k] <: cap[k] 
-									if (!tcParam.isAssignableFrom(caParam)) toCheckStatus=1; 	 // NOT(cap[k] <: tcp[k]), so tocheck potentially more specific
-																							     //else types equivalent, still undecided		
-								} else if (tcParam.isAssignableFrom(caParam)) toCheckStatus=2;   //cap[k] <: tcp[k] so checkAgainst potentially more specific
-								else toCheckStatus=-1; 											 // incomparable, so therefore ambiguous
-							} else if (toCheckStatus == 1) {
-								if (!caParam.isAssignableFrom(tcParam)) toCheckStatus=-1;  		 //if not tcp[k] <: cap[k], ambiguous
-								
-							} else { //toCheckStatus==2
-								 if (!tcParam.isAssignableFrom(caParam)) toCheckStatus=-1; 		 //if not cap[k] <: tcp[k], ambiguous
-							}
+						switch (relation) {
+						case INCOMP: toCheckStatus = ClassCompare.INCOMP; break;
+						case SUB:
+							switch (toCheckStatus) {
+							case SUB: break;
+							case SUP: toCheckStatus = ClassCompare.INCOMP; break;
+							case SAME: toCheckStatus = relation; break;
+							}; break;
+						case SUP:
+							switch (toCheckStatus) {
+							case SUB: toCheckStatus = ClassCompare.INCOMP; break;
+							case SUP: break;
+							case SAME: toCheckStatus = relation; break;
+							}; break;
+						case SAME:
+							toCheckStatus = relation; break;
 						}
 					}
 					
-					if (toCheckStatus == 2 || toCheckStatus == 0) done = true;  //discard this method, it is less specific than (or the same as?) an existing candidate
-					else if (toCheckStatus == -1) {
+					switch (toCheckStatus) {
+					case SUP:
+					case SAME: //less specific or the same as existing method, discard
+						done = true; 
+						break;
+					case INCOMP: //need to find a method more specific than this one
 						done = true;
 						mostSpecific.add(toCheck);
+						break;
+					case SUB: break; //more specific - wait to see if more specific than all in mostSpecific
 					}
 				}
 				
@@ -261,9 +170,18 @@ public class Util {
 			
 		}
 		
-
+		Object[] javaParams = new Object[params.length];
+		Class<?>[] methodArgs = candidate.getParameterTypes();
+		for (int i = 0; i < params.length; i++) {
+			if (methodArgs[i].isPrimitive())
+				javaParams[i] = params[i].asPrimitive(PlaidJavaObject.JavaPrimitive.fromClass(methodArgs[i]));
+			else
+				javaParams[i] = params[i].getJavaObject();
+		}
+		
+		
 		try {
-			return candidate.invoke(receiver, args);
+			return candidate.invoke(receiver, javaParams);
 		} catch (IllegalArgumentException e) {
 			throw new PlaidIllegalOperationException("Java method " + mName + " not available for provided arguments in class " + receiverClass.getName() ,e.getCause());
 		} catch (IllegalAccessException e) {
@@ -275,28 +193,211 @@ public class Util {
 		
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg) {
-		return staticOverloadingCall(receiver, mName, new Object[] { arg });
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg) {
+		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg });
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2) {
-		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2 });
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2) {
+		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2 });
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2, Object arg3) {
-		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2, arg3 });
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2, PlaidJavaObject arg3) {
+		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2, arg3 });
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2, Object arg3, Object arg4) {
-		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2, arg3, arg4 });
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2, PlaidJavaObject arg3, PlaidJavaObject arg4) {
+		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2, arg3, arg4 });
 	}
 
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5) {
-		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2, arg3, arg4, arg5 });
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2, PlaidJavaObject arg3, PlaidJavaObject arg4, PlaidJavaObject arg5) {
+		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2, arg3, arg4, arg5 });
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, Object arg1, Object arg2, Object arg3, Object arg4, Object arg5, Object arg6) {
-		return staticOverloadingCall(receiver, mName, new Object[] { arg1, arg2, arg3, arg4, arg5, arg6 });
+	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2, PlaidJavaObject arg3, PlaidJavaObject arg4, PlaidJavaObject arg5, PlaidJavaObject arg6) {
+		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2, arg3, arg4, arg5, arg6 });
+	}
+	
+	private enum ClassCompare {
+		SAME,
+		SUB,
+		SUP,
+		INCOMP;
+		
+		public static ClassCompare neg(ClassCompare c) {
+			switch (c) {
+			case SAME:
+			case INCOMP: return c;
+			case SUB: return SUP;
+			case SUP : return SUB;
+			}
+			throw new PlaidInternalException("forgotten case for neg(ClassCompare)");
+		}
+	}
+	
+	//For normal reference types, follows the standard Java subtyping
+	//For primitives and boxed primitive types:
+	//  A SUB B if and only if B SUP A
+	//  A SUB B and B SUB C if and only if A SUB C
+	//  boolean SUB Boolean
+	//  byte SUB Byte SUB short SUB Short SUB int SUB Integer SUB long SUB Long SUB float SUB Float SUB double SUB Double
+	//  char SUB Character SUB short
+	private static ClassCompare compare(Class<?> first, Class<?> second) {
+		if (first.isPrimitive() && second.isPrimitive()) {
+			return primitiveCompare(JavaPrimitive.fromClass(first), JavaPrimitive.fromClass(second));
+		} else if (first.isPrimitive()) {
+			return comparePrimitiveToReference(first, second);
+		} else if (second.isPrimitive()) {
+			return ClassCompare.neg(comparePrimitiveToReference(first, second));
+		} else {
+			if (first.isAssignableFrom(second)) { // is 'second SUB first'?
+				if (second.isAssignableFrom(first)) // is 'first SUB second'?
+					return ClassCompare.SAME;
+				else return ClassCompare.SUP;
+			} else if (second.isAssignableFrom(first)) // is 'first SUB second'?
+				return ClassCompare.SUB;
+			else
+				return ClassCompare.INCOMP;
+		}
+	}
+	
+	// For Plaid purposes, we consider boxed primitives to less specific than their unboxed counterparts
+	// primitives are incomparable to other classes
+	private static ClassCompare comparePrimitiveToReference(Class<?> primitive, Class<?> obj) {
+		switch (JavaPrimitive.fromClass(primitive)) {
+		case BOOLEAN:
+			if (java.lang.Boolean.class.isAssignableFrom(obj)) return ClassCompare.SUP;
+			else return ClassCompare.INCOMP;
+		case CHAR:
+			if (java.lang.Character.class.isAssignableFrom(obj)) return ClassCompare.SUP;
+			else return ClassCompare.INCOMP;
+		case BYTE:
+			if (java.lang.Byte.class.isAssignableFrom(obj)) return ClassCompare.SUP;
+			else return ClassCompare.INCOMP;
+		case SHORT:	
+			if (java.lang.Short.class.isAssignableFrom(obj)) return ClassCompare.SUP;
+			else return ClassCompare.INCOMP;
+		case INT:
+			if (java.lang.Integer.class.isAssignableFrom(obj)) return ClassCompare.SUP;
+			else return ClassCompare.INCOMP;
+		case LONG:
+			if (java.lang.Long.class.isAssignableFrom(obj)) return ClassCompare.SUP;
+			else return ClassCompare.INCOMP;
+		case FLOAT:
+			if (java.lang.Float.class.isAssignableFrom(obj)) return ClassCompare.SUP;
+			else return ClassCompare.INCOMP;
+		case DOUBLE:
+			if (java.lang.Double.class.isAssignableFrom(obj)) return ClassCompare.SUP;
+			else return ClassCompare.INCOMP;
+		default:
+			throw new PlaidInternalException("no match between primitives - forgotten case?");
+		}
+	}
+	
+	
+	// following the Java Specification for Conversions (ch 5)
+	// here we are dealing with method invocation conversions (5.3)
+	// these allow only identity and widening conversions (5.1.1, 5.1.2)
+	// thus we have the following relationships
+	//   - A SAME A
+	//	 - boolean INCOMP { byte, char, short, int, long, float, double }
+	//	 - byte SUB { short, int, long, float, double}
+	//	 - short SUB { int, long, float, double}
+	//	 - char SUB { int, long, float, double}
+	//	 - int SUB  { long, float, double }
+	//	 - long SUB { float, double }
+	//	 - float SUB double 
+	private static ClassCompare primitiveCompare(JavaPrimitive p1, JavaPrimitive p2) {
+		switch (p1) {
+		case BOOLEAN:
+			switch (p2) {
+			case BOOLEAN: return ClassCompare.SAME;
+			case BYTE:
+			case SHORT:
+			case CHAR:
+			case INT:
+			case LONG:
+			case FLOAT:
+			case DOUBLE: return ClassCompare.INCOMP;
+			}
+		case BYTE:
+			switch (p2) {
+			case BOOLEAN: 
+			case CHAR:return ClassCompare.INCOMP;
+			case BYTE: return ClassCompare.SAME;
+			case SHORT:	
+			case INT:
+			case LONG:
+			case FLOAT:
+			case DOUBLE: return ClassCompare.SUB;
+			}
+		case SHORT:
+			switch (p2) {
+			case BOOLEAN: 
+			case CHAR:return ClassCompare.INCOMP;
+			case BYTE: return ClassCompare.SUP;
+			case SHORT:	return ClassCompare.SAME;
+			case INT:
+			case LONG:
+			case FLOAT:
+			case DOUBLE: return ClassCompare.SUB;
+			}
+		case CHAR:
+			switch (p2) {
+			case BOOLEAN: 
+			case BYTE: 
+			case SHORT:	return ClassCompare.INCOMP;
+			case CHAR:return ClassCompare.SAME;
+			case INT:
+			case LONG:
+			case FLOAT:
+			case DOUBLE: return ClassCompare.SUB;
+			}
+		case INT:
+			switch (p2) {
+			case BOOLEAN: return ClassCompare.INCOMP;
+			case BYTE: 
+			case SHORT:	
+			case CHAR: return ClassCompare.SUP;
+			case INT: return ClassCompare.SAME;
+			case LONG:
+			case FLOAT:
+			case DOUBLE: return ClassCompare.SUB;
+			}
+		case LONG:
+			switch (p2) {
+			case BOOLEAN: return ClassCompare.INCOMP;
+			case BYTE: 
+			case SHORT:	
+			case CHAR: 
+			case INT: return ClassCompare.SUP;
+			case LONG: return ClassCompare.SAME;
+			case FLOAT:
+			case DOUBLE: return ClassCompare.SUB;
+			}
+		case FLOAT:
+			switch (p2) {
+			case BOOLEAN: return ClassCompare.INCOMP;
+			case BYTE: 
+			case SHORT:	
+			case CHAR: 
+			case INT: 
+			case LONG: return ClassCompare.SUP;
+			case FLOAT: return ClassCompare.SAME;
+			case DOUBLE: return ClassCompare.SUB;
+			}
+		case DOUBLE:
+			switch (p2) {
+			case BOOLEAN: return ClassCompare.INCOMP;
+			case BYTE: 
+			case SHORT:	
+			case CHAR: 
+			case INT: 
+			case LONG: 
+			case FLOAT: return ClassCompare.SUP;
+			case DOUBLE: return ClassCompare.SAME;
+			}
+		default: throw new PlaidInternalException("no match between primitives - forgotten case?");
+		}
 	}
 	
 }

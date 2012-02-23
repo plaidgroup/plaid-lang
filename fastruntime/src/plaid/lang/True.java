@@ -3,7 +3,9 @@ package plaid.lang;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
+import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
+import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
@@ -17,7 +19,7 @@ public class True extends AbstractPlaidState implements Iampamp$plaid$1$plaid,
 	public static final PlaidJavaObject TRUE_VALUE;
 	static {
 	theState$plaid = new True(new DimensionValue("plaid/lang/True", null, new DimensionValue("plaid/lang/Boolean", null, null)));
-	TRUE_VALUE = new SimplePlaidJavaObject(theState$plaid,null, java.lang.Boolean.TRUE);
+	TRUE_VALUE = ((True)theState$plaid).new TruePlaidJavaObject(theState$plaid);
 	}
 	
 	private True(ObjectValue metadata) {
@@ -37,5 +39,27 @@ public class True extends AbstractPlaidState implements Iampamp$plaid$1$plaid,
 	@Override
 	public PlaidObject toString(PlaidObject x) {
 		return Util.string("true");
+	}
+	
+	private final class TruePlaidJavaObject extends SimplePlaidJavaObject {
+		protected TruePlaidJavaObject(PlaidState dispatch) {
+			super(dispatch,null,java.lang.Boolean.TRUE);
+		}
+		
+		@Override
+		public boolean canBePrimitive(JavaPrimitive p) {
+			switch (p) {
+			case BOOLEAN: return true;
+			default: return false;
+			}
+		}
+		
+		@Override
+		public Object asPrimitive(JavaPrimitive p) {
+			switch (p) {
+			case BOOLEAN: return java.lang.Boolean.TRUE;
+			default: throw new PlaidIllegalOperationException("True cannot be used as a " + p.name + "primitive.");
+			}
+		}
 	}
 }

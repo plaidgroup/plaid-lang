@@ -4,6 +4,7 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
+import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 
@@ -19,9 +20,10 @@ public class OverloadDispatchTest {
 		
 		
 		try {
-		Assert.assertTrue(Util.staticOverloadingCall(test, "o", "test").equals("String"));
-		Assert.assertTrue(Util.staticOverloadingCall(test, "o", this).equals("Object"));
+		Assert.assertTrue(Util.staticOverloadingCall(test, "o", ((PlaidJavaObject)Util.string("test"))).equals("String"));
+		Assert.assertTrue(Util.staticOverloadingCall(test, "o", ((PlaidJavaObject)Util.javaToPlaid(this))).equals("Object"));
 		} catch (PlaidIllegalOperationException e) {
+			e.printStackTrace();
 			Assert.fail();
 		}	
 	}
@@ -30,13 +32,14 @@ public class OverloadDispatchTest {
 	public void twoArgs() {
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test, "t", this, this).equals("O2"));
+			Assert.assertTrue(Util.staticOverloadingCall(test, "t", ((PlaidJavaObject)Util.javaToPlaid(this)), ((PlaidJavaObject)Util.javaToPlaid(this))).equals("O2"));
 		} catch (PlaidIllegalOperationException e) {
+			e.printStackTrace();
 			Assert.fail();
 		}	
 		
 		try {
-			Util.staticOverloadingCall(test, "t", "test", "test");
+			Util.staticOverloadingCall(test, "t", ((PlaidJavaObject)Util.string("test")), ((PlaidJavaObject)Util.string("test")));
 			Assert.fail();
 		} catch (PlaidIllegalOperationException e) {
 			//pass
@@ -48,15 +51,16 @@ public class OverloadDispatchTest {
 	public void ifacesAmbig() {
 		
 		try {
-			Util.staticOverloadingCall(test, "u", iTest);
+			Util.staticOverloadingCall(test, "u", ((PlaidJavaObject)Util.javaToPlaid(iTest)));
 			Assert.fail();
 		} catch (PlaidIllegalOperationException e) {
 			//pass
 		}	
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test,"v",iTest2).equals("o1234"));
+			Assert.assertTrue(Util.staticOverloadingCall(test,"v",((PlaidJavaObject)Util.javaToPlaid(iTest2))).equals("o1234"));
 		} catch (PlaidIllegalOperationException e) {
+			e.printStackTrace();
 			Assert.fail();
 		}	
 		 
@@ -67,9 +71,9 @@ public class OverloadDispatchTest {
 	public void intVlong() {
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test, "w", int5).equals("int"));
+			Assert.assertTrue(Util.staticOverloadingCall(test, "w", ((PlaidJavaObject)Util.javaToPlaid(int5))).equals("int"));
 		} catch (PlaidIllegalOperationException e) {
-			//e.printStackTrace();
+			e.printStackTrace();
 			Assert.fail();
 		}	
 
@@ -77,17 +81,17 @@ public class OverloadDispatchTest {
 	}
 	
 	@Test
-	public void intVInteger() {
+	public void boxedVunboxed() {
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test, "x", int5).equals("Integer"));
+			Assert.assertTrue(Util.staticOverloadingCall(test, "x", ((PlaidJavaObject)Util.javaToPlaid(int5))).equals("Integer"));
 		} catch (PlaidIllegalOperationException e) {
 			e.printStackTrace();
 			Assert.fail();
 		}	
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test, "x", 5).equals("Integer"));
+			Assert.assertTrue(Util.staticOverloadingCall(test, "x", ((PlaidJavaObject)Util.javaToPlaid(5))).equals("Integer"));
 		} catch (PlaidIllegalOperationException e) {
 			e.printStackTrace();
 			Assert.fail();
@@ -95,16 +99,18 @@ public class OverloadDispatchTest {
 
 		 
 	}
+	
+	@Test
+	public void boxedFail() {
+		
+		try {
+			Util.staticOverloadingCall(test, "y", ((PlaidJavaObject)Util.javaToPlaid(int5)));
+			Assert.fail();
+		} catch (PlaidIllegalOperationException e) {
+			//pass
+		}
 
-//	public static void main(String[] args) {
-//		System.out.println(long.class.isAssignableFrom(int.class));
-//		System.out.println(int.class.isAssignableFrom(long.class));
-//		System.out.println(int.class.isAssignableFrom(int.class));
-//		int test = 5;
-//		System.out.println(long.class.isInstance(test));
-//		System.out.println(boolean.class.isAssignableFrom(Boolean.class));
-//		System.out.println(Boolean.class.isAssignableFrom(boolean.class));
-//	}
+	}
 	
 	
 	public class OverloadTestClass {
@@ -131,7 +137,8 @@ public class OverloadDispatchTest {
 		public String x(int i) { return "int"; }
 		public String x(Integer i) { return "Integer"; }
 		
-		
+		public String y(Double d) { return "Double"; }
+		public String y(Float d) { return "Float"; }
 	}
 	
 

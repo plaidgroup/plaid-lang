@@ -5,6 +5,7 @@ import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
+import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
@@ -31,10 +32,17 @@ public class String extends AbstractPlaidState
 	theState$plaid = new String(new DimensionValue("plaid/lang/String", null, null));
 	}
 	
-	public static PlaidObject plaidString(java.lang.String s) { return new SimplePlaidJavaObject(theState$plaid, null, s); }
+	public static PlaidObject plaidString(java.lang.String s) { 
+		return new SimplePlaidJavaObject(theState$plaid,null, s); 
+	}
 	
 	private String(ObjectValue metadata) {
 		super(metadata);
+	}
+	
+	@Override
+	public PlaidObject instantiate() {
+		throw new PlaidIllegalOperationException("Cannot instantiate String state");
 	}
 
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject other) {

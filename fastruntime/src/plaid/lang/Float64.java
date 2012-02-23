@@ -3,8 +3,10 @@ package plaid.lang;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
+import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
+import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
@@ -28,12 +30,19 @@ public class Float64 extends AbstractPlaidState
 	theState$plaid = new Float64(new DimensionValue("plaid/lang/Float64", null, null));
 	}
 	
-	public static PlaidObject plaidFloat64(java.lang.Double d) { return new SimplePlaidJavaObject(theState$plaid,null, d); }
+	public static PlaidObject plaidFloat64(java.lang.Double d) { 
+		return  ((Float64) theState$plaid).new Float64PlaidJavaObject(theState$plaid,d);
+	}
 	
 	private Float64(ObjectValue metadata) {
 		super(metadata);
 	}
 
+	@Override
+	public PlaidObject instantiate() {
+		throw new PlaidIllegalOperationException("Cannot instantiate Float64 state");
+	}
+	
 	@Override
 	public PlaidObject gteq$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
@@ -109,6 +118,32 @@ public class Float64 extends AbstractPlaidState
 
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("/ failed", e.getCause());
+		}
+	}
+	
+	private final class Float64PlaidJavaObject extends SimplePlaidJavaObject {
+		
+		public Float64PlaidJavaObject(PlaidState dispatch,java.lang.Double javaObject) {
+			super(dispatch, null, javaObject);
+			this.rep = javaObject;
+		}
+		
+		private java.lang.Double rep;
+		
+		@Override
+		public boolean canBePrimitive(JavaPrimitive p) {
+			switch (p) {
+			case DOUBLE: return true;
+			default: return false;
+			}
+		}
+		
+		@Override
+		public Object asPrimitive(JavaPrimitive p) {
+			switch (p) {
+			case DOUBLE: return rep;
+			default: throw new PlaidIllegalOperationException("Floats cannot be used as " + p.name + "primitives.");
+			}
 		}
 	}
 	

@@ -3,8 +3,10 @@ package plaid.lang;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
+import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
+import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
@@ -28,10 +30,17 @@ public class Integer32 extends AbstractPlaidState
 	theState$plaid = new Integer32(new DimensionValue("plaid/lang/Integer", null, null));
 	}
 	
-	public static PlaidObject plaidInteger(java.lang.Integer i) { return new SimplePlaidJavaObject(theState$plaid,null, i); }
+	public static PlaidObject plaidInteger(java.lang.Integer i) { 
+		return ((Integer32) theState$plaid).new Integer32PlaidJavaObject(theState$plaid,i);
+	}
 	
 	private Integer32(ObjectValue metadata) {
 		super(metadata);
+	}
+	
+	@Override
+	public PlaidObject instantiate() {
+		throw new PlaidIllegalOperationException("Cannot instantiate Integer32 state");
 	}
 
 	@Override
@@ -107,6 +116,36 @@ public class Integer32 extends AbstractPlaidState
 			
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("+ failed", e.getCause());
+		}
+	}
+	
+	private final class Integer32PlaidJavaObject extends SimplePlaidJavaObject {
+		
+		protected Integer32PlaidJavaObject(PlaidState dispatch,java.lang.Integer javaObject) {
+			super(dispatch, null, javaObject);
+			this.rep = javaObject;
+		}
+		
+		private java.lang.Integer rep;
+		
+		@Override
+		public boolean canBePrimitive(JavaPrimitive p) {
+			switch (p) {
+			case INT: 
+			case DOUBLE:
+			case LONG: return true;
+			default: return false;
+			}
+		}
+		
+		@Override
+		public Object asPrimitive(JavaPrimitive p) {
+			switch (p) {
+			case INT: return rep.intValue();
+			case DOUBLE: return rep.doubleValue();
+			case LONG: return rep.longValue();
+			default: throw new PlaidIllegalOperationException("Integers cannot be used as " + p.name + "primitives.");
+			}
 		}
 	}
 
