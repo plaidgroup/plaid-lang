@@ -54,6 +54,8 @@ public class Util {
 	}
 	
 	public static PlaidObject javaToPlaid(Object javaObject) {
+		if (javaObject == null) 
+			return unit();
 		if (javaObject instanceof Boolean)
 			return bool((Boolean)javaObject);
 		else if (javaObject instanceof Double)

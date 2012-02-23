@@ -6,8 +6,11 @@ import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
+import plaid.generated.Ibangeq$plaid$1$plaid;
+import plaid.generated.Ieqeq$plaid$1$plaid;
 
-public class Unit extends AbstractPlaidState {
+public class Unit extends AbstractPlaidState implements
+	Ieqeq$plaid$1$plaid, Ibangeq$plaid$1$plaid {
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	public static final PlaidJavaObject UNIT_VALUE;
@@ -23,6 +26,18 @@ public class Unit extends AbstractPlaidState {
 	@Override
 	public PlaidObject instantiate() {
 		return UNIT_VALUE;
+	}
+
+	@Override
+	public PlaidObject bangeq$plaid(PlaidObject receiver, PlaidObject arg) {
+		if (arg == UNIT_VALUE) return False.FALSE_VALUE;
+		else return True.TRUE_VALUE;
+	}
+
+	@Override
+	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg) {
+		if (arg == UNIT_VALUE) return True.TRUE_VALUE;
+		else return False.FALSE_VALUE;
 	}
 	
 }

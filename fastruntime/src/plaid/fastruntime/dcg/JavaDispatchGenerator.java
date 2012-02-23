@@ -227,7 +227,7 @@ public class JavaDispatchGenerator implements Opcodes {
 		} else if (type.equals(Type.INT_TYPE)) {
 			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;");
 		} else if (type.equals(Type.VOID_TYPE)) {
-			mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", "unit", "()Lplaid/fastruntime/PlaidObject;");
+			mv.visitInsn(ACONST_NULL);
 		} else {
 			throw new PlaidInternalException("unimplemented primitive Java type (box) " + type.getDescriptor());
 		}
