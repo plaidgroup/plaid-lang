@@ -2,7 +2,6 @@ package plaid.fastruntime.dcg;
 
 import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceFilePath;
 import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceInternalName;
-import static plaid.fastruntime.NamingConventions.getGeneratedInterfaceFullyQualifiedName;
 
 import java.io.File;
 
@@ -21,19 +20,11 @@ public class InterfaceGenerator implements Opcodes{
 	 */
 	public void saveInterfaceFile(String methodName, int numargs) {
 		//TODO: Add interface caching and check if interface is in cache
-		
-		//check if interface already exists in file system
-//		try {
-//			this.getClass().getClassLoader().loadClass(getGeneratedInterfaceFullyQualifiedName(methodName, numargs));
-//			//System.out.println("Interface already exists");
-//			//TODO: Check if interface exists without catching an exception
-//		} catch(ClassNotFoundException e) {
-			System.out.println("Generating interface for : " + methodName);
-			byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
-			ClassFileWriter.writeFile(interfacebytes, 
-					new File(NamingConventions.GENERATED_DIR), 
-					new File(getGeneratedInterfaceFilePath(methodName, numargs)));
-//		}
+
+		byte[] interfacebytes = createInterfaceAsBytes(methodName, numargs);
+		ClassFileWriter.writeFile(interfacebytes, 
+				new File(NamingConventions.GENERATED_DIR), 
+				new File(getGeneratedInterfaceFilePath(methodName, numargs)));
 	}
 
 	public byte[] createInterfaceAsBytes(String methodName, int numargs) {
