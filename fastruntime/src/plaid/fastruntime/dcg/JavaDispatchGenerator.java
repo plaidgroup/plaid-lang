@@ -195,7 +195,6 @@ public class JavaDispatchGenerator implements Opcodes {
 			cw.visitEnd();
 			try {
 				byte[] b = cw.toByteArray();
-				ClassInjector.writeClass(b, "/Users/kbn/Documents/test.class");
 				
 				Class<?> plaidStateClass = ClassInjector.defineClass(name, b, 0, b.length);
 				result =  (PlaidState)plaidStateClass.newInstance();
