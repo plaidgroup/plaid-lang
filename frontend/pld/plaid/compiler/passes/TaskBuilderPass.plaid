@@ -84,6 +84,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                      dumpGraph(node, "TASK-DEL-ARGS");
                      result
                 });
+                /*
                 ops.addLast( fn (depInfos) => {
                      val result = this.removeLiterals(depInfos);
                      dumpGraph(node, "TASK-DEL-LITERALS");
@@ -94,16 +95,19 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                      dumpGraph(node, "TASK-DEL-ID");
                      result
                 });
+                */
                 ops.addLast( fn (depInfos) => {
                      val result = this.removeFieldRestores(depInfos);
                      dumpGraph(node, "TASK-DEL-FIELD-RESTORES");
                      result
                 });
+                /*
                 ops.addLast( fn (depInfos) => {
                      val result = this.removeDereferences(depInfos);
                      dumpGraph(node, "TASK-DEL-DREF");
                      result
                 });
+                */
                 ops.addLast( fn (depInfos) => {
                      val result = this.removeTransitiveDependencies(depInfos);
                      dumpGraph(node, "TASK-DEL-TRANS");
@@ -126,6 +130,9 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 
                 // expand match blocks
                 tasks = expandMatchBlocks(path, tasks);
+                
+                // remove transitive edges
+                tasks = removeTransitiveEdgesFromTasks(tasks);
                 
                 dumpTaskGraph(path, "TASK-FINAL", tasks);
             }{
@@ -831,6 +838,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         
         found
     }
+    
     method immutable Boolean hasTransitiveEdge(shared Task from, shared Task to) {
          DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> hasTransitiveEdge " + from.toString() + " -> " + to.toString());
          
@@ -839,6 +847,32 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
          tasks.remove(from);
          
          findTransitiveEdge(from, tasks)
+    }
+    
+    method unique Set removeTransitiveEdgesFromTasks(unique Set input) {
+        DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> removeTransitiveEdgesFromTasks ");
+         val tasks = java.util.HashSet.new();
+         tasks.addAll(input);
+         
+         val it = tasks.iterator();
+         while { it.hasNext() } {
+             val curTask =it.next();
+             
+             val deps = java.util.HashSet.new();
+             deps.addAll(curTask.deps);
+             val depsIt = deps.iterator();
+             while { depsIt.hasNext() }{
+                  val dep = depsIt.next();
+                  if ( this.hasTransitiveEdge(dep, curTask) ) {
+                      DEBUG(DEBUG_PRIO_LOW, "<TaskBuilder> remove edge form task " + curTask.toString() + " -> " + dep.toString());
+                      curTask.deps.remove(dep);
+                      dep.rdeps.remove(curTask);
+                  }
+             }
+         };
+         
+         
+         tasks;
     }
     
     method immutable String taskListToString(unique List tasks) {
