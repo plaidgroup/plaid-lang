@@ -4,7 +4,7 @@ import plaid.parser.Token;
 
 public final class DefaultCase extends Case {
 
-	public DefaultCase(Token token, Expr body) {
+	public DefaultCase(Token token, BlockExpr body) {
 		super(token, body);
 	}
 

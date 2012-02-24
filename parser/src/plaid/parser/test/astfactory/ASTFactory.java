@@ -141,7 +141,7 @@ public class ASTFactory {
 		return new Assignment(ASTNode.DEFAULT_TOKEN, target, field, value);
 	}
 	
-	public static AtomicBlock AtomicBlock(Expr e, Expr ...datagroups) {
+	public static AtomicBlock AtomicBlock(BlockExpr e, Expr ...datagroups) {
 		return new AtomicBlock(ASTNode.DEFAULT_TOKEN,  Arrays.asList(datagroups), e);
 	}
 	
@@ -181,7 +181,7 @@ public class ASTFactory {
 		return new DeclList(ASTNode.DEFAULT_TOKEN, Arrays.asList(decls));
 	}
 	
-	public static Case DefaultCase(Expr e) {
+	public static Case DefaultCase(BlockExpr e) {
 		return new DefaultCase(ASTNode.DEFAULT_TOKEN, e);
 	}
 	
@@ -282,7 +282,7 @@ public class ASTFactory {
 		return new Annotation(ASTNode.DEFAULT_TOKEN, Identifier(name));
 	}
 	
-	public static Case PatternCase(QualifiedIdentifier qi, Expr e) {
+	public static Case PatternCase(QualifiedIdentifier qi, BlockExpr e) {
 		return new PatternCase(ASTNode.DEFAULT_TOKEN, qi, e);
 	}
 	
@@ -314,7 +314,7 @@ public class ASTFactory {
 		return new SharedPermission(ASTNode.DEFAULT_TOKEN, datagroup);
 	}
 	
-	public static SplitBlock SplitBlock(Expr e, Expr ...datagroups) {
+	public static SplitBlock SplitBlock(BlockExpr e, Expr ...datagroups) {
 		return new SplitBlock(ASTNode.DEFAULT_TOKEN,  Arrays.asList(datagroups), e);
 	}
 	

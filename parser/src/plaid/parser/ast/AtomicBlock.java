@@ -6,9 +6,9 @@ import plaid.parser.Token;
 
 public class AtomicBlock extends Expr {
         private final List<Expr> datagroups;
-        private final Expr body;
+        private final BlockExpr body;
 
-		public AtomicBlock(Token token, List<Expr> datagroups, Expr body) {
+		public AtomicBlock(Token token, List<Expr> datagroups, BlockExpr body) {
                 super(token);
                 this.datagroups = datagroups;
                 this.body = body;
@@ -18,7 +18,7 @@ public class AtomicBlock extends Expr {
 			return datagroups;
 		}
 
-		public Expr getBody() {
+		public BlockExpr getBody() {
 			return body;
 		}
 
