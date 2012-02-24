@@ -14,8 +14,11 @@ public class NamingConventions {
 	public static final String GENERATED_STORAGE_PREFIX = "S";
 	public static final String GENERATED_SUFFIX = "$plaid";
 	public static final String GENERATED_DIR = "../generated/bin/" + GENERATED_PKG;
+	
 	public static final String GENERATED_METHOD_NAME = "invoke" + GENERATED_SUFFIX;
 	public static final String GENERATED_STATE_NAME = "theState" + GENERATED_SUFFIX;
+	public static final String GENERATED_FIELD_NAME = "theField" + GENERATED_SUFFIX;
+	
 	public static final String GENERATED_THIS = "this" + GENERATED_SUFFIX;
 	public static final String GENERATED_GET_PREFIX = "get";
 	public static final String GENERATED_SET_PREFIX = "set";

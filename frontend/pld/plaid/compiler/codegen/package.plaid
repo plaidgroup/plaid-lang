@@ -41,7 +41,7 @@ method codegenCU(unique Job job, immutable ParsedCompilationUnit node) {
 	
 	//create directories and files for java source output
 	declsSbList.map( fn(item) => {
-		val declName = item.first().name.name;
+		val declName = NamingConventions.getGeneratedIdentifier(item.first().name.name);
 		val sep = System.getProperty("file.separator");
 		val qiDir = makeSeperatedString(qiPackage, sep);
 		val outputDir = COMPILER_CONFIGURATION().tempDir;
@@ -60,7 +60,7 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 		case ParsedConcreteMethodDecl {
 			LOG("generating code for top-level concrete method decl");
 			sb.append("package " + packageName + ";\n");
-			sb.append("public class " + node.name.name + "{\n");
+			sb.append("public class " + NamingConventions.getGeneratedIdentifier(node.name.name) + "{\n");
 			
 			// begin invoke method
 			sb.append("public static plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_METHOD_NAME + "(");
@@ -85,11 +85,29 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 		}
 		case ParsedConcreteFieldDecl {
 			LOG("generating code for top-level concrete field decl");
+			
+			sb.append("package " + packageName + ";\n");			
+			sb.append("public class " + NamingConventions.getGeneratedIdentifier(node.name.name) + "{\n");
+		
+			val fieldName = NamingConventions.GENERATED_FIELD_NAME;
+		
+			sb.append("public static final plaid.fastruntime.PlaidObject " + fieldName + ";\n");
+			sb.append("static {\n");
+			
+			// field initializer body
+			val exprVarName = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + exprVarName + ";\n");
+			codegenStmt(node.expression, sb, idgen, exprVarName);
+			sb.append("" + fieldName + " = " + exprVarName + ";\n");
+			
+			sb.append("}\n"); //end static block
+			sb.append("}\n"); //end class
+			
 		}
 		case ParsedConcreteStateDecl {
 			LOG("generating code for top-level concrete state decl");
 			sb.append("package " + packageName + ";\n");
-			sb.append("public class " + node.name.name + "{\n");
+			sb.append("public class " + NamingConventions.getGeneratedIdentifier(node.name.name) + "{\n");
 			
 			val tag = java.util.UUID.randomUUID().toString();
 
@@ -360,6 +378,7 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 					codegenStmt(node.value, sb, idgen, valueId);
 					
 					val setterName = NamingConventions.getSetterName(node.field.name);
+					plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(setterName, 1);
 					val ifaceName = NamingConventions.getGeneratedInterfaceFullyQualifiedName(setterName, 1);
 					sb.append(y + " = ");
 					sb.append("("); // paretheses around casted object
@@ -448,17 +467,24 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
                                     
                                     val methodId = functionExpr.right;
                                     
-                                    //assign result to y
-                                    sb.append(y + " = ");
+                                    
                                     
                                     //generate interface
                                     plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
                                     
+                                    //test if method or field with first class function
+                                    
+                                    val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodId.name, yList.size());
+                                    val dispatch = receiverString + ".getDispatch()";
+                                    sb.append("if(" + dispatch + " instanceof " + methodInterfaceName + ") {\n");
+                                    
+                                    //assign result to y
+                                    sb.append(y + " = ");
+                                    
                                     //cast
                                     sb.append("(");
-                                    sb.append("(" + NamingConventions.getGeneratedInterfaceName(methodId.name, yList.size()) + ")");
-                                    sb.append(receiverString);
-                                    sb.append(".getDispatch()");
+                                    sb.append("(" + methodInterfaceName + ")");
+                                    sb.append(dispatch);
                                     sb.append(")");
                                     //.<METHOD_NAME>(<RECEIVER>,<ARGS>)
                                     sb.append("." + methodId.name + "(");
@@ -468,12 +494,45 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
                                     };
                                     sb.append(makeSeperatedString(yList, ",")); //normal arguments
                                     sb.append(");\n");
+                                    
+                                    sb.append("}\n"); //end if
+                                    val getterName = NamingConventions.getGetterName(methodId.name);
+                                    val getterInterfaceName = NamingConventions.getGeneratedInterfaceName(getterName,0);
+                                    plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
+                                    
+                                    sb.append("else if(" + dispatch + " instanceof " + getterInterfaceName + ") {\n");
+                                    sb.append(y + " = ");
+                                    
+                                    //cast to lambda
+                                    sb.append("(");
+                                    sb.append("(plaid.fastruntime.PlaidLambda$"+yList.size()+")");
+                                    sb.append("("); //begin getter cast
+                                    sb.append("(" + getterInterfaceName + ")");
+                                    sb.append(dispatch);
+                                    sb.append(")"); // end getter cast
+                                    sb.append("." + getterName + "(" + receiverString +")");
+                                    sb.append(")"); //end lambda cast
+                                    sb.append(".invoke$plaid(");
+                                    sb.append(makeSeperatedString(yList, ",")); //normal arguments
+                                    sb.append(");\n");
+                                    
+                                    
+                                    sb.append("}\n"); //end else if
+                                    
+                                    sb.append("else {\n");
+                                    sb.append("throw new plaid.fastruntime.errors.PlaidIllegalOperationException(\"No method named " + methodId.name + " found \");\n");
+                                    sb.append("}\n");
+                               
 							    }
 							}
 						} 
 						case ParsedIdentifier {
 							//function application
-							sb.append(y +  " = " + functionExpr.name + ".invoke$plaid(");
+							val functionExprVarName = idgen.getId();
+							sb.append("plaid.fastruntime.PlaidObject " + functionExprVarName + ";\n");
+							codegenStmt(functionExpr, sb, idgen, functionExprVarName);
+							sb.append(y +  " = ");
+							sb.append("((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(");
 							sb.append(makeSeperatedString(yList, ","));
 							sb.append(");\n");
 						}
@@ -511,8 +570,9 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 			
 			//assign result to y
 			sb.append(y + " = ");
+			
 			//generate interface
-			//plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
+			plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, 1);
 							
 			//cast
 			sb.append("(");
@@ -552,6 +612,22 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 								varName = node.name;
 							};
 							sb.append(y + " = " + varName + ";\n");
+						}
+						case FieldSymbol {
+							val parentSymbol = symbol.owner;
+							match(parentSymbol) {
+								case PackageSymbol {
+									sb.append(y + " = ");
+									sb.append(parentSymbol.getFQN());
+									sb.append(".");
+									sb.append(NamingConventions.getGeneratedIdentifier(node.name));
+									sb.append("." + NamingConventions.GENERATED_FIELD_NAME);
+									sb.append(";\n");
+								}
+								default {
+									ERROR("Identifier's symbol is a field symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
+								}
+							}
 						}
 						default {
 							ERROR("Internal Error. Identifier has unexpected symbol '" + symbol.symbolType() + "'.");
