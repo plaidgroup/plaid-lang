@@ -14,6 +14,7 @@ import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidState;
+import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidInternalException;
 
 
@@ -30,13 +31,16 @@ public final class DispatchGenerator implements Opcodes {
 		Collection<String> ifaces = new ArrayList<String>();
 		for (MethodInfo m : ov.getMethods()) {
 			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(m.getName(), m.numArgs()));
+			Util.INTERFACE_GEN.createInterfaceAsClass(m.getName(), m.numArgs());
 		}
 		for(FieldInfo f: ov.getFields()) {
 			String getterName = NamingConventions.getGetterName(f.getName());
 			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(getterName, 0));
+			Util.INTERFACE_GEN.createInterfaceAsClass(getterName, 0);
 			if(f.isSettable()) {
 				String setterName = NamingConventions.getSetterName(f.getName());
 				ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(setterName, 1));
+				Util.INTERFACE_GEN.createInterfaceAsClass(setterName, 1);
 			}
 		}
 		cw.visit(50,
