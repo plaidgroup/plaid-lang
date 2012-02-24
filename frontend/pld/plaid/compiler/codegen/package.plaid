@@ -744,38 +744,42 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 		case ParsedBlockExpr {
 			// this should not be called if parent node is ConcreteMethodDecl, Case, Split, o r
 			//delegate to lambda expression code generator
-			node.statements.map(fn(stmtNode) => {codegenStmt(stmtNode, sb, idgen, y)});
+			codegenLambda(new LinkedList, node, sb, idgen, y);
 		}
 		case ParsedLambda {
-			sb.append(y + " = new plaid.fastruntime.PlaidLambda$" + node.arguments.size() + "() {\n");
-			sb.append("public plaid.fastruntime.PlaidObject invoke$plaid(");
-			if(node.arguments.size() > 0) {
-				val argList = node.arguments.map(fn(arg) => {"plaid.fastruntime.PlaidObject " + arg.name.name});
-				sb.append(makeSeperatedString(argList, ","));
-			};
-			sb.append(")"); // end argument list
-			sb.append(" {\n"); // begin invoke method body
-			match(node.body) {
-				case ParsedBlockExpr {
-					val toReturn = idgen.getId();
-					sb.append("plaid.fastruntime.PlaidObject " + y + ";\n");
-					node.body.statements.map( fn(item) => { codegenStmt(item, sb, idgen, y); } );
-					sb.append("return " + y + ";\n");
-				}
-				default {
-					val toReturn = idgen.getId();
-					sb.append("plaid.fastruntime.PlaidObject " + y + ";\n");
-					codegenStmt(node.body, sb, idgen, toReturn);
-					sb.append("return " + y + ";\n");
-				}
-			};
-			sb.append("}\n"); // end invoke method
-			sb.append("};\n"); // end anonymous inner class
+			codegenLambda(node.arguments, node.body, sb, idgen, y);
 		}
 		default {
 			ERROR("Unexpected stmt node type,"+ node.nodeName() +" encountered.");
 		}
 	}
+}
+
+method codegenLambda(args, body, sb, idgen, y) {
+	sb.append(y + " = new plaid.fastruntime.PlaidLambda$" + args.size() + "() {\n");
+	sb.append("public plaid.fastruntime.PlaidObject invoke$plaid(");
+	if(args.size() > 0) {
+		val argList = args.map(fn(arg) => {"plaid.fastruntime.PlaidObject " + arg.name.name});
+		sb.append(makeSeperatedString(argList, ","));
+	};
+	sb.append(")"); // end argument list
+	sb.append(" {\n"); // begin invoke method body
+	match(body) {
+		case ParsedBlockExpr {
+			val toReturn = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + y + ";\n");
+			body.statements.map( fn(item) => { codegenStmt(item, sb, idgen, y); } );
+			sb.append("return " + y + ";\n");
+		}
+		default {
+			val toReturn = idgen.getId();
+			sb.append("plaid.fastruntime.PlaidObject " + y + ";\n");
+			codegenStmt(body, sb, idgen, toReturn);
+			sb.append("return " + y + ";\n");
+		}
+	};
+	sb.append("}\n"); // end invoke method
+	sb.append("};\n"); // end anonymous inner class
 }
 
 method codegenStateExpr(immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
