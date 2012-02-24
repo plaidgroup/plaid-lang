@@ -15,7 +15,6 @@ public class ClassFileWriter {
 			FileOutputStream fos = new FileOutputStream(classfile);
 			fos.write(classBytes);
 			fos.close();
-			System.out.println("Wrote file");
 		} 
 		catch(FileNotFoundException ex)
 	    {
