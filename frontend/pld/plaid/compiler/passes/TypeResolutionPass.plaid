@@ -4,9 +4,11 @@ import plaid.ast.parsed.ParsedRewriteLeafVisitor;
 import plaid.ast.util.*;
 
 import plaid.compiler.ERROR;
+import plaid.compiler.report_ERROR;
 import plaid.compiler.DEBUG;
 import plaid.compiler.DEBUG_PRIO_MEDIUM;
 import plaid.compiler.Pass;
+import plaid.compiler.globalReporter;
 
 import plaid.compiler.symbolForAST;
 import plaid.compiler.haveSymbolForAST;
@@ -27,7 +29,6 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
     var unique SymbolFactory sf = new SymbolFactory;
     var immutable Source sourceFile;
     var shared Resolver resolver;
-    var shared Reporter reporter;
     var hasErrors = false;
     var job;
 
@@ -38,7 +39,6 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                     case Some {
                         DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> started");
                         this.sourceFile = job.source.path;
-                        this.reporter   = job.reporter;
                         this.resolver   = job.resolver;
 
                         this.job = job;
@@ -242,8 +242,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                     }
                     case None {
                         val msg = "Cannot find type for '" + new_node.args.get(0) + "'";
-                        //this.reporter.errorToken(java.io.File.new(this.sourceFile),  new_node.args.get(0).token, msg);
-                        this.reporter.report();
+                        //globalReporter.errorToken(new_node.args.get(0).token, msg);
+                        globalReporter.report();
                         ABORT(msg);            
                     }
                 }
@@ -362,16 +362,16 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                             default {
                                 
                                 val msg = "'"+node.function.name+"' is neither a lambda nor a method.";
-                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.function.token, msg);
-                                this.reporter.report();
+                                globalReporter.errorToken(node.function.token, msg);
+                                globalReporter.report();
                                 ABORT(msg);                        
                             }
                         }
                     } 
                     case None {
                         val msg = "Cannot find symbol information for '" + node.function.name +"'";
-                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.function.token, msg);
-                        this.reporter.report();
+                        globalReporter.errorToken(node.function.token, msg);
+                        globalReporter.report();
                         ABORT(msg);                        
                     }
                 }
@@ -405,8 +405,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                              }
                                              default { 
                                                  val msg = "Cannot apply to '" + fieldType.structure +"'"; 
-                                                 this.reporter.errorToken(java.io.File.new(this.sourceFile), node.left.token, msg);
-                                                 this.reporter.report();
+                                                 globalReporter.errorToken( node.left.token, msg);
+                                                 globalReporter.report();
                                                  ABORT(msg);                                                 
                                              } 
                                          };
@@ -443,16 +443,16 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                             }
                             case None { 
                                 val msg = "Cannot find '" + node.function.right.name + "' in type " + receiverStruct.value.toString();
-                                this.reporter.errorToken(java.io.File.new(this.sourceFile), node.function.left.token, msg);
-                                this.reporter.report();
+                                globalReporter.errorToken(node.function.left.token, msg);
+                                globalReporter.report();
                                 ABORT(msg);
                             }
                         }
                     }
                     case None {
                         val msg = "Cannot find type for '" + node.function.nodeName() + "'";
-                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.function.left.token, msg);
-                        this.reporter.report();
+                        globalReporter.errorToken(node.function.left.token, msg);
+                        globalReporter.report();
                         ABORT(msg);
                     }
                 }
@@ -481,16 +481,16 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                             }
                             default {
                                 val msg = "Cannot apply to non-lambda object " + functionStruct.value.toString() ;
-                                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_function.token, msg);
-                                this.reporter.report();
+                                globalReporter.errorToken(new_function.token, msg);
+                                globalReporter.report();
                                 ABORT(msg);                                  
                             }
                         }
                     }
                     case None {
                         val msg = "Cannot find type for '" + node.function.nodeName() + "'";
-                        this.reporter.errorToken(java.io.File.new(this.sourceFile), node.function.token, msg);
-                        this.reporter.report();
+                        globalReporter.errorToken(node.function.token, msg);
+                        globalReporter.report();
                         ABORT(msg);
                     }
                 };
@@ -791,8 +791,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                             }
                             case None {
                                 val msg = "Type '" + leftStruct.value.toString() + "' has no member '" + new_node.right.name + "'" ;
-                                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_node.right.token, msg);
-                                this.reporter.report();
+                                globalReporter.errorToken(new_node.right.token, msg);
+                                globalReporter.report();
                                 ABORT(msg);
                             }
                         }
@@ -805,8 +805,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
             }
             case None {
                 val msg = "Cannot find structure for left part of the dereference.";
-                this.reporter.errorToken(java.io.File.new(this.sourceFile), new_node.token, msg);
-                this.reporter.report();
+                globalReporter.errorToken(new_node.token, msg);
+                globalReporter.report();
                 ABORT(msg);
             }
         };
@@ -932,7 +932,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         }
                     }
                     default {
-                        this.job.addError(node.token, "Cannot call method on non-nominal structure: " + leftStructOpt.value.toString());
+                        report_ERROR(node.token, "Cannot call method on non-nominal structure: " + leftStructOpt.value.toString());
                         ABORT_WITH_JOB(job);
                     }
                 }

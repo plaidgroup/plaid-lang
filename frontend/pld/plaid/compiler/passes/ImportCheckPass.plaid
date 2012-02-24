@@ -9,6 +9,7 @@ import plaid.compiler.DEBUG_PRIO_LOW;
 import plaid.compiler.Pass;
 import plaid.compiler.CompilerConfiguration;
 import plaid.compiler.Reporter;
+import plaid.compiler.globalReporter;
 
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
 import plaid.ast.util.makeTokenForQualifiedIdentifier;
@@ -20,17 +21,15 @@ import plaid.collections.makeLinkedList;
 
 state ImportCheckPass case of Pass {
     var shared Resolver resolver;
-    var shared Reporter reporter;
 
     method immutable Boolean run(unique Job job) {
         this.resolver = job.resolver;
-        this.reporter = job.reporter;
         match (job.ast) {
             case Some {
                 match (job.ast.value) {
                     case ParsedCompilationUnit {                        
                         DEBUG(DEBUG_PRIO_HIGH, "<ImportCheckPass> started");
-                        checkImports(job.ast.value.imports, reporter, job.source.path);
+                        checkImports(job.ast.value.imports, job.source.path);
                         DEBUG(DEBUG_PRIO_HIGH, "<ImportCheckPass> finished");
                         true
                     }
@@ -42,7 +41,6 @@ state ImportCheckPass case of Pass {
     }
 
     method immutable Boolean checkImports(immutable List imports, 
-                                          unique Reporter reporter,
                                           immutable String sourceFile) {
         val unique LinkedList names = makeLinkedList(); 
         imports.do(fn (imp) => {
@@ -56,8 +54,7 @@ state ImportCheckPass case of Pass {
                     if ( impName.name == name.name ) {
                         ERROR("<ImportCheckPass> Cannot import the same name '" + impName + "'");
                         val token = makeTokenForQualifiedIdentifier(imp.qualifiedIdentifier);
-                        reporter.warningToken(java.io.File.new(sourceFile), 
-                                              token,
+                        globalReporter.warningToken(token,
                                               "Cannot import the same name '" + impName + "'");
                     }
                 });
@@ -70,8 +67,7 @@ state ImportCheckPass case of Pass {
                     case None {
                         ERROR("<ImportCheckPass> Cannot resolve '" + fqn + "'");
                         val token = makeTokenForQualifiedIdentifier(imp.qualifiedIdentifier);
-                        reporter.warningToken(java.io.File.new(sourceFile), 
-                                              token,
+                        globalReporter.warningToken(token,
                                               "Cannot resolve import '" + fqn  + "'");
 
                     }

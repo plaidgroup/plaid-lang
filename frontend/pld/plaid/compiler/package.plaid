@@ -69,6 +69,23 @@ method void DEBUG_DO(immutable Integer level, lambda) {
 }
 
 /*****************************************************************************
+ ** ERROR REPORTING
+ ****************************************************************************/
+val unique Reporter globalReporter = new ConsoleReporter;
+
+method void report_ERROR(immutable Token t, immutable String message) {
+    plaid.compiler.globalReporter.errorToken(t, message)
+}
+
+method void report_WARNING(immutable Token t, immutable String message) {
+    plaid.compiler.globalReporter.warningToken(t, message)
+}
+
+method void report_INFO(immutable Token t, immutable String message) {
+    plaid.compiler.globalReporter.infoToken(t, message)
+}
+
+/*****************************************************************************
  ** ASSERT
  ****************************************************************************/
 
@@ -458,8 +475,8 @@ method unique List getJobPassesHelper(immutable CompilerConfiguration cc, immuta
     	passes.add(new CodeGenPass);
     };
 
-    // report errors pass 
-    passes.add(new ReporterPass);
+    // report errors pass - do at end
+    //passes.add(new ReporterPass);
 
     passes
 }
@@ -551,7 +568,7 @@ method ABORT(immutable String message) {
 }
 
 method ABORT_WITH_JOB(shared Job job) {
-    job.reporter.report();
+    globalReporter.report();
     plaid.compiler._native.throwAbortException();
 }
 
@@ -572,6 +589,7 @@ method void init() {
     plaid.compiler.aeminium.aeminiumSLocToDepInfo.clear();
     plaid.compiler.aeminium.tasks.cheapMethodCache.clear();
     jobs = makeEmptyList();
+    plaid.compiler.globalReporter.clearErrors();
 }
 
 /*****************************************************************************
@@ -598,7 +616,6 @@ method main(args) {
                 val job = new UserJob { 
                     val source = source; 
                     val resolver = resolver;
-                    val reporter = new reporter.ConsoleReporter;
                     var passes = compilerPasses;
                 };
                 
@@ -645,6 +662,14 @@ method main(args) {
             //dump symbol map
             if (cc.dumpSymbolMap) {
             	printLine(printSymbolMap())
+            };
+            
+            //report errors
+            globalReporter.report();
+            printLine("");
+            match (globalReporter.wereErrors()) {
+                case True { printLine("Compilation FAILED!"); }
+                case False { printLine("Compilation Succeeded!"); }
             };
             
 

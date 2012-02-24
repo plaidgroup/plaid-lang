@@ -8,6 +8,7 @@ import plaid.collections.makeLinkedList;
 import plaid.ast.parsed.*;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
 import plaid.ast.util.EMPTY_TOKEN;
+import plaid.ast.util.Token;
 
 import plaid.compiler.ABORT;
 import plaid.compiler.ERROR;
@@ -22,6 +23,7 @@ import plaid.compiler.Context;
 import plaid.compiler.symbolForAST;
 import plaid.compiler.haveSymbolForAST;
 import plaid.compiler.addSymbolForAST;
+import plaid.compiler.globalReporter;
 
 import plaid.compiler.context.TopLevelContext;
 import plaid.compiler.context.LocalContext;
@@ -61,7 +63,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
     val unique Stack stack = new Stack;  //Stack of scoping contexts
     val immutable SymbolFactory sf = new SymbolFactory;
     var immutable String sourceFile = "";
-    var shared Reporter reporter;
     var shared ClasspathResolver resolver;
     val unique Stack currentState = new Stack;
     var shared Symbol packageSymbol = new TopSymbol;
@@ -70,13 +71,11 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         
 
     method immutable Boolean run(unique Job job) {
-        this.reporter = job.reporter;
         this.resolver = job.resolver;
         match (job.ast) {
             case Some {
                 DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass> started for '" + job.source.path + "'");
                 this.sourceFile = job.source.path;
-                this.reporter = reporter;
                 this.stack.push(new TopLevelContext);
 
                 // add global stack 
@@ -194,11 +193,15 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                                  val endLine     = max(first.token.endLine, last.token.endLine);
                                  val beginColumn = first.token.beginColumn;
                                  val endColumn   = last.token.endColumn;
-                                 this.reporter.error(java.io.File.new(this.sourceFile), 
-                                                     beginLine,
-                                                     beginColumn,
-                                                     endLine,
-                                                     endColumn,
+                                 val fqnToken = new Token {
+                                    val beginLine = beginLine;
+                                    val beginColumn = first.beginColumn;
+                                    val endLine = endLine;
+                                    val endColumn = last.endColumn;
+                                    val image = ""; 
+                                    val fileName = first.fileName;
+                                 };
+                                 globalReporter.errorToken(fqnToken,
                                                      "Cannot resolve '" + resolvedFqn + "." + qi.identifiers.get(count).value.name  + "'");
                              }
                              case JavaClassSymbol { //might be static members that we should resolve
@@ -438,7 +441,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 		//node.imports.map(fn (item) => { item.accept(this); item });
 		node.decls.map(fn (item) => { item.accept(this); item });
         
-        impCtx.reportUnusedImports(this.reporter, this.sourceFile);
+        impCtx.reportUnusedImports(this.sourceFile);
 
         this.stack.pop();
 	}
@@ -656,7 +659,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 }
            }
            case None {
-               this.reporter.errorToken(java.io.File.new(this.sourceFile), node.token, "Cannot resolve '" + node.name + "'");
+               globalReporter.errorToken(node.token, "Cannot resolve '" + node.name + "'");
            }
        }
 	}
@@ -711,7 +714,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                         DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass>   resolved  " + resolvedCount + " parts");
                         if ( resolvedCount == 0 ) {
                             //val mostLeftId = qiOpt.value.identifiers.get(0);
-                            //this.reporter.errorToken(java.io.File.new(this.sourceFile), mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
+                            //globalReporter.errorToken(mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
                         	node.left.accept(this);
                         };
                 	}
@@ -798,11 +801,15 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             val endLine     = max(first.token.endLine, last.token.endLine);
             val beginColumn = min(first.token.beginColumn, last.token.beginColumn);
             val endColumn   = max(first.token.endColumn, last.token.endColumn);
-            this.reporter.error(java.io.File.new(this.sourceFile), 
-                                beginLine,
-                                beginColumn,
-                                endLine,
-                                endColumn,
+            val fqnToken = new Token {
+                val beginLine = beginLine;
+                val beginColumn = first.beginColumn;
+                val endLine = endLine;
+                val endColumn = last.endColumn;
+                val image = ""; 
+                val fileName = first.fileName;
+            };
+            globalReporter.errorToken(fqnToken,
                                "Cannot resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
         }
 	}
@@ -858,10 +865,10 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             match (otherSymbol) {
                 case Some {
                    val otherDecl = otherSymbol.value.declaration;
-                   this.reporter.errorToken(java.io.File.new(this.sourceFile), node.id.token, "Variable '" +  node.id.name + "' already declared in line " + otherDecl.token.beginLine);
+                   globalReporter.errorToken(node.id.token, "Variable '" +  node.id.name + "' already declared in line " + otherDecl.token.beginLine);
                 }
                 case None {
-                   this.reporter.errorToken(java.io.File.new(this.sourceFile), node.id.token, "Variable '" + node.id.name + "' already declared.");
+                   globalReporter.errorToken(node.id.token, "Variable '" + node.id.name + "' already declared.");
                 }
             };
             this.hasErrors = true;
