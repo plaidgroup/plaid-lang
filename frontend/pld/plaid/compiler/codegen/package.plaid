@@ -527,14 +527,45 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 							}
 						} 
 						case ParsedIdentifier {
-							//function application
-							val functionExprVarName = idgen.getId();
-							sb.append("plaid.fastruntime.PlaidObject " + functionExprVarName + ";\n");
-							codegenStmt(functionExpr, sb, idgen, functionExprVarName);
-							sb.append(y +  " = ");
-							sb.append("((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(");
-							sb.append(makeSeperatedString(yList, ","));
-							sb.append(");\n");
+							val symbolOption = symbolForAST(functionExpr);
+							match(symbolOption) {
+								case Some {	
+									val idSymbol = symbolOption.getValue();
+									match(idSymbol) {
+										case MethodSymbol {
+											//top-level methods are not fist class values so they must be handled specially
+											val parentSymbol = idSymbol.owner;
+											match(parentSymbol) {
+												case PackageSymbol {
+													sb.append(y + " = ");
+													sb.append(parentSymbol.getFQN());
+													sb.append(".");
+													sb.append("" + NamingConventions.getGeneratedIdentifier(functionExpr.name));
+													sb.append(".invoke$plaid("); // call directly, no need to cast
+													sb.append(makeSeperatedString(yList, ","));
+													sb.append(");\n");
+													sb.append(";\n");
+												}
+												default {
+													ERROR("Identifier's symbol is a method symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
+												}
+											}
+										}
+										default {
+											val functionExprVarName = idgen.getId();
+											sb.append("plaid.fastruntime.PlaidObject " + functionExprVarName + ";\n");
+											codegenStmt(functionExpr, sb, idgen, functionExprVarName);
+											sb.append(y +  " = ");
+											sb.append("((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(");
+											sb.append(makeSeperatedString(yList, ","));
+											sb.append(");\n");
+										}
+									}
+								}
+								case None {
+									ERROR("No symbol found for identifier. (Identifier named " + functionExpr.name + ")");
+								}
+							}
 						}
 						default {
 							ERROR("<CodeGenPass> Unexpected node type as function field of Application node");
@@ -629,8 +660,11 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 								}
 							}
 						}
+						case MethodSymbol {
+							ERROR("Methods are not first class values, therefore this should not be called.");
+						}
 						default {
-							ERROR("Internal Error. Identifier has unexpected symbol '" + symbol.symbolType() + "'.");
+							ERROR("Identifier has unexpected symbol '" + symbol.symbolType() + "'.");
 						}
 					};
 				} case None {
