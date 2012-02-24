@@ -142,10 +142,11 @@ public final class RegressionTests {
 	protected String[] createCommandLine() {
 		List<String> commandLine = new ArrayList<String>();
 
-		// enable codegen if in codegen sub directory
+		// enable codegen if in codegen sub directory (no typecheck for this code)
 		if ( !job.directory.getAbsolutePath().toLowerCase().contains("codegen") ){
 			commandLine.add("-c");
-		}
+		} else
+			commandLine.add("-t");
 		
 		// enable aeminium if in aeminium sub directory
 		if ( job.directory.getAbsolutePath().toLowerCase().contains("aeminium") ){
