@@ -265,6 +265,15 @@ public class Util {
 	// For Plaid purposes, we consider boxed primitives to less specific than their unboxed counterparts
 	// primitives are incomparable to other classes
 	private static ClassCompare comparePrimitiveToReference(Class<?> primitive, Class<?> obj) {
+		
+		//all are subtypes of object (since they are applicable the Plaid object can be used as the primitive
+		//or an object)
+		//all except boolean are subtypes of java.lang.Number
+		if (obj.equals(Object.class) ||
+			(!primitive.equals(boolean.class) && obj.equals(java.lang.Number.class)))
+			return ClassCompare.SUB;
+			
+		
 		switch (JavaPrimitive.fromClass(primitive)) {
 		case BOOLEAN:
 			if (java.lang.Boolean.class.isAssignableFrom(obj)) return ClassCompare.SUP;
