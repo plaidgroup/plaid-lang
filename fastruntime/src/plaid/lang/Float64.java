@@ -23,7 +23,8 @@ public class Float64 extends AbstractPlaidState
 					Imult$plaid$1$plaid,
 					Isub$plaid$1$plaid,
 					Igteq$plaid$1$plaid,
-					Idiv$plaid$1$plaid {
+					Idiv$plaid$1$plaid, 
+					plaid.generated.InativeLessThan$1$plaid{
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	static {
@@ -121,6 +122,19 @@ public class Float64 extends AbstractPlaidState
 		}
 	}
 	
+	@Override
+	public PlaidObject nativeLessThan(PlaidObject receiver, PlaidObject arg) {
+		try {
+			java.lang.Double first = ((java.lang.Double) ((PlaidJavaObject) receiver).getJavaObject());
+			java.lang.Double second = ((java.lang.Double) ((PlaidJavaObject) arg).getJavaObject());
+			boolean result = first.doubleValue() < second.doubleValue();
+			return Util.bool(result);
+
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("nativeLesThan failed", e.getCause());
+		}
+	}
+	
 	private final class Float64PlaidJavaObject extends SimplePlaidJavaObject {
 		
 		public Float64PlaidJavaObject(PlaidState dispatch,java.lang.Double javaObject) {
@@ -146,10 +160,4 @@ public class Float64 extends AbstractPlaidState
 			}
 		}
 	}
-	
-	//KBN - what is this for?  Could not find where it was added
-//	public PlaidObject setx(PlaidObject receiver, PlaidObject arg) {
-//		receiver.getStorage()[12] = arg;
-//		return Util.unit();
-//	}
 }

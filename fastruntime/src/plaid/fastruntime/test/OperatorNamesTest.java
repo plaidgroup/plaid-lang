@@ -4,16 +4,16 @@ import junit.framework.Assert;
 
 import org.junit.Test;
 
-import plaid.fastruntime.CompilerUtil;
+import plaid.fastruntime.NamingConventions;
 
 public class OperatorNamesTest {
 
 	@Test
 	public void test() {
-		String actual = CompilerUtil.convertOpStringToMethodName("=");
+		String actual = NamingConventions.convertOpStringToMethodName("=");
 		String expected = "eq$plaid";
 		Assert.assertEquals(expected, actual);
-		actual = CompilerUtil.convertOpStringToMethodName("||");
+		actual = NamingConventions.convertOpStringToMethodName("||");
 		expected = "pipepipe$plaid";
 		Assert.assertEquals(expected, actual);
 	}

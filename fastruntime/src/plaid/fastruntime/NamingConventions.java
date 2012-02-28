@@ -187,7 +187,42 @@ public class NamingConventions {
 		if(javaReservedMap.containsKey(id)) {
 			return javaReservedMap.get(id);
 		} else {
-			return id;
+			return convertOpStringToMethodName(id);
 		}
+	}
+	
+	private static final HashMap<String,String> opNames = new HashMap<String,String>();
+	static {
+        opNames.put("=","eq");
+        opNames.put("<","lt");
+        opNames.put(">","gt");
+        opNames.put("!","bang");
+        opNames.put("~","tilde");
+        opNames.put("?","quest");
+        opNames.put(":","colon");
+        opNames.put("&","amp");
+        opNames.put("|","pipe");
+        opNames.put("+","plus");
+        opNames.put("-","sub");
+        opNames.put("*","mult");
+        opNames.put("/","div");
+        opNames.put("^","carat");
+        opNames.put("%","mod");
+	}
+	
+	public static String convertOpStringToMethodName(String op) {
+		StringBuilder output = new StringBuilder();
+		for (int i=0; i<op.length(); i++) {
+			String opChar = op.substring(i, i+1);
+			if(opNames.containsKey(opChar)) {
+				output.append(opNames.get(opChar));
+			} else {
+				output.append(opChar); //original method
+			}
+		}
+		if (output.length() != op.length()) { // modified name so we must prevent collision
+			output.append(NamingConventions.GENERATED_SUFFIX);
+	    }
+		return output.toString();
 	}
 }

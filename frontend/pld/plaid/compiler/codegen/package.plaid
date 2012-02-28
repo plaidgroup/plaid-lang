@@ -59,7 +59,9 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 	match(node) {
 		case ParsedConcreteMethodDecl {
 			LOG("generating code for top-level concrete method decl");
+			
 			sb.append("package " + packageName + ";\n");
+			
 			sb.append("public class " + NamingConventions.getGeneratedIdentifier(node.name.name) + "{\n");
 			
 			// begin invoke method
@@ -232,7 +234,8 @@ method codegenInnerDecl(immutable ParsedDecl node,  shared StringBuilder sb, sha
 	match (node) {
 		case ParsedConcreteMethodDecl {
 			// begin invoke method
-			sb.append("public static plaid.fastruntime.PlaidObject " + node.name.name + "(");
+			val methodName = NamingConventions.getGeneratedIdentifier(node.name.name);
+			sb.append("public static plaid.fastruntime.PlaidObject " + methodName + "(");
 		    
 		    sb.append("plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_THIS);
 		    if(node.arguments.size() > 0) {
@@ -308,6 +311,45 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 		immutable String y) {
 	LOG("generating code for statement");
 	match(node) {
+		case ParsedMethodCall { //TODO: factor out commonalities with application
+			val receiverExpr = node.receiver;
+			val argumentExpr = node.argument;
+			val methodId = node.methodId;
+			val methodName = NamingConventions.getGeneratedIdentifier(methodId.name);
+		
+			val yList = argumentExpr.args.map( fn(item) => { idgen.getId(); } );
+			yList.map( fn(yItem) => { sb.append("plaid.fastruntime.PlaidObject " + yItem + ";\n"); } );
+			val argsYs = argumentExpr.args.zip(yList);
+			argsYs.map( fn(item) => { codegenStmt(item.first(), sb, idgen, item.second()); } );
+				
+			//generate code for method call
+             var receiverString = idgen.getId();
+            sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
+            codegenStmt(receiverExpr, sb, idgen, receiverString);
+                                    
+			//generate interface
+            plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
+
+            val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodName, yList.size());
+            val dispatch = receiverString + ".getDispatch()";
+                                    
+            //assign result to y
+            sb.append(y + " = ");
+                                    
+            //cast
+            sb.append("(");
+            sb.append("(" + methodInterfaceName + ")");
+            sb.append(dispatch);
+            sb.append(")");
+            //.<METHOD_NAME>(<RECEIVER>,<ARGS>)
+            sb.append("." + methodName + "(");
+            sb.append(receiverString ); // receiver
+            if(yList.size() > 0) {
+                sb.append(",");
+            };
+            sb.append(makeSeperatedString(yList, ",")); //normal arguments
+            sb.append(");\n");
+		}
 		case ParsedDereference {
 			LOG("generating code for dereference");
 			val symbolLeftOption = symbolForAST(node.left);
@@ -466,15 +508,16 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
                                     codegenStmt(receiverExpr, sb, idgen, receiverString);
                                     
                                     val methodId = functionExpr.right;
+                                    val methodName = NamingConventions.getGeneratedIdentifier(methodId.name);
                                     
                                     
                                     
                                     //generate interface
-                                    plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodId.name, yList.size());
+                                    plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, yList.size());
                                     
                                     //test if method or field with first class function
                                     
-                                    val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodId.name, yList.size());
+                                    val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodName, yList.size());
                                     val dispatch = receiverString + ".getDispatch()";
                                     sb.append("if(" + dispatch + " instanceof " + methodInterfaceName + ") {\n");
                                     
@@ -487,7 +530,7 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
                                     sb.append(dispatch);
                                     sb.append(")");
                                     //.<METHOD_NAME>(<RECEIVER>,<ARGS>)
-                                    sb.append("." + methodId.name + "(");
+                                    sb.append("." + methodName + "(");
                                     sb.append(receiverString ); // receiver
                                     if(yList.size() > 0) {
                                         sb.append(",");
@@ -496,7 +539,7 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
                                     sb.append(");\n");
                                     
                                     sb.append("}\n"); //end if
-                                    val getterName = NamingConventions.getGetterName(methodId.name);
+                                    val getterName = NamingConventions.getGetterName(methodName);
                                     val getterInterfaceName = NamingConventions.getGeneratedInterfaceName(getterName,0);
                                     plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
                                     
@@ -582,6 +625,9 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 		}
 		case ParsedIntLiteral {
 			sb.append(y + " = plaid.fastruntime.Util.integer(" + node.value + ");\n");
+		}
+		case ParsedDoubleLiteral {
+			sb.append(y + " = plaid.fastruntime.Util.float64(" + node.value + ");\n");
 		}
 		case ParsedInfixOperatorExpr {
 			//preliminaries
@@ -814,7 +860,7 @@ method codegenStateExpr(immutable Stmt node, shared StringBuilder sb, shared IdG
 }
 
 method convertOpStringToMethodName(immutable String op) {
-	CompilerUtil.convertOpStringToMethodName(op);
+	NamingConventions.convertOpStringToMethodName(op);
 }
 	
 method makeSeperatedString(immutable LinkedList<String> stringList, immutable String sep) {
