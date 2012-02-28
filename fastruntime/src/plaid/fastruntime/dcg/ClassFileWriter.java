@@ -22,7 +22,8 @@ public class ClassFileWriter {
 		}
 		catch(IOException ioe)
 		{
-			System.out.println("IOException : " + ioe);
+			System.out.println("When trying to write file " + classfile.getName() + " caught IOException : " + ioe.getMessage());
+			ioe.printStackTrace(System.out);
 		}
 	}
 }
