@@ -15,6 +15,7 @@ import plaid.compiler.symbolForAST;
 import plaid.compiler.symbol.*;
 
 import plaid.collections.LinkedList;
+import plaid.collections.makeLinkedList;
 
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.CompilerUtil;
@@ -67,7 +68,7 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 			// begin invoke method
 			sb.append("public static plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_METHOD_NAME + "(");
 			
-			val argStringList = node.arguments.map(fn(arg1) => {"plaid.fastruntime.PlaidObject " + arg1.name.name});
+			val argStringList = node.arguments.map(fn(arg1) => {"final plaid.fastruntime.PlaidObject " + arg1.name.name});
 			sb.append(makeSeperatedString(argStringList, ","));
 			sb.append(") {\n");
 			
@@ -237,10 +238,10 @@ method codegenInnerDecl(immutable ParsedDecl node,  shared StringBuilder sb, sha
 			val methodName = NamingConventions.getGeneratedIdentifier(node.name.name);
 			sb.append("public static plaid.fastruntime.PlaidObject " + methodName + "(");
 		    
-		    sb.append("plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_THIS);
+		    sb.append("final plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_THIS);
 		    if(node.arguments.size() > 0) {
 		    	sb.append(",");
-		    	val argsList = node.arguments.map(fn(arg1) => {" plaid.fastruntime.PlaidObject " + arg1.name.name});
+		    	val argsList = node.arguments.map(fn(arg1) => {" final plaid.fastruntime.PlaidObject " + arg1.name.name});
 				sb.append(makeSeperatedString(argsList,","));
 		    };
 		    
@@ -444,187 +445,12 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 			val argumentExpr = node.argument;
 			match(argumentExpr) {
 				case ParsedArgumentExpr {
-					val yList = argumentExpr.args.map( fn(item) => { idgen.getId(); } );
-					yList.map( fn(yItem) => { sb.append("plaid.fastruntime.PlaidObject " + yItem + ";\n"); } );
-					val argsYs = argumentExpr.args.zip(yList);
-					argsYs.map( fn(item) => { codegenStmt(item.first(), sb, idgen, item.second()); } );
-					val functionExpr = node.function;
-					match(functionExpr) {
-						case ParsedDereference {
-						
-							//check if this is a java constructor or static method if so, it will have a symbol
-							val rightSymbolOpt = symbolForAST(functionExpr.right);
-							match (rightSymbolOpt) {
-							    case Some {
-							        val rightSymbol = rightSymbolOpt.value;
-							        match (rightSymbol) {
-                                        case JavaConstructorSymbol {  //For Java Constructor, just get QI of java class and use java syntax
-                                            var left = match (functionExpr.left) {
-                                            	case ParsedDereference { functionExpr.left.right }
-                                            	case ParsedIdentifier { functionExpr.left }
-                                            	default { ERROR("<CodeGenPass> Unexpected AST node at left of java constructor") }
-                                            };
-                                            val leftSymbol = symbolForAST(left).value; //if no symbol, something went wrong earlier
-                                            match (leftSymbol) {
-                                                case JavaClassSymbol {
-                                                    //call constructor and assign to y
-                                                    sb.append(y + " = plaid.fastruntime.Util.javaToPlaid(new " + leftSymbol.getFQN());
-                                                    //static arguments if appropriate
-                                                    val numStaticArgs = leftSymbol.numStaticParams();
-                                                    match (numStaticArgs > 0) {
-                                                        case True {
-                                                            sb.append("<");
-                                                            var i = 0;
-                                                            while { i < numStaticArgs - 1 } { 
-                                                                sb.append("Object,");
-                                                                i = i+1;
-                                                            };
-                                                            sb.append("Object>");
-                                                        }
-                                                        case False { /* no op */ }
-                                                    };
-                                                    
-                                                    //parameters
-                                                    sb.append("(");
-                                                    sb.append(makeSeperatedString(yList, ",")); //normal arguments
-                                                    sb.append("));\n");
-                                                }
-                                                default {
-                                                    ERROR("<CodeGenPass> non-JavaClassSymbol found as target of java constructor");
-                                                }
-                                            
-                                            }
-                                            
-                                        }
-                                        case JavaStaticMethodSymbol {
-                                            ERROR("<CodeGenPass> static java methods not implemented");
-                                        }
-                                        default {
-                                            ERROR("<CodeGenPass> method id unexpectedly has a symbol");
-                                        }
-                                    }
-							    }
-							    case None {
-							        //generate code for method call
-                                    
-                                    // preliminaries
-                                    val receiverExpr = functionExpr.left;
-                                    
-                                    
-                                    var receiverString = idgen.getId();
-                                    sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
-                                    codegenStmt(receiverExpr, sb, idgen, receiverString);
-                                    
-                                    val methodId = functionExpr.right;
-                                    val methodName = NamingConventions.getGeneratedIdentifier(methodId.name);
-                                    
-                                    
-                                    
-                                    //generate interface
-                                    plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, yList.size());
-                                    
-                                    //test if method or field with first class function
-                                    
-                                    val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodName, yList.size());
-                                    val dispatch = receiverString + ".getDispatch()";
-                                    sb.append("if(" + dispatch + " instanceof " + methodInterfaceName + ") {\n");
-                                    
-                                    //assign result to y
-                                    sb.append(y + " = ");
-                                    
-                                    //cast
-                                    sb.append("(");
-                                    sb.append("(" + methodInterfaceName + ")");
-                                    sb.append(dispatch);
-                                    sb.append(")");
-                                    //.<METHOD_NAME>(<RECEIVER>,<ARGS>)
-                                    sb.append("." + methodName + "(");
-                                    sb.append(receiverString ); // receiver
-                                    if(yList.size() > 0) {
-                                        sb.append(",");
-                                    };
-                                    sb.append(makeSeperatedString(yList, ",")); //normal arguments
-                                    sb.append(");\n");
-                                    
-                                    sb.append("}\n"); //end if
-                                    val getterName = NamingConventions.getGetterName(methodName);
-                                    val getterInterfaceName = NamingConventions.getGeneratedInterfaceName(getterName,0);
-                                    plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
-                                    
-                                    sb.append("else if(" + dispatch + " instanceof " + getterInterfaceName + ") {\n");
-                                    sb.append(y + " = ");
-                                    
-                                    //cast to lambda
-                                    sb.append("(");
-                                    sb.append("(plaid.fastruntime.PlaidLambda$"+yList.size()+")");
-                                    sb.append("("); //begin getter cast
-                                    sb.append("(" + getterInterfaceName + ")");
-                                    sb.append(dispatch);
-                                    sb.append(")"); // end getter cast
-                                    sb.append("." + getterName + "(" + receiverString +")");
-                                    sb.append(")"); //end lambda cast
-                                    sb.append(".invoke$plaid(");
-                                    sb.append(makeSeperatedString(yList, ",")); //normal arguments
-                                    sb.append(");\n");
-                                    
-                                    
-                                    sb.append("}\n"); //end else if
-                                    
-                                    sb.append("else {\n");
-                                    sb.append("throw new plaid.fastruntime.errors.PlaidIllegalOperationException(\"No method named " + methodId.name + " found \");\n");
-                                    sb.append("}\n");
-                               
-							    }
-							}
-						} 
-						case ParsedIdentifier {
-							val symbolOption = symbolForAST(functionExpr);
-							match(symbolOption) {
-								case Some {	
-									val idSymbol = symbolOption.getValue();
-									match(idSymbol) {
-										case MethodSymbol {
-											//top-level methods are not fist class values so they must be handled specially
-											val parentSymbol = idSymbol.owner;
-											match(parentSymbol) {
-												case PackageSymbol {
-													sb.append(y + " = ");
-													sb.append(parentSymbol.getFQN());
-													sb.append(".");
-													sb.append("" + NamingConventions.getGeneratedIdentifier(functionExpr.name));
-													sb.append(".invoke$plaid("); // call directly, no need to cast
-													sb.append(makeSeperatedString(yList, ","));
-													sb.append(");\n");
-													sb.append(";\n");
-												}
-												default {
-													ERROR("Identifier's symbol is a method symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
-												}
-											}
-										}
-										default {
-											val functionExprVarName = idgen.getId();
-											sb.append("plaid.fastruntime.PlaidObject " + functionExprVarName + ";\n");
-											codegenStmt(functionExpr, sb, idgen, functionExprVarName);
-											sb.append(y +  " = ");
-											sb.append("((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(");
-											sb.append(makeSeperatedString(yList, ","));
-											sb.append(");\n");
-										}
-									}
-								}
-								case None {
-									ERROR("No symbol found for identifier. (Identifier named " + functionExpr.name + ")");
-								}
-							}
-						}
-						default {
-							ERROR("<CodeGenPass> Unexpected node type as function field of Application node. Expected Identifier or Dereference, but type is " + functionExpr.nodeName());
-						}
-					}
+					codegenApplication(node.function, argumentExpr.args, sb, idgen, y);
 				}
-				default {
-					ERROR("<CodeGenPass> Unexpected node type as argument field of Application node. Expected ArgumentExpr, but type is " + argumentExpr.nodeName());
+				default { 
+					val argList = makeLinkedList();
+					argList.add(argumentExpr);
+					codegenApplication(node.function, argList, sb, idgen,y );
 				}
 			};
 		}
@@ -813,7 +639,7 @@ method codegenLambda(args, body, sb, idgen, y) {
 	sb.append(y + " = new plaid.fastruntime.PlaidLambda$" + args.size() + "() {\n");
 	sb.append("public plaid.fastruntime.PlaidObject invoke$plaid(");
 	if(args.size() > 0) {
-		val argList = args.map(fn(arg) => {"plaid.fastruntime.PlaidObject " + arg.name.name});
+		val argList = args.map(fn(arg) => {"final plaid.fastruntime.PlaidObject " + arg.name.name});
 		sb.append(makeSeperatedString(argList, ","));
 	};
 	sb.append(")"); // end argument list
@@ -879,5 +705,194 @@ method makeSeperatedString(immutable LinkedList<String> stringList, immutable St
 	}
 	{ //
 		"";
+	}
+}
+
+method codegenApplication(immutable ParsedExpr functionExpr, immutable List args, 
+						  shared StringBuilder sb, shared IdGen idgen, 
+						  immutable String y) {
+
+	val yList = args.map( fn(item) => { idgen.getId(); } );
+	yList.map( fn(yItem) => { sb.append("plaid.fastruntime.PlaidObject " + yItem + ";\n"); } );
+	val argsYs = args.zip(yList);
+	argsYs.map( fn(item) => { codegenStmt(item.first(), sb, idgen, item.second()); } );
+	match(functionExpr) {
+		case ParsedDereference {
+		
+			//check if this is a java constructor or static method if so, it will have a symbol
+			val rightSymbolOpt = symbolForAST(functionExpr.right);
+			match (rightSymbolOpt) {
+				case Some {
+					val rightSymbol = rightSymbolOpt.value;
+					match (rightSymbol) {
+						case JavaConstructorSymbol {  //For Java Constructor, just get QI of java class and use java syntax
+							var left = match (functionExpr.left) {
+								case ParsedDereference { functionExpr.left.right }
+								case ParsedIdentifier { functionExpr.left }
+								default { ERROR("<CodeGenPass> Unexpected AST node at left of java constructor") }
+							};
+							val leftSymbol = symbolForAST(left).value; //if no symbol, something went wrong earlier
+							match (leftSymbol) {
+								case JavaClassSymbol {
+									//call constructor and assign to y
+									sb.append(y + " = plaid.fastruntime.Util.javaToPlaid(new " + leftSymbol.getFQN());
+									//static arguments if appropriate
+									val numStaticArgs = leftSymbol.numStaticParams();
+									match (numStaticArgs > 0) {
+										case True {
+											sb.append("<");
+											var i = 0;
+											while { i < numStaticArgs - 1 } { 
+												sb.append("Object,");
+												i = i+1;
+											};
+											sb.append("Object>");
+										}
+										case False { /* no op */ }
+									};
+									
+									//parameters
+									sb.append("(");
+									sb.append(makeSeperatedString(yList, ",")); //normal arguments
+									sb.append("));\n");
+								}
+								default {
+									ERROR("<CodeGenPass> non-JavaClassSymbol found as target of java constructor");
+								}
+							
+							}
+							
+						}
+						case JavaStaticMethodSymbol {
+							ERROR("<CodeGenPass> static java methods not implemented");
+						}
+						default {
+							ERROR("<CodeGenPass> method id unexpectedly has a symbol");
+						}
+					}
+				}
+				case None {
+					//generate code for method call
+					
+					// preliminaries
+					val receiverExpr = functionExpr.left;
+					
+					
+					var receiverString = idgen.getId();
+					sb.append("plaid.fastruntime.PlaidObject " + receiverString + ";\n");
+					codegenStmt(receiverExpr, sb, idgen, receiverString);
+					
+					val methodId = functionExpr.right;
+					val methodName = NamingConventions.getGeneratedIdentifier(methodId.name);
+					
+					
+					
+					//generate interface
+					plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, yList.size());
+					
+					//test if method or field with first class function
+					
+					val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodName, yList.size());
+					val dispatch = receiverString + ".getDispatch()";
+					sb.append("if(" + dispatch + " instanceof " + methodInterfaceName + ") {\n");
+					
+					//assign result to y
+					sb.append(y + " = ");
+					
+					//cast
+					sb.append("(");
+					sb.append("(" + methodInterfaceName + ")");
+					sb.append(dispatch);
+					sb.append(")");
+					//.<METHOD_NAME>(<RECEIVER>,<ARGS>)
+					sb.append("." + methodName + "(");
+					sb.append(receiverString ); // receiver
+					if(yList.size() > 0) {
+						sb.append(",");
+					};
+					sb.append(makeSeperatedString(yList, ",")); //normal arguments
+					sb.append(");\n");
+					
+					sb.append("}\n"); //end if
+					val getterName = NamingConventions.getGetterName(methodName);
+					val getterInterfaceName = NamingConventions.getGeneratedInterfaceName(getterName,0);
+					plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
+					
+					sb.append("else if(" + dispatch + " instanceof " + getterInterfaceName + ") {\n");
+					sb.append(y + " = ");
+					
+					//cast to lambda
+					sb.append("(");
+					sb.append("(plaid.fastruntime.PlaidLambda$"+yList.size()+")");
+					sb.append("("); //begin getter cast
+					sb.append("(" + getterInterfaceName + ")");
+					sb.append(dispatch);
+					sb.append(")"); // end getter cast
+					sb.append("." + getterName + "(" + receiverString +")");
+					sb.append(")"); //end lambda cast
+					sb.append(".invoke$plaid(");
+					sb.append(makeSeperatedString(yList, ",")); //normal arguments
+					sb.append(");\n");
+					
+					
+					sb.append("}\n"); //end else if
+					
+					sb.append("else {\n");
+					sb.append("throw new plaid.fastruntime.errors.PlaidIllegalOperationException(\"No method named " + methodId.name + " found \");\n");
+					sb.append("}\n");
+			   
+				}
+			}
+		} 
+		case ParsedIdentifier {
+			val symbolOption = symbolForAST(functionExpr);
+			match(symbolOption) {
+				case Some { 
+					val idSymbol = symbolOption.getValue();
+					match(idSymbol) {
+						case MethodSymbol {
+							//top-level methods are not fist class values so they must be handled specially
+							val parentSymbol = idSymbol.owner;
+							match(parentSymbol) {
+								case PackageSymbol {
+									sb.append(y + " = ");
+									sb.append(parentSymbol.getFQN());
+									sb.append(".");
+									sb.append("" + NamingConventions.getGeneratedIdentifier(functionExpr.name));
+									sb.append(".invoke$plaid("); // call directly, no need to cast
+									sb.append(makeSeperatedString(yList, ","));
+									sb.append(");\n");
+									sb.append(";\n");
+								}
+								default {
+									ERROR("Identifier's symbol is a method symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
+								}
+							}
+						}
+						default {
+							val functionExprVarName = idgen.getId();
+							sb.append("plaid.fastruntime.PlaidObject " + functionExprVarName + ";\n");
+							codegenStmt(functionExpr, sb, idgen, functionExprVarName);
+							sb.append(y +  " = ");
+							sb.append("((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(");
+							sb.append(makeSeperatedString(yList, ","));
+							sb.append(");\n");
+						}
+					}
+				}
+				case None {
+					ERROR("No symbol found for identifier. (Identifier named " + functionExpr.name + ")");
+				}
+			}
+		}
+		default {
+			val functionExprVarName = idgen.getId();
+            sb.append("plaid.fastruntime.PlaidObject " + functionExprVarName + ";\n");
+            codegenStmt(functionExpr, sb, idgen, functionExprVarName);
+            sb.append(y +  " = ");
+            sb.append("((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(");
+            sb.append(makeSeperatedString(yList, ","));
+            sb.append(");\n");
+		}
 	}
 }
