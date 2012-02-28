@@ -134,6 +134,21 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         }
     }
 
+    method void fixSymbolsForDereference(immutable Dereference dref) {
+        printLine("sdsd");
+         match ( symbolForAST(dref.right) ) {
+             case Some {
+                val rightSymbol = symbolForAST(dref.right).value;
+                addSymbolForAST(rightSymbol, dref);
+             }
+             case None { /*noop*/ }
+         };
+         
+         match ( dref.left ) {
+            case ParsedDereference { fixSymbolsForDereference(dref.left) }
+            default { /* noop */ }
+         };
+    }
     
     method immutable Integer resolveQualifiedIdentifier(shared Context ctx,
                                                         immutable QualifiedIdentifier qi,
@@ -552,10 +567,10 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         
         //node.name.accept(this);
 
-        //node.body.accept(this);
-        if (typecheckingEnabled(node) ) {
-            node.body.statements.do( fn (stmt) => { stmt.accept(this) });
-        };
+        node.body.accept(this);
+        //if (typecheckingEnabled(node) ) {
+        //    node.body.statements.do( fn (stmt) => { stmt.accept(this) });
+        //};
         this.stack.pop();
     }
 
@@ -712,10 +727,12 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 	case True {
                         val immutable Integer resolvedCount = this.resolveQualifiedIdentifier(this.stack.peek().value, qiOpt.value, true);
                         DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass>   resolved  " + resolvedCount + " parts");
-                        if ( resolvedCount == 0 ) {
+                        ifElse ( resolvedCount == 0 ) {
                             //val mostLeftId = qiOpt.value.identifiers.get(0);
                             //globalReporter.errorToken(mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
                         	node.left.accept(this);
+                        }{
+                            fixSymbolsForDereference(node);
                         };
                 	}
                 	case False {
