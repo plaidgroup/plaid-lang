@@ -241,14 +241,14 @@ public final class RegressionTests {
 	}
 	
 	@Parameters
-	public static Collection<Object[]> inputFiles() {
+	public static Collection<Object[]> inputFiles() throws IOException {
 		final List<TestJob> jobs = new ArrayList<TestJob>();
-		final File cwd = new File(".");
+		final File cwd = new File(".").getCanonicalFile();
 		
-		final String examplesPath = cwd.getAbsolutePath() + System.getProperty("file.separator") + "examples";
-		jobs.addAll(buildTestJobs(new File(examplesPath), cwd.getAbsolutePath()));
+		final String examplesPath = cwd.getCanonicalPath() + System.getProperty("file.separator") + "examples";
+		jobs.addAll(buildTestJobs(new File(examplesPath), cwd.getCanonicalPath()));
 
-		final String aeminiumExamplesPath = cwd.getAbsolutePath() + System.getProperty("file.separator") + "../AeminiumExamples/pld";
+		final String aeminiumExamplesPath = new File(cwd.getCanonicalPath() + System.getProperty("file.separator") + "../AeminiumExamples/pld").getCanonicalPath();
 		jobs.addAll(buildTestJobs(new File(aeminiumExamplesPath), aeminiumExamplesPath));
 		
 		final List<Object[]> parameters = new ArrayList<Object[]>();
