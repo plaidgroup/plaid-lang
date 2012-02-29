@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.FilenameFilter;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -122,7 +123,12 @@ public final class RegressionTests {
 			final Collection<String> fileNames = new ArrayList<String>();
 			
 			for ( File file : files ) {
-				fileNames.add(file.getAbsolutePath());
+				try {
+					fileNames.add(file.getCanonicalPath());
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 			
 			return fileNames;
@@ -141,7 +147,7 @@ public final class RegressionTests {
 	
 	protected String[] createCommandLine() {
 		List<String> commandLine = new ArrayList<String>();
-
+		
 		// enable codegen if in codegen sub directory (no typecheck for this code)
 		if ( !job.directory.getAbsolutePath().toLowerCase().contains("codegen") ){
 			commandLine.add("-c");
@@ -158,6 +164,14 @@ public final class RegressionTests {
 		//commandLine.add("3");
 		
 		// add classpath
+		commandLine.add("-p");
+		commandLine.add("../generated/bin");
+		commandLine.add("-p");
+		commandLine.add("../faststdlib/bin");
+		commandLine.add("-p");
+		commandLine.add("../fastruntime/bin");
+		commandLine.add("-p");
+		commandLine.add("../faststdlib/pld");
 		for ( String path : job.getClasspath() ) {
 			commandLine.add("-p");
 			commandLine.add(path);
@@ -231,14 +245,14 @@ public final class RegressionTests {
 	}
 	
 	@Parameters
-	public static Collection<Object[]> inputFiles() {
+	public static Collection<Object[]> inputFiles() throws IOException {
 		final List<TestJob> jobs = new ArrayList<TestJob>();
-		final File cwd = new File(".");
+		final File cwd = new File(".").getCanonicalFile();
 		
-		final String examplesPath = cwd.getAbsolutePath() + System.getProperty("file.separator") + "examples";
-		jobs.addAll(buildTestJobs(new File(examplesPath), cwd.getAbsolutePath()));
+		final String examplesPath = cwd.getCanonicalPath() + System.getProperty("file.separator") + "examples";
+		jobs.addAll(buildTestJobs(new File(examplesPath), cwd.getCanonicalPath()));
 
-		final String aeminiumExamplesPath = cwd.getAbsolutePath() + System.getProperty("file.separator") + "../AeminiumExamples/pld";
+		final String aeminiumExamplesPath = new File(cwd.getCanonicalPath() + System.getProperty("file.separator") + "../AeminiumExamples/pld").getCanonicalPath();
 		jobs.addAll(buildTestJobs(new File(aeminiumExamplesPath), aeminiumExamplesPath));
 		
 		final List<Object[]> parameters = new ArrayList<Object[]>();
