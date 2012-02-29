@@ -1,0 +1,96 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package coreExamples.reader;
+
+//Normal reader
+
+val EOFval = -1;
+
+state Reader { val location; }
+
+state HasData case of Reader {
+        val data;
+        method read() {
+                val next = this.data.getNext();
+                if (next == EOFval) { this <- EOF };
+                next;
+        }
+}
+
+state EOF case of Reader { }
+
+//taking data from a file
+
+state HasDataFromFile case of HasData {
+        
+        
+        override method read() {
+                val next = this.data.getNext();
+                if (next == EOFval) { 
+                        this.data.closeFile();
+                        this <- EOF
+                };
+                next
+        }
+}
+
+//helper states/methods for testing
+
+state FileReader {
+	val reader;
+	method getNext() { this.reader.read(); }
+	method closeFile() { this.reader.close(); }
+}
+
+method printFile(reader) {
+	while { 
+		match (reader) {
+			case HasData { true }
+			case EOF { false }
+		}
+	} { print(reader.read()) };
+	
+	printLine("");
+	
+}
+
+method main() {
+	val fileData = new FileReader { val reader = java.io.FileReader.new("test.txt"); };
+	val reading = new HasDataFromFile { location = "test.txt"; data = fileData; };
+	
+	printFile(reading);
+	
+	val fileData2 = new FileReader { reader = java.io.FileReader.new("test.txt"); };
+	val readingAnon = new HasData {
+		location = "test.txt";
+		data = fileData2;
+		override method read() {
+                val next = this.data.getNext();
+                if (next == EOFval) { 
+                        this.data.closeFile();
+                        this <- EOF
+                };
+                next
+        }
+	};
+	
+	printFile(readingAnon);
+
+}
