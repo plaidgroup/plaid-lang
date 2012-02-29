@@ -169,6 +169,8 @@ public final class RegressionTests {
 		commandLine.add("-p");
 		commandLine.add("../faststdlib/bin");
 		commandLine.add("-p");
+		commandLine.add("../fastruntime/bin");
+		commandLine.add("-p");
 		commandLine.add("../faststdlib/pld");
 		for ( String path : job.getClasspath() ) {
 			commandLine.add("-p");
