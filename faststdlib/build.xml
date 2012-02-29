@@ -20,25 +20,49 @@
 
 
 
-<project name="faststdlib" default="default">
+<project name="faststdlib" default="compile">
 	
 	<property name="PLAID.SRC" value="pld"/>
 	<property name="JAVA.SRC" value="src"/>
 	<property name="COMPILE.BIN" value="bin"/>
-	<property name="COMPILERJAVA.BIN" value="../compilerjava/bin"/>
-	<property name="RUNTIME.BIN" value="../runtime/bin"/>
-    <property name="STDLIB.BIN" value="../stdlib/bin"/>
-    <property name="AST.BIN" value="../ast/bin"/>
-    <property name="FASTRUNTIME.BIN" value="../fastruntime/bin"/>
-	<property name="CLASSPATH" value = "${FASTRUNTIME.BIN}"/>
-	<property name="PLAIDPATH" value="${STDLIB.BIN};${AST.BIN}"/>
-	<property name="JAR.NAME" value="plaidfaststdlib.jar"/>
     
-	<import file="../build-common.xml" />
+    <property name="FASTRUNTIME.BIN" value="../fastruntime/bin"/>
+	<property name="ASM.JAR" value="../fastruntime/lib/asm-debug-all-3.3.1.jar"/>
+	<property name="FUNCTIONALJAVA.JAR" value="../fastruntime/lib/functionaljava.jar"/>
+	<property name="GENERATED.BIN" value="../generated/bin"/>
+	
+	<property name="PARSER.BIN" value="../parser/bin"/>
+	<property name="AST.BIN" value="../ast/bin"/>
+	<property name="FRONTEND.BIN" value="../frontend/bin"/>
+	<property name="RUNTIME.BIN" value="../runtime/bin"/>
+	<property name="STDLIB.BIN" value="../stdlib/bin"/>
+	
+	<property name="PLAID_COMPILER_CLASSPATH" value = "${FRONTEND.BIN};${RUNTIME.BIN};${STDLIB.BIN};${PARSER.BIN};${AST.BIN};${FASTRUNTIME.BIN};${ASM.JAR};${FUNCTIONALJAVA.JAR}"/>
+	<property name="JAVA_COMPILER_CLASSPATH" value="${FASTRUNTIME.BIN};${GENERATED.BIN};${ASM.JAR};${FUNCTIONALJAVA.JAR}"/>
+	<property name="JAR.NAME" value="plaidfaststdlib.jar"/>
 
-    <target name="compile"> 
-        <javac srcdir="${JAVA.SRC}" destdir="${COMPILE.BIN}" classpath="${CLASSPATH}"/>
+    <target name="compile" depends="compile-plaid"> 
+    	<mkdir dir="${COMPILE.BIN}"/>
+    	<javac srcdir="${JAVA.SRC}" destdir="${COMPILE.BIN}" classpath="${JAVA_COMPILER_CLASSPATH}"/>
     </target>
+	
+	<target name="compile-plaid">
+		<echo message="${ant.project.name} - Compiling Plaid code..." />
+	    <java classname="plaid.compiler.main" failonerror="true" fork="true">
+	    	<classpath>
+	    		<pathelement path="${PLAID_COMPILER_CLASSPATH}"/>
+	    	</classpath>
+		    <jvmarg value="-Xmx1024m"/>
+	    	<arg value="-n"/> <!-- no typechecking -->
+	    	<arg value="-d"/>
+	    	<arg value="0"/> <!-- turn off debug messages -->
+	    	<arg value="-b"/> <!-- no compilation -->
+	        <arg value="-t" />
+	        <arg value="${basedir}/${JAVA.SRC}" />
+	        <arg value="-i" />
+	        <arg value="${basedir}/${PLAID.SRC}" />
+	    </java>
+	</target>
 
     <target name="dist" depends="compile">
       <echo message="${ant.project.name} - Building distributable..." />
@@ -55,7 +79,7 @@
       </jar>
     </target>
 
-    <target name="clean" depends="init">
+    <target name="clean">
         <echo message="${ant.project.name} - Cleaning up generated Java code..." />
         <delete includeemptydirs="true">
             <fileset dir="${COMPILE.BIN}" includes="**/*" excludes=".placeholder" />
