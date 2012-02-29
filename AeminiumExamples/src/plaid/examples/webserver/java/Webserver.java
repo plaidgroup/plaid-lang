@@ -22,7 +22,7 @@ public class Webserver {
 	 */
 	public static void main(String[] args) {
 		try {
-		webserver();
+			webserver();
 		} catch (Exception e) {
 			System.out.println("Failed to run webserver: " + e);
 		}
