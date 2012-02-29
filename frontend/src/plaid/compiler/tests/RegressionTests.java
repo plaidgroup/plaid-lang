@@ -146,7 +146,7 @@ public final class RegressionTests {
 		if ( !job.directory.getAbsolutePath().toLowerCase().contains("codegen") ){
 			commandLine.add("-c");
 		} else
-			commandLine.add("-t");
+			commandLine.add("-n");
 		
 		// enable aeminium if in aeminium sub directory
 		if ( job.directory.getAbsolutePath().toLowerCase().contains("aeminium") ){
