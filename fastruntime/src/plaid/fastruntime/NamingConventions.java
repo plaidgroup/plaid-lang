@@ -22,6 +22,7 @@ public class NamingConventions {
 	public static final String GENERATED_THIS = "this" + GENERATED_SUFFIX;
 	public static final String GENERATED_GET_PREFIX = "get";
 	public static final String GENERATED_SET_PREFIX = "set";
+	public static final String GENERATED_CONSTRUCTOR = "cstr" + GENERATED_SUFFIX;
 	
 	public static final String PLAID_OBJECT_INTERNAL_NAME = "plaid/fastruntime/PlaidObject";
 	public static final String PLAID_OBJECT_DESCRIPTOR = "L" + PLAID_OBJECT_INTERNAL_NAME + ";";

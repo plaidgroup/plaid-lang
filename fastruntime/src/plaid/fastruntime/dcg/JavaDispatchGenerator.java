@@ -1,5 +1,8 @@
 package plaid.fastruntime.dcg;
 
+import java.io.File;
+import java.io.PrintWriter;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -8,11 +11,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.util.CheckClassAdapter;
 
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.PlaidJavaObject;
@@ -37,6 +42,47 @@ public class JavaDispatchGenerator implements Opcodes {
 		this.javaStateCache.put(key, value);
 	}
 	
+	public void saveStaticJavaObject(Class<?> javaClass) {
+		final String internalClassName = org.objectweb.asm.Type.getInternalName(javaClass);
+		final String name = "plaid/generated/" + internalClassName;
+		final String subPath = name.substring(0, name.length()-javaClass.getSimpleName().length());
+		
+		//TODO: check if file already exists in file system
+		
+		byte[] b = createStaticJavaBytes(javaClass);
+		File classFile = new File("../generated/bin/" + name + ".class");
+		System.out.println("ready to write file " + classFile.getPath());
+		ClassFileWriter.writeFile(b, new File("../generated/bin/" + subPath), classFile);
+	}
+	
+	public Class<?> getStaticJavaClass(Class<?> javaClass) {
+		final String internalClassName = org.objectweb.asm.Type.getInternalName(javaClass);
+		final String name = "plaid/generated/" + internalClassName;
+		//TODO: check if file already exists in file system
+		
+		byte[] b = createStaticJavaBytes(javaClass);
+		Class<?> clazz = ClassInjector.defineClass(name, b, 0, b.length);
+		return clazz;
+	}
+	
+	public byte[] createStaticJavaBytes(Class<?> javaClass) {
+		final String internalClassName = org.objectweb.asm.Type.getInternalName(javaClass);
+		final String name = "plaid/generated/" + internalClassName;
+		
+		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
+		cw.visit(50, ACC_PUBLIC, name, null, "java/lang/Object", null);
+		
+		Map<MethodSig, List<org.objectweb.asm.commons.Method>> methodMap = collectMethods(javaClass, true);
+		for ( MethodSig m : methodMap.keySet() ) {
+			writeJavaMethod(javaClass, true, internalClassName, cw, methodMap, m);
+		}
+		// done
+		cw.visitEnd();
+		PrintWriter pw = new PrintWriter(System.out);
+		CheckClassAdapter.verify(new ClassReader(cw.toByteArray()), false, pw);
+		byte[] b = cw.toByteArray();
+		return b;
+	}
 	
 	/* ONLY CALL FROM UTIL - use javaToPlaid method */
 	public PlaidObject createPlaidJavaObject(Object javaObject) {
@@ -50,19 +96,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
 			
 			// sort public methods into static overload sets
-			Map<MethodSig,List<Method>> methodMap = new HashMap<MethodSig,List<Method>>();
-			for (Method m : javaObject.getClass().getMethods()) {
-				if (Modifier.isPublic(m.getModifiers()) ) {// && m.getName().equals("set")) {
-					MethodSig mSig = new MethodSig(m.getName(), m.getGenericParameterTypes().length);
-					if (methodMap.containsKey(mSig)) {
-						methodMap.get(mSig).add(m);
-					} else {
-						List<Method> mList = new ArrayList<Method>();
-						mList.add(m);
-						methodMap.put(mSig, mList);
-					}	
-				}
-			}
+			Map<MethodSig, List<org.objectweb.asm.commons.Method>> methodMap = collectMethods(javaClass, false);
 			
 			// collect all necessary interfaces and ensure they have been generated
 			Collection<String> ifaces = new ArrayList<String>();
@@ -81,92 +115,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			
 			// add methods 
 			for ( MethodSig m : methodMap.keySet() ) {
-				//System.out.println("add method: " + m.getName());
-				int numArgs = m.numArgs + 1;
-				List<Method> overloadSet = methodMap.get(m);
-					
-				MethodVisitor mv;
-				{
-					mv = cw.visitMethod(ACC_PUBLIC, 
-							m.name, 
-							NamingConventions.getMethodDescriptor(numArgs), null, null);
-					mv.visitCode();
-					
-					Label l0 = new Label();
-					Label l1 = new Label();
-					Label l2 = new Label();
-					mv.visitTryCatchBlock(l0, l1, l2, "java/lang/ClassCastException");
-					mv.visitLabel(l0);
-					
-					//load Java receiver
-					mv.visitVarInsn(ALOAD, 1);
-					mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
-					mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
-					mv.visitTypeInsn(CHECKCAST, internalClassName);
-					
-					//load java arguments 
-					if (overloadSet.size() == 1) {
-						org.objectweb.asm.commons.Method asmMethod = org.objectweb.asm.commons.Method.getMethod(overloadSet.get(0));
-						Type[] args = asmMethod.getArgumentTypes();
-						for (int i = 0; i < args.length; i++) {
-							mv.visitVarInsn(ALOAD, i+2);
-							mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
-							
-							Type argType = args[i];
-							
-							if (isPrimitiveType(argType)) { //covert Plaid objects to primitives (fails if cannot be done)
-								mv.visitFieldInsn(GETSTATIC, "plaid/fastruntime/PlaidJavaObject$JavaPrimitive", 
-										asmTypeToPrimitive(argType).field, "Lplaid/fastruntime/PlaidJavaObject$JavaPrimitive;"); 
-								mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "asPrimitive", 
-													"(Lplaid/fastruntime/PlaidJavaObject$JavaPrimitive;)Ljava/lang/Object;");
-								unbox(argType, mv);
-							} else { //get java object and cast to the arg type (fails if cannot be done)
-								mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
-								mv.visitTypeInsn(CHECKCAST, argType.getInternalName());
-							}
-						}
-						
-						//invoke java method
-						mv.visitMethodInsn(INVOKEVIRTUAL, internalClassName, asmMethod.getName(), asmMethod.getDescriptor());
-						
-						//returned value is primitive (or void), box it (void becomes unit)
-						Type returnType = asmMethod.getReturnType();
-						if (isPrimitiveType(returnType) || isVoidType(returnType)) {
-							box(asmMethod.getReturnType(), mv);
-						}
-					} else {
-						//choose which method to call with reflection (may want to trying something different in the future)
-						
-						//because I didn't want to have to deal with arrays
-						if (m.numArgs > 6) 
-							throw new PlaidInternalException("handling of java static overloaded methods with > 6 parameters not implemented");
-						
-						mv.visitLdcInsn(m.name); //
-						for (int i = 0; i < m.numArgs; i++) {
-							mv.visitVarInsn(ALOAD, i+2);
-							mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
-							//mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
-						}
-						mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
-								   "staticOverloadingCall", NamingConventions.staticOverloadCallMethodDescriptor(m.numArgs));
-					}
-					//wrap Java object into a PlaidJavaObject
-					mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
-									   "javaToPlaid", "(Ljava/lang/Object;)Lplaid/fastruntime/PlaidObject;");
-					mv.visitLabel(l1);
-					mv.visitInsn(ARETURN);
-					mv.visitLabel(l2);
-					mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/ClassCastException"});
-					mv.visitVarInsn(ASTORE, numArgs+1);
-					mv.visitTypeInsn(NEW, "plaid/fastruntime/errors/PlaidIllegalOperationException");
-					mv.visitInsn(DUP);
-					mv.visitLdcInsn("Invalid argument type passed to java method " + javaClass.getSimpleName() + "." + m.name);
-					mv.visitVarInsn(ALOAD, numArgs+1);
-					mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/errors/PlaidIllegalOperationException", "<init>", "(Ljava/lang/String;Ljava/lang/Throwable;)V");
-					mv.visitInsn(ATHROW);
-					mv.visitMaxs(0, 0); //calculated
-					mv.visitEnd();
-				}
+				writeJavaMethod(javaClass, false, internalClassName, cw, methodMap, m);
 			}
 			
 			//instantiate method - creates SimplePlaidJavaObject with this as the dispatch object, null as the storage object, and javaObj as the rep
@@ -213,6 +162,156 @@ public class JavaDispatchGenerator implements Opcodes {
 		
 		PlaidObject toReturn = new SimplePlaidJavaObject(result,null,javaObject);
 		return toReturn;
+	}
+
+
+	private Map<MethodSig, List<org.objectweb.asm.commons.Method>> collectMethods(Class<?> javaClass, boolean wantStatic) {
+		Map<MethodSig,List<org.objectweb.asm.commons.Method>> methodMap = new HashMap<MethodSig,List<org.objectweb.asm.commons.Method>>();
+		for (Method m : javaClass.getMethods()) {
+			if (Modifier.isPublic(m.getModifiers())  && (wantStatic == Modifier.isStatic(m.getModifiers())) ) {
+				MethodSig mSig = new MethodSig(m.getName(), m.getGenericParameterTypes().length);
+				org.objectweb.asm.commons.Method asmMethod = org.objectweb.asm.commons.Method.getMethod(m);
+				if (methodMap.containsKey(mSig)) {
+					methodMap.get(mSig).add(asmMethod);
+				} else {
+					List<org.objectweb.asm.commons.Method> mList = new ArrayList<org.objectweb.asm.commons.Method>();
+					mList.add(asmMethod);
+					methodMap.put(mSig, mList);
+				}	
+			}
+		}
+		if(wantStatic) {
+			for (Constructor<?> ctr : javaClass.getConstructors()) {
+				if (Modifier.isPublic(ctr.getModifiers())) {
+					MethodSig mSig = new MethodSig(NamingConventions.GENERATED_CONSTRUCTOR, ctr.getGenericParameterTypes().length);
+					org.objectweb.asm.commons.Method asmMethod = org.objectweb.asm.commons.Method.getMethod(ctr);
+					if (methodMap.containsKey(mSig)) {
+						methodMap.get(mSig).add(asmMethod);
+					} else {
+						List<org.objectweb.asm.commons.Method> mList = new ArrayList<org.objectweb.asm.commons.Method>();
+						mList.add(asmMethod);
+						methodMap.put(mSig, mList);
+					}
+				}
+			}
+		}
+		return methodMap;
+	}
+
+
+	private void writeJavaMethod(Class<?> javaClass, boolean isStatic, String internalClassName,
+			ClassWriter cw, Map<MethodSig, List<org.objectweb.asm.commons.Method>> methodMap, MethodSig m) {
+		int extraArgs = 0;
+		if(!isStatic) {
+			extraArgs = 1;
+		}
+		int firstArgRegister = 0;
+		if(!isStatic) {
+			firstArgRegister = 2;
+		}
+		int numArgs = m.numArgs + extraArgs;
+		int modifiers = ACC_PUBLIC;
+		if(isStatic) {
+			modifiers+=ACC_STATIC;
+		}
+		List<org.objectweb.asm.commons.Method> overloadSet = methodMap.get(m);
+			
+		MethodVisitor mv;
+		{
+			mv = cw.visitMethod(modifiers, 
+					m.name, 
+					NamingConventions.getMethodDescriptor(numArgs), null, null);
+			mv.visitCode();
+			
+			Label l0 = new Label();
+			Label l1 = new Label();
+			Label l2 = new Label();
+			mv.visitTryCatchBlock(l0, l1, l2, "java/lang/ClassCastException");
+			mv.visitLabel(l0);
+			
+			if(!isStatic) {
+				//load Java receiver
+				mv.visitVarInsn(ALOAD, 1);
+				mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
+				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
+				mv.visitTypeInsn(CHECKCAST, internalClassName);
+			}
+			
+			//load java arguments 
+			if (overloadSet.size() == 1) {
+				org.objectweb.asm.commons.Method asmMethod = overloadSet.get(0);
+				Type[] args = asmMethod.getArgumentTypes();
+				for (int i = 0; i < args.length; i++) {
+					mv.visitVarInsn(ALOAD, i+firstArgRegister);
+					mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
+					
+					Type argType = args[i];
+					
+					if (isPrimitiveType(argType)) { //covert Plaid objects to primitives (fails if cannot be done)
+						mv.visitFieldInsn(GETSTATIC, "plaid/fastruntime/PlaidJavaObject$JavaPrimitive", 
+								asmTypeToPrimitive(argType).field, "Lplaid/fastruntime/PlaidJavaObject$JavaPrimitive;"); 
+						mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "asPrimitive", 
+											"(Lplaid/fastruntime/PlaidJavaObject$JavaPrimitive;)Ljava/lang/Object;");
+						unbox(argType, mv);
+					} else { //get java object and cast to the arg type (fails if cannot be done)
+						mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
+						mv.visitTypeInsn(CHECKCAST, argType.getInternalName());
+					}
+				}
+				
+				//invoke java method
+				int invocationtype = INVOKEVIRTUAL;
+				if(isStatic) {
+					invocationtype = INVOKESTATIC;
+				}
+				if(asmMethod.getName().equals("<init>")){
+					invocationtype = INVOKESPECIAL;
+				}
+				if(invocationtype != INVOKESPECIAL) {
+					mv.visitMethodInsn(invocationtype, internalClassName, asmMethod.getName(), asmMethod.getDescriptor());
+				}
+				
+				//returned value is primitive (or void), box it (void becomes unit)
+				Type returnType = asmMethod.getReturnType();
+				if (isPrimitiveType(returnType) || isVoidType(returnType)) {
+					box(asmMethod.getReturnType(), mv);
+				}
+			} else {
+				//choose which method to call with reflection (may want to trying something different in the future)
+				if(!isStatic) {
+					//because I didn't want to have to deal with arrays
+					if (m.numArgs > 6) 
+						throw new PlaidInternalException("handling of java static overloaded methods with > 6 parameters not implemented");
+					
+					mv.visitLdcInsn(m.name); //
+					for (int i = 0; i < m.numArgs; i++) {
+						mv.visitVarInsn(ALOAD, i+firstArgRegister);
+						mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
+						//mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
+					}
+					mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
+							   "staticOverloadingCall", NamingConventions.staticOverloadCallMethodDescriptor(m.numArgs));
+				} else {
+					throw new PlaidInternalException("Static overloaded static methods not yet implemented");
+				}
+			}
+			//wrap Java object into a PlaidJavaObject
+			mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
+							   "javaToPlaid", "(Ljava/lang/Object;)Lplaid/fastruntime/PlaidObject;");
+			mv.visitLabel(l1);
+			mv.visitInsn(ARETURN);
+			mv.visitLabel(l2);
+			mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/ClassCastException"});
+			mv.visitVarInsn(ASTORE, numArgs+1);
+			mv.visitTypeInsn(NEW, "plaid/fastruntime/errors/PlaidIllegalOperationException");
+			mv.visitInsn(DUP);
+			mv.visitLdcInsn("Invalid argument type passed to java method " + javaClass.getSimpleName() + "." + m.name);
+			mv.visitVarInsn(ALOAD, numArgs+1);
+			mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/errors/PlaidIllegalOperationException", "<init>", "(Ljava/lang/String;Ljava/lang/Throwable;)V");
+			mv.visitInsn(ATHROW);
+			mv.visitMaxs(0, 0); //calculated
+			mv.visitEnd();
+		}
 	}
 	
 	private void box(Type type,MethodVisitor mv) {
