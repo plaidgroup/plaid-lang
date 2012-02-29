@@ -19,6 +19,8 @@ public final class _native {
 			return Collections.singletonList(klazz);
 		} catch (ClassNotFoundException e) {
 			return Collections.EMPTY_LIST;
-		} 
+		}  catch (Throwable e ){
+			return Collections.EMPTY_LIST;
+		}
 	}
 }
