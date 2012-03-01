@@ -15,7 +15,7 @@ state PrintVisitor = ASTVisitor {
 	var states = new LinkedList;
 	var firstCase = false;
 	var currState = "";
-	var browser=true;
+	var browser=false;
 	var mainFile = true;
 	var targetDirectory = "../../compiledJavaScript";
 	var directoryAbovePackage = "";
@@ -234,10 +234,11 @@ state PrintVisitor = ASTVisitor {
 		}
 		{
 			if (mn=="printLine"){
-				endOfLine = "+\"\n\"";
+				//endOfLine = "+\"\n\"";
 			};
 			if (mn=="printLine" || mn=="print"){
-				mn="print";
+				//mn="print";
+				mn="console.log";
 			};	
 		};
 		
@@ -411,15 +412,11 @@ state PrintVisitor = ASTVisitor {
 		    if(mainFile==true){
 				output.writeLine("<html>");
 				output.writeLine("<head>");
-				output.writeLine("<script src=\""+directoryAbovePackage+"/Tree.js\" type=\"text/javascript\"></script>");
-				output.writeLine("<script src=\""+directoryAbovePackage+"/PlaidObject.js\" type=\"text/javascript\"></script>");
-				output.writeLine("<script src=\""+directoryAbovePackage+"/PlaidState.js\" type=\"text/javascript\"></script>");
-				output.writeLine("<script src=\""+directoryAbovePackage+"/Globals.js\" type=\"text/javascript\"></script>");
+				output.writeLine("<script src=\""+directoryAbovePackage+"/Plaid.js\" type=\"text/javascript\"></script>");
 				output.writeLine("</head>");
 				output.writeLine("<body>");
 				output.writeLine("<script type=\"text/javascript\">");
 				output.writeLine("<!--");
-			
 			
 				output.writeLine("function include(filename){");
 				output.writeLine("	fileType=\"text/javascript\";");
@@ -428,10 +425,9 @@ state PrintVisitor = ASTVisitor {
 			};
 		}
 		{
-			output.writeLine("load(\"PlaidObject.js\");");
-			output.writeLine("load(\"PlaidState.js\");");
-			output.writeLine("load(\"Tree.js\");");
-			output.writeLine("load(\"Globals.js\");");
+		/*
+		  output.writeLine("load(\"Plaid.js\");");
+		*/
 		};
 		
 
@@ -441,8 +437,8 @@ state PrintVisitor = ASTVisitor {
 		if (browser==true && mainFile==true){
 			output.writeLine("//-->");
 			output.writeLine("</script>");
-			output.writeLine("</head>");
 			output.writeLine("</body>");
+			output.writeLine("</html>");
 		};
 		output.endWrite();
 		printLine("Done");
@@ -512,6 +508,15 @@ state PrintVisitor = ASTVisitor {
 			printLine("   //name: " + node.name);
 		};		
 		var returnName=node.name;
+		if (returnName == "if$plaid") {
+		  returnName = "Plaid.if$plaid";
+		};
+		if (returnName == "ifElse") {
+		  returnName = "Plaid.ifElse";
+		};
+		if (returnName == "while$plaid") {
+		  returnName = "Plaid.while$plaid";
+		};
 		if (returnName=="this$plaid"){
 			returnName="this$plaid";
 		};
@@ -672,7 +677,7 @@ state PrintVisitor = ASTVisitor {
 		outputsArray.get(currentOutput).getValue().append("return "+node.body.accept(this)+";"+newLine); 
 		outputsArray.get(currentOutput).getValue().append("}"+newLine);
 		if(node.name=="main"){
-			outputsArray.get(currentOutput).getValue().append("main();"+newLine);
+			outputsArray.get(currentOutput).getValue().append("var oldEvt$plaid=window.onload;window.onload=function(){if(oldEvt$plaid)oldEvt$plaid();main();}"+newLine);
 		};
 		node.name;
 	}	
@@ -703,7 +708,7 @@ state PrintVisitor = ASTVisitor {
 			}			
 			case DeclList{
 				var tagName = generateNewVariableName();
-				var returnString = "(new PlaidState())";
+				var returnString = "(new Plaid.PlaidState())";
 				node.s.decls.map(fn (d) => {
 					var newMember = d.accept(this);
 					returnString=returnString+".withMember('"+newMember+"', "+newMember+")";
@@ -770,7 +775,7 @@ state PrintVisitor = ASTVisitor {
 		var currStateName = generateNewStateName(node.name.name);
 		currState = currStateName;
 		//emit code for creating a new Plaid state
-		outputsArray.get(currentOutput).getValue().append("var "+currStateName+" = new PlaidState();"+newLine);
+		outputsArray.get(currentOutput).getValue().append("var "+currStateName+" = new Plaid.PlaidState();"+newLine);
 		
 		var tree = "";
 		var treeNode = "";
@@ -921,7 +926,7 @@ state PrintVisitor = ASTVisitor {
 		this.states.add(entry);
 		var md = tree.toMetadata(tree.root);
 		//emit code for setting the tree of the new Plaid state
-		outputsArray.get(currentOutput).getValue().append(currStateName+".tree = "+md+";"+newLine);
+		outputsArray.get(currentOutput).getValue().append(currStateName+".setMetadata("+md+");"+newLine);
 		
 		var found = false;
 		statesToInstantiate.map(fn (d) => {
@@ -1038,9 +1043,9 @@ state PrintVisitor = ASTVisitor {
 			}
 			case DeclList{
 				tagName = generateNewVariableName();
-				//outputsArray.get(currentOutput).getValue().append("var plaidNewState_"+tagName+" = new PlaidState();"+newLine);
+				//outputsArray.get(currentOutput).getValue().append("var plaidNewState_"+tagName+" = new Plaid.PlaidState();"+newLine);
 				//returnString = generateNewStateName(tagName);
-				returnString = "(new PlaidState())";
+				returnString = "(new Plaid.PlaidState())";
 				node.s1.decls.map(fn (d) => {
 					var newMember = d.accept(this);
 					returnString=returnString+".withMember('"+newMember+"', "+newMember+")";
@@ -1052,7 +1057,7 @@ state PrintVisitor = ASTVisitor {
 		};
 		match (node.s2) {
 			case QI{
-				returnString = returnString+".with("+node.s2.accept(this)+")"; 
+				returnString = returnString+".with$plaid("+node.s2.accept(this)+")"; 
 			}
 			case DeclList{
 				node.s2.decls.map(fn (d) => {
@@ -1075,7 +1080,7 @@ state PrintVisitor = ASTVisitor {
 		var returnString="";
 		match (node.s1) {
 			case QI{
-				returnString = ".with("+node.s1.accept(this)+")"; 
+				returnString = ".with$plaid("+node.s1.accept(this)+")"; 
 			}
 			case DeclList{
 				node.s1.decls.map(fn (d) => {
@@ -1090,7 +1095,7 @@ state PrintVisitor = ASTVisitor {
 		};
 		match (node.s2) {
 			case QI{
-				returnString = returnString+".with("+node.s2.accept(this)+")"; 
+				returnString = returnString+".with$plaid("+node.s2.accept(this)+")"; 
 			}
 			case DeclList{
 				node.s2.decls.map(fn (d) => {
