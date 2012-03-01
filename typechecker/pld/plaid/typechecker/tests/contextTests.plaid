@@ -1,0 +1,171 @@
+package plaid.typechecker.tests;
+
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import plaid.ast.makeID;
+import plaid.ast.makeToken;
+import plaid.typechecker.context.*;
+import java.lang.System;
+
+val () -> void contextTests = fn () => {
+
+	System.out.println("---------------------------");
+	System.out.println("|      Context TESTS      |");
+	System.out.println("---------------------------");
+	
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = makeID(makeToken(),"unit");
+	temp.put(u, new StateType { val name = u; val superType = new None; });
+	
+	//Top
+	val top = makeID(makeToken(),"Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = makeID(makeToken(),"A");
+	val aType = new StateType { val name = a; val superType = makeSome(topType);};
+	temp.put(a,aType);
+	
+	//B
+	val b = makeID(makeToken(),"B");
+	val bType = new StateType { val name = b; val superType = makeSome(topType);};
+	temp.put(b,bType);
+	
+	//C
+	val c = makeID(makeToken(),"C");
+	val cType = new StateType { val name = c; val superType = makeSome(aType);};
+	temp.put(c,cType);
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	System.out.println("Testing state configuration:");
+	st.printTable();
+	System.out.println("");
+	var res = unit;
+	val x = makeID(makeToken(),"x");
+	val y = makeID(makeToken(),"y");
+	val z = makeID(makeToken(),"z");
+	
+	System.out.println("Testing ==");
+	var c1 = new Context;
+	c1.put(x,createTakeType(IMM,createNominalType(a)));
+	var c2 = new Context;
+	testName("unequal numbers of bindings");
+	testCall("(" + c1.toString() + ")" + "==" + "(" + c2.toString() + ")");
+	res = c1 == c2;
+	testResult(res.toString());
+	match (res) {
+		case True { testPassed(false) }
+		case False { testPassed(true) }
+	};
+	c2.put(y,createTakeType(IMM,createNominalType(a)));
+	testName("different bound variables");
+	testCall("(" + c1.toString() + ")" + "==" + "(" + c2.toString() + ")");
+	res = c1 == c2;
+	testResult(res.toString());
+	match (res) {
+		case True { testPassed(false) }
+		case False { testPassed(true) }
+	};
+	c2.remove(y);
+	c2.put(x,createBorrowType(IMM,createNominalType(a),IMM,true));
+	testName("different bindings for variable");
+	testCall("(" + c1.toString() + ")" + "==" + "(" + c2.toString() + ")");
+	res = c1 == c2;
+	testResult(res.toString());
+	match (res) {
+		case True { testPassed(false) }
+		case False { testPassed(true) }
+	};
+	c2.remove(x);
+	c2.put(x,createTakeType(IMM,createNominalType(a)));
+	testName("equal (one variable)");
+	testCall("(" + c1.toString() + ")" + "==" + "(" + c2.toString() + ")");
+	res = c1 == c2;
+	testResult(res.toString());
+	match (res) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	c1.put(y,createBorrowType(UNIQUE,createNominalType(a),IMM,false));
+	c1.put(z,createBorrowType(IMM,createNominalType(b),IMM,true));
+	c2.put(y,createBorrowType(UNIQUE,createNominalType(a),IMM,false));
+	c2.put(z,createBorrowType(IMM,createNominalType(b),IMM,true));
+	testName("equal (multiple variables)");
+	testCall("(" + c1.toString() + ")" + "==" + "(" + c2.toString() + ")");
+	res = c1 == c2;
+	testResult(res.toString());
+	match (res) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	
+	System.out.println("Testing downgrade");
+	c1.remove(z);
+	c1.put(z,createTakeType(NONEP,createNominalType(top)));
+	c2.remove(z);
+	c2.put(z,createTakeType(NONEP,getUnitType()));
+	testName("downgrade same");
+	testCall("(" + c1.toString() + ").downgrade()" + "==" + "(" + c2.toString() + ")");
+	c1.downgrade();
+	res = c1 == c2;
+	testResult(res.toString());
+	match (res) {
+		case True { testPassed(true) }
+		case False { testPassed(false) }
+	};
+	
+	System.out.println("Testing merge");
+	testName("merge same");
+	testCall("(" + c1.toString() + ").merge(" + c2.toString() + ")");
+	res = c1.merge(c2,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {  
+			match (res.value == c1 && res.value == c2) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false, 
+					"merged context not the same as two equivalent joined contexts") }
+			}
+		}
+		case None { testPassedMsg(false,"merge failed") }
+	};
+	c1.remove(z);
+	testName("merge different size - fail");
+	testCall("(" + c1.toString() + ").merge(" + c2.toString() + ")");
+	res = c1.merge(c2,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	c2.remove(y);
+	testName("merge different vars - fail");
+	testCall("(" + c1.toString() + ").merge(" + c2.toString() + ")");
+	res = c1.merge(c2,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	c1.remove(y);
+	c1.put(y,createTakeType(UNIQUE,createNominalType(a)));
+	c2.remove(z);
+	c2.put(y,createTakeType(UNIQUE,getUnitType()));
+		testName("merge no lub - fail");
+	testCall("(" + c1.toString() + ").merge(" + c2.toString() + ")");
+	res = c1.merge(c2,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+	
+};
