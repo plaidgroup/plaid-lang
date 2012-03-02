@@ -140,7 +140,7 @@ public class LabeledParameterized extends Parameterized {
 	    ArrayList<Description> grandChildren = childDescription
 		    .getChildren();
 	    for (Description grandChild : grandChildren)
-		newDescription.addChild(grandChild);
+	    	newDescription.addChild(grandChild);
 	    labelledDescription.addChild(newDescription);
 	}
     }
