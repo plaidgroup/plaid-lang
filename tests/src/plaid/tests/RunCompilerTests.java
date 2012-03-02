@@ -103,6 +103,7 @@ public class RunCompilerTests {
 		
 		try {
 			String actualOutput = runner.run();
+			System.out.println(actualOutput);
 			if(this.compareOutput) {
 				Assert.assertEquals(this.expectedOutput, actualOutput);
 			}
@@ -307,18 +308,23 @@ public class RunCompilerTests {
 			
 			// start program 
 			ProcessBuilder pb = new ProcessBuilder(processArgs);
-			pb.redirectErrorStream(true);
+			pb.redirectErrorStream(false);
 			Process proc = pb.start();
 			
 			AsyncReader ar = new AsyncReader(proc.getInputStream());
+			AsyncReader error = new AsyncReader(proc.getErrorStream());
 			ar.start();
-			
+			error.start();
 			// wait for process 
 			proc.waitFor();
 			
 			// wait for reader
 			ar.join();
-			
+			error.join();
+			String errorOutput = error.getOutput();
+			if(errorOutput.length() > 0) {
+				throw new TestFailedException(error.getOutput());
+			}
 			return ar.getOutput();
 		}
 		
