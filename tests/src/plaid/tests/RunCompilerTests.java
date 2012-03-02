@@ -27,7 +27,6 @@ public class RunCompilerTests {
 	private final String expectedOutput;
 	private final boolean compareOutput;
 	private final boolean shouldSucceed;
-	private final String errorMessage;
 	private final List<String> classPath;
 	
 	private final static String CONFIG_FILENAME = "testconfig.json";
@@ -52,7 +51,7 @@ public class RunCompilerTests {
 	private static final List<String> RUNPLAID_CLASSPATH = new ArrayList<String>();
 	static {
 		try {
-			RUNPLAID_CLASSPATH.add(new File("bin").getCanonicalPath());
+			RUNPLAID_CLASSPATH.add(new File(OUTPUT_DIR).getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../fastruntime/bin").getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../fastruntime/lib/asm-debug-all-3.3.1.jar").getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../fastruntime/lib/functionaljava.jar").getCanonicalPath());
@@ -85,7 +84,7 @@ public class RunCompilerTests {
 	 */
 	public RunCompilerTests(String testName, String mainClass, 
 			List<String> mainArgs, List<String> classPath, String expectedOutput,
-			boolean compareOutput, boolean shouldSucceed, String errorMessage) {
+			boolean compareOutput, boolean shouldSucceed) {
 		super();
 		this.testName = testName;
 		this.mainClass = mainClass;
@@ -94,7 +93,6 @@ public class RunCompilerTests {
 		this.expectedOutput = expectedOutput;
 		this.compareOutput = compareOutput;
 		this.shouldSucceed = shouldSucceed;
-		this.errorMessage = errorMessage;
 	}
 
 	@Test
@@ -103,7 +101,6 @@ public class RunCompilerTests {
 		
 		try {
 			String actualOutput = runner.run();
-			System.out.println(actualOutput);
 			if(this.compareOutput) {
 				Assert.assertEquals(this.expectedOutput, actualOutput);
 			}
@@ -124,7 +121,6 @@ public class RunCompilerTests {
 	}
 	
 	private static void getConfigFilesHelper(File dir, List<Config> configFileList) {
-		// System.out.println("Looking in " + dir.getPath());
 		File configFile = null;
 		List<File> plaidFiles = new ArrayList<File>();
 		for(File subFile : dir.listFiles()) {
@@ -132,7 +128,6 @@ public class RunCompilerTests {
 				getConfigFilesHelper(subFile, configFileList);
 			} else if (subFile.isFile() && subFile.getName() != null &&
 					subFile.getName().equals(CONFIG_FILENAME)) {
-				System.out.println("Found a configuration file in " + dir.getPath());
 				configFile = subFile;
 			} else if (subFile.isFile() && subFile.getName() != null &&
 					subFile.getName().endsWith(".plaid")) {
@@ -171,7 +166,6 @@ public class RunCompilerTests {
 
 		
 		//search for configuration files
-		System.out.println("Searching for configuration files");
 		List<Config> configs = getConfigFiles();
 		for(Config config : configs) {
 			File configFile = config.getConfigFile();
@@ -196,9 +190,9 @@ public class RunCompilerTests {
 			compilerArgsList.add("-d");
 			compilerArgsList.add("0");
 			compilerArgsList.add("-t");
-			compilerArgsList.add(new File("src").getAbsolutePath());
+			compilerArgsList.add(new File(GENERATE_JAVA_DIR).getAbsolutePath());
 			compilerArgsList.add("-o");
-			compilerArgsList.add(new File("bin").getAbsolutePath());
+			compilerArgsList.add(new File(OUTPUT_DIR).getAbsolutePath());
 			if (!shouldTypecheck)
 				compilerArgsList.add("-n");
 			if (!shouldAeminium)
@@ -217,8 +211,7 @@ public class RunCompilerTests {
 							COMPILEPLAID_CLASSPATH, //classPath
 							"", //expectedOutput
 							false, //compareOutput
-							true, //shouldSucceed
-							"") //errorMessage
+							true) //shouldSucceed
 					);
 			
 			JSONArray backEndTests = backend.getJSONArray(TESTS_KEY);
@@ -238,8 +231,7 @@ public class RunCompilerTests {
 								RUNPLAID_CLASSPATH,//classPath
 								expectedOutput,
 								true,//compareOutput
-								true,//shouldSucceed
-								"")//errorMessage
+								true)//shouldSucceed
 						);
 			}
 			
@@ -261,8 +253,8 @@ public class RunCompilerTests {
 	private static Object[] getParams(String testName, String mainClass, List<String> mainArgs,
 			 List<String> classPath,
 			 String expectedOutput, boolean compareOutput, 
-			boolean shouldSucceed, String errorMessage) {
-		Object[] paramsTest = new Object[8];
+			boolean shouldSucceed) {
+		Object[] paramsTest = new Object[7];
 		paramsTest[0] = testName; //name
 		paramsTest[1] = mainClass; //mainClass
 		paramsTest[2] = mainArgs; //mainArgs
@@ -270,7 +262,6 @@ public class RunCompilerTests {
 		paramsTest[4] = expectedOutput; //expectedOutput
 		paramsTest[5] = compareOutput; //compareOutput
 		paramsTest[6] = shouldSucceed; //shouldSucceed;
-		paramsTest[7] = errorMessage; //errorMessage
 		return paramsTest;
 	}
 	
