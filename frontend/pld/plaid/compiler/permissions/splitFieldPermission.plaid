@@ -1,0 +1,65 @@
+package plaid.compiler.permissions;
+
+method unique Option<immutable Permission> splitFieldPermission(immutable Permission receiverPerm, 
+                                                 immutable Permission fieldPerm, 
+                                                 immutable Permission neededPerm)
+{
+  val splitFromFieldOption = fieldPerm.splitPerm(neededPerm);
+  match (splitFromFieldOption) {
+    case Some {
+      match (splitFromFieldOption.value == fieldPerm) {
+        case True {
+          match (receiverPerm) { //can pull anything that doesn't change field as long as receiver permission is not NONE or DYNAMIC
+            case NonePermission { new None }
+            case DynamicPermission { new None } 
+            default { makeSome(fieldPerm) } 
+          }
+        }
+        case False {
+          match (receiverPerm) {
+            case UniquePermission { splitFromFieldOption } //unique receivers can give up anything
+            case LocalPermission {
+              match (receiverPerm == neededPerm) {
+                case True { splitFromFieldOption }
+                case False { new None }
+              }
+            }
+            case BorrowedPermission {
+              match (neededPerm) {
+                case LocalPermission {
+                  match (receiverPerm.thePerm == neededPerm.thePerm) {
+                    case True { splitFromFieldOption }
+                    case False { new None }
+                  }
+                }
+                default { new None }
+              }
+            }
+            case SymmetricPermission{   //if a (local) symmetric of the same kind as the 
+              match (fieldPerm) {  //receiver, this is ok
+                case UniquePermission {
+                  match (neededPerm) {
+                    case SymmetricPermission{
+                      ifElse (neededPerm == receiverPerm)
+                        { makeSome(UNIQUE) }
+                        { new None }
+                    }
+                    case LocalPermission {
+                      ifElse (neededPerm.thePerm == receiverPerm)
+                        { makeSome(UNIQUE) }
+                        { new None }
+                    }
+                    default { new None }
+                  }
+                }
+                default { new None }
+              }
+            }
+            default { new None }
+          }
+        }
+      }
+    }
+    case None { new None }
+  }
+}
