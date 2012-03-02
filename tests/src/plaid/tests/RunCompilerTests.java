@@ -300,7 +300,7 @@ public class RunCompilerTests {
 			final List<String> processArgs = new ArrayList<String>();
 			processArgs.add("java");
 			processArgs.add("-Xms512m");
-			processArgs.add("-Xmx2048m");
+			processArgs.add("-Xmx1024m");
 			processArgs.add("-cp");
 			processArgs.add(classpath);
 			processArgs.add(mainClass);
