@@ -112,11 +112,10 @@ public class RunCompilerTests {
 	}
 	
 
-	private static List<Config> getConfigFiles()
+	private static List<Config> getConfigFiles(String srcdir)
 	{
 		List<Config> configFiles = new ArrayList<Config>();
-		getConfigFilesHelper(new File(SRC_DIR), configFiles);
-		System.out.println("Found " + configFiles.size() + " configuration files.");
+		getConfigFilesHelper(new File(srcdir), configFiles);
 		return configFiles;
 	}
 	
@@ -163,10 +162,17 @@ public class RunCompilerTests {
 		// create collection for parameters
 		Collection<Object[]> allParams = new ArrayList<Object[]>();
 		
-
+		File masterConfig = new File("config.json");
+		FileInputStream masterInput = new FileInputStream(masterConfig);
+		JSONTokener masterTokener = new JSONTokener(masterInput);
+		JSONArray masterArray = new JSONArray(masterTokener);
+		List<Config> configs = new ArrayList<Config>();
+		for(int count = 0; count < masterArray.length(); count++) {		
+			String srcdir = masterArray.getString(count);
+			configs.addAll(getConfigFiles(srcdir));
+		}
 		
-		//search for configuration files
-		List<Config> configs = getConfigFiles();
+		System.out.println("Found " + configs.size() + " configuration files.");
 		for(Config config : configs) {
 			File configFile = config.getConfigFile();
 			FileInputStream input = new FileInputStream(configFile);
