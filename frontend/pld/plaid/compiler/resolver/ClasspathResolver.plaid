@@ -364,75 +364,76 @@ state ClasspathResolver case of Resolver {
         var /* Option<Symbol> */ result = NONE;
          
         DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver> searching for '" + fqn + "' plaid source code in classpath");
-        this.config.plaidpath.map(fn (item) => {
-            match (result) {
-                case None {
-                    val unique File path = (java.io.File.new(item)).getCanonicalFile();
-                    DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>   searching classpath: " + path);
-                     
-                    ifElse  ( path.isFile() && path.toString().endsWith(".jar") ) {
-                        DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     dive into JAR file ... " );
-                        val unique JarFile jarFile = java.util.jar.JarFile.new(path);
-                        val entries = jarFile.entries();
-                        while { entries.hasMoreElements() }{
-                             
-                            val entry = entries.nextElement();
-                            val entryName = entry.toString(); 
-                            val fqnFileName = fqn.replace(".", this.fileSeparator)+ ".plaid";
-                            val absFileName = path.getCanonicalPath()+ this.fileSeparator + fqnFileName;
-                            if ( entryName.equals(fqnFileName) && (!this.visitedFiles.contains(absFileName)) ) {                             
-                                DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    found: " + fqn.replace(".", this.fileSeparator)+ ".plaid");
-                                this.visitedFiles.add(absFileName);
-                                result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry), path + this.fileSeparator + entry.getName() );
+        if ( fqn.indexOf(".") > -1 ) {
+            this.config.plaidpath.map(fn (item) => {
+                match (result) {
+                    case None {
+                        val unique File path = (java.io.File.new(item)).getCanonicalFile();
+                        DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>   searching classpath: " + path);
+                         
+                        ifElse  ( path.isFile() && path.toString().endsWith(".jar") ) {
+                            DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     dive into JAR file ... " );
+                            val unique JarFile jarFile = java.util.jar.JarFile.new(path);
+                            val entries = jarFile.entries();
+                            while { entries.hasMoreElements() }{
+                                 
+                                val entry = entries.nextElement();
+                                val entryName = entry.toString(); 
+                                val fqnFileName = fqn.replace(".", this.fileSeparator)+ ".plaid";
+                                val absFileName = path.getCanonicalPath()+ this.fileSeparator + fqnFileName;
+                                if ( entryName.equals(fqnFileName) && (!this.visitedFiles.contains(absFileName)) ) {                             
+                                    DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    found: " + fqn.replace(".", this.fileSeparator)+ ".plaid");
+                                    this.visitedFiles.add(absFileName);
+                                    result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry), path + this.fileSeparator + entry.getName() );
+                                };
+                                match (result) {
+                                    case None {
+                                        val packageName = fqn.substring(0, fqn.length() - (fqn.length()- fqn.lastIndexOf("."))).replace(".", this.fileSeparator)+ this.fileSeparator +"package.plaid";
+                                        val absPackageFileName = packageName + this.fileSeparator + packageName;                                     
+                                        if ( entryName.equals(packageName) && (!this.visitedFiles.contains(absPackageFileName))) {
+                                            DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     found: " + packageName);
+                                            this.visitedFiles.add(absPackageFileName);
+                                            result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry), path + this.fileSeparator + entry.getName());
+                                        };
+                                    }
+                                    case Some { result }
+                                }
                             };
-                            match (result) {
-                                case None {
-                                    val packageName = fqn.substring(0, fqn.length() - (fqn.length()- fqn.lastIndexOf("."))).replace(".", this.fileSeparator)+ this.fileSeparator +"package.plaid";
-                                    val absPackageFileName = packageName + this.fileSeparator + packageName;                                     
-                                    if ( entryName.equals(packageName) && (!this.visitedFiles.contains(absPackageFileName))) {
-                                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     found: " + packageName);
-                                        this.visitedFiles.add(absPackageFileName);
-                                        result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry), path + this.fileSeparator + entry.getName());
-                                    };
-                                }
-                                case Some { result }
-                            }
-                        };
-                    }{
-                        // check for file specification
-                        val fqnFile = java.io.File.new(path.toString() + this.fileSeparator + fqn.replace(".", this.fileSeparator)+ ".plaid").getCanonicalFile();
-                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking for file: " + fqnFile.toString() );
-                        ifElse ( fqnFile.exists() && (!this.visitedFiles.contains(fqnFile.getCanonicalPath())) ) {
-                            DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>       try loading definition from file: " + fqnFile.toString());
-                            this.visitedFiles.add(fqnFile.getCanonicalPath());
-                            result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(fqnFile), fqnFile.getCanonicalPath());
                         }{
-                            DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>       specification file does not exists");
-                        };
-
-                        // check for definition in package
-                        match (result) {
-                            case None {                           
-                                val packageFile = java.io.File.new(fqnFile.getParent().toString() + this.fileSeparator + "package.plaid");
-                                DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking for package file: " + packageFile.toString() );
-                                ifElse ( packageFile.exists() && (!this.visitedFiles.contains(packageFile.getCanonicalPath())) ) {
-                                    DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking package definition: " + packageFile.toString());
-                                    this.visitedFiles.add(packageFile.getCanonicalPath());
-                                    result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(packageFile), packageFile.getCanonicalPath());
-                                }{
-                                    DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>       package file does not exist");
+                            // check for file specification
+                            val fqnFile = java.io.File.new(path.toString() + this.fileSeparator + fqn.replace(".", this.fileSeparator)+ ".plaid").getCanonicalFile();
+                            DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking for file: " + fqnFile.toString() );
+                            ifElse ( fqnFile.exists() && (!this.visitedFiles.contains(fqnFile.getCanonicalPath())) ) {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>       try loading definition from file: " + fqnFile.toString());
+                                this.visitedFiles.add(fqnFile.getCanonicalPath());
+                                result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(fqnFile), fqnFile.getCanonicalPath());
+                            }{
+                                DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>       specification file does not exists");
+                            };
+        
+                            // check for definition in package
+                            match (result) {
+                                case None {                           
+                                    val packageFile = java.io.File.new(fqnFile.getParent().toString() + this.fileSeparator + "package.plaid");
+                                    DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking for package file: " + packageFile.toString() );
+                                    ifElse ( packageFile.exists() && (!this.visitedFiles.contains(packageFile.getCanonicalPath())) ) {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking package definition: " + packageFile.toString());
+                                        this.visitedFiles.add(packageFile.getCanonicalPath());
+                                        result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(packageFile), packageFile.getCanonicalPath());
+                                    }{
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>       package file does not exist");
+                                    }
                                 }
+                                default { /*no op*/ }
                             }
-                            default { /*no op*/ }
                         }
                     }
-                }
-                default { /* we are done */ }
-            };
-             
-            item
-        });
-         
+                    default { /* we are done */ }
+                };
+                 
+                item
+            });
+        };
         result;
     }
 
