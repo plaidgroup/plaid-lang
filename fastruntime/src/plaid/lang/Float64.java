@@ -156,7 +156,7 @@ public class Float64 extends AbstractPlaidState
 		public Object asPrimitive(JavaPrimitive p) {
 			switch (p) {
 			case DOUBLE: return rep;
-			default: throw new PlaidIllegalOperationException("Floats cannot be used as " + p.name + "primitives.");
+			default: throw new PlaidIllegalOperationException("Floats cannot be used as " + p.name + " primitives.");
 			}
 		}
 	}

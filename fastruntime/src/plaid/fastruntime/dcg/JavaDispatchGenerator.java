@@ -42,6 +42,16 @@ public class JavaDispatchGenerator implements Opcodes {
 		this.javaStateCache.put(key, value);
 	}
 	
+	public void saveStaticJavaObject(String javaClass)  {
+		ClassLoader cl = this.getClass().getClassLoader();
+		try {
+			Class<?> theClass = cl.loadClass(javaClass);
+			saveStaticJavaObject(theClass);
+		} catch (ClassNotFoundException e) {
+			throw new PlaidIllegalOperationException("Java Class " + javaClass + " not found to generate static methods", e);
+		}
+	}
+	
 	public void saveStaticJavaObject(Class<?> javaClass) {
 		final String internalClassName = org.objectweb.asm.Type.getInternalName(javaClass);
 		final String name = "plaid/generated/" + internalClassName;
@@ -214,6 +224,7 @@ public class JavaDispatchGenerator implements Opcodes {
 		if(isStatic) {
 			modifiers+=ACC_STATIC;
 		}
+		boolean isConstructor = isStatic && m.name.equals(NamingConventions.GENERATED_CONSTRUCTOR);
 		List<org.objectweb.asm.commons.Method> overloadSet = methodMap.get(m);
 			
 		MethodVisitor mv;
@@ -240,6 +251,12 @@ public class JavaDispatchGenerator implements Opcodes {
 			//load java arguments 
 			if (overloadSet.size() == 1) {
 				org.objectweb.asm.commons.Method asmMethod = overloadSet.get(0);
+				
+				if (isConstructor) { //create and duplicate object - one for constructor second to return
+					mv.visitTypeInsn(NEW, internalClassName);
+					mv.visitInsn(DUP);
+				}
+				
 				Type[] args = asmMethod.getArgumentTypes();
 				for (int i = 0; i < args.length; i++) {
 					mv.visitVarInsn(ALOAD, i+firstArgRegister);
@@ -264,35 +281,49 @@ public class JavaDispatchGenerator implements Opcodes {
 				if(isStatic) {
 					invocationtype = INVOKESTATIC;
 				}
-				if(asmMethod.getName().equals("<init>")){
+				if(isConstructor){
 					invocationtype = INVOKESPECIAL;
 				}
-				if(invocationtype != INVOKESPECIAL) {
-					mv.visitMethodInsn(invocationtype, internalClassName, asmMethod.getName(), asmMethod.getDescriptor());
-				}
 				
-				//returned value is primitive (or void), box it (void becomes unit)
+				mv.visitMethodInsn(invocationtype, internalClassName, asmMethod.getName(), asmMethod.getDescriptor());
+				
+				
+				//returned value is primitive (or void if not a constructor), box it (void becomes unit)
 				Type returnType = asmMethod.getReturnType();
-				if (isPrimitiveType(returnType) || isVoidType(returnType)) {
+				if (isPrimitiveType(returnType) || (isVoidType(returnType) && !isConstructor)) {
 					box(asmMethod.getReturnType(), mv);
 				}
 			} else {
 				//choose which method to call with reflection (may want to trying something different in the future)
-				if(!isStatic) {
-					//because I didn't want to have to deal with arrays
-					if (m.numArgs > 6) 
-						throw new PlaidInternalException("handling of java static overloaded methods with > 6 parameters not implemented");
+				
+				//static methods need the class name
+				if (isStatic)
+					mv.visitLdcInsn(Type.getType(NamingConventions.internalNameToDescriptor(internalClassName)));
 					
-					mv.visitLdcInsn(m.name); //
-					for (int i = 0; i < m.numArgs; i++) {
-						mv.visitVarInsn(ALOAD, i+firstArgRegister);
-						mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
-						//mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
-					}
+				//non-constructors need the method name
+				if (!isConstructor)
+					mv.visitLdcInsn(m.name);
+				
+				//create array for arguments
+				mv.visitIntInsn(BIPUSH, m.numArgs);
+				mv.visitTypeInsn(ANEWARRAY, "plaid/fastruntime/PlaidJavaObject");
+				for (int i = 0; i < m.numArgs; i++) {
+					mv.visitInsn(DUP); //duplicate array
+					mv.visitIntInsn(BIPUSH, i);
+					mv.visitVarInsn(ALOAD, i+firstArgRegister);
+					mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
+					mv.visitInsn(AASTORE);
+				}
+				
+				if(!isStatic) { //call overloading of instance method
 					mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
-							   "staticOverloadingCall", NamingConventions.staticOverloadCallMethodDescriptor(m.numArgs));
-				} else {
-					throw new PlaidInternalException("Static overloaded static methods not yet implemented");
+							   "overloadedInstanceMethod", NamingConventions.OVERLOAD_INSTANCE_METHOD_DESC);
+				} else if (isConstructor) {
+					mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
+							   "overloadedConstructor", NamingConventions.OVERLOAD_CONSTRUCTOR_METHOD_DESC);
+				} else {	
+					mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
+							   "overloadedStaticMethod", NamingConventions.OVERLOAD_STATIC_METHOD_DESC);
 				}
 			}
 			//wrap Java object into a PlaidJavaObject
@@ -314,23 +345,56 @@ public class JavaDispatchGenerator implements Opcodes {
 		}
 	}
 	
+	/**
+	 * put return type into a form that plaid can use
+	 * ****WARNING**** longs currently use a lossy conversion
+	 * 
+	 */
 	private void box(Type type,MethodVisitor mv) {
 		if (type.equals(Type.BOOLEAN_TYPE)) {
 			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Boolean", "valueOf", "(Z)Ljava/lang/Boolean;");
 		} else if (type.equals(Type.DOUBLE_TYPE)) {
 			mv.visitTypeInsn(NEW, "java/lang/Double");
+			mv.visitInsn(DUP_X2);
+			mv.visitInsn(DUP_X2); //two copies of Double object below the double primitive (2 slots)
+			mv.visitInsn(POP); //pop Double object at top of stack so that double is at top
+			mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Double", "<init>", "(D)V");
+		} else if (type.equals(Type.FLOAT_TYPE)) {
+			mv.visitInsn(F2D);
+			mv.visitTypeInsn(NEW, "java/lang/Double");
+			mv.visitInsn(DUP_X2);
+			mv.visitInsn(DUP_X2); //two copies of Double object below the double primitive (2 slots)
+			mv.visitInsn(POP); //pop Double object at top of stack so that double is at top
+			mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Double", "<init>", "(D)V");
+		} else if (type.equals(Type.INT_TYPE) || type.equals(Type.SHORT_TYPE) || type.equals(Type.BYTE_TYPE)) {
+			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;");
+		} else if (type.equals(Type.LONG_TYPE) ) {//**** WARNING - lossy conversion for longs *****
+			mv.visitInsn(L2I);
+			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;");
+		} else if (type.equals(Type.CHAR_TYPE)) {  //create a string with the character
+			mv.visitInsn(ICONST_1);
+			mv.visitIntInsn(NEWARRAY, T_CHAR);
 			mv.visitInsn(DUP_X1);
 			mv.visitInsn(SWAP);
-			mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Double", "<init>", "(D)V");
-		} else if (type.equals(Type.INT_TYPE)) {
-			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;");
+			mv.visitInsn(ICONST_0);
+			mv.visitInsn(SWAP);
+			mv.visitInsn(CASTORE);
+			mv.visitTypeInsn(NEW, "java/lang/String");
+			mv.visitInsn(DUP_X1);
+			mv.visitInsn(SWAP);
+			mv.visitMethodInsn(INVOKESPECIAL, "java/lang/String", "<init>", "([C)V");
 		} else if (type.equals(Type.VOID_TYPE)) {
 			mv.visitInsn(ACONST_NULL);
 		} else {
 			throw new PlaidInternalException("unimplemented primitive Java type (box) " + type.getDescriptor());
 		}
 	}
-	
+	/**
+	 * 
+	 * covert to Java primitive
+	 * ***WARNING - does not check for lossy conversions for numeric types
+	 * ***WARNING - Plaid characters expected to be a string of a single character
+	 */
 	private void unbox(Type type, MethodVisitor mv) {
 		if (type.getSort() == Type.BOOLEAN) {
 			mv.visitTypeInsn(CHECKCAST, "java/lang/Boolean");
@@ -344,6 +408,19 @@ public class JavaDispatchGenerator implements Opcodes {
 		} else if (type.getSort() == Type.DOUBLE){
 			mv.visitTypeInsn(CHECKCAST, "java/lang/Number");
 			mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Number", "doubleValue", "()D");
+		} else if (type.getSort() == Type.BYTE){
+			mv.visitTypeInsn(CHECKCAST, "java/lang/Number");
+			mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Number", "byteValue", "()B");
+		} else if (type.getSort() == Type.SHORT){
+			mv.visitTypeInsn(CHECKCAST, "java/lang/Number");
+			mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Number", "shortValue", "()S");
+		} else if (type.getSort() == Type.FLOAT){
+			mv.visitTypeInsn(CHECKCAST, "java/lang/Number");
+			mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/Number", "floatValue", "()F");
+		} else if (type.getSort() == Type.CHAR){
+			mv.visitTypeInsn(CHECKCAST, "java/lang/String");
+			mv.visitInsn(ICONST_0);
+			mv.visitMethodInsn(INVOKEVIRTUAL, "java/lang/String", "charAt", "(I)C");
 		} else {
 			throw new PlaidInternalException("unimplemented primitive Java type (unbox) " + type.getDescriptor());
 		}

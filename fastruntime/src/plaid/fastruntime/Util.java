@@ -1,7 +1,9 @@
 package plaid.fastruntime;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,122 +70,132 @@ public class Util {
 			return JAVA_GEN.createPlaidJavaObject(javaObject);
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject... params) {
+	public static boolean paramMatch(Class<?>[] declaredParams, PlaidJavaObject[] runtimeArgs) {
+		if ( declaredParams.length == runtimeArgs.length) {
+			for (int i = 0; i < declaredParams.length; i++) {
+				Class<?> paramClass = declaredParams[i];
+				if (paramClass.isPrimitive()) { //convert to appropriate boxed type
+					if (!runtimeArgs[i].canBePrimitive(PlaidJavaObject.JavaPrimitive.fromClass(paramClass))) return false;
+				} else {
+					if (!paramClass.isInstance(runtimeArgs[i].getJavaObject())) return false;
+				}
+			}
+			return true;
+		} else
+			return false;
+	}
+	
+	public static ClassCompare compareParameters(Class<?>[] compare, Class<?>[] against) {
+		ClassCompare compareStatus = ClassCompare.SAME; 
+		for (int k = 0; k < against.length && compareStatus != ClassCompare.INCOMP; k++) {
+			ClassCompare relation = compare(compare[k],against[k]);
+			
+			switch (relation) {
+			case INCOMP: compareStatus = ClassCompare.INCOMP; break;
+			case SUB:
+				switch (compareStatus) {
+				case SUB: break;
+				case SUP: compareStatus = ClassCompare.INCOMP; break;
+				case SAME: compareStatus = relation; break;
+				}; break;
+			case SUP:
+				switch (compareStatus) {
+				case SUB: compareStatus = ClassCompare.INCOMP; break;
+				case SUP: break;
+				case SAME: compareStatus = relation; break;
+				}; break;
+			case SAME://don't change anything
+				break;
+			}
+		
+		}
+		return compareStatus;
+	}
+	
+	public static Object[] getArgumentArray(Class<?>[] paramTypes, PlaidJavaObject[] runtimeArgs) {
+		Object[] javaParams = new Object[runtimeArgs.length];
+		for (int i = 0; i < runtimeArgs.length; i++) {
+			if (paramTypes[i].isPrimitive())
+				javaParams[i] = runtimeArgs[i].asPrimitive(PlaidJavaObject.JavaPrimitive.fromClass(paramTypes[i]));
+			else
+				javaParams[i] = runtimeArgs[i].getJavaObject();
+		}
+		return javaParams;
+	}
+	
+	public static Signature constructorSig(Constructor<?> c, int index) {
+		return new Signature(c.getParameterTypes(), index);
+	}
+	
+	public static Signature methodSig(Method m, int index) {
+		return new Signature(m.getParameterTypes(), index);
+	}
+	
+	public static Object overloadedConstructor(Class<?> newClass, PlaidJavaObject... params ) {
+		List<Constructor<?>> candidates = new ArrayList<Constructor<?>>();
+		List<Signature> sigs = new ArrayList<Signature>();
+		
+		//check which constructors with this number of arguments are applicable
+		int count = 0;
+		for (Constructor<?> c : newClass.getConstructors()) {
+			if (paramMatch(c.getParameterTypes(),params)){
+				candidates.add(c);
+				sigs.add(constructorSig(c,count));
+				count++;
+			}
+		}
+		
+		int mostSpecific = Signature.mostSpecificIndex(sigs);
+		if (mostSpecific == -1) 
+			throw new PlaidIllegalOperationException("Java constructor not available for provided arguments in class " + newClass.getName());
+	
+		Constructor<?> theConstructor = candidates.get(mostSpecific);
+		
+		
+		Object[] javaParams = getArgumentArray(theConstructor.getParameterTypes(), params);
+		
+		try {
+			return theConstructor.newInstance(javaParams);
+		} catch (IllegalArgumentException e) {
+			throw new PlaidIllegalOperationException("Java constructor not available for provided arguments in class " + newClass.getName() ,e.getCause());
+		} catch (IllegalAccessException e) {
+			throw new PlaidIllegalOperationException("Java constructor not available for provided arguments in class " + newClass.getName() ,e.getCause());
+		} catch (InvocationTargetException e) {
+			throw new PlaidIllegalOperationException("Java constructor not available for provided arguments in class " + newClass.getName() ,e.getCause());
+		} catch (InstantiationException e) {
+			throw new PlaidIllegalOperationException("Java constructor not available for provided arguments in class " + newClass.getName() ,e.getCause());
+		}
+		
+		
+	}
+	
+	public static Object overloadedInstanceMethod(Object receiver, java.lang.String mName, PlaidJavaObject... params) {
 		Class<?> receiverClass = receiver.getClass();
 		
 		List<Method> candidates = new ArrayList<Method>();
-		Method candidate = null;
+		List<Signature> sigs = new ArrayList<Signature>();
 		
 		
-		//check which methods with this name and number of arguments are applicable
+		//check which non-static methods with this name and number of arguments are applicable
+		int count = 0;
 		for (Method m : receiverClass.getMethods()) {
-			if (m.getName().equals(mName)){
-				Class<?>[] mArgClasses = m.getParameterTypes();
-				if ( mArgClasses.length == params.length) {
-					boolean match = true;
-					for (int i = 0; i < mArgClasses.length && match; i++) {
-						Class<?> argClass = mArgClasses[i];
-						if (argClass.isPrimitive()) { //convert to appropriate boxed type
-							if (!params[i].canBePrimitive(PlaidJavaObject.JavaPrimitive.fromClass(argClass))) match = false;
-						} else {
-							if (!argClass.isInstance(params[i].getJavaObject())) match = false;
-						}
-					}
-					if (match) candidates.add(m);
-				}
+			if (m.getName().equals(mName) && paramMatch(m.getParameterTypes(),params)){
+				candidates.add(m);
+				sigs.add(methodSig(m,count));
+				count++;
 			}
 		}
 		
-		int numCandidates = candidates.size();
-		if (numCandidates == 0)
+		int mostSpecific = Signature.mostSpecificIndex(sigs);
+		if (mostSpecific == -1) 
 			throw new PlaidIllegalOperationException("Java method " + mName + " not available for provided arguments in class " + receiverClass.getName());
-		else if (numCandidates == 1)
-			candidate = candidates.get(0);
-		else { // need to resolve which one is most specific or error if one does not exist
-			
-			//keep track of most specific methods at this point
-			List<Method> mostSpecific = new ArrayList<Method>();
-			Method seed = candidates.get(0); 
-			mostSpecific.add(seed);
-			
-			
-			for (int i = 1; i < numCandidates; i++) {
-				Method toCheck = candidates.get(i);
-				//check if this method is more specific than all of those in the current array
-				//if it is, clear the array and add this one
-				//if it is less specific than any of the members, then discard it
-				//otherwise, add it
-				Class<?>[] toCheckParams = toCheck.getParameterTypes();
-				boolean done = false;
-				
-				for (int j = 0; j < mostSpecific.size() && !done; j++ ) { //check again each element in the most specific list
-					Method checkAgainst = mostSpecific.get(j);
-					Class<?>[] checkAgainstParams = checkAgainst.getParameterTypes();
-					
-					// 0 = undecided, 1 = toCheck potentially more specific, 2 = checkAgainst potentially more specific, -1 = ambiguous
-					ClassCompare toCheckStatus = ClassCompare.SAME; 
-					for (int k = 0; k < checkAgainstParams.length && toCheckStatus != ClassCompare.INCOMP; k++) {
-						ClassCompare relation = compare(toCheckParams[k],checkAgainstParams[k]);
-						
-						switch (relation) {
-						case INCOMP: toCheckStatus = ClassCompare.INCOMP; break;
-						case SUB:
-							switch (toCheckStatus) {
-							case SUB: break;
-							case SUP: toCheckStatus = ClassCompare.INCOMP; break;
-							case SAME: toCheckStatus = relation; break;
-							}; break;
-						case SUP:
-							switch (toCheckStatus) {
-							case SUB: toCheckStatus = ClassCompare.INCOMP; break;
-							case SUP: break;
-							case SAME: toCheckStatus = relation; break;
-							}; break;
-						case SAME:
-							toCheckStatus = relation; break;
-						}
-					}
-					
-					switch (toCheckStatus) {
-					case SUP:
-					case SAME: //less specific or the same as existing method, discard
-						done = true; 
-						break;
-					case INCOMP: //need to find a method more specific than this one
-						done = true;
-						mostSpecific.add(toCheck);
-						break;
-					case SUB: break; //more specific - wait to see if more specific than all in mostSpecific
-					}
-				}
-				
-				if (!done) { //toCheck more specific than all so clear the array and add it
-					mostSpecific.clear();
-					mostSpecific.add(toCheck);
-				}
-			}
-			
-			if (mostSpecific.size() == 1) {
-				candidate = mostSpecific.get(0);
-			} else {
-				throw new PlaidIllegalOperationException("Java method " + mName + " ambiguous arguments provided for static overloading");
-			}
-			
-			
-		}
 		
-		Object[] javaParams = new Object[params.length];
-		Class<?>[] methodArgs = candidate.getParameterTypes();
-		for (int i = 0; i < params.length; i++) {
-			if (methodArgs[i].isPrimitive())
-				javaParams[i] = params[i].asPrimitive(PlaidJavaObject.JavaPrimitive.fromClass(methodArgs[i]));
-			else
-				javaParams[i] = params[i].getJavaObject();
-		}
+		Method theMethod = candidates.get(mostSpecific);
 		
+		Object[] javaParams = getArgumentArray(theMethod.getParameterTypes(), params);
 		
 		try {
-			return candidate.invoke(receiver, javaParams);
+			return theMethod.invoke(receiver, javaParams);
 		} catch (IllegalArgumentException e) {
 			throw new PlaidIllegalOperationException("Java method " + mName + " not available for provided arguments in class " + receiverClass.getName() ,e.getCause());
 		} catch (IllegalAccessException e) {
@@ -195,29 +207,105 @@ public class Util {
 		
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg) {
-		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg });
+	public static Object overloadedStaticMethod(Class<?> theClass, java.lang.String mName, PlaidJavaObject... params) {
+		
+		List<Method> candidates = new ArrayList<Method>();
+		List<Signature> sigs = new ArrayList<Signature>();
+		
+		
+		//check which non-static methods with this name and number of arguments are applicable
+		int count = 0;
+		for (Method m : theClass.getMethods()) {
+			if (m.getName().equals(mName) && paramMatch(m.getParameterTypes(),params) && Modifier.isStatic(m.getModifiers())){
+				candidates.add(m);
+				sigs.add(methodSig(m,count));
+				count++;
+			}
+		}
+		
+		int mostSpecific = Signature.mostSpecificIndex(sigs);
+		if (mostSpecific == -1) 
+			throw new PlaidIllegalOperationException("Java static method " + mName + " not available for provided arguments in class " + theClass.getName());
+		
+		Method theMethod = candidates.get(mostSpecific);
+		
+		Object[] javaParams = getArgumentArray(theMethod.getParameterTypes(), params);
+		
+		try {
+			return theMethod.invoke(null, javaParams);
+		} catch (IllegalArgumentException e) {
+			throw new PlaidIllegalOperationException("Java static method " + mName + " not available for provided arguments in class " + theClass.getName() ,e.getCause());
+		} catch (IllegalAccessException e) {
+			throw new PlaidIllegalOperationException("Java static method " + mName + " not available for provided arguments in class " + theClass.getName() ,e.getCause());
+		} catch (InvocationTargetException e) {
+			throw new PlaidIllegalOperationException("Java static method " + mName + " not available for provided arguments in class " + theClass.getName() ,e.getCause());
+		}
+		
+		
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2) {
-		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2 });
+	
+	private static class Signature {
+		
+		private Class<?>[] parameters;
+		private int index;
+		
+		public Signature(Class<?>[] parameters, int index) {
+			this.parameters = parameters;
+			this.index = index;	
+		}
+		
+		public ClassCompare compare(Signature other) {
+			return compareParameters(other.parameters, this.parameters);
+		}
+		
+		public ClassCompare compareToList(List<Signature> others) {
+			for (int j = 0; j < others.size(); j++ ) { //check again each element in the most specific list
+				Signature checkAgainst = others.get(j);
+				
+				// 0 = undecided, 1 = toCheck potentially more specific, 2 = checkAgainst potentially more specific, -1 = ambiguous
+				ClassCompare toCheckStatus = compareParameters(this.parameters, checkAgainst.parameters);
+				
+				switch (toCheckStatus) {
+				case SUP:
+				case SAME: //less specific or the same as existing method, discard
+					return ClassCompare.SUP;
+				case INCOMP: //need to find a method more specific than this one
+					return ClassCompare.INCOMP;
+				case SUB: break; //more specific - wait to see if more specific than all in mostSpecific
+				}
+			}
+			return ClassCompare.SUB; //more specific than all in the list
+		}
+		
+		public static int mostSpecificIndex(List<Signature> sigs) {
+			int numSigs = sigs.size();
+			if (numSigs == 0) return -1;
+			else if (numSigs== 1) return 0;
+			else {
+				List<Signature> currentSpecificSigs = new ArrayList<Signature>();
+				currentSpecificSigs.add(sigs.get(0));
+				for (int i = 1; i < numSigs; i++) {
+					Signature toCheck = sigs.get(i);
+					ClassCompare comp = toCheck.compareToList(currentSpecificSigs);
+					switch (comp) {
+					case SUB: //more specific than all, set to currently most specific
+						currentSpecificSigs.clear();
+					case INCOMP: //incomparable to the list, need to find signature more specific than this one too
+						currentSpecificSigs.add(toCheck);  
+						break;
+					//otherwise, discard this signature - same or less specific than method already in the list	
+					}
+				}
+				
+				int resultSize = currentSpecificSigs.size();
+				if (resultSize == 1) return currentSpecificSigs.get(0).index;
+				else return -1;
+			}
+		}
 	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2, PlaidJavaObject arg3) {
-		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2, arg3 });
-	}
 	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2, PlaidJavaObject arg3, PlaidJavaObject arg4) {
-		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2, arg3, arg4 });
-	}
-
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2, PlaidJavaObject arg3, PlaidJavaObject arg4, PlaidJavaObject arg5) {
-		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2, arg3, arg4, arg5 });
-	}
-	
-	public static Object staticOverloadingCall(Object receiver, java.lang.String mName, PlaidJavaObject arg1, PlaidJavaObject arg2, PlaidJavaObject arg3, PlaidJavaObject arg4, PlaidJavaObject arg5, PlaidJavaObject arg6) {
-		return staticOverloadingCall(receiver, mName, new PlaidJavaObject[] { arg1, arg2, arg3, arg4, arg5, arg6 });
-	}
 	
 	private enum ClassCompare {
 		SAME,
@@ -249,7 +337,7 @@ public class Util {
 		} else if (first.isPrimitive()) {
 			return comparePrimitiveToReference(first, second);
 		} else if (second.isPrimitive()) {
-			return ClassCompare.neg(comparePrimitiveToReference(first, second));
+			return ClassCompare.neg(comparePrimitiveToReference(second, first));
 		} else {
 			if (first.isAssignableFrom(second)) { // is 'second SUB first'?
 				if (second.isAssignableFrom(first)) // is 'first SUB second'?
@@ -262,7 +350,7 @@ public class Util {
 		}
 	}
 	
-	// For Plaid purposes, we consider boxed primitives to less specific than their unboxed counterparts
+	// For Plaid purposes, we consider boxed primitives to be more specific than their unboxed counterparts
 	// primitives are incomparable to other classes
 	private static ClassCompare comparePrimitiveToReference(Class<?> primitive, Class<?> obj) {
 		
