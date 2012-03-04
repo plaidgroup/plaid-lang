@@ -9,6 +9,7 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
+import plaid.generated.IcharAt$1$plaid;
 import plaid.generated.IendsWith$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Ilength$0$plaid;
@@ -24,7 +25,8 @@ public class String extends AbstractPlaidState
 						  			 IendsWith$1$plaid,
 						  			 ItoLowerCase$0$plaid,
 						  			 Isubstring$2$plaid,
-						  			 Ilength$0$plaid
+						  			 Ilength$0$plaid,
+						  			 IcharAt$1$plaid
 {
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
@@ -129,6 +131,19 @@ public class String extends AbstractPlaidState
 			java.lang.String second = ((java.lang.String) ((PlaidJavaObject) arg).getJavaObject());
 			boolean b = first.equals(second);
 			return Util.bool(b);
+			
+		} catch (Exception e) {
+			throw new PlaidIllegalArgumentException("String equality failed", e.getCause());
+		}
+	}
+	
+	@Override
+	public PlaidObject charAt(PlaidObject receiver, PlaidObject arg) {
+		try {
+			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
+			java.lang.Integer second = ((java.lang.Integer) ((PlaidJavaObject) arg).getJavaObject());
+			char c = first.charAt(second);
+			return Util.string("" + c);
 			
 		} catch (Exception e) {
 			throw new PlaidIllegalArgumentException("String equality failed", e.getCause());

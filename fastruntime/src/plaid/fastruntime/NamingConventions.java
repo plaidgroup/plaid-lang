@@ -32,8 +32,23 @@ public class NamingConventions {
 	public static final String JAVA_OBJECT_DESCRIPTOR = "L" + JAVA_OBJECT_INTERNAL_NAME + ";";
 	public static final String JAVA_STRING_INTERNAL_NAME = "java/lang/String";
 	public static final String JAVA_STRING_DESCRIPTOR = "L" + JAVA_STRING_INTERNAL_NAME + ";";
+	public static final String JAVA_CLASS_INTERNAL_NAME = "java/lang/Class";
+	public static final String JAVA_CLASS_DESCRIPTOR = "L" + JAVA_CLASS_INTERNAL_NAME + ";";
 	
-	
+	public static final String OVERLOAD_INSTANCE_METHOD_DESC = getMethodDescriptor(JAVA_OBJECT_DESCRIPTOR, 
+				JAVA_STRING_DESCRIPTOR, 
+			   	1, "[" + PLAID_JAVA_OBJECT_DESCRIPTOR, 
+			   	JAVA_OBJECT_DESCRIPTOR);
+
+	public static final String OVERLOAD_CONSTRUCTOR_METHOD_DESC = getMethodDescriptor(JAVA_CLASS_DESCRIPTOR, 
+				1, "[" + PLAID_JAVA_OBJECT_DESCRIPTOR, 
+				JAVA_OBJECT_DESCRIPTOR);
+
+	public static final String OVERLOAD_STATIC_METHOD_DESC = getMethodDescriptor(JAVA_CLASS_DESCRIPTOR, 
+				JAVA_STRING_DESCRIPTOR, 
+				1, "[" + PLAID_JAVA_OBJECT_DESCRIPTOR, 
+				JAVA_OBJECT_DESCRIPTOR);	
+
 	public static final String getGetterName(String fieldName) {
 		return GENERATED_GET_PREFIX + fieldName + GENERATED_SUFFIX;
 	}
@@ -123,10 +138,6 @@ public class NamingConventions {
 	
 	public static final String internalNameToDescriptor(String internalName) {
 		return "L" + internalName + ";";
-	}
-	
-	public static final String staticOverloadCallMethodDescriptor(int numArgs) {
-		return getMethodDescriptor(JAVA_OBJECT_DESCRIPTOR, JAVA_STRING_DESCRIPTOR, numArgs, PLAID_JAVA_OBJECT_DESCRIPTOR, JAVA_OBJECT_DESCRIPTOR);
 	}
 	
 	private static final HashMap<String,String> javaReservedMap = new HashMap<String,String>();

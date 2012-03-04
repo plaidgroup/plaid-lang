@@ -20,8 +20,8 @@ public class OverloadDispatchTest {
 		
 		
 		try {
-		Assert.assertTrue(Util.staticOverloadingCall(test, "o", ((PlaidJavaObject)Util.string("test"))).equals("String"));
-		Assert.assertTrue(Util.staticOverloadingCall(test, "o", ((PlaidJavaObject)Util.javaToPlaid(this))).equals("Object"));
+		Assert.assertTrue(Util.overloadedInstanceMethod(test, "o", ((PlaidJavaObject)Util.string("test"))).equals("String"));
+		Assert.assertTrue(Util.overloadedInstanceMethod(test, "o", ((PlaidJavaObject)Util.javaToPlaid(this))).equals("Object"));
 		} catch (PlaidIllegalOperationException e) {
 			e.printStackTrace();
 			Assert.fail();
@@ -32,14 +32,14 @@ public class OverloadDispatchTest {
 	public void twoArgs() {
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test, "t", ((PlaidJavaObject)Util.javaToPlaid(this)), ((PlaidJavaObject)Util.javaToPlaid(this))).equals("O2"));
+			Assert.assertTrue(Util.overloadedInstanceMethod(test, "t", ((PlaidJavaObject)Util.javaToPlaid(this)), ((PlaidJavaObject)Util.javaToPlaid(this))).equals("O2"));
 		} catch (PlaidIllegalOperationException e) {
 			e.printStackTrace();
 			Assert.fail();
 		}	
 		
 		try {
-			Util.staticOverloadingCall(test, "t", ((PlaidJavaObject)Util.string("test")), ((PlaidJavaObject)Util.string("test")));
+			Util.overloadedInstanceMethod(test, "t", ((PlaidJavaObject)Util.string("test")), ((PlaidJavaObject)Util.string("test")));
 			Assert.fail();
 		} catch (PlaidIllegalOperationException e) {
 			//pass
@@ -51,14 +51,14 @@ public class OverloadDispatchTest {
 	public void ifacesAmbig() {
 		
 		try {
-			Util.staticOverloadingCall(test, "u", ((PlaidJavaObject)Util.javaToPlaid(iTest)));
+			Util.overloadedInstanceMethod(test, "u", ((PlaidJavaObject)Util.javaToPlaid(iTest)));
 			Assert.fail();
 		} catch (PlaidIllegalOperationException e) {
 			//pass
 		}	
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test,"v",((PlaidJavaObject)Util.javaToPlaid(iTest2))).equals("o1234"));
+			Assert.assertTrue(Util.overloadedInstanceMethod(test,"v",((PlaidJavaObject)Util.javaToPlaid(iTest2))).equals("o1234"));
 		} catch (PlaidIllegalOperationException e) {
 			e.printStackTrace();
 			Assert.fail();
@@ -71,7 +71,7 @@ public class OverloadDispatchTest {
 	public void intVlong() {
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test, "w", ((PlaidJavaObject)Util.javaToPlaid(int5))).equals("int"));
+			Assert.assertTrue(Util.overloadedInstanceMethod(test, "w", ((PlaidJavaObject)Util.javaToPlaid(int5))).equals("int"));
 		} catch (PlaidIllegalOperationException e) {
 			e.printStackTrace();
 			Assert.fail();
@@ -84,14 +84,14 @@ public class OverloadDispatchTest {
 	public void boxedVunboxed() {
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test, "x", ((PlaidJavaObject)Util.javaToPlaid(int5))).equals("Integer"));
+			Assert.assertTrue(Util.overloadedInstanceMethod(test, "x", ((PlaidJavaObject)Util.javaToPlaid(int5))).equals("Integer"));
 		} catch (PlaidIllegalOperationException e) {
 			e.printStackTrace();
 			Assert.fail();
 		}	
 		
 		try {
-			Assert.assertTrue(Util.staticOverloadingCall(test, "x", ((PlaidJavaObject)Util.javaToPlaid(5))).equals("Integer"));
+			Assert.assertTrue(Util.overloadedInstanceMethod(test, "x", ((PlaidJavaObject)Util.javaToPlaid(5))).equals("Integer"));
 		} catch (PlaidIllegalOperationException e) {
 			e.printStackTrace();
 			Assert.fail();
@@ -104,7 +104,7 @@ public class OverloadDispatchTest {
 	public void boxedFail() {
 		
 		try {
-			Util.staticOverloadingCall(test, "y", ((PlaidJavaObject)Util.javaToPlaid(int5)));
+			Util.overloadedInstanceMethod(test, "y", ((PlaidJavaObject)Util.javaToPlaid(int5)));
 			Assert.fail();
 		} catch (PlaidIllegalOperationException e) {
 			//pass
@@ -112,8 +112,21 @@ public class OverloadDispatchTest {
 
 	}
 	
+	@Test
+	public void staticOverloadsInstance() {
+		//can call a static method through an instance
+		try {
+			Object foo = Util.overloadedInstanceMethod(test, "z", ((PlaidJavaObject)Util.string("foo")));
+			Assert.assertTrue(Util.overloadedInstanceMethod(test, "z", ((PlaidJavaObject)Util.string("foo"))).equals("string"));
+			
+		} catch (PlaidIllegalOperationException e) {
+			Assert.fail();
+		}
+
+	}
 	
-	public class OverloadTestClass {
+	
+	public static class OverloadTestClass {
 		public String o(Object o) { return "Object"; }
 		public String o(String s) { return "String"; }
 		
@@ -139,6 +152,9 @@ public class OverloadDispatchTest {
 		
 		public String y(Double d) { return "Double"; }
 		public String y(Float d) { return "Float"; }
+		
+		public String z(Object o) { return "object"; }
+		public static String z(String s) { return "string"; }
 	}
 	
 

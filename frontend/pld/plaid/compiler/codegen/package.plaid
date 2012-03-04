@@ -371,12 +371,12 @@ method codegenStmt(immutable Stmt node, shared StringBuilder sb, shared IdGen id
 							match(symbolRightOption.getValue()) {
 								case JavaStaticFieldSymbol  {
 									val parent = symbolLeft.owner;
-									
-									//TODO: this will throw an error if class has no parent package
-									var packageQualifiedIdentifier = parent.getQualifiedIdentifier();
 									val classFQN = symbolLeft.getFQN();
 									sb.append(y + " = plaid.fastruntime.Util.javaToPlaid(" + 
 										classFQN + "." + node.right.name + ");\n");
+								}
+								case JavaStaticMethodSymbol {
+									ERROR("java methods cannot be dereferenced except as a part of an application/method call");
 								}
 								default {
 									ERROR("Unexpected symbol for the right side of a dereference of Java class");
@@ -763,7 +763,27 @@ method codegenApplication(immutable ParsedExpr functionExpr, immutable List args
 							
 						}
 						case JavaStaticMethodSymbol {
-							ERROR("<CodeGenPass> static java methods not implemented");
+							var left = match (functionExpr.left) { //get AST mapped to JavaClassSymbol
+								case ParsedDereference { functionExpr.left.right }
+								case ParsedIdentifier { functionExpr.left }
+								default { ERROR("<CodeGenPass> Unexpected AST node at left of java constructor") }
+							};
+							val leftSymbol = symbolForAST(left).value; //if no symbol, something went wrong earlier
+							match (leftSymbol) {
+								case JavaClassSymbol {
+									val javaClassFQN = leftSymbol.getFQN();
+									//static methods/constructors found in plaid.generated.<ClassFQN>
+									sb.append(y + " = plaid.generated." + javaClassFQN + "." + rightSymbol.name + "(");
+									sb.append(makeSeperatedString(yList, ",")); //normal arguments
+									sb.append(");\n");
+									
+									//generate static methods for the JavaClassSymbol
+									plaid.fastruntime.Util.JAVA_GEN.saveStaticJavaObject(javaClassFQN);
+								}
+								default {
+									ERROR("<CodeGenPass> non-JavaClassSymbol found as target of java static method or constructor");
+								}	
+							}
 						}
 						default {
 							ERROR("<CodeGenPass> method id unexpectedly has a symbol");
