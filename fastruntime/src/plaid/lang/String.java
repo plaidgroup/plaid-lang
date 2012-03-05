@@ -17,6 +17,7 @@ import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.IstartsWith$1$plaid;
 import plaid.generated.Isubstring$2$plaid;
 import plaid.generated.ItoLowerCase$0$plaid;
+import plaid.generated.IindexOf$1$plaid;
 
 public class String extends AbstractPlaidState
 						  implements Iplus$plaid$1$plaid,
@@ -26,7 +27,8 @@ public class String extends AbstractPlaidState
 						  			 ItoLowerCase$0$plaid,
 						  			 Isubstring$2$plaid,
 						  			 Ilength$0$plaid,
-						  			 IcharAt$1$plaid
+						  			 IcharAt$1$plaid,
+						  			 IindexOf$1$plaid
 {
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
@@ -144,6 +146,19 @@ public class String extends AbstractPlaidState
 			java.lang.Integer second = ((java.lang.Integer) ((PlaidJavaObject) arg).getJavaObject());
 			char c = first.charAt(second);
 			return Util.string("" + c);
+			
+		} catch (Exception e) {
+			throw new PlaidIllegalArgumentException("String equality failed", e.getCause());
+		}
+	}
+
+	@Override
+	public PlaidObject indexOf(PlaidObject receiver, PlaidObject arg) {
+		try {
+			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
+			java.lang.String second = ((java.lang.String) ((PlaidJavaObject) arg).getJavaObject());
+			int result = first.indexOf(second);
+			return Util.integer(result);
 			
 		} catch (Exception e) {
 			throw new PlaidIllegalArgumentException("String equality failed", e.getCause());
