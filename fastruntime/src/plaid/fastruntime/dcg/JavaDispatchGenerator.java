@@ -100,8 +100,11 @@ public class JavaDispatchGenerator implements Opcodes {
 		Class<?> javaClass = javaObject.getClass();
 		PlaidState result = null;
 		
+
 		if( !javaStateCache.containsKey(javaClass)) {
-		
+			while(!Modifier.isPublic(javaClass.getModifiers())) {
+				javaClass = javaClass.getSuperclass();
+			}
 			String internalClassName = org.objectweb.asm.Type.getInternalName(javaClass);
 			ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
 			
