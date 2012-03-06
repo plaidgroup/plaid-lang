@@ -1,0 +1,152 @@
+package plaid.typechecker.rewriting.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.rewriting.*;
+import plaid.ast.types.permissions.*;
+
+val () -> void assignmentTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	
+	System.out.println("Testing Assignment transformation");
+	
+	testName("lnf-assign-bare");	
+	oldAst = makeAssignment(makeToken(), makeSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeID(makeToken(),"y"));//x.f = y
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeAssignment(makeToken(), makeSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeID(makeToken(),"y")),
+					     makeTempID(makeToken(),"t1"), false); // let t1 = (x.f = y) in t1
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-assign1");	//x.z.f = y
+	oldAst = makeAssignment(makeToken(), 
+							makeSome(makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z"))), 
+							makeID(makeToken(),"f"), 
+							makeID(makeToken(),"y"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")),
+					   			  makeAssignment(makeToken(), makeSome(makeTempID(makeToken(),"t2")), makeID(makeToken(),"f"), makeID(makeToken(),"y")),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+
+	testName("lnf-assign2");	//x.f = y.z
+	oldAst = makeAssignment(makeToken(), 
+							makeSome(makeID(makeToken(),"x")), 
+							makeID(makeToken(),"f"), 
+							makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  makeAssignment(makeToken(), makeSome(makeID(makeToken(),"x")), makeID(makeToken(),"f"), makeTempID(makeToken(),"t2")),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-assign3");	//x.w.f = f.z
+	oldAst = makeAssignment(makeToken(), 
+							makeSome(makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w"))), 
+							makeID(makeToken(),"f"), 
+							makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w")),
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t3"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  			 makeAssignment(makeToken(), makeSome(makeTempID(makeToken(),"t2")), makeID(makeToken(),"f"), makeTempID(makeToken(),"t3")),
+					   			  			 false),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	System.out.println("");
+	
+	System.out.println("Testing assignment ObjectType inference");
+	var typefetcher = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
+	
+	testName("obj-assign succeed");
+	st = new StateTable { override val states = java.util.HashMap.new(); } ;
+	cIn = new Context; 
+	typefetcher = new TypeFetchVisitor{ val st = st; val context = cIn; };
+	
+	oldAst = makeAssignment(makeToken(),new None, makeID(makeToken(),"x"), makeID(makeToken(),"v"));
+	result = oldAst.accept(typefetcher);
+	newAst = oldAst.copy();
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,"typing failed: " + result.errorMsg)
+		}
+		default {
+			match (result == getUnitType()) {
+				case True {
+					match (oldAst == newAst) {
+						case True {
+							tester.testPassed(true);
+						}
+						case False {
+							tester.testPassedMsg(false,"AST should not change")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false,"incorrect type returned")
+				}
+			}
+		}
+	};
+
+};

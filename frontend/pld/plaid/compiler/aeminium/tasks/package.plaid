@@ -1,0 +1,90 @@
+package plaid.compiler.aeminium.tasks;
+
+
+import plaid.compiler.*;
+
+/*****************************************************************************
+ ** helper functions
+ ****************************************************************************/
+
+method void dumpTaskGraph(immutable String name, immutable String suffix,  unique Set tasks) {
+    DEBUG_DO(DEBUG_PRIO_MEDIUM, fn () => {
+        val sb = java.lang.StringBuilder.new();
+        
+        val graphName = name.substring(name.lastIndexOf(".")+1);
+        sb.append("digraph " + graphName + " {\n");
+        sb.append("    rankdir=BT;\n");
+            
+        // dump nodes
+        val tasksIt = tasks.iterator();
+        while { tasksIt.hasNext() }{
+            val task = tasksIt.next();
+                        
+            sb.append("    n" + task.getID() + "[style=task, shape=box, label=\""+ task.toString() +"\", texlbl=\""+task.toTexString()+"\"];\n");
+    
+            val depsIt = task.deps.iterator();
+            while {depsIt.hasNext()}{
+                val target = depsIt.next();
+                sb.append("    n" + task.getID() + " -> n" +target.getID() +" [style=\"-to,very thick\"];\n");
+            };
+            sb.append("\n");
+        };
+        
+        sb.append("}\n");
+    
+    
+        // dump file 
+        val file = java.io.File.new(name+ "." + suffix + ".dot");
+        val fw = java.io.FileWriter.new(file);
+        fw.write(sb.toString());
+        fw.flush();
+        fw.close();
+    });
+}
+
+
+/*****************************************************************************
+ ** fast method cache  cache 
+ ****************************************************************************/
+
+val cheapMethodCache = java.util.HashSet.new();
+
+method void cheapMethodCacheAdd(immutable String fqn) {
+    DEBUG(DEBUG_PRIO_LOW, "<cheapMethodCacheAdd>  cheapMethodCacheAdd '" + fqn + "'" );
+    cheapMethodCache.add(fqn);
+}
+
+method immutable Boolean cheapMethodCacheContains(immutable String fqn) {
+    cheapMethodCache.contains(fqn);
+}
+
+/*****************************************************************************
+ ** factory methods
+ ****************************************************************************/
+
+var immutable Integer taskCounter = 0;
+
+method unique Task makeTask(shared Resolver resolver) {
+    taskCounter = taskCounter + 1;
+    
+    new Task {
+        val id = taskCounter;
+        val resolver = resolver;
+    };
+}
+
+
+method unique CaseTaskGraph makeCaseTaskGraph() {
+    new CaseTaskGraph;
+}
+
+
+method unique SimplifiedMatchBlock makeSimplifiedMatchBlock(shared Task enterTask,
+                                                            shared Task leaveTask,
+                                                            shared MatchLeaveInformation leaveInfo) { 
+    new SimplifiedMatchBlock {
+        val enterTask = enterTask;
+        val leaveTask = leaveTask;
+        val leaveInfo = leaveInfo;
+    }
+}
