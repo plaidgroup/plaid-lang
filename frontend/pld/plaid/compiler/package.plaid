@@ -116,8 +116,9 @@ method showUsage() {
     printLine(" -v | --version              The version of the current compiler.");
     printLine(" -V | --viewAST              View the AST of the compiled files.");  
     printLine(" -s | --symbolMap            Dump symbol map after compilation");
-    printLine(" -c | --no-codegen			Do not generate code");
-    printLine(" -b | --no-bytecode          Do not compile generated Java file to byte code ");
+    printLine(" -c | --no-codegen			Do not generate code.");
+    printLine(" -b | --no-bytecode          Do not compile generated Java file to byte code.");
+    printLine(" -D | --define key=value     Defines internal values of the implementation.");    
 }
 
 
@@ -142,6 +143,7 @@ method parseCommandLineArgs(args) {
     var inputDir   = "";
     var plaidpath  = makeEmptyList();
     var inputFiles = makeEmptyList();
+    var propertyMap = java.util.HashMap.new();
     var enableTypechecking = true;
     var enableAeminium = false;
     var viewAST = false;
@@ -195,7 +197,7 @@ method parseCommandLineArgs(args) {
                 };
                 DEBUG(DEBUG_PRIO_MEDIUM, "Found debug option '" + args.car() + "'.");
             }
-        };        
+        };       
         if ( args.car().equals("-o") || args.car().equals("--output") ) {
             handled = true;
             args = args.cdr();
@@ -260,6 +262,28 @@ method parseCommandLineArgs(args) {
             handled = true;
             enableCodegen = false;
         };
+        if ( args.car().equals("-D") || args.car().equals("--define") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-D'/'--define' option requires a parameter.");
+                abort = true
+            }{
+                val argument = args.car();
+                DEBUG(DEBUG_PRIO_MEDIUM, "Found defintion of value '" + argument + "'.");
+
+                ifElse ( argument.contains("=") == true ) {
+                    val key = argument.substring(0, argument.indexOf("=") ).trim();
+                    val value = argument.substring(argument.indexOf("=") +1, argument.length()).trim();
+                    DEBUG(DEBUG_PRIO_LOW, "   found key '" + key +"'");
+                    DEBUG(DEBUG_PRIO_LOW, "   found value '" + value +"'");
+                    propertyMap.put(key, value);
+                }{
+                    printLine("The -D option requires a key=value argument. No '=' found.");
+                    abort = true
+                };                
+            };
+        };  
         ifElse ( !handled ) {
             ifElse ( args.car().startsWith("-") ) {
                 printLine("Unsupported option: " + args.car());
@@ -306,6 +330,7 @@ method parseCommandLineArgs(args) {
                 val dumpSymbolMap = dumpSymbolMap;
                 val enableCodegen = enableCodegen;
                 val enableBytecode = enableBytecode;
+                val propertyMap = propertyMap;
             }).expand()); 
         }        
     }
