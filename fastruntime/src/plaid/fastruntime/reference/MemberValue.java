@@ -51,4 +51,5 @@ public abstract class MemberValue extends SingleValue implements MemberInfo{
 			return this;
 		}
 	}
+
 }

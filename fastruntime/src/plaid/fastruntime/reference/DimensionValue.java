@@ -139,4 +139,11 @@ public final class DimensionValue extends SingleValue {
 		AbstractObjectValue newInnerValue = (AbstractObjectValue)this.innerValue.remove(member);
 		return new DimensionValue(this.tag, newInnerValue, newParent);
 	}
+
+	@Override
+	public ObjectValue rename(String currentName, String newName) {
+		DimensionValue newParent = (DimensionValue)this.parent.rename(currentName, newName);
+		AbstractObjectValue newInnerValue = (AbstractObjectValue)this.innerValue.rename(currentName,newName);
+		return new DimensionValue(this.tag, newInnerValue, newParent);
+	}
 }
