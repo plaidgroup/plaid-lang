@@ -496,6 +496,79 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     method immutable Integer computeCriticalPathGraphWithoutEdge(unique Set tasks,
                                                                  shared Task edgeFrom,
                                                                  shared Task edgeTo) {
+        val merged = makeTask(this.resolver);
+        
+        merged.infos.addAll(edgeFrom.infos);
+        merged.infos.addAll(edgeTo.infos);
+        
+        merged.deps.addAll(edgeFrom.deps);
+        merged.deps.addAll(edgeTo.deps);
+        merged.rdeps.addAll(edgeFrom.rdeps);
+        merged.rdeps.addAll(edgeTo.rdeps);
+        
+        merged.deps.remove(edgeFrom);
+        merged.deps.remove(edgeTo);
+        merged.rdeps.remove(edgeFrom);
+        merged.rdeps.remove(edgeTo);
+        
+        // fix other tasks 
+        val itDeps = merged.deps.iterator();
+        while {itDeps.hasNext()}{
+            val curDep = itDeps.next();
+            curDep.rdeps.remove(edgeFrom);
+            curDep.rdeps.remove(edgeTo);
+            curDep.rdeps.add(merged);
+        };
+        val itRDeps = merged.rdeps.iterator();
+        while {itRDeps.hasNext()}{
+            val curRDep = itRDeps.next();
+            curRDep.deps.remove(edgeFrom);
+            curRDep.deps.remove(edgeTo);
+            curRDep.deps.add(merged);
+        };
+        
+        tasks.remove(edgeFrom);
+        tasks.remove(edgeTo);
+        tasks.add(merged);
+        
+        val cp = computeCriticalPathGraph(tasks);
+        
+        tasks.add(edgeFrom);
+        tasks.add(edgeTo);
+        tasks.remove(merged);
+
+        val toDepsIt = edgeTo.deps.iterator();
+        while { toDepsIt.hasNext() }{
+            var depTask = toDepsIt.next();
+            depTask.rdeps.remove(merged);
+            depTask.rdeps.add(edgeTo);
+        };
+        val toRDepsIt = edgeTo.rdeps.iterator();
+        while { toRDepsIt.hasNext() }{
+            var rdepTask = toRDepsIt.next();
+            rdepTask.deps.remove(merged);
+            rdepTask.deps.add(edgeTo);
+        };
+        
+        val fromDepsIt = edgeFrom.deps.iterator();
+        while { fromDepsIt.hasNext() }{
+            var depTask = fromDepsIt.next();
+            depTask.rdeps.remove(merged);
+            depTask.rdeps.add(edgeFrom);
+        };
+        val fromRDepsIt = edgeFrom.rdeps.iterator();
+        while { fromRDepsIt.hasNext() }{
+            var rdepTask = fromRDepsIt.next();
+            rdepTask.deps.remove(merged);
+            rdepTask.deps.add(edgeFrom);
+        };
+        
+        cp
+    }
+
+    method immutable Integer computeCriticalPathGraphWithoutEdgeOLD(unique Set tasks,
+                                                                 shared Task edgeFrom,
+                                                                 shared Task edgeTo) {
         val it = tasks.iterator();
         var length = 0;
         
@@ -625,6 +698,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 task.rdeps.remove(rdepTask);
             };
         };
+
         
         DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> merged Tasks (" + from.getID() + "," + to.getID() + ") into " + task.getID());
         
@@ -890,7 +964,19 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         val it = tasks.iterator();
         val sb = java.lang.StringBuilder.new();
         sb.append("[");
-        while {it.hasNext()}{sb.append( "" + it.next().getWeight() + ",")};
+        while {it.hasNext()}{
+            val curTask = it.next();
+            sb.append(  curTask.getID() + "@[");
+            val opIt= curTask.infos.iterator();
+            while { opIt.hasNext() }{
+                val op = opIt.next();
+                sb.append(op.getID() + ",");
+            };
+            if ( curTask.infos.size() > 0 ) {
+                sb.deleteCharAt(sb.length() - 1);
+            };
+            sb.append("]<" + curTask.getWeight() + ">,");
+        };
         sb.deleteCharAt(sb.length() - 1);
         sb.append("]"); 
         sb.toString();   
@@ -1352,6 +1438,137 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
        tasks
     }
     
+     method unique List topologicalEdgeList(unique List tasks) {
+        val unique List edges = java.util.ArrayList.new();
+        
+        val it = tasks.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            val rdepsList = java.util.ArrayList.new();
+            val rdepsIt = curTask.rdeps.iterator();
+            while { rdepsIt.hasNext() }{
+                rdepsList.add(tasks.indexOf(rdepsIt.next()));
+            };
+            
+            // sort deps according to their relative location
+            java.util.Collections.sort(rdepsList);
+            
+            val rdepsListIt = rdepsList.iterator();
+            while { rdepsListIt.hasNext() } {
+                val rdepTask = tasks.get(rdepsListIt.next());
+                
+                edges.add(new Edge {
+                    val from = curTask;
+                    val to = rdepTask;
+                });
+            };
+        };
+        
+        edges
+     }
+     
+     method unique List topologicalEdgeListNEW(unique List tasks) {
+        val unique List edges = java.util.ArrayList.new();
+        val unique Set visited = java.util.HashSet.new();
+     
+        val it = tasks.iterator();
+        while {it.hasNext() }{
+            val curTask = it.next();
+            if ( curTask.deps.size() == 0 ) {
+                topologicalEdgeListVisitor(edges, tasks, visited, curTask.rdeps);
+            };
+        };   
+        
+        edges
+     }
+     
+     method void topologicalEdgeListVisitor(unique List edges, 
+                                            shared List tasks, 
+                                            shared Set visited, 
+                                            shared Set curTasks) {
+               
+        val it = curTasks.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+             
+            val rdepsList = java.util.ArrayList.new();
+            val rdepsIt = curTask.rdeps.iterator();
+            while { rdepsIt.hasNext() }{
+                rdepsList.add(tasks.indexOf(rdepsIt.next()));
+            };
+            
+            // sort deps according to their relative location
+            java.util.Collections.sort(rdepsList);
+            
+            val rdepsListIt = rdepsList.iterator();
+            while { rdepsListIt.hasNext() } {
+                val rdepTask = tasks.get(rdepsListIt.next());
+                
+                if ( visited.contains(rdepTask) == false ) {
+                    visited.add(rdepTask);
+                    
+                    topologicalEdgeListVisitor(edges, tasks, visited, curTask.rdeps);
+                    
+                    edges.add(new Edge {
+                        val from = curTask;
+                        val to = rdepTask;
+                    });
+                };
+            };
+        };
+     }
+    
+    method unique List topologicalTaskListNew(unique Set tasks) {
+        val unique List sorted = java.util.ArrayList.new();
+        val unique Set visited = java.util.HashSet.new();
+        
+        val tasksIt = tasks.iterator();
+        while { tasksIt.hasNext() }{
+            val curTask = tasksIt.next();
+            topologicalTaskListVisitor(curTask, visited, sorted);
+        };
+        
+        sorted    
+    }
+    
+    
+    method unique List topologicalTaskList(unique Set tasks) {
+        val unique List sorted = java.util.ArrayList.new();
+        val unique Set visited = java.util.HashSet.new();
+        
+        val unique List startTasks = java.util.ArrayList.new();
+        val tasksIt = tasks.iterator();
+        while { tasksIt.hasNext() }{
+            val curTask = tasksIt.next();
+            if ( curTask.rdeps.size() == 0 ) {
+                startTasks.add(curTask);
+            };
+        };
+        
+        val startTasksIt = startTasks.iterator();
+        while { startTasksIt.hasNext() }{
+            val curTask = startTasksIt.next();
+            topologicalTaskListVisitor(curTask, visited, sorted);
+        };
+        
+        sorted
+    }
+    
+    method void topologicalTaskListVisitor(shared Task task, 
+                                           unique Set visited,
+                                           unique List sorted) {
+        if ( visited.contains(task) == false ) {
+            visited.add(task);
+            val depsIt = task.deps.iterator();
+            while { depsIt.hasNext() }{
+                val depTask = depsIt.next();
+                topologicalTaskListVisitor(depTask, visited, sorted);
+            };
+            sorted.add(task);
+        };        
+    }
+    
     method unique Set/*Task*/ clusterTasks(immutable String path, shared Set tasksInput) {
        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> clusterTasks begin");
        var immutable Integer step = 3;
@@ -1365,10 +1582,84 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
        step = step + 1;
        
        // sort tasks 
-       tasks = sortTaskList(tasks);
+       //tasks = sortTaskList(tasks);
        
-       var immutable Boolean zeroed  = true;
+       val topo = topologicalTaskList(tasks);
+       printLine("Topological Sorted " + taskListToString(topo));
+       
+       val topoMap = java.util.HashMap.new();
+       val topoIt = topo.iterator();
+       while { topoIt.hasNext() }{
+           val curTask = topoIt.next();
+           topoMap.put(curTask, curTask);
+       };
+       
+       val edges = topologicalEdgeList(topo);
 
+       val edgesIt = edges.iterator();
+       while { edgesIt.hasNext() }{
+           val curEdge = edgesIt.next();
+           val from = topoMap.get(curEdge.from);
+           val to   = topoMap.get(curEdge.to);
+
+            printLine("current edge (" + from.toString() + "," + to.toString()+")");
+
+           ifElse ( from.rdeps.contains(to) && isSimplifiedMatch(from, to) == false ) {
+               val cpLength = computeCriticalPathGraph(tasks);
+               val cpLenghtWithout = computeCriticalPathGraphWithoutEdge(tasks, from, to);
+               DEBUG(DEBUG_PRIO_LOW, "    CP from             " + from.toString() + " = " +  cpLength );
+               DEBUG(DEBUG_PRIO_LOW, "    CP from zeroed edge " + from.toString() + " = " +  cpLenghtWithout + "    " + from.toString() + " -> " + to.toString());    
+    
+
+               val merge = ifElse ( cpLenghtWithout <= cpLength ) {
+                   val immutable Boolean localDecression = false;//minimumPathDegressionForGraphWithoutEdge(tasks, from, to);
+                   ifElse ( localDecression == false  ) {
+                       true
+                   }{
+                       // with next edge continue
+                       false 
+                   } 
+               }{
+                   false
+               };
+               
+               if ( merge ) {
+                   DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> merge " + from.toString() + " into " + to.toString());
+                   
+                   //merge tasks
+                   val unique Task mergedTask = mergeTasks(from, to);
+
+                   // remove rdepTask from tasks list
+                   tasks.remove(to);
+                   tasks.remove(from);
+                   tasks.add(mergedTask);
+                    
+                   // update map
+                   topoMap.put(from, mergedTask);
+                   topoMap.put(to, mergedTask);
+                
+                    val updateIt = topoMap.entrySet().iterator();
+                    while { updateIt.hasNext()}{
+                        val entry = updateIt.next();
+                        if ( entry.getValue() == from || entry.getValue() == to ) {
+                            topoMap.put(entry.getKey(), mergedTask);
+                        };
+                    };
+                
+                   // dump task graph
+                   dumpTaskGraph(path, "TASK-STEP-" + step, tasks);
+                
+                   // increase step counter 
+                   step = step + 1;                       
+               };
+           }{
+               DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> skip edge  " + from.toString() + " -> " + to.toString());
+           }            
+
+       };
+       
+       /*
+       var immutable Boolean zeroed  = true;
        while { zeroed == true }{
            // iterarte through nodes 
            // check for every edge of a task merge does not increase the critical path length 
@@ -1384,7 +1675,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                        val rdepTask = edgeIt.next();
                        
                        ifElse (    this.edgeVisited(curTask, rdepTask)  == false 
-                                && hasTransitiveEdge(curTask, rdepTask) == false 
+                                //&& hasTransitiveEdge(curTask, rdepTask) == false 
                                 && isSimplifiedMatch(curTask, rdepTask) == false ) {
                            val cpLength = computeCriticalPathGraph(tasks);
                            val cpLenghtWithout = computeCriticalPathGraphWithoutEdge(tasks, curTask, rdepTask);
@@ -1436,7 +1727,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                };
            };
        };
-       
+       */
        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> clusterTasks finished");
        
        tasks
