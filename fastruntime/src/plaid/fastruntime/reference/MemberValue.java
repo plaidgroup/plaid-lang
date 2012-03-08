@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.MemberInfo;
+import plaid.fastruntime.ObjectValue;
 import fj.Ord;
 import fj.data.Set;
 
@@ -40,5 +41,14 @@ public abstract class MemberValue extends SingleValue implements MemberInfo{
 	@Override
 	public String getStaticClassInternalName() {
 		return this.classInternalName;
+	}
+	
+	@Override
+	public ObjectValue remove(String member) {
+		if(this.getName().equals(member)) {
+			return new EmptySingleValue();
+		} else {
+			return this;
+		}
 	}
 }

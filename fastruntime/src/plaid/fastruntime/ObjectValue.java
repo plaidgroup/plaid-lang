@@ -19,4 +19,8 @@ public interface ObjectValue {
 	public boolean matches(String tag);
 
 	int getFieldIndex(String fieldName);
+	
+	//public ObjectValue specialize(ObjectValue newMembers);
+	
+	public ObjectValue remove(String member);
 }

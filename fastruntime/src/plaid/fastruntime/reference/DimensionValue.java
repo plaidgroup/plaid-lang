@@ -2,6 +2,7 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.ObjectValue;
 import fj.Ord;
 import fj.data.List;
 import fj.data.Set;
@@ -130,5 +131,12 @@ public final class DimensionValue extends SingleValue {
 			fi = fi.append(parent.getFields());
 		}
 		return fi;
+	}
+
+	@Override
+	public ObjectValue remove(String member) {
+		DimensionValue newParent = (DimensionValue)this.parent.remove(member);
+		AbstractObjectValue newInnerValue = (AbstractObjectValue)this.innerValue.remove(member);
+		return new DimensionValue(this.tag, newInnerValue, newParent);
 	}
 }
