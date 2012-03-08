@@ -2,6 +2,7 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.ObjectValue;
 import fj.data.List;
 
 public final class FieldValue extends MemberValue implements FieldInfo {
@@ -44,5 +45,14 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 
 	public boolean isSettable() {
 		return settable;
+	}
+
+	@Override
+	public ObjectValue remove(String member) {
+		if(this.getName().equals(member)) {
+			return new EmptySingleValue();
+		} else {
+			return this;
+		}
 	}
 }

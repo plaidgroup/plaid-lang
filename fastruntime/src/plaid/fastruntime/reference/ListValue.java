@@ -2,6 +2,7 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.ObjectValue;
 import fj.Equal;
 import fj.F;
 import fj.Ord;
@@ -130,6 +131,23 @@ public final class ListValue extends AbstractObjectValue {
 			currentList = currentList.append((sv.getFields()));
 		}
 		return currentList;
+	}
+
+	@Override
+	public ObjectValue remove(String member) {
+		List<SingleValue> toReturn = List.nil();
+		for(SingleValue sv : singleValues) {
+			if(sv instanceof MemberValue && ((MemberValue) sv).getName().equals(member)) {
+				toReturn = toReturn.cons(sv);
+			}
+		}
+		if (toReturn.length() > 1) {
+			return new ListValue(toReturn);
+		} else if (toReturn.length() == 1) {
+			return new ListValue(toReturn.index(0));
+		} else {
+			throw new plaid.fastruntime.errors.PlaidInternalException("Trying to revove an object from ListValue with only one object.");
+		}
 	}
 
 	
