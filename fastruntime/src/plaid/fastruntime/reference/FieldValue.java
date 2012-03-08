@@ -46,11 +46,11 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	public boolean isSettable() {
 		return settable;
 	}
-
+	
 	@Override
-	public ObjectValue remove(String member) {
-		if(this.getName().equals(member)) {
-			return new EmptySingleValue();
+	public ObjectValue rename(String currentName, String newName) {
+		if(this.getName().equals(currentName)) {
+			return new FieldValue(this.settable, newName, this.getStaticClassInternalName());
 		} else {
 			return this;
 		}

@@ -20,7 +20,9 @@ public interface ObjectValue {
 
 	int getFieldIndex(String fieldName);
 	
-	//public ObjectValue specialize(ObjectValue newMembers);
+	public ObjectValue specialize(ObjectValue newMembers);
 	
 	public ObjectValue remove(String member);
+	
+	public ObjectValue rename(String currentName, String newName);
 }

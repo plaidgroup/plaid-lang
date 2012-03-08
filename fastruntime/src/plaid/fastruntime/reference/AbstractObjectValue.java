@@ -191,6 +191,17 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		}
 	}
 	
+	@Override
+	public ObjectValue specialize(ObjectValue newMembers) {
+		if (newMembers instanceof ListValue)  {
+			return this;
+		} else if (newMembers instanceof MemberValue) {
+			return this;
+		} else {
+			throw new PlaidInternalException("");
+		}
+	}
+	
 	public abstract Set<String> getTags();
 	
 	public abstract Set<String> getOuterTags();

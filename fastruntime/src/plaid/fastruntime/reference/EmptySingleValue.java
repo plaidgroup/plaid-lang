@@ -39,4 +39,9 @@ public class EmptySingleValue extends SingleValue {
 		return Set.empty(Ord.stringOrd);
 	}
 
+	@Override
+	public ObjectValue rename(String currentName, String newName) {
+		return this;
+	}
+
 }

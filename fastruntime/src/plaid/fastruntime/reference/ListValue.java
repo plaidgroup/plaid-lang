@@ -150,5 +150,16 @@ public final class ListValue extends AbstractObjectValue {
 		}
 	}
 
+	@Override
+	public ObjectValue rename(final String currentName, final String newName) {
+		F<SingleValue,SingleValue> callRename = new F<SingleValue,SingleValue>() {
+			public SingleValue f(SingleValue a) {
+				return (SingleValue)a.rename(currentName,newName);
+			}
+		};
+		List<SingleValue> newSingleValues = singleValues.map(callRename);
+		return new ListValue(newSingleValues);
+	}
+
 	
 }

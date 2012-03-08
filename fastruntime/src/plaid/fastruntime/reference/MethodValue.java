@@ -3,6 +3,7 @@ package plaid.fastruntime.reference;
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.NamingConventions;
+import plaid.fastruntime.ObjectValue;
 import fj.data.List;
 
 public final class MethodValue extends MemberValue implements MethodInfo {
@@ -53,6 +54,15 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	@Override
 	public int numArgs() {
 		return this.numArgs;
+	}
+	
+	@Override
+	public ObjectValue rename(String currentName, String newName) {
+		if(this.getName().equals(currentName)) {
+			return new MethodValue(newName, this.numArgs, this.getStaticClassInternalName());
+		} else {
+			return this;
+		}
 	}
 
 
