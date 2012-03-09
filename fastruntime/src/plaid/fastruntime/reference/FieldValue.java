@@ -17,15 +17,6 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	}
 	
 	@Override
-	public boolean equals(Object obj) {
-		if(obj instanceof FieldValue) {
-			return this.getName().equals(((FieldValue)obj).getName());
-		} else {
-			return false;
-		}
-	}
-	
-	@Override
 	public String toString() {
 		return "val " + getName();
 	}
