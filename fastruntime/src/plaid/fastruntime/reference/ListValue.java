@@ -150,14 +150,14 @@ public final class ListValue extends AbstractObjectValue {
 	public ObjectValue remove(String member) {
 		List<SingleValue> toReturn = List.nil();
 		for(SingleValue sv : singleValues) {
-			if(sv instanceof MemberValue && ((MemberValue) sv).getName().equals(member)) {
+			if(sv instanceof MemberValue && !((MemberValue) sv).getName().equals(member)) {
 				toReturn = toReturn.cons(sv);
 			}
 		}
 		if (toReturn.length() > 1) {
 			return new ListValue(toReturn);
 		} else if (toReturn.length() == 1) {
-			return new ListValue(toReturn.index(0));
+			return toReturn.index(0);
 		} else {
 			throw new plaid.fastruntime.errors.PlaidInternalException("Trying to revove an object from ListValue with only one object.");
 		}
@@ -193,7 +193,7 @@ public final class ListValue extends AbstractObjectValue {
 	
 	private final static F2<String, SingleValue, String> combineCanonicalStrings = new F2<String, SingleValue, String>() {
 		public String f(String a, SingleValue b) {
-			return a + ";" + b;
+			return a + ";" + b.getCanonicalRep();
 		}
 	};
 	
