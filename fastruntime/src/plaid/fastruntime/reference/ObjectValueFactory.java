@@ -63,6 +63,8 @@ public class ObjectValueFactory {
 			this.currentValue = new ListValue((MemberValue)this.currentValue, toAdd);
 		} else if (this.currentValue instanceof ListValue) {
 			this.currentValue = ((ListValue)this.currentValue).addValue(toAdd);
+		} else if(this.currentValue == null) {
+			this.currentValue = toAdd;
 		} else {
 			throw new PlaidInternalException("Current value stored in the object value factory has unexpected type. " +
 					"It's type is " + this.currentValue.getClass().getCanonicalName());
