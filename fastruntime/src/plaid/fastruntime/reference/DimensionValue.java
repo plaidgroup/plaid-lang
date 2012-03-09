@@ -164,7 +164,9 @@ public final class DimensionValue extends SingleValue {
 	@Override
 	public AbstractObjectValue add(MemberValue mv) {
 		AbstractObjectValue newInnerValue;
-		if (innerValue instanceof DimensionValue) {
+		if (innerValue == null) {
+			return new DimensionValue(this.tag, mv, parent);
+		} else if (innerValue instanceof DimensionValue) {
 			newInnerValue = new ListValue((DimensionValue)innerValue, mv);
 		} else {
 			newInnerValue = this.innerValue.add(mv);
