@@ -167,7 +167,19 @@ public final class DimensionValue extends SingleValue {
 
 	@Override
 	protected String constructCanonicalRep() {
-		String result = "TAG[" + this.tag + "]{" + this.innerValue.getCanonicalRep() + "} <: " + this.parent.getCanonicalRep();
+		final String innerValueRep;
+		if (this.innerValue != null) {
+			innerValueRep = innerValue.getCanonicalRep();
+		} else {
+			innerValueRep = "";
+		}
+		final String parentRep;
+		if (this.parent != null) {
+			parentRep = "<:" + parent.getCanonicalRep();
+		} else {
+			parentRep = "";
+		}
+		String result = "TAG[" + this.tag + "]{" + innerValueRep + "}"+parentRep;
 		return result.intern();
 	}
 }
