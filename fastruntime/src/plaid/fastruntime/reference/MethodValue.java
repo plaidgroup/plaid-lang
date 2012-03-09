@@ -8,12 +8,14 @@ import fj.data.List;
 
 public final class MethodValue extends MemberValue implements MethodInfo {
 
-	private int numArgs;
+	private final int numArgs;
+	private final String canonicalRep;
 	
 	
 	public MethodValue(String name, int numArgs, String classInternalName) {
 		super(name, classInternalName);
 		this.numArgs = numArgs;
+		canonicalRep = this.constructCanonicalRep();
 	}
 
 	@Override
@@ -65,5 +67,15 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 		}
 	}
 
+	@Override
+	protected String constructCanonicalRep() {
+		String result =  "method:" + this.getName() + this.numArgs + this.getStaticClassInternalName();
+		return result.intern();
+	}
+
+	@Override
+	public String getCanonicalRep() {
+		return canonicalRep;
+	}
 
 }

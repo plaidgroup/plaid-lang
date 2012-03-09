@@ -5,7 +5,9 @@ import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.Equal;
 import fj.F;
+import fj.F2;
 import fj.Ord;
+import fj.Ordering;
 import fj.Show;
 import fj.data.List;
 import fj.data.Set;
@@ -18,13 +20,15 @@ import fj.data.Set;
 public final class ListValue extends AbstractObjectValue {
 
 	private List<SingleValue> singleValues;
+	private final String canonicalRep;
 	
 	public ListValue(SingleValue... singleValues) {
-		this.singleValues = List.list(singleValues);
+		this(List.list(singleValues));
 	}
 	
 	private ListValue(List<SingleValue> singleValues) {
 		this.singleValues = singleValues;
+		this.canonicalRep = this.constructCanonicalRep();
 	}
 	
 	public List<SingleValue> getAll() {
@@ -168,6 +172,41 @@ public final class ListValue extends AbstractObjectValue {
 		};
 		List<SingleValue> newSingleValues = singleValues.map(callRename);
 		return new ListValue(newSingleValues);
+	}
+
+	private final static Ord<SingleValue> svOrd;
+	static {
+		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
+			@Override
+			public F<SingleValue, Ordering> f(SingleValue a) {
+				final String thisRep = a.getCanonicalRep();
+				return new F<SingleValue, Ordering>() {
+					public Ordering f(SingleValue other) {
+						return Ord.stringOrd.compare(thisRep, other.getCanonicalRep());
+					}
+				};
+			}
+		};
+		
+		svOrd = Ord.ord(orderSingleValues);
+	}
+	
+	private final static F2<String, SingleValue, String> combineCanonicalStrings = new F2<String, SingleValue, String>() {
+		public String f(String a, SingleValue b) {
+			return a + ";" + b;
+		}
+	};
+	
+	@Override
+	protected String constructCanonicalRep() {
+		List<SingleValue> sortedSingleValues = this.singleValues.sort(svOrd);
+		String result = sortedSingleValues.foldLeft(combineCanonicalStrings, "");
+		return result.intern();
+	}
+
+	@Override
+	public String getCanonicalRep() {
+		return this.canonicalRep;
 	}
 
 	

@@ -8,10 +8,12 @@ import fj.data.List;
 public final class FieldValue extends MemberValue implements FieldInfo {
 
 	private final boolean settable;
+	private final String canonicalRep;
 	
 	public FieldValue(boolean settable, String name, String classInternalName) {
 		super(name, classInternalName);
 		this.settable = settable;
+		canonicalRep = this.constructCanonicalRep();
 	}
 	
 	@Override
@@ -54,5 +56,17 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 		} else {
 			return this;
 		}
+	}
+
+	@Override
+	protected String constructCanonicalRep() {
+		String settableString = settable ? "t" : "f";
+		String result =  "field:" + settableString + this.getName()+ this.getStaticClassInternalName();
+		return result.intern();
+	}
+	
+	@Override
+	public String getCanonicalRep() {
+		return canonicalRep;
 	}
 }
