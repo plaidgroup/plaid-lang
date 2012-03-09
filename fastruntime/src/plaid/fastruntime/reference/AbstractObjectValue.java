@@ -231,5 +231,20 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	public abstract ListValue addValue(SingleValue other);
 	
 	public abstract AbstractObjectValue add(MemberValue mv);
+	
+	@Override
+	public boolean equals(Object other) {
+		if (other instanceof AbstractObjectValue) {
+			return this.getCanonicalRep() == ((AbstractObjectValue)other).getCanonicalRep(); // == okay because canonical
+		} else {
+			return false;
+		}
+		
+	}
+	
+	@Override
+	public int hashCode() {
+		return this.getCanonicalRep().hashCode();
+	}
 
 }
