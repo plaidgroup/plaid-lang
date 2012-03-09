@@ -3,7 +3,6 @@ package plaid.fastruntime.reference;
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.Equal;
 import fj.F;
 import fj.F2;
 import fj.Ord;
