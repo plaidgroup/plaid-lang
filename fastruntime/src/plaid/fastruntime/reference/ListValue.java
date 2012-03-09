@@ -82,26 +82,6 @@ public final class ListValue extends AbstractObjectValue {
 		}
 		return tags;
 	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if(obj instanceof ListValue) {
-			ListValue otherLV = ((ListValue)obj);
-			if(singleValues.length() == otherLV.singleValues.length()) {
-				boolean isEqual = true;
-				for(SingleValue sv : singleValues) {
-					Equal<SingleValue> equal = Equal.anyEqual();
-					F<SingleValue, Boolean> eqSV = equal.eq(sv);
-					isEqual = otherLV.singleValues.exists(eqSV);
-				}
-				return isEqual;
-			} else { //unequal length lists
-				return false;
-			}
-		} else {
-			return false;
-		}
-	}
 
 	@Override
 	public Set<String> getOuterTags() {

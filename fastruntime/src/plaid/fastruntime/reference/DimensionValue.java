@@ -57,20 +57,6 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	public boolean equals(Object obj) {
-		if(obj instanceof DimensionValue) {
-			DimensionValue dv = (DimensionValue)obj;
-			return (tag.equals(dv.tag) && 
-					((innerValue == null && dv.innerValue == null) || 
-							(innerValue != null && innerValue.equals(dv.innerValue))) &&
-					((parent == null && dv.parent == null) || 
-							(parent != null && parent.equals(dv.parent))));
-		} else {
-			return false;
-		}
-	}
-
-	@Override
 	public Set<String> getOuterTags() {
 		Set<String> tagSet = Set.single(Ord.stringOrd, tag);
 		if(parent != null) {
