@@ -14,6 +14,14 @@ import fj.data.Set;
 
 public abstract class AbstractObjectValue implements ObjectValue {
 
+	public abstract String getCanonicalRep();
+	
+	/**
+	 * @see java.lang.String#intern String interning.
+	 * @return Value is a canonical instance. The returned String instance should be the result of a call to String.intern() method.
+	 */
+	protected abstract String constructCanonicalRep();
+
 	@Override
 	public final AbstractObjectValue changeState(ObjectValue other) {
 		if(other instanceof ListValue) { 

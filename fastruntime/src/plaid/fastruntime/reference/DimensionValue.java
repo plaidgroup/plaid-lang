@@ -16,6 +16,7 @@ public final class DimensionValue extends SingleValue {
 	private final String tag;
 	private final AbstractObjectValue innerValue;
 	private final DimensionValue parent;
+	private final String canonicalRep;
 	
 	public DimensionValue(String tag, AbstractObjectValue innerValue,
 			DimensionValue parent) {
@@ -23,6 +24,7 @@ public final class DimensionValue extends SingleValue {
 		this.tag = tag;
 		this.parent = parent;
 		this.innerValue = innerValue;
+		this.canonicalRep = this.constructCanonicalRep();
 	}
 
 	public String getTag() {
@@ -156,5 +158,16 @@ public final class DimensionValue extends SingleValue {
 			newInnerValue = this.innerValue.add(mv);
 		}
 		return new DimensionValue(this.tag, newInnerValue, parent);
+	}
+
+	@Override
+	public String getCanonicalRep() {
+		return this.canonicalRep;
+	}
+
+	@Override
+	protected String constructCanonicalRep() {
+		String result = "TAG[" + this.tag + "]{" + this.innerValue.getCanonicalRep() + "} <: " + this.parent.getCanonicalRep();
+		return result.intern();
 	}
 }

@@ -49,4 +49,14 @@ public final class EmptySingleValue extends SingleValue {
 		return mv;
 	}
 
+	@Override
+	public String getCanonicalRep() {
+		return "";
+	}
+
+	@Override
+	protected String constructCanonicalRep() {
+		return "";
+	}
+
 }
