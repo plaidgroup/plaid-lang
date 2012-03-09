@@ -193,13 +193,25 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	
 	@Override
 	public ObjectValue specialize(ObjectValue newMembers) {
-		if (newMembers instanceof ListValue)  {
-			return this;
-		} else if (newMembers instanceof MemberValue) {
-			return this;
+		AbstractObjectValue currentValue = this;
+		if (newMembers instanceof ListValue) {
+			for (SingleValue sv : ((ListValue) newMembers).getAll()) {
+				if (sv instanceof DimensionValue) {
+					throw new plaid.fastruntime.errors.PlaidInternalException("Cannot specialize with DimensionValue.");
+				} else {
+					MemberValue mv = (MemberValue)sv;
+					currentValue = (AbstractObjectValue)currentValue.remove(mv.getName());
+					currentValue = currentValue.add(mv);
+				}
+			}
+		} else if(newMembers instanceof MemberValue) {
+			MemberValue mv = (MemberValue)newMembers;
+			currentValue = (AbstractObjectValue)currentValue.remove(mv.getName());
+			currentValue = currentValue.add(mv);
 		} else {
-			throw new PlaidInternalException("");
+			throw new PlaidInternalException("Cannot specialize with anything exception ListValue or MemberValue");
 		}
+		return currentValue;
 	}
 	
 	public abstract Set<String> getTags();
@@ -209,5 +221,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	public abstract Set<String> getInnerTags();
 	
 	public abstract ListValue addValue(SingleValue other);
+	
+	public abstract AbstractObjectValue add(MemberValue mv);
 
 }

@@ -7,8 +7,8 @@ import fj.Ord;
 import fj.data.List;
 import fj.data.Set;
 
-public class EmptySingleValue extends SingleValue {
-
+public final class EmptySingleValue extends SingleValue {
+	
 	@Override
 	public List<MethodInfo> getMethods() {
 		return List.nil();
@@ -42,6 +42,11 @@ public class EmptySingleValue extends SingleValue {
 	@Override
 	public ObjectValue rename(String currentName, String newName) {
 		return this;
+	}
+
+	@Override
+	public AbstractObjectValue add(MemberValue mv) {
+		return mv;
 	}
 
 }

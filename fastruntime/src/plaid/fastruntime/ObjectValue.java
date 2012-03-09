@@ -25,4 +25,5 @@ public interface ObjectValue {
 	public ObjectValue remove(String member);
 	
 	public ObjectValue rename(String currentName, String newName);
+
 }
