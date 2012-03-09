@@ -137,15 +137,27 @@ public final class DimensionValue extends SingleValue {
 
 	@Override
 	public ObjectValue remove(String member) {
-		DimensionValue newParent = (DimensionValue)this.parent.remove(member);
-		AbstractObjectValue newInnerValue = (AbstractObjectValue)this.innerValue.remove(member);
+		DimensionValue newParent = null;
+		if (this.parent!=null) {
+			newParent = (DimensionValue)this.parent.remove(member);
+		}
+		AbstractObjectValue newInnerValue = null;
+		if (this.innerValue!=null) {
+			newInnerValue = (AbstractObjectValue)this.innerValue.remove(member);
+		}
 		return new DimensionValue(this.tag, newInnerValue, newParent);
 	}
 
 	@Override
 	public ObjectValue rename(String currentName, String newName) {
-		DimensionValue newParent = (DimensionValue)this.parent.rename(currentName, newName);
-		AbstractObjectValue newInnerValue = (AbstractObjectValue)this.innerValue.rename(currentName,newName);
+		DimensionValue newParent = null;
+		if (this.parent!=null) {
+			newParent = (DimensionValue)this.parent.rename(currentName, newName);
+		}
+		AbstractObjectValue newInnerValue = null;
+		if (this.innerValue!=null) {
+			newInnerValue = (AbstractObjectValue)this.innerValue.rename(currentName,newName);
+		}
 		return new DimensionValue(this.tag, newInnerValue, newParent);
 	}
 
