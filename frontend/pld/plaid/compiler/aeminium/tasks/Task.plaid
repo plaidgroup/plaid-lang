@@ -14,6 +14,8 @@ state Task {
     val unique Set infos/*<DependencyInformation>*/ = java.util.HashSet.new();
     var unique Option weightOpt = new None;
     val shared Resolver resolver;
+    val immutable Boolean cheapCalls = COMPILER_CONFIGURATION().getBooleanProperty("plaid.compiler.aeminium.tasks.Task.cheapCalls", true);
+
 
     method immutable Boolean ==(shared Task other) {
         this.id == other.id
@@ -25,6 +27,11 @@ state Task {
 
     method immutable String getID() {
         "" + id;
+    }
+    
+    method void addInfos(shared Set infos) {
+        this.infos.addAll(infos);
+        this.weightOpt = new None;
     }
     
     method void reset() {
@@ -42,25 +49,6 @@ state Task {
             case True  { true }
             case False {
                 var result = false;
-                
-                // check for builtin types  
-                val cheapObjects = makeLinkedList();
-                cheapObjects.add("plaid.lang.Integer");
-                cheapObjects.add("plaid.lang.String");
-                cheapObjects.add("plaid.lang.Boolean");
-                cheapObjects.add("plaid.lang.Float64");
-                cheapObjects.do( fn (stateName) => {
-                    val symOpt = this.resolver.lookup(stateName);
-                    match ( symOpt ) {
-                        case Some {
-                            if (struct.symbol == symOpt.value ) {
-                                cheapMethodCacheAdd(fqn);
-                                result = true;
-                            }
-                        }
-                        case None {}
-                    };
-                });
                 
                 // check for annotations 
                 val immutable Option methodSymbolOpt = struct.symbol.getMember(name);
@@ -97,21 +85,25 @@ state Task {
                          case ASTInformation {
                              match (nextInfo.node) {
                                 case ParsedMethodCall  {
-                                    val receiverStructure = match ( structureForAST(nextInfo.node.receiver) ) {
-                                        case Some { structureForAST(nextInfo.node.receiver).value } 
-                                        case None { ABORT("<Task> Cannot find structure for receiver") }
-                                    };
-                                    match (receiverStructure) {
-                                        case NominalStructure {
-                                            ifElse ( cheapMethod(receiverStructure, nextInfo.node.methodId.name) ) {
-                                                0
-                                            }{
-                                                10
-                                            } 
-                                        }
-                                        default { 10 }
+                                    ifElse ( this.cheapCalls ) {
+                                        val receiverStructure = match ( structureForAST(nextInfo.node.receiver) ) {
+                                            case Some { structureForAST(nextInfo.node.receiver).value } 
+                                            case None { ABORT("<Task> Cannot find structure for receiver") }
+                                        };
+                                        match (receiverStructure) {
+                                            case NominalStructure {
+                                                ifElse ( cheapMethod(receiverStructure, nextInfo.node.methodId.name) ) {
+                                                    0
+                                                }{
+                                                    10
+                                                } 
+                                            }
+                                            default { 10 }
+                                        };
+                                    }{
+                                        10
                                     }
-                                }
+                                }                                
                                 case ParsedVarDecl     {  0 }
                                 case ParsedIdentifier  {  0 }
                                 case ParsedArg         {  0 }
@@ -151,7 +143,7 @@ state Task {
             sb.append(it.next().getID() + ",");
         };
         
-        if ( sb.length() > 1 ) {
+        if ( this.infos.size() >= 1 ) {
             sb.deleteCharAt(sb.length() - 1);
         };
         
