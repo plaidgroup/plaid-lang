@@ -51,5 +51,10 @@ public abstract class MemberValue extends SingleValue implements MemberInfo{
 			return this;
 		}
 	}
+	
+	@Override
+	public AbstractObjectValue add(MemberValue mv) {
+		return new ListValue(this, mv);
+	}
 
 }

@@ -27,6 +27,10 @@ public final class ListValue extends AbstractObjectValue {
 		this.singleValues = singleValues;
 	}
 	
+	public List<SingleValue> getAll() {
+		return singleValues;
+	}
+	
 	public SingleValue getFirst() {
 		return singleValues.head();
 	}
@@ -49,6 +53,11 @@ public final class ListValue extends AbstractObjectValue {
 	@Override
 	public ListValue addValue(SingleValue other) {
 		return new ListValue(singleValues.cons(other));
+	}
+	
+	@Override
+	public AbstractObjectValue add(MemberValue other) {
+		return this.addValue(other);
 	}
 	
 	public ListValue addListValue(ListValue other) {
