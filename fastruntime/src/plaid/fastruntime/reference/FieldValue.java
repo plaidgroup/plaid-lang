@@ -2,24 +2,18 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.ObjectValue;
 import fj.data.List;
 
 public final class FieldValue extends MemberValue implements FieldInfo {
 
 	private final boolean settable;
+	private final String canonicalRep;
 	
 	public FieldValue(boolean settable, String name, String classInternalName) {
 		super(name, classInternalName);
 		this.settable = settable;
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if(obj instanceof FieldValue) {
-			return this.getName().equals(((FieldValue)obj).getName());
-		} else {
-			return false;
-		}
+		canonicalRep = this.constructCanonicalRep();
 	}
 	
 	@Override
@@ -44,5 +38,26 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 
 	public boolean isSettable() {
 		return settable;
+	}
+	
+	@Override
+	public ObjectValue rename(String currentName, String newName) {
+		if(this.getName().equals(currentName)) {
+			return new FieldValue(this.settable, newName, this.getStaticClassInternalName());
+		} else {
+			return this;
+		}
+	}
+
+	@Override
+	protected String constructCanonicalRep() {
+		String settableString = settable ? "t" : "f";
+		String result =  "field:" + settableString + this.getName()+ this.getStaticClassInternalName();
+		return result.intern();
+	}
+	
+	@Override
+	public String getCanonicalRep() {
+		return canonicalRep;
 	}
 }

@@ -2,9 +2,11 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
-import fj.Equal;
+import plaid.fastruntime.ObjectValue;
 import fj.F;
+import fj.F2;
 import fj.Ord;
+import fj.Ordering;
 import fj.Show;
 import fj.data.List;
 import fj.data.Set;
@@ -17,13 +19,19 @@ import fj.data.Set;
 public final class ListValue extends AbstractObjectValue {
 
 	private List<SingleValue> singleValues;
+	private final String canonicalRep;
 	
 	public ListValue(SingleValue... singleValues) {
-		this.singleValues = List.list(singleValues);
+		this(List.list(singleValues));
 	}
 	
 	private ListValue(List<SingleValue> singleValues) {
 		this.singleValues = singleValues;
+		this.canonicalRep = this.constructCanonicalRep();
+	}
+	
+	public List<SingleValue> getAll() {
+		return singleValues;
 	}
 	
 	public SingleValue getFirst() {
@@ -50,6 +58,11 @@ public final class ListValue extends AbstractObjectValue {
 		return new ListValue(singleValues.cons(other));
 	}
 	
+	@Override
+	public AbstractObjectValue add(MemberValue other) {
+		return this.addValue(other);
+	}
+	
 	public ListValue addListValue(ListValue other) {
 		return new ListValue(this.singleValues.append(other.singleValues));
 	}
@@ -67,26 +80,6 @@ public final class ListValue extends AbstractObjectValue {
 			tags = tags.union(sv.getTags());
 		}
 		return tags;
-	}
-	
-	@Override
-	public boolean equals(Object obj) {
-		if(obj instanceof ListValue) {
-			ListValue otherLV = ((ListValue)obj);
-			if(singleValues.length() == otherLV.singleValues.length()) {
-				boolean isEqual = true;
-				for(SingleValue sv : singleValues) {
-					Equal<SingleValue> equal = Equal.anyEqual();
-					F<SingleValue, Boolean> eqSV = equal.eq(sv);
-					isEqual = otherLV.singleValues.exists(eqSV);
-				}
-				return isEqual;
-			} else { //unequal length lists
-				return false;
-			}
-		} else {
-			return false;
-		}
 	}
 
 	@Override
@@ -130,6 +123,69 @@ public final class ListValue extends AbstractObjectValue {
 			currentList = currentList.append((sv.getFields()));
 		}
 		return currentList;
+	}
+
+	@Override
+	public ObjectValue remove(String member) {
+		List<SingleValue> toReturn = List.nil();
+		for(SingleValue sv : singleValues) {
+			if(sv instanceof MemberValue && !((MemberValue) sv).getName().equals(member)) {
+				toReturn = toReturn.cons(sv);
+			}
+		}
+		if (toReturn.length() > 1) {
+			return new ListValue(toReturn);
+		} else if (toReturn.length() == 1) {
+			return toReturn.index(0);
+		} else {
+			throw new plaid.fastruntime.errors.PlaidInternalException("Trying to revove an object from ListValue with only one object.");
+		}
+	}
+
+	@Override
+	public ObjectValue rename(final String currentName, final String newName) {
+		F<SingleValue,SingleValue> callRename = new F<SingleValue,SingleValue>() {
+			public SingleValue f(SingleValue a) {
+				return (SingleValue)a.rename(currentName,newName);
+			}
+		};
+		List<SingleValue> newSingleValues = singleValues.map(callRename);
+		return new ListValue(newSingleValues);
+	}
+
+	private final static Ord<SingleValue> svOrd;
+	static {
+		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
+			@Override
+			public F<SingleValue, Ordering> f(SingleValue a) {
+				final String thisRep = a.getCanonicalRep();
+				return new F<SingleValue, Ordering>() {
+					public Ordering f(SingleValue other) {
+						return Ord.stringOrd.compare(thisRep, other.getCanonicalRep());
+					}
+				};
+			}
+		};
+		
+		svOrd = Ord.ord(orderSingleValues);
+	}
+	
+	private final static F2<String, SingleValue, String> combineCanonicalStrings = new F2<String, SingleValue, String>() {
+		public String f(String a, SingleValue b) {
+			return a + ";" + b.getCanonicalRep();
+		}
+	};
+	
+	@Override
+	protected String constructCanonicalRep() {
+		List<SingleValue> sortedSingleValues = this.singleValues.sort(svOrd);
+		String result = sortedSingleValues.foldLeft(combineCanonicalStrings, "");
+		return result.intern();
+	}
+
+	@Override
+	public String getCanonicalRep() {
+		return this.canonicalRep;
 	}
 
 	

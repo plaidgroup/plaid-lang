@@ -72,20 +72,20 @@ public abstract class AbstractPlaidState implements PlaidState {
 	
 	@Override
 	public PlaidState remove(String member) {
-		// TODO Auto-generated method stub
-		return null;
+		ObjectValue newOV = this.getObjectValue().remove(member);
+		return Util.DISPATCH_GEN.createStateInstance(newOV);
 	}
 
 	@Override
 	public PlaidState rename(String from, String to) {
-		// TODO Auto-generated method stub
-		return null;
+		ObjectValue newOV = this.getObjectValue().rename(from, to);
+		return Util.DISPATCH_GEN.createStateInstance(newOV);
 	}
 
 	@Override
 	public PlaidState specialize(PlaidState other) {
-		// TODO Auto-generated method stub
-		return null;
+		ObjectValue newOV = this.getObjectValue().specialize(other.getObjectValue());
+		return Util.DISPATCH_GEN.createStateInstance(newOV);
 	}
 
 }

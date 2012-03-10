@@ -13,6 +13,13 @@ import fj.data.List;
 import fj.data.Set;
 
 public abstract class AbstractObjectValue implements ObjectValue {
+	
+	/**
+	 * @see java.lang.String#intern String interning.
+	 * @return Value is a canonical instance. The returned String instance should be the result 
+	 * of a call to String.intern() method.
+	 */
+	protected abstract String constructCanonicalRep();
 
 	@Override
 	public final AbstractObjectValue changeState(ObjectValue other) {
@@ -191,6 +198,29 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		}
 	}
 	
+	@Override
+	public ObjectValue specialize(ObjectValue newMembers) {
+		AbstractObjectValue currentValue = this;
+		if (newMembers instanceof ListValue) {
+			for (SingleValue sv : ((ListValue) newMembers).getAll()) {
+				if (sv instanceof DimensionValue) {
+					throw new plaid.fastruntime.errors.PlaidInternalException("Cannot specialize with DimensionValue.");
+				} else {
+					MemberValue mv = (MemberValue)sv;
+					currentValue = (AbstractObjectValue)currentValue.remove(mv.getName());
+					currentValue = currentValue.add(mv);
+				}
+			}
+		} else if(newMembers instanceof MemberValue) {
+			MemberValue mv = (MemberValue)newMembers;
+			currentValue = (AbstractObjectValue)currentValue.remove(mv.getName());
+			currentValue = currentValue.add(mv);
+		} else {
+			throw new PlaidInternalException("Cannot specialize with anything exception ListValue or MemberValue");
+		}
+		return currentValue;
+	}
+	
 	public abstract Set<String> getTags();
 	
 	public abstract Set<String> getOuterTags();
@@ -198,5 +228,22 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	public abstract Set<String> getInnerTags();
 	
 	public abstract ListValue addValue(SingleValue other);
+	
+	public abstract AbstractObjectValue add(MemberValue mv);
+	
+	@Override
+	public boolean equals(Object other) {
+		if (other instanceof AbstractObjectValue) {
+			return this.getCanonicalRep() == ((AbstractObjectValue)other).getCanonicalRep(); // == okay because canonical
+		} else {
+			return false;
+		}
+		
+	}
+	
+	@Override
+	public int hashCode() {
+		return this.getCanonicalRep().hashCode();
+	}
 
 }

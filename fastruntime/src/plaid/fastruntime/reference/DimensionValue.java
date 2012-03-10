@@ -2,6 +2,7 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.ObjectValue;
 import fj.Ord;
 import fj.data.List;
 import fj.data.Set;
@@ -15,6 +16,7 @@ public final class DimensionValue extends SingleValue {
 	private final String tag;
 	private final AbstractObjectValue innerValue;
 	private final DimensionValue parent;
+	private final String canonicalRep;
 	
 	public DimensionValue(String tag, AbstractObjectValue innerValue,
 			DimensionValue parent) {
@@ -22,6 +24,7 @@ public final class DimensionValue extends SingleValue {
 		this.tag = tag;
 		this.parent = parent;
 		this.innerValue = innerValue;
+		this.canonicalRep = this.constructCanonicalRep();
 	}
 
 	public String getTag() {
@@ -53,20 +56,6 @@ public final class DimensionValue extends SingleValue {
 		return new DimensionValue(this.tag, this.innerValue, null);
 	}
 	
-	@Override
-	public boolean equals(Object obj) {
-		if(obj instanceof DimensionValue) {
-			DimensionValue dv = (DimensionValue)obj;
-			return (tag.equals(dv.tag) && 
-					((innerValue == null && dv.innerValue == null) || 
-							(innerValue != null && innerValue.equals(dv.innerValue))) &&
-					((parent == null && dv.parent == null) || 
-							(parent != null && parent.equals(dv.parent))));
-		} else {
-			return false;
-		}
-	}
-
 	@Override
 	public Set<String> getOuterTags() {
 		Set<String> tagSet = Set.single(Ord.stringOrd, tag);
@@ -130,5 +119,67 @@ public final class DimensionValue extends SingleValue {
 			fi = fi.append(parent.getFields());
 		}
 		return fi;
+	}
+
+	@Override
+	public ObjectValue remove(String member) {
+		DimensionValue newParent = null;
+		if (this.parent!=null) {
+			newParent = (DimensionValue)this.parent.remove(member);
+		}
+		AbstractObjectValue newInnerValue = null;
+		if (this.innerValue!=null) {
+			newInnerValue = (AbstractObjectValue)this.innerValue.remove(member);
+		}
+		return new DimensionValue(this.tag, newInnerValue, newParent);
+	}
+
+	@Override
+	public ObjectValue rename(String currentName, String newName) {
+		DimensionValue newParent = null;
+		if (this.parent!=null) {
+			newParent = (DimensionValue)this.parent.rename(currentName, newName);
+		}
+		AbstractObjectValue newInnerValue = null;
+		if (this.innerValue!=null) {
+			newInnerValue = (AbstractObjectValue)this.innerValue.rename(currentName,newName);
+		}
+		return new DimensionValue(this.tag, newInnerValue, newParent);
+	}
+
+	@Override
+	public AbstractObjectValue add(MemberValue mv) {
+		AbstractObjectValue newInnerValue;
+		if (innerValue == null) {
+			return new DimensionValue(this.tag, mv, parent);
+		} else if (innerValue instanceof DimensionValue) {
+			newInnerValue = new ListValue((DimensionValue)innerValue, mv);
+		} else {
+			newInnerValue = this.innerValue.add(mv);
+		}
+		return new DimensionValue(this.tag, newInnerValue, parent);
+	}
+
+	@Override
+	public String getCanonicalRep() {
+		return this.canonicalRep;
+	}
+
+	@Override
+	protected String constructCanonicalRep() {
+		final String innerValueRep;
+		if (this.innerValue != null) {
+			innerValueRep = innerValue.getCanonicalRep();
+		} else {
+			innerValueRep = "";
+		}
+		final String parentRep;
+		if (this.parent != null) {
+			parentRep = "<:" + parent.getCanonicalRep();
+		} else {
+			parentRep = "";
+		}
+		String result = "TAG[" + this.tag + "]{" + innerValueRep + "}"+parentRep;
+		return result.intern();
 	}
 }
