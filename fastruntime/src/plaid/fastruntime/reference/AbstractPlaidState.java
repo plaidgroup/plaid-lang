@@ -4,6 +4,7 @@ import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
+import plaid.fastruntime.errors.PlaidIllegalOperationException;
 
 public abstract class AbstractPlaidState implements PlaidState {
 
@@ -86,6 +87,18 @@ public abstract class AbstractPlaidState implements PlaidState {
 	public PlaidState specialize(PlaidState other) {
 		ObjectValue newOV = this.getObjectValue().specialize(other.getObjectValue());
 		return Util.DISPATCH_GEN.createStateInstance(newOV);
+	}
+	
+	@Override
+	public PlaidState getDispatch() {
+		throw new PlaidIllegalOperationException("Tried to access dispatch object of Plaid State." +
+				"Probably to call a method or access a field. States do not have methods or fields.");
+	}
+	
+	@Override
+	public void changeState(PlaidState s) {
+		throw new PlaidIllegalOperationException("Tried to change state on PlaidState." +
+				"States cannot change .");
 	}
 
 }
