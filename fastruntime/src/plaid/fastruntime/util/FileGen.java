@@ -91,13 +91,13 @@ public class FileGen {
 
 
 	/**
-	 * @param qid in directory format, e.g.  java.lang.System should be java/lang/System
+	 * @param packageDir in directory format, e.g.  java.lang.System should be java/lang
 	 */
-	public static File createOutputFile(String name, String outputDirectory, String code, String qid) {
+	public static File createOutputFile(String name, String outputDirectory, String code, String packageDir) {
 		String directory, file;
 
 		try {
-			directory = outputDirectory + System.getProperty("file.separator")+ qid;
+			directory = outputDirectory + System.getProperty("file.separator")+ packageDir;
 			file = name + ".java";
 			File outputDir = new File(directory);
 			outputDir.mkdirs();
