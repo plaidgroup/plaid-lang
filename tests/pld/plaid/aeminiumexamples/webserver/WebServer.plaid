@@ -1,0 +1,144 @@
+package plaid.aeminiumexamples.webserver;
+
+import java.io.File;
+import java.lang.System;
+import java.nio.CharBuffer;
+import java.io.BufferedReader;
+import java.io.FileReader;
+
+state WebServer {
+	
+	
+	method immutable String getRoot() [immutable WebServer this] {
+    	"/Users/jssunshi/Dev/sandbox/samplewebsite/"
+	}
+	
+	method void run() [immutable WebServer this]  {
+		val unique PlaidServerSocket ss = new PlaidServerSocket;
+		
+		this.acceptLoop(ss);
+	}
+	
+	method void acceptLoop(unique PlaidServerSocket serverSocket) [immutable WebServer this]  {
+		val unique Socket client = serverSocket.accept();
+		this.serveClient(client);
+		this.acceptLoop(serverSocket);
+	}
+	
+	@sequential
+	method immutable Boolean fileExists(immutable String path)  [immutable WebServer this]  {
+		val file = File.new(this.getRoot() + path);
+		
+		file.exists() && file.isFile() && file.canRead()
+	}
+	
+	@sequential
+	@cheap
+	method void LOG(immutable String msg)  [immutable WebServer this]  {
+		System.out.println("LOG: " + msg);
+	}
+
+	method void serveClient(unique Socket >> void client)  [immutable WebServer this]  {
+		
+		// get request string 
+		val immutable String request = client.readLine();
+		this.LOG("serve request '" + request + "'");
+	
+	    val immutable Boolean isGet = request.toLowerCase().startsWith("get ");
+		match ( isGet ) {
+			 case True {
+				  // compute path
+				  val immutable Integer requestLength = request.length();
+				  val immutable String reqSuffix = request.substring(4, requestLength);
+				  val immutable Integer index = reqSuffix.indexOf(" ");
+				  val immutable Boolean possitiveIndex = index >= 0;
+				  match ( possitiveIndex ) {
+					  case True { 
+						  val immutable String path = reqSuffix.substring(0, index);
+						  this.transferFile(client, path);
+					  }
+					  case False {
+						  this.transferFile(client, reqSuffix);
+					  }
+				  } 
+			 }
+			 case False { } 
+		};
+		
+		client.close();
+	}
+
+	@sequential
+	method void transferData(unique Socket client, immutable String path)  [immutable WebServer this]  {
+	    val immutable Boolean fileExists = this.fileExists(path);
+		match ( fileExists ) {
+			case True {
+				val file = File.new(this.getRoot() + path );
+				this.LOG("transfer file '" + file.getAbsolutePath() +"'");
+			   
+				val cb     = CharBuffer.allocate(file.length());
+				val reader = BufferedReader.new(FileReader.new(file));
+				val count  = reader.read(cb);
+				client.writer.write(cb.array());
+			}
+			case False {
+				client.writeLine("<html><body><h1>404 File not found</h1></body></html>");
+			}
+		}
+	}
+
+	method void transferFile(unique Socket client, immutable String path)  [immutable WebServer this]  {
+	    val immutable Boolean isIndex = path == "/";
+		match ( isIndex ) {
+			case True {
+				this.transferHeader(client, "index.html");
+				this.transferData(client, "index.html");        
+			}
+			case False {
+				this.transferHeader(client, path);
+				this.transferData(client, path);
+			}
+		};
+		client.flush();
+	}
+
+	method void transferHeader(unique Socket client, immutable String path)  [immutable WebServer this]  {
+	    val immutable Boolean fileExists = this.fileExists(path);
+		match ( fileExists ) {
+			case True {
+				client.writeLine("HTTP/1.1 200 Script output follows");
+				
+				// HTML 
+				val immutable Boolean isHTML = path.endsWith(".html");
+				match ( isHTML ) {
+					case True  { client.writeLine("Content-Type: text/html; charset=UTF-8"); }
+					case False {}
+				};
+				
+				// CSS 
+				val immutable Boolean isCSS = path.endsWith(".css");
+				match ( isCSS ) {
+					case True  { client.writeLine("Content-Type: text/css; charset=UTF-8"); }
+					case False {}
+				};
+				
+				// Java Script
+			    val immutable Boolean isJS = path.endsWith(".js");
+				match ( isJS ) {
+					case True  { client.writeLine("Content-Type: text/javascript; charset=UTF-8"); }
+					case False {}
+				};
+				
+				// close connection
+				client.writeLine("Connection: close");
+				
+				// separator to content
+				client.writeLine("");
+			}
+			case False {            
+				client.writeLine("HTTP/1.1 404 File not found");
+				client.writeLine("");
+			}
+	   }
+	}
+}
