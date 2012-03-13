@@ -2,16 +2,17 @@ package plaid.compiler.aeminium;
 
 import plaid.ast.parsed.*;
 import plaid.compiler.*;
+import plaid.compiler.codegen.codegenMethodBody;
+import plaid.compiler.codegen.makeSeperatedString;
 
-state AEminiumCodeGen case of ParsedLeafVisitor {
-    val shared Map astToTaskMap;
+import plaid.fastruntime.NamingConventions;
 
-    method shared Task getTaskForAST(immutable ASTNode node) {
-        ifElse (this.astToTaskMap.contains(node)) {
-            this.astToTaskMap.get(node)
-        }{
-            ABORT("<AEminium CodeGen> Cannot find task for " + node.toString());
-        }
+state AEminiumMethodCodeGen case of ParsedLeafVisitor {
+    val unique StringBuilder sb = java.lang.StringBuilder.new();
+    val shared MethodInformationObject methodInfoObj;
+
+    method immutable String getMethodString() {
+        sb.toString();
     }
 
     override method void LOG(immutable String msg) {
@@ -33,7 +34,35 @@ state AEminiumCodeGen case of ParsedLeafVisitor {
 	override method void visitParsedCast(immutable ParsedCast node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
 	override method void visitParsedCompilationUnit(immutable ParsedCompilationUnit node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
 	override method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
-	override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
+	
+	override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node){ 
+        val methodName = NamingConventions.getGeneratedIdentifier(node.name.name);
+        this.sb.append("public static plaid.fastruntime.PlaidObject " + methodName + AEMINIUM_CODEGEN_SUFFIX + "(");
+        
+        this.sb.append("final plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_THIS);
+        if(node.arguments.size() > 0) {
+            sb.append(",");
+            val argsList = node.arguments.map(fn(arg1) => {" final plaid.fastruntime.PlaidObject " + arg1.name.name});
+            sb.append(makeSeperatedString(argsList,","));
+        };
+        
+        sb.append(") {\n");
+        
+        //method body
+        var sequentialCode = false;
+        val methodSymbol = match ( symbolForAST(node) ) {
+            case Some { symbolForAST(node).value }
+            case None { ERROR("<CodeGen> Cannot find symbol for.") }
+        };
+        
+        match ( sequentialCode ) {
+            case True { codegenMethodBody(node.body, sb, idgen, classNameCounter) }
+            case False { /* TBD */ }
+        };
+        
+        this.sb.append("}\n"); // end invoke method
+	}
+	
 	override method void visitParsedConcreteStateDecl(immutable ParsedConcreteStateDecl node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
 	override method void visitParsedConcreteStateValDecl(immutable ParsedConcreteStateValDecl node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
 	override method void visitParsedConcreteType(immutable ParsedConcreteType node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
