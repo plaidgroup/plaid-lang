@@ -6,6 +6,7 @@ import java.lang.System;
 import plaid.ast.parsed.*;
 
 import plaid.compiler.COMPILER_CONFIGURATION;
+import plaid.compiler.AEMINIUM_MODE;
 import plaid.compiler.DEBUG;
 import plaid.compiler.DEBUG_PRIO_LOW;
 import plaid.compiler.DEBUG_PRIO_MEDIUM;
@@ -13,6 +14,8 @@ import plaid.compiler.DEBUG_PRIO_HIGH;
 import plaid.compiler.symbolForAST;
 
 import plaid.compiler.symbol.*;
+
+import plaid.compiler.aeminium.*;
 
 import plaid.collections.LinkedList;
 import plaid.collections.makeLinkedList;
@@ -173,6 +176,10 @@ method codegenTopLevelDecl(immutable ParsedDecl node, immutable String packageNa
 							case ParsedConcreteMethodDecl {
 								sbStateInitializer.append(ovfId + ".mthd(\"" + innerDecl.name.name + "\"," 
 									+ innerDecl.arguments.size() + ",\"" + fullyQualifiedClassName + "\");\n");
+								if ( AEMINIUM_MODE() ) {
+                                    sbStateInitializer.append(ovfId + ".mthd(\"" + innerDecl.name.name + AEMINIUM_CODEGEN_SUFFIX + "\"," 
+                                        + innerDecl.arguments.size() + ",\"" + fullyQualifiedClassName + "\");\n");
+								};
 							}
 							case ParsedConcreteFieldDecl {
 								var settable = "";
@@ -261,6 +268,13 @@ method codegenInnerDecl(immutable ParsedDecl node,  shared StringBuilder sb, sha
 			codegenMethodBody(node.body, sb, idgen, classNameCounter);
 			
 			sb.append("}\n"); // end invoke method
+			
+			if ( AEMINIUM_MODE() ) {
+			    // append AEminium method
+                val aeminiumCodeGen = makeAEminiumMethodCodeGen(idgen, classNameCounter);
+                node.accept(aeminiumCodeGen);
+                sb.append(aeminiumCodeGen.getMethodString());			    
+			};
 		}
 		case ParsedConcreteFieldDecl {
 			// generate static field to contain initialization code for fields.

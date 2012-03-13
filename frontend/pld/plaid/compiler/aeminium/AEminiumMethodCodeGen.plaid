@@ -10,13 +10,15 @@ import plaid.fastruntime.NamingConventions;
 state AEminiumMethodCodeGen case of ParsedLeafVisitor {
     val unique StringBuilder sb = java.lang.StringBuilder.new();
     val shared MethodInformationObject methodInfoObj;
+    val shared IdGen idgen;
+    val classNameCounter;
 
     method immutable String getMethodString() {
         sb.toString();
     }
 
     override method void LOG(immutable String msg) {
-        DEBUG(DEBUG_PRIO_LOW, "<AEminium CodeGen> " + msg);
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumMethodCodeGen> " + msg);
 	}
 	
 	override method void visitParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
@@ -35,7 +37,8 @@ state AEminiumMethodCodeGen case of ParsedLeafVisitor {
 	override method void visitParsedCompilationUnit(immutable ParsedCompilationUnit node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
 	override method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node){ ABORT("<AEminium CodeGen> does not support AST node " + node.nodeName() ) }
 	
-	override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node){ 
+	override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+	    LOG("visit ParsedConecreteMethodDecl " + node.name.name); 
         val methodName = NamingConventions.getGeneratedIdentifier(node.name.name);
         this.sb.append("public static plaid.fastruntime.PlaidObject " + methodName + AEMINIUM_CODEGEN_SUFFIX + "(");
         
@@ -54,9 +57,14 @@ state AEminiumMethodCodeGen case of ParsedLeafVisitor {
             case Some { symbolForAST(node).value }
             case None { ERROR("<CodeGen> Cannot find symbol for.") }
         };
+        methodSymbol.getAnnotations().do( fn (anno) => {
+            if ( anno.name.name == "sequential" ) {
+                sequentialCode = true;
+            };
+        });
         
         match ( sequentialCode ) {
-            case True { codegenMethodBody(node.body, sb, idgen, classNameCounter) }
+            case True { codegenMethodBody(node.body, this.sb, idgen, classNameCounter) }
             case False { /* TBD */ }
         };
         
