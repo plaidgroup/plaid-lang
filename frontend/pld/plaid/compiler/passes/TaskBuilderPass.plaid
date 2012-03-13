@@ -1146,7 +1146,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
             
             DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> simplify match " + matchLeave.toString());
             
-            val unique Set/*<CaseTaskGraph>*/ caseTaskGraphs = java.util.HashSet.new();
+            val unique Set/*<CaseInformationObject>*/ caseInformationObjects = java.util.HashSet.new();
             var immutable Integer totalCaseWeight = 0;
             
             val caseIt = matchLeave.deps.iterator();
@@ -1170,7 +1170,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 // collect sub-graph nodes for case 
                 var caseTasks = findCaseTasks(curCase, matchEnter);                    
                 
-                val unique CaseTaskGraph ctg = makeCaseTaskGraph();
+                val unique CaseInformationObject cio = makeCaseInformationObject();
 
                 val caseTasksIt = caseTasks.iterator();
                 while { caseTasksIt.hasNext() }{
@@ -1181,26 +1181,26 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                     
                     if ( curTask.deps.contains(matchEnter) ) {
                         curTask.deps.remove(matchEnter);
-                        ctg.infosDependingOnMatchEnter.addAll(curTask.infos);
+                        cio.infosDependingOnMatchEnter.addAll(curTask.infos);
                     };
 
                     if ( curTask.rdeps.contains(matchLeave) ) {
                         curTask.rdeps.remove(matchLeave);
-                        ctg.infosMatchLeaveDependsOn.addAll(curTask.infos);
+                        cio.infosMatchLeaveDependsOn.addAll(curTask.infos);
                     };
                 };
 
                 dumpTaskGraph(curPath, caseName + "CaseBEFORE", caseTasks);
                 
-                ctg.allTasks.addAll(clusterTasks(curPath + "."  + caseName + "Case", caseTasks));
+                cio.allTasks.addAll(clusterTasks(curPath + "."  + caseName + "Case", caseTasks));
 
                 // update total weight of all cases 
-                DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> case " + caseName + " weight is " + ctg.getWeight());
-                totalCaseWeight = totalCaseWeight + ctg.getWeight();
+                DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> case " + caseName + " weight is " + cio.getWeight());
+                totalCaseWeight = totalCaseWeight + cio.getWeight();
                                         
-                dumpTaskGraph(curPath, caseName + "CaseAfter", ctg.allTasks);
+                dumpTaskGraph(curPath, caseName + "CaseAfter", cio.allTasks);
                 
-                caseTaskGraphs.add(ctg);
+                caseInformationObjects.add(cio);
             };
             
             
@@ -1215,7 +1215,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 // check if each case just consists of sequential code
                 var immutable Integer maxCaseTasks = 0;
                 
-                val it = caseTaskGraphs.iterator();
+                val it = caseInformationObjects.iterator();
                 while { it.hasNext() }{
                     val curCTG = it.next();
                     maxCaseTasks = max(maxCaseTasks, curCTG.allTasks.size());
@@ -1238,7 +1238,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 tasks.add(mergedTask);
                 
                 // add all dependency information to merged task
-                val it = caseTaskGraphs.iterator();
+                val it = caseInformationObjects.iterator();
                 while { it.hasNext() }{
                      val curCTG = it.next();
                      val itTasks = curCTG.allTasks.iterator();
@@ -1249,7 +1249,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 };
             }{
                 DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> store fixup information for heavy match block ");
-                matchFixupTable.put(matchLeave.infos.iterator().next(), caseTaskGraphs);
+                matchFixupTable.put(matchLeave.infos.iterator().next(), caseInformationObjects);
                 // TODO: add weights 
             };
             
@@ -1365,29 +1365,29 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                    ABORT("<TaskBuilderPass> cannot find match expansion information.");
                }
                case True {
-                   val unique Set/*<CaseTaskGraph>*/ ctgs = matchFixupTable.get(curSMB.leaveInfo);
+                   val unique Set/*<CaseInformationObject>*/ cios = matchFixupTable.get(curSMB.leaveInfo);
                    var caseCounter = 0;
            
                    // remove enter -> leave connection
                    curSMB.enterTask.rdeps.remove(curSMB.leaveTask);
                    curSMB.leaveTask.deps.remove(curSMB.enterTask);
                    
-                   val ctgsIt = ctgs.iterator();
-                   while { ctgsIt.hasNext() }{
-                       val ctg = ctgsIt.next();
+                   val ciosIt = cios.iterator();
+                   while { ciosIt.hasNext() }{
+                       val cio = ciosIt.next();
                        
-                       val caseTasks = expandMatchBlocks(curPath, ctg.allTasks);
+                       val caseTasks = expandMatchBlocks(curPath, cio.allTasks);
                        
                        val caseTasksIt = caseTasks.iterator();
                        while { caseTasksIt.hasNext() }{
                            val caseTask = caseTasksIt.next();
                            
-                           if ( intersection(caseTask.infos, ctg.infosDependingOnMatchEnter).size() > 0 ) {
+                           if ( intersection(caseTask.infos, cio.infosDependingOnMatchEnter).size() > 0 ) {
                                DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> connect case with match enter" + caseTask.toString() + " -> " + curSMB.enterTask.toString());
                                addTaskDependency(caseTask, curSMB.enterTask);
                            };
                            
-                           if ( intersection(caseTask.infos, ctg.infosMatchLeaveDependsOn).size() > 0 ) {
+                           if ( intersection(caseTask.infos, cio.infosMatchLeaveDependsOn).size() > 0 ) {
                                DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> connect match leave to case " + curSMB.leaveTask.toString() + " -> " + caseTask.toString());
                                addTaskDependency(curSMB.leaveTask, caseTask);
                            };
