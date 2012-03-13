@@ -22,7 +22,7 @@ import plaid.lang.math.*;
 state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     var hasErrors = false;
     var resolver;
-    val unique List matchInfos = java.util.ArrayList.new();
+    val unique List matchInfoObjs = java.util.ArrayList.new();
     val unique Map methodInfoMap = java.util.HashMap.new();
     val checkMinimumDegression = COMPILER_CONFIGURATION().getBooleanProperty("plaid.compiler.passes.TaskBuilderPass.checkMinimumDegression", true);
 
@@ -133,13 +133,18 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 // dump pre expand graph
                 dumpTaskGraph(path, "TASK-PRE-MATCH-EXPAND", tasks);
                 
+                val methodInfoObj = makeMethodInformationObject(tasks, this.matchInfoObjs);
+                this.methodInfoMap.put(node, methodInfoObj);
+                
                 // expand match blocks
-                tasks = expandMatchBlocks(path, tasks);
+                //tasks = expandMatchBlocks(path, tasks);
                 
                 // remove transitive edges
                 //tasks = removeTransitiveEdgesFromTasks(tasks);
                 
-                dumpTaskGraph(path, "TASK-FINAL", tasks);
+                //dumpTaskGraph(path, "TASK-FINAL", tasks);
+                
+                // create method information object
                 
                 node.annotations.map( fn (anno) => {
                     if ( anno.name.name == "cheap") {
@@ -1122,7 +1127,7 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderpass> simplifyMatches");
         var unique Set tasks = java.util.HashSet.new();
         tasks.addAll(input);
-        
+
         val topLevelMatches = findTopLevelMatches(tasks);
         DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> found " + topLevelMatches.size() + " top-level matches ");
         
@@ -1254,7 +1259,12 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
             }{
                 DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> store fixup information for heavy match block ");
                 matchFixupTable.put(matchLeave.infos.iterator().next(), caseInformationObjects);
-                // TODO: add weights 
+                
+                val matchInfoObj = makeMatchInformationObject(matchEnter.infos.iterator().next(),
+                                                              matchLeave.infos.iterator().next(),
+                                                              caseInformationObjects);
+                                                              
+                this.matchInfoObjs.add(matchInfoObj);
             };
             
             dumpTaskGraph(curPath, "MatchSimplifiedAfter", tasks);
