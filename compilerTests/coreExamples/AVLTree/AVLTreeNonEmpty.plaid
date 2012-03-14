@@ -1,0 +1,237 @@
+/**
+ * Adapted from the Data Structures and Algorithms library:
+ * http://dsa.codeplex.com/
+ */
+package coreExamples.AVLTree;
+
+import java.lang.*;
+
+state AVLTreeNonEmpty<data> case of AVLTree<data> {
+    group nodes = new group;
+    var shared<nodes> AVLTreeNodeValue<nodes, data> root;
+    val immutable Boolean debug = false;
+
+
+    method immutable Boolean insert<mutable owner, readonly data>(shared<data> Comparable >> none Comparable  item ) [shared<owner> AVLTreeNonEmpty] {
+        unpackInnerGroups {
+            root = insertNode<nodes,data>(root, item); 
+        }
+    }
+
+
+    method shared<nodes> AVLTreeNode insertNode<mutable nodes, readonly data> (shared<nodes> AVLTreeNodeValue node,  shared<data> Comparable item ) /* [shared<owner> AVLTreeNonEmpty]*/ {
+      unpackInnerGroups {
+        var result = node;
+        ifElse ( result.isNil<nodes>() ) {
+            DEBUG("insert " + item.toString<data>() + " @ nil"); 
+            result = new AVLTreeNodeValue {
+                var value = item;
+            };
+        }{
+            DEBUG("insert " + item.toString<data>() + " @ " + result.value.toString<data>());
+            match ( item.compareTo<data>(result.value) ) {
+                case LT {
+                    result.left = insertNode<nodes,data>(result.left, item);
+                }
+                case GT {
+                    result.right = insertNode<nodes,data>(result.right, item);      
+                }
+                case EQ {
+                    result = node;
+                }
+            };
+            result = balance<nodes>(result);             
+        };           
+
+        result.height = Math.max( result.left.height, result.right.height ) + 1;
+        
+        result
+      }
+    }
+    
+    
+    method immutable Boolean remove<mutable owner, readonly data>(shared<data> Comparable item ) [shared<owner> AVLTreeNonEmpty >> shared  AVLTree] {
+        unpackInnerGroups {
+            DEBUG("remove " + item.toString<data>() + " from root");
+            root = removeNode<nodes,data>(root, item);
+            match (root) {
+                case AVLTreeNodeNil {
+                    DEBUG("tree is now empty");
+                    this <- AVLTreeEmpty; // SHOULD this be legal with SHARED ?!?!?!?!??!
+                }
+                default {}
+            }
+        }
+    }
+    
+   
+    method shared<nodes> AVLTreeNode removeNode<mutable nodes, readonly data>(shared<nodes> AVLTreeNode node, shared<data> Comparable item) [none AVLTreeNonEmpty] {
+        var result = node;
+        if ( !result.isNil<nodes>() ) {
+            DEBUG("remove " + item.toString<data>() + " @ " + result.value.toString<data>());
+            match ( item.compareTo<data>(result.value) ) {
+                case LT {
+                    result.left = removeNode<nodes,data>(result.left, item); 
+                }
+                case GT {
+                    result.right = removeNode<nodes,data>(result.right, item);
+                }
+                case EQ {
+                    ifElse ( result.left.isNil<nodes>() && result.right.isNil<nodes>() ) {
+                        DEBUG("remove leaf");
+                        result = new AVLTreeNodeNil {
+                            override var height = 0;
+                        };
+                    }{
+                        ifElse ( !result.left.isNil<nodes>() && result.right.isNil<nodes>() ) {
+                            DEBUG("return left sub tree");
+                            result = result.left;
+                        }{
+                            ifElse ( result.left.isNil<nodes>() && !result.right.isNil<nodes>()) {
+                                DEBUG("return right sub tree");
+                                result = result.right
+                            }{                      
+                                // has both child trees
+                                DEBUG("replace with max from left sub tree");
+                                result.value = result.left.findMax<nodes,data>().value;
+                                result.left = removeNode<nodes,data>(result.left, result.value);
+                            };
+                        };
+                        
+                    };                   
+                }
+            }
+        };
+        
+        if ( !result.isNil<nodes>() ) {
+            result = balance<nodes,data>(result);
+            result.height = Math.max( result.left.height, result.right.height ) + 1;
+        };
+        
+        result
+    }
+        
+    
+    
+    method immutable Integer balanceFactor<readonly owner>(shared<owner> AVLTreeNonEmpty  node) [shared<owner> AVLTreeNonEmpty] {
+        ifElse ( !node.isNil<owner>() ) {
+            node.left.height - node.right.height;
+        }{
+            0
+        }
+    }
+    
+    method shared<nodes> AVLTreeNodeValue balance<mutable nodes>(node) [none AVLTreeNodeEmpty] {
+        DEBUG("balance node " + node.value.toString());
+        var result = node;
+        if ( !result.isNil<nodes>() ) {            
+            DEBUG("result.left.height  " + result.left.height);
+            DEBUG("result.right.height " + result.right.height);
+            ifElse ( Math.abs(balanceFactor<nodes>(result)) == 2 ) {
+                ifElse ( balanceFactor<nodes>(result) == 2 ) {
+                    DEBUG("node left heavy");
+                      
+                    ifElse ( balanceFactor<nodes>(result.left) > -1) {
+                        result = singleRightRotation<nodes>(result);
+                    }{
+                        result = doubleLeftRightRotation<nodes>(result);
+                    };
+                }{
+                    DEBUG("node right heavy");
+                    ifElse ( balanceFactor(result.right) < 1 ) {
+                        result = singleLeftRotation<nodes>(result);
+                    }{
+                        result = doubleRightLeftRotation<nodes>(result);
+                    };                        
+                };
+            }{                    
+                result.height = Math.max( result.left.height, result.right.height ) + 1;
+            }; 
+        };
+        result
+    }
+    
+    method shared<nodes> AVLTreeNodeValue singleRightRotation<mutable nodes>(shared<nodes> AVLTreeNodeValue node)  [none AVLTreeNonEmpty]  {
+        DEBUG("singleRightRotation");
+        var k1 = node.left;
+        node.left = k1.right;
+        k1.right = node;
+        node.height =  Math.max( node.left.height, node.right.height ) + 1;
+        k1.height = Math.max( k1.left.height, node.height ) + 1;
+        k1;
+    }
+
+    method shared<nodes> AVLTreeNodeValue singleLeftRotation<mutable nodes>(shared<nodes> AVLTreeNodeValue node)  [none AVLTreeNonEmpty]  {
+        DEBUG("singleLeftRotation");
+        var k2 = node.right;
+        node.right = k2.left;
+        k2.left = node;
+        node.height = Math.max( node.left.height, node.right.height ) + 1;
+        k2.height = Math.max( k2.right.height, node.height ) + 1;
+        k2;
+    }
+    
+    method shared<nodes> AVLTreeNodeValue doubleRightLeftRotation<mutable nodes>(shared<nodes> AVLTreeNodeValue node)  [none AVLTreeNonEmpty]  {
+        DEBUG("doubleRightLeftRotation");
+        node.left = rotateWithRightChild( node.left );
+        rotateWithLeftChild( node );
+    }
+    
+    method shared<nodes> AVLTreeNodeValue doubleLeftRightRotation<mutable nodes>(shared<nodes> AVLTreeNodeValue node) [none AVLTreeNonEmpty] {
+        DEBUG("doubleLeftRightRotation");
+        node.right = rotateWithLeftChild<nodes>( node.right );
+        rotateWithRightChild<nodes>( node );
+    }
+    
+
+    method immutable Integer height<readonly owner>() [shared<owner> AVLTreeNode] {
+        unpackInnerGroups {
+            root.height
+        }
+    }    
+    method immutable Boolean contains<readonly owner, readonly data>(shared<data> Comparable item) [shared<owner> AVLTreeNonEmpty] {
+        unpackInnerGroups {
+            val node = root.find<owner, data>(item);
+            match (node) {
+                case Some { true  }
+                default   { false }
+            }
+        }
+    }
+    
+
+    method shared<data> Comparable findMin<readonly owner, readonly data>() [shared<owner> AVLTreeNonEmpty] {
+        unpackInnerGroups {
+            val node = root.findMin<nodes>();
+            node.value
+        }
+    } 
+
+
+    method shared<data> Comparable findMax<readonly owner, readonly data> () [shared<owner> AVLTreeNonEmpty] {
+        unpackInnerGroups {
+            val node = root.findMax<nodes>();
+            node.value
+        }
+    } 
+
+
+    method void  dumpTree<readonly owner, readonly data>( ) [shared<owner> AVLTreeNonEmpty] {
+         unpackInnerGroups {
+             root.dumpTree<nodes,data>("") 
+         }
+    }
+    
+    
+    method immutable String toString<readonly owner, readonly data>() [shared<owner> AVLTreeNonEmpty] {
+        unpackInnerGroups {
+            root.toString<nodes,data>();
+        }
+    }
+    
+    method void  DEBUG(immutable String  message) [none AVLTreeNonEmpty] {
+        if (debug) {
+            printLine("DEBUG: " + message);
+        }
+    }
+}
