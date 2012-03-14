@@ -46,13 +46,15 @@ state CodeGenOps {
 	    					  shared StringBuilder sb, shared IdGen idgen, 
 		    				  immutable String y, classNameCounter);
 	method void createLocalVariable(immutable String name, unique StringBuilder sb, immutable Boolean isFinal);
+	method void setLocalVariable(immutable String varName, immutable String value, unique StringBuilder sb);
+	method immutable String getLocalVariable(immutable String varName);
 }
 
 state SequentialCodeGenOps {
     method codegenCU(immutable CodeGenOps ops, unique Job job, immutable ParsedCompilationUnit node) {
         plaid.compiler.codegen.codegenCU(ops, job, node);
     }
-    
+      
     method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
         plaid.compiler.codegen.codegenTopLevelDecl(ops, node, packageName, sb, idgen, classNameCounter);
     }
@@ -90,7 +92,14 @@ state SequentialCodeGenOps {
     method void createLocalVariable(immutable String name, unique StringBuilder sb, immutable Boolean isFinal) {
         plaid.compiler.codegen.createLocalVariable(name, sb, isFinal);
     }
-
+    
+	method void setLocalVariable(immutable String varName, immutable String value, unique StringBuilder sb) {
+	    plaid.compiler.codegen.setLocalVariable(varName, value, sb);
+	}
+	
+	method immutable String getLocalVariable(immutable String varName) {
+	    plaid.compiler.codegen.getLocalVariable(varName);
+	}
 }
 
 method unique SequentialCodeGenOps makeSequentialCodeGenOps() {
@@ -177,7 +186,8 @@ method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, 
 			val exprVarName = idgen.getId();
 			ops.createLocalVariable(exprVarName, sb, false);
 			ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName, classNameCounter);
-			sb.append("" + fieldName + " = " + exprVarName + ";\n");
+			//sb.append("" + fieldName + " = " + exprVarName + ";\n");
+			sb.append("" + fieldName + " = " + ops.getLocalVariable(exprVarName) + ";\n");
 			
 			sb.append("}\n"); //end static block
 			sb.append("}\n"); //end class
@@ -344,7 +354,7 @@ method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  sh
 			val exprVarName = idgen.getId();
 			ops.createLocalVariable(exprVarName, sb, false);
 			ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName, classNameCounter);
-			sb.append("return " + exprVarName + ";\n");
+			sb.append("return " + ops.getLocalVariable(exprVarName) + ";\n");
 			
 			//finalize
 			sb.append("}\n"); // end invoke$plaidmethod
@@ -370,7 +380,7 @@ method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr nod
 		val y = idgen.getId();
 		ops.createLocalVariable(y, sb, false);
 		node.statements.map( fn(item) => { ops.codegenStmt(ops, item, sb, idgen, y, classNameCounter); } );
-		sb.append("return " + y + ";\n");
+		sb.append("return " + ops.getLocalVariable(y) + ";\n");
 	} {
 		sb.append("return plaid.fastruntime.Util.unit();\n");
 	}
@@ -381,7 +391,7 @@ method codegenCaseBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node,
 	ifElse(node.statements.size() > 0) {
 		node.statements.map( fn(item) => { ops.codegenStmt(ops, item, sb, idgen, y, classNameCounter); } );
 	} {
-		sb.append(y + " = plaid.fastruntime.Util.unit();\n");
+		ops.setLocalVariable(y, "plaid.fastruntime.Util.unit()", sb);
 	}
 }
 
@@ -409,24 +419,25 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
             plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, yList.size());
 
             val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodName, yList.size());
-            val dispatch = receiverString + ".getDispatch()";
-                                    
-            //assign result to y
-            sb.append(y + " = ");
+            val dispatch = ops.getLocalVariable(receiverString) + ".getDispatch()";
                                     
             //cast
-            sb.append("(");
-            sb.append("(" + methodInterfaceName + ")");
-            sb.append(dispatch);
-            sb.append(")");
+            val ysb = java.lang.StringBuilder.new();
+            ysb.append("(");
+            ysb.append("(" + methodInterfaceName + ")");
+            ysb.append(dispatch);
+            ysb.append(")");
             //.<METHOD_NAME>(<RECEIVER>,<ARGS>)
-            sb.append("." + methodName + "(");
-            sb.append(receiverString ); // receiver
+            ysb.append("." + methodName + "(");
+            ysb.append(ops.getLocalVariable(receiverString)); // receiver
             if(yList.size() > 0) {
-                sb.append(",");
+                ysb.append(",");
             };
-            sb.append(makeSeperatedString(yList, ",")); //normal arguments
-            sb.append(");\n");
+            ysb.append(makeSeperatedString(yList.map(fn (yItem) => { ops.getLocalVariable(yItem)}), ",")); //normal arguments
+            ysb.append(")");
+            
+            // assign result to y
+            ops.setLocalVariable(y, ysb.toString(), sb);
 		}
 		case ParsedDereference {
 			LOG("generating code for dereference");
@@ -449,8 +460,7 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 								case JavaStaticFieldSymbol  {
 									val parent = symbolLeft.owner;
 									val classFQN = symbolLeft.getFQN();
-									sb.append(y + " = plaid.fastruntime.Util.javaToPlaid(" + 
-										classFQN + "." + node.right.name + ");\n");
+									ops.setLocalVariable(y, "plaid.fastruntime.Util.javaToPlaid(" + classFQN + "." + node.right.name + ")", sb);
 								}
 								case JavaStaticMethodSymbol {
 									ERROR("java methods cannot be dereferenced except as a part of an application/method call");
@@ -476,13 +486,14 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 					plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
 					val ifaceName = NamingConventions.getGeneratedInterfaceFullyQualifiedName(getterName, 0);
 					
-					//call getter and assign result to y
-					sb.append(y + " = ");
-					sb.append("("); // parentheses around casted object
-					sb.append("(" + ifaceName + ")");
-					sb.append("" + receiverId + ".getDispatch()");
-					sb.append(")"); // end parentheses around casted object  
-					sb.append("." + getterName + "(" + receiverId + ");\n");
+                    //call getter and assign result to y
+					val ysb = java.lang.StringBuilder.new();
+					ysb.append("("); // parentheses around casted object
+					ysb.append("(" + ifaceName + ")");
+					ysb.append("" + ops.getLocalVariable(receiverId) + ".getDispatch()");
+					ysb.append(")"); // end parentheses around casted object  
+					ysb.append("." + getterName + "(" + receiverId + ")");
+					ops.setLocalVariable(y, ysb.toString(), sb);
 				}
 			}			
 		}
@@ -507,12 +518,13 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 					val setterName = NamingConventions.getSetterName(node.field.name);
 					plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(setterName, 1);
 					val ifaceName = NamingConventions.getGeneratedInterfaceFullyQualifiedName(setterName, 1);
-					sb.append(y + " = ");
-					sb.append("("); // paretheses around casted object
-					sb.append("(" + ifaceName + ")");
-					sb.append("" + receiverId + ".getDispatch()");
-					sb.append(")"); // end parentheses around casted object  
-					sb.append("." + setterName + "(" + receiverId + ", " + valueId +");\n");
+					val ysb = java.lang.StringBuilder.new();
+					ysb.append("("); // paretheses around casted object
+					ysb.append("(" + ifaceName + ")");
+					ysb.append("" + ops.getLocalVariable(receiverId) + ".getDispatch()");
+					ysb.append(")"); // end parentheses around casted object  
+					ysb.append("." + setterName + "(" + ops.getLocalVariable(receiverId) + ", " + ops.getLocalVariable(valueId) +")");
+					ops.setLocalVariable(y, ysb.toString(), sb);
 				}
 			}
 		}
@@ -531,13 +543,16 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 			};
 		}
 		case ParsedStringLiteral {
-			sb.append(y + " = plaid.fastruntime.Util.string(\"" + node.value + "\");\n");
+			//sb.append(y + " = plaid.fastruntime.Util.string(\"" + node.value + "\");\n");
+			ops.setLocalVariable(y, "plaid.fastruntime.Util.string(\"" + node.value + "\")", sb);
 		}
 		case ParsedIntLiteral {
-			sb.append(y + " = plaid.fastruntime.Util.integer(" + node.value + ");\n");
+			//sb.append(y + " = plaid.fastruntime.Util.integer(" + node.value + ");\n");
+			ops.setLocalVariable(y, "plaid.fastruntime.Util.integer(" + node.value + ")", sb);
 		}
 		case ParsedDoubleLiteral {
-			sb.append(y + " = plaid.fastruntime.Util.float64(" + node.value + ");\n");
+			//sb.append(y + " = plaid.fastruntime.Util.float64(" + node.value + ");\n");
+			ops.setLocalVariable(y, "plaid.fastruntime.Util.float64(" + node.value + ")", sb);
 		}
 		case ParsedInfixOperatorExpr {
 			//preliminaries
@@ -554,31 +569,31 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 			ops.createLocalVariable(argId, sb, false);
 			ops.codegenStmt(ops, node.right, sb, idgen, argId, classNameCounter);
 			
-			
-			//assign result to y
-			sb.append(y + " = ");
-			
 			//generate interface
 			plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, 1);
 							
 			//cast
-			sb.append("(");
-			sb.append("(" + NamingConventions.getGeneratedInterfaceName(methodName, 1) + ")");
-			sb.append(receiverString);
-			sb.append(".getDispatch()");
-			sb.append(")");
+			val ysb = java.lang.StringBuilder.new();
+			ysb.append("(");
+			ysb.append("(" + NamingConventions.getGeneratedInterfaceName(methodName, 1) + ")");
+			ysb.append(receiverString);
+			ysb.append(".getDispatch()");
+			ysb.append(")");
 			//.<METHOD_NAME>(<ARGS>)
-			sb.append("." + methodName + "(");
-			sb.append(receiverString + ","); // receiver
-			sb.append(argId); //normal arguments
-			sb.append(");\n");
+			ysb.append("." + methodName + "(");
+			ysb.append(ops.getLocalVariable(receiverString) + ","); // receiver
+			ysb.append(ops.getLocalVariable(argId)); //normal arguments
+			ysb.append(")");
+						
+			//assign result to y
+			ops.setLocalVariable(y, ysb.toString(), sb);
 		}
 		case ParsedVarDecl {
 			val exprVarName = idgen.getId();
 			ops.createLocalVariable(exprVarName, sb, false);
 			ops.codegenStmt(ops, node.expr, sb, idgen, exprVarName, classNameCounter);
 			ops.createLocalVariable( node.id.name, sb, true);
-			sb.append("" + node.id.name + " = " + exprVarName + ";\n");
+			ops.setLocalVariable(node.id.name, exprVarName, sb);
 		}
 		case ParsedIdentifier {
 			// need to ensure that this is never called if ParsedIdentifier refers to a JavaClass
@@ -599,18 +614,18 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 							{
 								varName = node.name;
 							};
-							sb.append(y + " = " + varName + ";\n");
+							ops.setLocalVariable(y, ops.getLocalVariable(varName), sb);
 						}
 						case FieldSymbol {
 							val parentSymbol = symbol.owner;
 							match(parentSymbol) {
 								case PackageSymbol {
-									sb.append(y + " = ");
-									sb.append(parentSymbol.getFQN());
-									sb.append(".");
-									sb.append(NamingConventions.getGeneratedIdentifier(node.name));
-									sb.append("." + NamingConventions.GENERATED_FIELD_NAME);
-									sb.append(";\n");
+								    val ysb = java.lang.StringBuilder.new();
+									ysb.append(parentSymbol.getFQN());
+									ysb.append(".");
+									ysb.append(NamingConventions.getGeneratedIdentifier(node.name));
+									ysb.append("." + NamingConventions.GENERATED_FIELD_NAME);
+									ops.setLocalVariable(y, ysb.toString(), sb);
 								}
 								default {
 									ERROR("Identifier's symbol is a field symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
@@ -619,7 +634,7 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 						}
 						case StateSymbol {
                             val stateFQN = symbol.getFQN();
-                            sb.append(y + " = " + stateFQN + "." + NamingConventions.GENERATED_STATE_NAME + ";\n");
+                            ops.setLocalVariable(y, stateFQN + "." + NamingConventions.GENERATED_STATE_NAME, sb);
                         }
 						case MethodSymbol {
 							ERROR("Methods are not first class values, therefore this should not be called.");
@@ -641,6 +656,7 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 			sb.append(y + " = " + exprVarName + ".instantiate();\n");
 		}
 		case ParsedMatch {
+		    LOG("generating code for match");
 			val exprVarName = idgen.getId();
 			ops.createLocalVariable(exprVarName, sb, false);
 			ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName, classNameCounter);
@@ -657,12 +673,12 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 								match (patternSymbol) {
 									case StateSymbol {
 										val caseSB = StringBuilder.new();
-										caseSB.append("if(" + exprVarName + ".getDispatch().matches(");
+										caseSB.append("if(" + ops.getLocalVariable(exprVarName) + ".getDispatch().matches(");
 										caseSB.append(patternSymbol.getFQN() + "." + NamingConventions.GENERATED_STATE_NAME + ".getTopTag())) {\n");
 										val bodyVarName = idgen.getId();
 										ops.createLocalVariable(bodyVarName, sb, false);
 										ops.codegenCaseBody(ops, c.body, caseSB, idgen, bodyVarName, classNameCounter);
-										caseSB.append(y + " = " + bodyVarName + ";\n");
+										ops.setLocalVariable(y, bodyVarName, caseSB);
 										caseSB.append("}\n");
 										caseStringList.addLast(caseSB.toString());
 									}
@@ -682,7 +698,7 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 						caseSB.append("{\n");
 						caseSB.append("plaid.fastruntime.PlaidObject " + bodyVarName + ";\n");
 						ops.codegenCaseBody(ops, c.body, caseSB, idgen, bodyVarName, classNameCounter);
-						caseSB.append(y + " = " + bodyVarName + ";\n");
+						ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseSB);
 						caseSB.append("}\n");
 						caseStringList.addLast(caseSB.toString());
 					}
@@ -730,13 +746,13 @@ method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y, classNa
 			val toReturn = idgen.getId();
 			ops.createLocalVariable(y, sb, false);
 			body.statements.map( fn(item) => { ops.codegenStmt(ops, item, sb, idgen, y, classNameCounter); } );
-			sb.append("return " + y + ";\n");
+			sb.append("return " + ops.getLocalVariable(y) + ";\n");
 		}
 		default {
 			val toReturn = idgen.getId();
 			ops.createLocalVariable(y, sb, false);
 			ops.codegenStmt(ops, body, sb, idgen, toReturn, classNameCounter);
-			sb.append("return " + y + ";\n");
+			sb.append("return " + ops.getLocalVariable(y) + ";\n");
 		}
 	};
 	sb.append("}\n"); // end invoke method
@@ -752,8 +768,7 @@ method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared St
             
             //cast to PlaidState
             val unspecializedStateId = idgen.getId();
-            sb.append("plaid.fastruntime.PlaidState " + unspecializedStateId + " = ");
-            sb.append("(plaid.fastruntime.PlaidState)" + stateExprId + ";\n");
+            sb.append("plaid.fastruntime.PlaidState " + ops.getLocalVariable(unspecializedStateId) + " = (plaid.fastruntime.PlaidState)" + ops.getLocalVariable(stateExprId) + ";\n");
             
             match(node.specializations.size() > 0) {
                 case True {
@@ -811,7 +826,7 @@ method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared St
                     sb.append(y + " = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(" + fullValueId + ");\n");
                 }
                 case False {
-                    sb.append(y + " = " + unspecializedStateId +  ";\n");
+                    ops.setLocalVariable(y , ops.getLocalVariable(unspecializedStateId), sb);
                 }
             }
 		}
@@ -843,6 +858,15 @@ method void createLocalVariable(immutable String name, unique StringBuilder sb, 
     }
 }
 
+method void setLocalVariable(immutable String varName, immutable String value, unique StringBuilder sb) {
+    sb.append(varName + " = " + value + ";\n")
+}
+
+method immutable String getLocalVariable(immutable String varName) {
+    varName
+}
+
+
 method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functionExpr, immutable List args, 
 						  shared StringBuilder sb, shared IdGen idgen, 
 						  immutable String y, classNameCounter) {
@@ -870,15 +894,16 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 							match (leftSymbol) {
 								case JavaClassSymbol {
 									//call constructor and assign to y
-									sb.append(y + " = plaid.fastruntime.Util.javaToPlaid(new " + leftSymbol.getFQN());
+									val ysb = java.lang.StringBuilder.new();
+									ysb.append("plaid.fastruntime.Util.javaToPlaid(new " + leftSymbol.getFQN());
 									//static arguments if appropriate
 									val numStaticArgs = leftSymbol.numStaticParams();
 									match (numStaticArgs > 0) {
 										case True {
-											sb.append("<");
+											ysb.append("<");
 											var i = 0;
 											while { i < numStaticArgs - 1 } { 
-												sb.append("Object,");
+												ysb.append("Object,");
 												i = i+1;
 											};
 											sb.append("Object>");
@@ -887,9 +912,10 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 									};
 									
 									//parameters
-									sb.append("(");
-									sb.append(makeSeperatedString(yList, ",")); //normal arguments
-									sb.append("));\n");
+									ysb.append("(");
+									ysb.append(makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",")); //normal arguments
+									ysb.append("))");
+									ops.setLocalVariable(y, ysb.toString(), sb);
 								}
 								default {
 									ERROR("<CodeGenPass> non-JavaClassSymbol found as target of java constructor");
@@ -909,9 +935,11 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 								case JavaClassSymbol {
 									val javaClassFQN = leftSymbol.getFQN();
 									//static methods/constructors found in plaid.generated.<ClassFQN>
-									sb.append(y + " = plaid.generated." + javaClassFQN + "." + rightSymbol.name + "(");
-									sb.append(makeSeperatedString(yList, ",")); //normal arguments
-									sb.append(");\n");
+									val ysb = java.lang.StringBuilder.new();
+									ysb.append("plaid.generated." + javaClassFQN + "." + rightSymbol.name + "(");
+									ysb.append(makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",")); //normal arguments
+									ysb.append(")");
+									ops.setLocalVariable(y, ysb.toString(), sb);
 									
 									//generate static methods for the JavaClassSymbol
 									plaid.fastruntime.Util.JAVA_GEN.saveStaticJavaObject(javaClassFQN);
@@ -948,25 +976,25 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 					//test if method or field with first class function
 					
 					val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodName, yList.size());
-					val dispatch = receiverString + ".getDispatch()";
+					val dispatch = ops.getLocalVariable(receiverString) + ".getDispatch()";
 					sb.append("if(" + dispatch + " instanceof " + methodInterfaceName + ") {\n");
 					
-					//assign result to y
-					sb.append(y + " = ");
-					
+					//assign result to y					
+					var ysb = java.lang.StringBuilder.new();
 					//cast
-					sb.append("(");
-					sb.append("(" + methodInterfaceName + ")");
-					sb.append(dispatch);
-					sb.append(")");
+					ysb.append("(");
+					ysb.append("(" + methodInterfaceName + ")");
+					ysb.append(dispatch);
+					ysb.append(")");
 					//.<METHOD_NAME>(<RECEIVER>,<ARGS>)
-					sb.append("." + methodName + "(");
-					sb.append(receiverString ); // receiver
+					ysb.append("." + methodName + "(");
+					ysb.append(ops.getLocalVariable(receiverString)); // receiver
 					if(yList.size() > 0) {
-						sb.append(",");
+						ysb.append(",");
 					};
-					sb.append(makeSeperatedString(yList, ",")); //normal arguments
-					sb.append(");\n");
+					ysb.append(makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",")); //normal arguments
+					ysb.append(")");
+					ops.setLocalVariable(y, ysb, sb);
 					
 					sb.append("}\n"); //end if
 					val getterName = NamingConventions.getGetterName(methodName);
@@ -974,21 +1002,23 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 					plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
 					
 					sb.append("else if(" + dispatch + " instanceof " + getterInterfaceName + ") {\n");
-					sb.append(y + " = ");
+					
+					//sb.append(y + " = ");
+					ysb = java.lang.StringBuilder.new();
 					
 					//cast to lambda
-					sb.append("(");
-					sb.append("(plaid.fastruntime.PlaidLambda$"+yList.size()+")");
-					sb.append("("); //begin getter cast
-					sb.append("(" + getterInterfaceName + ")");
-					sb.append(dispatch);
-					sb.append(")"); // end getter cast
-					sb.append("." + getterName + "(" + receiverString +")");
-					sb.append(")"); //end lambda cast
-					sb.append(".invoke$plaid(");
-					sb.append(makeSeperatedString(yList, ",")); //normal arguments
-					sb.append(");\n");
-					
+					ysb.append("(");
+					ysb.append("(plaid.fastruntime.PlaidLambda$"+yList.size()+")");
+					ysb.append("("); //begin getter cast
+					ysb.append("(" + getterInterfaceName + ")");
+					ysb.append(dispatch);
+					ysb.append(")"); // end getter cast
+					ysb.append("." + getterName + "(" + ops.getLocalVariable(receiverString) +")");
+					ysb.append(")"); //end lambda cast
+					ysb.append(".invoke$plaid(");
+					ysb.append(makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",")); //normal arguments
+					ysb.append(")");
+					ops.setLocalVariable(y, ysb.toString(), sb);
 					
 					sb.append("}\n"); //end else if
 					
@@ -1010,14 +1040,15 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 							val parentSymbol = idSymbol.owner;
 							match(parentSymbol) {
 								case PackageSymbol {
-									sb.append(y + " = ");
-									sb.append(parentSymbol.getFQN());
-									sb.append(".");
-									sb.append("" + NamingConventions.getGeneratedIdentifier(functionExpr.name));
-									sb.append(".invoke$plaid("); // call directly, no need to cast
-									sb.append(makeSeperatedString(yList, ","));
-									sb.append(");\n");
-									sb.append(";\n");
+									//sb.append(y + " = ");
+									val ysb = java.lang.StringBuilder.new();
+									ysb.append(parentSymbol.getFQN());
+									ysb.append(".");
+									ysb.append("" + NamingConventions.getGeneratedIdentifier(functionExpr.name));
+									ysb.append(".invoke$plaid("); // call directly, no need to cast
+									ysb.append(makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ","));
+									ysb.append(");\n");
+									ops.setLocalVariable(y, ysb.toString(), sb);
 								}
 								default {
 									ERROR("Identifier's symbol is a method symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
@@ -1028,10 +1059,7 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 							val functionExprVarName = idgen.getId();
 							ops.createLocalVariable(functionExprVarName, sb, false);
 							ops.codegenStmt(ops, functionExpr, sb, idgen, functionExprVarName, classNameCounter);
-							sb.append(y +  " = ");
-							sb.append("((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(");
-							sb.append(makeSeperatedString(yList, ","));
-							sb.append(");\n");
+							ops.setLocalVariable(y, "((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(" + makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",") + ")", sb);
 						}
 					}
 				}
@@ -1044,10 +1072,7 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 			val functionExprVarName = idgen.getId();
             ops.createLocalVariable(functionExprVarName, sb, false);
             ops.codegenStmt(ops, functionExpr, sb, idgen, functionExprVarName, classNameCounter);
-            sb.append(y +  " = ");
-            sb.append("((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(");
-            sb.append(makeSeperatedString(yList, ","));
-            sb.append(");\n");
+            ops.setLocalVariable(y, "((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(" + makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",") + ")", sb);
 		}
 	}
 }
