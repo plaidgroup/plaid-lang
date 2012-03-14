@@ -1063,6 +1063,8 @@ var Plaid = (function() {
 	return Plaid;
 })();
 
-if (!window.console) {var console = {};}
-if (!console.log) {console.log = function() {};}
+if (!window) { var window = {}; }
+if (!window.console) { window.console = {}; }
+if (!window.console.log) { window.console.log = function() {};}
 
+if (typeof exports !== 'undefined') { exports.Plaid = Plaid; }
