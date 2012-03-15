@@ -29,8 +29,11 @@ public class JavaInteropTest {
 			e.printStackTrace();
 			Assert.fail();
 		}
-		
-		
+	}
+	
+	@Test
+	public void nullAndUnit() {
+		Assert.assertTrue(Unit.UNIT_VALUE.getJavaObject() == null);
 	}
 	
 	public class JavaInterop{
