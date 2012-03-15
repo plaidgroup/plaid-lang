@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
+import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.Ord;
@@ -16,6 +17,11 @@ public final class EmptySingleValue extends SingleValue {
 
 	@Override
 	public List<FieldInfo> getFields() {
+		return List.nil();
+	}
+	
+	@Override
+	public List<MemberDefInfo> getMemberDefs() {
 		return List.nil();
 	}
 

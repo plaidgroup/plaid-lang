@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
+import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.ObjectValue;
@@ -11,16 +12,21 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	private final int numArgs;
 	private final String canonicalRep;
 	
+	public static MethodValue createMethodWithStaticDefinition(String name, int numArgs, String classInternalName) {
+		return new MethodValue(name, numArgs, classInternalName, false, null);
+	}
 	
-	public MethodValue(String name, int numArgs, String classInternalName) {
-		super(name, classInternalName);
+	public static MethodValue createMethodWithDynamicDefinition(String name, int numArgs, String memberDefinitionName) {
+		return new MethodValue(name, numArgs, null, true, memberDefinitionName);
+	}
+	
+	
+	
+	private MethodValue(String name, int numArgs, String classInternalName,
+					   boolean staticallyDefined, String memberDefinitionName) {
+		super(name, classInternalName, staticallyDefined, memberDefinitionName);
 		this.numArgs = numArgs;
 		canonicalRep = this.constructCanonicalRep();
-	}
-
-	@Override
-	public boolean uniqueTags() {
-		return true;
 	}
 	
 	@Override
@@ -38,6 +44,11 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	public List<FieldInfo> getFields() {
 		return List.nil();
 	}
+	
+	@Override
+	public List<MemberDefInfo> getMemberDefs() {
+		return List.nil();
+	}
 
 	@Override
 	public String getMethodDescriptor() {
@@ -52,7 +63,8 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	@Override
 	public ObjectValue rename(String currentName, String newName) {
 		if(this.getName().equals(currentName)) {
-			return new MethodValue(newName, this.numArgs, this.getStaticClassInternalName());
+			return new MethodValue(newName, this.numArgs, this.getStaticClassInternalName(),
+					this.isStaticallyDefined(), this.getMemberDefinitionName());
 		} else {
 			return this;
 		}

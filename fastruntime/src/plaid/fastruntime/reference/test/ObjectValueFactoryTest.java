@@ -17,8 +17,8 @@ public class ObjectValueFactoryTest {
 		ObjectValue actual = 
 				new DimensionValue("testTag", 
 						new ListValue(
-								new MethodValue("foo", 0, "plaid/lang/Foo"),
-								new MethodValue("bar", 0, "plaid/lang/Foo")), 
+								MethodValue.createMethodWithStaticDefinition("foo", 0, "plaid/lang/Foo"),
+								MethodValue.createMethodWithStaticDefinition("bar", 0, "plaid/lang/Baz")), 
 						null);
 		Assert.assertEquals(expected, actual);
 		

@@ -8,6 +8,8 @@ public interface ObjectValue {
 	public List<MethodInfo> getMethods();
 	
 	public List<FieldInfo> getFields();
+	
+	public List<MemberDefInfo> getMemberDefs();
 
 	/*
 	 * Returns a new instance every time it is called.
@@ -18,7 +20,9 @@ public interface ObjectValue {
 	
 	public boolean matches(String tag);
 
-	int getFieldIndex(String fieldName);
+	public int getFieldIndex(String fieldName);
+	
+	public int getMemberDefinitionIndex(String memDefName);
 	
 	public ObjectValue specialize(ObjectValue newMembers);
 	
