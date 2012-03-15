@@ -16,6 +16,7 @@ import plaid.generated.Igteq$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
+import plaid.generated.ItoString$0$plaid;
 
 public class Float64 extends AbstractPlaidState
 					implements Iplus$plaid$1$plaid,
@@ -24,6 +25,7 @@ public class Float64 extends AbstractPlaidState
 					Isub$plaid$1$plaid,
 					Igteq$plaid$1$plaid,
 					Idiv$plaid$1$plaid, 
+					ItoString$0$plaid,
 					plaid.generated.InativeLessThan$1$plaid{
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
@@ -159,5 +161,10 @@ public class Float64 extends AbstractPlaidState
 			default: throw new PlaidIllegalOperationException("Floats cannot be used as " + p.name + " primitives.");
 			}
 		}
+	}
+
+	@Override
+	public PlaidObject toString(PlaidObject x) {
+		return plaid.fastruntime.Util.string(((PlaidJavaObject)x).getJavaObject().toString());
 	}
 }
