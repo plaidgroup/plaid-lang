@@ -12,12 +12,13 @@ import plaid.fastruntime.reference.SimplePlaidJavaObject;
 import plaid.generated.IcharAt$1$plaid;
 import plaid.generated.IendsWith$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
+import plaid.generated.IindexOf$1$plaid;
 import plaid.generated.Ilength$0$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.IstartsWith$1$plaid;
 import plaid.generated.Isubstring$2$plaid;
 import plaid.generated.ItoLowerCase$0$plaid;
-import plaid.generated.IindexOf$1$plaid;
+import plaid.generated.ItoString$0$plaid;
 
 public class String extends AbstractPlaidState
 						  implements Iplus$plaid$1$plaid,
@@ -52,12 +53,12 @@ public class String extends AbstractPlaidState
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject other) {
 		try {
 			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
-			java.lang.String second = ((java.lang.String) ((PlaidJavaObject) other).getJavaObject());
+			java.lang.String second = ((PlaidJavaObject)(((ItoString$0$plaid)other.getDispatch()).toString(other))).getJavaObject().toString();
 			java.lang.String concat = first + second;
 			return plaidString(concat);
 			
 		} catch (Exception e) {
-			throw new PlaidIllegalArgumentException("string concatenation failed", e.getCause());
+			throw new PlaidIllegalArgumentException("String concatenation failed", e.getCause());
 		}
 	}
 
