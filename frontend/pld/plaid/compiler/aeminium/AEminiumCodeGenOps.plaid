@@ -10,9 +10,27 @@ import plaid.compiler.codegen.makeSequentialCodeGenOps;
 import plaid.fastruntime.NamingConventions;
 
 state AEminiumCodeGenOps case of CodeGenOps {
+    val immutable String LOCAL_VARIABLE_ARRAY = "_";
     val immutable SequentialCodeGenOps seqOps = makeSequentialCodeGenOps();
     var shared Map methodInfoObjMap;
     var shared MethodInformationMap curMethodInfo = "<UNINITIALIZED>";
+
+    var immutable Integer localVariableCounter = -1;
+    val unique Set localVariableMap = java.util.HashMap.new(); // maps original var names to index 
+    
+    method void reset() {
+        this.localVariableCounter = -1;
+        this.localVariableMap.clear();
+    }
+
+    method immutable String indexToString(immutable Integer index) {
+        this.LOCAL_VARIABLE_ARRAY + "[" + index.toString() + "]"
+    }
+
+    method immutable Integer nextLocalVariableIndex() {
+        this.localVariableCounter = this.localVariableCounter + 1;        
+        this.localVariableCounter
+    }
 
     method void LOG(immutable String msg) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGen> " + msg);
@@ -56,7 +74,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
                                 DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> method '" + node.name.name + "' consists of only one task => SEQUENTIALIZE" );
                                 generateSequentialCode = true;
                             }
-                            case False { /* nop */ } 
+                            case False { generateSequentialCode = false } 
                         };
                     }
                     case False { /* nop */ }
@@ -76,7 +94,11 @@ state AEminiumCodeGenOps case of CodeGenOps {
     
     method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
         LOG("codegenMethodBody");
-        this.seqOps.codegenMethodBody(this, node, sb, idgen, classNameCounter);
+        val tmpSB = java.lang.StringBuilder.new();
+        this.seqOps.codegenMethodBody(this, node, tmpSB, idgen, classNameCounter);
+        sb.append("/* array for local variables */\n");
+        sb.append("final plaid.fastruntime.PlaidObject[] " + this.LOCAL_VARIABLE_ARRAY + " = new plaid.fastruntime.PlaidObject[" + (this.localVariableCounter + 1) + "];\n\n" );
+        sb.append(tmpSB.toString());
     }
     
     method codegenCaseBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
@@ -107,20 +129,42 @@ state AEminiumCodeGenOps case of CodeGenOps {
     }
     
     method void createLocalVariable(immutable String name, unique StringBuilder sb, immutable Boolean isFinal) {
-        LOG("createLocalVariable");
-        sb.append("/*AE*/");
-        this.seqOps.createLocalVariable(name, sb, isFinal);
+        LOG("createLocalVariable '" + name + "'");
+        val index = this.nextLocalVariableIndex();
+        this.localVariableMap.put(name, index);
+        //sb.append("/*AE*/");
+        //this.seqOps.createLocalVariable(name, sb, isFinal);
     }
     
     method void setLocalVariable(immutable String varName, immutable String value, unique StringBuilder sb) {
-        LOG("setLocalVariable");   
-        sb.append("/*AE*/");
-        this.seqOps.setLocalVariable(varName, value, sb); 
+        LOG("setLocalVariable '" + varName + "'");   
+        //sb.append("/*AE*/");
+        //this.seqOps.setLocalVariable(varName, value, sb); 
+        val newName = match ( this.localVariableMap.containsKey(varName)  ) {
+	        case True {
+                val index = this.localVariableMap.get(varName);
+                this.indexToString(index) 
+            }
+            case False {
+                varName
+            }
+        };
+        this.seqOps.setLocalVariable(newName, value, sb);
     }
     
 	method immutable String getLocalVariable(immutable String varName) {
-	    LOG("getLocalVariable");
-	    "/*AE*/" + this.seqOps.getLocalVariable(varName);
+	    LOG("getLocalVariable '" + varName + "'");
+	    //"/*AE*/" + this.seqOps.getLocalVariable(varName);
+	    match ( this.localVariableMap.containsKey(varName)  ) {
+	        case True {
+                val index = this.localVariableMap.get(varName);
+                this.indexToString(index);
+            }
+            case False {
+                // parameter 
+                this.seqOps.getLocalVariable(varName);
+            }
+        };
 	}
 
 }
