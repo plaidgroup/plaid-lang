@@ -11,6 +11,8 @@ import plaid.fastruntime.NamingConventions;
 
 state AEminiumCodeGenOps case of CodeGenOps {
     val immutable SequentialCodeGenOps seqOps = makeSequentialCodeGenOps();
+    var shared Map methodInfoObjMap;
+    var shared MethodInformationMap curMethodInfo = "<UNINITIALIZED>";
 
     method void LOG(immutable String msg) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGen> " + msg);
@@ -18,7 +20,20 @@ state AEminiumCodeGenOps case of CodeGenOps {
 
     method codegenCU(immutable CodeGenOps ops, unique Job job, immutable ParsedCompilationUnit node) {
         LOG("codegenCU");
-        this.seqOps.codegenCU(this, job, node);
+        var immutable Boolean haveAEminiumData = false; 
+        match ( job.getJobData(AEMINIUM_METHOD_INFORMATION_MAP) ) {
+            case Some { 
+                DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found AEminium method information map.");
+                this.methodInfoObjMap = job.getJobData(AEMINIUM_METHOD_INFORMATION_MAP).value.methodInfoMap;
+                haveAEminiumData = true;
+            }
+            case None { /*noop*/ }
+        };
+        
+        match ( haveAEminiumData ) {
+            case True  { this.seqOps.codegenCU(this, job, node) }
+            case False { this.seqOps.codegenCU(this.seqOps, job, node) }
+        };
     }
     
     method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
@@ -28,7 +43,35 @@ state AEminiumCodeGenOps case of CodeGenOps {
     
     method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
         LOG("codegenInnerDecl");
-        this.seqOps.codegenInnerDecl(this, node, sb, idgen, classNameCounter);
+        var immutable Boolean generateSequentialCode = true;
+        match ( node ) {
+            case ParsedConcreteMethodDecl {
+                match ( this.methodInfoObjMap.containsKey(node) ) {
+                    case True {
+                        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found method information for method '" + node.name.name + "'");
+                        this.curMethodInfo = this.methodInfoObjMap.get(node);
+                        
+                        match ( this.curMethodInfo.isSingleTask() ) {
+                            case True  { 
+                                DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> method '" + node.name.name + "' consists of only one task => SEQUENTIALIZE" );
+                                generateSequentialCode = true;
+                            }
+                            case False { /* nop */ } 
+                        };
+                    }
+                    case False { /* nop */ }
+                };
+            }
+            default { /* nop */ }
+        };
+        
+        match ( generateSequentialCode ) {
+            case True  { this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, classNameCounter) }
+            case False { this.seqOps.codegenInnerDecl(this, node, sb, idgen, classNameCounter) }
+        };
+        
+        // reset 
+        this.curMethodInfo = "<UNINITIALIZED>";
     }
     
     method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
