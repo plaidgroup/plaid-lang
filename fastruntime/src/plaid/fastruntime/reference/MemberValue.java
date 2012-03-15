@@ -8,43 +8,48 @@ import fj.data.Set;
 public abstract class MemberValue extends SingleValue implements MemberInfo{
 	private final String name;
 	private String classInternalName;
+	private final boolean staticallyDefined;
+	private final String memberDefinitionName;
 	
-	public MemberValue(String name, String classInternalName) {
+	protected MemberValue(String name, String classInternalName, 
+			boolean staticallyDefined, String memberDefinitionName) {
 		this.name = name;
 		this.classInternalName = classInternalName;
+		this.staticallyDefined = staticallyDefined;
+		this.memberDefinitionName = memberDefinitionName;
 	}
 	
 	@Override
-	public Set<String> getTags() {
+	public final Set<String> getTags() {
 		return Set.empty(Ord.stringOrd);
 	}
 
-	public String getName() {
+	public final String getName() {
 		return name;
 	}
 	
 	@Override
-	public boolean uniqueTags() {
+	public final boolean uniqueTags() {
 		return true;
 	}
 	
 	@Override
-	public Set<String> getOuterTags() {
+	public final Set<String> getOuterTags() {
 		return Set.empty(Ord.stringOrd);
 	}
 	
 	@Override
-	public Set<String> getInnerTags() {
+	public final Set<String> getInnerTags() {
 		return Set.empty(Ord.stringOrd);
 	}
 	
 	@Override
-	public String getStaticClassInternalName() {
+	public final String getStaticClassInternalName() {
 		return this.classInternalName;
 	}
 	
 	@Override
-	public ObjectValue remove(String member) {
+	public final ObjectValue remove(String member) {
 		if(this.getName().equals(member)) {
 			return new EmptySingleValue();
 		} else {
@@ -53,8 +58,18 @@ public abstract class MemberValue extends SingleValue implements MemberInfo{
 	}
 	
 	@Override
-	public AbstractObjectValue add(MemberValue mv) {
+	public final AbstractObjectValue add(MemberValue mv) {
 		return new ListValue(this, mv);
 	}
 
+	@Override
+	public final boolean isStaticallyDefined() {
+		return this.staticallyDefined;
+	}
+
+	@Override
+	public final String getMemberDefinitionName() {
+		return this.memberDefinitionName;
+	}
+	
 }

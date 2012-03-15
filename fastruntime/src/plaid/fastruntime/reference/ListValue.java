@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
+import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.F;
@@ -125,6 +126,15 @@ public final class ListValue extends AbstractObjectValue {
 		return currentList;
 	}
 
+	@Override
+	public List<MemberDefInfo> getMemberDefs() {
+		List<MemberDefInfo> currentList = List.nil();
+		for(SingleValue sv : singleValues) {
+			currentList = currentList.append((sv.getMemberDefs()));
+		}
+		return currentList;
+	}
+	
 	@Override
 	public ObjectValue remove(String member) {
 		List<SingleValue> toReturn = List.nil();

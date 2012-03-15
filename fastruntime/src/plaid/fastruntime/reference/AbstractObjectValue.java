@@ -168,7 +168,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	}
 
 	@Override
-	public int getFieldIndex(final String fieldName) {
+	final public int getFieldIndex(final String fieldName) {
 		List<FieldInfo> sortedFields = this.getSortedFields();
 		int i = 0;
 		for(FieldInfo field : sortedFields) {
@@ -178,6 +178,12 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			i++;
 		}
 		throw new PlaidInternalException("Cannot retrieve field index because the field name does not appear in the field list.");
+	}
+	
+	@Override
+	final public int getMemberDefinitionIndex(String memDefName) {
+		
+		return 0;
 	}
 	
 	public boolean uniqueTags() {

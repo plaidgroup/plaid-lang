@@ -37,13 +37,13 @@ public class ObjectValueFactory {
 	 */
 	public void mthd(String name, int numArgs, String fullyQualifiedClassName) {
 		String internalClassName = fullyQualifiedClassName.replace('.', '/');
-		MethodValue toAdd = new MethodValue(name, numArgs, internalClassName);
+		MethodValue toAdd = MethodValue.createMethodWithStaticDefinition(name, numArgs, internalClassName);
 		member(fullyQualifiedClassName, toAdd);
 	}
 
 	public void field(boolean settable, String name, String fullyQualifiedClassName) {
 		String internalClassName = fullyQualifiedClassName.replace('.', '/');
-		FieldValue toAdd = new FieldValue(settable, name, internalClassName);
+		FieldValue toAdd = FieldValue.createFieldWithStaticDefinition(name, settable, internalClassName);
 		member(fullyQualifiedClassName, toAdd);
 	}
 	
