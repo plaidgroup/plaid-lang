@@ -11,7 +11,6 @@ import plaid.fastruntime.PlaidJavaObject.JavaPrimitive;
 import plaid.fastruntime.dcg.DispatchGenerator;
 import plaid.fastruntime.dcg.InterfaceGenerator;
 import plaid.fastruntime.dcg.JavaDispatchGenerator;
-import plaid.fastruntime.dcg.StorageGenerator;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
 import plaid.lang.False;
@@ -30,7 +29,6 @@ public class Util {
 //		JAVA_GEN.preloadPlaidState(java.lang.Integer.class, Integer32.theState$plaid);
 	}
 	public static final InterfaceGenerator INTERFACE_GEN = new InterfaceGenerator();
-	public static final StorageGenerator STORAGE_GEN = new StorageGenerator();
 	public static final DispatchGenerator DISPATCH_GEN = new DispatchGenerator();
 	
 	public static PlaidObject unit() {

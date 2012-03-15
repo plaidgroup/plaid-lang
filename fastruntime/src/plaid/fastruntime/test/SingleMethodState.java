@@ -15,7 +15,7 @@ public class SingleMethodState {
 
 	@Test
 	public void test() {
-		MethodValue mv = new MethodValue("doAddFive",1,"plaid/fastruntime/test/SingleMethodState");
+		MethodValue mv = MethodValue.createMethodWithStaticDefinition("doAddFive",1,"plaid/fastruntime/test/SingleMethodState");
 		DimensionValue dv = new DimensionValue("plaid/fastruntime/test/SingleMethodState", mv, null);
 		PlaidState ps = Util.DISPATCH_GEN.createStateInstance(dv);
 		PlaidJavaObject returnedValue = (PlaidJavaObject) ((IdoAddFive$1$plaid)ps).doAddFive(Util.unit(), Util.integer(7));
