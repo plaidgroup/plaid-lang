@@ -6,6 +6,8 @@ import plaid.compiler.codegen.codegenMethodBody;
 import plaid.compiler.codegen.makeSeperatedString;
 import plaid.compiler.codegen.CodeGenOps;
 import plaid.compiler.codegen.makeSequentialCodeGenOps;
+import plaid.compiler.util.*;
+import plaid.compiler.passes.TaskBuilderPass;
 
 import plaid.fastruntime.NamingConventions;
 
@@ -21,6 +23,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
     method void reset() {
         this.localVariableCounter = -1;
         this.localVariableMap.clear();
+        this.curMethodInfo = "<UNINITIALIZED>";
     }
 
     method immutable String indexToString(immutable Integer index) {
@@ -61,17 +64,25 @@ state AEminiumCodeGenOps case of CodeGenOps {
     
     method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
         LOG("codegenInnerDecl");
+        
+        val shared Symbol methSymbol = match (symbolForAST(node)) {
+            case Some  { symbolForAST(node).value }
+            case None  { ABORT("<AEminiumCodeGenOps> cannot find symbol for " + node.nodeName()) }
+        };
+        val name = methSymbol.name;
+        val path = symbolToString(methSymbol);
+        
         var immutable Boolean generateSequentialCode = true;
         match ( node ) {
             case ParsedConcreteMethodDecl {
                 match ( this.methodInfoObjMap.containsKey(node) ) {
                     case True {
-                        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found method information for method '" + node.name.name + "'");
+                        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found method information for method '" + path + "." + node.name.name + "'");
                         this.curMethodInfo = this.methodInfoObjMap.get(node);
                         
                         match ( this.curMethodInfo.isSingleTask() ) {
                             case True  { 
-                                DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> method '" + node.name.name + "' consists of only one task => SEQUENTIALIZE" );
+                                DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> method '" +  path + "." + node.name.name + "' consists of only one task => SEQUENTIALIZE" );
                                 generateSequentialCode = true;
                             }
                             case False { generateSequentialCode = false } 
@@ -83,16 +94,20 @@ state AEminiumCodeGenOps case of CodeGenOps {
             default { /* nop */ }
         };
         
-        // clear internal data structures
-        this.reset();
+
         
         match ( generateSequentialCode ) {
             case True  { this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, classNameCounter) }
-            case False { this.seqOps.codegenInnerDecl(this, node, sb, idgen, classNameCounter) }
+            case False {
+                // use AEminium code gen opes (aka this object) 
+                this.seqOps.codegenInnerDecl(this, node, sb, idgen, classNameCounter);
+                // dump final graph 
+                val tasks = this.curMethodInfo.expandMatches(path);
+            }
         };
         
-        // reset 
-        this.curMethodInfo = "<UNINITIALIZED>";
+        // clear internal data structures
+        this.reset();
     }
     
     method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
