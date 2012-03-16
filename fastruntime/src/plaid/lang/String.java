@@ -29,7 +29,8 @@ public class String extends AbstractPlaidState
 						  			 Isubstring$2$plaid,
 						  			 Ilength$0$plaid,
 						  			 IcharAt$1$plaid,
-						  			 IindexOf$1$plaid
+						  			 IindexOf$1$plaid,
+						  			 ItoString$0$plaid
 {
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
@@ -53,10 +54,14 @@ public class String extends AbstractPlaidState
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject other) {
 		try {
 			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
-			java.lang.String second = ((PlaidJavaObject)(((ItoString$0$plaid)other.getDispatch()).toString(other))).getJavaObject().toString();
-			java.lang.String concat = first + second;
-			return plaidString(concat);
-			
+			if ( other.getDispatch() instanceof ItoString$0$plaid ){
+				PlaidObject stringObj = ((ItoString$0$plaid)other.getDispatch()).toString(other);
+				java.lang.String second = ((java.lang.String) ((PlaidJavaObject) stringObj).getJavaObject());
+				java.lang.String concat = first + second;
+				return plaidString(concat);			
+			} else {
+				throw new PlaidIllegalArgumentException("Supplied parameter has no 'toString' method.");
+			}
 		} catch (Exception e) {
 			throw new PlaidIllegalArgumentException("String concatenation failed", e.getCause());
 		}
@@ -164,5 +169,10 @@ public class String extends AbstractPlaidState
 		} catch (Exception e) {
 			throw new PlaidIllegalArgumentException("String equality failed", e.getCause());
 		}
+	}
+
+	@Override
+	public PlaidObject toString(PlaidObject x) {
+		return x;
 	}
 }
