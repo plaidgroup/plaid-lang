@@ -18,6 +18,7 @@ public final class DimensionValue extends SingleValue {
 	private final AbstractObjectValue innerValue;
 	private final DimensionValue parent;
 	private final String canonicalRep;
+	private Set<String> currentTags = null;
 	
 	public DimensionValue(String tag, AbstractObjectValue innerValue,
 			DimensionValue parent) {
@@ -42,15 +43,16 @@ public final class DimensionValue extends SingleValue {
 	
 	@Override
 	public Set<String> getTags() {
-		Set<String> currentTags = Set.single(Ord.stringOrd, tag);
-		if(innerValue != null) {
-			currentTags = currentTags.union(innerValue.getTags());
+		if ( this.currentTags == null ) {
+			this.currentTags = Set.single(Ord.stringOrd, tag);
+			if(innerValue != null) {
+				currentTags = currentTags.union(innerValue.getTags());
+			}
+			if(parent != null) {
+				currentTags = currentTags.union(parent.getTags());
+			}
 		}
-		if(parent == null) {
-			return currentTags;
-		} else {
-			return currentTags.union(parent.getTags());
-		}
+		return currentTags;
 	}
 	
 	public DimensionValue withoutParent() {
