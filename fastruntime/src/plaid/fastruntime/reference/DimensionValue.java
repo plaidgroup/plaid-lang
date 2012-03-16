@@ -66,7 +66,7 @@ public final class DimensionValue extends SingleValue {
 	
 	@Override
 	public Set<String> constructInnerTags() {
-		Set<String> tagSet = Set.empty(STRING_ORD);
+		Set<String> tagSet = EMPTY_TAGS;
 		if(parent != null) {
 			tagSet = parent.getInnerTags().union(tagSet);
 		} 
@@ -78,7 +78,7 @@ public final class DimensionValue extends SingleValue {
 
 	@Override
 	public List<MethodInfo> constructMethods() {
-		List<MethodInfo> mi = List.nil();
+		List<MethodInfo> mi = NIL_METHOD_INFO;
 		if(innerValue!=null) {
 			mi = mi.append(innerValue.getMethods());
 		}
@@ -91,7 +91,7 @@ public final class DimensionValue extends SingleValue {
 
 	@Override
 	public List<FieldInfo> constructFields() {
-		List<FieldInfo> fi = List.nil();
+		List<FieldInfo> fi = NIL_FIELD_INFO;
 		if(innerValue!=null) {
 			fi = fi.append(innerValue.getFields());
 		}
@@ -103,7 +103,7 @@ public final class DimensionValue extends SingleValue {
 	
 	@Override
 	public List<MemberDefInfo> constructMemberDefs() {
-		List<MemberDefInfo> mdi = List.nil();
+		List<MemberDefInfo> mdi = NIL_MEMBER_DEF_INFO;
 		if(innerValue!=null) {
 			mdi = mdi.append(innerValue.getMemberDefs());
 		}

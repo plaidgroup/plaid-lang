@@ -28,7 +28,7 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 
 	@Override
 	protected List<MethodInfo> constructMethods() {
-		return List.nil();
+		return NIL_METHOD_INFO;
 	}
 
 	@Override
@@ -38,7 +38,7 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	
 	@Override
 	public List<MemberDefInfo> constructMemberDefs() {
-		return List.nil();
+		return NIL_MEMBER_DEF_INFO;
 	}
 
 	@Override

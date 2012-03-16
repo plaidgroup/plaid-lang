@@ -14,17 +14,17 @@ public final class EmptySingleValue extends AtomicValue {
 	
 	@Override
 	protected List<MethodInfo> constructMethods() {
-		return List.nil();
+		return NIL_METHOD_INFO;
 	}
 
 	@Override
 	protected List<FieldInfo> constructFields() {
-		return List.nil();
+		return NIL_FIELD_INFO;
 	}
 	
 	@Override
 	protected List<MemberDefInfo> constructMemberDefs() {
-		return List.nil();
+		return NIL_MEMBER_DEF_INFO;
 	}
 
 	@Override

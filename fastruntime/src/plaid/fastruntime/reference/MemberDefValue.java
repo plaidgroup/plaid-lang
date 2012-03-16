@@ -22,12 +22,12 @@ public final class MemberDefValue extends AtomicValue implements MemberDefInfo {
 
 	@Override
 	protected final List<MethodInfo> constructMethods() {
-		return List.nil();
+		return NIL_METHOD_INFO;
 	}
 
 	@Override
 	protected final List<FieldInfo> constructFields() {
-		return List.nil();
+		return NIL_FIELD_INFO;
 	}
 
 	@Override
