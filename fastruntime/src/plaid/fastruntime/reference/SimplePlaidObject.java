@@ -29,4 +29,8 @@ public class SimplePlaidObject implements PlaidObject {
 		storage = dispatch.getStorage();
 	}
 
+	@Override
+	public String toString() {
+		return getDispatch().getObjectValue().toString().replace("/", ".");
+	}
 }
