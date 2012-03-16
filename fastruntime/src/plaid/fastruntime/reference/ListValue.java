@@ -6,8 +6,6 @@ import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.F;
 import fj.F2;
-import fj.Ord;
-import fj.Ordering;
 import fj.data.List;
 import fj.data.Set;
 
@@ -68,7 +66,7 @@ public final class ListValue extends AbstractObjectValue {
 
 	@Override
 	public Set<String> constructTags() {
-		Set<String> tags = Set.empty(Ord.stringOrd);
+		Set<String> tags = Set.empty(STRING_ORD);
 		for(SingleValue sv : singleValues) {
 			tags = tags.union(sv.getTags());
 		}
@@ -77,7 +75,7 @@ public final class ListValue extends AbstractObjectValue {
 
 	@Override
 	protected Set<String> constructOuterTags() {
-		Set<String> currentSet = Set.empty(Ord.stringOrd);
+		Set<String> currentSet = Set.empty(STRING_ORD);
 		for(SingleValue sv : singleValues) {
 			currentSet = currentSet.union(sv.getOuterTags());
 		}
@@ -86,7 +84,7 @@ public final class ListValue extends AbstractObjectValue {
 	
 	@Override
 	protected Set<String> constructInnerTags() {
-		Set<String> currentSet = Set.empty(Ord.stringOrd);
+		Set<String> currentSet = Set.empty(STRING_ORD);
 		for(SingleValue sv : singleValues) {
 			currentSet = currentSet.union(sv.getInnerTags());
 		}
@@ -142,31 +140,14 @@ public final class ListValue extends AbstractObjectValue {
 	public ObjectValue rename(final String currentName, final String newName) {
 		F<SingleValue,SingleValue> callRename = new F<SingleValue,SingleValue>() {
 			public SingleValue f(SingleValue a) {
-				return (SingleValue)a.rename(currentName,newName);
+				return (SingleValue)a.rename(currentName, newName);
 			}
 		};
 		List<SingleValue> newSingleValues = singleValues.map(callRename);
 		return new ListValue(newSingleValues);
 	}
-
-	private final static Ord<SingleValue> svOrd;
-	static {
-		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
-			@Override
-			public F<SingleValue, Ordering> f(SingleValue a) {
-				final String thisRep = a.getCanonicalRep();
-				return new F<SingleValue, Ordering>() {
-					public Ordering f(SingleValue other) {
-						return Ord.stringOrd.compare(thisRep, other.getCanonicalRep());
-					}
-				};
-			}
-		};
-		
-		svOrd = Ord.ord(orderSingleValues);
-	}
 	
-	private final static F2<String, SingleValue, String> combineCanonicalStrings = new F2<String, SingleValue, String>() {
+	private final static F2<String, SingleValue, String> COMBINE_CANONICAL_STRINGS = new F2<String, SingleValue, String>() {
 		public String f(String a, SingleValue b) {
 			return a + ";" + b.getCanonicalRep();
 		}
@@ -174,8 +155,8 @@ public final class ListValue extends AbstractObjectValue {
 	
 	@Override
 	protected String constructCanonicalRep() {
-		List<SingleValue> sortedSingleValues = this.singleValues.sort(svOrd);
-		String result = sortedSingleValues.foldLeft(combineCanonicalStrings, "");
+		List<SingleValue> sortedSingleValues = this.singleValues.sort(SINGLE_VALUE_ORD);
+		String result = sortedSingleValues.foldLeft(COMBINE_CANONICAL_STRINGS, "");
 		return result.intern();
 	}
 }

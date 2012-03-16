@@ -10,11 +10,33 @@ import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
+import fj.F;
 import fj.Ord;
+import fj.Ordering;
 import fj.data.List;
 import fj.data.Set;
 
 public abstract class AbstractObjectValue implements ObjectValue {
+	
+	protected final static Ord<String> STRING_ORD = Ord.stringOrd;
+	protected static final Ord<FieldInfo> FIELD_ORD = Ord.comparableOrd();
+	protected final static Ord<SingleValue> SINGLE_VALUE_ORD;
+	static {
+		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
+			@Override
+			public F<SingleValue, Ordering> f(SingleValue a) {
+				final String thisRep = a.getCanonicalRep();
+				return new F<SingleValue, Ordering>() {
+					public Ordering f(SingleValue other) {
+						return Ord.stringOrd.compare(thisRep, other.getCanonicalRep());
+					}
+				};
+			}
+		};
+		
+		SINGLE_VALUE_ORD = Ord.ord(orderSingleValues);
+	}
+	
 	
 	// all of these are caches and should be assigned to exactly once. Unfortunately,
 	// they cannot be called from the constructor because of ordering constraints.
@@ -236,8 +258,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	private List<FieldInfo> getSortedFields() {
 		if (this.sortedFields == null) {
 			List<FieldInfo> fields = this.getFields();
-			Ord<FieldInfo> fieldOrd = Ord.comparableOrd();
-			this.sortedFields = fields.sort(fieldOrd);
+			this.sortedFields = fields.sort(FIELD_ORD);
 		} 
 		return this.sortedFields;
 	}
