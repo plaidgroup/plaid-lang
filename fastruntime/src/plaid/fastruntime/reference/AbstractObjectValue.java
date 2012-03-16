@@ -18,9 +18,9 @@ import fj.data.Set;
 
 public abstract class AbstractObjectValue implements ObjectValue {
 	
-	protected final static Ord<String> STRING_ORD = Ord.stringOrd;
+	protected static final Ord<String> STRING_ORD = Ord.stringOrd;
 	protected static final Ord<FieldInfo> FIELD_ORD = Ord.comparableOrd();
-	protected final static Ord<SingleValue> SINGLE_VALUE_ORD;
+	protected static final Ord<SingleValue> SINGLE_VALUE_ORD;
 	static {
 		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
 			@Override
@@ -36,6 +36,12 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		
 		SINGLE_VALUE_ORD = Ord.ord(orderSingleValues);
 	}
+	
+	protected static final List<MethodInfo> NIL_METHOD_INFO = List.nil();
+	protected static final List<FieldInfo> NIL_FIELD_INFO = List.nil();
+	protected static final List<MemberDefInfo> NIL_MEMBER_DEF_INFO = List.nil();
+	protected static final List<SingleValue> NIL_SINGLE_VALUE = List.nil();
+	protected static final Set<String> EMPTY_TAGS = Set.empty(STRING_ORD);
 	
 	
 	// all of these are caches and should be assigned to exactly once. Unfortunately,

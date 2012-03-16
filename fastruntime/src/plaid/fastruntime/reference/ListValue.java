@@ -66,7 +66,7 @@ public final class ListValue extends AbstractObjectValue {
 
 	@Override
 	public Set<String> constructTags() {
-		Set<String> tags = Set.empty(STRING_ORD);
+		Set<String> tags = EMPTY_TAGS;
 		for(SingleValue sv : singleValues) {
 			tags = tags.union(sv.getTags());
 		}
@@ -75,7 +75,7 @@ public final class ListValue extends AbstractObjectValue {
 
 	@Override
 	protected Set<String> constructOuterTags() {
-		Set<String> currentSet = Set.empty(STRING_ORD);
+		Set<String> currentSet = EMPTY_TAGS;
 		for(SingleValue sv : singleValues) {
 			currentSet = currentSet.union(sv.getOuterTags());
 		}
@@ -84,7 +84,7 @@ public final class ListValue extends AbstractObjectValue {
 	
 	@Override
 	protected Set<String> constructInnerTags() {
-		Set<String> currentSet = Set.empty(STRING_ORD);
+		Set<String> currentSet = EMPTY_TAGS;
 		for(SingleValue sv : singleValues) {
 			currentSet = currentSet.union(sv.getInnerTags());
 		}
@@ -93,7 +93,7 @@ public final class ListValue extends AbstractObjectValue {
 
 	@Override
 	protected List<MethodInfo> constructMethods() {
-		List<MethodInfo> currentList = List.nil();
+		List<MethodInfo> currentList = NIL_METHOD_INFO;
 		for(SingleValue sv : singleValues) {
 			currentList = currentList.append((sv.getMethods()));
 		}
@@ -103,7 +103,7 @@ public final class ListValue extends AbstractObjectValue {
 
 	@Override
 	protected List<FieldInfo> constructFields() {
-		List<FieldInfo> currentList = List.nil();
+		List<FieldInfo> currentList = NIL_FIELD_INFO;
 		for(SingleValue sv : singleValues) {
 			currentList = currentList.append((sv.getFields()));
 		}
@@ -112,7 +112,7 @@ public final class ListValue extends AbstractObjectValue {
 
 	@Override
 	protected List<MemberDefInfo> constructMemberDefs() {
-		List<MemberDefInfo> currentList = List.nil();
+		List<MemberDefInfo> currentList = NIL_MEMBER_DEF_INFO;
 		for(SingleValue sv : singleValues) {
 			currentList = currentList.append((sv.getMemberDefs()));
 		}
@@ -121,7 +121,7 @@ public final class ListValue extends AbstractObjectValue {
 	
 	@Override
 	public ObjectValue remove(String member) {
-		List<SingleValue> toReturn = List.nil();
+		List<SingleValue> toReturn = NIL_SINGLE_VALUE;
 		for(SingleValue sv : singleValues) {
 			if(sv instanceof MemberValue && !((MemberValue) sv).getName().equals(member)) {
 				toReturn = toReturn.cons(sv);

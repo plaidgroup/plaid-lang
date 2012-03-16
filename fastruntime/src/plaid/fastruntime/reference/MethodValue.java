@@ -36,12 +36,12 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	
 	@Override
 	public List<FieldInfo> constructFields() {
-		return List.nil();
+		return NIL_FIELD_INFO;
 	}
 	
 	@Override
 	public List<MemberDefInfo> constructMemberDefs() {
-		return List.nil();
+		return NIL_MEMBER_DEF_INFO;
 	}
 
 	@Override
