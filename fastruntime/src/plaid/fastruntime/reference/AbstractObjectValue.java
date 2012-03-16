@@ -3,6 +3,8 @@ package plaid.fastruntime.reference;
 import java.lang.reflect.Field;
 
 import plaid.fastruntime.FieldInfo;
+import plaid.fastruntime.MemberDefInfo;
+import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.PlaidFieldInitializer;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidObject;
@@ -14,12 +16,85 @@ import fj.data.Set;
 
 public abstract class AbstractObjectValue implements ObjectValue {
 	
+	// all of these are caches and should be assigned to exactly once. Unfortunately,
+	// they cannot be called from the constructor because of ordering constraints.
+	private String canonicalRep; 
+	private List<MethodInfo> methods;
+	private List<FieldInfo> fields;
+	private List<MemberDefInfo> memberDefs;
+	private Set<String> tags;
+	private Set<String> outerTags;
+	private Set<String> innerTags;
+	
+	/*
+	 * Must be called in last line of construct of every concrete subtype.
+	 */
+	protected final void init() {
+		this.canonicalRep = this.constructCanonicalRep();
+		this.methods = this.constructMethods();
+		this.fields = this.constructFields();
+		this.tags = this.constructTags();
+		this.outerTags = this.constructOuterTags();
+		this.innerTags = this.constructInnerTags();
+	}
+	
+	
+	@Override
+	public final String getCanonicalRep() {
+		return this.canonicalRep;
+	}
+	
+	@Override
+	public final List<MethodInfo> getMethods() {
+		return this.methods;
+	}
+
+	@Override
+	public final List<FieldInfo> getFields() {
+		return this.fields;
+	}
+
+	@Override
+	public final List<MemberDefInfo> getMemberDefs() {
+		return this.memberDefs;
+	}
+	
+	protected final Set<String> getTags() {
+		return this.tags;
+	}
+	
+	protected final Set<String> getOuterTags() {
+		return this.outerTags;
+		
+	}
+	
+	protected final Set<String> getInnerTags() {
+		return this.innerTags;
+	}
+	
 	/**
+	 * This method returns a string that should represent this object value. All ObjectValues that
+	 * are logically equivalent  have the same canonical string. All ObjectValues that are 
+	 * logically unequal have different canonical strings. Canonical strings can be compared
+	 * with ==. 
 	 * @see java.lang.String#intern String interning.
 	 * @return Value is a canonical instance. The returned String instance should be the result 
 	 * of a call to String.intern() method.
 	 */
 	protected abstract String constructCanonicalRep();
+	
+	protected abstract List<FieldInfo> constructFields();
+	
+	protected abstract List<MethodInfo> constructMethods();
+	
+	protected abstract List<MemberDefInfo> constructMemberDefs();
+	
+	protected abstract Set<String> constructTags();
+	
+	protected abstract Set<String> constructOuterTags();
+	
+	protected abstract Set<String> constructInnerTags();
+	
 
 	@Override
 	public final AbstractObjectValue changeState(ObjectValue other) {
@@ -186,17 +261,17 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		return 0;
 	}
 	
-	public boolean uniqueTags() {
+	public final boolean uniqueTags() {
 		//TODO: Implement unique tags correctly
 		//TODO: Check what is going on here
 		return true;
 	}
 	
-	public boolean matches(String tag) {
+	public final boolean matches(String tag) {
 		return getTags().member(tag);
 	}
 	
-	public String getTopTag() {
+	public final String getTopTag() {
 		if (this instanceof DimensionValue) {
 			return ((DimensionValue)this).getTag();
 		} else {
@@ -205,7 +280,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	}
 	
 	@Override
-	public ObjectValue specialize(ObjectValue newMembers) {
+	public final ObjectValue specialize(ObjectValue newMembers) {
 		AbstractObjectValue currentValue = this;
 		if (newMembers instanceof ListValue) {
 			for (SingleValue sv : ((ListValue) newMembers).getAll()) {
@@ -227,18 +302,12 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		return currentValue;
 	}
 	
-	public abstract Set<String> getTags();
-	
-	public abstract Set<String> getOuterTags();
-	
-	public abstract Set<String> getInnerTags();
-	
 	public abstract ListValue addValue(SingleValue other);
 	
 	public abstract AbstractObjectValue add(MemberValue mv);
 	
 	@Override
-	public boolean equals(Object other) {
+	public final boolean equals(Object other) {
 		if (other instanceof AbstractObjectValue) {
 			return this.getCanonicalRep() == ((AbstractObjectValue)other).getCanonicalRep(); // == okay because canonical
 		} else {
@@ -248,8 +317,13 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	}
 	
 	@Override
-	public int hashCode() {
+	public final int hashCode() {
 		return this.getCanonicalRep().hashCode();
+	}
+	
+	@Override
+	public final String toString() {
+		return this.getCanonicalRep();
 	}
 
 }

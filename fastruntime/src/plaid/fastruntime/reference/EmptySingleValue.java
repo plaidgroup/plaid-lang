@@ -4,45 +4,32 @@ import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.Ord;
 import fj.data.List;
-import fj.data.Set;
 
-public final class EmptySingleValue extends SingleValue {
+public final class EmptySingleValue extends AtomicValue {
+	
+	public EmptySingleValue() {
+		this.init();
+	}
 	
 	@Override
-	public List<MethodInfo> getMethods() {
+	protected List<MethodInfo> constructMethods() {
 		return List.nil();
 	}
 
 	@Override
-	public List<FieldInfo> getFields() {
+	protected List<FieldInfo> constructFields() {
 		return List.nil();
 	}
 	
 	@Override
-	public List<MemberDefInfo> getMemberDefs() {
+	protected List<MemberDefInfo> constructMemberDefs() {
 		return List.nil();
 	}
 
 	@Override
 	public ObjectValue remove(String member) {
 		return this;
-	}
-
-	@Override
-	public Set<String> getTags() {
-		return Set.empty(Ord.stringOrd);
-	}
-
-	@Override
-	public Set<String> getOuterTags() {
-		return Set.empty(Ord.stringOrd);
-	}
-
-	@Override
-	public Set<String> getInnerTags() {
-		return Set.empty(Ord.stringOrd);
 	}
 
 	@Override
@@ -53,11 +40,6 @@ public final class EmptySingleValue extends SingleValue {
 	@Override
 	public AbstractObjectValue add(MemberValue mv) {
 		return mv;
-	}
-
-	@Override
-	public String getCanonicalRep() {
-		return "";
 	}
 
 	@Override

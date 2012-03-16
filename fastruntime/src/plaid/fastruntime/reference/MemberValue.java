@@ -2,10 +2,8 @@ package plaid.fastruntime.reference;
 
 import plaid.fastruntime.MemberInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.Ord;
-import fj.data.Set;
 
-public abstract class MemberValue extends SingleValue implements MemberInfo{
+public abstract class MemberValue extends AtomicValue implements MemberInfo{
 	private final String name;
 	private String classInternalName;
 	private final boolean staticallyDefined;
@@ -17,30 +15,13 @@ public abstract class MemberValue extends SingleValue implements MemberInfo{
 		this.classInternalName = classInternalName;
 		this.staticallyDefined = staticallyDefined;
 		this.memberDefinitionName = memberDefinitionName;
+		this.init();
 	}
 	
-	@Override
-	public final Set<String> getTags() {
-		return Set.empty(Ord.stringOrd);
-	}
+	
 
 	public final String getName() {
 		return name;
-	}
-	
-	@Override
-	public final boolean uniqueTags() {
-		return true;
-	}
-	
-	@Override
-	public final Set<String> getOuterTags() {
-		return Set.empty(Ord.stringOrd);
-	}
-	
-	@Override
-	public final Set<String> getInnerTags() {
-		return Set.empty(Ord.stringOrd);
 	}
 	
 	@Override

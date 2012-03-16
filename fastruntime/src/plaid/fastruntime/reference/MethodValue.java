@@ -10,7 +10,6 @@ import fj.data.List;
 public final class MethodValue extends MemberValue implements MethodInfo {
 
 	private final int numArgs;
-	private final String canonicalRep;
 	
 	public static MethodValue createMethodWithStaticDefinition(String name, int numArgs, String classInternalName) {
 		return new MethodValue(name, numArgs, classInternalName, false, null);
@@ -26,27 +25,22 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 					   boolean staticallyDefined, String memberDefinitionName) {
 		super(name, classInternalName, staticallyDefined, memberDefinitionName);
 		this.numArgs = numArgs;
-		canonicalRep = this.constructCanonicalRep();
-	}
-	
-	@Override
-	public String toString() {
-		return "method " + getName();
+		this.init();
 	}
 
 	@Override
-	public List<MethodInfo> getMethods() {
+	public List<MethodInfo> constructMethods() {
 		//the fact that Java requires the MethodInfo cast is annoying
 		return List.single((MethodInfo)this);
 	}
 	
 	@Override
-	public List<FieldInfo> getFields() {
+	public List<FieldInfo> constructFields() {
 		return List.nil();
 	}
 	
 	@Override
-	public List<MemberDefInfo> getMemberDefs() {
+	public List<MemberDefInfo> constructMemberDefs() {
 		return List.nil();
 	}
 
@@ -74,11 +68,6 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	protected String constructCanonicalRep() {
 		String result =  "method:" + this.getName() + this.numArgs + this.getStaticClassInternalName();
 		return result.intern();
-	}
-
-	@Override
-	public String getCanonicalRep() {
-		return canonicalRep;
 	}
 
 }

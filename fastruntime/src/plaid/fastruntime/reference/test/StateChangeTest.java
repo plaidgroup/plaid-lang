@@ -139,34 +139,8 @@ public class StateChangeTest {
 				new DimensionValue("B", new DimensionValue("B", null, null), new DimensionValue("C", null, null));
 		ObjectValue result = target.changeState(update);
 		ObjectValue goal = 
-			new DimensionValue("B", null, new DimensionValue("C", MethodValue.createMethodWithStaticDefinition("foo", 0, null), null));
-		Assert.assertTrue(result.equals(goal));
-	}
-	
-	@Test
-	public void testListToString() {
-		ListValue lv = new ListValue(MethodValue.createMethodWithStaticDefinition("foo", 0, null), MethodValue.createMethodWithStaticDefinition("bar", 0, null));
-		Assert.assertTrue("<method foo,method bar>".equals(lv.toString()));
-	}
-	
-	@Test
-	public void testDimensionToString() {
-		DimensionValue dv = new DimensionValue("B", 
-				MethodValue.createMethodWithStaticDefinition("foo", 0, null), 
-				new DimensionValue("A", null, null));
-		Assert.assertTrue("B{method foo}<:A".equals(dv.toString()));
-		dv = new DimensionValue("B", 
-				null, 
-				new DimensionValue("A", null, null));
-		Assert.assertTrue("B<:A".equals(dv.toString()));
-		dv = new DimensionValue("B", 
-				MethodValue.createMethodWithStaticDefinition("foo", 0, null), 
-				null);
-		Assert.assertTrue("B{method foo}".equals(dv.toString()));
-		dv = new DimensionValue("B", 
-				null, 
-				null);
-		Assert.assertTrue("B".equals(dv.toString()));
+			new DimensionValue("B", new DimensionValue("B", null, null), new DimensionValue("C", MethodValue.createMethodWithStaticDefinition("foo", 0, null), null));
+		Assert.assertEquals(goal, result);
 	}
 	
 }

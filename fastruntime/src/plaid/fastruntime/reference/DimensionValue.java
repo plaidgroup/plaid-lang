@@ -17,8 +17,6 @@ public final class DimensionValue extends SingleValue {
 	private final String tag;
 	private final AbstractObjectValue innerValue;
 	private final DimensionValue parent;
-	private final String canonicalRep;
-	private Set<String> currentTags = null;
 	
 	public DimensionValue(String tag, AbstractObjectValue innerValue,
 			DimensionValue parent) {
@@ -26,7 +24,7 @@ public final class DimensionValue extends SingleValue {
 		this.tag = tag;
 		this.parent = parent;
 		this.innerValue = innerValue;
-		this.canonicalRep = this.constructCanonicalRep();
+		this.init();
 	}
 
 	public String getTag() {
@@ -42,15 +40,13 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	public Set<String> getTags() {
-		if ( this.currentTags == null ) {
-			this.currentTags = Set.single(Ord.stringOrd, tag);
-			if(innerValue != null) {
-				currentTags = currentTags.union(innerValue.getTags());
-			}
-			if(parent != null) {
-				currentTags = currentTags.union(parent.getTags());
-			}
+	protected Set<String> constructTags() {
+		Set<String> currentTags = Set.single(Ord.stringOrd, tag);
+		if(innerValue != null) {
+			currentTags = currentTags.union(innerValue.getTags());
+		}
+		if(parent != null) {
+			currentTags = currentTags.union(parent.getTags());
 		}
 		return currentTags;
 	}
@@ -60,7 +56,7 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	public Set<String> getOuterTags() {
+	public Set<String> constructOuterTags() {
 		Set<String> tagSet = Set.single(Ord.stringOrd, tag);
 		if(parent != null) {
 			return parent.getOuterTags().union(tagSet);
@@ -70,7 +66,7 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	public Set<String> getInnerTags() {
+	public Set<String> constructInnerTags() {
 		Set<String> tagSet = Set.empty(Ord.stringOrd);
 		if(parent != null) {
 			tagSet = parent.getInnerTags().union(tagSet);
@@ -80,27 +76,9 @@ public final class DimensionValue extends SingleValue {
 		}
 		return tagSet;
 	}
-	
-	@Override
-	public boolean uniqueTags() {
-		//TODO: Fix this, this is wrong!
-		return true;
-	}
-	
-	@Override
-	public String toString() {
-		String toReturn = tag;
-		if(innerValue != null) {
-			toReturn = toReturn + "{" + innerValue.toString() + "}";
-		}
-		if (parent != null) {
-			toReturn = toReturn + "<:" + parent.toString();
-		}
-		return toReturn;
-	}
 
 	@Override
-	public List<MethodInfo> getMethods() {
+	public List<MethodInfo> constructMethods() {
 		List<MethodInfo> mi = List.nil();
 		if(innerValue!=null) {
 			mi = mi.append(innerValue.getMethods());
@@ -113,7 +91,7 @@ public final class DimensionValue extends SingleValue {
 	
 
 	@Override
-	public List<FieldInfo> getFields() {
+	public List<FieldInfo> constructFields() {
 		List<FieldInfo> fi = List.nil();
 		if(innerValue!=null) {
 			fi = fi.append(innerValue.getFields());
@@ -125,7 +103,7 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	public List<MemberDefInfo> getMemberDefs() {
+	public List<MemberDefInfo> constructMemberDefs() {
 		List<MemberDefInfo> mdi = List.nil();
 		if(innerValue!=null) {
 			mdi = mdi.append(innerValue.getMemberDefs());
@@ -173,11 +151,6 @@ public final class DimensionValue extends SingleValue {
 			newInnerValue = this.innerValue.add(mv);
 		}
 		return new DimensionValue(this.tag, newInnerValue, parent);
-	}
-
-	@Override
-	public String getCanonicalRep() {
-		return this.canonicalRep;
 	}
 
 	@Override
