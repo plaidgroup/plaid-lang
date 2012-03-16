@@ -1,0 +1,123 @@
+package plaid.ast.types.permissions;
+
+/**
+ *	Unique Permission
+ */
+state UniquePermission case of Permission {
+	
+	//unique permissions give write access
+	method immutable Boolean isWritable()[pure UniquePermission] { true }
+	
+	//unique permission guarantee the state
+	method immutable Boolean guaranteesState()[pure UniquePermission] { true }
+	
+	method immutable Boolean ==(immutable Permission p2)[immutable UniquePermission] {
+		match(p2) {
+			case UniquePermission { true }
+			default { false }
+		};
+	}
+	
+	method immutable String toString()[immutable UniquePermission] {
+		"unique"
+	}
+
+	//I can split anything off of a unique
+	method /*unique Option<immutable Permission>*/ 
+			splitPerm(immutable Permission p2)
+					 [immutable UniquePermission >> void] 
+	{
+		match(p2) {
+			// unique => unique/none
+			case UniquePermission { makeSome(NONEP) }
+			// unique => full/pure
+			case FullPermission { makeSome(PURE) } 
+			// unique => shared/shared
+			case SharedPermission { makeSome(SHARED) }
+			// unique => immutable/immutable
+			case ImmutablePermission { makeSome(IMMUTABLE) }
+			// unique => pure/full
+			case PurePermission { makeSome(FULL) }
+			// unique => none/unique
+			case NonePermission { makeSome(this) }
+			//unique => dyn/unique
+			case DynPermission { makeSome(this) }
+			default { new None }
+		};
+	}
+	
+	//unique permissions can only coexist with none and dyn permissions
+	method /*unique Option<immutable Permission>*/ 
+			join(immutable Permission >> void p2)
+				[immutable UniquePermission >> void] 
+	{
+		match (p2) {
+			case DynPermission { makeSome(p2) } //unique/dyn => dyn
+			case NonePermission { makeSome(this) } //unique/none => unique
+			default { new None }
+		}
+	}
+	
+	//joining to unique or dyn are the only possibilities
+	method /*unique Option<immutable Permission>*/ 
+		joinTo(immutable Permission >> void p2, immutable Permission >> void target)
+			  [immutable UniquePermision >> void] 
+	{
+		match (target) {
+			case DynPermission { makeSome(DYNP) }
+			case UniquePermission { this.join(p2) }
+			default { new None }
+		}
+	}
+	
+	//UNIQUE is above all permissions in the lattice
+	method immutable Permission leastUpperBound(immutable Permission p2)[immutable UniquePermission] {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { UNIQUE }
+			case FullPermission { UNIQUE }
+			case ImmutablePermission { UNIQUE }
+			case SharedPermission { UNIQUE }
+			case PurePermission { UNIQUE }
+			case NonePermission { UNIQUE }
+			default { 
+				java.lang.System.out.println("not a permission"); 
+				DYNP; 
+			}
+		}
+	}
+	
+	//All permissions are below UNIQUE in the permission lattice
+	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable UniquePermission] {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { UNIQUE }
+			case FullPermission { FULL }
+			case ImmutablePermission { IMMUTABLE }
+			case SharedPermission { SHARED }
+			case PurePermission { PURE }
+			case NonePermission { NONEP }
+			default { 
+				java.lang.System.out.println("not a permission"); 
+				NONEP; 
+			}
+		}
+	}
+	
+	//***DEPRECATED***
+	method asStrongAs(p2) {
+		match(p2) {
+			case DynPermission { false }
+			default { true }
+		}
+	}
+	
+	//weaker
+	//***DEPRECATED***
+	method /*Permission*/ merge(p2) {
+		match (p2) {
+			case DynPermission { DYNP }
+			default { p2 } //most things are weaker than unique
+		}
+	}
+}

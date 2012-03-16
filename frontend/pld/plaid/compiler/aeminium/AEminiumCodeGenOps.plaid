@@ -1,0 +1,194 @@
+package plaid.compiler.aeminium;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.*;
+import plaid.compiler.codegen.codegenMethodBody;
+import plaid.compiler.codegen.makeSeperatedString;
+import plaid.compiler.codegen.CodeGenOps;
+import plaid.compiler.codegen.makeSequentialCodeGenOps;
+import plaid.compiler.util.*;
+import plaid.compiler.passes.TaskBuilderPass;
+
+import plaid.fastruntime.NamingConventions;
+
+state AEminiumCodeGenOps case of CodeGenOps {
+    val immutable String LOCAL_VARIABLE_ARRAY = "_";
+    val immutable SequentialCodeGenOps seqOps = makeSequentialCodeGenOps();
+    var shared Map methodInfoObjMap;
+    var shared MethodInformationMap curMethodInfo = "<UNINITIALIZED>";
+
+    var immutable Integer localVariableCounter = -1;
+    val unique Set localVariableMap = java.util.HashMap.new(); // maps original var names to index 
+    
+    method void reset() {
+        this.localVariableCounter = -1;
+        this.localVariableMap.clear();
+        this.curMethodInfo = "<UNINITIALIZED>";
+    }
+
+    method immutable String indexToString(immutable Integer index) {
+        this.LOCAL_VARIABLE_ARRAY + "[" + index.toString() + "]"
+    }
+
+    method immutable Integer nextLocalVariableIndex() {
+        this.localVariableCounter = this.localVariableCounter + 1;        
+        this.localVariableCounter
+    }
+
+    method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGen> " + msg);
+    }
+
+    method codegenCU(immutable CodeGenOps ops, unique Job job, immutable ParsedCompilationUnit node) {
+        LOG("codegenCU");
+        var immutable Boolean haveAEminiumData = false; 
+        match ( job.getJobData(AEMINIUM_METHOD_INFORMATION_MAP) ) {
+            case Some { 
+                DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found AEminium method information map.");
+                this.methodInfoObjMap = job.getJobData(AEMINIUM_METHOD_INFORMATION_MAP).value.methodInfoMap;
+                haveAEminiumData = true;
+            }
+            case None { /*noop*/ }
+        };
+        
+        match ( haveAEminiumData ) {
+            case True  { this.seqOps.codegenCU(this, job, node) }
+            case False { this.seqOps.codegenCU(this.seqOps, job, node) }
+        };
+    }
+    
+    method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
+        LOG("codegenTopLevelDecl");
+        this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter);
+    }
+    
+    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
+        LOG("codegenInnerDecl");
+        
+        val shared Symbol methSymbol = match (symbolForAST(node)) {
+            case Some  { symbolForAST(node).value }
+            case None  { ABORT("<AEminiumCodeGenOps> cannot find symbol for " + node.nodeName()) }
+        };
+        val name = methSymbol.name;
+        val path = symbolToString(methSymbol);
+        
+        var immutable Boolean generateSequentialCode = true;
+        match ( node ) {
+            case ParsedConcreteMethodDecl {
+                match ( this.methodInfoObjMap.containsKey(node) ) {
+                    case True {
+                        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found method information for method '" + path + "." + node.name.name + "'");
+                        this.curMethodInfo = this.methodInfoObjMap.get(node);
+                        
+                        match ( this.curMethodInfo.isSingleTask() ) {
+                            case True  { 
+                                DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> method '" +  path + "." + node.name.name + "' consists of only one task => SEQUENTIALIZE" );
+                                generateSequentialCode = true;
+                            }
+                            case False { generateSequentialCode = false } 
+                        };
+                    }
+                    case False { /* nop */ }
+                };
+            }
+            default { /* nop */ }
+        };
+        
+
+        
+        match ( generateSequentialCode ) {
+            case True  { this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, classNameCounter) }
+            case False {
+                // use AEminium code gen opes (aka this object) 
+                this.seqOps.codegenInnerDecl(this, node, sb, idgen, classNameCounter);
+                // dump final graph 
+                val tasks = this.curMethodInfo.expandMatches(path);
+            }
+        };
+        
+        // clear internal data structures
+        this.reset();
+    }
+    
+    method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
+        LOG("codegenMethodBody");
+        val tmpSB = java.lang.StringBuilder.new();
+        this.seqOps.codegenMethodBody(this, node, tmpSB, idgen, classNameCounter);
+        sb.append("/* array for local variables */\n");
+        sb.append("final plaid.fastruntime.PlaidObject[] " + this.LOCAL_VARIABLE_ARRAY + " = new plaid.fastruntime.PlaidObject[" + (this.localVariableCounter + 1) + "];\n\n" );
+        sb.append(tmpSB.toString());
+    }
+    
+    method codegenCaseBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
+        LOG("codegenCaseBody");
+        this.seqOps.codegenCaseBody(this, node, sb, idgen, y, classNameCounter);
+    }
+    
+    method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
+        LOG("codegenStmt");
+        this.seqOps.codegenStmt(this, node, sb, idgen, y, classNameCounter);
+    }
+    
+    method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y, classNameCounter)  {
+        LOG("codegenLambda");
+        this.seqOps.codegenLambda(this, args, body, sb, idgen, y, classNameCounter);
+    }
+    
+    method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter)  {
+        LOG("codegenStateExpr");
+        this.seqOps.codegenStateExpr(this, node, sb, idgen, y, classNameCounter);
+    }
+    
+    method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functionExpr, immutable List args, 
+	    					  shared StringBuilder sb, shared IdGen idgen, 
+		    				  immutable String y, classNameCounter) {
+        LOG("codegenApplication");
+        this.seqOps.codegenApplication(this, functionExpr, args, sb, idgen, y, classNameCounter);
+    }
+    
+    method void createLocalVariable(immutable String name, unique StringBuilder sb, immutable Boolean isFinal) {
+        LOG("createLocalVariable '" + name + "'");
+        val index = this.nextLocalVariableIndex();
+        this.localVariableMap.put(name, index);
+        //sb.append("/*AE*/");
+        //this.seqOps.createLocalVariable(name, sb, isFinal);
+    }
+    
+    method void setLocalVariable(immutable String varName, immutable String value, unique StringBuilder sb) {
+        LOG("setLocalVariable '" + varName + "'");   
+        //sb.append("/*AE*/");
+        //this.seqOps.setLocalVariable(varName, value, sb); 
+        val newName = match ( this.localVariableMap.containsKey(varName)  ) {
+	        case True {
+                val index = this.localVariableMap.get(varName);
+                this.varNameComment(varName) + this.indexToString(index) 
+            }
+            case False {
+                varName
+            }
+        };
+        this.seqOps.setLocalVariable(newName, value, sb);
+    }
+    
+	method immutable String getLocalVariable(immutable String varName) {
+	    LOG("getLocalVariable '" + varName + "'");
+	    //"/*AE*/" + this.seqOps.getLocalVariable(varName);
+	    match ( this.localVariableMap.containsKey(varName)  ) {
+	        case True {
+                val index = this.localVariableMap.get(varName);
+                this.varNameComment(varName) + this.indexToString(index);
+            }
+            case False {
+                // parameter 
+                this.seqOps.getLocalVariable(varName);
+            }
+        };
+	}
+
+    method immutable String varNameComment(immutable String varName) {
+        match ( varName.endsWith("$plaid") ) {
+            case True { "" }
+            case False { "/*" + varName + "*/" }
+        };
+    }
+}
