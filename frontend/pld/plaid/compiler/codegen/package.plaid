@@ -453,6 +453,9 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 								case JavaStaticMethodSymbol {
 									ERROR("java methods cannot be dereferenced except as a part of an application/method call");
 								}
+								case JavaConstructorSymbol {
+									ERROR("java constructors cannot be dereferenced except as a part of an application/method call");
+								}
 								default {
 									ERROR("Unexpected symbol for the right side of a dereference of Java class");
 								}
@@ -870,70 +873,11 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 				case Some {
 					val rightSymbol = rightSymbolOpt.value;
 					match (rightSymbol) {
-						case JavaConstructorSymbol {  //For Java Constructor, just get QI of java class and use java syntax
-							var left = match (functionExpr.left) {
-								case ParsedDereference { functionExpr.left.right }
-								case ParsedIdentifier { functionExpr.left }
-								default { ERROR("<CodeGenPass> Unexpected AST node at left of java constructor") }
-							};
-							val leftSymbol = symbolForAST(left).value; //if no symbol, something went wrong earlier
-							match (leftSymbol) {
-								case JavaClassSymbol {
-									//call constructor and assign to y
-									val ysb = java.lang.StringBuilder.new();
-									ysb.append("plaid.fastruntime.Util.javaToPlaid(new " + leftSymbol.getFQN());
-									//static arguments if appropriate
-									val numStaticArgs = leftSymbol.numStaticParams();
-									match (numStaticArgs > 0) {
-										case True {
-											ysb.append("<");
-											var i = 0;
-											while { i < numStaticArgs - 1 } { 
-												ysb.append("Object,");
-												i = i+1;
-											};
-											sb.append("Object>");
-										}
-										case False { /* no op */ }
-									};
-									
-									//parameters
-									ysb.append("(");
-									ysb.append(makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",")); //normal arguments
-									ysb.append("))");
-									ops.setLocalVariable(y, ysb.toString(), sb);
-								}
-								default {
-									ERROR("<CodeGenPass> non-JavaClassSymbol found as target of java constructor");
-								}
-							
-							}
-							
+						case JavaConstructorSymbol {  //Java constructors and static methods handled the same
+							codegenJavaStaticMethod(ops, functionExpr.left, rightSymbol, yList, sb, y);
 						}
 						case JavaStaticMethodSymbol {
-							var left = match (functionExpr.left) { //get AST mapped to JavaClassSymbol
-								case ParsedDereference { functionExpr.left.right }
-								case ParsedIdentifier { functionExpr.left }
-								default { ERROR("<CodeGenPass> Unexpected AST node at left of java constructor") }
-							};
-							val leftSymbol = symbolForAST(left).value; //if no symbol, something went wrong earlier
-							match (leftSymbol) {
-								case JavaClassSymbol {
-									val javaClassFQN = leftSymbol.getFQN();
-									//static methods/constructors found in plaid.generated.<ClassFQN>
-									val ysb = java.lang.StringBuilder.new();
-									ysb.append("plaid.generated." + javaClassFQN + "." + rightSymbol.name + "(");
-									ysb.append(makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",")); //normal arguments
-									ysb.append(")");
-									ops.setLocalVariable(y, ysb.toString(), sb);
-									
-									//generate static methods for the JavaClassSymbol
-									plaid.fastruntime.Util.JAVA_GEN.saveStaticJavaObject(javaClassFQN);
-								}
-								default {
-									ERROR("<CodeGenPass> non-JavaClassSymbol found as target of java static method or constructor");
-								}	
-							}
+							codegenJavaStaticMethod(ops, functionExpr.left, rightSymbol, yList, sb, y);
 						}
 						default {
 							ERROR("<CodeGenPass> method id unexpectedly has a symbol");
@@ -1061,4 +1005,32 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
             ops.setLocalVariable(y, "((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(" + makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",") + ")", sb);
 		}
 	}
+}
+
+method codegenJavaStaticMethod(immutable CodeGenOps ops, immutable ParsedExpr classAST, 
+                               immutable Symbol staticMethodSymbol, immutable List argNames, 
+                               shared StringBuilder sb, immutable String y) {
+    var left = match (classAST) { //get AST mapped to JavaClassSymbol
+        case ParsedDereference { classAST.right }
+        case ParsedIdentifier { classAST }
+        default { ERROR("<CodeGenPass> Unexpected AST node at left of java constructor") }
+    };
+    val leftSymbol = symbolForAST(left).value; //if no symbol, something went wrong earlier
+    match (leftSymbol) {
+        case JavaClassSymbol {
+            val javaClassFQN = leftSymbol.getFQN();
+            //static methods/constructors found in plaid.generated.<ClassFQN>
+            val ysb = java.lang.StringBuilder.new();
+            ysb.append("plaid.generated." + javaClassFQN + "." + staticMethodSymbol.name + "(");
+            ysb.append(makeSeperatedString(argNames.map(fn (argItem) =>{ops.getLocalVariable(argItem)}), ",")); //normal arguments
+            ysb.append(")");
+            ops.setLocalVariable(y, ysb.toString(), sb);
+            
+            //generate static methods for the JavaClassSymbol
+            plaid.fastruntime.Util.JAVA_GEN.saveStaticJavaObject(javaClassFQN);
+        }
+        default {
+            ERROR("<CodeGenPass> non-JavaClassSymbol found as target of java static method or constructor");
+        }	
+    }
 }
