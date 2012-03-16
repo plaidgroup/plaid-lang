@@ -1,7 +1,9 @@
 package plaid.fastruntime.reference;
 
+import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
+import plaid.generated.ItoString$0$plaid;
 
 public class SimplePlaidObject implements PlaidObject {
 
@@ -31,6 +33,15 @@ public class SimplePlaidObject implements PlaidObject {
 
 	@Override
 	public String toString() {
-		return getDispatch().getObjectValue().toString().replace("/", ".");
+		if ( this.getDispatch() instanceof ItoString$0$plaid ) {
+			PlaidObject toStringValue = ((ItoString$0$plaid)this.getDispatch()).toString(this);
+			if ( toStringValue instanceof PlaidJavaObject ) {
+				return ((PlaidJavaObject)toStringValue).getJavaObject().toString();
+			} else {
+				return getDispatch().getObjectValue().toString().replace("/", ".");
+			}
+		} else {
+			return getDispatch().getObjectValue().toString().replace("/", ".");
+		}
 	}
 }
