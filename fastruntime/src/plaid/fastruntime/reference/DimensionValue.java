@@ -4,7 +4,6 @@ import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.Ord;
 import fj.data.List;
 import fj.data.Set;
 
@@ -41,7 +40,7 @@ public final class DimensionValue extends SingleValue {
 	
 	@Override
 	protected Set<String> constructTags() {
-		Set<String> currentTags = Set.single(Ord.stringOrd, tag);
+		Set<String> currentTags = Set.single(STRING_ORD, tag);
 		if(innerValue != null) {
 			currentTags = currentTags.union(innerValue.getTags());
 		}
@@ -57,7 +56,7 @@ public final class DimensionValue extends SingleValue {
 	
 	@Override
 	public Set<String> constructOuterTags() {
-		Set<String> tagSet = Set.single(Ord.stringOrd, tag);
+		Set<String> tagSet = Set.single(STRING_ORD, tag);
 		if(parent != null) {
 			return parent.getOuterTags().union(tagSet);
 		} else {
@@ -67,7 +66,7 @@ public final class DimensionValue extends SingleValue {
 	
 	@Override
 	public Set<String> constructInnerTags() {
-		Set<String> tagSet = Set.empty(Ord.stringOrd);
+		Set<String> tagSet = Set.empty(STRING_ORD);
 		if(parent != null) {
 			tagSet = parent.getInnerTags().union(tagSet);
 		} 
