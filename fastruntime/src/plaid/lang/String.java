@@ -54,14 +54,9 @@ public class String extends AbstractPlaidState
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject other) {
 		try {
 			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
-			if ( other.getDispatch() instanceof ItoString$0$plaid ){
-				PlaidObject stringObj = ((ItoString$0$plaid)other.getDispatch()).toString(other);
-				java.lang.String second = ((java.lang.String) ((PlaidJavaObject) stringObj).getJavaObject());
-				java.lang.String concat = first + second;
-				return plaidString(concat);			
-			} else {
-				throw new PlaidIllegalArgumentException("Supplied parameter has no 'toString' method.");
-			}
+			java.lang.String second = ((java.lang.String) ((PlaidJavaObject) other).getJavaObject());
+			java.lang.String concat = first + second;
+			return plaidString(concat);			
 		} catch (Exception e) {
 			throw new PlaidIllegalArgumentException("String concatenation failed", e.getCause());
 		}
