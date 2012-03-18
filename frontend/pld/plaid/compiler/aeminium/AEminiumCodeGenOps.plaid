@@ -38,7 +38,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
     }
 
     method void LOG(immutable String msg) {
-        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGen> " + msg);
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> " + msg);
     }
 
     method codegenCU(immutable CodeGenOps ops, unique Job job, immutable ParsedCompilationUnit node) {
@@ -63,13 +63,32 @@ state AEminiumCodeGenOps case of CodeGenOps {
         LOG("codegenTopLevelDecl");
         match ( node ) {
             case ParsedConcreteStateDecl { this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter) }
+            case ParsedConcreteMethodDecl { 
+                match ( isMethodParallel(node)  ) {
+                    case True { this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter) }
+                    case False { this.seqOps.codegenTopLevelDecl(this.seqOps, node, packageName, sb, idgen, classNameCounter) }
+                };
+                this.reset();
+            }
             default { this.seqOps.codegenTopLevelDecl(this.seqOps, node, packageName, sb, idgen, classNameCounter) }
         };
     }
     
-    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
+    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
         LOG("codegenInnerDecl");
-        
+        match ( node ) {
+            case ParsedConcreteMethodDecl { 
+                match ( isMethodParallel(node)  ) {
+                    case True { this.seqOps.codegenInnerDecl(this, node, sb, idgen, classNameCounter) }
+                    case False { this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, classNameCounter) }
+                };
+                this.reset();
+            }
+            default { this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, classNameCounter) }
+        };
+    }
+    
+    method void isMethodParallel(immutable ParsedConcreteMethodDecl node) {
         val shared Symbol methSymbol = match (symbolForAST(node)) {
             case Some  { symbolForAST(node).value }
             case None  { ABORT("<AEminiumCodeGenOps> cannot find symbol for " + node.nodeName()) }
@@ -78,41 +97,24 @@ state AEminiumCodeGenOps case of CodeGenOps {
         val path = symbolToString(methSymbol);
         
         var immutable Boolean generateSequentialCode = true;
-        match ( node ) {
-            case ParsedConcreteMethodDecl {
-                match ( this.methodInfoObjMap.containsKey(node) ) {
-                    case True {
-                        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found method information for method '" + path + "." + node.name.name + "'");
-                        this.curMethodInfo = this.methodInfoObjMap.get(node);
-                        
-                        match ( this.curMethodInfo.isSingleTask() ) {
-                            case True  { 
-                                DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> method '" +  path + "." + node.name.name + "' consists of only one task => SEQUENTIALIZE" );
-                                generateSequentialCode = true;
-                            }
-                            case False { generateSequentialCode = false } 
-                        };
+
+        match ( this.methodInfoObjMap.containsKey(node) ) {
+            case True {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found method information for method '" + path + "." + node.name.name + "'");
+                this.curMethodInfo = this.methodInfoObjMap.get(node);
+                
+                match ( this.curMethodInfo.isSingleTask() ) {
+                    case True  { 
+                        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> method '" +  path + "." + node.name.name + "' consists of only one task => SEQUENTIALIZE" );
+                        generateSequentialCode = true;
                     }
-                    case False { /* nop */ }
+                    case False { generateSequentialCode = false } 
                 };
             }
-            default { /* nop */ }
+            case False { /* nop */ }
         };
-        
 
-        
-        match ( generateSequentialCode ) {
-            case True  { this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, classNameCounter) }
-            case False {
-                // use AEminium code gen opes (aka this object) 
-                this.seqOps.codegenInnerDecl(this, node, sb, idgen, classNameCounter);
-                // dump final graph 
-                val tasks = this.curMethodInfo.expandMatches(path);
-            }
-        };
-        
-        // clear internal data structures
-        this.reset();
+        generateSequentialCode == false    
     }
     
     method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
@@ -191,7 +193,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
                 val deps = java.util.HashSet.new(curTask.deps);
                 deps.removeAll(startTasks);
                 val depsString = ifElse ( deps.size() == 0  ) {
-                    "java.util.Collections.EMPTY_LIST"
+                    "aeminium.runtime.Runtime.NO_DEPS"
                 }{
                     val depsSB = java.lang.StringBuilder.new();
                     depsSB.append("java.util.Arrays.asList(");
@@ -204,7 +206,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
                     depsSB.append(")");
                     depsSB.toString();
                 };
-                sb.append(this.LOCAL_AEMINIUM_RUNTIME + ".schedule(" + this.getTaskArrayElement(curTask) + ", "  + this.LOCAL_AEMINIUM_RUNTIME + ".NO_PARENT, "+ depsString + ");\n" );
+                sb.append(this.LOCAL_AEMINIUM_RUNTIME + ".schedule(" + this.getTaskArrayElement(curTask) + ", "  + "aeminium.runtime.Runtime.NO_PARENT, "+ depsString + ");\n" );
             };
         };
 
@@ -256,6 +258,25 @@ state AEminiumCodeGenOps case of CodeGenOps {
 		    				  immutable String y, classNameCounter) {
         LOG("codegenApplication");
         this.seqOps.codegenApplication(this, functionExpr, args, sb, idgen, y, classNameCounter);
+    }
+    
+    method void codegenMain(immutable String methodName, unique StringBuilder sb) {
+        sb.append("public static void main(String[] args) {\n");
+        sb.append("\n/* initialize AEminium runtime */\n");
+        sb.append("final aeminium.runtime.Runtime " + this.LOCAL_AEMINIUM_RUNTIME + " = aeminium.runtime.implementations.Factory.getRuntime();\n");
+        sb.append(this.LOCAL_AEMINIUM_RUNTIME + ".init();\n");
+        sb.append("\n/* create initial task */\n");
+        sb.append("final aeminium.runtime.Task TA$K = " + this.LOCAL_AEMINIUM_RUNTIME + ".createNonBlockingTask(new aeminium.runtime.Body() {\n");
+        sb.append( "@Override public void execute(final aeminium.runtime.Runtime rt, final aeminium.runtime.Task current) {\n");
+        sb.append("" + methodName + "();\n");
+        sb.append("}\n");
+        sb.append("}\n");
+        sb.append(", aeminium.runtime.Runtime.NO_HINTS);\n");
+        sb.append("\n/* schedule initial task  */\n");
+        sb.append(this.LOCAL_AEMINIUM_RUNTIME +".schedule(TA$K, aeminium.runtime.Runtime.NO_PARENT, aeminium.runtime.Runtime.NO_DEPS);\n");
+        sb.append("\n/* wait until all task have completed and shutdown the runtime system */\n");
+        sb.append(this.LOCAL_AEMINIUM_RUNTIME + ".shutdown();\n");
+        sb.append("}\n"); // end main method
     }
     
     method void createLocalVariable(immutable String name, unique StringBuilder sb, immutable Boolean isFinal) {
@@ -310,7 +331,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
         sb.append(task.getBodyStringBuilder());
         sb.append(suffix);
         sb.append("}\n");
-        sb.append("}, " +  this.LOCAL_AEMINIUM_RUNTIME + ".NO_HINTS);\n");
+        sb.append("}, aeminium.runtime.Runtime.NO_HINTS);\n");
         
         sb.toString();
     }
