@@ -65,10 +65,12 @@ state AEminiumCodeGenOps case of CodeGenOps {
             case ParsedConcreteStateDecl { this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter) }
             case ParsedConcreteMethodDecl { 
                 match ( isMethodParallel(node)  ) {
-                    case True { this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter) }
+                    case True { 
+                        this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter);
+                        this.codegenMethodPostlude(node);
+                    }
                     case False { this.seqOps.codegenTopLevelDecl(this.seqOps, node, packageName, sb, idgen, classNameCounter) }
                 };
-                this.reset();
             }
             default { this.seqOps.codegenTopLevelDecl(this.seqOps, node, packageName, sb, idgen, classNameCounter) }
         };
@@ -79,13 +81,31 @@ state AEminiumCodeGenOps case of CodeGenOps {
         match ( node ) {
             case ParsedConcreteMethodDecl { 
                 match ( isMethodParallel(node)  ) {
-                    case True { this.seqOps.codegenInnerDecl(this, node, sb, idgen, classNameCounter) }
+                    case True { 
+                        this.seqOps.codegenInnerDecl(this, node, sb, idgen, classNameCounter);
+                        this.codegenMethodPostlude(node);
+                    }
                     case False { this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, classNameCounter) }
                 };
-                this.reset();
             }
             default { this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, classNameCounter) }
         };
+    }
+    
+    method void codegenMethodPostlude(immutable ParsedConcreteMethodDecl node) {
+        val shared Symbol methSymbol = match (symbolForAST(node)) {
+            case Some  { symbolForAST(node).value }
+            case None  { ABORT("<AEminiumCodeGenOps> cannot find symbol for " + node.nodeName()) }
+        };
+        val name = methSymbol.name;
+        val path = symbolToString(methSymbol);
+
+        // dump final graph 
+        this.curMethodInfo.dumpFinalTaskGraph(path);
+        
+        //reset internal data structures
+        this.reset();
+
     }
     
     method void isMethodParallel(immutable ParsedConcreteMethodDecl node) {
