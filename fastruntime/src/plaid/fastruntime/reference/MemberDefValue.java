@@ -6,35 +6,32 @@ import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.Ord;
 import fj.data.List;
-import fj.data.Set;
 
-public class MemberDefValue extends SingleValue implements MemberDefInfo {
+public final class MemberDefValue extends AtomicValue implements MemberDefInfo {
 	
 	private final UUID memberDefId;
 	private final Object memberDefInstance;
-	private final String canonicalRep;
 	
 	public  MemberDefValue(UUID memberDefId, Object memberDefInstance){
 		this.memberDefId = memberDefId;
 		this.memberDefInstance = memberDefInstance;
-		this.canonicalRep = this.constructCanonicalRep();
+		this.init();
 	}
 	
 
 	@Override
-	public List<MethodInfo> getMethods() {
-		return List.nil();
+	protected final List<MethodInfo> constructMethods() {
+		return NIL_METHOD_INFO;
 	}
 
 	@Override
-	public List<FieldInfo> getFields() {
-		return List.nil();
+	protected final List<FieldInfo> constructFields() {
+		return NIL_FIELD_INFO;
 	}
 
 	@Override
-	public List<MemberDefInfo> getMemberDefs() {
+	protected final List<MemberDefInfo> constructMemberDefs() {
 		List<MemberDefInfo> memberDefList =  List.single((MemberDefInfo)this);
 		return memberDefList;
 	}
@@ -50,28 +47,8 @@ public class MemberDefValue extends SingleValue implements MemberDefInfo {
 	}
 
 	@Override
-	public String getCanonicalRep() {
-		return this.canonicalRep;
-	}
-
-	@Override
 	protected String constructCanonicalRep() {
 		return "MemberDef: " + this.memberDefId.toString();
-	}
-
-	@Override
-	public Set<String> getTags() {
-		return Set.empty(Ord.stringOrd);
-	}
-
-	@Override
-	public Set<String> getOuterTags() {
-		return Set.empty(Ord.stringOrd);
-	}
-
-	@Override
-	public Set<String> getInnerTags() {
-		return Set.empty(Ord.stringOrd);
 	}
 
 	@Override
