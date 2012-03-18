@@ -13,6 +13,8 @@ import plaid.fastruntime.NamingConventions;
 
 state AEminiumCodeGenOps case of CodeGenOps {
     val immutable String LOCAL_VARIABLE_ARRAY = "_";
+    val immutable String TASK_ARRAY = "TA$K$";
+    val immutable String LOCAL_AEMINIUM_RUNTIME = "AE$RT";
     val immutable SequentialCodeGenOps seqOps = makeSequentialCodeGenOps();
     var shared Map methodInfoObjMap;
     var shared MethodInformationMap curMethodInfo = "<UNINITIALIZED>";
@@ -59,7 +61,10 @@ state AEminiumCodeGenOps case of CodeGenOps {
     
     method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
         LOG("codegenTopLevelDecl");
-        this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter);
+        match ( node ) {
+            case ParsedConcreteStateDecl { this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter) }
+            default { this.seqOps.codegenTopLevelDecl(this.seqOps, node, packageName, sb, idgen, classNameCounter) }
+        };
     }
     
     method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
@@ -116,8 +121,104 @@ state AEminiumCodeGenOps case of CodeGenOps {
         this.seqOps.codegenMethodBody(this, node, tmpSB, idgen, classNameCounter);
         sb.append("/* array for local variables */\n");
         sb.append("final plaid.fastruntime.PlaidObject[] " + this.LOCAL_VARIABLE_ARRAY + " = new plaid.fastruntime.PlaidObject[" + (this.localVariableCounter + 1) + "];\n\n" );
-        sb.append(tmpSB.toString());
+
+        sb.append("/* array for tasks */\n");
+        sb.append("final aeminium.runtime.Task[] " + this.TASK_ARRAY + " = new aeminium.runtime.Task[" + (this.curMethodInfo.getAllTasks().size()) + "];\n\n" );
+        
+        // local cache for runtime reference
+        sb.append("\n/* local runtime reference */\n"); 
+        sb.append("final aeminium.runtime.Runtime " + this.LOCAL_AEMINIUM_RUNTIME + " = ((aeminium.runtime.implementations.implicitworkstealing.scheduler.WorkStealingThread)java.lang.Thread.currentThread()).rt;\n\n");
+        
+        var unique Set startTasks = java.util.HashSet.new();
+        var shared Tasj bodyTask = "<UNINITIALIZED>";
+        var preludeIt = this.curMethodInfo.tasks.iterator();
+        while { preludeIt.hasNext() }{
+            val curTask = preludeIt.next();
+            
+            val isBodyTask = if ( true )  {
+                val astNodes = java.util.HashSet.new();
+                val infosIt = curTask.infos.iterator();
+                while{ infosIt.hasNext() }{
+                    val curInfo = infosIt.next();
+                    match ( curInfo ) {
+                        case ASTInformation {
+                            astNodes.add(curInfo.node);
+                        }
+                        default { /*nop*/ } 
+                    };
+                };
+                // return matching 
+                astNodes.contains(node)
+            };
+            
+            ifElse ( isBodyTask == false ) {
+                if ( curTask.deps.size() == 0 ) {
+                    LOG("Found start task '" + curTask + "'");
+                    startTasks.add(curTask);
+                }
+            }{
+                LOG("Found body task '" + curTask + "'");
+                bodyTask = curTask;
+            }
+        };
+
+         // if we have only one start task do inlining otherwise just create all start tasks
+        if( startTasks.size() != 1 ) {
+            startTasks.clear();
+        };
+               
+        // create other tasks ( except body task ) 
+        val tasksIt = this.curMethodInfo.tasks.iterator();
+        while { tasksIt.hasNext() }{
+            val curTask = tasksIt.next();
+            if( curTask != bodyTask && startTasks.contains(curTask) == false  ) {
+                sb.append(createTaskString("", curTask, ""));
+            };
+        };
+
+        // if we have only one start task do inlining otherwise just create all start tasks
+        if ( startTasks.size() == 1 ) {
+            sb.append("\n/* inlined start task */\n");                
+            sb.append(startTasks.iterator().next().getBodyStringBuilder().toString());
+        };
+
+        // create other tasks ( except body task ) 
+        sb.append("\n/* schedule task */\n"); 
+        val scheduleIt = this.curMethodInfo.tasks.iterator();
+        while { scheduleIt.hasNext() }{
+            val curTask = scheduleIt.next();
+            if( curTask != bodyTask && startTasks.contains(curTask) == false  ) {
+                val deps = java.util.HashSet.new(curTask.deps);
+                deps.removeAll(startTasks);
+                val depsString = ifElse ( deps.size() == 0  ) {
+                    "java.util.Collections.EMPTY_LIST"
+                }{
+                    val depsSB = java.lang.StringBuilder.new();
+                    depsSB.append("java.util.Arrays.asList(");
+                    val depsIt = deps.iterator();
+                    while { depsIt.hasNext() }{
+                        val curDep = depsIt.next();
+                        depsSB.append(this.getTaskArrayElement(curDep) + ",");
+                    };
+                    depsSB.deleteCharAt( depsSB.length() - 1 );
+                    depsSB.append(")");
+                    depsSB.toString();
+                };
+                sb.append(this.LOCAL_AEMINIUM_RUNTIME + ".schedule(" + this.getTaskArrayElement(curTask) + ", "  + this.LOCAL_AEMINIUM_RUNTIME + ".NO_PARENT, "+ depsString + ");\n" );
+            };
+        };
+
+       
+        // inline last Task 
+        sb.append("\n/* inlined body task */\n"); 
+        // TODO: wait for dependending tasks
+        sb.append(bodyTask.getBodyStringBuilder().toString());  
+        
+        //append method return code
+        sb.append("\n/* non task code */\n"); 
+        sb.append(tmpSB.toString());     
     }
+    
     
     method codegenCaseBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
         LOG("codegenCaseBody");
@@ -126,7 +227,18 @@ state AEminiumCodeGenOps case of CodeGenOps {
     
     method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
         LOG("codegenStmt");
-        this.seqOps.codegenStmt(this, node, sb, idgen, y, classNameCounter);
+        val curSB = match ( this.curMethodInfo.taskForAST(node) ) {
+            case Some { 
+                val task = this.curMethodInfo.taskForAST(node).value;
+                LOG("Found task '" + task.toString() + "'");
+                task.getBodyStringBuilder();
+            }
+            case None {
+                LOG("Using default SB");
+                sb
+            }
+        };
+        this.seqOps.codegenStmt(this, node, curSB, idgen, y, classNameCounter);
     }
     
     method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y, classNameCounter)  {
@@ -184,6 +296,24 @@ state AEminiumCodeGenOps case of CodeGenOps {
             }
         };
 	}
+
+    method immutable String getTaskArrayElement(shared Task task) {
+        this.TASK_ARRAY + "[" + this.curMethodInfo.getTaskIndex(task) + "]"
+    }
+    
+    method immutable String createTaskString(immutable String prefix, shared Task task, immutable String suffix) {
+        val sb = java.lang.StringBuilder.new();
+        
+        sb.append(this.getTaskArrayElement(task) +" = " + this.LOCAL_AEMINIUM_RUNTIME + ".createNonBlockingTask(new aeminium.runtime.Body() {\n");
+        sb.append("@Override public void execute(aeminium.runtime.Runtime rt, aeminium.runtime.Task current) {\n");
+        sb.append(prefix);
+        sb.append(task.getBodyStringBuilder());
+        sb.append(suffix);
+        sb.append("}\n");
+        sb.append("}, " +  this.LOCAL_AEMINIUM_RUNTIME + ".NO_HINTS);\n");
+        
+        sb.toString();
+    }
 
     method immutable String varNameComment(immutable String varName) {
         match ( varName.endsWith("$plaid") ) {
