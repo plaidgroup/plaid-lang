@@ -6,9 +6,6 @@ import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.F;
 import fj.F2;
-import fj.Ord;
-import fj.Ordering;
-import fj.Show;
 import fj.data.List;
 import fj.data.Set;
 
@@ -20,7 +17,6 @@ import fj.data.Set;
 public final class ListValue extends AbstractObjectValue {
 
 	private List<SingleValue> singleValues;
-	private final String canonicalRep;
 	
 	public ListValue(SingleValue... singleValues) {
 		this(List.list(singleValues));
@@ -28,7 +24,7 @@ public final class ListValue extends AbstractObjectValue {
 	
 	private ListValue(List<SingleValue> singleValues) {
 		this.singleValues = singleValues;
-		this.canonicalRep = this.constructCanonicalRep();
+		this.init();
 	}
 	
 	public List<SingleValue> getAll() {
@@ -69,14 +65,8 @@ public final class ListValue extends AbstractObjectValue {
 	}
 
 	@Override
-	public boolean uniqueTags() {
-		// TODO Auto-generated method stub
-		return true;
-	}
-
-	@Override
-	public Set<String> getTags() {
-		Set<String> tags = Set.empty(Ord.stringOrd);
+	public Set<String> constructTags() {
+		Set<String> tags = EMPTY_TAGS;
 		for(SingleValue sv : singleValues) {
 			tags = tags.union(sv.getTags());
 		}
@@ -84,8 +74,8 @@ public final class ListValue extends AbstractObjectValue {
 	}
 
 	@Override
-	public Set<String> getOuterTags() {
-		Set<String> currentSet = Set.empty(Ord.stringOrd);
+	protected Set<String> constructOuterTags() {
+		Set<String> currentSet = EMPTY_TAGS;
 		for(SingleValue sv : singleValues) {
 			currentSet = currentSet.union(sv.getOuterTags());
 		}
@@ -93,23 +83,17 @@ public final class ListValue extends AbstractObjectValue {
 	}
 	
 	@Override
-	public Set<String> getInnerTags() {
-		Set<String> currentSet = Set.empty(Ord.stringOrd);
+	protected Set<String> constructInnerTags() {
+		Set<String> currentSet = EMPTY_TAGS;
 		for(SingleValue sv : singleValues) {
 			currentSet = currentSet.union(sv.getInnerTags());
 		}
 		return currentSet;
 	}
-	
-	@Override
-	public String toString() {
-		Show<SingleValue> singleValueShow = Show.anyShow();
-		return Show.listShow(singleValueShow).showS(singleValues);
-	}
 
 	@Override
-	public List<MethodInfo> getMethods() {
-		List<MethodInfo> currentList = List.nil();
+	protected List<MethodInfo> constructMethods() {
+		List<MethodInfo> currentList = NIL_METHOD_INFO;
 		for(SingleValue sv : singleValues) {
 			currentList = currentList.append((sv.getMethods()));
 		}
@@ -118,8 +102,8 @@ public final class ListValue extends AbstractObjectValue {
 	
 
 	@Override
-	public List<FieldInfo> getFields() {
-		List<FieldInfo> currentList = List.nil();
+	protected List<FieldInfo> constructFields() {
+		List<FieldInfo> currentList = NIL_FIELD_INFO;
 		for(SingleValue sv : singleValues) {
 			currentList = currentList.append((sv.getFields()));
 		}
@@ -127,8 +111,8 @@ public final class ListValue extends AbstractObjectValue {
 	}
 
 	@Override
-	public List<MemberDefInfo> getMemberDefs() {
-		List<MemberDefInfo> currentList = List.nil();
+	protected List<MemberDefInfo> constructMemberDefs() {
+		List<MemberDefInfo> currentList = NIL_MEMBER_DEF_INFO;
 		for(SingleValue sv : singleValues) {
 			currentList = currentList.append((sv.getMemberDefs()));
 		}
@@ -137,7 +121,7 @@ public final class ListValue extends AbstractObjectValue {
 	
 	@Override
 	public ObjectValue remove(String member) {
-		List<SingleValue> toReturn = List.nil();
+		List<SingleValue> toReturn = NIL_SINGLE_VALUE;
 		for(SingleValue sv : singleValues) {
 			if(sv instanceof MemberValue && !((MemberValue) sv).getName().equals(member)) {
 				toReturn = toReturn.cons(sv);
@@ -156,31 +140,14 @@ public final class ListValue extends AbstractObjectValue {
 	public ObjectValue rename(final String currentName, final String newName) {
 		F<SingleValue,SingleValue> callRename = new F<SingleValue,SingleValue>() {
 			public SingleValue f(SingleValue a) {
-				return (SingleValue)a.rename(currentName,newName);
+				return (SingleValue)a.rename(currentName, newName);
 			}
 		};
 		List<SingleValue> newSingleValues = singleValues.map(callRename);
 		return new ListValue(newSingleValues);
 	}
-
-	private final static Ord<SingleValue> svOrd;
-	static {
-		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
-			@Override
-			public F<SingleValue, Ordering> f(SingleValue a) {
-				final String thisRep = a.getCanonicalRep();
-				return new F<SingleValue, Ordering>() {
-					public Ordering f(SingleValue other) {
-						return Ord.stringOrd.compare(thisRep, other.getCanonicalRep());
-					}
-				};
-			}
-		};
-		
-		svOrd = Ord.ord(orderSingleValues);
-	}
 	
-	private final static F2<String, SingleValue, String> combineCanonicalStrings = new F2<String, SingleValue, String>() {
+	private final static F2<String, SingleValue, String> COMBINE_CANONICAL_STRINGS = new F2<String, SingleValue, String>() {
 		public String f(String a, SingleValue b) {
 			return a + ";" + b.getCanonicalRep();
 		}
@@ -188,15 +155,8 @@ public final class ListValue extends AbstractObjectValue {
 	
 	@Override
 	protected String constructCanonicalRep() {
-		List<SingleValue> sortedSingleValues = this.singleValues.sort(svOrd);
-		String result = sortedSingleValues.foldLeft(combineCanonicalStrings, "");
+		List<SingleValue> sortedSingleValues = this.singleValues.sort(SINGLE_VALUE_ORD);
+		String result = sortedSingleValues.foldLeft(COMBINE_CANONICAL_STRINGS, "");
 		return result.intern();
 	}
-
-	@Override
-	public String getCanonicalRep() {
-		return this.canonicalRep;
-	}
-
-	
 }
