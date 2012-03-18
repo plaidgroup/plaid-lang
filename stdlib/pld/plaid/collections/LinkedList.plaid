@@ -20,16 +20,17 @@
 package plaid.collections;
 
 /**
- * A singly linked list of elements.
+ * A circular singly linked list of elements.
  */
 state LinkedList case of Collection = {
 	
 	var head = END_OF_LIST;
+	var end = END_OF_LIST;
 	var listSize = 0;
 
 	method reverseMap(f) {
 		var resultList = new LinkedList;
-		do(fn(elem) => { resultList.add(f(elem)); });
+		do(fn(elem) => { resultList.addFirst(f(elem)); });
 		resultList
 	}
 
@@ -38,7 +39,9 @@ state LinkedList case of Collection = {
 	}
 
 	method map(f) {
-		reverseMap(f).reverse()
+		var resultList = new LinkedList;
+		do(fn(elem) => { resultList.addLast(f(elem)); });
+		resultList
 	}
 
 	method doUntil(f) {
@@ -62,41 +65,27 @@ state LinkedList case of Collection = {
 
 	/**
 	 * Adds the provided element to the front of the list.
-	 * This is an alias of add(elem), and is an O(1) operation.
+	 * This is an O(1) operation.
 	 */
-	method void addFirst(elem) { add(elem); }
-
-	/**
-	 * INTERNAL USE ONLY
-	 * finds the last ListValueNode in the list, if the list is non-empty.
-	 */
-	/*private*/ method immutable Option/*<ListValueNode>*/ findLast(node) {
-		match(node) {
-			case EndOfListNode {
-				NONE
-			}
-			case ListValueNode {
-				ifElse (node.tail.isEnd()) {
-					makeSome(node)
-				} {
-					findLast(node.tail)
-				}
-			}
-		}
+	method void addFirst(elem) { 
+	    this.head = this.head.snoc(elem);
+	    match (this.listSize == 0) {
+	        case True { this.end = this.head; }
+	        case False { /* no op */ }
+	    };
+	    
+	    this.listSize = this.listSize + 1;
+	    
+	    true;
 	}
 
 	/**
 	 * Adds the provided element to the end of the list.
-	 * NOTE: This operation is O(n) in the size of the list, so should be used sparingly.
+	 * This is an O(1) operation
+	 * Alias of add
 	 */
 	method void addLast(elem) {
-		findLast(head).map(fn(node) => {
-			node.tail = cons(elem, END_OF_LIST);
-		}).orElse({
-			head = cons(elem, END_OF_LIST);
-		});
-
-		listSize = listSize + 1;
+        this.add(elem);
 	}
 
 	/**
@@ -179,18 +168,24 @@ state LinkedList case of Collection = {
      * to the provided list, if this is possible in Plaid.
 	 */
 	method /*<R <: T>*/ void append(unique LinkedList/*<R>*/ list) {
-		val lastNodeOption = this.findLast(this.head);
-		match (lastNodeOption) {
-		  case Some {
-        lastNodeOption.value.tail = list.head; 
-		  }
-		  case None {
-		    this.head = list.head;
-		  }
+		val endFirst = this.end;
+		val headSecond = list.head;
+		
+		match (endFirst) { //fix last node in this list (could be first node)
+		    case ListValueNode {
+		        endFirst.tail = headSecond;
+		    }
+		    case EndOfListNode { 
+		        this.head = headSecond;  //was empty, now the appended list
+		    }
 		};
-		list.head = END_OF_LIST;
-    this.listSize = this.listSize + list.listSize;
-    list.listSize = 0;     
+		this.end = list.end;
+        this.listSize = this.listSize + list.listSize;
+		
+		//clear old list
+		list.clear();    
+
+
 	}
 
 	/**
@@ -206,7 +201,7 @@ state LinkedList case of Collection = {
 		var otherCurrent = other.head;
 
 		while { !thisCurrent.isEnd() && !otherCurrent.isEnd() } {
-			zippedList.add(makePair(thisCurrent.value, otherCurrent.value));
+			zippedList.addFirst(makePair(thisCurrent.value, otherCurrent.value));
 			thisCurrent = thisCurrent.tail;
 			otherCurrent = otherCurrent.tail;
 		};
@@ -215,12 +210,21 @@ state LinkedList case of Collection = {
 	}
 
 	/**
-	 * Similar to zipReverse, but the produced list has the same order as the original lists. This
-	 * involves an additional O(n) pass over the elements in the combined list to restore the original
-	 * order, so should only be used if order is important.
+	 * Similar to zipReverse, but the produced list has the same order as the original lists.
 	 */
 	method /*<U>*/ unique LinkedList/*<T,U>*/ zip(immutable LinkedList/*<U>*/ other) {
-		zipReverse(other).reverse()
+				val zippedList = makeLinkedList();
+
+		var thisCurrent = this.head;
+		var otherCurrent = other.head;
+
+		while { !thisCurrent.isEnd() && !otherCurrent.isEnd() } {
+			zippedList.addLast(makePair(thisCurrent.value, otherCurrent.value));
+			thisCurrent = thisCurrent.tail;
+			otherCurrent = otherCurrent.tail;
+		};
+
+		zippedList
 	}
 
 	/**
@@ -235,9 +239,9 @@ state LinkedList case of Collection = {
 
 	 	do(fn(elem) => { 
 		 	ifElse(f(elem)) {
-		 		acceptList.add(elem);
+		 		acceptList.addFirst(elem);
 		 	} {
-		 		rejectList.add(elem);
+		 		rejectList.addFirst(elem);
 		 	}
 		});
 
@@ -250,19 +254,32 @@ state LinkedList case of Collection = {
 	  * so should only be used if the relative ordering matters.
 	  */
 	 method unique Pair/*<unique LinkedList<T>, unique LinkedList<T>>*/ partition(/*T -> immutable Boolean*/ f) {
-	 	val reversedPair = partitionReverse(f);
-	 	makePair(reversedPair.fst.reverse(), reversedPair.snd.reverse())
+	 	val acceptList = makeLinkedList();
+	 	val rejectList = makeLinkedList();
+
+	 	do(fn(elem) => { 
+		 	ifElse(f(elem)) {
+		 		acceptList.addLast(elem);
+		 	} {
+		 		rejectList.addLast(elem);
+		 	}
+		});
+
+		makePair(acceptList, rejectList)
 	 }
 
 	 method unique LinkedList/*<T>*/ collectReverse(/*T -> immutable Boolean*/ f) {
 	 	reduceLeft(makeLinkedList(), fn(acc, elem) => {
-	 		if(f(elem)) { acc.add(elem) };
+	 		if(f(elem)) { acc.addFirst(elem) };
 	 		acc
 	 	})
 	 }
 
 	 method unique LinkedList/*<T>*/ collect(/*T -> immutable Boolean*/ f) {
-	 	collectReverse(f).reverse()
+	 	reduceLeft(makeLinkedList(), fn(acc, elem) => {
+	 		if(f(elem)) { acc.addLast(elem) };
+	 		acc
+	 	})
 	 }
 
 	 method unique LinkedList/*<T>*/ rejectReverse(/*T -> immutable Boolean*/ f) {
@@ -270,7 +287,7 @@ state LinkedList case of Collection = {
 	 }
 
 	 method unique LinkedList/*<T>*/ reject(/*T -> immutable Boolean*/ f) {
-	 	rejectReverse(f).reverse()
+	 	collect(fn(elem) => { !f(elem) });
 	 }
 
 	/**
@@ -305,9 +322,16 @@ state LinkedList case of Collection = {
 } with MutableCollection {
 
 	method immutable Boolean add(e) {
-		head = head.snoc(e);
-		listSize = listSize + 1;
-		true
+		val newNode = valueNode(e);
+		match (this.listSize == 0) {
+		    case True { this.head = newNode; }
+		    case False { this.end.tail = newNode; }
+		};
+		this.end = newNode;
+		
+		this.listSize = this.listSize + 1;
+		
+		true;
 	}
 
 	method immutable Boolean filterUntil(condition, matcher) {
@@ -348,6 +372,7 @@ state LinkedList case of Collection = {
 	
 	method void clear() {
 	    this.head = END_OF_LIST;
+	    this.end = END_OF_LIST;
 	    this.listSize = 0;
 	}
 }
