@@ -42,7 +42,7 @@ public class InterfaceGenerator implements Opcodes{
 		return cw.toByteArray();
 	}
 	
-	public Class<?> createInterfaceAsClass (String methodName, int numargs) {
+	public synchronized Class<?> createInterfaceAsClass (String methodName, int numargs) {
 		final String className =  getGeneratedInterfaceInternalName(methodName, numargs);
 		final String qualifiedName = className.replace("/", "."); 
 		try {
