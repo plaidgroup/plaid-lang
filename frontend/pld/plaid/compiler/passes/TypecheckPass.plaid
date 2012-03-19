@@ -3,8 +3,8 @@ package plaid.compiler.passes;
 import plaid.ast.parsed.ParsedLeafVisitor;
 import plaid.ast.util.makeStringFromQualifiedIdentifier;
 
-import plaid.compiler.report_file_ERROR;
 import plaid.compiler.report_ERROR;
+import plaid.ast.util.makeTokenForFile;
 import plaid.compiler.DEBUG;
 import plaid.compiler.DEBUG_PRIO_MEDIUM;
 import plaid.compiler.Pass;
@@ -17,7 +17,6 @@ state TypecheckPass case of Pass = ParsedLeafVisitor with {
   var shared Job job;
   var immutable Source sourceFile;
   var shared Resolver resolver;
-  var hasErrors = false;
     
     method immutable Boolean run(unique Job job) {
         match (job) {
@@ -25,6 +24,8 @@ state TypecheckPass case of Pass = ParsedLeafVisitor with {
               match (job.ast) {
                 case Some {
                     ifElse ( TYPECHECKING_MODE() ) {
+                        val errorCount = globalReporter.errors.size();
+                        
                         DEBUG(DEBUG_PRIO_HIGH, "<TypecheckPass> started");
                         this.sourceFile = job.source.path;
                         this.resolver   = job.resolver;
@@ -33,13 +34,15 @@ state TypecheckPass case of Pass = ParsedLeafVisitor with {
                         job.ast.value.accept(this);
                 
                         DEBUG(DEBUG_PRIO_HIGH, "<TypecheckPass> finished");
-                        !this.hasErrors;
+                        // were any errors added during typechecking?
+                        errorCount == globalReporter.errors.size() 
+
                     }{
                         true
                     }
                 }
                 default {
-                    report_file_ERROR(job.source.path, "<TypecheckPass> AST invalid");
+                    ERROR(makeTokenForFile(job.source.path), " AST invalid", "TypecheckPass");
                     false
                 }
               }
@@ -311,7 +314,7 @@ state TypecheckPass case of Pass = ParsedLeafVisitor with {
   }
   
   method void reachedWrongASTtype(immutable ParsedASTNode node) {
-    report_ERROR(node.token, "Typechecker visitor reached a " + node.nodeName())
+    report_ERROR(node.token, "Typechecker visitor reached a " + node.nodeName(), "TypecheckPass")
   }
 
 
