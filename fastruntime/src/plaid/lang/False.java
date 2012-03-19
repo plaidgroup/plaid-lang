@@ -16,10 +16,13 @@ public class False extends AbstractPlaidState
 implements Iampamp$plaid$1$plaid,
 		   ItoString$0$plaid {
 	
+	private static final java.lang.String FALSE_TAG = "plaid/lang/False";
+	private static final java.lang.String BOOLEAN_TAG = "plaid/lang/Boolean";
+	
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	public static final PlaidJavaObject FALSE_VALUE;
 	static {
-	theState$plaid = new False(new DimensionValue("plaid/lang/False", null, new DimensionValue("plaid/lang/Boolean", null, null)));
+	theState$plaid = new False(new DimensionValue(FALSE_TAG, null, new DimensionValue(BOOLEAN_TAG, null, null)));
 	FALSE_VALUE = ((False)theState$plaid).new FalsePlaidJavaObject(theState$plaid);
 	}
 	
@@ -45,7 +48,12 @@ implements Iampamp$plaid$1$plaid,
 	
 	@Override
 	public boolean matches(java.lang.String tag) {
-		return tag.equals("plaid/lang/False") || tag.equals("plaid/lang/Boolean");
+		return tag.equals(FALSE_TAG) || tag.equals(BOOLEAN_TAG);
+	}
+	
+	@Override
+	public java.lang.String getTopTag() {
+		return FALSE_TAG;
 	}
 
 	private final class FalsePlaidJavaObject extends SimplePlaidJavaObject {

@@ -49,7 +49,7 @@ public class Util {
 		return Integer32.plaidInteger(javaInt);
 	}
 	
-	public static PlaidObject float64(Double javaDouble) {
+	public static PlaidObject float64(double javaDouble) {
 		return Float64.plaidFloat64(javaDouble);
 	}
 	
