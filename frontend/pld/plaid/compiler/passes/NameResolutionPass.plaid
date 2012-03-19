@@ -11,7 +11,8 @@ import plaid.ast.util.EMPTY_TOKEN;
 import plaid.ast.util.Token;
 
 import plaid.compiler.ABORT;
-import plaid.compiler.report_file_ERROR;
+import plaid.ast.util.makeTokenForFile;
+import plaid.ast.util.makeTokenForFqn;
 import plaid.compiler.report_ERROR;
 import plaid.compiler.WARNING;
 import plaid.compiler.DEBUG;
@@ -24,7 +25,6 @@ import plaid.compiler.Context;
 import plaid.compiler.symbolForAST;
 import plaid.compiler.haveSymbolForAST;
 import plaid.compiler.addSymbolForAST;
-import plaid.compiler.globalReporter;
 
 import plaid.compiler.context.TopLevelContext;
 import plaid.compiler.context.LocalContext;
@@ -92,7 +92,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 !this.hasErrors
             }
             default { 
-                report_file_ERROR(job.source.path, "<NameResolutionPass> AST invalid");
+                ERROR(makeTokenForFile(job.source.path), "AST invalid", "NameResolutionPass");
                 false 
             }
         }
@@ -100,8 +100,12 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
     override method void LOG(immutable String msg) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> " + msg);
-    }    
-
+    }
+    
+    method void ERROR(immutable Token token, immutable String msg) {
+        this.hasErrors = true;
+        report_ERROR(token, msg, "NameResolutionPass");
+    }
 
     method immutable Option getQualifiedIdentifierFromDereference(immutable Dereference dref) {
         match (dref.left) {
@@ -205,23 +209,11 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                      ifElse ( count < qi.identifiers.size()  ) {
                          match (symbol.value) {
                              case PackageSymbol { //lookup stopped at a package
-                                 WARNING("<NameResolutionPass> Cannot resolve '" + resolvedFqn + "." + qi.identifiers.get(count).value.name  + "'");
-                                 val first = qi.identifiers.get(0).value;
-                                 val last  = qi.identifiers.get(count).value;
-                                 val beginLine   = min(first.token.beginLine, last.token.beginLine);
-                                 val endLine     = max(first.token.endLine, last.token.endLine);
-                                 val beginColumn = first.token.beginColumn;
-                                 val endColumn   = last.token.endColumn;
-                                 val fqnToken = new Token {
-                                    val beginLine = beginLine;
-                                    val beginColumn = beginColumn;
-                                    val endLine = endLine;
-                                    val endColumn = endColumn;
-                                    val image = ""; 
-                                    val fileName = first.token.fileName;
-                                 };
-                                 globalReporter.errorToken(fqnToken,
-                                                     "Cannot resolve '" + resolvedFqn + "." + qi.identifiers.get(count).value.name  + "'");
+                                ERROR(makeTokenForFqn(qi.identifiers.get(0).value.token,
+                                                      qi.identifiers.get(count).value.token),
+                                      "Cannot resolve '" + resolvedFqn + "." + 
+                                      qi.identifiers.get(count).value.name  + "'"
+                                ); 
                              }
                              case JavaClassSymbol { //might be static members that we should resolve
                                 DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found Java Class " + fqn + ", looking for static member");
@@ -360,7 +352,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 val unique Option stateSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
                 match (stateSymbol) {
                     case None {
-                        report_ERROR(node.token, "<NameResolutionPass> Cannot find symbol for state '" + node.name.name + "'");                        
+                        ERROR(node.token, "Cannot find symbol for state '" + node.name.name + "'");                        
                     }
                     case Some {
                         this.currentState.push(stateSymbol.value);
@@ -483,7 +475,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                         addSymbolForAST(node, fieldSymbol.value);
                     }
                     case None {
-                        report_ERROR(node.token, "<NameResolutionPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
+                        ERROR(node.token, "Top-level method '" + this.packageName + "." + node.name.name + "' not found.");
                     }
                 }
             }
@@ -520,7 +512,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                         addSymbolForAST(node, methodSymbol.value);
                     }
                     case None {
-                        report_ERROR(node.token, "<NameResolutionPass> Cannot find symbol for top-level method '" + this.packageName + "." + node.name.name + "'");
+                        ERROR(node.token, "Top-level method '" + this.packageName + "." + node.name.name + "' not found.");
                     }
                 }
             }
@@ -599,7 +591,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 val unique Option stateSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
                 match (stateSymbol) {
                     case None {
-                        report_ERROR(node.token, "<NameResolutionPass> Cannot find symbol for state '" + node.name.name + "'");                        
+                        ERROR(node.token, "State '" + node.name.name + "' not found.");
                     }
                     case Some {
                         this.currentState.push(stateSymbol.value);
@@ -678,7 +670,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 }
            }
            case None {
-               globalReporter.errorToken(node.token, "Cannot resolve '" + node.name + "'");
+               ERROR(node.token, "Cannot resolve '" + node.name + "'");
            }
        }
 	}
@@ -733,7 +725,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                         DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass>   resolved  " + resolvedCount + " parts");
                         ifElse ( resolvedCount == 0 ) {
                             //val mostLeftId = qiOpt.value.identifiers.get(0);
-                            //globalReporter.errorToken(mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
+                            //ERROR(mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
                         	node.left.accept(this);
                         }{
                             fixSymbolsForDereference(node);
@@ -815,23 +807,9 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 ABORT("QI not in cache !!!!!");
             };
         }{
-            report_ERROR(node.token, "<NameResolutionPass> Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
-            val first = node.identifiers.get(0).value;
-            val last  = node.identifiers.get(node.identifiers.size() - 1).value;
-            val beginLine   = min(first.token.beginLine, last.token.beginLine);
-            val endLine     = max(first.token.endLine, last.token.endLine);
-            val beginColumn = min(first.token.beginColumn, last.token.beginColumn);
-            val endColumn   = max(first.token.endColumn, last.token.endColumn);
-            val fqnToken = new Token {
-                val beginLine = beginLine;
-                val beginColumn = beginColumn;
-                val endLine = endLine;
-                val endColumn = endColumn;
-                val image = ""; 
-                val fileName = first.token.fileName;
-            };
-            globalReporter.errorToken(fqnToken,
-                               "Cannot resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
+            ERROR(makeTokenForFqn(node.identifiers.get(0).value.token,
+                                  node.identifiers.get(node.identifiers.size() - 1).value.token),
+                 "Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
         }
 	}
 
@@ -881,18 +859,16 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             addSymbolForAST(node.id, mySymbol);
             addSymbolForAST(node, mySymbol);
         }{
-            report_ERROR(node.token, "<NameResolutionPass> Variable '"+ node.id.name +"' already declared.");
             val otherSymbol = ctx.find(node.id.name);
             match (otherSymbol) {
                 case Some {
                    val otherDecl = otherSymbol.value.declaration;
-                   globalReporter.errorToken(node.id.token, "Variable '" +  node.id.name + "' already declared in line " + otherDecl.token.beginLine);
+                   ERROR(node.id.token, "Variable '" +  node.id.name + "' already declared in line " + otherDecl.token.beginLine);
                 }
                 case None {
-                   globalReporter.errorToken(node.id.token, "Variable '" + node.id.name + "' already declared.");
+                   ERROR(node.id.token, "Variable '" + node.id.name + "' already declared.");
                 }
             };
-            this.hasErrors = true;
         }
     }
 }
