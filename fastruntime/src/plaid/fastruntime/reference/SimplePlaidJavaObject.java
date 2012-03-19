@@ -7,7 +7,7 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 
 public class SimplePlaidJavaObject extends SimplePlaidObject implements PlaidJavaObject {
 
-	private Object javaObject;
+	protected Object javaObject;
 
 	public SimplePlaidJavaObject(PlaidState dispatch, PlaidObject[] storage, Object javaObject) {
 		super(dispatch, storage);
