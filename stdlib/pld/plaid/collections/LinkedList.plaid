@@ -1,0 +1,395 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.collections;
+
+/**
+ * A circular singly linked list of elements.
+ */
+state LinkedList case of Collection = {
+	
+	var head = END_OF_LIST;
+	var end = END_OF_LIST;
+	var listSize = 0;
+
+	method reverseMap(f) {
+		var resultList = new LinkedList;
+		do(fn(elem) => { resultList.addFirst(f(elem)); });
+		resultList
+	}
+
+	method reverse() {
+		reverseMap(fn(elem) => { elem })
+	}
+
+	method map(f) {
+		var resultList = new LinkedList;
+		do(fn(elem) => { resultList.addLast(f(elem)); });
+		resultList
+	}
+
+	method doUntil(f) {
+		var current = head;
+		var done = false;
+		while { !done } {
+			match(current) {
+				case ListValueNode {
+					if(f(current.value)) {
+						done = true;
+					};
+
+					current = current.tail;
+				}
+				default { 
+					done = true;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Adds the provided element to the front of the list.
+	 * This is an O(1) operation.
+	 */
+	method void addFirst(elem) { 
+	    this.head = this.head.snoc(elem);
+	    match (this.listSize == 0) {
+	        case True { this.end = this.head; }
+	        case False { /* no op */ }
+	    };
+	    
+	    this.listSize = this.listSize + 1;
+	    
+	    true;
+	}
+
+	/**
+	 * Adds the provided element to the end of the list.
+	 * This is an O(1) operation
+	 * Alias of add
+	 */
+	method void addLast(elem) {
+        this.add(elem);
+	}
+
+	/**
+	 * Attempts to fetch the element at the provided index. If the index is outwith the range [0,size()-1] then
+	 * None will be returned, otherwise Some(x) will be returned where x is the element at that index.
+	 * NOTE: the time taken by this operation is proportional to the value of the index provided, so should
+	 * be used sparingly.
+	 */
+	method immutable Option get(index) {
+		ifElse(index < 0 || index >= listSize) {
+			NONE
+		} {
+			var counter = -1;
+			find(fn(elem) => { counter = counter + 1; counter == index });
+		}
+	}
+
+	/**
+	 * Accumulates a single value by applying the function f to the base value and the first element
+	 * of the collection, then applying f to this result and the next element in collection, etc.
+	 * until all elements have been passed to f.
+	 *
+	 * Example: Using reduceLeft with "-" on the list [ 4 3 2 1 ] and a base value 0 is equivalent
+	 * to the expression: (((0 - 4) - 3) - 2) - 1 = -10
+	 *
+	 * This is an alias of reduce(base, f).
+	 */
+	method /*<R>*/ unique LinkedList/*<R>*/ reduceLeft(/*R*/ base,/*R -> T -> R*/ f) { reduce(base, f) }
+
+	/**
+	 * Accumulates a single value by applying the function f to the list and the provided base value
+	 * in a right-associative manner. 
+	 *
+	 * Example: Using reduceRight with "-" on the list [ 4 3 2 1 ] and a base value 0 is equivalent 
+	 * to the expression: 4 - (3 - (2 - (1 - 0))) = 2.
+	 */
+	method /*<R>*/ unique LinkedList/*<R>*/ reduceRight(/*T -> R -> R*/ f, /*R*/ base) {
+		reverse().reduceLeft(base, fn(acc, elem) => { result = f(elem, acc); } );
+	}
+
+	/**
+	 * Accumulates a single value by applying the function f to the elements in the list in a
+	 * left-to-right manner. If the list is empty, the result will be NONE, otherwise it will
+	 * be Some(x) where x is the accumulated value.
+	 *
+	 * The primary difference between reduceLeftInner and reduceLeft is that reduceLeftInner 
+	 * does not use a base value.
+	 *
+	 * Example: with list [ 1 2 3 4 ], applying "*" to the list is equivalent to the expression:
+	 * makeSome(((1 * 2) * 3) * 4)
+	 */
+	method /*<R <: T>*/ immutable Option reduceLeftInner(/*R -> T -> R*/ f) {
+		reduceLeft(NONE, fn(accOpt, elem) => { 
+			makeSome(accOpt.map(fn(acc) => { f(acc, elem) }).getOrElse(elem))
+		});
+	}
+
+	/**
+	 * Accumulates a single value by applying the function f to the elements in the list in a
+	 * left-to-right manner. If the list is empty, the result will be NONE, otherwise it will
+	 * be Some(x) where x is the accumulated value.
+	 *
+	 * The primary difference between reduceRightInner and reduceRight is that reduceRightInner does 
+	 * not use a base value.
+	 *
+	 * Example: with list [ 1 2 3 4 ], applying "-" to the list is equivalent to the expression:
+	 * makeSome(1 - (2 - (3 - 4)))
+	 */
+	method /*<R <: T>*/ immutable Option reduceRightInner(/*T -> R -> R*/ f) {
+		reduceRight(fn(elem, accOpt) => { 
+			makeSome(accOpt.map(fn(acc) => { f(elem, acc) }).getOrElse(elem))
+		}, NONE);
+	}
+
+	/**
+	 * Appends the provided linked list to this list. This consumes the contents of the provided
+	 * list, turning it into an empty list.
+	 * NOTE: this is done to make sure the other list reference cannot inadvertently change
+     * the contents of this list. It may in fact be better to completely consume the permission
+     * to the provided list, if this is possible in Plaid.
+	 */
+	method /*<R <: T>*/ void append(unique LinkedList/*<R>*/ list) {
+		val endFirst = this.end;
+		val headSecond = list.head;
+		
+		match (endFirst) { //fix last node in this list (could be first node)
+		    case ListValueNode {
+		        endFirst.tail = headSecond;
+		    }
+		    case EndOfListNode { 
+		        this.head = headSecond;  //was empty, now the appended list
+		    }
+		};
+		this.end = list.end;
+        this.listSize = this.listSize + list.listSize;
+		
+		//clear old list
+		list.clear();    
+
+
+	}
+
+	/**
+	 * Combines two lists by creating a Pair composed of an element from this list in fst
+	 * and an element from the other list in snd. The list will be in reverse order compared
+	 * to the original lists. The size of the zipped list will be min(this.size(), other.size()),
+	 * elements from the longer list past this point will be ignored.
+	 */
+	method /*<U>*/ unique LinkedList/*<Pair<T,U>*/ zipReverse(immutable LinkedList/*<U>*/ other) {
+		val zippedList = makeLinkedList();
+
+		var thisCurrent = this.head;
+		var otherCurrent = other.head;
+
+		while { !thisCurrent.isEnd() && !otherCurrent.isEnd() } {
+			zippedList.addFirst(makePair(thisCurrent.value, otherCurrent.value));
+			thisCurrent = thisCurrent.tail;
+			otherCurrent = otherCurrent.tail;
+		};
+
+		zippedList
+	}
+
+	/**
+	 * Similar to zipReverse, but the produced list has the same order as the original lists.
+	 */
+	method /*<U>*/ unique LinkedList/*<T,U>*/ zip(immutable LinkedList/*<U>*/ other) {
+				val zippedList = makeLinkedList();
+
+		var thisCurrent = this.head;
+		var otherCurrent = other.head;
+
+		while { !thisCurrent.isEnd() && !otherCurrent.isEnd() } {
+			zippedList.addLast(makePair(thisCurrent.value, otherCurrent.value));
+			thisCurrent = thisCurrent.tail;
+			otherCurrent = otherCurrent.tail;
+		};
+
+		zippedList
+	}
+
+	/**
+	 * Splits the current collection into two parts. Elements for which the provided function returns true are placed
+	 * into the first list, while all other elements are placed in the second list.
+	 *
+	 * These lists will have a relative ordering which is the reverse of the current list.
+	 */
+	 method unique Pair/*<unique LinkedList<T>, unique LinkedList<T>>*/ partitionReverse(/*T -> immutable Boolean*/ f) {
+	 	val acceptList = makeLinkedList();
+	 	val rejectList = makeLinkedList();
+
+	 	do(fn(elem) => { 
+		 	ifElse(f(elem)) {
+		 		acceptList.addFirst(elem);
+		 	} {
+		 		rejectList.addFirst(elem);
+		 	}
+		});
+
+		makePair(acceptList, rejectList)
+	 }
+
+	 /**
+	  * This is the same as partitionReverse, except the returned lists will have the same relative ordering as this
+	  * list. This is a more expensive operation (involving a second pass over each list to restore the original order)
+	  * so should only be used if the relative ordering matters.
+	  */
+	 method unique Pair/*<unique LinkedList<T>, unique LinkedList<T>>*/ partition(/*T -> immutable Boolean*/ f) {
+	 	val acceptList = makeLinkedList();
+	 	val rejectList = makeLinkedList();
+
+	 	do(fn(elem) => { 
+		 	ifElse(f(elem)) {
+		 		acceptList.addLast(elem);
+		 	} {
+		 		rejectList.addLast(elem);
+		 	}
+		});
+
+		makePair(acceptList, rejectList)
+	 }
+
+	 method unique LinkedList/*<T>*/ collectReverse(/*T -> immutable Boolean*/ f) {
+	 	reduceLeft(makeLinkedList(), fn(acc, elem) => {
+	 		if(f(elem)) { acc.addFirst(elem) };
+	 		acc
+	 	})
+	 }
+
+	 method unique LinkedList/*<T>*/ collect(/*T -> immutable Boolean*/ f) {
+	 	reduceLeft(makeLinkedList(), fn(acc, elem) => {
+	 		if(f(elem)) { acc.addLast(elem) };
+	 		acc
+	 	})
+	 }
+
+	 method unique LinkedList/*<T>*/ rejectReverse(/*T -> immutable Boolean*/ f) {
+	 	collectReverse(fn(elem) => { !f(elem) });
+	 }
+
+	 method unique LinkedList/*<T>*/ reject(/*T -> immutable Boolean*/ f) {
+	 	collect(fn(elem) => { !f(elem) });
+	 }
+
+	/**
+	 * Creates a new Map where the keys are the indices of elements, and the values are
+	 * the elements found at that index in this list. This can be used for quick lookup
+	 * or map operations where the index is needed.
+	 */
+	method unique Map/*<Integer,T>*/ asIndexMap() {
+		val map = makeTreeMap();
+
+		var index = 0;
+		do(fn(elem) => {
+			map.set(index, elem);
+			index = index + 1;
+		});
+
+		map
+	}
+
+	/**
+	 * Provides the number of elements currently stored within the list. This operation is O(1), as the
+	 * list size is maintained by all mutating operations.
+	 */
+	method immutable Integer size() {
+		listSize
+	}
+
+	method immutable String toString() {
+		"[" + reduce("", fn(acc, elem) => { acc + " " + elem.toString() }) + " ]"
+	}
+
+} with MutableCollection {
+
+	method immutable Boolean add(e) {
+		val newNode = valueNode(e);
+		match (this.listSize == 0) {
+		    case True { this.head = newNode; }
+		    case False { this.end.tail = newNode; }
+		};
+		this.end = newNode;
+		
+		this.listSize = this.listSize + 1;
+		
+		true;
+	}
+
+	method immutable Boolean filterUntil(condition, matcher) {
+		var result = false;
+		var last = NONE;
+		var node = head;
+		var done = false;
+		while { !done } {
+			match(node) {
+				case EndOfListNode {
+					done = true;
+				}
+				case ListValueNode {
+					ifElse (matcher(node.value)) { 
+						match(last) {
+							case None { head = node.tail; }
+							case Some { 
+								last.getValue().tail = node.tail;
+								listSize = listSize - 1;
+							}
+						};
+
+						result = true;
+						
+						// check to see whether we should continue or not
+						done = condition();
+					} {
+						last = makeSome(node);
+					};
+
+					node = node.tail;
+				}
+			}
+		};
+
+		result;
+	}
+	
+	method void clear() {
+	    this.head = END_OF_LIST;
+	    this.end = END_OF_LIST;
+	    this.listSize = 0;
+	}
+	
+	method immutable Boolean removeFirst() {
+	    val result = match (this.head) {
+	        case ListValueNode {
+	            this.head = this.head.tail;
+	            this.listSize = this.listSize - 1;
+	            true
+	        }
+	        case EndOfListNode { false }
+	    };
+	    match (this.listSize == 0) { //fix end pointer if was single elt
+	        case True { this.end = END_OF_LIST; }
+	        case False { /* no op */ }
+	    };
+	    
+	    result;
+	}
+}
