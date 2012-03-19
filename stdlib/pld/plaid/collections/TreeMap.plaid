@@ -1,0 +1,107 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.collections;
+
+/**
+ * A mutable implementation of Map, for which all key types must be Orderable, or have a total order
+ * improved on them through an OrderProvider. This ordering is then used to provide O(log n)
+ * worst case guarantees for insertion and deletion of key/value pairs, and lookup of values
+ * for keys.
+ */
+state TreeMap case of Map/*<K, V>*/ = {
+	/*
+	type K; // must be Orderable
+	type V;
+	*/
+
+	val unique AATree/*<Pair<K,V>>*/ tree;
+	val immutable OrderProvider keyOrdering;
+
+	method immutable Integer size() {
+		tree.size()
+	}
+
+	/*private*/ method mapHelper(newTree, f) {
+		this.do(fn(elem) => {
+			newTree.add(f(elem));
+		});
+		newTree
+	}
+
+	// K2 *must* be an Orderable type. Not sure how to express
+	// this in Plaid, also, this is likely breaks inheritance
+	// wrt. the map method on Collection, which has no such
+	// restriction as not all collection types are ordered.
+	method /*<K2, V2>*/ /*unique TreeMap<K2,V2>*/ map(/*Pair<K,V> -> Pair<K2,V2>*/ f) {
+		mapHelper(makeTreeMap(), f)
+	}
+
+	method /*<K2, V2>*/ /*unique TreeMap<K2,V2>*/ mapWithOrder(/*Pair<K,V> -> Pair<K2,V2>*/ f, 
+															   immutable OrderProvider/*<K2>*/ order) {
+		mapHelper(makeTreeMapWithOrder(order), f)
+	}
+
+	method void doUntil(/*T -> immutable Boolean*/ f) {
+		tree.inOrderTraverse(f);
+	}
+
+	method immutable Option/*<V>*/ get(/*K*/ key) {
+		val nodeOpt = tree.guidedTraverse(fn(treeElem) => { keyOrdering.order(key, treeElem.fst) });
+		nodeOpt.map(fn(node) => { node.snd })
+	}
+
+	method immutable Option/*<V>*/ set(/*K*/ key, /*V*/ value) {
+		var immutable Option/*<V>*/ replaced = NONE;
+		tree.guidedTraverse(fn(treeElem) => { 
+			val compareResult = keyOrdering.order(key, treeElem.fst);
+			match(compareResult) {
+				case OrdEqual {
+					replaced = makeSome(treeElem.snd);
+					treeElem.snd = value;
+				}
+				default { }
+			};
+			compareResult
+		});
+
+		if(!replaced.hasValue()) {
+			tree.add(makePair(key, value));
+		};
+
+		replaced
+	}
+
+	method immutable Boolean remove(immutable Pair<K,V> e) {
+		tree.remove(e);
+	}
+} with MutableCollection {
+	method void add(immutable Pair<K,V> e) {
+		tree.add(e);
+	}
+
+	method immutable Boolean filterUntil(condition, matcher) {
+		// TODO: implementation needed
+		false	
+	}
+	
+	method void clear() {
+	    this.tree.clear();
+	}
+}
