@@ -169,4 +169,17 @@ public final class DimensionValue extends SingleValue {
 		String result = "TAG[" + this.tag + "]{" + innerValueRep + "}"+parentRep;
 		return result.intern();
 	}
+	
+	/*
+	 * Transitive && not reflective && not symmetric.
+	 */
+	protected final boolean subTagOf(DimensionValue other) {
+		if(this.parent == null) {
+			return false;
+		} else if (this.parent == other) {
+			return true;
+		} else {
+			return this.parent.subTagOf(other);
+		}
+	}
 }
