@@ -69,7 +69,10 @@ state AEminiumCodeGenOps case of CodeGenOps {
                         this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter);
                         this.codegenMethodPostlude(node);
                     }
-                    case False { this.seqOps.codegenTopLevelDecl(this.seqOps, node, packageName, sb, idgen, classNameCounter) }
+                    case False { 
+                        val mainOnlyOps = new AEminiumCodeGenOpsMainOnly;
+                        this.seqOps.codegenTopLevelDecl(mainOnlyOps, node, packageName, sb, idgen, classNameCounter);
+                    }
                 };
             }
             default { this.seqOps.codegenTopLevelDecl(this.seqOps, node, packageName, sb, idgen, classNameCounter) }
@@ -268,23 +271,46 @@ state AEminiumCodeGenOps case of CodeGenOps {
     
     method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
         LOG("codegenStmt");
-        val curSB = match ( this.curMethodInfo.taskForAST(node) ) {
+        match ( this.curMethodInfo.taskForAST(node) ) {
             case Some { 
                 val task = this.curMethodInfo.taskForAST(node).value;
                 LOG("Found task '" + task.toString() + "'");
-                task.getBodyStringBuilder();
+                val taskSB = task.getBodyStringBuilder();
+                match (node) {
+                    case ParsedMatch {
+                        LOG("AEminium match code generation");
+                        // check if the match has been inlined 
+                        var isInlined = false;
+                        val infosIt = task.infos.iterator();
+                        while { infosIt.hasNext() }{
+                            val curInfo = infosIt.next();
+                            match ( curInfo ) {
+                                case MatchLeaveInformation {
+                                    val nodes = java.util.HashSet.new();
+                                    nodes.add(curInfo.enterInfo.node);
+                                    if ( nodes.contains(node) ) {
+                                        DEBUG("Found inlined match block!");
+                                        isInlined = true;
+                                    };
+                                }
+                                default { /*nop*/ }
+                            }
+                        };
+                        
+                        ifElse ( isInlined ) {
+                            // add code to current task 
+                            this.seqOps.codegenStmt(this.seqOps, node, taskSB, idgen, y, classNameCounter)  
+                        }{
+                            // do some voodoo to make match working
+                        };
+                    }
+                    default { this.seqOps.codegenStmt(this, node, taskSB, idgen, y, classNameCounter) }
+                };
             }
             case None {
                 LOG("Using default SB");
-                sb
+                this.seqOps.codegenStmt(this, node, sb, idgen, y, classNameCounter)
             }
-        };
-        match (node) {
-            case ParsedMatch {
-                LOG("AEminium match code generation");
-                
-            }
-            default { this.seqOps.codegenStmt(this, node, curSB, idgen, y, classNameCounter) }
         };
     }
     
