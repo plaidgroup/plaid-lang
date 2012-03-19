@@ -12,6 +12,8 @@ state MethodInformationObject {
     val unique List tasks;
     val unique Set /*<MatchInformationObjects>*/ matchInfos;
     val unique Map /*<MatchLeaveInformation, Set<CaseTashGraph>>*/ matchFixupTable;
+    val unique Map astToTaskMap = java.util.HashMap.new();
+    val unique Map taskIndexMap = java.util.HashMap.new();
     
     method immutable Boolean isSingleTask() {
         ifElse( tasks.size() == 1 && matchInfos.size() == 0 ) {
@@ -21,7 +23,7 @@ state MethodInformationObject {
         }
     }
 
-    method unique Set expandMatches(immutable String path) {
+    method void dumpFinalTaskGraph(immutable String path) {
         val tb = new TaskBuilderPass;
         tb.matchFixupTable.clear();
         tb.matchFixupTable.putAll(this.matchFixupTable);
@@ -30,8 +32,62 @@ state MethodInformationObject {
         dumpTaskGraph(path, "TASK-FINAL", noTransTasks);
     }
     
+    method unique Option taskForAST(immutable ASTNode node) {
+        match ( this.astToTaskMap.size() == 0 ) {
+            case True { 
+                // initialize map
+                val it = getAllTasks().iterator();
+                while { it.hasNext() }{
+                    val curTask = it.next();
+                    val infosIt = curTask.infos.iterator();
+                    while { infosIt.hasNext() }{
+                        val curInfo = infosIt.next();
+                        match ( curInfo ) {
+                            case ASTInformation { 
+                                this.astToTaskMap.put(curInfo.node, curTask);
+                            }
+                            default { /*nop*/ }
+                        };
+                    };
+                };
+            }
+            case False { /*nop*/ }
+        };
+        
+        match ( this.astToTaskMap.containsKey(node) ) {
+            case True { makeSome(this.astToTaskMap.get(node)) }
+            case False { new None }
+        };
+    }
     
     method unique Set getAllTasks() {
-        // TODO: implement me
+        val unique Set allTasks = java.util.HashSet.new();
+        
+        allTasks.addAll(this.tasks);
+        val it = matchInfos.iterator();
+        while { it.hasNext() }{
+            val curCaseInfo = it.next();
+            allTasks.addAll(curCaseInfo.allTasks);
+        };
+        
+        allTasks
+    }
+    
+    method immutable Integer getTaskIndex(shared Task task) {
+        match ( this.taskIndexMap.size() == 0 ) {
+            case True  {
+                val allTasks = getAllTasks();
+                var index = 0;
+                val it = allTasks.iterator();
+                while { it.hasNext() }{
+                    val curTask = it.next();
+                    this.taskIndexMap.put(curTask, index);
+                    index  = index + 1;
+                };
+            }
+            case False { /* nop */ }
+        };
+        
+        this.taskIndexMap.get(task); 
     }
 }
