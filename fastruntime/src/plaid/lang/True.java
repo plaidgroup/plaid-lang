@@ -41,6 +41,11 @@ public class True extends AbstractPlaidState implements Iampamp$plaid$1$plaid,
 		return Util.string("true");
 	}
 	
+	@Override
+	public boolean matches(java.lang.String tag) {
+		return tag.equals("plaid/lang/True") || tag.equals("plaid/lang/Boolean");
+	}
+	
 	private final class TruePlaidJavaObject extends SimplePlaidJavaObject {
 		protected TruePlaidJavaObject(PlaidState dispatch) {
 			super(dispatch,null,java.lang.Boolean.TRUE);

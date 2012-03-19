@@ -42,6 +42,12 @@ implements Iampamp$plaid$1$plaid,
 		return Util.string("false");
 	}
 	
+	
+	@Override
+	public boolean matches(java.lang.String tag) {
+		return tag.equals("plaid/lang/False") || tag.equals("plaid/lang/Boolean");
+	}
+
 	private final class FalsePlaidJavaObject extends SimplePlaidJavaObject {
 		protected FalsePlaidJavaObject(PlaidState dispatch) {
 			super(dispatch,null,java.lang.Boolean.FALSE);
