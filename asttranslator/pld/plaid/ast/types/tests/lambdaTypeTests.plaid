@@ -1,0 +1,322 @@
+package plaid.ast.types.tests;
+
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import java.lang.System;
+
+val () -> void lambdaTypeTests = fn () => {
+
+	System.out.println("---------------------------");
+	System.out.println("|    LambdaType TESTS     |");
+	System.out.println("---------------------------");
+	
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = makeID(makeToken(),"unit");
+	temp.put(u, new StateType { val name = u; val superType = new None; });
+	
+	//Top
+	val top = makeID(makeToken(),"Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = makeID(makeToken(),"A");
+	val aType = new StateType { val name = a; val superType = makeSome(topType);};
+	temp.put(a,aType);
+	
+	//B
+	val b = makeID(makeToken(),"B");
+	val bType = new StateType { val name = b; val superType = makeSome(topType);};
+	temp.put(b,bType);
+	
+	//C
+	val c = makeID(makeToken(),"C");
+	val cType = new StateType { val name = c; val superType = makeSome(bType);};
+	temp.put(c,cType);
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	System.out.println("Testing state configuration:");
+	st.printTable();
+	System.out.println("");
+	
+	//(unique A >> unique A) -> void
+	var /*unique List<unique ChangeType>*/ argList = makeEmptyList();
+	argList.add(new ChangeType {
+		val unique TypeBinding input = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique NominalType type = createNominalType(a);
+		};
+		val unique TypeBinding output = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique NominalType type = createNominalType(a);
+		};
+		val immutable Boolean strongBorrow = true;
+	});
+	val unique LambdaType AAv = new LambdaType {
+		var unique PermType returnType = VOID;
+		val /*List<ChangeType>*/ argTypes = argList;
+		val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+	};
+	
+	//(unique A >> unique Top) -> void
+	argList = makeEmptyList();
+	argList.add(new ChangeType {
+		val unique TypeBinding input = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique NominalType type = createNominalType(a);
+		};
+		val unique TypeBinding output = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique NominalType type = createNominalType(top);
+		};
+		val immutable Boolean strongBorrow = true;
+	});
+	val unique LambdaType ATv = new LambdaType {
+		var unique PermType returnType = VOID;
+		val /*List<ChangeType>*/ argTypes = argList;
+		val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+	};
+	
+	//(unique Top >> unique A) -> void
+	argList = makeEmptyList();
+	argList.add(new ChangeType {
+		val unique TypeBinding input = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique NominalType type = createNominalType(top);
+		};
+		val unique TypeBinding output = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique NominalType type = createNominalType(a);
+		};
+		val immutable Boolean strongBorrow = true;
+	});
+	val unique LambdaType TAv = new LambdaType {
+		var unique PermType returnType = VOID;
+		val /*List<ChangeType>*/ argTypes = argList;
+		val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+	};
+	
+	//(unique A >> void) -> void
+	argList = makeEmptyList();
+argList.add(new ChangeType {
+		val unique TypeBinding input = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique NominalType type = createNominalType(a);
+		};
+		val unique TypeBinding output = VOID;
+		val immutable Boolean strongBorrow = false;
+	});
+	val unique LambdaType AVv = new LambdaType {
+		var unique PermType returnType = VOID;
+		val /*List<ChangeType>*/ argTypes = argList;
+		val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+	};
+	
+	var res = unit;
+	//Testing lambda subtyping
+	System.out.println("Testing isSubObjectTypeOf");
+	System.out.print("\t" + ATv.toString() + ".isSubObjectTypeOf(" + ATv.toString() + ") = ");
+	res = ATv.isSubObjectTypeOf(ATv,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.print("\t" + ATv.toString() + ".isSubObjectTypeOf(" + AAv.toString() + ") = ");
+	res = ATv.isSubObjectTypeOf(AAv,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};
+	System.out.print("\t" + AAv.toString() + ".isSubObjectTypeOf(" + ATv.toString() + ") = ");
+	res = AAv.isSubObjectTypeOf(ATv,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.print("\t" + AAv.toString() + ".isSubObjectTypeOf(" + TAv.toString() + ") = ");
+	res = AAv.isSubObjectTypeOf(TAv,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};
+	System.out.print("\t" + TAv.toString() + ".isSubObjectTypeOf(" + AAv.toString() + ") = ");
+	res = TAv.isSubObjectTypeOf(AAv,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.print("\t" + TAv.toString() + ".isSubObjectTypeOf(" + AVv.toString() + ") = ");
+	res = TAv.isSubObjectTypeOf(AVv,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};
+	System.out.print("\t" + AVv.toString() + ".isSubObjectTypeOf(" + TAv.toString() + ") = ");
+	res = AVv.isSubObjectTypeOf(TAv,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};
+	System.out.println("");
+	
+	//testing least upper bound
+	System.out.println("testing least upper bound");
+	System.out.println("\t" + TAv.toString() + ".leastUpperBound(" + ATv.toString() + ") = ");
+	res = TAv.leastUpperBound(ATv,st);
+	System.out.print("\t\t" + res.toString() + " - ");
+	match(res) {
+		case Some {
+			match(TAv.isSubObjectTypeOf(res.value,st)) {
+				case True {
+					match (ATv.isSubObjectTypeOf(res.value,st)) {
+						case True { ok() }
+						case False { fail() }
+					}
+				}
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	}; 
+	System.out.print("\t" + TAv.toString() + ".leastUpperBound(" + topNomType.toString() + ") = ");
+	res = TAv.leastUpperBound(topNomType,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.print("\t" + TAv.toString() + ".leastUpperBound(" + AVv.toString() + ") = ");
+	res = TAv.leastUpperBound(AVv,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.println("");
+	
+	//testing greatest lower bound
+	System.out.println("testing greatest lower bound");
+	System.out.println("\t" + TAv.toString() + ".greatestLowerBound(" + ATv.toString() + ") = ");
+	res = TAv.greatestLowerBound(ATv,st);
+	System.out.print("\t\t" + res.toString() + " - ");
+	match(res) {
+		case Some {
+			match(res.value.isSubObjectTypeOf(TAv,st)) {
+				case True {
+					match (res.value.isSubObjectTypeOf(ATv,st)) {
+						case True { ok() }
+						case False { fail() }
+					}
+				}
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\t" + TAv.toString() + ".greatestLowerBound(" + topNomType.toString() + ") = ");
+	res = TAv.greatestLowerBound(topNomType,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.print("\t" + TAv.toString() + ".greatestLowerBound(" + AVv.toString() + ") = ");
+	res = TAv.greatestLowerBound(AVv,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.println("");
+	
+	//other functions do not need extensive testing:
+	val immutable ID f = makeID(makeToken(),"f");
+	System.out.println("Testing contains");
+	System.out.print("\t" + TAv.toString() + ".contains(f) = ");
+	res = TAv.contains(f,st);
+	System.out.print(res.toString() + " - ");
+	match(res) { 
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.println("");
+	
+	System.out.println("Testing declaredType");
+	System.out.print("\t" + TAv.toString() + ".declaredType(f) = ");
+	res = TAv.declaredType(f,st);
+	System.out.print(res.toString() + " - ");
+	match(res) { 
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.println("");
+	
+	System.out.println("Testing memberUpdate");
+	//Copy of (unique Top >> unique A) -> void
+	argList = makeEmptyList();
+	argList.add(new ChangeType {
+		val unique TypeBinding input = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique NominalType type = createNominalType(top);
+		};
+		val unique TypeBinding output = new PermType {
+			val immutable Permission perm = UNIQUE;
+			val unique NominalType type = createNominalType(a);
+		};
+		val immutable Boolean strongBorrow = true;
+	});
+	val unique LambdaType TAvCopy = new LambdaType {
+		var unique PermType returnType = VOID;
+		val /*List<ChangeType>*/ argTypes = argList;
+		val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+	};
+	System.out.print("\t" + TAv.toString() + ".memberUpdate(f,_) - ");
+	TAv.memberUpdate(f,unit,st);
+	match(TAv == TAvCopy) { 
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.println("");
+
+	System.out.println("Testing notBorrowed");
+	System.out.print("\t" + TAv.toString() + ".notBorrowed() = ");
+	res = TAv.notBorrowed();
+	System.out.print(res.toString() + " - ");
+	match(res) { 
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.println("");
+	
+	System.out.println("testing pack");
+	System.out.print("\t" + TAv.toString() + ".pack() - ");
+	TAv.pack(st);
+	match(TAv == TAvCopy) { 
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.println("");
+	
+	System.out.println("testing downgrade");
+	System.out.print("\t" + TAv.toString() + ".downgrade() - ");
+	TAv.downgrade();
+	match(TAv == TAvCopy) { 
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.println("");
+
+};

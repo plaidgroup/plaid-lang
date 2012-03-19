@@ -1,0 +1,49 @@
+package plaid.compiler.context;
+
+import java.util.HashMap;
+
+import plaid.compiler.Context;
+import plaid.compiler.resolver.ClassPathResolver;
+import plaid.compiler.Resolver;
+
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_LOW;
+
+import plaid.compiler.symbol.*;
+
+state PackageContext case of Context {
+
+    val unique Map cache = HashMap.new();
+    val shared Context parent;
+    val shared ClasspathResolver resolver;
+    val immutable String packageName;
+    
+    method put(name, symbol) {
+        false
+    }
+
+    method find(immutable String name) {        
+        var unique Option symbol = NONE;                                
+        DEBUG(DEBUG_PRIO_MEDIUM, "<PackageContext> looking for '" + name + "' in package '" + packageName + "'");        
+
+        ifElse ( cache.containsKey(name) ) {
+            DEBUG(DEBUG_PRIO_LOW, "<PackageContext> found '" + name +"' in cache");
+            symbol = cache.get(name);
+        }{
+            DEBUG(DEBUG_PRIO_LOW, "<PackageContext>     looking for '" + packageName + "."+ name +"'");
+            symbol  = resolver.lookup(packageName + "." + name);
+        };
+        cache.put(name, symbol);
+
+        match (symbol) {
+            case Some { symbol }
+            case None { parent.find(name) }
+        }
+    }
+
+    method shared Option findInSymbol(symbol, name) {
+        parent.findInSymbol(symbol, name);
+    }
+
+}
