@@ -29,8 +29,8 @@ method LOG (immutable String msg) {
 	DEBUG(DEBUG_PRIO_LOW, "<CodeGenPass> " + msg);
 }
 
-method ERROR(immutable String msg) {
-	plaid.compiler.ERROR("<CodeGenPass> INTERNAL ERROR: " + msg);
+method ERROR(immutable Token t, immutable String msg) {
+	plaid.compiler.report_ERROR(t,"<CodeGenPass> INTERNAL ERROR: " + msg);
 }
 
 state CodeGenOps {
@@ -233,11 +233,11 @@ method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, 
 									sbStateInitializer.append(ovfId + ".parent(" + ovId + ");\n");
 								}
 								default{
-									ERROR("Case of identifier symbol is unexpected value, " + caseOfSymbol.symbolType() + ".");
+									ERROR(node.caseOf.token, "Case of identifier symbol is unexpected value, " + caseOfSymbol.symbolType() + ".");
 								}
 							}
 						} case None {
-							ERROR("no symbol for case of identifier");
+							ERROR(node.caseOf.token, "no symbol for case of identifier");
 						}
 					}
 				}
@@ -274,7 +274,7 @@ method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, 
 								//no-op
 							}
 							default {
-								ERROR("Unsupported inner decl ast node. Node name is " + innerDecl.nodeName());
+								ERROR(innerDecl.token, "Unsupported inner decl ast node. Node name is " + innerDecl.nodeName());
 							}
 						}
 					} );
@@ -283,10 +283,10 @@ method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, 
 					// add List
 				}
 				case ParsedFreeze {
-					ERROR("Code generator does not support freeze yet. Please check back later.");
+					ERROR(node.stateBinding.token, "Code generator does not support freeze yet. Please check back later.");
 				}
 				default {
-					ERROR("Found unexpected state binding in concrete state declaration.");
+					ERROR(node.stateBinding.token, "Found unexpected state binding in concrete state declaration.");
 				}
 			};
 			
@@ -302,7 +302,7 @@ method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, 
 			sb.append("}\n"); // end class
 		}
 		default {
-			ERROR("Found unexpected node as top-level decl");
+			ERROR(node.token, "Found unexpected node as top-level decl");
 		}
 	}
 }
@@ -360,7 +360,7 @@ method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  sh
 			//no-op
 		}
 		default {
-			ERROR("Found unexpected node as inner decl");
+			ERROR(node.token, "Found unexpected node as inner decl");
 		}
 	}
 }
@@ -440,7 +440,7 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 					symbolLeft = symbolLeftOption.getValue();
 				}
 				case None {
-					ERROR("There was no symbol for the left component of a dereference. The left value is " + node.left.toString());
+					ERROR(node.token, "There was no symbol for the left component of a dereference. The left value is " + node.left.toString());
 				}
 			};
 			match(symbolLeft) {
@@ -454,18 +454,18 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 									ops.setLocalVariable(y, "plaid.fastruntime.Util.javaToPlaid(" + classFQN + "." + node.right.name + ")", sb);
 								}
 								case JavaStaticMethodSymbol {
-									ERROR("java methods cannot be dereferenced except as a part of an application/method call");
+									ERROR(node.token, "java methods cannot be dereferenced except as a part of an application/method call");
 								}
 								case JavaConstructorSymbol {
-									ERROR("java constructors cannot be dereferenced except as a part of an application/method call");
+									ERROR(node.token, "java constructors cannot be dereferenced except as a part of an application/method call");
 								}
 								default {
-									ERROR("Unexpected symbol for the right side of a dereference of Java class");
+									ERROR(node.token, "Unexpected symbol for the right side of a dereference of Java class");
 								}
 							}
 						}
 						default {
-							ERROR("Found no symbol for the right side of a dereference of Java class.");
+							ERROR(node.token, "Found no symbol for the right side of a dereference of Java class.");
 						}
 					}
 				}
@@ -595,7 +595,7 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 					val symbol = symbolOption.getValue();
 					match(symbol) {
 						case JavaClassSymbol {
-							ERROR("Internal Error. Identifier cannot refer to Java class in ParsedIdentifier case of codegenStmt.");
+							ERROR(node.token, "Identifier cannot refer to Java class in ParsedIdentifier case of codegenStmt.");
 						}
 						case VariableSymbol {
 							val varName = ifElse(node.name.equals("this")) {
@@ -617,7 +617,7 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 									ops.setLocalVariable(y, ysb.toString(), sb);
 								}
 								default {
-									ERROR("Identifier's symbol is a field symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
+									ERROR(node.token, "Identifier's symbol is a field symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
 								}
 							}
 						}
@@ -626,14 +626,14 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
                             ops.setLocalVariable(y, stateFQN + "." + NamingConventions.GENERATED_STATE_NAME, sb);
                         }
 						case MethodSymbol {
-							ERROR("Methods are not first class values, therefore this should not be called.");
+							ERROR(node.token, "Methods are not first class values, therefore this should not be called.");
 						}
 						default {
-							ERROR("Identifier has unexpected symbol '" + symbol.symbolType() + "'.");
+							ERROR(node.token, "Identifier has unexpected symbol '" + symbol.symbolType() + "'.");
 						}
 					};
 				} case None {
-					ERROR("No symbol found for identifier. (Identifier named " + node.name + ")");
+					ERROR(node.token, "No symbol found for identifier. (Identifier named " + node.name + ")");
 				}
 			};
 			
@@ -672,12 +672,12 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 										caseStringList.addLast(caseSB.toString());
 									}
 									default {
-										ERROR("Case pattern has unexpected symbol '" + patternSymbol.symbolType() + "'.");
+										ERROR(c.token, "Case pattern has unexpected symbol '" + patternSymbol.symbolType() + "'.");
 									}
 								}
 							}
 							case None {
-								ERROR("No symbol found for pattern in case.")
+								ERROR(c.token, "No symbol found for pattern in case.")
 							}			
 						};
 					}
@@ -716,7 +716,7 @@ method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringB
 			ops.codegenLambda(ops, node.arguments, node.body, sb, idgen, y, classNameCounter);
 		}
 		default {
-			ERROR("Unexpected stmt node type,"+ node.nodeName() +" encountered.");
+			ERROR(node.token, "Unexpected stmt node type,"+ node.nodeName() +" encountered.");
 		}
 	}
 }
@@ -820,7 +820,7 @@ method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared St
             }
 		}
 		default {
-			ERROR("Unepected node type for state state expression. Expected StateRef, got " + node.nodeName());
+			ERROR(node.token, "Unepected node type for state state expression. Expected StateRef, got " + node.nodeName());
 		}
 	}
 }
@@ -880,7 +880,7 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 							codegenJavaStaticMethod(ops, functionExpr.left, rightSymbol, yList, sb, y);
 						}
 						default {
-							ERROR("<CodeGenPass> method id unexpectedly has a symbol");
+							ERROR(functionExpr.token, "method id unexpectedly has a symbol");
 						}
 					}
 				}
@@ -980,7 +980,7 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 									ops.setLocalVariable(y, ysb.toString(), sb);
 								}
 								default {
-									ERROR("Identifier's symbol is a method symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
+									ERROR(functionExpr.token, "Identifier's symbol is a method symbol, but parent is not a PackageSymbol instead it is, "+ parentSymbol.symbolType());
 								}
 							}
 						}
@@ -993,7 +993,7 @@ method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functio
 					}
 				}
 				case None {
-					ERROR("No symbol found for identifier. (Identifier named " + functionExpr.name + ")");
+					ERROR(functionExpr.token, "No symbol found for identifier. (Identifier named " + functionExpr.name + ")");
 				}
 			}
 		}
@@ -1012,7 +1012,7 @@ method codegenJavaStaticMethod(immutable CodeGenOps ops, immutable ParsedExpr cl
     var left = match (classAST) { //get AST mapped to JavaClassSymbol
         case ParsedDereference { classAST.right }
         case ParsedIdentifier { classAST }
-        default { ERROR("<CodeGenPass> Unexpected AST node at left of java constructor") }
+        default { ERROR(classAST.token, "Unexpected AST node at left of java constructor") }
     };
     val leftSymbol = symbolForAST(left).value; //if no symbol, something went wrong earlier
     match (leftSymbol) {
@@ -1029,7 +1029,7 @@ method codegenJavaStaticMethod(immutable CodeGenOps ops, immutable ParsedExpr cl
             plaid.fastruntime.Util.JAVA_GEN.saveStaticJavaObject(javaClassFQN);
         }
         default {
-            ERROR("<CodeGenPass> non-JavaClassSymbol found as target of java static method or constructor");
+            ERROR(classAST.token, "non-JavaClassSymbol found as target of java static method or constructor");
         }	
     }
 }
