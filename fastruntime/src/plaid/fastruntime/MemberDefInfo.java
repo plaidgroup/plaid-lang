@@ -1,8 +1,10 @@
 package plaid.fastruntime;
 
-import java.util.UUID;
 
-public interface MemberDefInfo {
-	public UUID getMemberDefId();
+public interface MemberDefInfo extends Comparable<MemberDefInfo>{
+	/**
+	 * @return String in UUID form.
+	 */
+	public String getMemberDefId();
 	public Object getMemberDefInstance();
 }

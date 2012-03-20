@@ -9,10 +9,16 @@ public class SimplePlaidObject implements PlaidObject {
 
 	private PlaidState dispatch;
 	private PlaidObject[] storage;
+	private Object[] memberDefs;
 	
 	public SimplePlaidObject(PlaidState dispatch, PlaidObject[] storage){
+		this(dispatch,storage,null);
+	}
+	
+	public SimplePlaidObject(PlaidState dispatch, PlaidObject[] storage, Object[] memberDefs){
 		this.dispatch = dispatch;
 		this.storage = storage;
+		this.memberDefs = memberDefs;
 	}
 	
 	@Override
@@ -43,5 +49,10 @@ public class SimplePlaidObject implements PlaidObject {
 		} else {
 			return getDispatch().getObjectValue().toString().replace("/", ".");
 		}
+	}
+
+	@Override
+	public Object[] getMemberDefs() {
+		return this.memberDefs;
 	}
 }

@@ -1,7 +1,5 @@
 package plaid.fastruntime.reference;
 
-import java.util.UUID;
-
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
@@ -10,10 +8,10 @@ import fj.data.List;
 
 public final class MemberDefValue extends AtomicValue implements MemberDefInfo {
 	
-	private final UUID memberDefId;
+	private final String memberDefId;
 	private final Object memberDefInstance;
 	
-	public  MemberDefValue(UUID memberDefId, Object memberDefInstance){
+	public  MemberDefValue(String memberDefId, Object memberDefInstance){
 		this.memberDefId = memberDefId;
 		this.memberDefInstance = memberDefInstance;
 		this.init();
@@ -62,7 +60,13 @@ public final class MemberDefValue extends AtomicValue implements MemberDefInfo {
 	}
 	
 	@Override
-	public UUID getMemberDefId() {
+	public String getMemberDefId() {
 		return this.memberDefId;
-	}	
+	}
+
+
+	@Override
+	public int compareTo(MemberDefInfo o) {
+		return  this.memberDefId.compareTo(o.getMemberDefId());
+	}
 }

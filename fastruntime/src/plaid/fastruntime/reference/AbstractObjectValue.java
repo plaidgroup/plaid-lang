@@ -5,8 +5,8 @@ import java.lang.reflect.Field;
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
-import plaid.fastruntime.PlaidFieldInitializer;
 import plaid.fastruntime.ObjectValue;
+import plaid.fastruntime.PlaidFieldInitializer;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
@@ -20,6 +20,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	
 	protected static final Ord<String> STRING_ORD = Ord.stringOrd;
 	protected static final Ord<FieldInfo> FIELD_ORD = Ord.comparableOrd();
+	protected static final Ord<MemberDefInfo> MEMBER_DEF_ORD = Ord.comparableOrd();
 	protected static final Ord<SingleValue> SINGLE_VALUE_ORD;
 	static {
 		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
@@ -53,6 +54,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	private Set<String> tags;
 	private Set<String> outerTags;
 	private Set<String> innerTags;
+	private Object[] defaultMemberDefs;
 	
 	/*
 	 * Must be called in last line of construct of every concrete subtype.
@@ -64,6 +66,13 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		this.tags = this.constructTags();
 		this.outerTags = this.constructOuterTags();
 		this.innerTags = this.constructInnerTags();
+		this.memberDefs = this.constructMemberDefs();
+		this.defaultMemberDefs = new Object[this.memberDefs.length()];
+		int i = 0;
+		for(MemberDefInfo mdi : this.getSortedMemberDefs()) {
+			this.defaultMemberDefs[i] = mdi.getMemberDefInstance();
+			i++;
+		}
 	}
 	
 	
@@ -87,6 +96,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		return this.memberDefs;
 	}
 	
+	
 	protected final Set<String> getTags() {
 		return this.tags;
 	}
@@ -98,6 +108,10 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	
 	protected final Set<String> getInnerTags() {
 		return this.innerTags;
+	}
+	
+	public final Object[] getDefaultMemberDefs() {
+		return this.defaultMemberDefs;
 	}
 	
 	/**
@@ -122,6 +136,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	protected abstract Set<String> constructOuterTags();
 	
 	protected abstract Set<String> constructInnerTags();
+
 	
 
 	@Override
@@ -282,10 +297,25 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		throw new PlaidInternalException("Cannot retrieve field index because the field name does not appear in the field list.");
 	}
 	
+	private List<MemberDefInfo> sortedMemberDefs;
+	
+	private List<MemberDefInfo> getSortedMemberDefs() {
+		if (this.sortedMemberDefs == null) {
+			this.sortedMemberDefs = this.memberDefs.sort(MEMBER_DEF_ORD);
+		} 
+		return this.sortedMemberDefs;
+	}
+	
 	@Override
-	final public int getMemberDefinitionIndex(String memDefName) {
-		
-		return 0;
+	final public int getMemberDefinitionIndex(String memDefId) {
+		int i = 0;
+		for(MemberDefInfo memberDef : getSortedMemberDefs()) {
+			if(memberDef.getMemberDefId().equals(memDefId)) {
+				return i;
+			}
+			i++;
+		}
+		throw new PlaidInternalException("Cannot retrieve field index because the field name does not appear in the field list.");
 	}
 	
 	public final boolean uniqueTags() {

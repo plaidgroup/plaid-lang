@@ -9,7 +9,6 @@ import plaid.fastruntime.errors.PlaidIllegalArgumentException;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
-import plaid.fastruntime.reference.SimplePlaidJavaObject;
 import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
@@ -137,13 +136,15 @@ public class Float64 extends AbstractPlaidState
 		}
 	}
 	
-	private final class Float64PlaidJavaObject extends SimplePlaidJavaObject {
+	private final class Float64PlaidJavaObject implements PlaidJavaObject {
 		
 		public Float64PlaidJavaObject(PlaidState dispatch, double float64) {
-			super(dispatch, null, null);
+			this.dispatch = dispatch;
 			this.rep = float64;
 		}
 		
+		private PlaidState dispatch;
+		private Double javaObject;
 		private double rep;
 		
 		public double getDoubleValue() {
@@ -173,6 +174,27 @@ public class Float64 extends AbstractPlaidState
 			default: throw new PlaidIllegalOperationException("Floats cannot be used as " + p.name + " primitives.");
 			}
 		}
+
+		@Override
+		public PlaidState getDispatch() {
+			return dispatch;
+		}
+		
+		@Override
+		public void changeState(PlaidState s) {
+			throw new PlaidIllegalOperationException("Cannot change the state of a Java Object.");
+		}
+
+		@Override
+		public PlaidObject[] getStorage() {
+			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
+		}
+
+		@Override
+		public Object[] getMemberDefs() {
+			throw new PlaidIllegalOperationException("No member defs for a Java Object.");
+		}
+
 	}
 
 	@Override

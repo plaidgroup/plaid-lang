@@ -12,11 +12,11 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	private final int numArgs;
 	
 	public static MethodValue createMethodWithStaticDefinition(String name, int numArgs, String classInternalName) {
-		return new MethodValue(name, numArgs, classInternalName, false, null);
+		return new MethodValue(name, numArgs, classInternalName, true, null);
 	}
 	
 	public static MethodValue createMethodWithDynamicDefinition(String name, int numArgs, String memberDefinitionName) {
-		return new MethodValue(name, numArgs, null, true, memberDefinitionName);
+		return new MethodValue(name, numArgs, null, false, memberDefinitionName);
 	}
 	
 	
@@ -66,7 +66,10 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 
 	@Override
 	protected String constructCanonicalRep() {
-		String result =  "method:" + this.getName() + this.numArgs + this.getStaticClassInternalName();
+		String methodDefinition = this.isStaticallyDefined() ?
+				this.getStaticClassInternalName() 
+				: this.getMemberDefinitionName();
+		String result =  "method:" + this.getName() + this.numArgs + this.isStaticallyDefined() + methodDefinition;	
 		return result.intern();
 	}
 

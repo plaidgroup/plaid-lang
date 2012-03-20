@@ -36,9 +36,8 @@ public class TestClass {
 	}
 	
 	public static void main(String[] args) {
-		TestClass t = new TestClass();
 		
-		String s = t.appendFoo("foo");
+		String s = appendFoo("foo");
 		
 		byte f = 5;
 		Integer d = new Integer(f);

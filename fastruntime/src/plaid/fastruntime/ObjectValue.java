@@ -16,13 +16,15 @@ public interface ObjectValue {
 	 */
 	public PlaidObject[] getDefaultStorage();
 	
+	public Object[] getDefaultMemberDefs();
+	
 	public String getTopTag();
 	
 	public boolean matches(String tag);
 
 	public int getFieldIndex(String fieldName);
 	
-	public int getMemberDefinitionIndex(String memDefName);
+	public int getMemberDefinitionIndex(String memDefId);
 	
 	public ObjectValue specialize(ObjectValue newMembers);
 	

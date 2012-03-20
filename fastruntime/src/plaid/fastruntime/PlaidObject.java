@@ -6,5 +6,7 @@ public interface PlaidObject {
 	
 	public PlaidObject[] getStorage();
 	
+	public Object[] getMemberDefs();
+	
 	public void changeState(PlaidState s);
 }

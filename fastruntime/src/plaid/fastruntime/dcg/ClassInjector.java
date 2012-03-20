@@ -1,5 +1,6 @@
 package plaid.fastruntime.dcg;
 
+import java.io.File;
 import java.io.FileOutputStream;
 
 
@@ -47,7 +48,9 @@ public final class ClassInjector {
 	// use javap -c <className> to read the bytecode
 	public static void writeClass(byte[] bytes, String fileName) {
 		try {
-			FileOutputStream out = new FileOutputStream(fileName);
+			File outputFile = new File(fileName);
+			outputFile.createNewFile();
+			FileOutputStream out = new FileOutputStream(outputFile);
 			out.write(bytes);
 			out.flush();
 			out.close();

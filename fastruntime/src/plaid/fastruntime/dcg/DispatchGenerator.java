@@ -54,23 +54,48 @@ public final class DispatchGenerator implements Opcodes {
 		for ( MethodInfo m : ov.getMethods() ) {
 			//System.out.println("add method: " + m.getName());
 			MethodVisitor mv;
-			mv = cw.visitMethod(ACC_PUBLIC, 
-					m.getName(), 
-					m.getMethodDescriptor(),
-					null,
-					null); // TODO: add exception
-					mv.visitCode();
-					// add receiver
-
-					mv.visitVarInsn(ALOAD, 1);
-					// add parameters
-					for (int x = 2; x <= m.numArgs()+1; x++ ) {
-						mv.visitVarInsn(ALOAD, x);
-					}
-					mv.visitMethodInsn(INVOKESTATIC, m.getStaticClassInternalName(), m.getName(), m.getMethodDescriptor());
-					mv.visitInsn(ARETURN);
-					mv.visitMaxs(2,3);
-					mv.visitEnd();			
+			if(m.isStaticallyDefined()) {
+				mv = cw.visitMethod(ACC_PUBLIC, 
+						m.getName(), 
+						m.getMethodDescriptor(),
+						null,
+						null); // TODO: add exception
+				mv.visitCode();
+				// add receiver
+	
+				mv.visitVarInsn(ALOAD, 1);
+				// add parameters
+				for (int x = 2; x <= m.numArgs()+1; x++ ) {
+					mv.visitVarInsn(ALOAD, x);
+				}
+				mv.visitMethodInsn(INVOKESTATIC, m.getStaticClassInternalName(), m.getName(), m.getMethodDescriptor());
+				mv.visitInsn(ARETURN);
+				mv.visitMaxs(2,3);
+				mv.visitEnd();
+			} else { //dynamically defined
+				mv = cw.visitMethod(ACC_PUBLIC, 
+						m.getName(),
+						m.getMethodDescriptor(), null, null);
+				mv.visitCode();
+				mv.visitVarInsn(ALOAD, 1);
+				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getDispatch", "()Lplaid/fastruntime/PlaidState;");
+				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidState", "getObjectValue", "()Lplaid/fastruntime/ObjectValue;");
+				mv.visitLdcInsn(m.getMemberDefinitionName());
+				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/ObjectValue", "getMemberDefinitionIndex", "(Ljava/lang/String;)I");
+				mv.visitVarInsn(ISTORE, 3);
+				mv.visitVarInsn(ALOAD, 1);
+				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getMemberDefs", "()[Ljava/lang/Object;");
+				mv.visitVarInsn(ILOAD, 3);
+				mv.visitInsn(AALOAD);
+				final String interfaceInternalName = NamingConventions.getGeneratedInterfaceInternalName(m.getName(), m.numArgs());
+				mv.visitTypeInsn(CHECKCAST, interfaceInternalName);
+				mv.visitVarInsn(ALOAD, 1);
+				mv.visitVarInsn(ALOAD, 2);
+				mv.visitMethodInsn(INVOKEINTERFACE, interfaceInternalName, m.getName(), m.getMethodDescriptor());
+				mv.visitInsn(ARETURN);
+				mv.visitMaxs(3, 4);
+				mv.visitEnd();
+			}
 		}
 		
 		// add fields 
@@ -131,6 +156,7 @@ public final class DispatchGenerator implements Opcodes {
 		try {
 			byte[] b = cw.toByteArray();
 			Class<?> plaidStateClass = ClassInjector.defineClass(name, cw.toByteArray(), 0, b.length);
+			//ClassInjector.writeClass(cw.toByteArray(), "exampleoutput/" + name  + ".class");
 			Constructor<?> cstr =  plaidStateClass.getConstructor(ObjectValue.class);
 			result = (PlaidState)cstr.newInstance(ov);
 		} catch(NoSuchMethodException e) {

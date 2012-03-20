@@ -7,7 +7,7 @@ import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 
 public abstract class AbstractPlaidState implements PlaidState {
-
+	
 	private final ObjectValue metadata;
 	
 	public AbstractPlaidState(ObjectValue metadata) {
@@ -42,7 +42,7 @@ public abstract class AbstractPlaidState implements PlaidState {
 
 	@Override
 	public PlaidObject instantiate() {
-		return new SimplePlaidObject(this, this.getStorage());
+		return new SimplePlaidObject(this, this.getStorage(), this.getMemberDefs());
 	}
 
 	@Override
@@ -54,6 +54,11 @@ public abstract class AbstractPlaidState implements PlaidState {
 	@Override
 	public PlaidObject[] getStorage() {
 		return this.metadata.getDefaultStorage();
+	}
+	
+	@Override
+	public Object[] getMemberDefs() {
+		return this.metadata.getDefaultMemberDefs();
 	}
 
 	@Override
@@ -101,4 +106,8 @@ public abstract class AbstractPlaidState implements PlaidState {
 				"States cannot change .");
 	}
 
+	@Override
+	public String toString() {
+		return "ObjectValue : " + this.getObjectValue().getCanonicalRep();
+	}
 }
