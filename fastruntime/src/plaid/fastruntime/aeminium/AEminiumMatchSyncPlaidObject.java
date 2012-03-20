@@ -64,4 +64,9 @@ public class AEminiumMatchSyncPlaidObject implements PlaidObject {
 		throw new PlaidIllegalOperationException("AEminiumMatchSyncPlaidObjects are not proper PlaidObjects.");
 	}
 
+	@Override
+	public Object[] getMemberDefs() {
+		throw new PlaidIllegalOperationException("AEminiumMatchSyncPlaidObjects are not proper PlaidObjects.");
+	}
+
 }
