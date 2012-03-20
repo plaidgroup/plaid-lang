@@ -2,12 +2,16 @@ package plaid.compiler.aeminium;
 
 import plaid.ast.parsed.*;
 import plaid.compiler.*;
+import plaid.compiler.symbol.*;
 import plaid.compiler.codegen.codegenMethodBody;
 import plaid.compiler.codegen.makeSeperatedString;
 import plaid.compiler.codegen.CodeGenOps;
 import plaid.compiler.codegen.makeSequentialCodeGenOps;
 import plaid.compiler.util.*;
 import plaid.compiler.passes.TaskBuilderPass;
+
+import plaid.collections.LinkedList;
+import plaid.collections.makeLinkedList;
 
 import plaid.fastruntime.NamingConventions;
 
@@ -280,28 +284,97 @@ state AEminiumCodeGenOps case of CodeGenOps {
                     case ParsedMatch {
                         LOG("AEminium match code generation");
                         // check if the match has been inlined 
-                        var isInlined = false;
-                        val infosIt = task.infos.iterator();
-                        while { infosIt.hasNext() }{
-                            val curInfo = infosIt.next();
-                            match ( curInfo ) {
-                                case MatchLeaveInformation {
-                                    val nodes = java.util.HashSet.new();
-                                    nodes.add(curInfo.enterInfo.node);
-                                    if ( nodes.contains(node) ) {
-                                        DEBUG("Found inlined match block!");
-                                        isInlined = true;
-                                    };
+                        match ( this.curMethodInfo.matchInfoForAST(node) ) {
+                            case Some { 
+                                val matchInfo = this.curMethodInfo.matchInfoForAST(node).value;
+                                
+                                // do some voodoo to make match working
+                                val exprVarName = idgen.getId();
+                                ops.createLocalVariable(exprVarName, sb, false);
+                                ops.codegenStmt(this.seqOps, node.expression, taskSB, idgen, exprVarName, classNameCounter);
+                                
+                                val caseStringList = makeLinkedList();
+                                node.caseList.do(fn (caseItem) => {
+                                    match ( caseItem ) {
+                                        case ParsedPatternCase {
+                                            val patternSymbolOption = symbolForAST(caseItem.pattern);
+                                            match(patternSymbolOption) {
+                                                case Some {                                                
+                                                    val patternSymbol = patternSymbolOption.getValue();
+                                                    match (patternSymbol) {
+                                                        case StateSymbol {
+                                                            val caseSB = java.lang.StringBuilder.new();
+                                                            caseSB.append("if(" + ops.getLocalVariable(exprVarName) + ".getDispatch().matches(");
+                                                            caseSB.append(patternSymbol.getFQN() + "." + NamingConventions.GENERATED_STATE_NAME + ".getTopTag())) {\n");
+                                                            val bodyVarName = idgen.getId();
+                                                            ops.createLocalVariable(bodyVarName, sb, false);
+                                                            ops.codegenStmtBlock(ops, caseItem.body, caseSB, idgen, bodyVarName, classNameCounter);
+                                                            
+                                                            // generate code of tasks
+                                                            DEBUG(DEBUG_PRIO_LOW, "<AEminiumCodeGenOps> look for case information for '" + makeStringFromQualifiedIdentifier(caseItem.pattern) + "'");
+                                                            val caseInfo = match ( matchInfo.caseInfoForAST(caseItem) ) {
+                                                                case Some { matchInfo.caseInfoForAST(caseItem).value } 
+                                                                case None { ABORT("Cannot find case information for case.") } 
+                                                            };
+                                                            
+                                                            // create other tasks ( except body task ) 
+                                                            ifElse ( caseInfo.allTasks.size() == 1 ) {
+                                                                // inline single task
+                                                                caseSB.append(caseInfo.allTasks.iterator().next().getBodyStringBuilder().toString());
+                                                            }{
+                                                                val tasksString = createTasksAndScheduling(caseInfo.allTasks);
+                                                                caseSB.append(tasksString);
+                                                            };
+                                                            
+                                                            ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseSB);                                                            
+                                                            caseSB.append("}\n");
+                                                            caseStringList.addLast(caseSB.toString());
+                                                        }
+                                                        default {
+                                                            ABORT("Case pattern has unexpected symbol '" + patternSymbol.symbolType() + "'.");
+                                                        }
+                                                    }
+                                                }
+                                                case None {
+                                                    ABORT("No symbol found for pattern in case.")
+                                                }			
+                                            };
+                                        }
+                                        case ParsedDefaultCase {
+                                            LOG("Found default case");
+                                            val caseSB = StringBuilder.new();
+                                            val bodyVarName = idgen.getId();
+                                            caseSB.append("{\n");
+                                            caseSB.append("plaid.fastruntime.PlaidObject " + bodyVarName + ";\n");
+                                            ops.codegenStmtBlock(ops, caseItem.body, caseSB, idgen, bodyVarName, classNameCounter);
+                                            ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseSB);
+                                            caseSB.append("}\n");
+                                            caseStringList.addLast(caseSB.toString());
+                                        }
+                                    }
+                                });
+                                // concatenate cases 
+                                val caseString = makeSeperatedString(caseStringList, "else ");
+                                taskSB.append(caseString);
+                                val lastCase = node.caseList.get(node.caseList.size() - 1).getValue();
+                                match (lastCase) {
+                                    case ParsedPatternCase {
+                                        taskSB.append("else {\n");
+                                        taskSB.append("throw new plaid.fastruntime.errors.PlaidIllegalOperationException(\"Pattern match exausted.\");\n");
+                                        taskSB.append("}");
+                                    }
+                                    case ParsedDefaultCase {
+                                        //no-op
+                                    }
                                 }
-                                default { /*nop*/ }
+                                
+                                // TODO: add leave task scheduling 
+
                             }
-                        };
-                        
-                        ifElse ( isInlined ) {
-                            // add code to current task 
-                            this.seqOps.codegenStmt(this.seqOps, node, taskSB, idgen, y, classNameCounter)  
-                        }{
-                            // do some voodoo to make match working
+                            case None {                                                    
+                                // add code to current task 
+                                this.seqOps.codegenStmt(this.seqOps, node, taskSB, idgen, y, classNameCounter)  
+                            }
                         };
                     }
                     default { this.seqOps.codegenStmt(this, node, taskSB, idgen, y, classNameCounter) }
@@ -391,6 +464,78 @@ state AEminiumCodeGenOps case of CodeGenOps {
 
     method immutable String getTaskArrayElement(shared Task task) {
         this.TASK_ARRAY + "[" + this.curMethodInfo.getTaskIndex(task) + "]"
+    }
+    
+    method immutable String createTasksAndScheduling(shared Set tasks) {
+        val sb = java.lang.StringBuilder.new();
+        
+        // create tasks
+        val tasksIt = tasks.iterator();
+        while { tasksIt.hasNext() }{
+            val curTask = tasksIt.next();
+            sb.append(createTaskString("", curTask, ""));
+        };
+        
+        // add scheduling
+        val scheduleIt = tasks.iterator();
+        while { scheduleIt.hasNext() }{
+            val curTask = scheduleIt.next();
+            ifElse ( curTask.deps.size() == 0  ) {
+                sb.append(this.LOCAL_AEMINIUM_RUNTIME + ".schedule(" + this.getTaskArrayElement(curTask) + ", "  + "aeminium.runtime.Runtime.NO_PARENT, aeminium.runtime.Runtime.NO_DEPS);\n" );
+            }{
+                val depsSB = java.lang.StringBuilder.new();
+                depsSB.append("java.util.Arrays.asList(");
+                val immutable Boolean isSimplified = if ( true ) {
+                    var result = false;
+                    val simplifiedIt = curTask.deps.iterator();
+                    while { simplifiedIt.hasNext() }{
+                        val depTask = simplifiedIt.next();
+                        if ( isSimplifiedMatch(depTask, curTask) ) {
+                            result = true;
+                        };
+                    };
+                    result
+                };
+                if ( isSimplified == false ) {
+                    val depsIt = curTask.deps.iterator();
+                    while { depsIt.hasNext() }{
+                        val curDep = depsIt.next();
+                        depsSB.append(this.getTaskArrayElement(curDep) + ",");
+                    };
+                    depsSB.deleteCharAt( depsSB.length() - 1 );
+                    depsSB.append(")");
+                    depsSB.toString();
+                    sb.append(this.LOCAL_AEMINIUM_RUNTIME + ".schedule(" + this.getTaskArrayElement(curTask) + ", "  + "aeminium.runtime.Runtime.NO_PARENT, "+ depsSB.toString() + ");\n" );
+                }
+            };
+        };
+        
+        sb.toString()
+    }
+    
+    method immutable Boolean isSimplifiedMatch(shared Task from, shared Task to) {
+         var immutable Boolean result = false;
+         var unique Set matchLeaves = java.util.HashSet.new();
+         
+         var toIt = to.infos.iterator();
+         while { toIt.hasNext() }{
+             val curInfo = toIt.next();
+             match (curInfo) {
+                case MatchLeaveInformation { matchLeaves.add(curInfo) }
+                default {}
+             };
+         };
+         
+         val leavesIt = matchLeaves.iterator();
+         while { leavesIt.hasNext() }{
+             val curMatchLeave = leavesIt.next();
+             if ( from.infos.contains(curMatchLeave.enterInfo) ) {
+                 DEBUG(DEBUG_PRIO_LOW, "<AEminiumCodeGenOps> found simplified match connection " + from.toString() + " -> " + to.toString() );
+                 result = true;
+             };
+         };
+         
+         result;
     }
     
     method immutable String createTaskString(immutable String prefix, shared Task task, immutable String suffix) {
