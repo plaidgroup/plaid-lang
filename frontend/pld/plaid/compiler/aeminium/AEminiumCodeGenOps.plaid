@@ -22,6 +22,8 @@ state AEminiumCodeGenOps case of CodeGenOps {
     val immutable SequentialCodeGenOps seqOps = makeSequentialCodeGenOps();
     var shared Map methodInfoObjMap;
     var shared MethodInformationMap curMethodInfo = "<UNINITIALIZED>";
+    val unique Map syncVarForTaskMap = java.util.HashMap.new();
+    var shared IdGen idgen;
 
     var immutable Integer localVariableCounter = -1;
     val unique Set localVariableMap = java.util.HashMap.new(); // maps original var names to index 
@@ -29,6 +31,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
     method void reset() {
         this.localVariableCounter = -1;
         this.localVariableMap.clear();
+        this.syncVarForTaskMap.clear();
         this.curMethodInfo = "<UNINITIALIZED>";
     }
 
@@ -39,6 +42,19 @@ state AEminiumCodeGenOps case of CodeGenOps {
     method immutable Integer nextLocalVariableIndex() {
         this.localVariableCounter = this.localVariableCounter + 1;        
         this.localVariableCounter
+    }
+    
+    method immutable String getSyncVarForTask(shared Task task) {
+        match ( this.syncVarForTaskMap.containsKey(task) ) {
+            case True { /* nop */ }
+            case False {
+                val syncVar = idgen.getId();
+                this.syncVarForTaskMap.put(task, syncVar);
+                this.createLocalVariable(syncVar, java.lang.StringBuilder.new(), false);
+            }
+        };
+        
+        this.syncVarForTaskMap.get(task);
     }
 
     method void LOG(immutable String msg) {
@@ -65,6 +81,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
     
     method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
         LOG("codegenTopLevelDecl");
+        this.idgen = idgen;
         match ( node ) {
             case ParsedConcreteStateDecl { this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter) }
             case ParsedConcreteMethodDecl { 
@@ -167,6 +184,14 @@ state AEminiumCodeGenOps case of CodeGenOps {
         sb.append("\n/* array for tasks */\n");
         sb.append("final aeminium.runtime.Task[] " + this.TASK_ARRAY + " = new aeminium.runtime.Task[" + (this.curMethodInfo.getAllTasks().size()) + "];\n" );
         
+        sb.append("\n/* initialize sync objects */\n");
+        val initSyncObjsIt = this.syncVarForTaskMap.entrySet().iterator();
+        while { initSyncObjsIt.hasNext() }{
+            val curEntry = initSyncObjsIt.next();
+            val curTask = curEntry.getKey();
+            val curSyncVar = curEntry.getValue();
+            sb.append("" + this.getLocalVariable(curSyncVar) + " = new plaid.fastruntime.aeminium.AEminiumMatchSyncPlaidObject(" + curTask.getOpenMatchLeaves().size() + ");\n") ;
+        };
 
         sb.append("\n/* generate tasks */\n");         
         var unique Set startTasks = java.util.HashSet.new();
@@ -258,6 +283,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
                 sb.append(this.getTaskArrayElement(bodyDepTask) +".getResult();\n");
             }
         };
+        sb.append(this.codegenTaskOpenLeaves(bodyTask));
         sb.append(bodyTask.getBodyStringBuilder().toString());  
         
         //append method return code
@@ -309,6 +335,14 @@ state AEminiumCodeGenOps case of CodeGenOps {
                                                             val bodyVarName = idgen.getId();
                                                             ops.createLocalVariable(bodyVarName, sb, false);
                                                             ops.codegenStmtBlock(ops, caseItem.body, caseSB, idgen, bodyVarName, classNameCounter);
+
+                                                            // assign to block variable to last task 
+                                                            val caseTask = match ( this.curMethodInfo.taskForAST(caseItem) ) {
+                                                                case Some { this.curMethodInfo.taskForAST(caseItem).value }
+                                                                case None { ABORT("Cannot find task for case.") }
+                                                            };
+                                                            ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseTask.getBodyStringBuilder());                                                            
+
                                                             
                                                             // generate code of tasks
                                                             DEBUG(DEBUG_PRIO_LOW, "<AEminiumCodeGenOps> look for case information for '" + makeStringFromQualifiedIdentifier(caseItem.pattern) + "'");
@@ -326,7 +360,39 @@ state AEminiumCodeGenOps case of CodeGenOps {
                                                                 caseSB.append(tasksString);
                                                             };
                                                             
-                                                            ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseSB);                                                            
+                                                            // schedule match leave task 
+                                                            val leaveTask = match ( this.curMethodInfo.taskForDepInfo(matchInfo.leaveInfo) ) {
+                                                                case Some { this.curMethodInfo.taskForDepInfo(matchInfo.leaveInfo).value }
+                                                                case None { ABORT("Cannot find task for match leave.") }
+                                                            };
+                                                            
+                                                            val leaveSyncVar = this.getSyncVarForTask(leaveTask);    
+                                                            // create deps var string
+                                                            val depsStringList = makeLinkedList();
+                                                            val dependsOnIt = caseInfo.infosMatchLeaveDependsOn.iterator();
+                                                            while { dependsOnIt.hasNext() }{
+                                                                val curDependsOn = dependsOnIt.next();
+                                                                val curDependsOnTask = match ( this.curMethodInfo.taskForDepInfo(curDependsOn) ) {
+                                                                    case Some { this.curMethodInfo.taskForDepInfo(curDependsOn).value }
+                                                                    case None { ABORT("Cannot find task for match leave.") }
+                                                                };
+                                                                depsStringList.add(this.getTaskArrayElement(curDependsOnTask));
+                                                            };
+                                                            val depsString = match ( caseInfo.allTasks.size() == 1 ) {
+                                                                case True { "" }
+                                                                case False { makeSeperatedString(depsStringList, ",") }
+                                                            };
+                                                            caseSB.append("/* register match */\n");
+                                                            caseSB.append("@SuppressWarnings(\"unchecked\")\nfinal java.util.Collection<aeminium.runtime.Task> leaveDep$ = (java.util.Collection<aeminium.runtime.Task>)((plaid.fastruntime.aeminium.AEminiumMatchSyncPlaidObject)"+ this.getLocalVariable(leaveSyncVar) + ").registerMatch(java.util.Arrays.asList(" + depsString+ "));\n");                                        
+                                                            caseSB.append("if ( leaveDep$ != null && " + this.getTaskArrayElement(leaveTask) + " != null ) {\n");
+                                                            caseSB.append("/* schedule leave task */\n");
+                                                            caseSB.append("if ( leaveDep$.size() == 0 ) {\n");
+                                                            caseSB.append(this.LOCAL_AEMINIUM_RUNTIME + ".schedule(" + this.getTaskArrayElement(leaveTask) + ", "  + "aeminium.runtime.Runtime.NO_PARENT, aeminium.runtime.Runtime.NO_DEPS);\n" );
+                                                            caseSB.append("} else { \n");
+                                                            caseSB.append(this.LOCAL_AEMINIUM_RUNTIME + ".schedule(" + this.getTaskArrayElement(leaveTask) + ", "  + "aeminium.runtime.Runtime.NO_PARENT, leaveDep$);\n" );
+                                                            caseSB.append("}\n");
+                                                            caseSB.append("}\n");
+                                                            
                                                             caseSB.append("}\n");
                                                             caseStringList.addLast(caseSB.toString());
                                                         }
@@ -367,9 +433,6 @@ state AEminiumCodeGenOps case of CodeGenOps {
                                         //no-op
                                     }
                                 }
-                                
-                                // TODO: add leave task scheduling 
-
                             }
                             case None {                                                    
                                 // add code to current task 
@@ -466,10 +529,14 @@ state AEminiumCodeGenOps case of CodeGenOps {
         this.TASK_ARRAY + "[" + this.curMethodInfo.getTaskIndex(task) + "]"
     }
     
-    method immutable String createTasksAndScheduling(shared Set tasks) {
+    method immutable String createTasksAndScheduling(shared Set tasksInput) {
         val sb = java.lang.StringBuilder.new();
         
+        // TODO: sort tasks topologial
+        val tasks = topologicalTaskList(tasksInput);
+        
         // create tasks
+        sb.append("/* create tasks */\n");
         val tasksIt = tasks.iterator();
         while { tasksIt.hasNext() }{
             val curTask = tasksIt.next();
@@ -477,6 +544,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
         };
         
         // add scheduling
+        sb.append("/* schedule tasks */\n");
         val scheduleIt = tasks.iterator();
         while { scheduleIt.hasNext() }{
             val curTask = scheduleIt.next();
@@ -538,11 +606,32 @@ state AEminiumCodeGenOps case of CodeGenOps {
          result;
     }
     
+    method immutable String codegenTaskOpenLeaves(shared Task task) {
+        val sb = java.lang.StringBuilder.new();
+        
+        if ( this.syncVarForTaskMap.containsKey(task) ) {
+            val leaveSyncVar = this.syncVarForTaskMap.get(task);
+            sb.append("@SuppressWarnings(\"unchecked\")\njava.util.Collection<aeminium.runtime.Task> leaveDep$ = (java.util.Collection<aeminium.runtime.Task>)((plaid.fastruntime.aeminium.AEminiumMatchSyncPlaidObject)"+ this.getLocalVariable(leaveSyncVar) + ").waitForMatches();\n"); 
+            sb.append("while ( leaveDep$ == null ) {\n");
+            sb.append("((aeminium.runtime.implementations.implicitworkstealing.scheduler.WorkStealingThread)Thread.currentThread()).processOtherTasks();\n");
+            sb.append("leaveDep$ = (java.util.Collection<aeminium.runtime.Task>)((plaid.fastruntime.aeminium.AEminiumMatchSyncPlaidObject)"+ this.getLocalVariable(leaveSyncVar) + ").waitForMatches();\n"); 
+            sb.append("}\n"); 
+            sb.append("if ( " + this.getTaskArrayElement(task) + " != null && 0 < leaveDep$.size() ) { \n");
+            sb.append("for  ( aeminium.runtime.Task ta$k : leaveDep$ ) { \n");
+            sb.append("ta$k.getResult();\n");
+            sb.append("}\n");
+            sb.append("}\n");
+        };    
+        
+        sb.toString();
+    }
+    
     method immutable String createTaskString(immutable String prefix, shared Task task, immutable String suffix) {
         val sb = java.lang.StringBuilder.new();
         
         sb.append(this.getTaskArrayElement(task) +" = " + this.LOCAL_AEMINIUM_RUNTIME + ".createNonBlockingTask(new aeminium.runtime.Body() {\n");
         sb.append("@Override public void execute(aeminium.runtime.Runtime rt, aeminium.runtime.Task current) {\n");
+        sb.append(this.codegenTaskOpenLeaves(task));
         sb.append(prefix);
         sb.append(task.getBodyStringBuilder());
         sb.append(suffix);
