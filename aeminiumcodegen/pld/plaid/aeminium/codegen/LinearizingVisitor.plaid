@@ -1,0 +1,138 @@
+package plaid.aeminium.codegen;
+
+import plaid.ast.*;
+import plaid.ast.visitor.LeafVisitor;
+
+// Each time we visit a let binding "Let E1 in E2", analyze E1:
+//   a) If E1 is not a Split/Join/Let, visit E2.
+//   b) Else, do this:
+//
+//        let x = split y in E1 in E2        --->   split y in let x = E1 in E2
+//        let x = join y in E1 in E2         --->   join y in let x = E1 in E2
+//        let x = (let y = E1 in E2) in E3   --->   let y = E1 in let x = E2 in E3
+
+
+
+state LinearizingVisitor case of LeafVisitor {
+	override method visitAnnotatedLetBinding(astNode) {
+		this.visitLetBinding(astNode);
+	}
+	
+	override method visitLetBinding(astNode) {
+		// java.lang.System.out.println("Visiting let binding for x = " + astNode.x.name);
+		
+		astNode.exp.accept(this);
+		
+		val token = astNode.token;
+		val x = astNode.x;
+		val exp = astNode.exp;
+		val body = astNode.body;
+		val mutable = astNode.mutable;
+		
+		
+		// java.lang.System.out.println("Matching on exp for x = " + astNode.x.name);
+		
+
+		match (exp) {
+			case Split {
+				// FIXME:  Remove once restricted update works correctly.
+				astNode <- None;
+				
+				astNode <- Split {
+					override val /*Token*/ token = exp.token;
+					val /*ID*/ theVar = exp.theVar;
+					val /*PermType*/ initialType = exp.initialType;
+					val /*PermType*/ neededType = exp.neededType;
+					val /*PermType*/ residue = exp.residue;
+					override val /*Expression*/ body = new UnannotatedLetBinding {
+						val /*Token*/ token = token;
+						val /*ID*/ x = x;
+						val /*Expression*/ exp = exp.body;
+						val /*Expression*/ body = body;
+						val /*Boolean*/ mutable = mutable;
+					};
+				};
+				
+				astNode.body.accept(this);
+			}
+			
+			case Join {
+				// FIXME:  Remove once restricted update works correctly.
+				astNode <- None;
+				
+				astNode <- Join {
+					override val /*Token*/ token = exp.token;
+					val /*ID*/ theVar = exp.theVar;
+					val /*PermType*/ toJoin1 = exp.toJoin1;
+					val /*PermType*/ toJoin2 = exp.toJoin2;
+					val /*PermType*/ result = exp.result;
+					override val /*Expression*/ body = new UnannotatedLetBinding {
+						val /*Token*/ token = token;
+						val /*ID*/ x = x;
+						val /*Expression*/ exp = exp.body;
+						val /*Expression*/ body = body;
+						val /*Boolean*/ mutable = mutable;
+					};
+				};
+				
+				astNode.body.accept(this);
+			}
+			
+			case UnannotatedLetBinding {
+				// java.lang.System.out.println("  exp is UnannotatedLetBinding that writes to " + exp.x.name);
+				
+				// FIXME:  Remove once restricted update works correctly.
+				astNode <- None;
+				
+				astNode <- UnannotatedLetBinding {
+					val /*Token*/ token = exp.token;
+					override val /*ID*/ x = exp.x;
+					override val /*Expression*/ exp = exp.exp;
+					override val /*Expression*/ body = new UnannotatedLetBinding {
+						val /*Token*/ token = token;
+						val /*ID*/ x = x;
+						val /*Expression*/ exp = exp.body;
+						val /*Expression*/ body = body;
+						val /*Boolean*/ mutable = mutable;
+					};
+					val /*Boolean*/ mutable = mutable;
+				};
+		
+				// java.lang.System.out.println("  astNode now writes to " + astNode.x.name);
+		
+				astNode.body.accept(this);
+			}
+			
+			case AnnotatedLetBinding {
+				// java.lang.System.out.println("  exp is AnnotatedLetBinding");
+				
+				// FIXME:  Remove once restricted update works correctly.
+				astNode <- None;
+		
+				astNode <- AnnotatedLetBinding {
+					override val /*Token*/ token = exp.token;
+					override val /*ID*/ x = exp.x;
+					override val /*Expression*/ exp = exp.exp;
+					override val /*Expression*/ body = new UnannotatedLetBinding {
+						val /*Token*/ token = token;
+						val /*ID*/ x = x;
+						val /*Expression*/ exp = exp.body;
+						val /*Expression*/ body = body;
+						val /*Boolean*/ mutable = mutable;
+					};
+					val /*Boolean*/ mutable = mutable;
+					val /*PermType*/ annotation = exp.annotation;
+				};
+
+				// java.lang.System.out.println("  astNode now writes to " + astNode.x.name);
+				
+				astNode.body.accept(this);
+			}
+			
+			default {
+				// We can skip astNode.exp here, as it's not a let binding/split/join.
+				astNode.body.accept(this);
+			}
+		};
+	}
+}
