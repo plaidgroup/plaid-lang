@@ -11,11 +11,11 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	private final boolean settable;
 	
 	public static FieldValue createFieldWithStaticDefinition(String name, boolean settable, String classInternalName) {
-		return new FieldValue(name, settable, classInternalName, false, null);
+		return new FieldValue(name, settable, classInternalName, true, null);
 	}
 	
 	public static FieldValue createFieldWithDynamicDefinition(String name, boolean settable, String memberDefinitionName) {
-		return new FieldValue(name, settable, null, true, memberDefinitionName);
+		return new FieldValue(name, settable, null, false, memberDefinitionName);
 	}
 	
 	private FieldValue(String name, boolean settable, String classInternalName,
@@ -63,7 +63,11 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	@Override
 	protected String constructCanonicalRep() {
 		String settableString = settable ? "t" : "f";
-		String result =  "field:" + settableString + this.getName()+ this.getStaticClassInternalName();
+		String fieldInitializer = this.isStaticallyDefined() ?
+				this.getStaticClassInternalName() 
+				: this.getMemberDefinitionName();
+		String result =  "field:" + settableString + this.getName() + this.isStaticallyDefined() +
+				fieldInitializer;
 		return result.intern();
 	}
 }
