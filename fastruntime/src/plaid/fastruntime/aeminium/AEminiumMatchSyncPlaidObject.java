@@ -42,7 +42,6 @@ public class AEminiumMatchSyncPlaidObject implements PlaidObject {
 		this.matchCount--;
 		this.deps.addAll(deps);
 		if ( this.matchCount == 0 ) {
-			this.notifyAll();
 			return deps;
 		} else {
 			return null;
