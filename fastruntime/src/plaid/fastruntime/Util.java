@@ -37,7 +37,7 @@ public class Util {
 	public static PlaidObject string(java.lang.String javaString) {
 		return String.plaidString(javaString);
 	}
-	public static PlaidObject bool(Boolean javaBool) {
+	public static PlaidObject bool(boolean javaBool) {
 		if (javaBool) {
 			return True.TRUE_VALUE;
 		} else {
