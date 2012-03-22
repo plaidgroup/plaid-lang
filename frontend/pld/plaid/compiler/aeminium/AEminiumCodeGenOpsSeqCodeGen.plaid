@@ -1,0 +1,54 @@
+package plaid.compiler.aeminium;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.codegen.SequentialCodeGenOps;
+
+state AEminiumCodeGenOpsSeqCodeGen case of SequentialCodeGenOps {
+    val immutable SequentialCodeGenOps seqOps = makeSequentialCodeGenOps();
+    val immutable String LOCAL_AEMINIUM_RUNTIME = "AE$RT";
+    val shared MethodInformationMap curMethodInfo;
+    
+   method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOpsSeqCodeGen> " + msg);
+    }
+    
+    override method void codegenMain(immutable String methodName, unique StringBuilder sb) {
+        LOG("codegenMain");
+        sb.append("public static void main(String[] args) {\n");
+        sb.append("\n/* initialize AEminium runtime */\n");
+        sb.append("final aeminium.runtime.Runtime " + this.LOCAL_AEMINIUM_RUNTIME + " = aeminium.runtime.implementations.Factory.getRuntime();\n");
+        sb.append(this.LOCAL_AEMINIUM_RUNTIME + ".init();\n");
+        sb.append("\n/* create initial task */\n");
+        sb.append("final aeminium.runtime.Task TA$K = " + this.LOCAL_AEMINIUM_RUNTIME + ".createNonBlockingTask(new aeminium.runtime.Body() {\n");
+        sb.append( "@Override public void execute(final aeminium.runtime.Runtime rt, final aeminium.runtime.Task current) {\n");
+        sb.append("" + methodName + "();\n");
+        sb.append("}\n");
+        sb.append("}\n");
+        sb.append(", aeminium.runtime.Runtime.NO_HINTS);\n");
+        sb.append("\n/* schedule initial task  */\n");
+        sb.append(this.LOCAL_AEMINIUM_RUNTIME +".schedule(TA$K, aeminium.runtime.Runtime.NO_PARENT, aeminium.runtime.Runtime.NO_DEPS);\n");
+        sb.append("\n/* wait until all task have completed and shutdown the runtime system */\n");
+        sb.append(this.LOCAL_AEMINIUM_RUNTIME + ".shutdown();\n");
+        sb.append("}\n"); // end main method
+    }
+    
+    override method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
+        LOG("generating code for statement '" + node.nodeName() + "'");
+        match(node) {
+            case ParsedAtomicBlock {
+                sb.append("atomic: { /* AEminiumCodeGenOpsSeqCodeGen */ \n");
+                sb.append("while ( aeminium.runtime.Runtime.GLOBAL_LOCK.tryLock() )  { \n");
+                sb.append("((aeminium.runtime.implementations.implicitworkstealing.scheduler.WorkStealingThread)Thread.currentThread()).processOtherTasks();\n");
+                sb.append("}\n");
+                sb.append("((aeminium.runtime.implementations.implicitworkstealing.scheduler.WorkStealingThread)Thread.currentThread()).enterAtomic();\n");
+                this.seqOps.codegenStmtBlock(this, node.body, sb, idgen, y, classNameCounter);
+                sb.append("((aeminium.runtime.implementations.implicitworkstealing.scheduler.WorkStealingThread)Thread.currentThread()).leaveAtomic();\n");
+                sb.append("aeminium.runtime.Runtime.GLOBAL_LOCK.unlock();\n");
+                sb.append("}\n");
+            }
+            default { 
+                this.seqOps.codegenStmt(this, node, sb, idgen, y, classNameCounter);
+            }
+        };
+    }
+}
