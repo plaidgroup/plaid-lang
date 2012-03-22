@@ -90,9 +90,9 @@ state AEminiumCodeGenOps case of CodeGenOps {
                         this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen, classNameCounter);
                         this.codegenMethodPostlude(node);
                     }
-                    case False { 
-                        val mainOnlyOps = new AEminiumCodeGenOpsMainOnly;
-                        this.seqOps.codegenTopLevelDecl(mainOnlyOps, node, packageName, sb, idgen, classNameCounter);
+                    case False {
+                        val AEMINIUM_SEQ_CODE_GEN = new AEminiumCodeGenOpsSeqCodeGen { val curMethodInfo = this.curMethodInfo; } ;
+                        this.seqOps.codegenTopLevelDecl(AEMINIUM_SEQ_CODE_GEN, node, packageName, sb, idgen, classNameCounter);
                     }
                 };
             }
@@ -111,8 +111,9 @@ state AEminiumCodeGenOps case of CodeGenOps {
                         this.codegenMethodPostlude(node);
                     }
                     case False { 
-                        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> generate parallel method");
-                        this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, classNameCounter);
+                        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> generate sequential method");
+                        val AEMINIUM_SEQ_CODE_GEN = new AEminiumCodeGenOpsSeqCodeGen { val curMethodInfo = this.curMethodInfo; } ;
+                        this.seqOps.codegenInnerDecl(AEMINIUM_SEQ_CODE_GEN, node, sb, idgen, classNameCounter);
                     }
                 };
             }
@@ -178,7 +179,10 @@ state AEminiumCodeGenOps case of CodeGenOps {
         // create sequential code for this method 
         sb.append("/* sequential code for the case that we have enough parallelism */\n");
         val seqSB = java.lang.StringBuilder.new();
-        this.seqOps.codegenMethodBody(this.seqOps, node, seqSB, idgen, classNameCounter);
+        val AEMINIUM_SEQ_CODE_GEN = new AEminiumCodeGenOpsSeqCodeGen { val curMethodInfo = this.curMethodInfo; } ;
+        printLine("enter");
+        this.seqOps.codegenMethodBody(AEMINIUM_SEQ_CODE_GEN, node, seqSB, idgen, classNameCounter);
+        printLine("leave\n"+seqSB.toString());
         sb.append(seqSB);
         sb.append("} else {\n");
         
@@ -216,13 +220,24 @@ state AEminiumCodeGenOps case of CodeGenOps {
     }
     
     method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
-        LOG("codegenStmt");
+        LOG("codegenStmt '" + node.nodeName() + "'");
         match ( this.curMethodInfo.taskForAST(node) ) {
             case Some { 
                 val task = this.curMethodInfo.taskForAST(node).value;
                 LOG("Found task '" + task.toString() + "'");
                 val taskSB = task.getBodyStringBuilder();
                 match (node) {
+                    case ParsedAtomicBlock {
+                        taskSB.append("atomic: {\n");                
+                        taskSB.append("while ( aeminium.runtime.Runtime.GLOBAL_LOCK.tryLock() )  { \n");
+                        taskSB.append("((aeminium.runtime.implementations.implicitworkstealing.scheduler.WorkStealingThread)Thread.currentThread()).processOtherTasks();\n");
+                        taskSB.append("}\n");
+                        taskSB.append("((aeminium.runtime.implementations.implicitworkstealing.scheduler.WorkStealingThread)Thread.currentThread()).enterAtomic();\n");
+                        ops.codegenStmtBlock(this.seqOps, node.body, taskSB, idgen, y, classNameCounter);
+                        taskSB.append("((aeminium.runtime.implementations.implicitworkstealing.scheduler.WorkStealingThread)Thread.currentThread()).leaveAtomic();\n");
+                        taskSB.append("aeminium.runtime.Runtime.GLOBAL_LOCK.unlock();\n");
+                        taskSB.append("}\n");
+                    }
                     case ParsedMatch {
                         LOG("AEminium match code generation");
                         // check if the match has been inlined 
@@ -265,7 +280,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
 
                                     val bodyVarName = idgen.getId();
                                     ops.createLocalVariable(bodyVarName, sb, false);
-                                    ops.codegenStmtBlock(ops, caseItem.body, caseSB, idgen, bodyVarName, classNameCounter);
+                                    ops.codegenStmtBlock(this, caseItem.body, caseSB, idgen, bodyVarName, classNameCounter);
 
                                     // assign to block variable to last task 
                                     val caseTask = match ( this.curMethodInfo.taskForAST(caseItem) ) {
