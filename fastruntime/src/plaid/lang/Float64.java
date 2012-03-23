@@ -17,7 +17,7 @@ import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
-public class Float64 extends AbstractPlaidState
+public final class Float64 extends AbstractPlaidState
 					implements Iplus$plaid$1$plaid,
 					Ieqeq$plaid$1$plaid,
 					Imult$plaid$1$plaid,
@@ -33,7 +33,7 @@ public class Float64 extends AbstractPlaidState
 	}
 	
 	public static PlaidObject plaidFloat64(double d) { 
-		return  ((Float64) theState$plaid).new Float64PlaidJavaObject(theState$plaid,d);
+		return new Float64PlaidJavaObject(d);
 	}
 	
 	private Float64(ObjectValue metadata) {
@@ -48,8 +48,8 @@ public class Float64 extends AbstractPlaidState
 	@Override
 	public PlaidObject gteq$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			double first = ((Float64PlaidJavaObject) receiver).getDoubleValue();
-			double second = ((Float64PlaidJavaObject) arg).getDoubleValue();
+			double first = ((Float64PlaidJavaObject) receiver).doubleValue;
+			double second = ((Float64PlaidJavaObject) arg).doubleValue;
 			boolean b = first >= second;
 			return Util.bool(b);
 
@@ -61,8 +61,8 @@ public class Float64 extends AbstractPlaidState
 	@Override
 	public PlaidObject sub$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			double first = ((Float64PlaidJavaObject) receiver).getDoubleValue();
-			double second = ((Float64PlaidJavaObject) arg).getDoubleValue();
+			double first = ((Float64PlaidJavaObject) receiver).doubleValue;
+			double second = ((Float64PlaidJavaObject) arg).doubleValue;
 			double result = first- second;
 			return plaidFloat64(result);
 
@@ -74,8 +74,8 @@ public class Float64 extends AbstractPlaidState
 	@Override
 	public PlaidObject mult$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			double first = ((Float64PlaidJavaObject) receiver).getDoubleValue();
-			double second = ((Float64PlaidJavaObject) arg).getDoubleValue();
+			double first = ((Float64PlaidJavaObject) receiver).doubleValue;
+			double second = ((Float64PlaidJavaObject) arg).doubleValue;
 			double result = first * second;
 			return plaidFloat64(result);
 
@@ -87,8 +87,8 @@ public class Float64 extends AbstractPlaidState
 	@Override
 	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			double first = ((Float64PlaidJavaObject) receiver).getDoubleValue();
-			double second = ((Float64PlaidJavaObject) arg).getDoubleValue();
+			double first = ((Float64PlaidJavaObject) receiver).doubleValue;
+			double second = ((Float64PlaidJavaObject) arg).doubleValue;
 			boolean b = first == second;
 			return Util.bool(b);
 
@@ -100,8 +100,8 @@ public class Float64 extends AbstractPlaidState
 	@Override
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			double first = ((Float64PlaidJavaObject) receiver).getDoubleValue();
-			double second = ((Float64PlaidJavaObject) arg).getDoubleValue();
+			double first = ((Float64PlaidJavaObject) receiver).doubleValue;
+			double second = ((Float64PlaidJavaObject) arg).doubleValue;
 			double result = first + second;
 			return plaidFloat64(result);
 
@@ -113,8 +113,8 @@ public class Float64 extends AbstractPlaidState
 	@Override
 	public PlaidObject div$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			double first = ((Float64PlaidJavaObject) receiver).getDoubleValue();
-			double second = ((Float64PlaidJavaObject) arg).getDoubleValue();
+			double first = ((Float64PlaidJavaObject) receiver).doubleValue;
+			double second = ((Float64PlaidJavaObject) arg).doubleValue;
 			double result = first/second;
 			return plaidFloat64(result);
 
@@ -126,8 +126,8 @@ public class Float64 extends AbstractPlaidState
 	@Override
 	public PlaidObject nativeLessThan(PlaidObject receiver, PlaidObject arg) {
 		try {
-			double first = ((Float64PlaidJavaObject) receiver).getDoubleValue();
-			double second = ((Float64PlaidJavaObject) arg).getDoubleValue();
+			double first = ((Float64PlaidJavaObject) receiver).doubleValue;
+			double second = ((Float64PlaidJavaObject) arg).doubleValue;
 			boolean result = first < second;
 			return Util.bool(result);
 
@@ -136,25 +136,24 @@ public class Float64 extends AbstractPlaidState
 		}
 	}
 	
-	private final class Float64PlaidJavaObject implements PlaidJavaObject {
+	@Override
+	public PlaidObject toString(PlaidObject x) {
+		return plaid.fastruntime.Util.string(((PlaidJavaObject)x).getJavaObject().toString());
+	}
+	
+	private static final class Float64PlaidJavaObject implements PlaidJavaObject {
 		
-		public Float64PlaidJavaObject(PlaidState dispatch, double float64) {
-			this.dispatch = dispatch;
-			this.rep = float64;
+		public Float64PlaidJavaObject(double float64) {
+			this.doubleValue = float64;
 		}
 		
-		private PlaidState dispatch;
 		private Double javaObject;
-		private double rep;
-		
-		public double getDoubleValue() {
-			return rep;
-		}
+		final public double doubleValue;
 		
 		@Override
 		public Object getJavaObject() {
 			if (this.javaObject == null) {
-				this.javaObject =  Double.valueOf(rep);
+				this.javaObject =  Double.valueOf(doubleValue);
 			}
 			return this.javaObject;
 		}
@@ -177,7 +176,7 @@ public class Float64 extends AbstractPlaidState
 
 		@Override
 		public PlaidState getDispatch() {
-			return dispatch;
+			return Float64.theState$plaid;
 		}
 		
 		@Override
@@ -195,10 +194,5 @@ public class Float64 extends AbstractPlaidState
 			throw new PlaidIllegalOperationException("No member defs for a Java Object.");
 		}
 
-	}
-
-	@Override
-	public PlaidObject toString(PlaidObject x) {
-		return plaid.fastruntime.Util.string(((PlaidJavaObject)x).getJavaObject().toString());
 	}
 }

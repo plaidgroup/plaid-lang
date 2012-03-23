@@ -201,7 +201,7 @@ public class RunCompilerTests {
 			compilerArgsList.add(new File(OUTPUT_DIR).getAbsolutePath());
 			if (!shouldTypecheck)
 				compilerArgsList.add("-n");
-			if (!shouldAeminium)
+			if (shouldAeminium)
 				compilerArgsList.add("-a");
 			for(String path : RUNPLAID_CLASSPATH) {
 				compilerArgsList.add("-p");
