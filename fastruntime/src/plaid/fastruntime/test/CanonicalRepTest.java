@@ -28,7 +28,7 @@ public class CanonicalRepTest {
 	
 	@Test
 	public void methodAndField() {
-		String expected = ";field:tBtest;method:A0truetest";
+		String expected = ";field:tBtruetest;method:A0truetest";
 		ObjectValueFactory ovf = new ObjectValueFactory();
 		ovf.mthd("A", 0, "test");
 		ovf.field(true, "B", "test");
@@ -38,7 +38,7 @@ public class CanonicalRepTest {
 	
 	@Test
 	public void dimensionWithMethodAndField() {
-		String expected = "TAG[FOO]{;field:tBtest;method:A0truetest}";
+		String expected = "TAG[FOO]{;field:tBtruetest;method:A0truetest}";
 		ObjectValueFactory ovf = new ObjectValueFactory();
 		ovf.tag("FOO");
 		ovf.mthd("A", 0, "test");
@@ -49,7 +49,7 @@ public class CanonicalRepTest {
 	
 	@Test
 	public void dimensionWithMethodAndFieldAndParent() {
-		String expected = "TAG[FOO]{;field:tBtest;method:A0truetest}<:TAG[BAR]{}";
+		String expected = "TAG[FOO]{;field:tBtruetest;method:A0truetest}<:TAG[BAR]{}";
 		ObjectValueFactory ovf = new ObjectValueFactory();
 		ovf.tag("BAR");
 		ObjectValue parent = ovf.value();
