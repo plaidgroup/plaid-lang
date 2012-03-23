@@ -9,11 +9,9 @@ import fj.data.List;
 public final class MemberDefValue extends AtomicValue implements MemberDefInfo {
 	
 	private final String memberDefId;
-	private final Object memberDefInstance;
 	
-	public  MemberDefValue(String memberDefId, Object memberDefInstance){
+	public  MemberDefValue(String memberDefId){
 		this.memberDefId = memberDefId;
-		this.memberDefInstance = memberDefInstance;
 		this.init();
 	}
 	
@@ -54,10 +52,6 @@ public final class MemberDefValue extends AtomicValue implements MemberDefInfo {
 		return new ListValue(this, mv);
 	}
 
-	@Override
-	public Object getMemberDefInstance() {
-		return this.memberDefInstance;
-	}
 	
 	@Override
 	public String getMemberDefId() {

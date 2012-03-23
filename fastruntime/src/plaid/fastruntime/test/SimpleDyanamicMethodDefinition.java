@@ -18,7 +18,7 @@ public class SimpleDyanamicMethodDefinition {
 	@Test
 	public void test() {
 		MethodValue mv = MethodValue.createMethodWithDynamicDefinition("add", 1, "A");
-		MemberDefValue mdv = new MemberDefValue("A", new Adder());
+		MemberDefValue mdv = new MemberDefValue("A");
 		ListValue lv = new ListValue(mv,mdv);
 		PlaidState testState = Util.DISPATCH_GEN.createStateInstance(lv);
 		PlaidObject testObject = testState.instantiate();

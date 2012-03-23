@@ -54,7 +54,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	private Set<String> tags;
 	private Set<String> outerTags;
 	private Set<String> innerTags;
-	private Object[] defaultMemberDefs;
 	
 	/*
 	 * Must be called in last line of construct of every concrete subtype.
@@ -67,12 +66,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		this.outerTags = this.constructOuterTags();
 		this.innerTags = this.constructInnerTags();
 		this.memberDefs = this.constructMemberDefs();
-		this.defaultMemberDefs = new Object[this.memberDefs.length()];
-		int i = 0;
-		for(MemberDefInfo mdi : this.getSortedMemberDefs()) {
-			this.defaultMemberDefs[i] = mdi.getMemberDefInstance();
-			i++;
-		}
 	}
 	
 	
@@ -108,10 +101,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	
 	protected final Set<String> getInnerTags() {
 		return this.innerTags;
-	}
-	
-	public final Object[] getDefaultMemberDefs() {
-		return this.defaultMemberDefs;
 	}
 	
 	/**
@@ -253,26 +242,30 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		int i = 0;
 		for(FieldInfo field : sortedFields) {
 			ClassLoader cl = this.getClass().getClassLoader();
-			String className = field.getStaticClassInternalName().replace('/', '.');
-			try {
-				Class<?> fieldClass = cl.loadClass(className);
-				Field myField = fieldClass.getField(field.getName());
-				Object value = myField.get(null); // static field so object can be null, see JavaDoc
-				PlaidFieldInitializer init = (PlaidFieldInitializer) value;
-				storage[i] = init.invoke$plaid();
-			} catch (ClassNotFoundException e) {
-				throw new PlaidInternalException("Could not load field class", e);
-			} catch (SecurityException e) {
-				throw new PlaidInternalException("Could not load field", e);
-			} catch (NoSuchFieldException e) {
-				throw new PlaidInternalException("Could not load field", e);
-			} catch (IllegalArgumentException e) {
-				throw new PlaidInternalException("Could not load field", e);
-			} catch (IllegalAccessException e) {
-				throw new PlaidInternalException("Could not load field", e);
+			if(field.isStaticallyDefined()) {
+				String className = field.getStaticClassInternalName().replace('/', '.');
+				try {
+					Class<?> fieldClass = cl.loadClass(className);
+					Field myField = fieldClass.getField(field.getName());
+					Object value = myField.get(null); // static field so object can be null, see JavaDoc
+					PlaidFieldInitializer init = (PlaidFieldInitializer) value;
+					storage[i] = init.invoke$plaid();
+				} catch (ClassNotFoundException e) {
+					throw new PlaidInternalException("Could not load field class", e);
+				} catch (SecurityException e) {
+					throw new PlaidInternalException("Could not load field", e);
+				} catch (NoSuchFieldException e) {
+					throw new PlaidInternalException("Could not load field", e);
+				} catch (IllegalArgumentException e) {
+					throw new PlaidInternalException("Could not load field", e);
+				} catch (IllegalAccessException e) {
+					throw new PlaidInternalException("Could not load field", e);
+				}
+				i++;
+			} else { //dynamically defined
+				field.getMemberDefinitionName();
 			}
-			i++;
-		}
+		} 
 		return storage;
 	}
 	
@@ -294,7 +287,8 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			}
 			i++;
 		}
-		throw new PlaidInternalException("Cannot retrieve field index because the field name does not appear in the field list.");
+		throw new PlaidInternalException("Cannot retrieve field index because the field name " +
+				"does not appear in the field list.");
 	}
 	
 	private List<MemberDefInfo> sortedMemberDefs;
@@ -315,8 +309,11 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			}
 			i++;
 		}
-		throw new PlaidInternalException("Cannot retrieve field index because the field name does not appear in the field list.");
+		throw new PlaidInternalException("Cannot retrieve member definition index because the member " +
+				"definition id does not appear in the member definition list.");
 	}
+
+	
 	
 	public final boolean uniqueTags() {
 		//TODO: Implement unique tags correctly
