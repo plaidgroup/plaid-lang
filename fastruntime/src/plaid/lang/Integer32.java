@@ -147,7 +147,7 @@ public final class Integer32 extends AbstractPlaidState
 			}
 			return this.javaObject;
 		}
-		
+
 		
 		@Override
 		public boolean canBePrimitive(JavaPrimitive p) {

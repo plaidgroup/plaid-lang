@@ -12,11 +12,11 @@ import plaid.fastruntime.reference.SimplePlaidJavaObject;
 import plaid.generated.Iampamp$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
-public class True extends AbstractPlaidState implements Iampamp$plaid$1$plaid,
+public final class True extends AbstractPlaidState implements Iampamp$plaid$1$plaid,
 														ItoString$0$plaid {
 	
-	private static final java.lang.String TRUE_TAG = "plaid/lang/True";
-	private static final java.lang.String BOOLEAN_TAG = "plaid/lang/Boolean";
+	private static final java.lang.String TRUE_TAG = "plaid/lang/True".intern();
+	private static final java.lang.String BOOLEAN_TAG = "plaid/lang/Boolean".intern();
 	
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	public static final PlaidJavaObject TRUE_VALUE;
@@ -46,7 +46,7 @@ public class True extends AbstractPlaidState implements Iampamp$plaid$1$plaid,
 	
 	@Override
 	public boolean matches(java.lang.String tag) {
-		return tag.equals(TRUE_TAG) || tag.equals(BOOLEAN_TAG);
+		return  tag == TRUE_TAG || tag == BOOLEAN_TAG || tag.equals(TRUE_TAG) || tag.equals(BOOLEAN_TAG);
 	}
 	
 	@Override

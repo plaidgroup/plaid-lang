@@ -12,12 +12,12 @@ import plaid.fastruntime.reference.SimplePlaidJavaObject;
 import plaid.generated.Iampamp$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
-public class False extends AbstractPlaidState 
+public final class False extends AbstractPlaidState 
 implements Iampamp$plaid$1$plaid,
 		   ItoString$0$plaid {
 	
-	private static final java.lang.String FALSE_TAG = "plaid/lang/False";
-	private static final java.lang.String BOOLEAN_TAG = "plaid/lang/Boolean";
+	private static final java.lang.String FALSE_TAG = "plaid/lang/False".intern();
+	private static final java.lang.String BOOLEAN_TAG = "plaid/lang/Boolean".intern();
 	
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	public static final PlaidJavaObject FALSE_VALUE;
@@ -36,7 +36,7 @@ implements Iampamp$plaid$1$plaid,
 	}
 	
 	@Override
-	public PlaidObject instantiate() {
+	public final PlaidObject instantiate() {
 		return FALSE_VALUE;
 	}
 	
@@ -47,12 +47,12 @@ implements Iampamp$plaid$1$plaid,
 	
 	
 	@Override
-	public boolean matches(java.lang.String tag) {
-		return tag.equals(FALSE_TAG) || tag.equals(BOOLEAN_TAG);
+	public final boolean matches(java.lang.String tag) {
+		return tag == FALSE_TAG || tag == BOOLEAN_TAG || tag.equals(FALSE_TAG) || tag.equals(BOOLEAN_TAG);
 	}
 	
 	@Override
-	public java.lang.String getTopTag() {
+	public final java.lang.String getTopTag() {
 		return FALSE_TAG;
 	}
 

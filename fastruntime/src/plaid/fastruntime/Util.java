@@ -20,7 +20,7 @@ import plaid.lang.String;
 import plaid.lang.True;
 import plaid.lang.Unit;
 
-public class Util {
+public final class Util {
 	
 	public static final JavaDispatchGenerator JAVA_GEN = new JavaDispatchGenerator();
 	static {
@@ -37,7 +37,7 @@ public class Util {
 	public static PlaidObject string(java.lang.String javaString) {
 		return String.plaidString(javaString);
 	}
-	public static PlaidObject bool(boolean javaBool) {
+	public static final PlaidObject bool(boolean javaBool) {
 		if (javaBool) {
 			return True.TRUE_VALUE;
 		} else {
@@ -45,11 +45,11 @@ public class Util {
 		}
 	}
 	
-	public static PlaidObject integer(int javaInt) {
+	public static final PlaidObject integer(int javaInt) {
 		return Integer32.plaidInteger(javaInt);
 	}
 	
-	public static PlaidObject float64(double javaDouble) {
+	public static final PlaidObject float64(double javaDouble) {
 		return Float64.plaidFloat64(javaDouble);
 	}
 	
