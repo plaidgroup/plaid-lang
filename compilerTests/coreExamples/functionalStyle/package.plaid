@@ -1,0 +1,149 @@
+package coreExamples.functionalStyle;
+
+state MyListCell {
+}
+
+state MyNil case of MyListCell {
+	method append(elem) {
+		this <- MyCons with {
+			var value = elem;
+			var next = new MyNil;
+		};
+	}	
+}
+
+state MyCons case of MyListCell {
+	var value;
+	var next;
+	
+	method append(elem) {
+		this.next.append(elem);
+	}
+}
+
+state MyList {
+	var head;
+	
+	method prepend(elem) {
+		this.head = new MyCons with { var value = elem; var next = this.head; };
+	}
+		
+	method append(elem) {
+		this.head.append(elem);
+	}
+	
+	method map(f) {
+		new MyList with { var head = this.mapHelper(f, this.head); }
+	}
+	
+	method mapHelper(f, curr) {
+		match (curr) {
+			case MyCons {
+				val newVal = f(curr.value);
+				new MyCons with { var value = newVal; var next = this.mapHelper(f, curr.next); }
+			}
+			case MyNil {
+				curr
+			}
+		};
+	}
+	
+	method filter(p) {
+		new MyList with { var head = this.filterHelper(p, this.head); }
+	}
+	
+	method filterHelper(p, curr) {
+		match (curr) {
+			case MyCons {
+				ifElse (p(curr.value)) {
+					new MyCons with { var value = curr.value; var next = this.filterHelper(p, curr.next); };
+				} {
+					this.filterHelper(p, curr.next);
+				};
+			}
+			case MyNil {
+				curr
+			}
+		}
+	}
+	
+	method foldr(f, z) {
+		foldrHelper(f, z, this.head);
+	}
+	
+	method foldrHelper(f, z, curr) {
+		match (curr) {
+			case MyCons {
+				f(curr.value, foldrHelper(f, z, curr.next));
+			}
+			case MyNil {
+				z
+			}
+		}
+	}
+	
+	method length() {
+		this.lengthHelper(this.head);
+	}
+	
+	method lengthHelper(curr) {
+		match (curr) {
+			case MyCons {
+				1 + this.lengthHelper(curr.next);
+			}
+			case MyNil {
+				0
+			}
+		}
+	}
+}
+
+method for(lower, upper, body) {
+	var i = lower;
+	while { i < upper; } {
+		body(i);
+		i = i + 1;
+	};
+}
+
+method printMethod(s, l) {
+	val p = printMethod;
+	
+	p(s);
+	p(": [ ");
+	l.map(fn (n) => { p(n); p(" "); });
+	p("]");
+	
+	printLine("");
+}
+
+method isPrime(num) {
+	ifElse (num < 2) {
+		false
+	} {
+		val l = new MyList { var head = new MyNil; };
+		for(2, num, fn (i) => l.append(i));
+	
+		l.filter(fn (i) => num % i == 0).length() == 0;
+	}; 
+}
+
+method main() {
+	var l = new MyList { var head = new MyNil; };
+	for(0, 20, fn (i) => l.append(i));
+	printMethod("List", l);
+
+	// Calculate inclusive prefix sum
+	var sum = 0;
+	val sums = l.map(fn (n) => { sum = sum + n; sum; });
+	printMethod("Prefix sum", sums);
+	
+	// Calculate sum of all elements
+	val overallSum = l.foldr(fn (x, y) => x + y, 0);
+	print("Overall sum: ");
+	printLine(overallSum);
+
+	// Find all primes
+	val primes = l.filter(isPrime);
+	printMethod("Primes", primes);
+}
