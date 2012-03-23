@@ -17,7 +17,7 @@ import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
-public class Float64 extends AbstractPlaidState
+public final class Float64 extends AbstractPlaidState
 					implements Iplus$plaid$1$plaid,
 					Ieqeq$plaid$1$plaid,
 					Imult$plaid$1$plaid,

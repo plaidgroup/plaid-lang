@@ -17,7 +17,7 @@ import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
-public class Integer32 extends AbstractPlaidState
+public final class Integer32 extends AbstractPlaidState
 						   implements Iplus$plaid$1$plaid,
 						   			  Ieqeq$plaid$1$plaid,
 						   			  Imult$plaid$1$plaid,
@@ -25,13 +25,26 @@ public class Integer32 extends AbstractPlaidState
 						   			  Igteq$plaid$1$plaid,
 						   			  ItoString$0$plaid {
 
-	public static final plaid.fastruntime.PlaidState theState$plaid;
+	private final static int CACHE_LOWER_BOUND = -127;
+	private final static int CACHE_UPPER_BOUND =  128;
+	private final static Integer32PlaidJavaObject[] INTEGER32_CACHE = new Integer32PlaidJavaObject[CACHE_UPPER_BOUND - CACHE_LOWER_BOUND];
 	static {
-	theState$plaid = new Integer32(new DimensionValue("plaid/lang/Integer", null, null));
+		for (int i = 0 ; i < INTEGER32_CACHE.length ; i++ ) {
+			INTEGER32_CACHE[i] = new Integer32PlaidJavaObject(CACHE_LOWER_BOUND + i); 			
+		}
 	}
 	
-	public static PlaidObject plaidInteger(java.lang.Integer i) { 
-		return ((Integer32) theState$plaid).new Integer32PlaidJavaObject(theState$plaid,i);
+	public static final plaid.fastruntime.PlaidState theState$plaid;
+	static {
+		theState$plaid = new Integer32(new DimensionValue("plaid/lang/Integer", null, null));
+	}
+	
+	public static PlaidObject plaidInteger(int i) {
+		if ( CACHE_LOWER_BOUND < i  && i < CACHE_UPPER_BOUND) {
+			return INTEGER32_CACHE[i - CACHE_LOWER_BOUND];
+		} else {
+			return new Integer32PlaidJavaObject(i);
+		}
 	}
 	
 	private Integer32(ObjectValue metadata) {
@@ -46,9 +59,9 @@ public class Integer32 extends AbstractPlaidState
 	@Override
 	public PlaidObject gteq$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			java.lang.Integer first = ((java.lang.Integer) ((PlaidJavaObject) receiver).getJavaObject());
-			java.lang.Integer second = ((java.lang.Integer) ((PlaidJavaObject) arg).getJavaObject());
-			boolean b = first.intValue() >= second.intValue();
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
+			int second = ((Integer32PlaidJavaObject) arg).integerValue;
+			boolean b = first >= second;
 			return Util.bool(b);
 			
 		} catch (ClassCastException e) {
@@ -59,9 +72,9 @@ public class Integer32 extends AbstractPlaidState
 	@Override
 	public PlaidObject sub$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			java.lang.Integer first = ((java.lang.Integer) ((PlaidJavaObject) receiver).getJavaObject());
-			java.lang.Integer second = ((java.lang.Integer) ((PlaidJavaObject) arg).getJavaObject());
-			int result = first.intValue() - second.intValue();
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second =  ((Integer32PlaidJavaObject) arg).integerValue;
+			int result = first - second;
 			return plaidInteger(result);
 			
 		} catch (ClassCastException e) {
@@ -72,9 +85,9 @@ public class Integer32 extends AbstractPlaidState
 	@Override
 	public PlaidObject mult$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			java.lang.Integer first = ((java.lang.Integer) ((PlaidJavaObject) receiver).getJavaObject());
-			java.lang.Integer second = ((java.lang.Integer) ((PlaidJavaObject) arg).getJavaObject());
-			int result = first.intValue() * second.intValue();
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second =  ((Integer32PlaidJavaObject) arg).integerValue;
+			int result = first * second;
 			return plaidInteger(result);
 			
 		} catch (ClassCastException e) {
@@ -85,9 +98,9 @@ public class Integer32 extends AbstractPlaidState
 	@Override
 	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			java.lang.Integer first = ((java.lang.Integer) ((PlaidJavaObject) receiver).getJavaObject());
-			java.lang.Integer second = ((java.lang.Integer) ((PlaidJavaObject) arg).getJavaObject());
-			boolean b = first.intValue() == second.intValue();
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second = ((Integer32PlaidJavaObject) arg).integerValue; 
+			boolean b = first == second;
 			return Util.bool(b);
 			
 		} catch (ClassCastException e) {
@@ -98,9 +111,9 @@ public class Integer32 extends AbstractPlaidState
 	@Override
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
-			java.lang.Integer first = ((java.lang.Integer) ((PlaidJavaObject) receiver).getJavaObject());
-			java.lang.Integer second = ((java.lang.Integer) ((PlaidJavaObject) arg).getJavaObject());
-			int result = first.intValue() + second.intValue();
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second = ((Integer32PlaidJavaObject) arg).integerValue; 
+			int result = first + second;
 			return plaidInteger(result);
 			
 		} catch (ClassCastException e) {
@@ -111,22 +124,30 @@ public class Integer32 extends AbstractPlaidState
 	@Override
 	public PlaidObject toString(PlaidObject receiver) {
 		try {
-			java.lang.Integer first = ((java.lang.Integer) ((PlaidJavaObject) receiver).getJavaObject());
-			return Util.string(first.toString());
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			return Util.string(""+first);
 			
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("+ failed", e.getCause());
 		}
 	}
 	
-	private final class Integer32PlaidJavaObject extends SimplePlaidJavaObject {
+	private final static class Integer32PlaidJavaObject implements PlaidJavaObject {
+		public final int integerValue;
+		private Integer javaObject;
 		
-		protected Integer32PlaidJavaObject(PlaidState dispatch,java.lang.Integer javaObject) {
-			super(dispatch, null, javaObject);
-			this.rep = javaObject;
+		protected Integer32PlaidJavaObject(int integerValue) {
+			this.integerValue = integerValue;
 		}
 		
-		private java.lang.Integer rep;
+		@Override
+		public Object getJavaObject() {
+			if (this.javaObject == null) {
+				this.javaObject =  Integer.valueOf(integerValue);
+			}
+			return this.javaObject;
+		}
+		
 		
 		@Override
 		public boolean canBePrimitive(JavaPrimitive p) {
@@ -141,11 +162,31 @@ public class Integer32 extends AbstractPlaidState
 		@Override
 		public Object asPrimitive(JavaPrimitive p) {
 			switch (p) {
-			case INT: return rep.intValue();
-			case DOUBLE: return rep.doubleValue();
-			case LONG: return rep.longValue();
+			case INT: return integerValue;
+			case DOUBLE: return (double) integerValue;
+			case LONG: return (long) integerValue;
 			default: throw new PlaidIllegalOperationException("Integers cannot be used as " + p.name + "primitives.");
 			}
+		}
+		
+		@Override
+		public PlaidState getDispatch() {
+			return Integer32.theState$plaid;
+		}
+		
+		@Override
+		public void changeState(PlaidState s) {
+			throw new PlaidIllegalOperationException("Cannot change the state of a Java Object.");
+		}
+
+		@Override
+		public PlaidObject[] getStorage() {
+			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
+		}
+
+		@Override
+		public Object[] getMemberDefs() {
+			throw new PlaidIllegalOperationException("No member defs for a Java Object.");
 		}
 	}
 

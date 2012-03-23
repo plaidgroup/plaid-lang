@@ -45,7 +45,7 @@ public class Util {
 		}
 	}
 	
-	public static PlaidObject integer(java.lang.Integer javaInt) {
+	public static PlaidObject integer(int javaInt) {
 		return Integer32.plaidInteger(javaInt);
 	}
 	
