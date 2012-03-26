@@ -8,4 +8,8 @@ public final class EmptyExpr extends Expr {
 	protected static EmptyExpr getEmptyExpression() {
 		return singleton;
 	}
+	
+	public String toString() {
+		return "EMPTY";
+	}
 }
