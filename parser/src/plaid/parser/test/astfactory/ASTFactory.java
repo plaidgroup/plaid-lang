@@ -52,6 +52,7 @@ import plaid.parser.ast.Modifier;
 import plaid.parser.ast.NewInstance;
 import plaid.parser.ast.NominalStructure;
 import plaid.parser.ast.NonePermission;
+import plaid.parser.ast.OptionStructure;
 import plaid.parser.ast.OverrideModifier;
 import plaid.parser.ast.PatternCase;
 import plaid.parser.ast.Permission;
@@ -256,14 +257,26 @@ public class ASTFactory {
 	}
 
 	public static Type NominalObjectType(Permission perm, QualifiedIdentifier qi) {
-		NominalStructure struct = new NominalStructure(null, 
+		NominalStructure struct = new NominalStructure(ASTNode.DEFAULT_TOKEN, 
 				qi,
 				new ArrayList<StaticType>());
-		return new ConcreteType(null, perm, struct);
+		return new ConcreteType(ASTNode.DEFAULT_TOKEN, perm, struct);
 	}
 	
 	public static Type NominalObjectType(QualifiedIdentifier qi) {
 		return NominalObjectType(Permission.EMPTY, qi);
+	}
+	
+	public static Type OptionType(Permission perm, QualifiedIdentifier qi) {
+		NominalStructure struct = new NominalStructure(ASTNode.DEFAULT_TOKEN, 
+				qi,
+				new ArrayList<StaticType>());
+		return new ConcreteType(ASTNode.DEFAULT_TOKEN, perm, 
+								new OptionStructure(ASTNode.DEFAULT_TOKEN, struct));
+	}
+	
+	public static Type OptionType(QualifiedIdentifier qi) {
+		return OptionType(Permission.EMPTY, qi);	
 	}
 	
 	public static Permission  None() {

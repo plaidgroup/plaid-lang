@@ -10,5 +10,9 @@ public final class EmptyPermission extends Permission {
 	protected static EmptyPermission getEmptyPermission() {
 		return singleton;
 	}
+	
+	public String toString() {
+		return "EMPTYPERMISSION";
+	}
 
 }

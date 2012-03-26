@@ -4,6 +4,7 @@ import static plaid.parser.test.astfactory.ASTFactory.ArgSpec;
 import static plaid.parser.test.astfactory.ASTFactory.Immutable;
 import static plaid.parser.test.astfactory.ASTFactory.LambdaType;
 import static plaid.parser.test.astfactory.ASTFactory.NominalObjectType;
+import static plaid.parser.test.astfactory.ASTFactory.OptionType;
 import static plaid.parser.test.astfactory.ASTFactory.None;
 import static plaid.parser.test.astfactory.ASTFactory.QualifiedIdentifier;
 import static plaid.parser.test.astfactory.ASTFactory.Shared;
@@ -86,11 +87,30 @@ public class ParseTypeTest {
 		Assert.assertTrue("Goal and parsed ASTs don't match.", parsedType.equivalent(goalType));
 	}
 	
+	private void testOptionType(String code, QualifiedIdentifier qi) throws ParseException{
+		testOptionType(code, Permission.EMPTY, qi);
+	}
+	
+	private void testOptionType(String code, Permission p, 
+			QualifiedIdentifier qi) throws ParseException{
+		PlaidCoreParser pcp = parserFromString(code);
+		Type parsedType = pcp.Type();
+		Type goalType = OptionType(p, qi);
+		Assert.assertTrue("Goal and parsed ASTs don't match.", parsedType.equivalent(goalType));
+	}
+	
 	@Test
 	public void testIdType() throws ParseException {
 		QualifiedIdentifier qi = 
 			new QualifiedIdentifier(null, Collections.singletonList(new Identifier(null, "hello")));
 		testNominalType("hello",qi);
+	}
+
+	@Test
+	public void testIdOptionType() throws ParseException {
+		QualifiedIdentifier qi = 
+			new QualifiedIdentifier(null, Collections.singletonList(new Identifier(null, "hello")));
+		testOptionType("?hello",qi);
 	}
 	
 	@Test
@@ -101,6 +121,16 @@ public class ParseTypeTest {
 		QualifiedIdentifier qi = 
 			new QualifiedIdentifier(null, ids);
 		testNominalType("hello.world",qi);
+	}
+	
+	@Test
+	public void testQIOptionType() throws ParseException {
+		List<Identifier> ids = new ArrayList<Identifier>();
+		ids.add(new Identifier(null, "hello"));
+		ids.add(new Identifier(null, "world"));
+		QualifiedIdentifier qi = 
+			new QualifiedIdentifier(null, ids);
+		testOptionType("?hello.world",qi);
 	}
 	
 	@Test
@@ -139,6 +169,19 @@ public class ParseTypeTest {
 			new QualifiedIdentifier(null, ids);
 		Permission p = Unique();
 		testNominalType("unique hello.world.mighty.max",p,qi);
+	}
+	
+	@Test
+	public void testQILongUniqueOptionType() throws ParseException {
+		List<Identifier> ids = new ArrayList<Identifier>();
+		ids.add(new Identifier(null, "hello"));
+		ids.add(new Identifier(null, "world"));
+		ids.add(new Identifier(null, "mighty"));
+		ids.add(new Identifier(null, "max"));
+		QualifiedIdentifier qi = 
+			new QualifiedIdentifier(null, ids);
+		Permission p = Unique();
+		testOptionType("unique ?hello.world.mighty.max",p,qi);
 	}
 	
 	
