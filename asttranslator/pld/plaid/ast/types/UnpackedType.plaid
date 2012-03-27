@@ -1,0 +1,322 @@
+package plaid.ast.types;
+
+/**
+ * UnpackedTypes are nominal types which have had the invariants on their
+ * state temporarily broken.  Thus, they have an underlying ID representing
+ * the NominalType that it started as and then a list of members representing
+ * the current structural type of the object.  Since packing is done lazily,
+ * it may be the case that the structural type provides the invariants of
+ * the nominal type.
+ */
+state UnpackedType case of ObjectType {
+	val immutable ID typeName;
+	val /*unique Map<immutable ID,immutable DeclType>*/ members;
+	
+	/**
+	 *  For unpacked types, we look in the map of members for the current definition of object members
+	 */
+	method /* unique Option<immutable DeclType>*/ 
+		contains(immutable ID f, unique StateTable st)[immutable UnpackedType] 
+	{
+		ifElse (this.members.containsKey(f))
+			{ makeSome(this.members.get(f)) }
+			{ new None }		
+	}
+	
+	/**
+	 *  for the declared type of a field/method, we look at the underlying nominal type
+	 */
+	method /* unique Option<immutable DeclType>*/ 
+		declaredType(immutable ID f, unique StateTable st)[immutable UnpackedType]
+	{
+		val /*unique Option<immutable StateType>*/ theState	= st.get(this.typeName);
+		match (theState) {
+			case Some { theState.value.declaredTypeOf(f) }
+			case None { new None }
+		}
+	}
+	
+	/**
+	 *  for unpacked types, we simply update the binding in the DeclType of the member
+	 *  in the member map
+	 */
+	method void memberUpdate(immutable ID f, immutable Binding >> void b, unique StateTable st)
+							[unique UnpackedType] 
+	{
+		val immutable DeclType oldDecl = this.contains(f,st);
+		match (oldDecl) {
+			case Some {
+				match (oldDecl.value) {
+					case FieldType {
+						val immutable DeclType newDecl = makeFieldType(f.copy(), b, oldDecl.value.isImmutable);
+						this.members.put(f,newDecl);
+					}
+					default { /*no op - can only update fields*/ }
+				}
+			}
+			case None { /*no op - cannot add fields*/ }
+		}
+	}
+	
+	/**
+	 *  check the binding for each field Type in members.  If at least one of them
+	 *  is a BorrowType, then return false, otherwise, true
+	 */
+	method immutable Boolean notBorrowed()[immutable UnpackedType] {
+		val iter = this.members.values().iterator();
+		var ret = true;
+		while { iter.hasNext() && ret } {
+			val immutable DeclType member = iter.next();
+			match (member) {
+				case FieldType {
+					match (member.binding) {
+						case BorrowType { ret = false }
+						default { /*no op - if not borrowed, ok*/ }
+					}
+				}
+				default { /*no op - non-field types cannot be borrowed */ }
+			}
+		};
+		ret
+	}
+	
+	/**
+	 *  We check that each of the fields is a subtype of the underlying nominal type
+	 *  If so, we can (and do) pack up the object into the corresponding Nominal
+	 *  Type.  If not, we leave it as is.
+	 */
+	method void pack(unique StateTable st)[unique UnpackedType >> unique ObjectType] {
+		val iter = this.members.values().iterator();
+		val /*unique option<immutable StateType>*/ theState = st.get(this.typeName);
+		match(theState) {
+			case Some {
+				var pack = true;
+				while { iter.hasNext() && pack } {
+					val immutable DeclType member = iter.next();
+					match (member) {
+						case FieldType {
+							match (member.binding) {
+								case BorrowType { pack = false }
+								case TakeType { //check against def from stateType
+									val immutable DeclType declared = theState.value.declaredTypeOf(member.name);
+									match (declared) {
+										case Some {
+											match (declared.value) {
+												case FieldType {
+													match (member.binding.currentType.isSubPermTypeOf(declared.value.binding.currentType, st)) {
+														case True {/*packing OK*/ }
+														case False { pack = false /* not ready to pack */ }
+													}
+												}
+												default { pack = false /* something went wrong */ }
+											}
+										}
+										case None { pack = false /* something went wrong */ }
+									}
+								}
+							}
+						}
+						default { /*no op - non-field types cannot be borrowed */ }
+					}
+				};
+				match (pack) {
+					case True { this <- NominalType { val immutable ID typeName = this.typeName; } }
+					case False { /* no op - cannot pack */ }
+				}
+			}
+			case None { /* no op - cannot pack if we don't know what constitutes packed*/ }
+		}
+		
+	}
+	
+	/**
+	 *  When taking the least upper bound of unpacked types, for simplicity we require that
+	 *  the underlying nominal types all be the same.  Then we take the least upper bound of
+	 *  all of the bindings in each of the fields.  We ignore non-fields since for now
+	 *  they cannot be changed.
+	 */
+	method /* unique Option<unique ObjectType>*/ 
+		leastUpperBound(immutable ObjectType other, unique StateTable st)[immutable UnpackedType]
+	{
+		match (other) {
+			case UnpackedType {
+				ifElse (this.typeName == other.typeName && this.members.size() == other.members.size()) {
+					val newMembers = java.util.HashMap.new();
+					val iter = this.members.keySet().iterator();
+					var immutable Boolean ok = true;
+					while { iter.hasNext() && ok } {
+						val immutable ID declName = iter.next();
+						val immutable DeclType decl = this.members.get(declName);
+						match (decl) {
+							case FieldType {
+								val immutable DeclType otherDecl = other.members.get(declName);
+								match (otherDecl) {
+									case FieldType {
+										val /*unique Option<unique Binding>*/ fieldTypeLUB = 
+													decl.binding.leastUpperBound(otherDecl.binding, st);
+										match (fieldTypeLUB) {
+											case Some {
+												newMembers.put(declName,makeFieldType(decl.name, fieldTypeLUB.value, decl.isImmutable))
+											}
+											case None {
+												ok = false /*no LUB found*/
+											}	
+										}
+									}
+									default { ok = false /* something went wrong - not both fields */}
+								}
+							}
+							default { newMembers.put(declName,decl) } //assume non-fields don't change
+						}
+					
+					};
+					ifElse (ok) { 
+						makeSome(
+							new UnpackedType {
+								val unique ID typeName = this.typeName;
+								val members = newMembers;			
+							})
+					} { new None }
+				} {
+					new None
+				}	
+			}
+			case NominalType {
+				this.pack(st);
+				match (this) {
+					case NominalType { //packing succeeded
+						this.leastUpperBound(other,st)
+					}
+					default { new None }
+				}
+			}
+			default { new None } 
+		}	
+	}
+	
+	/**
+	 *  When taking the greatest lower bound of unpacked types, for simplicity we require that
+	 *  the underlying nominal types all be the same.  Then we take the greatest lower bound of
+	 *  all of the bindings in each of the fields.  We ignore non-fields since for now
+	 *  they cannot be changed.
+	 */
+	method /* unique Option<unique ObjectType>*/ 
+		greatestLowerBound(immutable ObjectType other, unique StateTable st)[immutable UnpackedType]
+	{
+		match (other) {
+			case UnpackedType {
+				ifElse (this.typeName == other.typeName && this.members.size() == other.members.size()) {
+					val newMembers = java.util.HashMap.new();
+					val iter = this.members.keySet().iterator();
+					var immutable Boolean ok = true;
+					while { iter.hasNext() && ok } {
+						val immutable ID declName = iter.next();
+						val immutable DeclType decl = this.members.get(declName);
+						match (decl) {
+							case FieldType {
+								val immutable DeclType otherDecl = other.members.get(declName);
+								match (otherDecl) {
+									case FieldType {
+										val /*unique Option<unique TypeBinding>*/ fieldTypeLUB = 
+													decl.binding.greatestLowerBound(otherDecl.binding, st);
+										match (fieldTypeLUB) {
+											case Some {
+												newMembers.put(declName,makeFieldType(decl.name, fieldTypeLUB.value, decl.isImmutable)) //TODO: check this?
+											}
+											case None {
+												ok = false /*no LUB found*/
+											}	
+										}
+									}
+									default { ok = false /* something went wrong - not both fields */}
+								}
+							}
+							default { newMembers.put(declName,decl) } //assume non-fields don't change
+						}
+					
+					};
+					ifElse (ok) { 
+						makeSome(
+							new UnpackedType {
+								val unique ID typeName = this.typeName;
+								val members = newMembers;			
+							})
+					} { new None }
+				} {
+					new None
+				}	
+			}
+			default { new None } 
+		}	
+	}
+	
+	/**
+	 *  no subtyping of unpacked types for right now
+	 */
+	method immutable Boolean isSubObjectTypeOf(immutable ObjectType other, unique StateTable st)
+											  [immutable NominalType]
+	{
+		false
+	}
+	
+	/**
+	 *  We call downgrade on the binding of each field in members for unpacked objects
+	 * //TODO: do we want these bindings to be unique so they can be updated in place like
+	 * 		   we're doing with these objectTypes (will the objectTypes actually be unique such
+	 *		   that we can do this...)
+	 */
+	method void downgrade()[unique ObjectType] {
+		val iter = this.members.keySet().iterator();
+		while { iter.hasNext() } {
+			val immutable ID declName = iter.next();
+			val immutable DeclType decl = this.members.get(declName);
+			match (decl) {
+				case FieldType {
+					decl.binding.downgrade(); //updates in place - need to be careful about permissions
+				}
+				default { /* no op - non fields don't need any updating */ }
+			}
+		}
+	}
+
+	method immutable Boolean ==(immutable ObjectType other)[immutable UnpackedType] {
+		match (other) {
+			case UnpackedType {
+				ifElse  (this.typeName == other.typeName && 
+						 this.members.size() == other.members.size()) 
+				{
+					var immutable Boolean ret = true;
+					val /*unique Iterator<immutable ID>*/ iter = this.members.keySet().iterator();
+					while { iter.hasNext() && ret} { 
+						val immutable ID member = iter.next();
+						ifElse (other.members.containsKey(member)) {
+							ret = (this.members.get(member) == other.members.get(member))
+						} { ret = false; }	
+					};
+					ret
+				} { false }	
+			}
+			default { false }
+		}
+	}
+	
+	method immutable String toString()[immutable UnpackedType] {
+		var ret = "upk(" + typeName.toString() + ", {";
+		val iter = this.members.values().iterator();
+		while { iter.hasNext() } { 
+			ret = ret + iter.next().toString() + ","
+		};
+		ret + "})";
+	}
+	
+	method unique UnpackedType copy()[immutable UnpackedType] {
+		val /*unique Map<immutable ID,immutable DeclType>*/ newMembers = java.util.HashMap.new();
+		newMembers.putAll(this.members);
+		
+		new UnpackedType {
+			val immutable ID typeName = this.typeName;
+			val /*unique Map<immutable ID,immutable DeclType>*/ members = newMembers;
+		}
+	}
+
+}

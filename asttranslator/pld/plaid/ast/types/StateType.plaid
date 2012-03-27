@@ -1,0 +1,255 @@
+package plaid.ast.types;
+
+import plaid.lang.*;
+import plaid.ast.*;
+
+/**
+ * 	represents the type of a state in Plaid.  Currently designed to contain
+ * information for a nominal type mapped in the state table.  Will likely
+ * need to be changed to accommodate the addition of Structural Types
+ *  KBN - note that this implementation is not quite what is listed in the typing specification
+ */
+state StateType case of DeclType {
+	val /*unique Map<immutable ID,immutable DeclType>*/ declaredTypes = java.util.HashMap.new();  //All members are kept here
+	val /*unique Map<immutable ID,immutable DeclType>*/ providedTypes = java.util.HashMap.new();  //has only members for which the state provides an implementation
+	val /*unique Option<immutable StateType>*/ superType;
+	val /*unique ID*/ name;
+	
+	method /*Option DeclType */ declaredTypeOf(/*ID*/ name) {
+		ifElse(declaredTypes.containsKey(name)) 
+			{ new Some { val value = declaredTypes.get(name); }}
+			{ new None }
+	}
+	
+	method /*Option DeclType */ providedTypeOf(name) {
+		ifElse(providedTypes.containsKey(name)) 
+			{ new Some { val value = providedTypes.get(name); }}
+			{ new None }
+	}
+	
+	method /*unique Map<immutable ID, immutable DeclType>*/ getDeclaredTypes()[immutable StateType] {
+		val /*unique Map<immutable ID,immutable DeclType>*/ copy = java.util.HashMap.new();
+		copy.putAll(this.declaredTypes);
+		copy
+	}
+	
+	//TODO: more robust naming, etc
+	method /*boolean*/ subtypeOf(/*DeclType*/ other, /*StateTable*/ stateTable) {
+		match (other) {
+			case StateType {
+				ifElse (this.name == other.name) { //TODO: this should be more robust
+					true;
+				} {
+					match (this.superType) {
+						case Some {
+							this.superType.value.subtypeOf(other, stateTable);
+						}
+						case None {
+							false;
+						}
+					}
+				}
+			}
+			default {
+				java.lang.System.out.println("TYPECHECK FAILED: StateType cannot be a subtype of a non-StateType");
+				false;
+			}
+		}
+	}
+	
+	method /*boolean*/ checkCaseOf(/*StateType*/ other, /*StateTable*/ stateTable) {
+		match (other) {
+			case StateType {
+				//To check the case of relationship, we need to make sure that
+				//all of the members declared by other are also declared by this
+				//and that they are subtypes.  Secondly, we need to make sure that
+				//all of the members provided by other are also provided by this
+				//and are subtypes
+				var /*Boolean*/ isCaseOf = true;
+				val iter = other.declaredTypes.keySet().iterator();
+				while { iter.hasNext() && isCaseOf } {
+					val /*ID*/ declName = iter.next();
+					val /*DeclType*/ otherDecl = other.declaredTypes.get(declName); //we know it is there
+					val /*Option DeclType*/ thisDecl = this.declaredTypeOf(declName); //don't know if it is here
+					match (thisDecl) {
+						case Some {
+							isCaseOf = thisDecl.value.declSubTypeOf(otherDecl, stateTable);
+							if (!isCaseOf) {java.lang.System.out.println("CASE OF FAILED: state " +
+								this.name.name + "'s declared member " + declName.name +
+								"is not a subtype of the declared member in state " + other.name.name) };
+						}
+						case None {
+							isCaseOf = false;
+							java.lang.System.out.println("CASE OF FAILED: state " + this.name.name +
+														" does not declare member " + declName.name);
+						}
+					}
+				};
+				
+				val iter2 = other.providedTypes.keySet().iterator();
+				while { iter2.hasNext() && isCaseOf } {
+					val /*ID*/ declName = iter2.next();
+					val /*DeclType*/ otherDecl = other.providedTypes.get(declName); //we know it is there
+					val /*Option DeclType*/ thisDecl = this.providedTypeOf(declName); //don't know if it is here
+					match (thisDecl) {
+						case Some {
+							isCaseOf = thisDecl.value.declSubTypeOf(otherDecl, stateTable);
+							if (!isCaseOf) { java.lang.System.out.println("CASE OF FAILED: state " +
+								this.name.name + "'s provided member " + declName.name +
+								"is not a subtype of the  provided member in state " + other.name.name) };
+						}
+						case None {
+							isCaseOf = false;
+							java.lang.System.out.println("CASE OF FAILED: state " + this.name.name +
+														" does not provide member " + declName.name);
+						}
+					}
+				};
+				
+				isCaseOf;
+			}
+			default {
+				java.lang.System.out.println("TYPECHECK FAILED: case of not a StateType");
+				false
+			}
+		}
+	}
+	
+	method /*boolean*/ isWellFormed(/*Option StateType*/ initializer, /*StateTable*/ stateTable) {
+		var /*StateType*/ toCheck = this;
+		match (initializer) {
+			case Some { //create a new StateType with the combined types listed
+				toCheck = this.withST(initializer.value);
+			}
+			case None { 
+				//use this alone
+			}
+		};
+		
+		//all declared types must also be provided and the provided types must be subtypes
+		val declaredIter = toCheck.declaredTypes.keySet().iterator();
+		var /*Boolean*/ wellFormed = true;
+		while { declaredIter.hasNext() && wellFormed} {
+			val /*ID*/ declaredID = declaredIter.next();
+			val /*DeclType*/ declaredType = toCheck.declaredTypes.get(declaredID); //we know it is there
+			val /*Option DeclType*/ providedTypeOpt = toCheck.providedTypeOf(declaredID); //might not be there
+			match (providedTypeOpt) {
+				case Some {
+					wellFormed = providedTypeOpt.value.declSubTypeOf(declaredType, stateTable);
+					if (!wellFormed) {java.lang.System.out.println("OBJECT CREATION FAILED: provided type of " + declaredID.name + 
+										" is not a subtype of declared type in state " + this.name.name);};
+				}
+				case None {
+					wellFormed = false;
+					java.lang.System.out.println("OBJECT CREATION FAILED: abstract member " + declaredID.name + " not provided for state " + this.name.name);
+				}
+			}
+		};
+		wellFormed;
+	}
+	
+	method /*unique StateType*/ withST(/*immutable StateType*/ other) {
+		//for now, other is a anonymous statetype with just provided types -TODO: clean up state types
+		val /*unique StateType*/ withType = new StateType {
+			val /*ID*/ name = new ID { val name = "<ANONYMOUS>"; };
+			val /*Option StateType*/ superType = NONE;
+		};
+		withType.declaredTypes.putAll(this.declaredTypes);
+		withType.providedTypes.putAll(this.providedTypes);
+		val initializerIter = other.providedTypes.keySet().iterator();
+		while { initializerIter.hasNext() } {
+			val /*ID*/ declName = initializerIter.next();
+			val /*Option DeclType*/ declaredOpt = this.declaredTypeOf(declName);
+			
+			match (declaredOpt) {
+				case Some {
+					withType.providedTypes.put(declName, other.providedTypes.get(declName));
+				}
+				case None {
+					java.lang.System.out.println("INITIALIZATION FAILED: cannot add new members (" + declName.name + ") in initialier (for now)");
+				}
+			}
+		};
+		withType;
+	}
+	
+	method /*Option StateType*/ leastUpperBound(/*StateType*/ other) {
+		val /*List<StateType>*/ thisHierarchy = this.getHierarchy();
+		val /*List<StateType>*/ otherHierarchy = other.getHierarchy();
+		val /*List<Pair<StateType,StateType>>*/ zipped = thisHierarchy.zip(otherHierarchy);
+		zipped.foldl(fn (p,z) => {
+			ifElse(p.fst.name == p.snd.name) {
+				makeSome(p.fst);
+			} {
+				z
+			}
+		}, NONE)
+	}
+	
+	method /*List<StateType*/ getHierarchy() {
+		val /*List<StateType*/ hierarchy = new List { var head = new Nil; };
+		this.getHierarchyHelper(hierarchy);
+		hierarchy;
+	}
+	
+	method void getHierarchyHelper(/*List<StateType>*/ list) {
+		list.prepend(this);
+		match (superType) {
+			case Some {
+				superType.value.getHierarchyHelper(list);
+			}
+			case None {
+				//done
+			}
+		};
+		unit;
+	}
+	
+	method unique UnpackedType createUnpackedType()[immutable StateType] {
+		val unpackedType = new UnpackedType {
+			val typeName = this.name.copy();
+			val members = java.util.HashMap.new();
+		};
+		
+		val iter = this.declaredTypes.keySet().iterator();
+		while { iter.hasNext() } {
+			val memberID = iter.next().copy();
+			val memberDecl = this.declaredTypes.get(memberID);
+			match (memberDecl) {
+				case FieldDecl {
+					val declaredFieldType = memberDecl.fieldType;
+					val unpackedBinding = declaredFieldType.getBinding();
+					
+					if (!this.providedTypes.contains(memberID)) {
+						unpackedBinding.pType = createPermType(NONEP, unpackedBinding.pType.type)
+					};
+					
+					val unpackedFieldType = makeFieldType(memberID.copy(), unpackedBinding, memberDecl.fieldType.isImmutable);
+					unpackedType.members.put(memberID.copy(), unpackedFieldType);
+				}
+				default { /* no op */ }
+			}
+		};
+		unpackedType;
+	}
+	
+	method toString() {
+		val pfn = fn (dType) => ret = ret + "\n\t\t" + dType.toString();
+		var ret = "state " + this.name.name;
+		match(this.superType) {
+			case Some { ret = ret + " case of " + superType.value.name.name }
+			default { }
+		};
+		ret = ret + ":\n\tDeclaredType = ";
+		val iter = declaredTypes.values().iterator();
+		while { iter.hasNext() } {
+			ret = ret + "\n\t\t" + iter.next().toString();
+		};
+		ret = ret + "\n\tProvidedType = ";
+		val iter2 = providedTypes.values().iterator();
+		while { iter2.hasNext() } {
+			ret = ret + "\n\t\t" + iter2.next().toString();
+		};
+		ret = ret + "\n";		
+	}
+}
