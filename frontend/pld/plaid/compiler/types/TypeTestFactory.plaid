@@ -270,13 +270,75 @@ state TypeTestFactory case of TestFactory {
     }); 
     
     test("NominalStructure unpackField", fn(ctx) => {
-      ctx.assertTrue(types.nominalStruct1.unpackField(types.upkfvalSig3u1_1Bs1, EMPTY_TOKEN) == types.unpackedStruct1Val3u1_1Bs1); //unpack a new field
+      result = types.nominalStruct1.unpackField(types.upkfvalSig3u1_1Bs1, EMPTY_TOKEN); //unpack a new field
+      ctx.assertTrue(match (result) { case Structure { result == types.unpackedStruct1Val3u1_1Bs1} default { false } }); 
+      
+      result = types.nominalStruct1.unpackField(types.upkfvarSig4s4_1v, EMPTY_TOKEN); //unpack missing field
+      ctx.assertTrue(match (result) { 
+      	case Structure { false } 
+      	default { 
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_UNPACK_MISSING") &&
+		  	globalReporter.errors.head.value.data.equals("pack1.state1.field4") 
+      	} 
+      }); 
+      globalReporter.clearErrors();
+      
+      result = types.nominalStruct1.unpackField(types.upkfieldSigWithMethodName, EMPTY_TOKEN); //unpack missing field
+      ctx.assertTrue(match (result) { 
+      	case Structure { false } 
+      	default { 
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_UNPACK_METHOD") &&
+		  	globalReporter.errors.head.value.data.equals("pack1.state1.method1") 
+      	} 
+      }); 
+      globalReporter.clearErrors();
+      
+      
+      
       //test failure cases when exceptions working
     });
     
     test("NominalStructure packField", fn(ctx) => {
-      ctx.assertTrue(types.nominalStruct4.assignToField(ast.fieldName3, EMPTY_TOKEN) == typesCMP.nominalStruct4); //pack a field that is already packed
-      //test failure cases when exceptions working
+      result = types.nominalStruct4.assignToField(ast.fieldName3, EMPTY_TOKEN); //pack a field that is already packed
+      ctx.assertTrue(match (result) {
+      	case Structure { result == typesCMP.nominalStruct4; }
+      	default { false }
+      });
+      
+      result = types.nominalStruct1.assignToField(ast.fieldName3, EMPTY_TOKEN); //missing field
+      ctx.assertTrue(match (result) {
+      	case  Structure { false }
+      	default {
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_ASSIGN_VAL") &&
+		  	globalReporter.errors.head.value.data.equals("pack1.state1.field3") 
+      	}
+      });
+      globalReporter.clearErrors();
+      
+      result = types.nominalStruct4.assignToField(ast.fieldName2, EMPTY_TOKEN); //missing field
+      ctx.assertTrue(match (result) {
+      	case  Structure { false }
+      	default {
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_ASSIGN_MISSING") &&
+		  	globalReporter.errors.head.value.data.equals("pack1.pack3.state4.field2") 
+      	}
+      });
+      globalReporter.clearErrors();
+      
+      result = types.nominalStruct1.assignToField(ast.methodName1, EMPTY_TOKEN); //method
+      ctx.assertTrue(match (result) {
+      	case  Structure { false }
+      	default {
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_ASSIGN_METHOD") &&
+		  	globalReporter.errors.head.value.data.equals("pack1.state1.method1") 
+      	}
+      });
+      globalReporter.clearErrors();
     });
     
     /********************** Option Structure *************************/
@@ -326,28 +388,36 @@ state TypeTestFactory case of TestFactory {
       ctx.assertTrue(match (result) { case Some { false } case None { true } });
     }); 
     
-    //test when have error testing working
-    /*test("UnpackedStructure restoreToField", fn(ctx) => {
-      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName3,types.nominalType_ls1,1) == types.nominalStruct1); //return and pack
-      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName3,types.nominalType_ls1,2) == types.unpackedStruct1Val3u1_1Bs1); //return with stale object ID
-      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_ls1,1) == types.unpackedStruct1Val3u1_1Bs1); //return to packed field
-      ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_u1,1) == types.unpackedStruct1Val3u1_1Bs1); //pack one field
-      ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_i1,1) == types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1 ); // restore but don't pack
-      //test failure cases when exceptions working
+    test("OptionStructure restoreToField", fn(ctx) => {
+      ctx.assertTrue(types.optStruct1.restoreToField(ast.fieldName3,types.nominalType_ls1,1) == typesCMP.optStruct1); //no op
     });
     
-    test("UnpackedStructure unpackField", fn(ctx) => {
-      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.unpackField(types.upkfvalSig1u1_1v, EMPTY_TOKEN) == types.unpackedStruct1Val1u1_1vVal3u1_1Bs1); //unpack a new field
-      ctx.assertTrue(types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1.unpackField(types.upkfvalSig1u1_1v, EMPTY_TOKEN) == types.unpackedStruct1Val1u1_1vVal3u1_1Bs1); //update unpacked field
-      //test failure cases when exceptions working
+    test("OptionStructure unpackField", fn(ctx) => {
+      result = types.optStruct1.unpackField(types.upkfvalSig1u1_1v, EMPTY_TOKEN);
+      ctx.assertTrue( match (result) {
+      	case Structure { false }
+      	default{ 
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_UNPACK_MISSING") &&
+		  	globalReporter.errors.head.value.data.equals("?(pack1.state1).field1") 
+      	}
+      });
+      globalReporter.clearErrors();
+      
     }); 
     
-    test("UnpackedStructure packField", fn(ctx) => {
-      ctx.assertTrue(types.unpackedStruct4Var3u1_1Bs1.assignToField(ast.fieldName3, EMPTY_TOKEN) == types.nominalStruct4); //pack structure
-      ctx.assertTrue(types.unpackedStruct4Var3u1_1Bs1.assignToField(ast.fieldName1, EMPTY_TOKEN) == types.unpackedStruct4Var3u1_1Bs1); //return to packed field
-      ctx.assertTrue(types.unpackedStruct4Var1u1_1vVar3u1_1Bs1.assignToField(ast.fieldName1, EMPTY_TOKEN) == types.unpackedStruct4Var3u1_1Bs1); //pack one field
-      //test failure cases when exceptions working
-    });*/
+    test("OptionStructure packField", fn(ctx) => {
+     result = types.optStruct1.assignToField(ast.fieldName2, EMPTY_TOKEN);
+      ctx.assertTrue( match (result) {
+      	case Structure { false }
+      	default{ 
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_ASSIGN_MISSING") &&
+		  	globalReporter.errors.head.value.data.equals("?(pack1.state1).field2") 
+      	}
+      });
+      globalReporter.clearErrors();
+    });
     
     
     /********************** Unit Structure *************************/
@@ -389,28 +459,36 @@ state TypeTestFactory case of TestFactory {
       ctx.assertTrue(match (result) { case Some { false } case None { true } });
     }); 
     
-    //test when have error testing working
-    /*test("UnpackedStructure restoreToField", fn(ctx) => {
-      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName3,types.nominalType_ls1,1) == types.nominalStruct1); //return and pack
-      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName3,types.nominalType_ls1,2) == types.unpackedStruct1Val3u1_1Bs1); //return with stale object ID
-      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_ls1,1) == types.unpackedStruct1Val3u1_1Bs1); //return to packed field
-      ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_u1,1) == types.unpackedStruct1Val3u1_1Bs1); //pack one field
-      ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_i1,1) == types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1 ); // restore but don't pack
-      //test failure cases when exceptions working
+   test("UnitStructure restoreToField", fn(ctx) => {
+      ctx.assertTrue(UNITSTRUCT.restoreToField(ast.fieldName3,types.nominalType_ls1,1) == UNITSTRUCT); //no op
     });
     
-    test("UnpackedStructure unpackField", fn(ctx) => {
-      ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.unpackField(types.upkfvalSig1u1_1v, EMPTY_TOKEN) == types.unpackedStruct1Val1u1_1vVal3u1_1Bs1); //unpack a new field
-      ctx.assertTrue(types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1.unpackField(types.upkfvalSig1u1_1v, EMPTY_TOKEN) == types.unpackedStruct1Val1u1_1vVal3u1_1Bs1); //update unpacked field
-      //test failure cases when exceptions working
+    test("UnitStructure unpackField", fn(ctx) => {
+      result = UNITSTRUCT.unpackField(types.upkfvalSig1u1_1v, EMPTY_TOKEN);
+      ctx.assertTrue( match (result) {
+      	case Structure { false }
+      	default{ 
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_UNPACK_MISSING") &&
+		  	globalReporter.errors.head.value.data.equals("Unit.field1") 
+      	}
+      });
+      globalReporter.clearErrors();
+      
     }); 
     
-    test("UnpackedStructure packField", fn(ctx) => {
-      ctx.assertTrue(types.unpackedStruct4Var3u1_1Bs1.assignToField(ast.fieldName3, EMPTY_TOKEN) == types.nominalStruct4); //pack structure
-      ctx.assertTrue(types.unpackedStruct4Var3u1_1Bs1.assignToField(ast.fieldName1, EMPTY_TOKEN) == types.unpackedStruct4Var3u1_1Bs1); //return to packed field
-      ctx.assertTrue(types.unpackedStruct4Var1u1_1vVar3u1_1Bs1.assignToField(ast.fieldName1, EMPTY_TOKEN) == types.unpackedStruct4Var3u1_1Bs1); //pack one field
-      //test failure cases when exceptions working
-    });*/
+    test("UnitStructure packField", fn(ctx) => {
+     result = UNITSTRUCT.assignToField(ast.fieldName2, EMPTY_TOKEN);
+      ctx.assertTrue( match (result) {
+      	case Structure { false }
+      	default{ 
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_ASSIGN_MISSING") &&
+		  	globalReporter.errors.head.value.data.equals("Unit.field2") 
+      	}
+      });
+      globalReporter.clearErrors();
+    });
     
     /********************** Unpacked Structure *************************/
     test("UnpackedStructure equality", fn(ctx) => {
@@ -474,20 +552,88 @@ state TypeTestFactory case of TestFactory {
       ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_ls1,1) == types.unpackedStruct1Val3u1_1Bs1); //return to packed field
       ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_u1,1) == types.unpackedStruct1Val3u1_1Bs1); //pack one field
       ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_i1,1) == types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1 ); // restore but don't pack
-      //test failure cases when exceptions working
+      
     });
     
     test("UnpackedStructure unpackField", fn(ctx) => {
       ctx.assertTrue(types.unpackedStruct1Val3u1_1Bs1.unpackField(types.upkfvalSig1u1_1v, EMPTY_TOKEN) == types.unpackedStruct1Val1u1_1vVal3u1_1Bs1); //unpack a new field
       ctx.assertTrue(types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1.unpackField(types.upkfvalSig1u1_1v, EMPTY_TOKEN) == types.unpackedStruct1Val1u1_1vVal3u1_1Bs1); //update unpacked field
-      //test failure cases when exceptions working
+      
+      result = types.unpackedStruct1Val3u1_1Bs1.unpackField(types.upkfvarSig4s4_1v, EMPTY_TOKEN); //unpack missing field
+      ctx.assertTrue(match (result) { 
+      	case Structure { false } 
+      	default { 
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_UNPACK_MISSING") &&
+		  	globalReporter.errors.head.value.data.equals("UNPACKED(pack1.state1).field4") 
+      	} 
+      }); 
+      globalReporter.clearErrors();
+      
+      result = types.unpackedStruct1Val3u1_1Bs1.unpackField(types.upkfieldSigWithMethodName, EMPTY_TOKEN); //unpack missing field
+      ctx.assertTrue(match (result) { 
+      	case Structure { false } 
+      	default { 
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_UNPACK_METHOD") &&
+		  	globalReporter.errors.head.value.data.equals("UNPACKED(pack1.state1).method1") 
+      	} 
+      }); 
+      globalReporter.clearErrors();
+      
     }); 
     
-    test("UnpackedStructure packField", fn(ctx) => {
+    test("UnpackedStructure assignToField", fn(ctx) => {
       ctx.assertTrue(types.unpackedStruct4Var3u1_1Bs1.assignToField(ast.fieldName3, EMPTY_TOKEN) == types.nominalStruct4); //pack structure
       ctx.assertTrue(types.unpackedStruct4Var3u1_1Bs1.assignToField(ast.fieldName1, EMPTY_TOKEN) == types.unpackedStruct4Var3u1_1Bs1); //return to packed field
       ctx.assertTrue(types.unpackedStruct4Var1u1_1vVar3u1_1Bs1.assignToField(ast.fieldName1, EMPTY_TOKEN) == types.unpackedStruct4Var3u1_1Bs1); //pack one field
-      //test failure cases when exceptions working
+      
+      result = types.unpackedStruct1Val3u1_1Bs1.assignToField(ast.fieldName3, EMPTY_TOKEN); //val field unpacked
+      ctx.assertTrue(match (result) {
+      	case  Structure { false }
+      	default {
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_ASSIGN_VAL") &&
+		  	globalReporter.errors.head.value.data.equals("UNPACKED(pack1.state1).field3") 
+      	}
+      });
+      globalReporter.clearErrors();
+      
+      
+      result = types.unpackedStruct1Val1u1_1v.assignToField(ast.fieldName3, EMPTY_TOKEN); //val field packed
+      ctx.assertTrue(match (result) {
+      	case  Structure { false }
+      	default {
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_ASSIGN_VAL") &&
+		  	globalReporter.errors.head.value.data.equals("UNPACKED(pack1.state1).field3") 
+      	}
+      });
+      globalReporter.clearErrors();
+      
+      
+	  result = types.unpackedStruct4Var3u1_1Bs1.assignToField(ast.fieldName2, EMPTY_TOKEN); //missing field
+      ctx.assertTrue(match (result) {
+      	case  Structure { false }
+      	default {
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_ASSIGN_MISSING") &&
+		  	globalReporter.errors.head.value.data.equals("UNPACKED(pack1.pack3.state4).field2") 
+      	}
+      });
+      globalReporter.clearErrors();
+      
+      result = types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1.assignToField(ast.methodName1, EMPTY_TOKEN); //method
+      ctx.assertTrue(match (result) {
+      	case  Structure { false }
+      	default {
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_ASSIGN_METHOD") &&
+		  	globalReporter.errors.head.value.data.equals("UNPACKED(pack1.state1).method1") 
+      	}
+      });
+      globalReporter.clearErrors();
+      
     });
     
     /********************** Packed Field Signatures *************************/
