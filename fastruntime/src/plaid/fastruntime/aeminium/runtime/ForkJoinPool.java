@@ -592,7 +592,7 @@ public class ForkJoinPool extends AbstractExecutorService {
      * arrays are initialized (via method growArray) by workers before
      * use. Others are allocated on first use.
      */
-    static final class WorkQueue {
+    public static final class WorkQueue {
         /**
          * Capacity of work-stealing queue array upon initialization.
          * Must be a power of two; at least 4, but should be larger to
@@ -656,7 +656,7 @@ public class ForkJoinPool extends AbstractExecutorService {
          * any tasks than does queueSize, by checking whether a
          * near-empty queue has at least one unclaimed task.
          */
-        final boolean isEmpty() {
+        public final boolean isEmpty() {
             ForkJoinTask<?>[] a; int m, s;
             int n = base - (s = top);
             return (n >= 0 ||

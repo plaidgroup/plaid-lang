@@ -27,9 +27,10 @@ public class ForkJoinWorkerThread extends Thread {
      * of class ForkJoinPool.
      */
 
-    final ForkJoinPool.WorkQueue workQueue; // Work-stealing mechanics
+    public final ForkJoinPool.WorkQueue workQueue; // Work-stealing mechanics
     final ForkJoinPool pool;                // the pool this thread works in
-
+    
+    
     /**
      * Creates a ForkJoinWorkerThread operating in the given pool.
      *
@@ -54,10 +55,6 @@ public class ForkJoinWorkerThread extends Thread {
      */
     public ForkJoinPool getPool() {
         return pool;
-    }
-
-    public final int getLocalQueueSize() {
-    	return this.workQueue.queueSize();
     }
     
     /**
