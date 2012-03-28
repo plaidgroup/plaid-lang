@@ -6,55 +6,52 @@ method immutable ?Permission splitFieldPermission(immutable Permission receiverP
 {
   val immutable ?Permission splitFromField = fieldPerm.splitPerm(neededPerm);
   
-  //to get around no match on top tags (Permission) in old runtime
-  //change to get this to typecheck
-  val immutable ?Boolean noChange = match (splitFromField) {
-  	case SourcePermission { splitFromField == fieldPerm }
-  	case SystemPermission { false } //field perm cannot be declared as a borrow
-  	default { unit }
-  };
-  
-  match (noChange) {
-	case True {
-	  match (receiverPerm) { //can pull anything that doesn't change field as long as receiver permission is not NONE or DYNAMIC
-		case NonePermission { unit }
-		case DynamicPermission { unit } 
-		default { fieldPerm } 
-	  }
-	}
-	case False {
-	  match (receiverPerm) {
-		case UniquePermission { splitFromField } //unique receivers can give up anything
-		case LocalPermission {
-		  match (receiverPerm == neededPerm) {
-			case True { splitFromField }
-			case False { unit }
+  match (splitFromField) {
+  	case Permission {
+	  match (splitFromField == fieldPerm) {
+		case True {
+		  match (receiverPerm) { //can pull anything that doesn't change field as long as receiver permission is not NONE or DYNAMIC
+			case NonePermission { unit }
+			case DynamicPermission { unit } 
+			default { fieldPerm } 
 		  }
 		}
-		case BorrowedPermission {
-		  match (neededPerm) {
+		case False {
+		  match (receiverPerm) {
+			case UniquePermission { splitFromField } //unique receivers can give up anything
 			case LocalPermission {
-			  match (receiverPerm.thePerm == neededPerm.thePerm) {
+			  match (receiverPerm == neededPerm) {
 				case True { splitFromField }
 				case False { unit }
 			  }
 			}
-			default { unit }
-		  }
-		}
-		case SymmetricPermission{   //if a (local) symmetric of the same kind as the 
-		  match (fieldPerm) {  //receiver, this is ok
-			case UniquePermission {
+			case BorrowedPermission {
 			  match (neededPerm) {
-				case SymmetricPermission{
-				  ifElse (neededPerm == receiverPerm)
-					{ UNIQUE }
-					{ unit }
-				}
 				case LocalPermission {
-				  ifElse (neededPerm.thePerm == receiverPerm)
-					{ UNIQUE }
-					{ unit }
+				  match (receiverPerm.thePerm == neededPerm.thePerm) {
+					case True { splitFromField }
+					case False { unit }
+				  }
+				}
+				default { unit }
+			  }
+			}
+			case SymmetricPermission{   //if a (local) symmetric of the same kind as the 
+			  match (fieldPerm) {  //receiver, this is ok
+				case UniquePermission {
+				  match (neededPerm) {
+					case SymmetricPermission{
+					  ifElse (neededPerm == receiverPerm)
+						{ UNIQUE }
+						{ unit }
+					}
+					case LocalPermission {
+					  ifElse (neededPerm.thePerm == receiverPerm)
+						{ UNIQUE }
+						{ unit }
+					}
+					default { unit }
+				  }
 				}
 				default { unit }
 			  }
@@ -62,7 +59,6 @@ method immutable ?Permission splitFieldPermission(immutable Permission receiverP
 			default { unit }
 		  }
 		}
-		default { unit }
 	  }
 	}
     default { unit }  //split failed
