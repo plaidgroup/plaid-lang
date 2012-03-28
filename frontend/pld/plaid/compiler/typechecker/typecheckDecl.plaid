@@ -10,8 +10,9 @@ import plaid.compiler.aeminium.*;
 
 /**
  * return a boolean indicating if the declaration was abstract (false) or concrete (true)
+ * there were errors if returns unit
  */
-method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
+method immutable ?Boolean typecheckDecl(immutable ParsedDecl declNode) {
 
   ifElse ( typecheckingEnabled(declNode) ) {
       val unique Option<immutable FieldSymbol> declSymOption = symbolForAST(declNode);
@@ -123,25 +124,30 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                   val immutable Type fieldType = fieldSig.getDeclaredType();
                   
                   
-                  val unique TypecheckResult fieldResult = 
+                  val unique ?TypecheckResult fieldResult = 
                       typecheckExpression(fieldContext,
                                           fieldType.permission,
                                           declNode.expression);            
-                  
-                  if (!(fieldResult.expType.isSubTypeOf(fieldType))) {
-                    report_ERROR(declNode.token, "initializer for field '" + 
-                          fieldSig.getFieldName() + "' has type '" +
-                          fieldResult.expType.toString() + 
-                          "' which is not a subtype of declared field type '" +
-                          fieldType.toString() + "'", "", "typecheckField");      
-                  };
-                  
-                  
-                  //TODO: check we didn't change any used fields to a state
-                  // not a subtype of their declared type 
-                  
-                  //this is a concrete field
-                  true
+
+				  match (fieldResult) {
+				  	case TypecheckResult {
+					  if (!(fieldResult.expType.isSubTypeOf(fieldType))) {
+						report_ERROR(declNode.token, "initializer for field '" + 
+							  fieldSig.getFieldName() + "' has type '" +
+							  fieldResult.expType.toString() + 
+							  "' which is not a subtype of declared field type '" +
+							  fieldType.toString() + "'", "", "typecheckField");      
+					  };
+					  
+					  
+					  //TODO: check we didn't change any used fields to a state
+					  // not a subtype of their declared type 
+					  
+					  //this is a concrete field
+					  true
+					}
+					default { unit }
+				  }
                 }
                 case ParsedAbstractFieldDecl {
                   false
@@ -265,63 +271,67 @@ method immutable Boolean typecheckDecl(immutable ParsedDecl declNode) {
                   };
                   
                   /* typecheck method body in context asking for permission of return type */
-                  val unique TypecheckResult methodResult = 
+                  val unique ?TypecheckResult methodResult = 
                     typecheckExpression(methodContext, 
                                         methodSig.returnType.permission,
                                         declNode.body);
-                   
-                  /* check that return structure is consistent with return type */                     
-                  if (!(methodResult.expType.isSubTypeOf(methodSig.returnType))) {
-                    report_ERROR(declNode.token, "method body returns structure '" + 
-                          methodResult.expType.structure.toString() + 
-                          "' which is not a substructure of declared return structure '" +
-                          methodSig.returnType.structure.toString() + "'", "", "typecheckMethodDecl")
-                  };
-                  
-                  /* check that the context contains the required ending permissions */
-                  val unique LinearContext resultContext = methodResult.ctxResult;
-                  
-                  //receiver
-                  val immutable Type endTypeThis = resultContext.get(thisSymbol);
-                  if (!(endTypeThis.isSubTypeOf(methodSig.receiverSpec.outputType))) {
-                    report_ERROR(declNode.token, "Receiver ended method as '" + 
-                          endTypeThis.toString() + 
-                          "' which is not a subtype of declared end type '" +
-                          methodSig.receiverSpec.outputType.toString() + "'",
-                          "", "typecheckMethodDecl")
-                  };
-                  //args
-                  methodSig.arguments.do(fn (symSpecPair) => {
-                    val immutable VariableSymbol argSym = symSpecPair.fst;
-                    val immutable ArgSpec argSpec = symSpecPair.snd;
-                    val immutable Type endTypeArg = resultContext.get(argSym);
-                    if (!(endTypeArg.isSubTypeOf(argSpec.outputType))) {
-                      report_ERROR(declNode.token, "arg '" + argSym.name +
-                            "' ended method as '" + endTypeArg.toString() + 
-                            "' which is not a subtype of declared end type '" +
-                            argSpec.outputType.toString() + "'",  "","typecheckMethodDecl")
-                    };
-                  });
-                  
-                  //environment
-                  val iter2 = methodSig.environment.keySet().iterator();
-                  while { iter2.hasNext() } {
-                    val immutable VariableSymbol envSym = iter2.next();
-                    val immutable ArgSpec envSpec = methodSig.environment.get(envSym);
-                    val immutable Type endTypeEnv = resultContext.get(envSym);
-                    if (!(endTypeEnv.isSubTypeOf(envSpec.outputType))) {
-                      report_ERROR(declNode.token, "environment variable '" + envSym.name +
-                            "' ended method as '" + endTypeEnv.toString() + 
-                            "' which is not a subtype of declared end type '" +
-                            envSpec.outputType.toString() + "'", "", "typecheckMethodDecl")
-                    };
-                  };
-                  
-                  if ( AEMINIUM_MODE() ) {
-                      dumpGraph(declNode, "RAW");
-                  };
-                  /* checks out - concrete */
-                  true
+				  match (methodResult) {
+				  	case TypecheckResult {
+					  /* check that return structure is consistent with return type */                     
+					  if (!(methodResult.expType.isSubTypeOf(methodSig.returnType))) {
+						report_ERROR(declNode.token, "method body returns structure '" + 
+							  methodResult.expType.structure.toString() + 
+							  "' which is not a substructure of declared return structure '" +
+							  methodSig.returnType.structure.toString() + "'", "", "typecheckMethodDecl")
+					  };
+					  
+					  /* check that the context contains the required ending permissions */
+					  val unique LinearContext resultContext = methodResult.ctxResult;
+					  
+					  //receiver
+					  val immutable Type endTypeThis = resultContext.get(thisSymbol);
+					  if (!(endTypeThis.isSubTypeOf(methodSig.receiverSpec.outputType))) {
+						report_ERROR(declNode.token, "Receiver ended method as '" + 
+							  endTypeThis.toString() + 
+							  "' which is not a subtype of declared end type '" +
+							  methodSig.receiverSpec.outputType.toString() + "'",
+							  "", "typecheckMethodDecl")
+					  };
+					  //args
+					  methodSig.arguments.do(fn (symSpecPair) => {
+						val immutable VariableSymbol argSym = symSpecPair.fst;
+						val immutable ArgSpec argSpec = symSpecPair.snd;
+						val immutable Type endTypeArg = resultContext.get(argSym);
+						if (!(endTypeArg.isSubTypeOf(argSpec.outputType))) {
+						  report_ERROR(declNode.token, "arg '" + argSym.name +
+								"' ended method as '" + endTypeArg.toString() + 
+								"' which is not a subtype of declared end type '" +
+								argSpec.outputType.toString() + "'",  "","typecheckMethodDecl")
+						};
+					  });
+					  
+					  //environment
+					  val iter2 = methodSig.environment.keySet().iterator();
+					  while { iter2.hasNext() } {
+						val immutable VariableSymbol envSym = iter2.next();
+						val immutable ArgSpec envSpec = methodSig.environment.get(envSym);
+						val immutable Type endTypeEnv = resultContext.get(envSym);
+						if (!(endTypeEnv.isSubTypeOf(envSpec.outputType))) {
+						  report_ERROR(declNode.token, "environment variable '" + envSym.name +
+								"' ended method as '" + endTypeEnv.toString() + 
+								"' which is not a subtype of declared end type '" +
+								envSpec.outputType.toString() + "'", "", "typecheckMethodDecl")
+						};
+					  };
+					  
+					  if ( AEMINIUM_MODE() ) {
+						  dumpGraph(declNode, "RAW");
+					  };
+					  /* checks out - concrete */
+					  true
+					}
+					default { unit }
+				  }
                 }
                 case ParsedAbstractMethodDecl { false }
                 default {

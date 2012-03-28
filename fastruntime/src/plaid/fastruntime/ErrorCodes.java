@@ -20,6 +20,24 @@ public class ErrorCodes {
 		 */
 		ERROR_MESSAGES.put("P_RETURN_FAIL",
 				   "(Implementation Error) Invalid Permission Return: ");
+		
+		/*
+		 *  STRUCTURE ERROR MESSAGES
+		 */
+		ERROR_MESSAGES.put("S_UNPACK_METHOD",
+						"(Implementation Error) cannot unpack method: ");	
+		ERROR_MESSAGES.put("S_UNPACK_OTHER",
+				"(Implementation Error) cannot unpack non-field member: ");	
+		ERROR_MESSAGES.put("S_UNPACK_MISSING",
+				"(Implementation Error) cannot unpack missing member: ");	
+		ERROR_MESSAGES.put("S_ASSIGN_VAL",
+				"Cannot assign to 'val' field: ");	
+		ERROR_MESSAGES.put("S_ASSIGN_METHOD",
+				"(Implementation Error) Cannot assign to method: ");	
+		ERROR_MESSAGES.put("S_ASSIGN_OTHER",
+				"(Implementation Error) Cannot assign to non-field member: ");	
+		ERROR_MESSAGES.put("S_ASSIGN_MISSING",
+				"(Implementation Error) Cannot assign to missing member: ");	
 	
 	}
 	
