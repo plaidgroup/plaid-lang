@@ -151,7 +151,7 @@ public final class Float64 extends AbstractPlaidState
 		final public double doubleValue;
 		
 		@Override
-		public Object getJavaObject() {
+		public final Object getJavaObject() {
 			if (this.javaObject == null) {
 				this.javaObject =  Double.valueOf(doubleValue);
 			}
@@ -159,7 +159,7 @@ public final class Float64 extends AbstractPlaidState
 		}
 		
 		@Override
-		public boolean canBePrimitive(JavaPrimitive p) {
+		public final boolean canBePrimitive(JavaPrimitive p) {
 			switch (p) {
 			case DOUBLE: return true;
 			default: return false;
@@ -167,7 +167,7 @@ public final class Float64 extends AbstractPlaidState
 		}
 		
 		@Override
-		public Object asPrimitive(JavaPrimitive p) {
+		public final Object asPrimitive(JavaPrimitive p) {
 			switch (p) {
 			case DOUBLE: return this.getJavaObject();
 			default: throw new PlaidIllegalOperationException("Floats cannot be used as " + p.name + " primitives.");
@@ -175,22 +175,22 @@ public final class Float64 extends AbstractPlaidState
 		}
 
 		@Override
-		public PlaidState getDispatch() {
+		public final PlaidState getDispatch() {
 			return Float64.theState$plaid;
 		}
 		
 		@Override
-		public void changeState(PlaidState s) {
+		public final void changeState(PlaidState s) {
 			throw new PlaidIllegalOperationException("Cannot change the state of a Java Object.");
 		}
 
 		@Override
-		public PlaidObject[] getStorage() {
+		public final PlaidObject[] getStorage() {
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
 		}
 
 		@Override
-		public Object[] getMemberDefs() {
+		public final Object[] getMemberDefs() {
 			throw new PlaidIllegalOperationException("No member defs for a Java Object.");
 		}
 
