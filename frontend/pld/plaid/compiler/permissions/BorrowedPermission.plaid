@@ -55,8 +55,8 @@ state BorrowedPermission case of SystemPermission {
 	}
 	
 	method immutable String toString() {
-		"borrow(local " + this.thePerm.toString() + ", " 
-		+ this.originalPerm.toString() + ", " + this.splitCount + ")"
+		"borrow(" + this.originalPerm.toString() + ", " + this.thePerm.toString() + ", " 
+		 + this.splitCount + ")"
 	}
 	
 	/**
@@ -65,17 +65,17 @@ state BorrowedPermission case of SystemPermission {
 	 *  If they do, then we increment the split counter in the returned
 	 *  borrowed permission
 	 */
-	method immutable Option<immutable Permission> splitPerm(immutable Permission p2) {
+	method immutable ?Permission splitPerm(immutable Permission p2) {
 		match (p2) {
 			case LocalPermission {
 				ifElse ( p2.thePerm == this.thePerm ) 
-					{ makeSome(makeBorrowedPerm(this.thePerm, 
-												this.originalPerm, 
-												this.splitCount + 1)) }
-					{ new None }
+					{ makeBorrowedPerm(this.thePerm, 
+									   this.originalPerm, 
+									   this.splitCount + 1) }
+					{ unit }
 			}
-			case NonePermission { makeSome(this) }
-			default { new None }
+			case NonePermission { this }
+			default { unit }
 		}														
 	}
 	
@@ -84,22 +84,27 @@ state BorrowedPermission case of SystemPermission {
 	 * of this borrow, then we decrement the split counter.  If the split
 	 * counter reaches 0, then we return the original permission.
 	 */
-	method immutable Permission returnPerm(immutable SourcePermission p2) {
+	method immutable ?Permission returnPerm(immutable SourcePermission p2) {
 		match (p2) {
 			case LocalPermission {
-			  ifElse ( this.thePerm == p2.thePerm ) 
-          {
-            ifElse ( this.splitCount == 1 )
-              { this.originalPerm }
-              { makeBorrowedPerm(this.thePerm,
-                                 this.originalPerm,
-                                 this.splitCount - 1)
-              }
-          }
-          { this.incompatibleReturnError(p2) }
-      }
-      case NonePermission { this }
-      default { this.incompatibleReturnError(p2) }
+				ifElse ( this.thePerm == p2.thePerm ) {
+					ifElse ( this.splitCount == 1 ) { 
+						this.originalPerm
+					} /*else*/ { 
+						makeBorrowedPerm(this.thePerm,
+										 this.originalPerm,
+										 this.splitCount - 1)
+					}
+				} /*else*/ { 
+						this.incompatibleReturnError(p2);
+						unit;	
+				}
+			}
+			case NonePermission { this }
+			default { 
+				this.incompatibleReturnError(p2);
+				unit
+			}
 		}
 	}
 }

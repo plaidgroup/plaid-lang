@@ -20,6 +20,7 @@
 package plaid.compiler;
 
 import plaid.compiler.permissions.*;
+import plaid.ast.util.EMPTY_TOKEN;
 
 /**
  *	Top level state representing all Permissions.
@@ -104,7 +105,7 @@ import plaid.compiler.permissions.*;
    *   Errors:
    *     None
    */
-	method unique Option<immutable Permission> splitPerm(immutable Permission p2);
+	method immutable ?Permission splitPerm(immutable Permission p2);
 	
 	/**
 	 * determines the result of returning a permission to the
@@ -116,9 +117,9 @@ import plaid.compiler.permissions.*;
 	 *   Preconditions:
 	 *     exists p' such that p'.split(p2) == Some(this)
 	 *   Errors:
-	 *     If precondition not met, ABORT will be called
+	 *     If precondition not met, error will be called
 	 */
-	method immutable Permission returnPerm(immutable Permission p2);
+	method immutable ?Permission returnPerm(immutable Permission p2);
 
 	/**
 	 * returns true if this permission is a subpermission of the permission p2
@@ -133,8 +134,8 @@ import plaid.compiler.permissions.*;
 	 */
 	method immutable Boolean isSubPermOf(immutable Permission p2) {
 		match(this.splitPerm(p2)) {
-			case Some { true }
-			case None { false }
+			case Permission { true } 
+			default { false }
 		}
 	}
 
@@ -154,23 +155,23 @@ import plaid.compiler.permissions.*;
    *   Errors:
    *     None
    */
-  method immutable Option<immutable Permission> leastUpperBound(immutable Permission p2)
+  method immutable ?Permission leastUpperBound(immutable Permission p2)
 	{
     ifElse ((this == DYNAMICP ) XOR (p2 == DYNAMICP)) { //if both dynamic, then they are subperms
-      NONE
+      unit
     } /*else*/ {
-      match(this.isSubPermOf(p2)) {
-        case True { makeSome(p2) }
+      match( this.isSubPermOf(p2)) {
+        case True { p2 }
         case False {
           match (p2.isSubPermOf(this)) {
-            case True { makeSome(this) }
+            case True { this }
             case False { 
               match (this) {
                 case BorrowedPermission { p2.lubBorrowedHelper(this) }
                 default {
                   match (p2) {
                     case BorrowedPermission { this.lubBorrowedHelper(p2) }
-                    default { makeSome(NONEP) }
+                    default { NONEP }
                   }
                 }
               }
@@ -184,8 +185,7 @@ import plaid.compiler.permissions.*;
   /**
    * Helper function for least upper bound
    */
-  method immutable Option<immutable Permission> 
-    lubBorrowedHelper(immutable BorrowedPermission borrow) 
+  method immutable ?Permission lubBorrowedHelper(immutable BorrowedPermission borrow) 
   {
     val immutable Permission internalPerm = borrow.thePerm;
     val immutable Permission localPerm = match (internalPerm) {
@@ -197,22 +197,22 @@ import plaid.compiler.permissions.*;
       }
     };
     match (this) {
-      case UniquePermission { makeSome(localPerm) }
+      case UniquePermission {localPerm }
       case BorrowedPermission {
         match (this.thePerm == internalPerm) {
-          case True { makeSome(localPerm) }
-          case False { makeSome(NONEP) }
+          case True { localPerm }
+          case False { NONEP }
         }
       }
       case SymmetricPermission{
         ifElse ( this == internalPerm )
-          { makeSome(localPerm) }
-          { makeSome(NONEP) }
+          { localPerm }
+          { NONEP }
       }
       case LocalPermission {
         ifElse ( this == localPerm )
-          { makeSome(localPerm) }
-          { makeSome(NONEP) }
+          { localPerm }
+          { NONEP }
       }
       default {
         ABORT("(implementation error) other cases of lub should have been convered: " + this.toString() + ".lub(" + borrow.toString() + ")") 
@@ -235,23 +235,23 @@ import plaid.compiler.permissions.*;
    *   Errors:
    *     None
    */
-  method immutable Option<immutable Permission> greatestLowerBound(immutable Permission p2) {
+  method immutable ?Permission greatestLowerBound(immutable Permission p2) {
 
     ifElse ((this == DYNAMICP ) XOR (p2 == DYNAMICP)) { //if both dynamic, then they are subperms
-      NONE
+      unit
     } /*else*/ {
       match(this.isSubPermOf(p2)) {
-        case True { makeSome(this) }
+        case True { this }
         case False {
           match (p2.isSubPermOf(this)) {
-            case True { makeSome(p2) }
+            case True { p2 }
             case False { 
               match (this) {
-                case BorrowedPermission { NONE }
+                case BorrowedPermission { unit }
                 default {
                   match (p2) {
-                    case BorrowedPermission { NONE }
-                    default { makeSome(UNIQUE) }
+                    case BorrowedPermission { unit }
+                    default { UNIQUE }
                   }
                 }
               }
@@ -266,7 +266,7 @@ import plaid.compiler.permissions.*;
    * Calls abort when two permissions to the same object cannot coexist
    */
   method void incompatibleReturnError(immutable Permission p2) {
-    ABORT("(Implementation Error) '" + p2.toString() + "' could not be returned to '"
-          + this.toString() + "' - permission accounting problem.")
+    report_ERROR(EMPTY_TOKEN, "P_RETURN_FAIL", p2.toString() + " x " 
+          + this.toString() + " => ???", "typecheckPass")
   }
 }
