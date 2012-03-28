@@ -9,10 +9,10 @@ public final class Util {
 	public static final ForkJoinPool POOL = new ForkJoinPool();
 	
 	public static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
-	
+
 	public static final boolean parallelize() {
 		ForkJoinWorkerThread wthread = (ForkJoinWorkerThread)Thread.currentThread();
-		return     wthread.getLocalQueueSize() < 1 
+		return  wthread.workQueue.queueSize() < 1 
 				&& POOL.getActiveThreadCount() < CPU_COUNT;
 	}
 	

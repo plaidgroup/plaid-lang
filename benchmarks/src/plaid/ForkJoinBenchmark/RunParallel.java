@@ -20,11 +20,14 @@ public class RunParallel {
 		System.out.println("per thread start  : " + perThreadStartLevel);
 
 		long start = System.nanoTime();
+		
+
+		final PlaidObject fjb    = plaid.ForkJoinBenchmark.makeForkJoinBenchmark.invoke$plaid();
+		final PlaidObject value  = plaid.fastruntime.Util.integer(perThreadStartLevel);
+		
 		for (int i = 0 ; i < threads.length ; i++ ) {
 			threads[i] = new Thread() {
 				public void run() { 
-					PlaidObject fjb    = plaid.ForkJoinBenchmark.makeForkJoinBenchmark.invoke$plaid();
-					PlaidObject value  = plaid.fastruntime.Util.integer(perThreadStartLevel);
 					PlaidObject result = ((plaid.generated.IforkJoin$1$plaid)fjb.getDispatch()).forkJoin(fjb, value);
 				};
 			};
