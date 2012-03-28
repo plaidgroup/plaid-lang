@@ -38,13 +38,13 @@ public class AEminiumMatchSyncPlaidObject implements PlaidObject {
 	 * @return If this is the last remaing match block it will return the list of tasks the corresponding match leave task should wait for. Null in the other cases.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public synchronized Collection registerMatch(Collection deps) {
+	public synchronized boolean registerMatch(Collection deps) {
 		this.matchCount--;
 		this.deps.addAll(deps);
 		if ( this.matchCount == 0 ) {
-			return deps;
+			return true;
 		} else {
-			return null;
+			return false;
 		}
 	}
 	
