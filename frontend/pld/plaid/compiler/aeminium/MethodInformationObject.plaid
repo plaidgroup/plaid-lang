@@ -8,6 +8,7 @@ import plaid.ast.parsed.*;
 import plaid.collections.makeLinkedList;
 
 state MethodInformationObject {
+    val immutable ASTNode node;
     // all top-level tasks of the method body 
     val unique List tasks;
     val unique Set /*<MatchInformationObjects>*/ matchInfos;
@@ -133,5 +134,52 @@ state MethodInformationObject {
         };
         
         this.taskIndexMap.get(task); 
+    }
+    
+    method immutable Boolean forkTask(shared Task task) {
+        ifElse ( task.rdeps.size() == 0 ) {
+            // check if this is the body task of the method
+            ifElse (this.tasks.contains(task) ) {
+                var result = true;
+                val infosIt = task.infos.iterator();
+                val nodeSet = java.util.HashSet.new();
+                nodeSet.add(this.node.body); 
+                while { infosIt.hasNext() }{
+                    val curInfo = infosIt.next();
+                    match ( curInfo ) {
+                        case ASTInformation { 
+                            if ( nodeSet.contains(curInfo.node) ) {
+                                result = false
+                            }
+                        }
+                        default { /* nop */ }
+                    }
+                };
+                
+                result
+            }{
+                // check matches
+                var result = false;
+                val matchIt = this.matchInfos.iterator();
+                while { matchIt.hasNext() } {
+                    val curMatchInfo = matchIt.next();
+                    val caseIt = curMatchInfo.caseInfos.iterator();
+                    while { caseIt.hasNext() }{
+                        val curCaseInfo = caseIt.next();
+                        if ( curCaseInfo.allTasks.contains(task) ) {
+                            val intersection = java.util.HashSet.new(curCaseInfo.infosMatchLeaveDependsOn);
+                            intersection.retainAll(task.infos);
+                            if ( intersection.size() == 0 ) {
+                                result = true;
+                            };
+                        };
+                    }
+                };
+                
+                result
+            }
+        }{
+            false
+        }
     }
 }
