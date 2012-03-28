@@ -1,6 +1,6 @@
 package plaid.util;
 
-public class TimeIForkJoinMain {
+public class TimeForkJoinMain {
 	public static void main(String[] args) {
 		final long startTime = System.nanoTime();
 		plaid.examples.forkJoin.main.main(args);
