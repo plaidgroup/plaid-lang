@@ -11,7 +11,7 @@ public final class Util {
 	
 	public static int parallelize = CPU_COUNT;
 
-	public static void triggerParallelism() {
+	public static final void triggerParallelism() {
 		parallelize = (CPU_COUNT - POOL.getActiveThreadCount()) >> 1; 
 	}
 }
