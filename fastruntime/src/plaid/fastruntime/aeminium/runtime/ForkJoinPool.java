@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.Condition;
 
+import plaid.fastruntime.aeminium.Util;
+
 /**
  * An {@link ExecutorService} for running {@link ForkJoinTask}s.
  * A {@code ForkJoinPool} provides the entry point for submissions
@@ -1588,8 +1590,10 @@ public class ForkJoinPool extends AbstractExecutorService {
                     Thread wt = Thread.currentThread();
                     U.putObject(wt, PARKBLOCKER, this);
                     w.parker = wt;            // emulate LockSupport.park
-                    if (w.eventCount < 0)     // recheck
+                    if (w.eventCount < 0) {    // recheck
+                    	Util.triggerParallelism();
                         U.park(false, 0L);
+                    }
                     w.parker = null;
                     U.putObject(wt, PARKBLOCKER, null);
                 }
@@ -2324,7 +2328,7 @@ public class ForkJoinPool extends AbstractExecutorService {
      *
      * @return the targeted parallelism level of this pool
      */
-    public int getParallelism() {
+    public final int getParallelism() {
         return parallelism;
     }
 
@@ -2358,7 +2362,7 @@ public class ForkJoinPool extends AbstractExecutorService {
      *
      * @return the number of worker threads
      */
-    public int getRunningThreadCount() {
+    public final  int getRunningThreadCount() {
         int rc = 0;
         WorkQueue[] ws; WorkQueue w;
         if ((ws = workQueues) != null) {
@@ -2377,7 +2381,7 @@ public class ForkJoinPool extends AbstractExecutorService {
      *
      * @return the number of active threads
      */
-    public int getActiveThreadCount() {
+    public final int getActiveThreadCount() {
         int r = parallelism + (int)(ctl >> AC_SHIFT);
         return (r <= 0) ? 0 : r; // suppress momentarily negative values
     }
