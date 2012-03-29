@@ -672,7 +672,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      * @param t2 the second task
      * @throws NullPointerException if any task is null
      */
-    public static void invokeAll(ForkJoinTask<?> t1, ForkJoinTask<?> t2) {
+    public static final void invokeAll(ForkJoinTask<?> t1, ForkJoinTask<?> t2) {
         int s1, s2;
         t2.fork();
         if ((s1 = t1.doInvoke() & DONE_MASK) != NORMAL)
@@ -702,7 +702,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      * @param tasks the tasks
      * @throws NullPointerException if any task is null
      */
-    public static void invokeAll(ForkJoinTask<?>... tasks) {
+    public static final void invokeAll(ForkJoinTask<?>... tasks) {
         Throwable ex = null;
         int last = tasks.length - 1;
         for (int i = last; i >= 0; --i) {
@@ -752,7 +752,7 @@ public abstract class ForkJoinTask<V> implements Future<V>, Serializable {
      * @return the tasks argument, to simplify usage
      * @throws NullPointerException if tasks or any element are null
      */
-    public static <T extends ForkJoinTask<?>> Collection<T> invokeAll(Collection<T> tasks) {
+    public static final <T extends ForkJoinTask<?>> Collection<T> invokeAll(Collection<T> tasks) {
         if (!(tasks instanceof RandomAccess) || !(tasks instanceof List<?>)) {
             invokeAll(tasks.toArray(new ForkJoinTask<?>[tasks.size()]));
             return tasks;

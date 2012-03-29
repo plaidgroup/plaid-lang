@@ -1,7 +1,6 @@
 package plaid.fastruntime.aeminium;
 
 import plaid.fastruntime.aeminium.runtime.ForkJoinPool;
-import plaid.fastruntime.aeminium.runtime.ForkJoinWorkerThread;
 
 public final class Util {
 	private Util() {}
@@ -9,11 +8,10 @@ public final class Util {
 	public static final ForkJoinPool POOL = new ForkJoinPool();
 	
 	public static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
-
-	public static final boolean parallelize() {
-		ForkJoinWorkerThread wthread = (ForkJoinWorkerThread)Thread.currentThread();
-		return  wthread.workQueue.queueSize() < 1 
-				&& POOL.getActiveThreadCount() < CPU_COUNT;
-	}
 	
+	public static int parallelize = CPU_COUNT;
+
+	public static void triggerParallelism() {
+		parallelize = (CPU_COUNT - POOL.getActiveThreadCount()) >> 1; 
+	}
 }
