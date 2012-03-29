@@ -1,0 +1,62 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.*;
+import plaid.ast.translator.ASTTranslator;
+import plaid.ast.util.makeTokenFromJavaToken;
+import plaid.parser.PlaidCoreParser;
+import plaid.parser.Parser;
+import plaid.compiler.Pass;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_HIGH;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.ERROR;
+import plaid.compiler.report_ERROR;
+import plaid.compiler.Reporter;
+
+import java.io.File;
+import java.io.FileInputStream;
+
+state ParsePass case of Pass {
+    method immutable Boolean run(unique SourceJob job) {
+        // parse source file 
+        val inStream = job.source.stream;
+        val parser   = Parser.new(inStream, 4);
+        
+        DEBUG(DEBUG_PRIO_HIGH, "<ParsePass> started");
+        DEBUG(DEBUG_PRIO_HIGH, "<ParsePass> parse file '" + job.source.path + "'");
+
+        match (parser.hasCompilationUnit()) {
+            case True {
+                DEBUG(DEBUG_PRIO_HIGH, "<ParsePass> parse Java AST start");
+                val javaAST  = parser.getCompilationUnit();
+                                
+                // translate from Java -> Plaid AST
+                DEBUG(DEBUG_PRIO_HIGH, "<ParsePass> translate Java AST => Plaid AST start");
+                val translator = new ASTTranslator ; //with { override method void LOG(immutable String msg) { DEBUG(DEBUG_PRIO_LOW, "<ParsePass> " + msg)} };
+                val fileName = job.source.path;
+                job.ast = makeSome(translator.translateAST(javaAST,fileName));
+
+                match (job.ast) {
+                     case Some {
+                         job.resolver.addCompilationUnit(job.ast.value, job.source.path);
+                         DEBUG(DEBUG_PRIO_HIGH, "<ParsePass> finished");
+                         true
+                     }
+                     case None {
+                         report_ERROR(makeTokenFromJavaToken(job.source.path), 
+                                      "Failed to translate Java AST to Plaid AST.", "",
+                                      "ParsePass");
+                         DEBUG(DEBUG_PRIO_HIGH, "<ParsePass> finished");               
+                         false
+                     }
+                };
+            }
+            default { 
+                val token = makeTokenFromJavaToken(parser.getToken(), job.source.path);
+                report_ERROR(token, "Parse error: " + parser.getParseErrorMessage(), "", "ParsePass");
+                false 
+            }
+        }
+    }
+}
