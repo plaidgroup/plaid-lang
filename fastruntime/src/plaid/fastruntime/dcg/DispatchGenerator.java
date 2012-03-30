@@ -144,7 +144,7 @@ public final class DispatchGenerator implements Opcodes {
 			mv.visitCode();
 			mv.visitVarInsn(ALOAD, 0);
 			mv.visitVarInsn(ALOAD, 1);
-			mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/reference/AbstractPlaidState", "<init>", "(Lplaid/fastruntime/ObjectValue;)V");
+			mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/reference/AbstractPlaidDispatch", "<init>", "(Lplaid/fastruntime/ObjectValue;)V");
 			mv.visitInsn(RETURN);
 			mv.visitMaxs(2, 2);
 			mv.visitEnd();

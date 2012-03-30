@@ -2,10 +2,10 @@ package plaid.tests.runtime;
 
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidObject;
-import plaid.fastruntime.reference.AbstractPlaidState;
+import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.generated.Iadd$1$plaid;
 
-public class MemberDefinitionDispatchExample extends AbstractPlaidState implements Iadd$1$plaid{
+public class MemberDefinitionDispatchExample extends AbstractPlaidDispatch implements Iadd$1$plaid{
 
 	public MemberDefinitionDispatchExample(ObjectValue metadata) {
 		super(metadata);
