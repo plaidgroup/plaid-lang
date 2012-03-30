@@ -1,5 +1,7 @@
 package plaid.fastruntime;
 
+import java.util.Map;
+
 import fj.data.List;
 
 public interface ObjectValue {
@@ -8,21 +10,17 @@ public interface ObjectValue {
 	public List<MethodInfo> getMethods();
 	
 	public List<FieldInfo> getFields();
-	
-	public List<MemberDefInfo> getMemberDefs();
 
 	/*
 	 * Returns a new instance every time it is called.
 	 */
-	public PlaidObject[] getDefaultStorage();
+	public PlaidObject[] getDefaultStorage(Map<String,PlaidLambda> fieldInitializers);
 	
 	public String getTopTag();
 	
 	public boolean matches(String tag);
 
 	public int getFieldIndex(String fieldName);
-	
-	public int getMemberDefinitionIndex(String memberDefId);
 	
 	public ObjectValue specialize(ObjectValue newMembers);
 	

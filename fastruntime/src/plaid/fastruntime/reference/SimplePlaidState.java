@@ -1,18 +1,29 @@
 package plaid.fastruntime.reference;
 
+import java.util.Map;
+
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidState;
+import plaid.fastruntime.PlaidLambda;
 import plaid.fastruntime.Util;
-import plaid.fastruntime.errors.PlaidIllegalOperationException;
 
-public class SimplePlaidState implements PlaidState {
+public final class SimplePlaidState extends AbstractPlaidState {
 	
-	private final PlaidDispatch dispatch;
+	private final Map<String, PlaidLambda> memberDefinitions;
 	
-	public SimplePlaidState(PlaidDispatch dispatch) {
-		this.dispatch = dispatch;
+	private SimplePlaidState(PlaidDispatch dispatch, Map<String, PlaidLambda> memberDefinitions) {
+		super(dispatch);
+		this.memberDefinitions = memberDefinitions;
+	}
+	
+	public static final PlaidState makeStaticallyDefinedState(PlaidDispatch dispatch) {
+		return new SimplePlaidState(dispatch,null);
+	}
+	
+	public static final PlaidState makeDynamicallyDefinedState(PlaidDispatch dispatch, Map<String, PlaidLambda> memberDefinitions) {
+		return new SimplePlaidState(dispatch, memberDefinitions);
 	}
 	
 	@Override
@@ -21,84 +32,28 @@ public class SimplePlaidState implements PlaidState {
 			if(other.getObjectValue() instanceof ListValue) {
 				//merge lists
 				ObjectValue newMetadata = ((ListValue)this.getObjectValue()).addListValue((ListValue)other.getObjectValue());
-				return new SimplePlaidState(Util.DISPATCH_GEN.createStateInstance(newMetadata));
+				return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(newMetadata));
 			} else {
 				// other is a single value
 				ObjectValue newMetadata = ((ListValue)this.getObjectValue()).addValue((SingleValue)other.getObjectValue());
-				return new SimplePlaidState(Util.DISPATCH_GEN.createStateInstance(newMetadata));
+				return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(newMetadata));
 			}
 		} else {
 			// this is a single value
 			if(other.getObjectValue() instanceof ListValue) {
 				//add this value to other list
 				ObjectValue newMetadata = ((ListValue)other.getObjectValue()).addValue((SingleValue)this.getObjectValue());
-				return new SimplePlaidState(Util.DISPATCH_GEN.createStateInstance(newMetadata));
+				return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(newMetadata));
 			} else {
 				// other is a single value
 				ObjectValue newMetadata = new ListValue((SingleValue) this.getObjectValue(), (SingleValue) other.getObjectValue());
-				return new SimplePlaidState(Util.DISPATCH_GEN.createStateInstance(newMetadata));
+				return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(newMetadata));
 			}
 		}
 	}
-
-	@Override
-	public PlaidObject instantiate() {
-		//TODO: get memberdefs as an argument?
-		return new SimplePlaidObject(this.getDispatch(), this.getStorage(), null); 
-	}
-
+	
 	@Override
 	public PlaidObject[] getStorage() {
-		return this.getObjectValue().getDefaultStorage();
-	}
-
-	@Override
-	public ObjectValue getObjectValue() {
-		return this.dispatch.getObjectValue();
-	}
-	
-	@Override
-	public String getTopTag() {
-		return getObjectValue().getTopTag();
-	}
-	
-	@Override
-	public PlaidState remove(String member) {
-		ObjectValue newOV = this.getObjectValue().remove(member);
-		return new SimplePlaidState(Util.DISPATCH_GEN.createStateInstance(newOV));
-	}
-
-	@Override
-	public PlaidState rename(String from, String to) {
-		ObjectValue newOV = this.getObjectValue().rename(from, to);
-		return new SimplePlaidState(Util.DISPATCH_GEN.createStateInstance(newOV));
-	}
-
-	@Override
-	public PlaidState specialize(PlaidState other) {
-		ObjectValue newOV = this.getObjectValue().specialize(other.getObjectValue());
-		return new SimplePlaidState(Util.DISPATCH_GEN.createStateInstance(newOV));
-	}
-	
-	@Override
-	public PlaidDispatch getDispatch() {
-		return this.dispatch;
-	}
-	
-	@Override
-	public void changeState(PlaidState s) {
-		throw new PlaidIllegalOperationException("Tried to change state on PlaidState." +
-				"States cannot change .");
-	}
-	
-	@Override
-	public Object[] getMemberDefs() {
-		throw new PlaidIllegalOperationException("Cannot retrieve member defintions from Plaid State. " +
-				"States do not have member defintions.");
-	}
-
-	@Override
-	public String toString() {
-		return "ObjectValue : " + this.getObjectValue().getCanonicalRep();
+		return this.getObjectValue().getDefaultStorage(memberDefinitions);
 	}
 }

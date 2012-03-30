@@ -9,8 +9,8 @@ import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
+import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
-import plaid.fastruntime.reference.SimplePlaidState;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
@@ -37,7 +37,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 	
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	static {
-		theState$plaid = new SimplePlaidState(new Integer32(new DimensionValue("plaid/lang/Integer", null, null))) {
+		theState$plaid = new AbstractPlaidState(new Integer32(new DimensionValue("plaid/lang/Integer", null, null))) {
 			@Override
 			public PlaidObject instantiate() {
 				throw new PlaidIllegalOperationException("Cannot instantiate Integer32 state");

@@ -1,7 +1,6 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
-import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.data.List;
@@ -22,11 +21,6 @@ public final class EmptySingleValue extends AtomicValue {
 		return NIL_FIELD_INFO;
 	}
 	
-	@Override
-	protected List<MemberDefInfo> constructMemberDefs() {
-		return NIL_MEMBER_DEF_INFO;
-	}
-
 	@Override
 	public ObjectValue remove(String member) {
 		return this;

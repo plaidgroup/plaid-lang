@@ -1,7 +1,6 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
-import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.F;
@@ -106,15 +105,6 @@ public final class ListValue extends AbstractObjectValue {
 		List<FieldInfo> currentList = NIL_FIELD_INFO;
 		for(SingleValue sv : singleValues) {
 			currentList = currentList.append((sv.getFields()));
-		}
-		return currentList;
-	}
-
-	@Override
-	protected List<MemberDefInfo> constructMemberDefs() {
-		List<MemberDefInfo> currentList = NIL_MEMBER_DEF_INFO;
-		for(SingleValue sv : singleValues) {
-			currentList = currentList.append((sv.getMemberDefs()));
 		}
 		return currentList;
 	}
