@@ -82,8 +82,7 @@ public class SimplePlaidState implements PlaidState {
 	
 	@Override
 	public PlaidDispatch getDispatch() {
-		throw new PlaidIllegalOperationException("Tried to access dispatch object of Plaid State." +
-				"Probably to call a method or access a field. States do not have methods or fields.");
+		return this.dispatch;
 	}
 	
 	@Override
