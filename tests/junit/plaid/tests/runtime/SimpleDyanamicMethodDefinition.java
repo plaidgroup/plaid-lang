@@ -6,12 +6,13 @@ import org.junit.Test;
 
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
-import plaid.fastruntime.PlaidDispatch;
+import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.reference.ListValue;
 import plaid.fastruntime.reference.MemberDefValue;
 import plaid.fastruntime.reference.MethodValue;
 import plaid.generated.Iadd$1$plaid;
+
 
 public class SimpleDyanamicMethodDefinition {
 
@@ -20,7 +21,7 @@ public class SimpleDyanamicMethodDefinition {
 		MethodValue mv = MethodValue.createMethodWithDynamicDefinition("add", 1, "A");
 		MemberDefValue mdv = new MemberDefValue("A");
 		ListValue lv = new ListValue(mv,mdv);
-		PlaidDispatch testState = Util.DISPATCH_GEN.createStateInstance(lv);
+		PlaidState testState = Util.makeState(lv);
 		PlaidObject testObject = testState.instantiate();
 		
 		Assert.assertEquals(((PlaidJavaObject)Util.string("hoozah!")).getJavaObject(), 
