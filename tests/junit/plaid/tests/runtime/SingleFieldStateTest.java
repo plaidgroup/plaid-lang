@@ -30,7 +30,7 @@ public class SingleFieldStateTest {
 	public void test() {
 		plaid.fastruntime.reference.ObjectValueFactory ovf = new plaid.fastruntime.reference.ObjectValueFactory();
         ovf.tag("8bc23ee5-bcb7-4b8f-b7de-afcda749e09d");
-        ovf.field(false, "x","plaid.fastruntime.test.SingleFieldStateTest");
+        ovf.field(false, "x","plaid.tests.runtime.SingleFieldStateTest");
         plaid.fastruntime.ObjectValue ov = ovf.value();
         PlaidState ps = Util.makeState(ov);
         PlaidObject[] storage = ps.getStorage();
@@ -43,7 +43,7 @@ public class SingleFieldStateTest {
 	public void test2() {
 		plaid.fastruntime.reference.ObjectValueFactory ovf = new plaid.fastruntime.reference.ObjectValueFactory();
         ovf.tag("8bc23ee5-bcb7-4b8f-b7de-afcda749e09d");
-        ovf.field(true, "x","plaid.fastruntime.test.SingleFieldStateTest");
+        ovf.field(true, "x","plaid.tests.runtime.SingleFieldStateTest");
         plaid.fastruntime.ObjectValue ov = ovf.value();
         PlaidState ps = Util.makeState(ov);
         PlaidObject[] storage = ps.getStorage();
