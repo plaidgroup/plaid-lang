@@ -123,7 +123,7 @@ public class JavaDispatchGenerator implements Opcodes {
 				     ACC_PUBLIC,
 				     name,
 				     null,
-				     "plaid/fastruntime/reference/AbstractPlaidState",
+				     "plaid/fastruntime/reference/AbstractPlaidDispatch",
 				     ifaces.toArray(new String[0]));
 			
 			// add methods 
