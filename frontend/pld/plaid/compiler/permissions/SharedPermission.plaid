@@ -1,0 +1,77 @@
+package plaid.compiler.permissions;
+
+import plaid.compiler.Permission;
+
+/**
+ *	Shared Permission
+ */
+state SharedPermission case of SymmetricPermission{
+	var unique Option<ID> groupID = new None;
+	
+	/**
+	 * shared references can write to fields
+	 */
+	method immutable Boolean isWritable() { true }
+
+	/**
+	 * shared references do not guarantee their state
+	 */
+	method immutable Boolean guaranteesState() { false }
+
+	method immutable Boolean ==(immutable Permission p2) {
+		match(p2) {
+			case SharedPermission { true }
+			default { false }
+		};
+	}
+	
+	method immutable String toString() {
+	    match (groupID) {
+	        case Some {
+	            "shared<" + groupID.value.name.toString() +">"
+	        }
+		    default {
+		        "shared"
+		    }
+		};
+	}
+
+	/**
+	 * A shared permission, or a local shared, or none can be split from SHARED
+	 */
+	method immutable ?Permission splitPerm(immutable Permission p2) {
+		match(p2) {
+			case SharedPermission { this }	// shared => shared/shared
+			case LocalPermission {
+				ifElse(p2.thePerm == SHARED)
+					{ SHARED }
+					{ unit }
+			}
+			case NonePermission { this }		// shared => none/shared
+			default { unit }
+		};
+	}
+	
+	/**
+	 * Only shared, locals and none permissions should ever be returned
+	 * to a shared, otherwise, there is an error
+	 */
+	method immutable ?Permission returnPerm(immutable Permission p2) {
+		match (p2) {
+			case SharedPermission { this }
+			case LocalPermission {
+			  ifElse(p2.thePerm == SHARED)
+			    { SHARED }
+			    { 
+			    	this.incompatibleReturnError(p2) ;
+			    	unit
+			    }
+			}
+			case NonePermission { this }
+			default { 
+				this.incompatibleReturnError(p2);
+				unit
+			}
+		}	
+	}
+}
