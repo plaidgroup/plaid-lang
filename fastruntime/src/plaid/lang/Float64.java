@@ -9,8 +9,8 @@ import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
+import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
-import plaid.fastruntime.reference.SimplePlaidState;
 import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
@@ -31,7 +31,7 @@ public final class Float64 extends AbstractPlaidDispatch
 
 	public static final PlaidState theState$plaid;
 	static {
-		theState$plaid = new SimplePlaidState(new Float64(new DimensionValue("plaid/lang/Float64", null, null))) {
+		theState$plaid = new AbstractPlaidState(new Float64(new DimensionValue("plaid/lang/Float64", null, null))) {
 			@Override
 			public PlaidObject instantiate() {
 				throw new PlaidIllegalOperationException("Cannot instantiate Float64 state");

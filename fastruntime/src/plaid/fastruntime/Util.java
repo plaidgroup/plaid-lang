@@ -34,7 +34,7 @@ public final class Util {
 	
 	public static final PlaidState makeState(ObjectValue ov) {
 		PlaidDispatch dispatch = DISPATCH_GEN.createStateInstance(ov);
-		return new SimplePlaidState(dispatch);
+		return SimplePlaidState.makeStaticallyDefinedState(dispatch);
 	}
 	
 	public static PlaidObject unit() {

@@ -23,6 +23,11 @@ public class SimpleDyanamicMethodDefinition {
 		ListValue lv = new ListValue(mv,mdv);
 		PlaidState testState = Util.makeState(lv);
 		PlaidObject testObject = testState.instantiate();
+		if(testObject.getDispatch() instanceof Iadd$1$plaid) {
+			System.out.println("Dispatch implements right interface");
+		}
+		PlaidObject result = ((Iadd$1$plaid)testObject.getDispatch()).add(testObject,null);
+		System.out.println("result: " + result.toString());
 		
 		Assert.assertEquals(((PlaidJavaObject)Util.string("hoozah!")).getJavaObject(), 
 				((PlaidJavaObject)((Iadd$1$plaid)testObject.getDispatch()).add(testObject,null)).getJavaObject());

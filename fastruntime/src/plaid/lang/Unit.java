@@ -5,9 +5,9 @@ import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
+import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
-import plaid.fastruntime.reference.SimplePlaidState;
 import plaid.generated.Ibangeq$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
@@ -20,7 +20,7 @@ public class Unit extends AbstractPlaidDispatch implements
 	static {
 		PlaidDispatch unitDispatch = new Unit(new DimensionValue("plaid/lang/Unit", null, null));
 		UNIT_VALUE = new SimplePlaidJavaObject(unitDispatch, null, null);
-		theState$plaid = new SimplePlaidState(unitDispatch) {
+		theState$plaid = new AbstractPlaidState(unitDispatch) {
 			@Override
 			public PlaidObject instantiate() {
 				return UNIT_VALUE;

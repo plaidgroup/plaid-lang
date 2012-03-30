@@ -1,12 +1,14 @@
 package plaid.fastruntime.reference;
 
 import java.lang.reflect.Field;
+import java.util.Map;
 
 import plaid.fastruntime.FieldInfo;
-import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidFieldInitializer;
+import plaid.fastruntime.PlaidLambda;
+import plaid.fastruntime.PlaidLambda$0;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
@@ -20,7 +22,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	
 	protected static final Ord<String> STRING_ORD = Ord.stringOrd;
 	protected static final Ord<FieldInfo> FIELD_ORD = Ord.comparableOrd();
-	protected static final Ord<MemberDefInfo> MEMBER_DEF_ORD = Ord.comparableOrd();
 	protected static final Ord<SingleValue> SINGLE_VALUE_ORD;
 	static {
 		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
@@ -40,7 +41,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	
 	protected static final List<MethodInfo> NIL_METHOD_INFO = List.nil();
 	protected static final List<FieldInfo> NIL_FIELD_INFO = List.nil();
-	protected static final List<MemberDefInfo> NIL_MEMBER_DEF_INFO = List.nil();
 	protected static final List<SingleValue> NIL_SINGLE_VALUE = List.nil();
 	protected static final Set<String> EMPTY_TAGS = Set.empty(STRING_ORD);
 	
@@ -50,7 +50,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	private String canonicalRep; 
 	private List<MethodInfo> methods;
 	private List<FieldInfo> fields;
-	private List<MemberDefInfo> memberDefs;
 	private Set<String> tags;
 	private Set<String> outerTags;
 	private Set<String> innerTags;
@@ -65,7 +64,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		this.tags = this.constructTags();
 		this.outerTags = this.constructOuterTags();
 		this.innerTags = this.constructInnerTags();
-		this.memberDefs = this.constructMemberDefs();
 	}
 	
 	
@@ -83,12 +81,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	public final List<FieldInfo> getFields() {
 		return this.fields;
 	}
-
-	@Override
-	public final List<MemberDefInfo> getMemberDefs() {
-		return this.memberDefs;
-	}
-	
 	
 	protected final Set<String> getTags() {
 		return this.tags;
@@ -117,8 +109,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	protected abstract List<FieldInfo> constructFields();
 	
 	protected abstract List<MethodInfo> constructMethods();
-	
-	protected abstract List<MemberDefInfo> constructMemberDefs();
 	
 	protected abstract Set<String> constructTags();
 	
@@ -236,7 +226,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	 * Returns a new instance every time it is called.
 	 * @see plaid.fastruntime.ObjectValue#getDefaultStorage()
 	 */
-	public PlaidObject[] getDefaultStorage() {
+	public PlaidObject[] getDefaultStorage(Map<String,PlaidLambda> fieldInitializers){
 		List<FieldInfo> sortedFields = this.getSortedFields();
 		PlaidObject[] storage = new PlaidObject[sortedFields.length()];
 		int i = 0;
@@ -263,8 +253,13 @@ public abstract class AbstractObjectValue implements ObjectValue {
 				}
 				i++;
 			} else { //dynamically defined
-				field.getMemberDefinitionName();
-			}
+				try {
+					PlaidLambda$0 init = (PlaidLambda$0)fieldInitializers.get(field.getName());
+					storage[i] = init.invoke$plaid();
+				} catch (ClassCastException e) {
+					throw new plaid.fastruntime.errors.PlaidInternalException("Field initializer must be a 0 argument Lambda.", e);
+				}
+ 			}
 		} 
 		return storage;
 	}
@@ -290,30 +285,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		throw new PlaidInternalException("Cannot retrieve field index because the field name " +
 				"does not appear in the field list.");
 	}
-	
-	private List<MemberDefInfo> sortedMemberDefs;
-	
-	private List<MemberDefInfo> getSortedMemberDefs() {
-		if (this.sortedMemberDefs == null) {
-			this.sortedMemberDefs = this.memberDefs.sort(MEMBER_DEF_ORD);
-		} 
-		return this.sortedMemberDefs;
-	}
-	
-	@Override
-	final public int getMemberDefinitionIndex(String memDefId) {
-		int i = 0;
-		for(MemberDefInfo memberDef : getSortedMemberDefs()) {
-			if(memberDef.getMemberDefId().equals(memDefId)) {
-				return i;
-			}
-			i++;
-		}
-		throw new PlaidInternalException("Cannot retrieve member definition index because the member " +
-				"definition id does not appear in the member definition list.");
-	}
 
-	
 	
 	public final boolean uniqueTags() {
 		//TODO: Implement unique tags correctly

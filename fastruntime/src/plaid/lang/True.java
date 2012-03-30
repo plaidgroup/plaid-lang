@@ -1,15 +1,15 @@
 package plaid.lang;
 
 import plaid.fastruntime.ObjectValue;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
-import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
+import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
-import plaid.fastruntime.reference.SimplePlaidState;
 import plaid.generated.Iampamp$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
@@ -25,7 +25,7 @@ public final class True extends AbstractPlaidDispatch implements Iampamp$plaid$1
 	static {
 		True trueDispatch = new True(new DimensionValue(TRUE_TAG, null, new DimensionValue(BOOLEAN_TAG, null, null)));
 		TRUE_VALUE = trueDispatch.new TruePlaidJavaObject(trueDispatch);
-		theState$plaid = new SimplePlaidState(trueDispatch) {
+		theState$plaid = new AbstractPlaidState(trueDispatch) {
 			@Override
 			public final PlaidObject instantiate() {
 				return TRUE_VALUE;
