@@ -39,7 +39,7 @@ public class HelloPersonTest {
     static {
         plaid.fastruntime.reference.ObjectValueFactory ovf = new plaid.fastruntime.reference.ObjectValueFactory();
         ovf.tag("81ff3c7e-2f12-4433-904c-ecd2af212512");
-        ovf.mthd("greeting",0,"plaid.fastruntime.test.HelloPersonTest");
+        ovf.mthd("greeting",0,"plaid.tests.runtime.HelloPersonTest");
         plaid.fastruntime.ObjectValue ov = ovf.value();
         theState$plaid = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(ov);
     }
@@ -49,7 +49,7 @@ public class HelloPersonTest {
     	plaid.fastruntime.reference.ObjectValueFactory ovf = new plaid.fastruntime.reference.ObjectValueFactory();
         ovf.tag("plaid/fastexamples/hellocaseof/Jane");
         ovf.parent(theState$plaid.getObjectValue());
-        ovf.mthd("name",0,"plaid.fastruntime.test.HelloPersonTest");
+        ovf.mthd("name",0,"plaid.tests.runtime.HelloPersonTest");
         plaid.fastruntime.ObjectValue ov = ovf.value();
         PlaidDispatch janeDispatch = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(ov);
         PlaidObject jane = new SimplePlaidObject(janeDispatch, new PlaidObject[0]);
