@@ -184,11 +184,6 @@ public final class Integer32 extends AbstractPlaidDispatch
 		public PlaidObject[] getStorage() {
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
 		}
-
-		@Override
-		public Object[] getMemberDefs() {
-			throw new PlaidIllegalOperationException("No member defs for a Java Object.");
-		}
 	}
 
 }

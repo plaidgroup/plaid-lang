@@ -45,7 +45,7 @@ public abstract class AbstractPlaidState implements PlaidState {
 	@Override
 	public PlaidObject instantiate() {
 		//TODO: get memberdefs as an argument?
-		return new SimplePlaidObject(this.getDispatch(), this.getStorage(), null); 
+		return new SimplePlaidObject(this.getDispatch(), this.getStorage()); 
 	}
 
 	@Override
@@ -90,12 +90,6 @@ public abstract class AbstractPlaidState implements PlaidState {
 	public void changeState(PlaidState s) {
 		throw new PlaidIllegalOperationException("Tried to change state on PlaidState." +
 				"States cannot change .");
-	}
-	
-	@Override
-	public Object[] getMemberDefs() {
-		throw new PlaidIllegalOperationException("Cannot retrieve member defintions from Plaid State. " +
-				"States do not have member defintions.");
 	}
 
 	@Override

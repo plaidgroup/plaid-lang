@@ -191,10 +191,5 @@ public final class Float64 extends AbstractPlaidDispatch
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
 		}
 
-		@Override
-		public final Object[] getMemberDefs() {
-			throw new PlaidIllegalOperationException("No member defs for a Java Object.");
-		}
-
 	}
 }

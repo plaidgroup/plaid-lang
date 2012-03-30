@@ -80,7 +80,7 @@ public final class DispatchGenerator implements Opcodes {
 				mv.visitVarInsn(ALOAD, 1);
 				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getDispatch", "()Lplaid/fastruntime/PlaidState;");
 				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidState", "getObjectValue", "()Lplaid/fastruntime/ObjectValue;");
-				mv.visitLdcInsn(m.getMemberDefinitionName());
+				mv.visitLdcInsn("TODOFIXTHIS"); //TODO:fix this
 				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/ObjectValue", "getMemberDefinitionIndex", "(Ljava/lang/String;)I");
 				mv.visitVarInsn(ISTORE, 3);
 				mv.visitVarInsn(ALOAD, 1);

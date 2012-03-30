@@ -10,16 +10,10 @@ public class SimplePlaidObject implements PlaidObject {
 
 	private PlaidDispatch dispatch;
 	private PlaidObject[] storage;
-	private Object[] memberDefs;
 	
 	public SimplePlaidObject(PlaidDispatch dispatch, PlaidObject[] storage){
-		this(dispatch,storage,null);
-	}
-	
-	public SimplePlaidObject(PlaidDispatch dispatch, PlaidObject[] storage, Object[] memberDefs){
 		this.dispatch = dispatch;
 		this.storage = storage;
-		this.memberDefs = memberDefs;
 	}
 	
 	@Override
@@ -53,8 +47,4 @@ public class SimplePlaidObject implements PlaidObject {
 		}
 	}
 
-	@Override
-	public Object[] getMemberDefs() {
-		return this.memberDefs;
-	}
 }
