@@ -192,6 +192,9 @@ public class NamingConventions {
 		javaReservedMap.put("native", "native" + GENERATED_SUFFIX);
 		javaReservedMap.put("super", "super" + GENERATED_SUFFIX);
 		javaReservedMap.put("while", "while" + GENERATED_SUFFIX);
+		javaReservedMap.put("true", "true" + GENERATED_SUFFIX);
+		javaReservedMap.put("false", "false" + GENERATED_SUFFIX);
+		javaReservedMap.put("null", "false" + GENERATED_SUFFIX);
 	}
 	
 	
