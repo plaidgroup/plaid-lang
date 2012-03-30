@@ -13,11 +13,6 @@ public abstract class PlaidLambda implements PlaidObject {
 	public PlaidObject[] getStorage() {
 		throw new PlaidIllegalOperationException("Lamdba objects do not have storage.");
 	}
-	
-	@Override
-	public Object[] getMemberDefs() {
-		throw new PlaidIllegalOperationException("Lamdba objects do not have member defs.");
-	}
 
 	@Override
 	public void changeState(PlaidState s) {
