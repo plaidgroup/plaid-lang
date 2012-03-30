@@ -13,7 +13,7 @@ import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.ObjectValue;
-import plaid.fastruntime.PlaidState;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidInternalException;
 
@@ -21,7 +21,7 @@ import plaid.fastruntime.errors.PlaidInternalException;
 public final class DispatchGenerator implements Opcodes {
 	private int classCounter = 0;
 	
-	public PlaidState createStateInstance(ObjectValue ov) {
+	public PlaidDispatch createStateInstance(ObjectValue ov) {
 		final String name = "plaid/generatedDispatches/DispatchClass$plaid$"+classCounter++;
 					
 		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
@@ -152,13 +152,13 @@ public final class DispatchGenerator implements Opcodes {
 
 		// done
 		cw.visitEnd();
-		PlaidState result = null;
+		PlaidDispatch result = null;
 		try {
 			byte[] b = cw.toByteArray();
 			Class<?> plaidStateClass = ClassInjector.defineClass(name, cw.toByteArray(), 0, b.length);
 			//ClassInjector.writeClass(cw.toByteArray(), "exampleoutput/" + name  + ".class");
 			Constructor<?> cstr =  plaidStateClass.getConstructor(ObjectValue.class);
-			result = (PlaidState)cstr.newInstance(ov);
+			result = (PlaidDispatch)cstr.newInstance(ov);
 		} catch(NoSuchMethodException e) {
 			throw new PlaidInternalException("Could not construct dispatch object.", e);
 		}  catch (ClassCastException e) {

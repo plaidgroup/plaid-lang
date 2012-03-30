@@ -6,7 +6,7 @@ public class Jane{
         vaR1$plaid = plaid.fastruntime.Util.string("Jane");
         return vaR1$plaid;
     }
-    public static final plaid.fastruntime.PlaidState theState$plaid;
+    public static final plaid.fastruntime.PlaidDispatch theState$plaid;
     static {
         plaid.fastruntime.reference.ObjectValueFactory ovf = new plaid.fastruntime.reference.ObjectValueFactory();
         ovf.tag("0568f3de-0760-476d-8250-2adff5d812b9");

@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.PlaidJavaObject;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
@@ -9,7 +10,7 @@ public class SimplePlaidJavaObject extends SimplePlaidObject implements PlaidJav
 
 	protected Object javaObject;
 
-	public SimplePlaidJavaObject(PlaidState dispatch, PlaidObject[] storage, Object javaObject) {
+	public SimplePlaidJavaObject(PlaidDispatch dispatch, PlaidObject[] storage, Object javaObject) {
 		super(dispatch, storage, null);
 		this.javaObject = javaObject;
 	}

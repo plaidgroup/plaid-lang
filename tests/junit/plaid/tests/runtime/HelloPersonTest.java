@@ -6,7 +6,7 @@ import org.junit.Test;
 
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
-import plaid.fastruntime.PlaidState;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.reference.SimplePlaidObject;
 import plaid.generated.Iname$0$plaid;
 import plaid.generated.Igreeting$0$plaid;
@@ -35,7 +35,7 @@ public class HelloPersonTest {
         return vaR0$plaid;
     }
     
-    public static final plaid.fastruntime.PlaidState theState$plaid;
+    public static final plaid.fastruntime.PlaidDispatch theState$plaid;
     static {
         plaid.fastruntime.reference.ObjectValueFactory ovf = new plaid.fastruntime.reference.ObjectValueFactory();
         ovf.tag("81ff3c7e-2f12-4433-904c-ecd2af212512");
@@ -51,7 +51,7 @@ public class HelloPersonTest {
         ovf.parent(theState$plaid.getObjectValue());
         ovf.mthd("name",0,"plaid.fastruntime.test.HelloPersonTest");
         plaid.fastruntime.ObjectValue ov = ovf.value();
-        PlaidState janeDispatch = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(ov);
+        PlaidDispatch janeDispatch = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(ov);
         PlaidObject jane = new SimplePlaidObject(janeDispatch, new PlaidObject[0]);
         PlaidJavaObject myGreeting = (PlaidJavaObject)((Igreeting$0$plaid)jane.getDispatch()).greeting(jane);
         Assert.assertEquals("hello Jane!", myGreeting.getJavaObject().toString());

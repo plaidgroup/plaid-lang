@@ -22,7 +22,7 @@ import org.objectweb.asm.util.CheckClassAdapter;
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
-import plaid.fastruntime.PlaidState;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
@@ -31,14 +31,14 @@ import plaid.fastruntime.reference.SimplePlaidJavaObject;
 public class JavaDispatchGenerator implements Opcodes {
 	private int classCounter = 0;
 	
-	private final Map<Class<?>, PlaidState> javaStateCache = new HashMap<Class<?>,PlaidState>();
+	private final Map<Class<?>, PlaidDispatch> javaStateCache = new HashMap<Class<?>,PlaidDispatch>();
 	
 	/**
 	 * Add PlaidState to cache. Used for preloading state cache with frequently used states.
 	 * @param key Java class
 	 * @param value PlaidState that used as proxy for Java class' methods
 	 */
-	public void preloadPlaidState(Class<?> key, PlaidState value) {
+	public void preloadPlaidState(Class<?> key, PlaidDispatch value) {
 		this.javaStateCache.put(key, value);
 	}
 	
@@ -98,7 +98,7 @@ public class JavaDispatchGenerator implements Opcodes {
 	public PlaidObject createPlaidJavaObject(Object javaObject) {
 		final String name = "plaid/generatedDispatches/PlaidJavaObject$plaid$"+classCounter++;
 		Class<?> javaClass = javaObject.getClass();
-		PlaidState result = null;
+		PlaidDispatch result = null;
 		
 
 		if( !javaStateCache.containsKey(javaClass)) {
@@ -159,7 +159,7 @@ public class JavaDispatchGenerator implements Opcodes {
 				byte[] b = cw.toByteArray();
 				
 				Class<?> plaidStateClass = ClassInjector.defineClass(name, b, 0, b.length);
-				result =  (PlaidState)plaidStateClass.newInstance();
+				result =  (PlaidDispatch)plaidStateClass.newInstance();
 				javaStateCache.put(javaClass, result);
 			} catch (InstantiationException e) {
 				throw new PlaidInternalException("Could not construct dispatch object.", e);

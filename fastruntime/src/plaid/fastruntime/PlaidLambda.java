@@ -5,7 +5,7 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 public abstract class PlaidLambda implements PlaidObject {
 
 	@Override
-	public PlaidState getDispatch() {
+	public PlaidDispatch getDispatch() {
 		throw new PlaidIllegalOperationException("Lambda objects do not have a dispatch.");
 	}
 

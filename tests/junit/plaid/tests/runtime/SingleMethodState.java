@@ -5,7 +5,7 @@ import junit.framework.Assert;
 import org.junit.Test;
 
 import plaid.fastruntime.PlaidJavaObject;
-import plaid.fastruntime.PlaidState;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.MethodValue;
@@ -17,7 +17,7 @@ public class SingleMethodState {
 	public void test() {
 		MethodValue mv = MethodValue.createMethodWithStaticDefinition("doAddFive",1,"plaid/fastruntime/test/SingleMethodState");
 		DimensionValue dv = new DimensionValue("plaid/fastruntime/test/SingleMethodState", mv, null);
-		PlaidState ps = Util.DISPATCH_GEN.createStateInstance(dv);
+		PlaidDispatch ps = Util.DISPATCH_GEN.createStateInstance(dv);
 		PlaidJavaObject returnedValue = (PlaidJavaObject) ((IdoAddFive$1$plaid)ps).doAddFive(Util.unit(), Util.integer(7));
 		//System.out.println(returnedValue.getJavaObject().toString());
 		Assert.assertEquals("12", returnedValue.getJavaObject().toString());
@@ -29,7 +29,7 @@ public class SingleMethodState {
         ovf.tag("8bc23ee5-bcb7-4b8f-b7de-afcda749e09d");
         ovf.mthd("doAddFive",1,"plaid.fastruntime.test.SingleMethodState");
         plaid.fastruntime.ObjectValue ov = ovf.value();
-        PlaidState ps = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(ov);
+        PlaidDispatch ps = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(ov);
         PlaidJavaObject returnedValue = (PlaidJavaObject) ((IdoAddFive$1$plaid)ps).doAddFive(Util.unit(), Util.integer(7));
 		//System.out.println(returnedValue.getJavaObject().toString());
 		Assert.assertEquals("12", returnedValue.getJavaObject().toString());

@@ -2,7 +2,7 @@ package plaid.fastruntime;
 
 public interface PlaidObject {
 	
-	public PlaidState getDispatch();
+	public PlaidDispatch getDispatch();
 	
 	public PlaidObject[] getStorage();
 	

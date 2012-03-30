@@ -15,7 +15,7 @@ public class Person{
         vaR0$plaid = ((plaid.generated.Iplus$plaid$1$plaid)vaR1$plaid.getDispatch()).plus$plaid(vaR1$plaid,vaR5$plaid);
         return vaR0$plaid;
     }
-    public static final plaid.fastruntime.PlaidState theState$plaid;
+    public static final plaid.fastruntime.PlaidDispatch theState$plaid;
     static {
         plaid.fastruntime.reference.ObjectValueFactory ovf = new plaid.fastruntime.reference.ObjectValueFactory();
         ovf.tag("3eda0de5-7115-4b69-9bdc-372e47da56be");
