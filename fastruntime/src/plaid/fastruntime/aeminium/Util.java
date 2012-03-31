@@ -14,4 +14,6 @@ public final class Util {
 	public static final void triggerParallelism() {
 		parallelize = (CPU_COUNT - POOL.getActiveThreadCount()) >> 1; 
 	}
+
+	public static final Datagroup GLOBAL_DATAGROUP = new Datagroup();
 }
