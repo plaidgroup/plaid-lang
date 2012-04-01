@@ -1,7 +1,6 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
-import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.data.List;
@@ -99,18 +98,6 @@ public final class DimensionValue extends SingleValue {
 			fi = fi.append(parent.getFields());
 		}
 		return fi;
-	}
-	
-	@Override
-	public List<MemberDefInfo> constructMemberDefs() {
-		List<MemberDefInfo> mdi = NIL_MEMBER_DEF_INFO;
-		if(innerValue!=null) {
-			mdi = mdi.append(innerValue.getMemberDefs());
-		}
-		if(parent!=null) {
-			mdi = mdi.append(parent.getMemberDefs());
-		}
-		return mdi;
 	}
 
 	@Override

@@ -7,14 +7,12 @@ public abstract class MemberValue extends AtomicValue implements MemberInfo{
 	private final String name;
 	private String classInternalName;
 	private final boolean staticallyDefined;
-	private final String memberDefinitionName;
 	
 	protected MemberValue(String name, String classInternalName, 
-			boolean staticallyDefined, String memberDefinitionName) {
+			boolean staticallyDefined) {
 		this.name = name;
 		this.classInternalName = classInternalName;
 		this.staticallyDefined = staticallyDefined;
-		this.memberDefinitionName = memberDefinitionName;
 		this.init();
 	}
 	
@@ -46,11 +44,6 @@ public abstract class MemberValue extends AtomicValue implements MemberInfo{
 	@Override
 	public final boolean isStaticallyDefined() {
 		return this.staticallyDefined;
-	}
-
-	@Override
-	public final String getMemberDefinitionName() {
-		return this.memberDefinitionName;
 	}
 	
 }

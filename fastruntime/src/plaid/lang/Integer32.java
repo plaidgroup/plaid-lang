@@ -1,15 +1,16 @@
 package plaid.lang;
 
 import plaid.fastruntime.ObjectValue;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
+import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
-import plaid.fastruntime.reference.SimplePlaidJavaObject;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
@@ -17,7 +18,7 @@ import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
-public final class Integer32 extends AbstractPlaidState
+public final class Integer32 extends AbstractPlaidDispatch
 						   implements Iplus$plaid$1$plaid,
 						   			  Ieqeq$plaid$1$plaid,
 						   			  Imult$plaid$1$plaid,
@@ -36,7 +37,12 @@ public final class Integer32 extends AbstractPlaidState
 	
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	static {
-		theState$plaid = new Integer32(new DimensionValue("plaid/lang/Integer", null, null));
+		theState$plaid = new AbstractPlaidState(new Integer32(new DimensionValue("plaid/lang/Integer", null, null))) {
+			@Override
+			public PlaidObject instantiate() {
+				throw new PlaidIllegalOperationException("Cannot instantiate Integer32 state");
+			}
+		};
 	}
 	
 	public static PlaidObject plaidInteger(int i) {
@@ -49,11 +55,6 @@ public final class Integer32 extends AbstractPlaidState
 	
 	private Integer32(ObjectValue metadata) {
 		super(metadata);
-	}
-	
-	@Override
-	public PlaidObject instantiate() {
-		throw new PlaidIllegalOperationException("Cannot instantiate Integer32 state");
 	}
 
 	@Override
@@ -170,8 +171,8 @@ public final class Integer32 extends AbstractPlaidState
 		}
 		
 		@Override
-		public PlaidState getDispatch() {
-			return Integer32.theState$plaid;
+		public PlaidDispatch getDispatch() {
+			return Integer32.theState$plaid.getDispatch();
 		}
 		
 		@Override
@@ -182,11 +183,6 @@ public final class Integer32 extends AbstractPlaidState
 		@Override
 		public PlaidObject[] getStorage() {
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
-		}
-
-		@Override
-		public Object[] getMemberDefs() {
-			throw new PlaidIllegalOperationException("No member defs for a Java Object.");
 		}
 	}
 

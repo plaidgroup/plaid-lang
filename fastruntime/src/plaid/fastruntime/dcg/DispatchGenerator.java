@@ -13,7 +13,7 @@ import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.ObjectValue;
-import plaid.fastruntime.PlaidState;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidInternalException;
 
@@ -21,7 +21,7 @@ import plaid.fastruntime.errors.PlaidInternalException;
 public final class DispatchGenerator implements Opcodes {
 	private int classCounter = 0;
 	
-	public PlaidState createStateInstance(ObjectValue ov) {
+	public PlaidDispatch createStateInstance(ObjectValue ov) {
 		final String name = "plaid/generatedDispatches/DispatchClass$plaid$"+classCounter++;
 					
 		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
@@ -47,7 +47,7 @@ public final class DispatchGenerator implements Opcodes {
 			     ACC_PUBLIC,
 			     name,
 			     null,
-			     "plaid/fastruntime/reference/AbstractPlaidState",
+			     "plaid/fastruntime/reference/AbstractPlaidDispatch",
 			     ifaces.toArray(new String[0]));
 		
 		// add methods 
@@ -80,7 +80,7 @@ public final class DispatchGenerator implements Opcodes {
 				mv.visitVarInsn(ALOAD, 1);
 				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getDispatch", "()Lplaid/fastruntime/PlaidState;");
 				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidState", "getObjectValue", "()Lplaid/fastruntime/ObjectValue;");
-				mv.visitLdcInsn(m.getMemberDefinitionName());
+				mv.visitLdcInsn("TODOFIXTHIS"); //TODO:fix this
 				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/ObjectValue", "getMemberDefinitionIndex", "(Ljava/lang/String;)I");
 				mv.visitVarInsn(ISTORE, 3);
 				mv.visitVarInsn(ALOAD, 1);
@@ -144,7 +144,7 @@ public final class DispatchGenerator implements Opcodes {
 			mv.visitCode();
 			mv.visitVarInsn(ALOAD, 0);
 			mv.visitVarInsn(ALOAD, 1);
-			mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/reference/AbstractPlaidState", "<init>", "(Lplaid/fastruntime/ObjectValue;)V");
+			mv.visitMethodInsn(INVOKESPECIAL, "plaid/fastruntime/reference/AbstractPlaidDispatch", "<init>", "(Lplaid/fastruntime/ObjectValue;)V");
 			mv.visitInsn(RETURN);
 			mv.visitMaxs(2, 2);
 			mv.visitEnd();
@@ -152,13 +152,13 @@ public final class DispatchGenerator implements Opcodes {
 
 		// done
 		cw.visitEnd();
-		PlaidState result = null;
+		PlaidDispatch result = null;
 		try {
 			byte[] b = cw.toByteArray();
 			Class<?> plaidStateClass = ClassInjector.defineClass(name, cw.toByteArray(), 0, b.length);
 			//ClassInjector.writeClass(cw.toByteArray(), "exampleoutput/" + name  + ".class");
 			Constructor<?> cstr =  plaidStateClass.getConstructor(ObjectValue.class);
-			result = (PlaidState)cstr.newInstance(ov);
+			result = (PlaidDispatch)cstr.newInstance(ov);
 		} catch(NoSuchMethodException e) {
 			throw new PlaidInternalException("Could not construct dispatch object.", e);
 		}  catch (ClassCastException e) {

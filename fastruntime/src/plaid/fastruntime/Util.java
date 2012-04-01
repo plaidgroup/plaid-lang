@@ -13,6 +13,7 @@ import plaid.fastruntime.dcg.InterfaceGenerator;
 import plaid.fastruntime.dcg.JavaDispatchGenerator;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
+import plaid.fastruntime.reference.SimplePlaidState;
 import plaid.lang.False;
 import plaid.lang.Float64;
 import plaid.lang.Integer32;
@@ -30,6 +31,11 @@ public final class Util {
 	}
 	public static final InterfaceGenerator INTERFACE_GEN = new InterfaceGenerator();
 	public static final DispatchGenerator DISPATCH_GEN = new DispatchGenerator();
+	
+	public static final PlaidState makeState(ObjectValue ov) {
+		PlaidDispatch dispatch = DISPATCH_GEN.createStateInstance(ov);
+		return SimplePlaidState.makeStaticallyDefinedState(dispatch);
+	}
 	
 	public static PlaidObject unit() {
 		return Unit.UNIT_VALUE;

@@ -13,5 +13,4 @@ public interface MemberInfo {
 	String getName();
 	boolean isStaticallyDefined();
 	String getStaticClassInternalName();
-	String getMemberDefinitionName();
 }
