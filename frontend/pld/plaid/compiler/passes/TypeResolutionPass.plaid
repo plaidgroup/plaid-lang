@@ -404,7 +404,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                              }
                                              default { 
                                                  val msg = "Cannot apply to '" + fieldType.structure +"'"; 
-                                                 globalReporter.errorToken( node.left.token, msg, "");
+                                                 globalReporter.errorToken( node.function.left.token, msg, "");
                                                  globalReporter.report();
                                                  ABORT(msg);                                                 
                                              } 
@@ -639,7 +639,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 }
             }
             case None {
-                ABORT("Cannot find symbol for state declaration.");
+                ABORT("Cannot find symbol for method declaration.");
             }
         };
 
@@ -979,7 +979,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 		val expression = node.expression.rewrite(this);
 		val expressionSymbol = match (symbolForAST(expression)) {
 		    case Some { symbolForAST(expression).value }
-		    case None { ABORT("Cannot find symbol for expression") }
+		    case None { ABORT("Cannot find symbol for expression " + expression.toString()) }
 		};
 		val new_node = new ParsedMatch{
 			val expression = expression;
@@ -1032,20 +1032,26 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
             }
         });
 
-        var lub = caseStructs.get(0).value;
-        caseStructs.do(fn (struct) => {
-           val lubOpt = lub.leastUpperBound(struct);
-           match (lubOpt) {
-               case Some {
-                   lub = lubOpt.value
-               }
-               case None {
-                   ABORT("Cannot compute least upper bound.");
-               }
-           }
-        });
+        val lubResult = match (caseStructs.size() > 0) {
+            case True {
+                var lub = caseStructs.get(0).value;
+                caseStructs.do(fn (struct) => {
+                   val lubOpt = lub.leastUpperBound(struct);
+                   match (lubOpt) {
+                       case Some {
+                           lub = lubOpt.value
+                       }
+                       case None {
+                           ABORT("Cannot compute least upper bound.");
+                       }
+                   }
+                });
+                lub
+            }
+            case False { TOPSTRUCT }
+        };
 
-        addStructureForAST(new_node, lub);
+        addStructureForAST(new_node, lubResult);
 
         new_node;
 	}
@@ -1231,6 +1237,13 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 ABORT("Cannot find type of state reference.");
             }
         };
+        
+        val oldSymbolOpt = symbolForAST(node);
+        match (oldSymbolOpt){
+            case Some{ addSymbolForAST(new_node,oldSymbolOpt.value) }
+            case None { ABORT("no symbol for state ref") }
+        };
+
 
         new_node
 	}

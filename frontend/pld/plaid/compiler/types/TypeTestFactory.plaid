@@ -56,6 +56,7 @@ state TypeTestFactory case of TestFactory {
     typesCMP.initPermissions();
     typesCMP.initTypes(astCMP,symbolsCMP);
     
+    globalReporter.clearErrors();
     
  
    
@@ -170,6 +171,8 @@ state TypeTestFactory case of TestFactory {
     test("NominalStructure isSubStructureOf", fn(ctx) => {
       ctx.assertFalse(types.nominalStruct1.isSubStructureOf(types.nominalStruct2));
       ctx.assertTrue(types.nominalStruct2.isSubStructureOf(types.nominalStruct1));
+      ctx.assertFalse(types.nominalStruct1.isSubStructureOf(types.nominalStruct4));
+      ctx.assertFalse(types.nominalStruct4.isSubStructureOf(types.nominalStruct1));
       ctx.assertTrue(types.nominalStruct1.isSubStructureOf(TOPSTRUCT));
       ctx.assertFalse(types.nominalStruct1.isSubStructureOf(DYNAMICSTRUCT));
       ctx.assertTrue(types.nominalStruct1.isSubStructureOf(types.unpackedStruct1Val3u1_1Bs1));
@@ -553,6 +556,17 @@ state TypeTestFactory case of TestFactory {
       ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_u1,1) == types.unpackedStruct1Val3u1_1Bs1); //pack one field
       ctx.assertTrue(types.unpackedStruct1Val1u1_1vVal3u1_1Bs1.restoreToField(ast.fieldName1,types.nominalType_i1,1) == types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1 ); // restore but don't pack
       
+      result = types.unpackedStruct1Val1u1_1i1Val3u1_1Bs1.restoreToField(ast.fieldName3, types.nominalType_ls4,1); //method
+      ctx.assertTrue(match (result) {
+      	case  Structure { false }
+      	default {
+      		globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_MERGE_FAILED") &&
+		  	globalReporter.errors.head.value.data.equals("STRUCT(pack1.pack3.state4) and STRUCT(pack1.state1)")
+      	}
+      });
+      globalReporter.clearErrors();
+      
     });
     
     test("UnpackedStructure unpackField", fn(ctx) => {
@@ -667,7 +681,7 @@ state TypeTestFactory case of TestFactory {
     });
     
     test("Packed Field Signature restore", fn(ctx) => {
-      ctx.assertTrue(types.fvalSig1u1.restore(types.nominalType_u1,1) == typesCMP.fvalSig1u1);
+      ctx.assertTrue(types.fvalSig1u1.restoreType(types.nominalType_u1,1) == typesCMP.fvalSig1u1);
     });
 
     test("Packed Field Signature toString", fn(ctx) => {
@@ -714,10 +728,28 @@ state TypeTestFactory case of TestFactory {
     });
     
     test("Unpacked Field Signature restore", fn(ctx) => {
-      ctx.assertTrue(types.upkfvalSig1u1_1v.restore(types.nominalType_u1,1) == types.fvalSig1u1);
-      ctx.assertTrue(types.upkfvalSig1u1_1v.restore(types.nominalType_u1,2) == typesCMP.upkfvalSig1u1_1v);
-      ctx.assertTrue(types.upkfvalSig1u1_1Bs2.restore(types.nominalType_ls1,1) == types.upkfvalSig1u1_1Bs1);
-      ctx.assertTrue(types.upkfvalSig1u1_1v.restore(VOID,1) == types.upkfvalSig1u1_1v);
+      ctx.assertTrue(types.upkfvalSig1u1_1v.restoreType(types.nominalType_u1,1) == types.fvalSig1u1);
+      ctx.assertTrue(types.upkfvalSig1u1_1v.restoreType(types.nominalType_u1,2) == typesCMP.upkfvalSig1u1_1v);
+      ctx.assertTrue(types.upkfvalSig1u1_1Bs2.restoreType(types.nominalType_ls1,1) == types.upkfvalSig1u1_1Bs1);
+      ctx.assertTrue(types.upkfvalSig1u1_1v.restoreType(VOID,1) == types.upkfvalSig1u1_1v);
+      
+      result = types.upkfvalSig1u1_1v.restoreType(DYNAMICTYPE,1); //permission return fails
+      ctx.assertTrue(match (result) { case FieldSignature { false } default {
+            globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("P_RETURN_FAIL") &&
+		  	globalReporter.errors.head.value.data.equals("dynamic x none => ???")
+      } });
+      globalReporter.clearErrors();
+      
+      result = types.upkfvalSig1u1_1Bs2.restoreType(types.nominalType_ls4,1); //permission return fails
+      ctx.assertTrue(match (result) { case FieldSignature { false } default {
+            globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_MERGE_FAILED") &&
+		  	globalReporter.errors.head.value.data.equals("STRUCT(pack1.pack3.state4) and STRUCT(pack1.state1)")
+      
+      } });
+      globalReporter.clearErrors();
+      
     });
     
     test("Unpacked Field toString", fn(ctx) => {
@@ -891,6 +923,23 @@ state TypeTestFactory case of TestFactory {
       ctx.assertTrue(makeArgSpec(DYNAMICTYPE,VOID) == makeArgSpec(makeType(DYNAMICP,DYNAMICSTRUCT),makeType(NONEP,TOPSTRUCT)));
       ctx.assertFalse(makeArgSpec(DYNAMICTYPE,VOID) == makeArgSpec(DYNAMICTYPE,DYNAMICTYPE));
       ctx.assertFalse(makeArgSpec(DYNAMICTYPE,VOID) == makeArgSpec(VOID,VOID));
+    }); 
+    
+    /********************** MergeStructures *************************/
+    test("mergeStructures", fn(ctx) => {
+      result = mergeStructures(types.nominalStruct1, types.nominalStruct2);
+      ctx.assertTrue(match (result) { case Structure { result == typesCMP.nominalStruct2 } default { false } });
+      result = mergeStructures(types.nominalStruct2, types.nominalStruct1);
+      ctx.assertTrue(match (result) { case Structure { result == typesCMP.nominalStruct2 } default { false } });
+      result = mergeStructures(types.nominalStruct2, types.nominalStruct4);
+      ctx.assertTrue(match (result) { case Structure { false } 
+        default { 
+            globalReporter.errors.size() == 1 &&
+			globalReporter.errors.head.value.errorCode.equals("S_MERGE_FAILED") &&
+		  	globalReporter.errors.head.value.data.equals("STRUCT(pack1.state2) and STRUCT(pack1.pack3.state4)")
+        } 
+      });
+      globalReporter.clearErrors();
     }); 
     
     tests

@@ -82,7 +82,8 @@ method void report_ERROR(immutable Token t, immutable String errorCode, immutabl
         val message = ErrorCodes.getMessage(errorCode) + data;
         printLine("[ERROR  ] <" + pass + "> " + message);
     };
-    plaid.compiler.globalReporter.errorToken(t, errorCode, data)
+    plaid.compiler.globalReporter.errorToken(t, errorCode, data);
+    unit;
 }
 
 method void report_WARNING(immutable Token t, immutable String errorCode, immutable String data, immutable String pass) {
@@ -90,7 +91,8 @@ method void report_WARNING(immutable Token t, immutable String errorCode, immuta
     	val message = ErrorCodes.getMessage(errorCode) + data;
         printLine("[WARNING] <" + pass + "> " + message);
     };
-    plaid.compiler.globalReporter.warningToken(t, errorCode, data)
+    plaid.compiler.globalReporter.warningToken(t, errorCode, data);
+    unit;
 }
 
 method void report_INFO(immutable Token t, immutable String errorCode, immutable String data, immutable String pass) {
@@ -98,7 +100,8 @@ method void report_INFO(immutable Token t, immutable String errorCode, immutable
     	val message = ErrorCodes.getMessage(errorCode) + data;
         printLine("[INFO   ] <" + pass + "> " + message);
     };
-    plaid.compiler.globalReporter.infoToken(t, errorCode, data)
+    plaid.compiler.globalReporter.infoToken(t, errorCode, data);
+    unit;
 }
 
 
@@ -135,7 +138,8 @@ method showUsage() {
     printLine(" -s | --symbolMap            Dump symbol map after compilation");
     printLine(" -c | --no-codegen			Do not generate code.");
     printLine(" -b | --no-bytecode          Do not compile generated Java file to byte code.");
-    printLine(" -D | --define key=value     Defines internal values of the implementation.");    
+    printLine(" -D | --define key=value     Defines internal values of the implementation.");   
+    printLine(" -e | --compactErrors        Reports Errors in a compact format for compilation tests.");
 }
 
 
@@ -167,6 +171,7 @@ method parseCommandLineArgs(args) {
     var dumpSymbolMap = false;
     var enableCodegen = true;
     var enableBytecode = true;
+    var compactErrors = false;
     
     while { !abort && !args.isEmpty() }{
         var handled = false;
@@ -301,6 +306,10 @@ method parseCommandLineArgs(args) {
                 };                
             };
         };  
+        if ( args.car().equals("-e") || args.car().equals("--compactErrors") ) {
+            handled = true;
+            compactErrors = true;
+        };
         ifElse ( !handled ) {
             ifElse ( args.car().startsWith("-") ) {
                 printLine("Unsupported option: " + args.car());
@@ -347,6 +356,7 @@ method parseCommandLineArgs(args) {
                 val dumpSymbolMap = dumpSymbolMap;
                 val enableCodegen = enableCodegen;
                 val enableBytecode = enableBytecode;
+                val compactErrors = compactErrors;
                 val propertyMap = propertyMap;
             }).expand()); 
         }        
@@ -720,8 +730,15 @@ method main(args) {
             };
             
             //report errors
-            globalReporter.report();
-            printLine("");
+            match (cc.compactErrors) {
+                case True {
+                    globalReporter.compactReport();
+                }
+                case False {
+                    globalReporter.report();
+                    printLine("");
+                }
+            };
             match (globalReporter.wereErrors()) {
                 case True { printLine("Compilation FAILED!"); }
                 case False { printLine("Compilation Succeeded!"); }

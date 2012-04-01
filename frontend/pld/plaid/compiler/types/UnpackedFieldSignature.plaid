@@ -51,22 +51,28 @@ state UnpackedFieldSignature case of FieldSignature {
    * if the restored type is a subtype of the declared field type, then we return a packed field
    *    otherwise the field remains unpacked at the restored type
    */
-  method immutable FieldSignature restore(immutable Type retType, immutable Integer restoreObjectID) {
+  method immutable ?FieldSignature restoreType(immutable Type retType, immutable Integer restoreObjectID) {
     match (this.objectID == restoreObjectID) {
       case True {
         val immutable ?Permission restoredPerm = this.currentType.permission.returnPerm(retType.permission);
         match (restoredPerm) {
-        	case Permission { /* no op*/ }
-        	default { ABORT("fix implmentation of UnpackedFieldSignature.restore"); }
+        	case Permission { 
+        	    val immutable ?Structure restoredStructure = mergeStructures(retType.structure, this.currentType.structure);
+                match (restoredStructure) {
+                    case Structure {
+                        val immutable Type restoredType = makeType(restoredPerm, restoredStructure);
+                        match (restoredType.isSubTypeOf(this.packedSignature.fieldType)) {
+                          case True { this.packedSignature }
+                          case False { makeUnpackedFieldSignature(this.packedSignature, this.objectID, restoredType) }
+                        }
+                    }
+                    default { unit } //error in merging structures
+                }
+        	}
+        	default { unit } // error in joining permissions
         };
-        val immutable Structure restoredStructure = mergeStructures(retType.structure, this.currentType.structure);
-        val immutable Type restoredType = makeType(restoredPerm, restoredStructure);
-        match (restoredType.isSubTypeOf(this.packedSignature.fieldType)) {
-          case True { this.packedSignature }
-          case False { makeUnpackedFieldSignature(this.packedSignature, this.objectID, restoredType) }
-        }
       }
-      case False { this } //mismatched objects - no restoration done
+      case False { this } //mismatched objects - no update needed - succceeds
     }
   }
 }

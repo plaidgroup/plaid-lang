@@ -276,12 +276,15 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 	override method void visitParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAbstractFieldDecl");
-        match (this.currentState.peek() ) {
+        val curStateOpt = this.currentState.peek();
+        match (curStateOpt ) {
             case Some {
-                // member
-                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, curStateOpt.value);
                 addSymbolForAST(node, fieldSymbol);
-                this.currentState.peek().value.addAbstractMember(fieldSymbol);
+                match (curStateOpt.value) {
+                    case StateSymbol { curStateOpt.value.addAbstractMember(fieldSymbol); }
+                    case StateRefSymbol { /* no op - adding abstract member to state ref has no impact in current system*/ }
+                }
             }
             case None {
                 // top level
@@ -299,12 +302,16 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 	override method void visitParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAbstractMethodDecl");
-        match ( this.currentState.peek() ) {
+        val curStateOpt = this.currentState.peek();
+        match (curStateOpt ) {
             case Some {
-                // member
-                val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.currentState.peek().value);
-                addSymbolForAST(node, methodSymbol);                
-                this.currentState.peek().value.addAbstractMember(methodSymbol);
+            
+                val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, curStateOpt.value);
+                addSymbolForAST(node, methodSymbol);
+                match (curStateOpt.value) {
+                    case StateSymbol {  curStateOpt.value.addAbstractMember(methodSymbol); }
+                    case StateRefSymbol { /* no op - adding abstract member to state ref has no impact in current system*/ }
+                }
             }
             case None {
                 // top level
@@ -545,11 +552,11 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             addSymbolForAST(item.name, mySymbol);
             item.argSpec.accept(this);
 
-            // add this to the context
-            if ( item.name.name == "this") {
-                val ctx = this.stack.peek().value;
-                ctx.put(item.name.name, mySymbol);  
-                needsThisSymbol = false; //already mapped
+            val ctx = this.stack.peek().value;
+            ctx.put(item.name.name, mySymbol);  
+            match (item.name.name == "this") {
+                case True {  needsThisSymbol = false; } //already mapped
+                case False {/* no op */ }
             };
         });
         match (needsThisSymbol) {
@@ -815,13 +822,30 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 
 	override method void visitParsedStateRef(immutable ParsedStateRef node) {
-        val shared StateRefSymbol stateRefSymbol = this.sf.makeStateRefSymbol(node);
-        this.currentState.push(stateRefSymbol);
-
-		node.stateExpr.accept(this);
-		node.specializations.map(fn (item) => { item.accept(this); item });
-
-        this.currentState.pop();
+        node.stateExpr.accept(this);
+        
+        val refStateOpt = symbolForAST(node.stateExpr); 
+        match (refStateOpt){
+            case Some {
+                match (refStateOpt.value) {
+                  case StateSymbol {
+                    val shared StateRefSymbol stateRefSymbol = this.sf.makeStateRefSymbol(node, refStateOpt.value);
+                    this.currentState.push(stateRefSymbol);
+    
+                    node.specializations.map(fn (item) => { item.accept(this); item });
+            
+                    this.currentState.pop();
+    
+                    addSymbolForAST(node, stateRefSymbol);
+                  }
+                  default {
+                    ABORT("state ref does not reference a state");
+                  }
+                }
+            }
+            case None { ABORT("did not find referenced state of state ref"); }
+        }
+        
 	}
 	
 	override method void visitParsedStringLiteral(immutable ParsedStringLiteral node) {

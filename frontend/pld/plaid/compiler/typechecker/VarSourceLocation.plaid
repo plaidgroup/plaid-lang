@@ -21,11 +21,21 @@ package plaid.compiler.typechecker;
 
 import plaid.compiler.types.mergeStructures;
 import plaid.compiler.types.makeType;
+import plaid.ast.util.EMPTY_TOKEN;
+import plaid.compiler.report_ERROR;
 
 import plaid.compiler.aeminium.*;
 
 immutable state VarSourceLocation case of SourceLocation { 
   val immutable Symbol varSymbol;
+  
+  method immutable ?Type locationType(unique LinearContext ctx) {
+    val unique Option<immutable Type> curTypeOption = ctx.getOption(this.varSymbol);
+    match (curTypeOption) {
+        case Some { curTypeOption.value }
+        case None { unit }
+    }
+  }
   
   /**
    *  restores retType to varSymbol - (if it is assignable (var), this is not implemented)
@@ -35,46 +45,58 @@ immutable state VarSourceLocation case of SourceLocation {
    *    - varSymbol is updated in the context with the type formed from the 
    *      updated permission and structure
    */
-  method void restore(immutable Type retType, unique LinearContext ctx) {
-    if (this.varSymbol.isVar()) { ABORT("<VarSourceLocation>(implementation Error) Cannot restore to Var local variables/top level fields yet") };
-    val unique Option<immutable Type> curVarTypeOption = ctx.getOption(this.varSymbol);
-    match(curVarTypeOption) {
-      case Some {
-        val immutable ?Permission restoredPerm = curVarTypeOption.value.permission.returnPerm(retType.permission);
-        match (restoredPerm) {
-        	case Permission { /* no op*/ }
-        	default { ABORT("fix implmentation of VarSourceLocation.restore"); }
-        };
-        val immutable Structure restoredStructure = mergeStructures(curVarTypeOption.value.structure, retType.structure);
-        
-        if (AEMINIUM_MODE() ) {
-            DEBUG(DEBUG_PRIO_MEDIUM, "<VarSourceLocation> create join node for '" + this.varSymbol.name + "' from '" + retType.permission +"=>" + restoredPerm+"'");
-            val unique DependencyInformation joinInfo = makeJoinInformation(this.varSymbol, retType.permission, restoredPerm);
-            val shared DependencyInformation symInfo = match (depInfoForSymbol(this.varSymbol)) {
-                case Some { depInfoForSymbol(this.varSymbol).value }
-                case None { ABORT("<VarSourceLocation> cannot find dependency information for symbol") }
-            };            
-            addDependency(joinInfo, symInfo);
-            
-            
-            // last AST that used this variable 
-            val shared DependencyInformation slocOrigin = match  (depInfoForSLoc(this) ) {
-                case Some { depInfoForSLoc(this).value }
-                case None {  ABORT("<VarSourceLocation> cannot find dependency information for symbol") }
-            };
-            val unique Set lastASTDependents = findLastDependentsForSymbol(slocOrigin, this.varSymbol, true);
-            val itAST = lastASTDependents.iterator();
-            while { itAST.hasNext() }{
-                val shared DependencyInformation dep = itAST.next();
-                addDependency(joinInfo, dep);
-            };
-            joinInfo.inAtomic = slocOrigin.inAtomic;
-            setDepInfoForSymbol(this.varSymbol, joinInfo);
-        };
-        ctx.update(this.varSymbol, makeType(restoredPerm, restoredStructure));
-        unit
-      }
-      case None { unit }
+  method immutable Boolean restoreToLoc(immutable Type retType, unique LinearContext ctx) {
+    match (this.varSymbol.isVar()) {
+        case True {
+            report_ERROR(EMPTY_TOKEN, "RESTORE_VAR", varSymbol.name, "restoreVarLocation");
+            false
+        }
+        case False {
+            val unique Option<immutable Type> curVarTypeOption = ctx.getOption(this.varSymbol);
+            match(curVarTypeOption) {
+              case Some {
+                val immutable ?Permission restoredPerm = curVarTypeOption.value.permission.returnPerm(retType.permission);
+                match (restoredPerm) {
+                    case Permission { 
+                        val immutable ?Structure restoredStructure = mergeStructures(curVarTypeOption.value.structure, retType.structure);
+                        
+                        match (restoredStructure) {
+                            case Structure {
+                                if (AEMINIUM_MODE() ) {
+                                    DEBUG(DEBUG_PRIO_MEDIUM, "<VarSourceLocation> create join node for '" + this.varSymbol.name + "' from '" + retType.permission +"=>" + restoredPerm+"'");
+                                    val unique DependencyInformation joinInfo = makeJoinInformation(this.varSymbol, retType.permission, restoredPerm);
+                                    val shared DependencyInformation symInfo = match (depInfoForSymbol(this.varSymbol)) {
+                                        case Some { depInfoForSymbol(this.varSymbol).value }
+                                        case None { ABORT("<VarSourceLocation> cannot find dependency information for symbol") }
+                                    };            
+                                    addDependency(joinInfo, symInfo);
+                                     
+                                    // last AST that used this variable 
+                                    val shared DependencyInformation slocOrigin = match  (depInfoForSLoc(this) ) {
+                                        case Some { depInfoForSLoc(this).value }
+                                        case None {  ABORT("<VarSourceLocation> cannot find dependency information for symbol") }
+                                    };
+                                    val unique Set lastASTDependents = findLastDependentsForSymbol(slocOrigin, this.varSymbol, true);
+                                    val itAST = lastASTDependents.iterator();
+                                    while { itAST.hasNext() }{
+                                        val shared DependencyInformation dep = itAST.next();
+                                        addDependency(joinInfo, dep);
+                                    };
+                                    joinInfo.inAtomic = slocOrigin.inAtomic;
+                                    setDepInfoForSymbol(this.varSymbol, joinInfo);
+                                };
+                                ctx.update(this.varSymbol, makeType(restoredPerm, restoredStructure));
+                                true
+                            }
+                            default { false } //error in structure merge
+                        }
+                    }
+                    default { false } //error in permission return
+                };
+              }
+              case None { true } //var out of scope - no update needed
+            }
+        }
     }
   }
   
