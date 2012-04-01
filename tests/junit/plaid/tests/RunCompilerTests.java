@@ -11,6 +11,7 @@ import java.util.List;
 import junit.framework.Assert;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import org.junit.Test;
@@ -45,6 +46,10 @@ public class RunCompilerTests {
     private final static String CODEGEN_KEY = "codegen";
     private final static String SUCCEEDS_KEY = "succeeds";
     private final static String TESTS_KEY = "tests";
+    private final static String ERRORS_KEY = "errors";
+    private final static String FILE_KEY = "file";
+    private final static String CODE_KEY = "code";
+    private final static String LINE_KEY = "line";
     
     private final static String FILE_SEP = System.getProperty("file.seperator");
     
@@ -178,71 +183,124 @@ public class RunCompilerTests {
 			FileInputStream input = new FileInputStream(configFile);
 			JSONTokener tokener = new JSONTokener(input);
 			JSONObject configObj = new JSONObject(tokener);
-			JSONArray frontEndTests = configObj.getJSONArray(FRONTEND_KEY);
-			for(int i = 0; i < frontEndTests.length(); i++) {
-				JSONObject frontEndTest = frontEndTests.getJSONObject(i);
+			
+			if (configObj.has(FRONTEND_KEY)) {
+				JSONArray frontEndTests = configObj.getJSONArray(FRONTEND_KEY);
+				
+				for(int i = 0; i < frontEndTests.length(); i++) {
+					JSONObject frontEndTest = frontEndTests.getJSONObject(i);
+					
+					boolean shouldTypecheck = frontEndTest.getBoolean(TYPECHECK_KEY);
+					boolean shouldCodeGen = frontEndTest.getBoolean(CODEGEN_KEY);
+					boolean shouldAeminium = frontEndTest.getBoolean(AEMINIUM_KEY);
+					String output = "Compilation FAILED!\n";
+					if (frontEndTest.getBoolean(SUCCEEDS_KEY)) {
+						output = "Compilation Succeeded!\n";
+					}
+					if (frontEndTest.has(ERRORS_KEY)) {
+						output = errorsOutput(frontEndTest.getJSONArray(ERRORS_KEY)) + output;
+						
+					}
+					
+					//-n -t "/Users/jssunshi/Dev/plaid-lang/tests/src" -b -d 0 -i "/Users/jssunshi/Dev/plaid-lang/tests/pld/plaid/fastexamples/"
+					
+					ArrayList<String> compilerArgsList = new ArrayList<String>();
+					compilerArgsList.add("-d");
+					compilerArgsList.add("0");
+					compilerArgsList.add("-t");
+					compilerArgsList.add(new File(GENERATE_JAVA_DIR).getAbsolutePath());
+					compilerArgsList.add("-o");
+					compilerArgsList.add(new File(OUTPUT_DIR).getAbsolutePath());
+					if (!shouldTypecheck)
+						compilerArgsList.add("-n");
+					if (!shouldCodeGen)
+						compilerArgsList.add("-c");
+					if (shouldAeminium)
+						compilerArgsList.add("-a");
+					compilerArgsList.add("-e"); //concise errors
+					for(String path : RUNPLAID_CLASSPATH) {
+						compilerArgsList.add("-p");
+						compilerArgsList.add(path);
+					}
+					for (File plaidFile : config.getPlaidFiles()) {
+						compilerArgsList.add(plaidFile.getAbsolutePath());
+					}
+					allParams.add(
+							getParams(frontEndTest.getString(NAME_KEY), //testName
+									"plaid.compiler.main", //mainClass
+									compilerArgsList, //mainArgs
+									COMPILEPLAID_CLASSPATH, //classPath
+									output, //expectedOutput
+									true, //compareOutput
+									true) //shouldSucceed
+							);
+					
+				}
 				
 			}
-			JSONObject backend = configObj.getJSONObject(BACKEND_KEY);
-			//run the compiler main method with the configuration associated with all of the backend tests
-			//File plaidSrcDir = configFile.getParentFile();
-			//System.out.println("Directory : " + plaidSrcDir.getPath());
-			boolean shouldTypecheck = backend.getBoolean(TYPECHECK_KEY);
-			boolean shouldAeminium = backend.getBoolean(AEMINIUM_KEY);
-			
-			//-n -t "/Users/jssunshi/Dev/plaid-lang/tests/src" -b -d 0 -i "/Users/jssunshi/Dev/plaid-lang/tests/pld/plaid/fastexamples/"
-			
-			ArrayList<String> compilerArgsList = new ArrayList<String>();
-			compilerArgsList.add("-d");
-			compilerArgsList.add("0");
-			compilerArgsList.add("-t");
-			compilerArgsList.add(new File(GENERATE_JAVA_DIR).getAbsolutePath());
-			compilerArgsList.add("-o");
-			compilerArgsList.add(new File(OUTPUT_DIR).getAbsolutePath());
-			if (!shouldTypecheck)
-				compilerArgsList.add("-n");
-			if (shouldAeminium)
-				compilerArgsList.add("-a");
-			for(String path : RUNPLAID_CLASSPATH) {
-				compilerArgsList.add("-p");
-				compilerArgsList.add(path);
-			}
-			for (File plaidFile : config.getPlaidFiles()) {
-				compilerArgsList.add(plaidFile.getAbsolutePath());
-			}
-			allParams.add(
-					getParams("Backend compiling " + configFile.getParentFile().getCanonicalPath(), //testName
-							"plaid.compiler.main", //mainClass
-							compilerArgsList, //mainArgs
-							COMPILEPLAID_CLASSPATH, //classPath
-							"", //expectedOutput
-							false, //compareOutput
-							true) //shouldSucceed
-					);
-			
-			JSONArray backEndTests = backend.getJSONArray(TESTS_KEY);
-			//run the main methods of the given backendTests;
-			
-			for(int i = 0; i < backEndTests.length(); i++) {
-				JSONObject test = backEndTests.getJSONObject(i);	
+			if (configObj.has(BACKEND_KEY)) {
+				JSONObject backend = configObj.getJSONObject(BACKEND_KEY);
+				//run the compiler main method with the configuration associated with all of the backend tests
+				//File plaidSrcDir = configFile.getParentFile();
+				//System.out.println("Directory : " + plaidSrcDir.getPath());
+				boolean shouldTypecheck = backend.getBoolean(TYPECHECK_KEY);
+				boolean shouldAeminium = backend.getBoolean(AEMINIUM_KEY);
 				
+				//-n -t "/Users/jssunshi/Dev/plaid-lang/tests/src" -b -d 0 -i "/Users/jssunshi/Dev/plaid-lang/tests/pld/plaid/fastexamples/"
 				
-				String mainClass = (String)test.get(RunCompilerTests.CLASSNAME_KEY);
-				String expectedOutput = (String)test.get(RunCompilerTests.OUTPUT_KEY);
-				
+				ArrayList<String> compilerArgsList = new ArrayList<String>();
+				compilerArgsList.add("-d");
+				compilerArgsList.add("0");
+				compilerArgsList.add("-t");
+				compilerArgsList.add(new File(GENERATE_JAVA_DIR).getAbsolutePath());
+				compilerArgsList.add("-o");
+				compilerArgsList.add(new File(OUTPUT_DIR).getAbsolutePath());
+				if (!shouldTypecheck)
+					compilerArgsList.add("-n");
+				if (shouldAeminium)
+					compilerArgsList.add("-a");
+				for(String path : RUNPLAID_CLASSPATH) {
+					compilerArgsList.add("-p");
+					compilerArgsList.add(path);
+				}
+				for (File plaidFile : config.getPlaidFiles()) {
+					compilerArgsList.add(plaidFile.getAbsolutePath());
+				}
 				allParams.add(
-						getParams(test.getString(NAME_KEY), //testName
-								mainClass, //mainClass
-								new ArrayList<String>(),//mainArgs
-								RUNPLAID_CLASSPATH,//classPath
-								expectedOutput,
-								true,//compareOutput
-								true)//shouldSucceed
+						getParams("Backend compiling " + configFile.getParentFile().getCanonicalPath(), //testName
+								"plaid.compiler.main", //mainClass
+								compilerArgsList, //mainArgs
+								COMPILEPLAID_CLASSPATH, //classPath
+								"", //expectedOutput
+								false, //compareOutput
+								true) //shouldSucceed
 						);
+				
+			
+			
+				JSONArray backEndTests = backend.getJSONArray(TESTS_KEY);
+				//run the main methods of the given backendTests;
+				
+				for(int i = 0; i < backEndTests.length(); i++) {
+					JSONObject test = backEndTests.getJSONObject(i);	
+					
+					
+					String mainClass = (String)test.get(RunCompilerTests.CLASSNAME_KEY);
+					String expectedOutput = (String)test.get(RunCompilerTests.OUTPUT_KEY);
+					
+					allParams.add(
+							getParams(test.getString(NAME_KEY), //testName
+									mainClass, //mainClass
+									new ArrayList<String>(),//mainArgs
+									RUNPLAID_CLASSPATH,//classPath
+									expectedOutput,
+									true,//compareOutput
+									true)//shouldSucceed
+							);
+				}
+			
+			
 			}
-			
-			
-			
 		}
 		
 		File srcDir = new File(SRC_DIR);
@@ -269,6 +327,19 @@ public class RunCompilerTests {
 		paramsTest[5] = compareOutput; //compareOutput
 		paramsTest[6] = shouldSucceed; //shouldSucceed;
 		return paramsTest;
+	}
+	
+	public static String errorsOutput(JSONArray errorsArray) throws JSONException {
+		String toRet = "";
+		for (int i = 0 ; i < errorsArray.length(); i ++) {
+			JSONObject error = errorsArray.getJSONObject(i);
+			toRet = toRet + error.getString(FILE_KEY) +
+							":" + error.getInt(LINE_KEY) +
+							"->" + error.getString(CODE_KEY) + "\n";
+			
+		}
+		
+		return toRet;
 	}
 	
 	private static class ProcessRunner {
