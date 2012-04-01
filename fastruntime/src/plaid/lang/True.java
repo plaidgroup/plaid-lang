@@ -1,18 +1,19 @@
 package plaid.lang;
 
 import plaid.fastruntime.ObjectValue;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
-import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
+import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
 import plaid.generated.Iampamp$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
-public final class True extends AbstractPlaidState implements Iampamp$plaid$1$plaid,
+public final class True extends AbstractPlaidDispatch implements Iampamp$plaid$1$plaid,
 														ItoString$0$plaid {
 	
 	private static final java.lang.String TRUE_TAG = "plaid/lang/True".intern();
@@ -20,9 +21,20 @@ public final class True extends AbstractPlaidState implements Iampamp$plaid$1$pl
 	
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	public static final PlaidJavaObject TRUE_VALUE;
+	
 	static {
-	theState$plaid = new True(new DimensionValue("plaid/lang/True", null, new DimensionValue("plaid/lang/Boolean", null, null)));
-	TRUE_VALUE = ((True)theState$plaid).new TruePlaidJavaObject(theState$plaid);
+		True trueDispatch = new True(new DimensionValue(TRUE_TAG, null, new DimensionValue(BOOLEAN_TAG, null, null)));
+		TRUE_VALUE = trueDispatch.new TruePlaidJavaObject(trueDispatch);
+		theState$plaid = new AbstractPlaidState(trueDispatch) {
+			@Override
+			public final PlaidObject instantiate() {
+				return TRUE_VALUE;
+			}
+			@Override
+			public final java.lang.String getTopTag() {
+				return TRUE_TAG;
+			}
+		};
 	}
 	
 	private True(ObjectValue metadata) {
@@ -35,11 +47,6 @@ public final class True extends AbstractPlaidState implements Iampamp$plaid$1$pl
 	}
 	
 	@Override
-	public PlaidObject instantiate() {
-		return TRUE_VALUE;
-	}
-
-	@Override
 	public PlaidObject toString(PlaidObject x) {
 		return Util.string("true");
 	}
@@ -49,13 +56,8 @@ public final class True extends AbstractPlaidState implements Iampamp$plaid$1$pl
 		return  tag == TRUE_TAG || tag == BOOLEAN_TAG || tag.equals(TRUE_TAG) || tag.equals(BOOLEAN_TAG);
 	}
 	
-	@Override
-	public java.lang.String getTopTag() {
-		return TRUE_TAG;
-	}
-	
 	private final class TruePlaidJavaObject extends SimplePlaidJavaObject {
-		protected TruePlaidJavaObject(PlaidState dispatch) {
+		protected TruePlaidJavaObject(PlaidDispatch dispatch) {
 			super(dispatch,null,java.lang.Boolean.TRUE);
 		}
 		

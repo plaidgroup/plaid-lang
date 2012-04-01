@@ -6,6 +6,7 @@ import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
+import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
@@ -20,7 +21,7 @@ import plaid.generated.Isubstring$2$plaid;
 import plaid.generated.ItoLowerCase$0$plaid;
 import plaid.generated.ItoString$0$plaid;
 
-public class String extends AbstractPlaidState
+public class String extends AbstractPlaidDispatch
 						  implements Iplus$plaid$1$plaid,
 						  			 Ieqeq$plaid$1$plaid,
 						  			 IstartsWith$1$plaid,
@@ -35,21 +36,22 @@ public class String extends AbstractPlaidState
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	static {
-	theState$plaid = new String(new DimensionValue("plaid/lang/String", null, null));
+		theState$plaid = new AbstractPlaidState(new String(new DimensionValue("plaid/lang/String", null, null))) {
+			@Override
+			public PlaidObject instantiate() {
+				throw new PlaidIllegalOperationException("Cannot instantiate String state");
+			}
+		};
 	}
 	
 	public static PlaidObject plaidString(java.lang.String s) { 
-		return new SimplePlaidJavaObject(theState$plaid,null, s); 
+		return new SimplePlaidJavaObject(theState$plaid.getDispatch(),null, s); 
 	}
 	
 	private String(ObjectValue metadata) {
 		super(metadata);
 	}
-	
-	@Override
-	public PlaidObject instantiate() {
-		throw new PlaidIllegalOperationException("Cannot instantiate String state");
-	}
+
 
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject other) {
 		try {

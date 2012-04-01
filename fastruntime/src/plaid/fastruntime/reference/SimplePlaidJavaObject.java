@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.PlaidJavaObject;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
@@ -9,8 +10,8 @@ public class SimplePlaidJavaObject extends SimplePlaidObject implements PlaidJav
 
 	protected Object javaObject;
 
-	public SimplePlaidJavaObject(PlaidState dispatch, PlaidObject[] storage, Object javaObject) {
-		super(dispatch, storage, null);
+	public SimplePlaidJavaObject(PlaidDispatch dispatch, PlaidObject[] storage, Object javaObject) {
+		super(dispatch, storage);
 		this.javaObject = javaObject;
 	}
 
@@ -22,11 +23,6 @@ public class SimplePlaidJavaObject extends SimplePlaidObject implements PlaidJav
 	@Override
 	public void changeState(PlaidState s) {
 		throw new PlaidIllegalOperationException("Cannot change the state of a Java Object.");
-	}
-	
-	@Override
-	public Object[] getMemberDefs() {
-		throw new PlaidIllegalOperationException("Cannot retrieve member definitions of Java Object.");
 	}
 	
 	@Override

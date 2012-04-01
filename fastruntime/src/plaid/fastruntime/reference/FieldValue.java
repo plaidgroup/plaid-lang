@@ -1,7 +1,6 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.FieldInfo;
-import plaid.fastruntime.MemberDefInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.data.List;
@@ -11,16 +10,16 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	private final boolean settable;
 	
 	public static FieldValue createFieldWithStaticDefinition(String name, boolean settable, String classInternalName) {
-		return new FieldValue(name, settable, classInternalName, true, null);
+		return new FieldValue(name, settable, classInternalName, true);
 	}
 	
-	public static FieldValue createFieldWithDynamicDefinition(String name, boolean settable, String memberDefinitionName) {
-		return new FieldValue(name, settable, null, false, memberDefinitionName);
+	public static FieldValue createFieldWithDynamicDefinition(String name, boolean settable) {
+		return new FieldValue(name, settable, null, false);
 	}
 	
 	private FieldValue(String name, boolean settable, String classInternalName,
-			boolean staticallyDefined, String memberDefinitionName) {
-		super(name, classInternalName, staticallyDefined,  memberDefinitionName);
+			boolean staticallyDefined) {
+		super(name, classInternalName, staticallyDefined);
 		this.settable = settable;
 		this.init();
 	}
@@ -36,10 +35,6 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 		return List.single((FieldInfo) this);
 	}
 	
-	@Override
-	public List<MemberDefInfo> constructMemberDefs() {
-		return NIL_MEMBER_DEF_INFO;
-	}
 
 	@Override
 	public int compareTo(FieldInfo o) {
@@ -54,7 +49,7 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	public ObjectValue rename(String currentName, String newName) {
 		if(this.getName().equals(currentName)) {
 			return new FieldValue(newName, this.settable, this.getStaticClassInternalName(),
-								  this.isStaticallyDefined(), this.getMemberDefinitionName());
+								  this.isStaticallyDefined());
 		} else {
 			return this;
 		}
@@ -65,7 +60,7 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 		String settableString = settable ? "t" : "f";
 		String fieldInitializer = this.isStaticallyDefined() ?
 				this.getStaticClassInternalName() 
-				: this.getMemberDefinitionName();
+				: "";
 		String result =  "field:" + settableString + this.getName() + this.isStaticallyDefined() +
 				fieldInitializer;
 		return result.intern();

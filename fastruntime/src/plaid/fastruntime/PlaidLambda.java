@@ -5,18 +5,13 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 public abstract class PlaidLambda implements PlaidObject {
 
 	@Override
-	public PlaidState getDispatch() {
+	public PlaidDispatch getDispatch() {
 		throw new PlaidIllegalOperationException("Lambda objects do not have a dispatch.");
 	}
 
 	@Override
 	public PlaidObject[] getStorage() {
 		throw new PlaidIllegalOperationException("Lamdba objects do not have storage.");
-	}
-	
-	@Override
-	public Object[] getMemberDefs() {
-		throw new PlaidIllegalOperationException("Lamdba objects do not have member defs.");
 	}
 
 	@Override

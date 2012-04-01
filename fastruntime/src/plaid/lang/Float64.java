@@ -1,12 +1,14 @@
 package plaid.lang;
 
 import plaid.fastruntime.ObjectValue;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalArgumentException;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
+import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.generated.Idiv$plaid$1$plaid;
@@ -17,7 +19,7 @@ import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
-public final class Float64 extends AbstractPlaidState
+public final class Float64 extends AbstractPlaidDispatch
 					implements Iplus$plaid$1$plaid,
 					Ieqeq$plaid$1$plaid,
 					Imult$plaid$1$plaid,
@@ -27,9 +29,14 @@ public final class Float64 extends AbstractPlaidState
 					ItoString$0$plaid,
 					plaid.generated.InativeLessThan$1$plaid{
 
-	public static final plaid.fastruntime.PlaidState theState$plaid;
+	public static final PlaidState theState$plaid;
 	static {
-	theState$plaid = new Float64(new DimensionValue("plaid/lang/Float64", null, null));
+		theState$plaid = new AbstractPlaidState(new Float64(new DimensionValue("plaid/lang/Float64", null, null))) {
+			@Override
+			public PlaidObject instantiate() {
+				throw new PlaidIllegalOperationException("Cannot instantiate Float64 state");
+			}
+		};
 	}
 	
 	public static PlaidObject plaidFloat64(double d) { 
@@ -38,11 +45,6 @@ public final class Float64 extends AbstractPlaidState
 	
 	private Float64(ObjectValue metadata) {
 		super(metadata);
-	}
-
-	@Override
-	public PlaidObject instantiate() {
-		throw new PlaidIllegalOperationException("Cannot instantiate Float64 state");
 	}
 	
 	@Override
@@ -175,8 +177,8 @@ public final class Float64 extends AbstractPlaidState
 		}
 
 		@Override
-		public final PlaidState getDispatch() {
-			return Float64.theState$plaid;
+		public final PlaidDispatch getDispatch() {
+			return Float64.theState$plaid.getDispatch();
 		}
 		
 		@Override
@@ -187,11 +189,6 @@ public final class Float64 extends AbstractPlaidState
 		@Override
 		public final PlaidObject[] getStorage() {
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
-		}
-
-		@Override
-		public final Object[] getMemberDefs() {
-			throw new PlaidIllegalOperationException("No member defs for a Java Object.");
 		}
 
 	}
