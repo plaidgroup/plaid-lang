@@ -1,0 +1,322 @@
+package plaid.ast.types;
+
+import plaid.ast.types.permissions.*;
+import java.lang.System;
+
+/* A BorrowType is a case of TypeBinding used for tracking the types of
+   locations in a Plaid program. In addition to the current PlaidType of the
+   location inherited from TypeBinding, we also keep track of a boolean flag
+   that indicates whether this location is strongly borrowed and thus expects
+   no persistent aliases to remain after it goes out of scope.  Secondly, we
+   keep track of a lower bound on the current permission to this location
+   which is used for catching errors at the uses of the location.
+ */
+ 
+ state BorrowType case of TypeBinding {
+ 	val immutable Boolean stronglyBorrowed;
+ 	val immutable Permission lowerBound;
+ 	
+ 	method /*unique Option<unique TypeBinding*/ splitBinding(immutable TypeBinding other, unique StateTable st)
+ 										  [immutable BorrowType]
+	{	
+		this.currentType.type.pack(st);
+		val unique ObjectType residualOtype = this.getObjectType();
+		match(residualOtype) {
+			case UnpackedType { new None } /* pack failed */
+			default {
+				match (residualOtype.isSubObjectTypeOf(other.currentType.type,st)) {
+					case True {
+						val immutable Permission residualPerm = 
+							this.getPerm().splitPerm(other.getPerm());
+						match (residualPerm) {
+							case Some {
+								match (other) {
+									case TakeType { //check that we haven't reduced below lower bound
+										match (this.stronglyBorrowed) {
+											case True { new None } //cannot take from strongly borrowed
+											case False {
+												match (residualPerm.value.isSubPermOf(this.lowerBound)) {
+													case True { // ok - still have enough permissions
+														makeSome(createBorrowType(residualPerm.value,
+																					residualOtype,
+																					this.lowerBound,
+																					false))
+													}
+													case False {
+														new None //taking too much permission - won't be able to return correct amount
+													}
+												}		
+											}
+										}		
+									}
+									case BorrowType { //borrowing and lower bound
+										match(this.stronglyBorrowed) {
+											case True {
+												match (other.stronglyBorrowed) {
+													case True {
+														makeSome(
+															createBorrowType(residualPerm.value,
+																				residualOtype,
+																				residualPerm.value,
+																				true)
+														)
+													}
+													case False { new None }
+												}
+											}
+											case False {
+												match (other.stronglyBorrowed) {
+													case True {/* no extra checks*/ 
+														makeSome(
+															createBorrowType(residualPerm.value,
+																				residualOtype,
+																				residualPerm.value,
+																				true)
+														)
+													}
+													case False { //check we haven't taken too much
+														//after this alias returns, we will have the returned permission plus the residual
+														val immutable Permission afterPerm = residualPerm.value.join(other.lowerBound);
+														match (afterPerm) {
+															case Some {
+																match (afterPerm.value.isSubPermOf(this.lowerBound)) {
+																	case True { //still enough permission left to return
+																		//based on what I will get back from split binding, what do need to get back from the residue to
+																		//return to the current permission with the split binding permission
+																		//*** This is becoming to tricky, so we're not worrying about it now
+																		val /*unique Option<immtuable Permission*/ newLowerBound = makeSome(NONEP); //this.lowerBound.splitPerm(other.lowerBound);
+																		match (newLowerBound) {
+																			case Some {
+																				makeSome(
+																					createBorrowType(residualPerm.value,
+																								residualOtype,
+																								newLowerBound.value,
+																								false)
+																				)
+																			}
+																			case None { //shouldn't happen, but if cannot get new lower bound, then fails
+																				new None
+																			}
+																		}
+																	}
+																	case False { //took too much
+																		new None
+																	}
+																}
+															}
+															case None {
+																new None;  //it seems wrong that we would ever get here...
+															}
+														}
+													}	
+												}
+											}
+										}
+									}
+								}
+							}
+							case None { new None } //permission splitting failed
+						}
+					}
+					case False { new None }  //object subtyping failed
+				}	
+			}
+		}
+	}
+	
+	method /*unique Option<unique TypeBinding*/ joinBinding(immutable TypeBinding other, immutable TypeBinding orig)
+ 										 [immutable BorrowType]
+ 	{
+ 		match (other) {
+ 			case BorrowType {
+ 				val /* unique Option<unique ObjectType>*/ joinedOT = 
+ 					joinPlaidTypes(this.currentType, other.currentType);
+ 				match (joinedOT) {
+ 					case Some {
+ 						match (this.stronglyBorrowed == other.stronglyBorrowed) {
+ 							case True {
+ 								match (this.stronglyBorrowed) {
+ 									case True {
+ 										val /*unique Option<immutable Permission>*/ newPerm = 
+ 											this.getPerm().joinTo(other.getPerm(),orig.getPerm());
+ 										match (newPerm) {
+ 											case Some {
+ 												match (newPerm.value == orig.getPerm()) {
+ 													case True {
+ 														match (orig) {
+ 															case TakeType {
+ 																makeSome(createTakeType(newPerm.value,joinedOT.value))
+ 															}
+ 															case BorrowType {
+ 																makeSome(createBorrowType(newPerm.value,
+ 																							joinedOT.value,
+ 																							orig.lowerBound,
+ 																							orig.stronglyBorrowed)
+ 																)
+ 															}
+ 														}
+ 													}
+ 													case False { new None }
+ 												}
+ 											}
+ 											case None { new None }
+ 										}
+ 									}
+ 									case False { //not strongly borrowed - cannot become strongly borrowed
+ 										val /*unique Option<immutable Permission>*/ newPerm = 
+ 											this.getPerm().join(other.getPerm());
+ 										match (newPerm) {
+ 											case Some {
+ 												match (orig) {
+ 													case TakeType {
+ 														makeSome(createTakeType(newPerm.value,joinedOT.value))
+ 													}
+ 													case BorrowType {
+ 														
+ 														match (newPerm.value.isSubPermOf(orig.lowerBound)) {
+ 															case True {
+ 																match (orig.stronglyBorrowed) {
+ 																	case True { new None }
+ 																	case False {
+ 																		makeSome(createBorrowType(newPerm.value,
+ 																							joinedOT.value,
+ 																							orig.lowerBound,
+ 																							orig.stronglyBorrowed)
+ 																		)
+ 																	}
+ 																}
+ 															}
+ 															case False {  //not enough returned
+ 																new None
+ 															}
+ 														}
+ 														
+ 													}
+ 												}
+ 												
+ 											}
+ 											case None { new None }
+ 										}
+ 									}
+ 								}
+ 							}
+ 							case False { new None } // must both be borrowed or strongly borrowed
+ 						}
+ 					}
+ 					case None { new None }
+ 				}
+ 				
+ 				
+ 			}
+ 			case TakeType {
+ 				new None
+ 			}
+ 		}
+ 	}
+ 	
+ 	method /*unique Option<unique TypeBinding>*/ 
+ 		leastUpperBound(immutable TypeBinding other, unique StateTable st)[immutable BorrowType]
+ 	{
+ 		match (other) {
+ 			case BorrowType {
+ 				match ( this.stronglyBorrowed == other.stronglyBorrowed && 
+ 						 this.lowerBound == other.lowerBound ) 
+ 				{
+ 					case True {
+ 						val /*unique Option<unique PermType>*/ newPermType = 
+ 							other.currentType.leastUpperBound(this.currentType,st);
+ 						match(newPermType) {
+ 							case Some {
+ 								makeSome(
+									new BorrowType { 
+ 										var unique PermType currentType = newPermType.value;
+										val immutable Permission lowerBound = other.lowerBound;
+ 										val immutable Boolean stronglyBorrowed = other.stronglyBorrowed;
+ 									}
+ 								)
+ 							}
+ 							case None { new None }
+ 						}
+ 					}
+ 					case False { new None }
+ 				} 
+ 			}
+ 			case TakeType { new None }
+ 		}
+ 	}
+ 	
+ 	method /*unique Option<unique TypeBinding>*/ 
+ 		greatestLowerBound(immutable TypeBinding other, unique StateTable st)[immutable BorrowType]
+ 	{
+ 		match (other) {
+ 			case BorrowType {
+ 				match ( this.stronglyBorrowed == other.stronglyBorrowed && 
+ 						 this.lowerBound == other.lowerBound ) 
+ 				{					
+ 					case True {
+ 						val /*unique Option<unique PermType>*/ newPermType = 
+ 							other.currentType.greatestLowerBound(this.currentType,st);
+ 						match(newPermType) {
+ 							case Some {
+ 								makeSome(
+									new BorrowType { 
+ 										var unique PermType currentType = newPermType.value;
+										val immutable Permission lowerBound = other.lowerBound;
+ 										val immutable Boolean stronglyBorrowed = other.stronglyBorrowed;
+ 									}
+ 								)
+ 							}
+ 							case None { new None }
+ 						}
+ 					}
+ 					case False { new None }
+ 				} 
+ 			}
+ 			case TakeType { new None }
+ 		}
+ 	}
+ 	
+ 	method immutable Boolean ==(immutable TypeBinding other) {
+ 		match (other) {
+ 			case BorrowType {
+ 				this.currentType == other.currentType && 
+ 			  	this.stronglyBorrowed == other.stronglyBorrowed &&
+ 			   	this.lowerBound == this.lowerBound;
+ 			}
+ 			default { false }
+ 		}
+ 	}
+ 	
+ 	method immutable String toString()[immutable BorrowType] {
+ 		var ret = "";
+ 		if (this.stronglyBorrowed) { ret = "(B)" };
+ 		"( " + currentType.toString() + " >>" + ret + " " + lowerBound.toString() + ")";
+ 	}
+ 	
+ 	method unique BorrowType copy()[immutable BorrowType] {
+ 		new BorrowType {
+ 			var unique PermType currentType = this.currentType.copy();
+ 			val immutable Boolean stronglyBorrowed = this.stronglyBorrowed;
+ 			val immutable Permission lowerBound = this.lowerBound;
+ 		}
+ 	}
+ 	
+ 	/**
+ 	 *  Subtyping for borrow bindings requires that both are borrowBindings.  Then, the
+ 	 *  currentTypes must be subtypes as with TakeTypes. 
+ 	 *  DEPRECATED - subtyping was only used for method/lambda subtyping and was confusing
+ 	 *    so I replaced it by using change types and subtyping for those instead
+ 	 */
+ 	/*method immutable Boolean isSubTypeBindingOf(immutable TypeBinding other, stateTable) {
+ 		match (other) {
+ 			case BorrowType {
+ 				ifElse (!other.stronglyBorrowed && this.stronglyBorrowed) 
+ 					{ false }
+ 					{ this.currentType.isSubPermTypeOf(other.currentType, stateTable) && 
+ 						other.lowerBound.isSubPermOf(this.lowerBound)	
+ 					}
+ 			}
+ 			default { false }
+ 		}
+ 	}*/
+ }
