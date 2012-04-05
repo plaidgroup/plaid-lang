@@ -32,5 +32,19 @@ public class SimplePlaidJavaObject extends SimplePlaidObject implements PlaidJav
 	public Object asPrimitive(JavaPrimitive p) {
 		throw new PlaidIllegalOperationException("Class" + javaObject.getClass().getSimpleName() + " cannot be used as a " + p.name + " primitive.");
 	}
-
+	
+	@Override
+	public boolean equals(Object other) {
+		if(other instanceof PlaidJavaObject) {
+			PlaidJavaObject otherObject = (PlaidJavaObject)other;
+			return this.getJavaObject().equals(otherObject.getJavaObject());
+		} else {
+			return false;
+		}
+	}
+	
+	@Override
+	public int hashCode() {
+		return this.javaObject.hashCode();
+	}
 }
