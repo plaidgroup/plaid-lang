@@ -1,5 +1,6 @@
 package plaid.fastruntime.reference;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import plaid.fastruntime.PlaidDispatch;
@@ -25,7 +26,8 @@ public final class SimplePlaidState extends AbstractPlaidState {
 	}
 	
 	@Override
-	public PlaidObject[] getStorage() {
-		return this.getObjectValue().getDefaultStorage(memberDefinitions);
+	public final PlaidObject instantiate() {
+		//TODO: get memberdefs as an argument?
+		return new SimplePlaidObject(this.getDispatch(), this.getObjectValue().getDefaultStorage(new HashMap<String,PlaidLambda>())); 
 	}
 }
