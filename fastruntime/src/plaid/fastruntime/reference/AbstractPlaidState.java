@@ -1,7 +1,11 @@
 package plaid.fastruntime.reference;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidDispatch;
+import plaid.fastruntime.PlaidLambda;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
@@ -14,7 +18,6 @@ public abstract class AbstractPlaidState implements PlaidState {
 	public AbstractPlaidState(PlaidDispatch dispatch) {
 		this.dispatch = dispatch;
 	}
-	
 	
 	@Override
 	public PlaidState with(PlaidState other) {
@@ -45,12 +48,13 @@ public abstract class AbstractPlaidState implements PlaidState {
 	@Override
 	public PlaidObject instantiate() {
 		//TODO: get memberdefs as an argument?
-		return new SimplePlaidObject(this.getDispatch(), this.getStorage()); 
+		return new SimplePlaidObject(this.getDispatch(), this.getObjectValue().getDefaultStorage(new HashMap<String,PlaidLambda>())); 
 	}
 
 	@Override
 	public PlaidObject[] getStorage() {
-		return this.getObjectValue().getDefaultStorage(null);
+		throw new PlaidIllegalOperationException("Tried to get Storage on PlaidState." +
+				"States do not have storage."); 
 	}
 
 	@Override

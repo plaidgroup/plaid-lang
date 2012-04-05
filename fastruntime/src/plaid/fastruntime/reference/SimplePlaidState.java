@@ -2,12 +2,10 @@ package plaid.fastruntime.reference;
 
 import java.util.Map;
 
-import plaid.fastruntime.ObjectValue;
-import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidDispatch;
-import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.PlaidLambda;
-import plaid.fastruntime.Util;
+import plaid.fastruntime.PlaidObject;
+import plaid.fastruntime.PlaidState;
 
 public final class SimplePlaidState extends AbstractPlaidState {
 	

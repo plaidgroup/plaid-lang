@@ -1,7 +1,9 @@
 package plaid.fastruntime.reference;
 
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeSet;
 
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
@@ -53,6 +55,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	private Set<String> tags;
 	private Set<String> outerTags;
 	private Set<String> innerTags;
+	private Map<String, Integer> storageIndexMap;
 	
 	/*
 	 * Must be called in last line of construct of every concrete subtype.
@@ -64,9 +67,10 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		this.tags = this.constructTags();
 		this.outerTags = this.constructOuterTags();
 		this.innerTags = this.constructInnerTags();
+		this.storageIndexMap = this.constructStorageIndexMap();
 	}
-	
-	
+
+
 	@Override
 	public final String getCanonicalRep() {
 		return this.canonicalRep;
@@ -115,6 +119,29 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	protected abstract Set<String> constructOuterTags();
 	
 	protected abstract Set<String> constructInnerTags();
+	
+	private final Map<String, Integer> constructStorageIndexMap() {
+		TreeSet<String> storageNameSet = new TreeSet<String>(); 
+		for (FieldInfo field : this.getFields()) {
+			storageNameSet.add(field.getName());
+		}
+		for (MethodInfo method : this.getMethods()) {
+			if(!method.isStaticallyDefined()) {
+				storageNameSet.add(method.getName());
+			}
+		}
+		
+		Map<String, Integer> toReturn = new HashMap<String, Integer>();
+		
+		// TreeSet.iterator() returns an iterator over the elements in ascending order
+		int i = 0;
+		for(String storageName : storageNameSet) { 
+			toReturn.put(storageName, i);
+			i++;
+		}
+		
+		return toReturn;
+	}
 
 	
 
@@ -217,20 +244,16 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		}
 	}
 	
-	private List<FieldInfo> sortedFields;
-	
 	@Override
 	/*
 	 * This method uses a reflective mechanism that is pretty slow. We should consider generating code for this
-	 * method.
-	 * Returns a new instance every time it is called.
+	 * method. 
+	 * @return A new instance every time it is called. The length of the array is the same 
 	 * @see plaid.fastruntime.ObjectValue#getDefaultStorage()
 	 */
-	public PlaidObject[] getDefaultStorage(Map<String,PlaidLambda> fieldInitializers){
-		List<FieldInfo> sortedFields = this.getSortedFields();
-		PlaidObject[] storage = new PlaidObject[sortedFields.length()];
-		int i = 0;
-		for(FieldInfo field : sortedFields) {
+	public PlaidObject[] getDefaultStorage(Map<String,PlaidLambda> dynamicDefinitions){
+		PlaidObject[] storage = new PlaidObject[this.getStorageLength()];
+		for(FieldInfo field : fields) {
 			ClassLoader cl = this.getClass().getClassLoader();
 			if(field.isStaticallyDefined()) {
 				String className = field.getStaticClassInternalName().replace('/', '.');
@@ -239,7 +262,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 					Field myField = fieldClass.getField(field.getName());
 					Object value = myField.get(null); // static field so object can be null, see JavaDoc
 					PlaidFieldInitializer init = (PlaidFieldInitializer) value;
-					storage[i] = init.invoke$plaid();
+					storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
 				} catch (ClassNotFoundException e) {
 					throw new PlaidInternalException("Could not load field class", e);
 				} catch (SecurityException e) {
@@ -251,39 +274,38 @@ public abstract class AbstractObjectValue implements ObjectValue {
 				} catch (IllegalAccessException e) {
 					throw new PlaidInternalException("Could not load field", e);
 				}
-				i++;
 			} else { //dynamically defined
 				try {
-					PlaidLambda$0 init = (PlaidLambda$0)fieldInitializers.get(field.getName());
-					storage[i] = init.invoke$plaid();
+					PlaidLambda$0 init = (PlaidLambda$0)dynamicDefinitions.get(field.getName());
+					storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
 				} catch (ClassCastException e) {
 					throw new plaid.fastruntime.errors.PlaidInternalException("Field initializer must be a 0 argument Lambda.", e);
 				}
  			}
-		} 
+		}
+		for (MethodInfo method : methods) {
+			if (!method.isStaticallyDefined()) {
+				String name = method.getName();
+				storage[this.getStorageIndex(name)] = dynamicDefinitions.get(name);
+			}
+		}
 		return storage;
-	}
-	
-	private List<FieldInfo> getSortedFields() {
-		if (this.sortedFields == null) {
-			List<FieldInfo> fields = this.getFields();
-			this.sortedFields = fields.sort(FIELD_ORD);
-		} 
-		return this.sortedFields;
 	}
 
 	@Override
-	final public int getFieldIndex(final String fieldName) {
-		List<FieldInfo> sortedFields = this.getSortedFields();
-		int i = 0;
-		for(FieldInfo field : sortedFields) {
-			if(field.getName().equals(fieldName)) {
-				return i;
-			}
-			i++;
+	final public int getStorageIndex(final String name) {
+		Integer index = this.storageIndexMap.get(name);
+		if (index == null) {		
+			throw new PlaidInternalException("Cannot retrieve storage index because the name " +
+				"does not refer to any value.");
+		} else {
+			return index;
 		}
-		throw new PlaidInternalException("Cannot retrieve field index because the field name " +
-				"does not appear in the field list.");
+	}
+	
+	@Override
+	public int getStorageLength() {
+		return this.storageIndexMap.size();
 	}
 
 	
