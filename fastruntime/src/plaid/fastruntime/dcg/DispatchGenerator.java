@@ -73,25 +73,42 @@ public final class DispatchGenerator implements Opcodes {
 				mv.visitMaxs(2,3);
 				mv.visitEnd();
 			} else { //dynamically defined
+				
+				String helperName = NamingConventions.getGetterName(m.getName());
+				String helperDescriptor = NamingConventions.getMethodDescriptor(1);
+						
+						
+				//first define getter
+				MethodVisitor mvHelper;
+				mvHelper = cw.visitMethod(ACC_PUBLIC, 
+						helperName,
+						helperDescriptor,
+						null,
+						null); // TODO: add exception
+
+				mvHelper.visitCode();
+				mvHelper.visitVarInsn(ALOAD, 1);
+				mvHelper.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getStorage", "()[Lplaid/fastruntime/PlaidObject;");
+				int index = ov.getStorageIndex(m.getName());
+				mvHelper.visitIntInsn(BIPUSH, index);
+				mvHelper.visitInsn(AALOAD);
+				mvHelper.visitInsn(ARETURN);
+				mvHelper.visitMaxs(2,2);
+				mvHelper.visitEnd();
+				
 				mv = cw.visitMethod(ACC_PUBLIC, 
 						m.getName(),
 						m.getMethodDescriptor(), null, null);
-				mv.visitCode();
+				mv.visitVarInsn(ALOAD, 0);
 				mv.visitVarInsn(ALOAD, 1);
-				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getDispatch", "()Lplaid/fastruntime/PlaidState;");
-				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidState", "getObjectValue", "()Lplaid/fastruntime/ObjectValue;");
-				mv.visitLdcInsn("TODOFIXTHIS"); //TODO:fix this
-				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/ObjectValue", "getMemberDefinitionIndex", "(Ljava/lang/String;)I");
-				mv.visitVarInsn(ISTORE, 3);
-				mv.visitVarInsn(ALOAD, 1);
-				mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getMemberDefs", "()[Ljava/lang/Object;");
-				mv.visitVarInsn(ILOAD, 3);
-				mv.visitInsn(AALOAD);
-				final String interfaceInternalName = NamingConventions.getGeneratedInterfaceInternalName(m.getName(), m.numArgs());
-				mv.visitTypeInsn(CHECKCAST, interfaceInternalName);
-				mv.visitVarInsn(ALOAD, 1);
-				mv.visitVarInsn(ALOAD, 2);
-				mv.visitMethodInsn(INVOKEINTERFACE, interfaceInternalName, m.getName(), m.getMethodDescriptor());
+				mv.visitMethodInsn(INVOKEVIRTUAL, name, helperName, helperDescriptor);
+				final String lambdaType = "plaid/fastruntime/PlaidLambda$" + m.numArgs();
+				mv.visitTypeInsn(CHECKCAST, lambdaType);
+				// add parameters
+				for (int x = 2; x <= m.numArgs()+1; x++ ) {
+					mv.visitVarInsn(ALOAD, x);
+				}
+				mv.visitMethodInsn(INVOKEVIRTUAL, lambdaType, "invoke$plaid", m.getMethodDescriptor());
 				mv.visitInsn(ARETURN);
 				mv.visitMaxs(3, 4);
 				mv.visitEnd();
