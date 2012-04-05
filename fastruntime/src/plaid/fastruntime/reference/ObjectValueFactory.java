@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.ObjectValue;
+import plaid.fastruntime.PlaidLambda;
 import plaid.fastruntime.errors.PlaidInternalException;
 
 public class ObjectValueFactory {
@@ -38,16 +39,26 @@ public class ObjectValueFactory {
 	public void mthd(String name, int numArgs, String fullyQualifiedClassName) {
 		String internalClassName = fullyQualifiedClassName.replace('.', '/');
 		MethodValue toAdd = MethodValue.createMethodWithStaticDefinition(name, numArgs, internalClassName);
-		member(fullyQualifiedClassName, toAdd);
+		member(toAdd);
+	}
+	
+	public void dynMthd(String name, int numArgs) {
+		MethodValue toAdd = MethodValue.createMethodWithDynamicDefinition(name, numArgs);
+		member(toAdd);
 	}
 
 	public void field(boolean settable, String name, String fullyQualifiedClassName) {
 		String internalClassName = fullyQualifiedClassName.replace('.', '/');
 		FieldValue toAdd = FieldValue.createFieldWithStaticDefinition(name, settable, internalClassName);
-		member(fullyQualifiedClassName, toAdd);
+		member(toAdd);
 	}
 	
-	private void member(String internalClassName, MemberValue toAdd) {	
+	public void dynField(boolean settable, String name) {	
+		FieldValue toAdd = FieldValue.createFieldWithDynamicDefinition(name,settable);
+		member(toAdd);
+	}
+	
+	private void member(MemberValue toAdd) {	
 		if (this.currentValue instanceof DimensionValue) {
 			DimensionValue currentDV = (DimensionValue) this.currentValue;
 			AbstractObjectValue newInnerValue;
