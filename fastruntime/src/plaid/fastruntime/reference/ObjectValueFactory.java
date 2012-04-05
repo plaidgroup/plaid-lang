@@ -1,7 +1,6 @@
 package plaid.fastruntime.reference;
 
 import plaid.fastruntime.ObjectValue;
-import plaid.fastruntime.PlaidLambda;
 import plaid.fastruntime.errors.PlaidInternalException;
 
 public class ObjectValueFactory {
