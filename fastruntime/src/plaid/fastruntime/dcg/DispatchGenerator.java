@@ -111,7 +111,7 @@ public final class DispatchGenerator implements Opcodes {
 			mv.visitCode();
 			mv.visitVarInsn(ALOAD, 1);
 			mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getStorage", "()[Lplaid/fastruntime/PlaidObject;");
-			int index = ov.getFieldIndex(f.getName());
+			int index = ov.getStorageIndex(f.getName());
 			mv.visitIntInsn(BIPUSH, index);
 			mv.visitInsn(AALOAD);
 			mv.visitInsn(ARETURN);

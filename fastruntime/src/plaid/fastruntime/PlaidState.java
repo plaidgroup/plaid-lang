@@ -7,8 +7,6 @@ public interface PlaidState extends PlaidObject {
 	
 	public abstract PlaidObject instantiate();
 	
-	public abstract PlaidObject[] getStorage();
-	
 	public abstract PlaidState remove(String member);
 	
 	public abstract PlaidState rename(String from, String to);

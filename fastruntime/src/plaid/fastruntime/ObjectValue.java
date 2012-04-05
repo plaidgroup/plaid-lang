@@ -20,7 +20,9 @@ public interface ObjectValue {
 	
 	public boolean matches(String tag);
 
-	public int getFieldIndex(String fieldName);
+	public int getStorageIndex(String name);
+	
+	public int getStorageLength();
 	
 	public ObjectValue specialize(ObjectValue newMembers);
 	
