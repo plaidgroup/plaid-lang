@@ -46,18 +46,17 @@ public abstract class AbstractPlaidState implements PlaidState {
 	
 	@Override
 	public PlaidObject instantiate() {
-		//TODO: get memberdefs as an argument?
 		return new SimplePlaidObject(this.getDispatch(), this.getObjectValue().getDefaultStorage(new HashMap<String,PlaidLambda>())); 
 	}
 
 	@Override
-	public PlaidObject[] getStorage() {
+	public final PlaidObject[] getStorage() {
 		throw new PlaidIllegalOperationException("Tried to get Storage on PlaidState." +
 				"States do not have storage."); 
 	}
 
 	@Override
-	public ObjectValue getObjectValue() {
+	public final ObjectValue getObjectValue() {
 		return this.dispatch.getObjectValue();
 	}
 	
@@ -67,30 +66,30 @@ public abstract class AbstractPlaidState implements PlaidState {
 	}
 	
 	@Override
-	public PlaidState remove(String member) {
+	public final PlaidState remove(String member) {
 		ObjectValue newOV = this.getObjectValue().remove(member);
 		return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(newOV));
 	}
 
 	@Override
-	public PlaidState rename(String from, String to) {
+	public final PlaidState rename(String from, String to) {
 		ObjectValue newOV = this.getObjectValue().rename(from, to);
 		return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(newOV));
 	}
 
 	@Override
-	public PlaidState specialize(PlaidState other) {
+	public final PlaidState specialize(PlaidState other) {
 		ObjectValue newOV = this.getObjectValue().specialize(other.getObjectValue());
 		return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(newOV));
 	}
 	
 	@Override
-	public PlaidDispatch getDispatch() {
+	public final PlaidDispatch getDispatch() {
 		return this.dispatch;
 	}
 	
 	@Override
-	public void changeState(PlaidState s) {
+	public final void changeState(PlaidState s) {
 		throw new PlaidIllegalOperationException("Tried to change state on PlaidState." +
 				"States cannot change .");
 	}
