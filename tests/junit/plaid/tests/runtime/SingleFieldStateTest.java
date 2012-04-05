@@ -6,7 +6,6 @@ import org.junit.Test;
 
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
-import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.reference.SimplePlaidObject;
@@ -33,7 +32,7 @@ public class SingleFieldStateTest {
         ovf.field(false, "x","plaid.tests.runtime.SingleFieldStateTest");
         plaid.fastruntime.ObjectValue ov = ovf.value();
         PlaidState ps = Util.makeState(ov);
-        PlaidObject[] storage = ps.getStorage();
+        PlaidObject[] storage = ps.getObjectValue().getDefaultStorage(null);
         PlaidObject o = new SimplePlaidObject(ps.getDispatch(), storage);
         PlaidJavaObject returnedValue = (PlaidJavaObject) ((Igetx$plaid$0$plaid)o.getDispatch()).getx$plaid(o);
 		Assert.assertEquals("5", returnedValue.getJavaObject().toString());
@@ -46,7 +45,7 @@ public class SingleFieldStateTest {
         ovf.field(true, "x","plaid.tests.runtime.SingleFieldStateTest");
         plaid.fastruntime.ObjectValue ov = ovf.value();
         PlaidState ps = Util.makeState(ov);
-        PlaidObject[] storage = ps.getStorage();
+        PlaidObject[] storage = ps.getObjectValue().getDefaultStorage(null);
         PlaidObject o = new SimplePlaidObject(ps.getDispatch(), storage);
         ((Isetx$plaid$1$plaid)o.getDispatch()).setx$plaid(o,Util.integer(3));
         PlaidJavaObject returnedValue = (PlaidJavaObject) ((Igetx$plaid$0$plaid)o.getDispatch()).getx$plaid(o);
