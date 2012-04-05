@@ -1,7 +1,6 @@
 package plaid.fastruntime.reference;
 
 import java.util.HashMap;
-import java.util.Map;
 
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidDispatch;
