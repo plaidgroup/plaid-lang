@@ -1239,6 +1239,60 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                         
                       match (contextResult) {
                         case LinearContext {
+                            if ( AEMINIUM_MODE() ) {
+                                val shared DependencyInformation newInfo = makeASTInformation(exp);
+                                addDepInfoForAST(exp, newInfo);
+                                
+                                // attach to symbols needed in initialization
+                                val symbols = new SymbolCollector;
+                                exp.stateExpr.specializations.do( fn (item) => {
+                                    item.accept(symbols);
+                                    
+                                    match ( depInfoForAST(item) ) {
+                                        case Some {
+                                            val depInfo = depInfoForAST(item).value;
+                                            addDependency(newInfo, depInfo);
+                                        }
+                                        case None {
+                                            report_ERROR(item.token, 
+                                                         "UNEXPECTED_SYM", 
+                                                         "cannot find dependency information for AST ",
+                                                         "typecheckNewInstance");
+                                        }
+                                    };
+                                    
+                                });
+                                
+                                val symbolsIt = symbols.externalSymbols.iterator();
+                                while { symbolsIt.hasNext() }{
+                                    val curSymbol = symbolsIt.next();
+                                    printLine(curSymbol.toString());
+                                    match ( depInfoForSymbol(curSymbol) ) {
+                                        case Some {
+                                            val depInfo = depInfoForSymbol(curSymbol).value;
+                                            printLine(depInfo.toString());
+                                            match ( depInfo ) {
+                                                case SplitInformation { /* nop */ }
+                                                case JoinInformation  { /* nop */ }
+                                                default { 
+                                                    // set to current node
+                                                    addDependency(newInfo, depInfo);
+                                                    setDepInfoForSymbol(curSymbol, newInfo);                                                
+                                                }
+                                            };
+                                            
+                                        }
+                                        case None {
+                                            report_ERROR(exp.stateExpr.token, 
+                                                         "UNEXPECTED_SYM", 
+                                                         "cannot find dependency information for symbol '" + symbol.toString() + "'",
+                                                         "typecheckNewInstance");
+                                        }
+                                    };
+                                    
+                                };
+                            };
+                            
                             makeTypecheckResult(makeType(neededPerm, stateRefSymOpt.value.getStructure()),
                                                 contextResult,
                                                 makeLinkedList());
@@ -1562,11 +1616,11 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
 							  // add dependency to expr
 							  val shared DependencyInformatio expInfo = match ( depInfoForAST(exp.expr) ) {
 								  case Some { depInfoForAST(exp.expr).value }
-								  case None { ABORT("<typecheckExpression>(VarDecl) cannot find dependency information for expression") }
+								  case None { ABORT("<typecheckExpression>(VarDecl) cannot find dependency information for expression " + exp.expr.token.toString()) }
 							  };
 							  addDependency(depInfo, expInfo);
 						  }
-						  case False {}
+						  case False { /* noop */ }
 					  };
 					  
 					  makeTypecheckResult(VOID, valueResult.ctxResult, valueResult.sourceLocList);
