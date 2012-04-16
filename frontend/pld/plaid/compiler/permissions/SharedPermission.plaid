@@ -1,12 +1,15 @@
 package plaid.compiler.permissions;
 
 import plaid.compiler.Permission;
+import plaid.compiler.util.*;
+
+import plaid.collections.makeLinkedList;
 
 /**
  *	Shared Permission
  */
 state SharedPermission case of SymmetricPermission{
-	var unique Option<ID> groupID = new None;
+	var unique LinkedList datagroup = makeLinkedList();
 	
 	/**
 	 * shared references can write to fields
@@ -20,15 +23,20 @@ state SharedPermission case of SymmetricPermission{
 
 	method immutable Boolean ==(immutable Permission p2) {
 		match(p2) {
-			case SharedPermission { true }
+			case SharedPermission {
+			    val dg1 = makeStringFromLinkedList(this.datagroup, ".");
+			    val dg2 = makeStringFromLinkedList(p2.datagroup, ".");
+			    
+			    dg1.equals(dg2)
+			}
 			default { false }
 		};
 	}
 	
 	method immutable String toString() {
-	    match (groupID) {
-	        case Some {
-	            "shared<" + groupID.value.name.toString() +">"
+	    match (this.datagroup.size() > 0 ) {
+	        case True {
+	            "shared<" + makeStringFromLinkedList(this.datagroup) +">"
 	        }
 		    default {
 		        "shared"
@@ -41,9 +49,15 @@ state SharedPermission case of SymmetricPermission{
 	 */
 	method immutable ?Permission splitPerm(immutable Permission p2) {
 		match(p2) {
-			case SharedPermission { this }	// shared => shared/shared
+			case SharedPermission { 
+			    ifElse ( p2 == this ) {
+			        p2
+			    }{
+			        unit
+			    }
+			}	// shared => shared/shared
 			case LocalPermission {
-				ifElse(p2.thePerm == SHARED)
+				ifElse(p2.thePerm == SHARED )
 					{ SHARED }
 					{ unit }
 			}
