@@ -61,7 +61,7 @@ public class JavaDispatchGenerator implements Opcodes {
 		
 		byte[] b = createStaticJavaBytes(javaClass);
 		File classFile = new File("../generated/bin/" + name + ".class");
-		System.out.println("ready to write file " + classFile.getPath());
+		//System.out.println("ready to write file " + classFile.getPath());
 		ClassFileWriter.writeFile(b, new File("../generated/bin/" + subPath), classFile);
 	}
 	
