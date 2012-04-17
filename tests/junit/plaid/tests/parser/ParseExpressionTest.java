@@ -212,6 +212,16 @@ public class ParseExpressionTest {
 	}
 	
 	@Test
+	public void parseUserOperator() throws ParseException, UnsupportedEncodingException {
+		final String code = "-->";
+		final Identifier goal = Identifier("-->");
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final Expr e = pp.IdOrOperator();
+		assertTrue(e instanceof Identifier );
+		assertTrue( goal.equivalent(e) );
+	}
+	
+	@Test
 	public void parseArgumentExprEmpty() throws ParseException, UnsupportedEncodingException {
 		final String code = "()";
 		final ArgumentExpr goal = ArgumentExpr();
@@ -365,6 +375,35 @@ public class ParseExpressionTest {
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expr e = pp.SimpleExpr1();
+		assertTrue(e instanceof Application );
+		assertTrue( goal.equivalent(e) );
+	}
+	
+	@Test
+	public void parseDerefOp() throws ParseException, UnsupportedEncodingException {
+		final String code = "this.-->";
+		final Dereference goal =
+				Dereference(
+					Identifier("this"),											
+					Identifier("-->")
+				);
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expr e = pp.SimpleExpr1();
+		assertTrue(e instanceof Dereference );
+		assertTrue( goal.equivalent(e) );
+	}
+	@Test
+	public void parseDerefOpCall() throws ParseException, UnsupportedEncodingException {
+		final String code = "this.-->(x)";
+		final Application goal = Application(
+				Dereference(
+					Identifier("this"),											
+					Identifier("-->")
+				),
+				ArgumentExpr(Identifier("x"))
+			);
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Expr e = pp.SimpleExpr1();
 		assertTrue(e instanceof Application );
 		assertTrue( goal.equivalent(e) );
 	}
@@ -762,6 +801,49 @@ public class ParseExpressionTest {
 //		final Expr e = pp.ConditionalExpr();
 //		assertTrue(e instanceof MethodCall );;
 //	}
+	
+	/************************************************************
+	 **                 UserOperatorExpr               **
+	 ************************************************************/
+	@Test
+	public void parseUserOperatorInfix() throws ParseException, UnsupportedEncodingException {
+		final String code = "x --> y";
+		final InfixOperatorExpr goal = InfixOperator(Identifier("x"), Identifier("-->"), Identifier("y"));
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final Expr e = pp.UserInfixOperatorExpr();
+		assertTrue(e instanceof InfixOperatorExpr );
+		assertTrue( goal.equivalent(e) );
+	}
+	
+	/************************************************************
+	 **                 MethodInfixExpr               **
+	 ************************************************************/
+	@Test
+	public void parseMethodCallInfix() throws ParseException, UnsupportedEncodingException {
+		final String code = "x XOR y";
+		final InfixOperatorExpr goal = InfixOperator(Identifier("x"), Identifier("XOR"), Identifier("y"));
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final Expr e = pp.UserInfixOperatorExpr();
+		assertTrue(e instanceof InfixOperatorExpr );
+		assertTrue( goal.equivalent(e) );
+	}
+	
+	/************************************************************
+	 **                 Precendence test               **
+	 ************************************************************/
+	@Test
+	public void operatorPrecedence() throws ParseException, UnsupportedEncodingException {
+		final String code = "x --> y && z || w == u XOR v";
+		final InfixOperatorExpr andGoal = InfixOperator(Identifier("y"), Identifier("&&"), Identifier("z"));
+		final InfixOperatorExpr eqeqGoal = InfixOperator(Identifier("w"), Identifier("=="), Identifier("u"));
+		final InfixOperatorExpr orGoal = InfixOperator(andGoal, Identifier("||"), eqeqGoal);
+		final InfixOperatorExpr impGoal = InfixOperator(Identifier("x"), Identifier("-->"), orGoal);
+		final InfixOperatorExpr goal = InfixOperator(impGoal, Identifier("XOR"), Identifier("v"));
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		final Expr e = pp.UserInfixOperatorExpr();
+		assertTrue(e instanceof InfixOperatorExpr );
+		assertTrue( goal.equivalent(e) );
+	}
 	
 	/************************************************************
 	 **                        Exp1                            **
