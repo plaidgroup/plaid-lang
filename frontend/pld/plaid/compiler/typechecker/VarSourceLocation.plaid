@@ -1,0 +1,115 @@
+/**
+ * Copyright (c) 2011 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.typechecker;
+
+import plaid.compiler.types.mergeStructures;
+import plaid.compiler.types.makeType;
+import plaid.ast.util.EMPTY_TOKEN;
+import plaid.compiler.report_ERROR;
+
+import plaid.compiler.aeminium.*;
+
+immutable state VarSourceLocation case of SourceLocation { 
+  val immutable Symbol varSymbol;
+  
+  method immutable ?Type locationType(unique LinearContext ctx) {
+    val unique Option<immutable Type> curTypeOption = ctx.getOption(this.varSymbol);
+    match (curTypeOption) {
+        case Some { curTypeOption.value }
+        case None { unit }
+    }
+  }
+  
+  /**
+   *  restores retType to varSymbol - (if it is assignable (var), this is not implemented)
+   *  If the varSymbol is still in scope (exists in the context), then
+   *    - the incoming permission is returned to the permission from the context
+   *    - the two structures are merged
+   *    - varSymbol is updated in the context with the type formed from the 
+   *      updated permission and structure
+   */
+  method immutable Boolean restoreToLoc(immutable Type retType, unique LinearContext ctx) {
+    match (this.varSymbol.isVar()) {
+        case True {
+            report_ERROR(EMPTY_TOKEN, "RESTORE_VAR", varSymbol.name, "restoreVarLocation");
+            false
+        }
+        case False {
+            val unique Option<immutable Type> curVarTypeOption = ctx.getOption(this.varSymbol);
+            match(curVarTypeOption) {
+              case Some {
+                val immutable ?Permission restoredPerm = curVarTypeOption.value.permission.returnPerm(retType.permission);
+                match (restoredPerm) {
+                    case Permission { 
+                        val immutable ?Structure restoredStructure = mergeStructures(curVarTypeOption.value.structure, retType.structure);
+                        
+                        match (restoredStructure) {
+                            case Structure {
+                                if (AEMINIUM_MODE() ) {
+                                    DEBUG(DEBUG_PRIO_MEDIUM, "<VarSourceLocation> create join node for '" + this.varSymbol.name + "' from '" + retType.permission +"=>" + restoredPerm+"'");
+                                    val unique DependencyInformation joinInfo = makeJoinInformation(this.varSymbol, retType.permission, restoredPerm);
+                                    val shared DependencyInformation symInfo = match (depInfoForSymbol(this.varSymbol)) {
+                                        case Some { depInfoForSymbol(this.varSymbol).value }
+                                        case None { ABORT("<VarSourceLocation> cannot find dependency information for symbol") }
+                                    };            
+                                    addDependency(joinInfo, symInfo);
+                                     
+                                    // last AST that used this variable 
+                                    val shared DependencyInformation slocOrigin = match  (depInfoForSLoc(this) ) {
+                                        case Some { depInfoForSLoc(this).value }
+                                        case None {  ABORT("<VarSourceLocation> cannot find dependency information for symbol") }
+                                    };
+                                    val unique Set lastASTDependents = findLastDependentsForSymbol(slocOrigin, this.varSymbol, true);
+                                    val itAST = lastASTDependents.iterator();
+                                    while { itAST.hasNext() }{
+                                        val shared DependencyInformation dep = itAST.next();
+                                        addDependency(joinInfo, dep);
+                                    };
+                                    joinInfo.inAtomic = slocOrigin.inAtomic;
+                                    setDepInfoForSymbol(this.varSymbol, joinInfo);
+                                };
+                                ctx.update(this.varSymbol, makeType(restoredPerm, restoredStructure));
+                                true
+                            }
+                            default { false } //error in structure merge
+                        }
+                    }
+                    default { false } //error in permission return
+                };
+              }
+              case None { true } //var out of scope - no update needed
+            }
+        }
+    }
+  }
+  
+  method immutable Boolean ==(immutable SourceLocation other) {
+    match (other) {
+      case VarSourceLocation {
+        this.varSymbol == other.varSymbol
+      }
+      default { false }
+    }
+  }
+  
+  method immutable String toString() {
+    "SourceLoc(" + this.varSymbol.name + ")"
+  }
+}

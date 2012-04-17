@@ -1,0 +1,326 @@
+package plaid.ast;
+
+method main() {
+    val file = java.io.File.new("testInputs/AEminium/package.plaid");
+	var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(file));
+	javaAST.setSourceFile(file);
+	val translator = new ASTTranslator;
+	var plaidAST = translator.translateAST(javaAST);
+
+    //val json = plaid.lang.Serialization.toJSON(plaidAST);
+    //System.out.println(json);
+    //val file = java.io.FileWriter.new("AST.json");    
+    //file.write(json);
+    //file.close();
+
+    //val reconAST = plaid.lang.Serialization.fromJSON(json);
+
+    plaidAST.accept(new visitor.PrintVisitor);
+    plaidAST.accept(new visitor.ASTViewer);
+    //reconAST.accept(new visitor.ASTViewer);
+}
+
+val makeToken = fn() => {
+	new Token {
+		val immutable Integer beginLine = 0;
+		val immutable Integer beginColumn = 0;
+		val immutable Integer endLine = 0;
+		val immutable Integer endColumn = 0;
+		val immutable String image = ""; 
+	};
+};
+
+/********
+	factory functions for expressions
+********/
+
+val makeUnitLiteral = fn(immutable Token >> void token) => {
+	new UnitLiteral {
+		val immutable Token token = token;
+	};
+};
+
+
+val makeID = fn(immutable Token >> void token, immutable String >> void n) => {
+	new ID {
+		val immutable Token token = token;
+		val immutable String name = n;
+	};
+};
+
+val makeTempID = fn(immutable Token >> void token, immutable String >> void n) => {
+	new ID {
+		val immutable Token token = token;
+		val immutable String name = n;
+		override val immutable Boolean isTemp = true;
+	};
+};
+
+val makeAssignment = fn (immutable Token >> void token, /*unique Option<Expression>*/ target,
+						 unique ID >> void field, unique Expression >> void value) => {
+	new Assignment {	
+		val /*Token*/ token = token;
+		val /*Option Expression */ target = target;
+		val /*ID*/ field = field;
+		val /*Expression*/ value = value;					 
+	}				 
+};
+
+val makeDereference = fn(immutable Token >> void token, unique Expression >> void left, unique ID >> void right) => {
+	new Dereference {
+		val immutable Token token = token;
+		val unique Expression left = left;
+		val unique ID right = right;
+	};
+}; 
+
+val makeDestructiveDereference = fn(immutable Token >> void token, unique Expression >> void left, unique ID >> void right) => {
+	new DestructiveDereference {
+		val immutable Token token = token;
+		val unique Expression left = left;
+		val unique ID right = right;
+	};
+}; 
+
+val makeApplication = fn(immutable Token >> void token, unique Expression >> void f, /*unique List<unique Expression>*/ args) => {
+	new Application {
+		val immutable Token token          = token;
+		val unique Expression f            = f;
+		val /*List<Expression>*/ arguments = args;
+	};
+};
+
+val makeMethodCall = fn(immutable Token >> void token, unique Expression >> void receiver, unique ID >> void methodName,
+						/*unique List<unique Expression>*/ arguments ) => {
+	new MethodCall {
+		val /*Token*/ token = token;
+		val /*Expression*/ receiver = receiver;
+		val /*ID*/ methodName = methodName;
+		val /*List<Expression>*/ arguments = arguments;
+	};
+};
+
+val makeCase = fn(immutable Token >> void token, /*unique Option<unique QI> >> void*/ qi, 
+				  /*unique Option<unique ID> >> void*/ x, unique Expression >> void e) => {
+	new Case {
+		val immutable Token token         = token;
+		val /*Option QI*/ qi              = qi;
+		val /*Option ID*/ x               = x;
+		val unique Expression e           = e;
+		val immutable Boolean defaultCase = match (qi) { case Some { false } case None { true } };
+		val immutable Boolean boundVar    = match (qi) { case Some { true } case None { false } };
+	};
+};
+
+val makeDefaultCase = fn(immutable Token >> void token, unique Expression >> void e) => {
+	new Case {
+		val immutable Token token         = token;
+		val /*Option QI*/ qi              = new None;
+		val /*Option ID*/ x               = new None;
+		val unique Expression e           = e;
+		val immutable Boolean defaultCase = true;
+		val immutable Boolean boundVar    = false;
+	}
+};
+
+val makeMatch = fn(immutable Token >> void token, unique Expression >> void e, /*unique List<unique Case>*/ cases) => {
+	new Match {
+		val immutable Token token   = token;
+		val unique Expression e     = e;
+		val /*List<Case>*/ caseList = cases;
+	};
+};
+
+val makeLambda = fn(immutable Token >> void token, /*unique List<unique ID> >> void*/ args, unique Expression >> void body,
+					unique LambdaType >> void lt, /*unique Option<unique ID> >> void*/ recursiveName) => {
+	new Lambda {
+		val immutable Token token = token;
+		val /*List<ID>*/ arguments = args;
+		val unique Expression body = body;
+		val immutable LambdaType lambdaType = lt;
+		var /*Option ID*/ recursiveName = recursiveName;
+	};
+};
+
+val makeNewInstance = fn(immutable Token >> void token, unique State >> void s) => {
+	new NewInstance {
+		val immutable Token token = token;
+		val unique State s = s;
+	};
+};
+
+val makeChangeState = fn(immutable Token >> void token, unique Expression >> void exp, unique State >> void s) => {
+	new ChangeState {
+		val immutable Token token = token;
+		val unique Expression e = exp;
+		val unique State s = s;
+	};
+};
+
+//Returns a generic Binding - PRIVATE helper function - use specific factory functions for different LETs below
+val /*(immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable) 
+	-> unique Binding*/ makeBinding =
+ fn (immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable) => 
+ {
+	new Binding {
+		val immutable Token token = token;
+		val unique ID x = x;
+		val unique Expression exp = exp;
+		val unique Expression body = body;
+		val immutable Boolean mutable = mutable;
+	}
+ };
+
+//Returns a LetBinding without a type Annotation
+val /*(immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable) 
+	-> unique LetBinding*/ makeLet =
+ fn (immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable) => 
+ {
+	val b = makeBinding(token,x,exp,body,mutable);
+	b <- LetBinding with NoTypeAnnotation;
+	b
+ };
+
+//Returns a LetBinding with a type Annotation
+val /*(immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable,
+	 unique PlaidType >> void pt) 
+	-> unique LetBinding*/ makeAnnotatedLet =
+ fn (immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable,
+	 unique PlaidType >> void pt) => 
+ {
+	val b = makeBinding(token,x,exp,body,mutable);
+	b <- LetBinding with PermTypeAnnotation { val pType = pt; };
+	b
+ };
+
+//Returns a TakeBinding with no type Annotation
+val /*(immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable) 
+	-> unique TakeBinding*/ makeTake =
+ fn (immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable) => 
+ {
+	val b = makeBinding(token,x,exp,body,mutable);
+	b <- TakeBinding with NoTypeAnnotation;
+	b
+ };
+ 
+//Returns a TakeBinding with a type Annotation
+val /*(immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable,
+	 unique PlaidType >> void pt) 
+	-> unique LetBinding*/ makeAnnotatedTake =
+ fn (immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable,
+	 unique PlaidType >> void pt) => 
+ {
+	val b = makeBinding(token,x,exp,body,mutable);
+	b <- TakeBinding with PermTypeAnnotation { val pType = pt; };
+	b
+ };
+
+//Returns a BorrowBinding with no Annotations (type or lower bound)
+val /*(immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable) 
+	-> unique BorrowBinding*/ makeBorrow =
+ fn (immutable Token >> void token,
+	 unique ID >> void x,
+	 unique Expression >> void exp,
+	 unique Expression >> void body,
+	 immutable Boolean >> void mutable) => 
+ {
+	val b = makeBinding(token,x,exp,body,mutable);
+	b <- BorrowBinding with NoTypeAnnotation;
+	b <- NoLowerBound with NotStrongBorrow;
+	b
+ };
+
+/*********
+	factory functions for States
+*********/
+
+val makeQI = fn(immutable Token >> void token, /*unique List<immutable String> >> void*/ qid, 
+				/*unique Option<unique DeclList> >> void*/ init) => {
+	new QI {
+		val token = token;
+		val qid = qid;
+		val initState = init;
+	}
+};
+
+val makeDeclList = fn(immutable Token >> void token, /*unique List<unique Decl> >> void*/ decls) => {
+	new DeclList {
+		val immutable Token token = token;
+		val /*List<Decl>*/ decls = decls;
+	};
+};
+
+val makeWith = fn(immutable Token >> void token, unique State >> void s1, unique State >> void s2) => {
+	new With {
+		val /*Token*/ token = token;
+		val /*State*/ s1 = s1;
+		val /*State*/ s2 = s2;
+	}
+};
+
+/*********
+	Factory functions for Declarations
+*********/
+
+//TODO: work this out a little better
+val makeFieldDecl = fn(immutable Token >> void token, unique ID >> void name, unique Expression >> void exp,
+					   immutable Boolean >> void isAbstract, immutable Boolean >> void isImmutable, 
+					   unique FieldType >> void ft) => {
+	new FieldDecl {
+		val immutable Token token = token;
+		val /*ID*/ f = name;
+		val /*Expression*/ e = exp;
+		val /*boolean*/ abstractField = isAbstract;
+		val /*boolean*/ immutableField = isImmutable;
+		val /*boolean*/ overrides = false;
+		val /*FieldType*/ fieldType = ft;
+	};
+};
+
+
+
+

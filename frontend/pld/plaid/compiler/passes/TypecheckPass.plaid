@@ -1,0 +1,321 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.ParsedLeafVisitor;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
+import plaid.compiler.report_ERROR;
+import plaid.ast.util.makeTokenForFile;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.Pass;
+
+import plaid.compiler.*;
+
+import plaid.compiler.typechecker.*;
+
+state TypecheckPass case of Pass = ParsedLeafVisitor with {
+  var shared Job job;
+  var immutable Source sourceFile;
+  var shared Resolver resolver;
+    
+    method immutable Boolean run(unique Job job) {
+        match (job) {
+          case UserJob {
+              match (job.ast) {
+                case Some {
+                    ifElse ( TYPECHECKING_MODE() ) {
+                        val errorCount = globalReporter.errors.size();
+                        
+                        DEBUG(DEBUG_PRIO_HIGH, "<TypecheckPass> started");
+                        this.sourceFile = job.source.path;
+                        this.resolver   = job.resolver;
+                        this.job        = job;
+                    
+                        job.ast.value.accept(this);
+                
+                        DEBUG(DEBUG_PRIO_HIGH, "<TypecheckPass> finished");
+                        // were any errors added during typechecking?
+                        errorCount == globalReporter.errors.size() 
+
+                    }{
+                        true
+                    }
+                }
+                default {
+                    ERROR(makeTokenForFile(job.source.path), " AST invalid", "TypecheckPass");
+                    false
+                }
+              }
+          }
+          case CompilerJob {
+              DEBUG(DEBUG_PRIO_HIGH, "<TypecheckPass> skip CompilerJob");
+              true
+          }
+        }
+    }
+
+  /**  
+   * visitors only an entrance into typechecking function
+   * should enter for declarations and typecheck associated
+   * expressions they contain.  The visitor should never
+   * reach expressions, or other itself.
+   */
+  override method void visitParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
+    /* no typechecking necessary */
+  }
+  override method void visitParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node) {
+    /* no typechecking necessary */
+  }
+  override method void visitParsedAbstractStateDecl(immutable ParsedAbstractStateDecl node) {
+    /* no typechecking necessary */
+  }
+  override method void visitParsedAbstractStateValDecl(immutable ParsedAbstractStateValDecl node) {
+    /* no typechecking necessary */
+  }
+  override method void visitParsedApplication(immutable ParsedApplication node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedArg(immutable ParsedArg node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedArgSpec(immutable ParsedArgSpec node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedArgumentExpr(immutable ParsedArgumentExpr node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedAssignment(immutable ParsedAssignment node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedAtomicBlock(immutable ParsedAtomicBlock node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedBlockExpr(immutable ParsedBlockExpr node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedCast(immutable ParsedCast node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedCompilationUnit(immutable ParsedCompilationUnit node) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<TypecheckPass> found Compilation Unit from package '" + makeStringFromQualifiedIdentifier(node.packageName) + "'");
+    node.decls.map(fn (item) => { item.accept(this); item });
+  }
+  override method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<TypecheckPass> found Field Declaration '" + node.name + "'");
+    typecheckDecl(node, new LinearContext);
+  }
+  override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<TypecheckPass> found Method Declaration '" + node.name.name + "'");
+    typecheckDecl(node, new LinearContext);
+  }
+  override method void visitParsedConcreteStateDecl(immutable ParsedConcreteStateDecl node) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<TypecheckPass> found State Declaration '" + node.name.name + "'");
+    typecheckDecl(node, new LinearContext);
+  }
+  override method void visitParsedConcreteStateValDecl(immutable ParsedConcreteStateValDecl node) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<TypecheckPass> found StateVal Declaration '" + node.name + "'");
+    typecheckDecl(node, new LinearContext);
+  }
+  override method void visitParsedConcreteType(immutable ParsedConcreteType node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedDeclList(immutable ParsedDeclList node) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<TypecheckPass> found DeclList");
+    node.decls.map(fn (item) => { item.accept(this); item });
+  }
+  override method void visitParsedDefaultCase(immutable ParsedDefaultCase node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedDereference(immutable ParsedDereference node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedDestructiveDereference(immutable ParsedDestructiveDereference node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedDoubleLiteral(immutable ParsedDoubleLiteral node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedEmptyArgSpec(immutable ParsedEmptyArgSpec node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedEmptyExpr(immutable ParsedEmptyExpr node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedEmptyGroupPermission(immutable ParsedEmptyGroupPermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedEmptyPermission(immutable ParsedEmptyPermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedEmptyQualifiedIdentifier(immutable ParsedEmptyQualifiedIdentifier node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedEmptySpecifier(immutable ParsedEmptySpecifier node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedEmptyType(immutable ParsedEmptyType node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedExclusiveGroupPermission(immutable ParsedExclusiveGroupPermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedFreeze(immutable ParsedFreeze node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedGroupArg(immutable ParsedGroupArg node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedGroupDecl(immutable ParsedGroupDecl node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedGroupType(immutable ParsedGroupType node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedIdentifier(immutable ParsedIdentifier node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedImmutableModifier(immutable ParsedImmutableModifier node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedImmutablePermission(immutable ParsedImmutablePermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedImport(immutable ParsedImport node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedInfixOperatorExpr(immutable ParsedInfixOperatorExpr node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedIntLiteral(immutable ParsedIntLiteral node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedLambda(immutable ParsedLambda node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedLambdaStructure(immutable ParsedLambdaStructure node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedLiteral(immutable ParsedLiteral node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedLocalPermission(immutable ParsedLocalPermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedLocalStateValDecl(immutable ParsedLocalStateValDecl node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedMatch(immutable ParsedMatch node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedMethodCall(immutable ParsedMethodCall node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedMutableGroupPermission(immutable ParsedMutableGroupPermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedNewInstance(immutable ParsedNewInstance node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedNominalStructure(immutable ParsedNominalStructure node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedNonePermission(immutable ParsedNonePermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedOperatorExpr(immutable ParsedOperatorExpr node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedOverrideModifier(immutable ParsedOverrideModifier node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedPatternCase(immutable ParsedPatternCase node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedProtectedGroupPermission(immutable ParsedProtectedGroupPermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedQualifiedIdentifier(immutable ParsedQualifiedIdentifier node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedReadOnlyGroupPermission(immutable ParsedReadOnlyGroupPermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedReplace(immutable ParsedReplace node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedRequiresModifier(immutable ParsedRequiresModifier node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedSharedGroupPermission(immutable ParsedSharedGroupPermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedSharedPermission(immutable ParsedSharedPermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedSplitBlock(immutable ParsedSplitBlock node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedStateChange(immutable ParsedStateChange node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedStateOp(immutable ParsedStateOp node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedStateOpRemove(immutable ParsedStateOpRemove node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedStateOpRename(immutable ParsedStateOpRename node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedStateRef(immutable ParsedStateRef node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedStaticArg(immutable ParsedStaticArg node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedStaticType(immutable ParsedStaticType node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedStringLiteral(immutable ParsedStringLiteral node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedTypeArg(immutable ParsedTypeArg node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedTypeArgType(immutable ParsedTypeArgType node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedUnaryOperatorExpr(immutable ParsedUnaryOperatorExpr node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedUniquePermission(immutable ParsedUniquePermission node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedUnitLiteral(immutable ParsedUnitLiteral node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedUnitType(immutable ParsedUnitType node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedUnpackInnerGroups(immutable ParsedUnpackInnerGroups node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedValSpecifier(immutable ParsedValSpecifier node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedVarDecl(immutable ParsedVarDecl node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedVarSpecifier(immutable ParsedVarSpecifier node) {
+    this.reachedWrongASTtype(node)
+  }
+  override method void visitParsedWith(immutable ParsedWith node) {
+    this.reachedWrongASTtype(node)
+  }
+  
+  method void reachedWrongASTtype(immutable ParsedASTNode node) {
+    report_ERROR(node.token, "Typechecker visitor reached a " + node.nodeName(), "", "TypecheckPass")
+  }
+
+
+}
