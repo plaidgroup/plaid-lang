@@ -1043,8 +1043,8 @@ Expr InfixExpr() :
         return new Cast(t, e, type);
     }
   |
-    LOOKAHEAD(ConditionalOrExpr())
-    e = ConditionalOrExpr()
+    LOOKAHEAD(UserInfixOperatorExpr())
+    e = UserInfixOperatorExpr()
     {
         return e;
     }
@@ -1119,13 +1119,13 @@ List<Expr> SimpleExp1Rest() : {
         rest.add(new Dereference(t, Expr.EMPTY, new Identifier(tnew, tnew.image)));
         return rest; 
      }
-|     t = <DOT> id = Identifier() rest = SimpleExp1Rest()
+|     t = <DOT> id = IdOrOperator() rest = SimpleExp1Rest()
      {
         rest.add(new Dereference(t, Expr.EMPTY, id));
         return rest; 
      } 
   |  
-     t = <BANG> id = Identifier() rest = SimpleExp1Rest()
+     t = <BANG> id = IdOrOperator() rest = SimpleExp1Rest()
      {
         rest.add(new DestructiveDereference(t, Expr.EMPTY, id));
         return rest; 
@@ -1153,6 +1153,20 @@ ArgumentExpr ArgumentExpr() : {
     {
         return new ArgumentExpr(combineTokens(t1,t2,"(...)"), args);
     }
+}
+
+Expr UserInfixOperatorExpr() : 
+{
+    Expr e;
+    Expr arg;
+    Identifier op;
+}
+{
+    e = ConditionalOrExpr()
+    (
+       op = IdOrUserOperator() arg = ConditionalOrExpr()  { e = new InfixOperatorExpr(op.getToken(), e, op, arg); }
+    )*
+    { return e; }
 }
 
 //Expr ConditionalExpr() : //{//    Expr e;//    Expr arg;//    Expr arg2;//    Token t;//    Token t2;//}//{//    e = ConditionalOrExpr()//    (//        t = "?" arg = Expr() t2 =  ":" arg2 = ConditionalExpr()//		{//            e = new MethodCall(t, e, new Identifier(t,t.image), arg);//            e = new MethodCall(t2, e, new Identifier(t,t.image), arg2);//		}//	)?//	{ return e; }//}
@@ -1423,6 +1437,17 @@ Identifier IdOrOperator() :
     
 }
 
+Identifier IdOrUserOperator() :
+{
+    Identifier id;
+    Token op;
+}
+{
+    id = Identifier()  { return id; }
+ |  op = <OP>          { return new Identifier(op, op.image); }
+    
+}
+
 List<Expr> ExprList() :
 {
     Expr e, nextExp;
@@ -1469,7 +1494,6 @@ Identifier Operator() :
     |   op = < OP > /* User defined operator */
     )
     { return new Identifier(op, op.image);	}}
-
 
 List<Arg> Environment() : {
     Arg arg;
