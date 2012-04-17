@@ -319,8 +319,14 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 addSymbolForAST(node, methodSymbol);
             }
         };
+
+		node.StaticArgsSpec.do(fn (item) => { 
+		    val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.id.name, item);
+            addSymbolForAST(item, mySymbol);
+            addSymbolForAST(item.id, mySymbol);
+            // TODO: add symbols to context      
+		});
 		node.returnType.accept(this);
-		node.StaticArgsSpec.do(fn (item) => { item.accept(this) });
 		node.arguments.do(fn (item) => { 
 		    //item.argSpec.accept(this) 
 		    val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.name.name, item);
@@ -529,6 +535,15 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value; };
         this.stack.push(ctxt);
 
+        // add static args first
+        node.StaticArgsSpec.do(fn (item) => { 
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.id.name, item);
+            addSymbolForAST(item, mySymbol);   
+            addSymbolForAST(item.id, mySymbol);
+            val ctx = this.stack.peek().value;
+            ctx.put(item.id.name, mySymbol);
+        });
+
 
         // add arguments to context
         node.arguments.do( fn (arg) => {
@@ -539,11 +554,10 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             val ctx = this.stack.peek().value;
             ctx.put(arg.name.name, mySymbol);
             arg.argSpec.accept(this);
-            
+            ymb
         });
 
         node.modifiers.do(fn (item) => { item.accept(this)  });
-        node.StaticArgsSpec.do(fn (item) => { item.accept(this) });
         node.returnType.accept(this);
         node.environment.do(fn (item) => { 
             DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>     add environment entry '" + item.name.name +"'");
@@ -755,7 +769,24 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 		//node.right.accept(this);
 	}
 
-
+	override method void visitParsedGroupDecl(immutable ParsedGroupDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit visitParsedGroupDecl");
+        val curStateOpt = this.currentState.peek();
+        match (curStateOpt ) {
+            case Some {
+                val groupSymbol = this.sf.makeDatagroupSymbol(node.name.name, node, curStateOpt.value);
+                addSymbolForAST(node, groupSymbol);
+                match (curStateOpt.value) {
+                    case StateSymbol { curStateOpt.value.addMember(groupSymbol); }
+                    case StateRefSymbol { curStateOpt.value.addMember(groupSymbol);  }
+                }
+            }
+            case None {
+                ABORT("<NameResolutionPass> Cannot have top-level group declarations (yet)");
+            }
+        };
+    }
+    
 	override method void visitParsedInfixOperatorExpr(immutable ParsedInfixOperatorExpr node) {
 		node.left.accept(this);
 		node.right.accept(this);
