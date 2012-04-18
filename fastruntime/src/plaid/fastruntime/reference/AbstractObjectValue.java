@@ -264,7 +264,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 					PlaidFieldInitializer init = (PlaidFieldInitializer) value;
 					storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
 				} catch (ClassNotFoundException e) {
-					throw new PlaidInternalException("Could not load field class", e);
+					throw new PlaidInternalException("Could not load field class " + className, e);
 				} catch (SecurityException e) {
 					throw new PlaidInternalException("Could not load field", e);
 				} catch (NoSuchFieldException e) {

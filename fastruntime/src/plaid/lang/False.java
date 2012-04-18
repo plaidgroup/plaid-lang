@@ -11,11 +11,13 @@ import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
 import plaid.generated.Iampamp$plaid$1$plaid;
+import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
 public final class False extends AbstractPlaidDispatch 
 implements Iampamp$plaid$1$plaid,
-		   ItoString$0$plaid {
+		   ItoString$0$plaid,
+		   Ieqeq$plaid$1$plaid {
 	
 	private static final java.lang.String FALSE_TAG = "plaid/lang/False".intern();
 	private static final java.lang.String BOOLEAN_TAG = "plaid/lang/Boolean".intern();
@@ -76,6 +78,11 @@ implements Iampamp$plaid$1$plaid,
 			default: throw new PlaidIllegalOperationException("False cannot be used as a " + p.name + "primitive.");
 			}
 		}
+	}
+
+	@Override
+	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg) {
+		return Util.bool(arg.getDispatch() instanceof False);
 	}
 	
 }
