@@ -1,0 +1,257 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.symbol;
+
+import plaid.lang.testing.TestFactory;
+import plaid.lang.testing.Test;
+import plaid.compiler.*;
+import plaid.ast.parsed.ParsedEmptyExpr;
+import plaid.compiler.permissions.UniquePermission;
+import plaid.compiler.permissions.ImmutablePermission;
+import plaid.compiler.permissions.*;
+import plaid.compiler.types.*;
+import plaid.compiler.tests.ASTsForTests;
+import plaid.compiler.tests.SymbolsForTests;
+import plaid.compiler.tests.TypesForTests;
+import plaid.compiler.symbol.SymbolFactory;
+
+import plaid.collections.makeLinkedList;
+
+state SymbolTestFactory case of TestFactory {
+  
+  method unique List<unique Test> createTests() {
+    val tests = makeLinkedList();
+    val test = fn(name,body) => { tests.add(mktest(name, body)) };
+    var result = unit; //dummy result variable
+    var resultCMP = unit; //for comparing lists
+    
+    val ast = new ASTsForTests;
+    ast.initASTs();
+    val symbols = new SymbolsForTests;
+    symbols.initSymbols(ast);
+    val types = new TypesForTests;
+    types.initTypes(ast,symbols);
+
+    val astCMP = new ASTsForTests;
+    astCMP.initASTs();
+    val symbolsCMP = new SymbolsForTests;
+    symbolsCMP.initSymbols(astCMP);
+   
+    val unique SymbolFactory symFac = new SymbolFactory;
+
+    /********************** Top Symbol *************************/
+    test("Top Symbol equality", fn(ctx) => { 
+      ctx.assertTrue(TOPSYM == symFac.makeTopSymbol());
+      ctx.assertFalse(TOPSYM == symbols.packageSym1);
+      ctx.assertFalse(TOPSYM == symbols.stateSym1);
+      ctx.assertFalse(TOPSYM == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(TOPSYM == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(TOPSYM == symbols.varSym1u1);
+    }); 
+    
+    test("Top symbol getStructure", fn(ctx) => {
+      ctx.assertTrue(TOPSYM.getStructure() == TOPSTRUCT);
+    });
+    
+    
+    /********************** Package Symbols *************************/
+    test("Package Symbol equality", fn(ctx) => { 
+      ctx.assertTrue(symbols.packageSym1 == symbolsCMP.packageSym1);
+      ctx.assertFalse(symbols.packageSym1 == TOPSYM);
+      ctx.assertFalse(symbols.packageSym1 == symbols.packageSym2);
+      ctx.assertFalse(symbols.packageSym1 == symbols.packageSym3);
+      ctx.assertFalse(symbols.packageSym3 == symbols.packageSym1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.packageSym1 == symbols.varSym1u1);
+    }); 
+    
+    test("Package symbol getStructure", fn(ctx) => {
+      ctx.assertTrue(symbols.packageSym1.getStructure() == types.packageStruct1);
+      ctx.assertTrue(symbols.packageSym3.getStructure() == types.packageStruct3);
+    });
+    
+    /********************** State Symbols *************************/
+    test("State Symbol equality", fn(ctx) => { 
+      ctx.assertTrue(symbols.stateSym1 == symbolsCMP.stateSym1);
+      ctx.assertFalse(symbols.stateSym1 == TOPSYM);
+      ctx.assertFalse(symbols.stateSym1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.stateSym2);
+      ctx.assertFalse(symbols.stateSym1 == symbols.stateSym4);
+      ctx.assertFalse(symbols.stateSym1 == symbols.stateSym3);
+      ctx.assertFalse(symbols.stateSym3 == symbols.stateSym1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.stateSym1 == symbols.varSym1u1);
+    }); 
+    
+    test("State Symbol getStructure", fn(ctx) => { 
+      ctx.assertTrue(symbols.stateSym1.getStructure() == types.nominalStruct1);
+    });
+    
+    test("State Symbol default State Permission", fn(ctx) => { 
+      ctx.assertTrue( symbols.stateSym2.defaultStatePermission() == IMMUTABLE );
+      ctx.assertTrue(symbols.stateSym1.defaultStatePermission() == UNIQUE);
+    }); 
+    
+    test("State Symbol default State Type", fn(ctx) => { 
+      ctx.assertTrue(symbols.stateSym1.defaultStateType() == types.nominalType_u1);
+    }); 
+    
+    test("State Symbol getMember", fn(ctx) => { 
+      result = symbols.stateSym1.getMember(ast.fieldName1);
+      ctx.assertTrue(match(result) { case Some { result.value == symbols.fvalSym1u1Os1 } case None { false } });
+      result = symbols.stateSym2.getMember(ast.fieldName2);
+      ctx.assertTrue(match(result) { case Some { false } case None { true } });
+    });
+    
+    
+    test("State Symbol getSuperStateSymbol", fn(ctx) => {
+      ctx.assertTrue(symbols.stateSym2.getSuperStateSymbol() == symbols.stateSym1);
+      ctx.assertTrue(symbols.stateSym1.getSuperStateSymbol() == TOPSYM);
+    }); 
+
+    test("State Symbol getDimension", fn(ctx) => {
+      val dimCmp1 = makeLinkedList();
+      dimCmp1.addFirst(TOPSYM);
+      dimCmp1.addFirst(symbols.stateSym1);
+      
+      val dimCmp2 = makeLinkedList();
+      dimCmp2.addFirst(TOPSYM);
+      dimCmp2.addFirst(symbols.stateSym1);
+      dimCmp2.addFirst(symbols.stateSym2);
+      
+      val dimCmp4 = makeLinkedList();
+      dimCmp4.addFirst(TOPSYM);
+      dimCmp4.addFirst(symbols.stateSym4);
+      ctx.assertTrue(symbols.stateSym2.getDimension().zipReverse(dimCmp2).reduce(true,fn(acc,symPair) => acc && symPair.fst == symPair.snd));
+      ctx.assertTrue(symbols.stateSym1.getDimension().zipReverse(dimCmp1).reduce(true,fn(acc,symPair) => acc && symPair.fst == symPair.snd));
+      ctx.assertTrue(symbols.stateSym4.getDimension().zipReverse(dimCmp4).reduce(true,fn(acc,symPair) => acc && symPair.fst == symPair.snd));
+      
+    }); 
+    
+    test("State Symbol getAbstractMembers", fn(ctx) => { 
+      result = symbols.stateSym1.getAbstractMembers();
+      ctx.assertTrue(match(result.size() == 1) { 
+        case True { result.get(0).value == symbols.fvalSym3u1Os1 } 
+        case False { false }
+      });
+      result = symbols.stateSym3.getAbstractMembers();
+      ctx.assertTrue(result.size() == 0);
+    });
+    
+    
+    /********************** Field Symbols *************************/
+    test("Field Symbol equality", fn(ctx) => { 
+      ctx.assertTrue(symbols.fvalSym1u1Op1 == symbolsCMP.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == TOPSYM);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.fvarSym2e2Op1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.fvalSym1u1Os1);
+      ctx.assertFalse(symbols.fvalSym1u1Os1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.fvalSym1u1Os1 == symbols.fvarSym2e2Op1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.fvalSym1u1Op1 == symbols.varSym1u1);
+    });
+    
+    test("Field Symbol getSignature", fn(ctx) => {
+      ctx.assertTrue(symbols.fvalSym1u1Os1.getSignature() == types.fvalSig1u1);
+    });
+    
+    test("Field Symbol isAbstract", fn(ctx) => {
+      ctx.assertTrue(symbols.fvalSym3u1Os1.isAbstract());
+      ctx.assertFalse(symbols.fvalSym3u3Os3.isAbstract());
+    });
+    
+    test("Field Symbol isOverride", fn(ctx) => {
+      ctx.assertTrue(symbols.fvarSym1u2Os3.isOverride());
+      ctx.assertFalse(symbols.fvalSym3u3Os3.isOverride());
+    });
+    
+    /********************** Method Symbols *************************/
+    test("Method Symbol equality", fn(ctx) => { 
+      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbolsCMP.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == TOPSYM);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E == symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1);
+      ctx.assertFalse(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1 == symbols.varSym1u1);
+    }); 
+    
+    test("Method Symbol getSignature", fn(ctx) => { 
+      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1.getSignature() == types.methodSig1Ru1A1u1n12u1u1TvvE1u1u12u1u1);
+      //java.lang.System.out.println(symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1.getSignature().toString());
+      //java.lang.System.out.println(types.methodSig2Ru1A1u1n12u1u1Tu1n1E1u1u1.toString());
+      ctx.assertTrue(symbols.methodSym2Ru1A1u1n12u1u1Tu1n1E1u1u1.getSignature() == types.methodSig2Ru1A1u1n12u1u1Tu1n1E1u1u1);
+      //java.lang.System.out.println(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E.getSignature().toString());
+      //java.lang.System.out.println(types.methodSig1Ru1A1u1n12u1u1Tu1n1E.toString());
+      ctx.assertTrue(symbols.methodSym1Ru1A1u1n12u1u1Tu1n1E.getSignature() == types.methodSig1Ru1A1u1n12u1u1Tu1n1E);
+      //java.lang.System.out.println(symbols.methodSym2Ru1A1u1n12u1u1TE.getSignature().toString());
+      //java.lang.System.out.println(types.methodSig2Ru1A1u1n12u1u1Tu1u1E.toString());
+      ctx.assertTrue(symbols.methodSym2Ru1A1u1n12u1u1TE.getSignature() == types.methodSig2Ru1A1u1n12u1u1Tu1u1E);
+    }); 
+    
+    /********************** Variable Symbols *************************/
+    test("Variable Symbol equality", fn(ctx) => { 
+      ctx.assertTrue(symbols.varSym1u1 == symbolsCMP.varSym1u1);
+      ctx.assertFalse(symbols.varSym1u1 == TOPSYM);
+      ctx.assertFalse(symbols.varSym1u1 == symbols.packageSym1);
+      ctx.assertFalse(symbols.varSym1u1 == symbols.stateSym1);
+      ctx.assertFalse(symbols.varSym1u1 == symbols.fvalSym1u1Op1);
+      ctx.assertFalse(symbols.varSym1u1 == symbols.methodSym1Ru1A1u1n12u1u1TE1u1u12u1u1);
+      ctx.assertFalse(symbols.varSym1u1 == symbols.varSym2u2);
+    });
+    
+    test("Variable Symbol isVar", fn(ctx) => { 
+      ctx.assertTrue(symbols.varSym1u1.isVar());
+      ctx.assertFalse(symbols.valSym1u1.isVar());
+      ctx.assertFalse(symbols.argSym1.isVar());
+      ctx.assertFalse(symbols.topFSym1valu1.isVar());
+      ctx.assertTrue(symbols.topFSym2vare2.isVar());
+    });
+    
+    test("Variable Symbol getDeclaredType", fn(ctx) => { 
+      ctx.assertTrue(symbols.varSym1u1.getDeclaredType() == types.nominalType_u1);
+      ctx.assertTrue(symbols.valSym1u1.getDeclaredType() == types.nominalType_u1);
+      ctx.assertTrue(symbols.argSym1.getDeclaredType() == types.nominalType_u1);
+      ctx.assertTrue(symbols.topFSym1valu1.getDeclaredType() == types.nominalType_u1);
+      ctx.assertTrue(symbols.topFSym2vare2.getDeclaredType() == types.nominalType_i2);
+    });
+    
+    test("Variable Symbol getStructure", fn(ctx) => { 
+      ctx.assertTrue(symbols.varSym1u1.getStructure() == types.nominalStruct1);
+      ctx.assertTrue(symbols.valSym1u1.getStructure() == types.nominalStruct1);
+      ctx.assertTrue(symbols.argSym1.getStructure() == types.nominalStruct1);
+      ctx.assertTrue(symbols.topFSym1valu1.getStructure() == types.nominalStruct1);
+      ctx.assertTrue(symbols.topFSym2vare2.getStructure() == types.nominalStruct2);
+    });
+    
+    
+    tests
+  }
+  
+  
+}
