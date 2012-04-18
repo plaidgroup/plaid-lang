@@ -62,6 +62,22 @@ public class RunCompilerTests {
 			RUNPLAID_CLASSPATH.add(new File("../fastruntime/lib/functionaljava.jar").getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../generated/bin").getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../frontend/bin").getCanonicalPath());
+			RUNPLAID_CLASSPATH.add(new File("../faststdlib/bin").getCanonicalPath());
+			
+		}
+		catch(IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	private static final List<String> BYTECODE_CLASSPATH = new ArrayList<String>();
+	static {
+		try {
+			BYTECODE_CLASSPATH.add(new File(OUTPUT_DIR).getCanonicalPath());
+			BYTECODE_CLASSPATH.add(new File("../generated/bin").getCanonicalPath());
+			BYTECODE_CLASSPATH.add(new File("../faststdlib/bin").getCanonicalPath());
+			BYTECODE_CLASSPATH.add(new File("../fastruntime/bin").getCanonicalPath());
+			
 		}
 		catch(IOException e) {
 			throw new RuntimeException(e);
@@ -79,6 +95,16 @@ public class RunCompilerTests {
 			COMPILEPLAID_CLASSPATH.add(new File("../fastruntime/bin").getCanonicalPath());
 			COMPILEPLAID_CLASSPATH.add(new File("../fastruntime/lib/asm-debug-all-3.3.1.jar").getCanonicalPath());
 			COMPILEPLAID_CLASSPATH.add(new File("../fastruntime/lib/functionaljava.jar").getCanonicalPath());
+		}
+		catch(IOException e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	private static final List<String> PLAID_PATH = new ArrayList<String>();
+	static {
+		try {
+			PLAID_PATH.add(new File("../faststdlib/pld").getCanonicalPath());
 		}
 		catch(IOException e) {
 			throw new RuntimeException(e);
@@ -218,8 +244,12 @@ public class RunCompilerTests {
 					if (shouldAeminium)
 						compilerArgsList.add("-a");
 					compilerArgsList.add("-e"); //concise errors
-					for(String path : RUNPLAID_CLASSPATH) {
+					for(String path : PLAID_PATH) {
 						compilerArgsList.add("-p");
+						compilerArgsList.add(path);
+					}
+					for(String path : BYTECODE_CLASSPATH) {
+						compilerArgsList.add("-bc");
 						compilerArgsList.add(path);
 					}
 					for (File plaidFile : config.getPlaidFiles()) {
@@ -259,20 +289,26 @@ public class RunCompilerTests {
 					compilerArgsList.add("-n");
 				if (shouldAeminium)
 					compilerArgsList.add("-a");
-				for(String path : RUNPLAID_CLASSPATH) {
+				compilerArgsList.add("-e"); //concise errors
+				for(String path : PLAID_PATH) {
 					compilerArgsList.add("-p");
+					compilerArgsList.add(path);
+				}
+				for(String path : BYTECODE_CLASSPATH) {
+					compilerArgsList.add("-bc");
 					compilerArgsList.add(path);
 				}
 				for (File plaidFile : config.getPlaidFiles()) {
 					compilerArgsList.add(plaidFile.getAbsolutePath());
 				}
+				//NOTE: test will fail if there are warnings.
 				allParams.add(
 						getParams("Backend compiling " + configFile.getParentFile().getCanonicalPath(), //testName
 								"plaid.compiler.main", //mainClass
 								compilerArgsList, //mainArgs
 								COMPILEPLAID_CLASSPATH, //classPath
-								"", //expectedOutput
-								false, //compareOutput
+								"Compilation Succeeded!\n", //expectedOutput
+								true, //compareOutput
 								true) //shouldSucceed
 						);
 				
