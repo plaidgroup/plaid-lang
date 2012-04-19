@@ -1,0 +1,84 @@
+package plaid.compiler.symbol;
+
+import plaid.compiler.Symbol;
+
+import java.lang.Class;
+import java.util.Arrays;
+import java.lang.reflect.Modifier;
+
+import plaid.lang.globals.makeLinkedListFromJava;
+import plaid.collections.makeLinkedList;
+
+state JavaClassSymbol case of Symbol {
+     val shared Class clazz;
+     val immutable Symbol owner;
+     
+     override method immutable Boolean ==(immutable Symbol other)[immutable JavaClassSymbol this] {
+        match (other) {
+          case JavaClassSymbol { this.clazz.equals(other.clazz) }
+          default { false }
+        }
+     }
+     
+     method immutable Boolean checkStaticField(immutable String fieldName) {
+         val immutable LinkedList fields = makeLinkedListFromJava(Arrays.asList(this.clazz.getFields()));
+         fields.reduceLeft(false,fn (p,f) => {
+            match (f.getName().equals(fieldName)) {
+	            case True { 
+    	          	Modifier.isStatic(f.getModifiers()) || p
+    	        }
+        	    case False { false || p }
+        	}
+         })
+     }
+     
+     method immutable Boolean checkStaticMethod(immutable String methodName) {
+         val immutable List methods = makeLinkedListFromJava(Arrays.asList(this.clazz.getMethods()));
+         methods.reduceLeft(false,fn (p,m) => {
+            match (m.getName().equals(methodName)) {
+	            case True { 
+    	          	Modifier.isStatic(m.getModifiers()) || p
+    	        }
+        	    case False { false || p }
+        	}
+         })
+     }
+     
+     override method immutable String symbolType() { "Java Class Symbol" }
+     
+     method unique ParsedQualifiedIdentifier getQualifiedIdentifier() {
+        match ( owner ) {
+            case PackageSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<JavaClassSymbol> Found 'PackageSymbol' owner.");
+                val qi = owner.getQualifiedIdentifier();
+                val unique LinkedList ids = makeLinkedList();
+                
+                qi.identifiers.map(fn (id) => {
+                    ids.addLast(id);
+                });
+                ids.addLast(new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;});
+                
+                new ParsedQualifiedIdentifier{ identifiers = ids; token = EMPTY_TOKEN;}
+            }
+            case TopSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<JavaClassSymbol> Found 'TopSymbol' owner.");
+                val unique LinkedList ids = makeLinkedList();
+                ids.addLast(new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;});
+                new ParsedQualifiedIdentifier{ identifiers = ids;  token = EMPTY_TOKEN;}
+            }
+            default {
+                ERROR("<JavaClassSymbol> Package has invalid owner.");
+                new ParsedQualifiedIdentifier{ identifiers = makeLinkedList(); token = EMPTY_TOKEN;}
+            }
+        }
+    }
+
+    method immutable String getFQN() {
+        makeStringFromQualifiedIdentifier(getQualifiedIdentifier());
+    }
+    
+    method immutable Integer numStaticParams() {
+        makeLinkedListFromJava(Arrays.asList(this.clazz.getTypeParameters())).size()
+    }
+
+}
