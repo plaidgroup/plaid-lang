@@ -14,6 +14,7 @@ import plaid.fastruntime.reference.DimensionValue;
 import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
+import plaid.generated.Imod$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
@@ -27,6 +28,7 @@ public final class Float64 extends AbstractPlaidDispatch
 					Igteq$plaid$1$plaid,
 					Idiv$plaid$1$plaid, 
 					ItoString$0$plaid,
+					Imod$plaid$1$plaid,
 					plaid.generated.InativeLessThan$1$plaid{
 
 	public static final PlaidState theState$plaid;
@@ -126,6 +128,19 @@ public final class Float64 extends AbstractPlaidDispatch
 	}
 	
 	@Override
+	public PlaidObject mod$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			double first = ((Float64PlaidJavaObject) receiver).doubleValue;
+			double second = ((Float64PlaidJavaObject) arg).doubleValue;
+			double result = first%second;
+			return plaidFloat64(result);
+
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("/ failed", e.getCause());
+		}
+	}
+	
+	@Override
 	public PlaidObject nativeLessThan(PlaidObject receiver, PlaidObject arg) {
 		try {
 			double first = ((Float64PlaidJavaObject) receiver).doubleValue;
@@ -192,4 +207,6 @@ public final class Float64 extends AbstractPlaidDispatch
 		}
 
 	}
+
+
 }

@@ -14,8 +14,10 @@ import plaid.generated.IcharAt$1$plaid;
 import plaid.generated.IendsWith$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.IindexOf$1$plaid;
+import plaid.generated.IlastIndexOf$1$plaid;
 import plaid.generated.Ilength$0$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
+import plaid.generated.Ireplace$2$plaid;
 import plaid.generated.IstartsWith$1$plaid;
 import plaid.generated.Isubstring$2$plaid;
 import plaid.generated.ItoLowerCase$0$plaid;
@@ -31,6 +33,8 @@ public class String extends AbstractPlaidDispatch
 						  			 Ilength$0$plaid,
 						  			 IcharAt$1$plaid,
 						  			 IindexOf$1$plaid,
+						  			 IlastIndexOf$1$plaid,
+						  			 Ireplace$2$plaid,
 						  			 ItoString$0$plaid
 {
 
@@ -151,7 +155,7 @@ public class String extends AbstractPlaidDispatch
 			return Util.string("" + c);
 			
 		} catch (Exception e) {
-			throw new PlaidIllegalArgumentException("String equality failed", e.getCause());
+			throw new PlaidIllegalArgumentException("String charAt failed", e.getCause());
 		}
 	}
 
@@ -164,7 +168,35 @@ public class String extends AbstractPlaidDispatch
 			return Util.integer(result);
 			
 		} catch (Exception e) {
+			throw new PlaidIllegalArgumentException("String index of failed", e.getCause());
+		}
+	}
+	
+	@Override
+	public PlaidObject replace(PlaidObject receiver, PlaidObject arg1,
+			PlaidObject arg2) {
+		try {
+			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
+			java.lang.String second = ((java.lang.String) ((PlaidJavaObject) arg1).getJavaObject());
+			java.lang.String third = ((java.lang.String) ((PlaidJavaObject) arg2).getJavaObject());
+			java.lang.String result = first.replace(second,third);
+			return Util.string(result);
+			
+		} catch (Exception e) {
 			throw new PlaidIllegalArgumentException("String equality failed", e.getCause());
+		}
+	}
+
+	@Override
+	public PlaidObject lastIndexOf(PlaidObject receiver, PlaidObject arg) {
+		try {
+			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
+			java.lang.String second = ((java.lang.String) ((PlaidJavaObject) arg).getJavaObject());
+			int result = first.lastIndexOf(second);
+			return Util.integer(result);
+			
+		} catch (Exception e) {
+			throw new PlaidIllegalArgumentException("String last index of failed", e.getCause());
 		}
 	}
 
@@ -172,4 +204,6 @@ public class String extends AbstractPlaidDispatch
 	public PlaidObject toString(PlaidObject x) {
 		return x;
 	}
+
+
 }
