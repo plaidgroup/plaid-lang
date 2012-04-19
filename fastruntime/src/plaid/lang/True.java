@@ -10,11 +10,21 @@ import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
+import plaid.generated.IXOR$1$plaid;
 import plaid.generated.Iampamp$plaid$1$plaid;
+import plaid.generated.Ibang$plaid$0$plaid;
+import plaid.generated.Ieqeq$plaid$1$plaid;
+import plaid.generated.Ipipepipe$plaid$1$plaid;
+import plaid.generated.Isubsubgt$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
 
 public final class True extends AbstractPlaidDispatch implements Iampamp$plaid$1$plaid,
-														ItoString$0$plaid {
+ItoString$0$plaid,
+Ieqeq$plaid$1$plaid,
+Ibang$plaid$0$plaid,
+Ipipepipe$plaid$1$plaid,
+IXOR$1$plaid,
+Isubsubgt$plaid$1$plaid {
 	
 	private static final java.lang.String TRUE_TAG = "plaid/lang/True".intern();
 	private static final java.lang.String BOOLEAN_TAG = "plaid/lang/Boolean".intern();
@@ -43,7 +53,7 @@ public final class True extends AbstractPlaidDispatch implements Iampamp$plaid$1
 
 	@Override
 	public PlaidObject ampamp$plaid(PlaidObject receiver, PlaidObject arg) {
-		return arg;
+		return Util.bool(arg.getDispatch() instanceof True);
 	}
 	
 	@Override
@@ -76,5 +86,30 @@ public final class True extends AbstractPlaidDispatch implements Iampamp$plaid$1
 			default: throw new PlaidIllegalOperationException("True cannot be used as a " + p.name + "primitive.");
 			}
 		}
+	}
+	
+	@Override
+	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg) {
+		return Util.bool(arg.getDispatch() instanceof True);
+	}
+
+	@Override
+	public PlaidObject subsubgt$plaid(PlaidObject receiver, PlaidObject arg) {
+		return Util.bool(arg.getDispatch() instanceof True);
+	}
+
+	@Override
+	public PlaidObject XOR(PlaidObject x, PlaidObject y) {
+		return Util.bool(y.getDispatch() instanceof False);
+	}
+
+	@Override
+	public PlaidObject pipepipe$plaid(PlaidObject receiver, PlaidObject arg) {
+		return Util.bool(true);
+	}
+
+	@Override
+	public PlaidObject bang$plaid(PlaidObject receiver) {
+		return Util.bool(false);
 	}
 }

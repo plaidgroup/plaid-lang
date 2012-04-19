@@ -11,8 +11,11 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
+import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
+import plaid.generated.Ilteq$plaid$1$plaid;
+import plaid.generated.Imod$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
@@ -23,7 +26,11 @@ public final class Integer32 extends AbstractPlaidDispatch
 						   			  Ieqeq$plaid$1$plaid,
 						   			  Imult$plaid$1$plaid,
 						   			  Isub$plaid$1$plaid,
+						   			  Idiv$plaid$1$plaid,
+						   			  Imod$plaid$1$plaid,
+						   			  plaid.generated.InativeLessThan$1$plaid,
 						   			  Igteq$plaid$1$plaid,
+						   			  Ilteq$plaid$1$plaid,
 						   			  ItoString$0$plaid {
 
 	private final static int CACHE_LOWER_BOUND = -127;
@@ -121,6 +128,58 @@ public final class Integer32 extends AbstractPlaidDispatch
 			throw new PlaidIllegalArgumentException("+ failed", e.getCause());
 		}
 	}
+	
+	@Override
+	public PlaidObject lteq$plaid$1$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
+			int second = ((Integer32PlaidJavaObject) arg).integerValue;
+			boolean b = first <= second;
+			return Util.bool(b);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("<= failed", e.getCause());
+		}
+	}
+
+	@Override
+	public PlaidObject nativeLessThan(PlaidObject x, PlaidObject y) {
+		try {
+			double first = ((Integer32PlaidJavaObject) x).integerValue;
+			double second = ((Integer32PlaidJavaObject) y).integerValue;
+			boolean result = first < second;
+			return Util.bool(result);
+
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("nativeLessThan failed", e.getCause());
+		}
+	}
+
+	@Override
+	public PlaidObject mod$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second = ((Integer32PlaidJavaObject) arg).integerValue; 
+			int result = first % second;
+			return plaidInteger(result);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("% failed", e.getCause());
+		}
+	}
+
+	@Override
+	public PlaidObject div$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second = ((Integer32PlaidJavaObject) arg).integerValue; 
+			int result = first / second;
+			return plaidInteger(result);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("/ failed", e.getCause());
+		}
+	}
 
 	@Override
 	public PlaidObject toString(PlaidObject receiver) {
@@ -185,5 +244,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
 		}
 	}
+
+
 
 }
