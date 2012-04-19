@@ -69,11 +69,24 @@ state SequentialCodeGenOps {
         
         //first = decl, second = StringBuilder
         declsSbList.map( fn(item) => {
-           val declName = NamingConventions.getGeneratedIdentifier(item.first().name.name);
+           //builtin annotation means no code-generation
+           val immutable Boolean isBuiltIn = 
+              item.first().annotations.exists(
+              fn (annotation) => { annotation.name.name == NamingConventions.BUILTIN_ANNOTATION }
+              );
            
-           val outputDir = COMPILER_CONFIGURATION().tempDir;
-           val classNameCounter = ClassNameCounter.new(declName, outputDir, packageDir);
-           ops.codegenTopLevelDecl(ops, item.first(), packageString, item.second(), idGen, classNameCounter); 
+           match (isBuiltIn) {
+              case True { // if it is built in do not generate code
+                item.second().append(NamingConventions.BUILTIN_ANNOTATION);
+              }
+              case False {
+                val declName = NamingConventions.getGeneratedIdentifier(item.first().name.name);
+           
+                val outputDir = COMPILER_CONFIGURATION().tempDir;
+                val classNameCounter = ClassNameCounter.new(declName, outputDir, packageDir);
+                ops.codegenTopLevelDecl(ops, item.first(), packageString, item.second(), idGen, classNameCounter); 
+              }
+            }
         } );
         
         stringbuilderlist.map( fn(item) => { DEBUG(DEBUG_PRIO_HIGH, item.toString()); } );
@@ -83,11 +96,16 @@ state SequentialCodeGenOps {
             val declName = NamingConventions.getGeneratedIdentifier(item.first().name.name);
             val outputDir = COMPILER_CONFIGURATION().tempDir;
             val codeString = item.second().toString();
-            FileGen.createOutputFile(declName, outputDir, codeString, packageDir);
+            match (codeString == NamingConventions.BUILTIN_ANNOTATION) {
+                case True { /* no op*/ }  //builtin means no code should be generated
+                case False {
+                    FileGen.createOutputFile(declName, outputDir, codeString, packageDir);
             
-            // generated file name to list of generated files
-            val immutable String path = outputDir + java.lang.System.getProperty("file.separator") + packageDir + System.getProperty("file.separator") + declName + ".java";
-            job.addGeneratedFile(path);
+                    // generated file name to list of generated files
+                    val immutable String path = outputDir + java.lang.System.getProperty("file.separator") + packageDir + System.getProperty("file.separator") + declName + ".java";
+                    job.addGeneratedFile(path);
+                }
+            };
         } );
     }
     

@@ -240,4 +240,8 @@ public class NamingConventions {
 	    }
 		return output.toString();
 	}
+	
+	//Standard Annotations
+	public static final String BUILTIN_ANNOTATION = "builtin";
+	
 }
