@@ -259,7 +259,7 @@ public class ASTFactory {
 	public static Type NominalObjectType(Permission perm, QualifiedIdentifier qi) {
 		NominalStructure struct = new NominalStructure(ASTNode.DEFAULT_TOKEN, 
 				qi,
-				new ArrayList<StaticType>());
+				new ArrayList<Expr>());
 		return new ConcreteType(ASTNode.DEFAULT_TOKEN, perm, struct);
 	}
 	
@@ -270,7 +270,7 @@ public class ASTFactory {
 	public static Type OptionType(Permission perm, QualifiedIdentifier qi) {
 		NominalStructure struct = new NominalStructure(ASTNode.DEFAULT_TOKEN, 
 				qi,
-				new ArrayList<StaticType>());
+				new ArrayList<Expr>());
 		return new ConcreteType(ASTNode.DEFAULT_TOKEN, perm, 
 								new OptionStructure(ASTNode.DEFAULT_TOKEN, struct));
 	}
