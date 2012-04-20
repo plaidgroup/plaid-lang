@@ -9,6 +9,7 @@ import plaid.ast.util.makeStringFromQualifiedIdentifier;
 import plaid.ast.parsed.*;
 import plaid.compiler.aeminium.*;
 import plaid.compiler.util.*;
+import plaid.compiler.symbol.*;
 
 import plaid.collections.makeLinkedList;
 
@@ -841,6 +842,40 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                   }
                                 }
                               }
+                              case JavaClassSymbol {
+                              	val patternStruct = patternSym.getStructure();
+                                match (patternStruct.isSubStructureOf(targetType.structure)) {
+                                  case True {
+                                    /* copy and update linear context with info from case */
+                                    val unique LinearContext caseContext = ctx.copy();
+                                    caseContext.update(targetSym, makeType(targetType.permission, patternStruct));
+                                    
+                                    /* return result from typechecking the body */
+                                    val unique ?TypecheckResult result = typecheckExpression(caseContext, neededPerm, theCase.body);
+                                    
+                                    if (AEMINIUM_MODE() ) {
+                                        val shared DepenendencyInformation caseInfo = makeASTInformation(theCase);
+                                        val shared DepenendencyInformation bodyInfo = match (depInfoForAST(theCase.body)) {
+                                            case Some { depInfoForAST(theCase.body).value }
+                                            case None { ABORT("<typecheckExpression>(Case) cannot find dependency information for case body") }
+                                        };
+                                        
+                                        addDepInfoForAST(theCase, caseInfo);
+                                        addDependency(caseInfo, bodyInfo);
+                                        addDependency(leaveInfo, caseInfo);
+                                        addDependency(bodyInfo, enterInfo);
+                                    };
+                                    
+                                    result 
+                                  }
+                                  case False {
+                                    report_ERROR(theCase.pattern.token, "T_CASE_NOT_SUBSTRUCT", 
+                                        "found " + makeStringFromQualifiedIdentifier(theCase.pattern) + ", needed " + targetType.structure.toString(),
+                                        "typecheckCase");
+                                    unit;
+                                  }
+                                }
+                              }
                               default { 
                                 report_ERROR(theCase.pattern.token, "T_CASE_NOT_STATE", 
                                         "found " + patternSym.symbolType(),
@@ -1025,10 +1060,39 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
           }
         }
         case None {
-          report_ERROR(exp.receiver.token, "STRUCT_NOT_FOUND", 
+          match (exp.receiver) {
+          	case ParsedEmptyExpr { //global method, get receiver from method symbol
+          		val shared Symbol mSymOpt = symbolForAST(exp.methodId);
+          		match (mSymOpt) {
+          			case Some {
+          				match (mSymOpt.value) {
+          					case MethodSymbol {
+          						mSymOpt.value.getSignature();
+          					}
+          					default {
+								report_ERROR(exp.receiver.token, "STRUCT_NOT_FOUND", 
+								" for method call receiver",       
+								"typecheckMethodCall");
+								unit
+							}
+          				}
+          			}
+          			case None{
+          				report_ERROR(exp.receiver.token, "STRUCT_NOT_FOUND", 
+						" for method call receiver",       
+						"typecheckMethodCall");
+						unit
+          			}
+          		}
+          	
+          	}
+          	default {
+          		report_ERROR(exp.receiver.token, "STRUCT_NOT_FOUND", 
                 " for method call receiver",       
                 "typecheckMethodCall");
-          unit
+          		unit
+          	}
+          }
         }
       };
       
@@ -1039,13 +1103,17 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
             case Permission {
               /* use method signature to find the permissions needed for the receiver and the arguments */
           
+          	  val immutable Boolean noReceiver = methodSig.receiverSpec == makeArgSpec(VOID,VOID);
+          	  
+          
               //build list of (argSpec, expression) with receiver followed by arguments
               val unique LinkedList<immutable ArgSpec> argSpecs = makeLinkedList();
-              argSpecs.add(methodSig.receiverSpec);
+              match (noReceiver) { case True { /* no op */ } case False { argSpecs.add(methodSig.receiverSpec); } };
               argSpecs.append(methodSig.arguments.map(fn (arg) => arg.snd));
               
               val unique LinkedList<immutable ParsedASTNode> inputExprs = makeLinkedList();
-              inputExprs.add(exp.receiver);
+              match (noReceiver) { case True { /* no op */ } case False { inputExprs.add(exp.receiver); } };
+              
               match (exp.argument) {
                 case ParsedArgumentExpr { inputExprs.append(exp.argument.args.map(fn (arg) => arg)) }
                 default { inputExprs.addLast(exp.argument) }
@@ -1082,9 +1150,14 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                     inputResult.sourceLocList;
                                 }
                                 case False {
-                                    val immutable String inputName = match (inputCount == 0) {
-                                        case True { "receiver" }
-                                        case False { "argument " + inputCount }
+                                    val immutable String inputName = match (noReceiver) {
+                                    	case True { "argument " + (inputCount + 1) } 
+                                    	case False {
+                                    		match (inputCount == 0) {
+                                        		case True { "receiver" }
+		                                        case False { "argument " + inputCount }
+		                                    }
+		                                }
                                     };
                                     report_ERROR(inputAST.token, "T_CALL_WRONG_ARG_STRUCT",
                                         "for " + inputName + " expected " + inputSpec.inputType.structure.toString() + ", got " + inputResult.expType.structure.toString(),
@@ -1158,10 +1231,15 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                         true
                                     }
                                     case False { //can we do better for this error message, esp on token.
-                                        val immutable String inputString = match (inputCount == 0) {
-                                            case True { "receiver" }
-                                            case False { "arg " + inputCount }
-                                        };
+                                        val immutable String inputString = match (noReceiver) {
+                                    	case True { "argument " + (inputCount + 1) } 
+											case False {
+												match (inputCount == 0) {
+													case True { "receiver" }
+													case False { "argument " + inputCount }
+												}
+											}
+										};
                                         val immutable ?Type badReturnTypeOpt = sourceLoc.locationType(reducedContext);
                                         val immutable String badReturnTypeString = match (badReturnTypeOpt) {
                                             case Type { badReturnTypeOpt.toString(); }

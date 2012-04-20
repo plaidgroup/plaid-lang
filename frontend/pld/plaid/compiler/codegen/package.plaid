@@ -375,41 +375,60 @@ state SequentialCodeGenOps {
                 val receiverExpr = node.receiver;
                 val argumentExpr = node.argument;
                 val methodId = node.methodId;
-                val methodName = NamingConventions.getGeneratedIdentifier(methodId.name);
-            
                 val yList = argumentExpr.args.map( fn(item) => { idgen.getId(); } );
-                yList.map( fn(yItem) => { ops.createLocalVariable(yItem, sb, true) });
-                val argsYs = argumentExpr.args.zip(yList);
-                argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second(), classNameCounter); } );
-                    
-                //generate code for method call
-                 var receiverString = idgen.getId();
-                ops.createLocalVariable(receiverString, sb, true);
-                ops.codegenStmt(ops, receiverExpr, sb, idgen, receiverString, classNameCounter);
-                                        
-                //generate interface
-                plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, yList.size());
-    
-                val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodName, yList.size());
-                val dispatch = ops.getLocalVariable(receiverString) + ".getDispatch()";
-                                        
-                //cast
-                val ysb = java.lang.StringBuilder.new();
-                ysb.append("(");
-                ysb.append("(" + methodInterfaceName + ")");
-                ysb.append(dispatch);
-                ysb.append(")");
-                //.<METHOD_NAME>(<RECEIVER>,<ARGS>)
-                ysb.append("." + methodName + "(");
-                ysb.append(ops.getLocalVariable(receiverString)); // receiver
-                if(yList.size() > 0) {
-                    ysb.append(",");
-                };
-                ysb.append(makeSeperatedString(yList.map(fn (yItem) => { ops.getLocalVariable(yItem)}), ",")); //normal arguments
-                ysb.append(")");
-                
-                // assign result to y
-                ops.setLocalVariable(y, ysb.toString(), sb);
+                val methodSymbolOpt = symbolForAST(methodId);
+                match (methodSymbolOpt) {
+                    case Some {
+                        val methodSymbol = methodSymbolOpt.value;
+                        match (methodSymbol) {
+                            case JavaConstructorSymbol {  //Java constructors and static methods handled the same
+                                codegenJavaStaticMethod(ops, node.receiver, methodSymbol, yList, sb, y);
+                            }
+                            case JavaStaticMethodSymbol {
+                                codegenJavaStaticMethod(ops, node.receiver, methodSymbol, yList, sb, y);
+                            }
+                            default {
+                                ERROR(functionExpr.token, "method id unexpectedly has a symbol " + methodSymbol.symbolType());
+                            }
+                        }
+                    }
+                    case None {
+						val methodName = NamingConventions.getGeneratedIdentifier(methodId.name);
+					
+						yList.map( fn(yItem) => { ops.createLocalVariable(yItem, sb, true) });
+						val argsYs = argumentExpr.args.zip(yList);
+						argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second(), classNameCounter); } );
+							
+						//generate code for method call
+						 var receiverString = idgen.getId();
+						ops.createLocalVariable(receiverString, sb, true);
+						ops.codegenStmt(ops, receiverExpr, sb, idgen, receiverString, classNameCounter);
+												
+						//generate interface
+						plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, yList.size());
+			
+						val methodInterfaceName = NamingConventions.getGeneratedInterfaceName(methodName, yList.size());
+						val dispatch = ops.getLocalVariable(receiverString) + ".getDispatch()";
+												
+						//cast
+						val ysb = java.lang.StringBuilder.new();
+						ysb.append("(");
+						ysb.append("(" + methodInterfaceName + ")");
+						ysb.append(dispatch);
+						ysb.append(")");
+						//.<METHOD_NAME>(<RECEIVER>,<ARGS>)
+						ysb.append("." + methodName + "(");
+						ysb.append(ops.getLocalVariable(receiverString)); // receiver
+						if(yList.size() > 0) {
+							ysb.append(",");
+						};
+						ysb.append(makeSeperatedString(yList.map(fn (yItem) => { ops.getLocalVariable(yItem)}), ",")); //normal arguments
+						ysb.append(")");
+						
+						// assign result to y
+						ops.setLocalVariable(y, ysb.toString(), sb);
+					}
+				}
             }
             case ParsedDereference {
                 LOG("generating code for dereference");
@@ -679,6 +698,20 @@ state SequentialCodeGenOps {
                                             ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseSB);
                                             caseSB.append("}\n");
                                             caseStringList.addLast(caseSB.toString());
+                                        }
+                                        case JavaClassSymbol {
+                                        	val javaCaseSB = StringBuilder.new();
+                                        	javaCaseSB.append("if((" + ops.getLocalVariable(exprVarName) + " instanceof ");
+                                        	javaCaseSB.append("plaid.fastruntime.PlaidJavaObject) && ");
+                                        	javaCaseSB.append("( ((plaid.fastruntime.PlaidJavaObject) ");
+                                        	javaCaseSB.append(ops.getLocalVariable(exprVarName) + ").getJavaObject() instanceof ");
+                                        	javaCaseSB.append(patternSymbol.clazz.getCanonicalName() + ")) { \n");
+											val bodyVarName = idgen.getId();
+                                            ops.createLocalVariable(bodyVarName, sb, true);
+                                            ops.codegenStmtBlock(ops, c.body, javaCaseSB, idgen, bodyVarName, classNameCounter);
+                                            ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), javaCaseSB);
+                                            javaCaseSB.append("}\n");
+                                            caseStringList.addLast(javaCaseSB.toString());
                                         }
                                         default {
                                             ERROR(c.token, "Case pattern has unexpected symbol '" + patternSymbol.symbolType() + "'.");
