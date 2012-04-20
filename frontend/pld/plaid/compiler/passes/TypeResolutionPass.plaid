@@ -383,70 +383,109 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 val receiverStruct = structureForAST(new_function);
                 match (receiverStruct) {
                     case Some {
-                        val signature = receiverStruct.value.getMember(node.function.right.name);
-                        match (signature) {
-                            case Some {
-                                match (signature.value) {
-                                    case FieldSignature {
-                                         DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>     Found field");
-                                         val new_application = new ParsedApplication {
-                                             val function   = new_function;
-                                             val argument   = node.argument.rewrite(this);
-                                             val staticArgs = node.staticArgs.map( fn (arg) => arg.rewrite(this) );
-                                             val token      = node.token;
-                                         };
-                                         val fieldType = signature.value.getCurrentType();
-                                         match (fieldType.structure) {
-                                             case LambdaStructure {
-                                                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     Field contains Lambda ");
-                                                 addStructureForAST(new_application, fieldType.structure.returnType.structure);
-                                                 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Lambda returns '" + fieldType.structure.returnType.toString() +"'");
-                                             }
-                                             default { 
-                                                 val msg = "Cannot apply to '" + fieldType.structure +"'"; 
-                                                 globalReporter.errorToken( node.function.left.token, msg, "");
-                                                 globalReporter.report();
-                                                 ABORT(msg);                                                 
-                                             } 
-                                         };
-                                         
-                                         new_application
-                                    }
-                                    case MethodSignature {
-                                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>     Found method call");
-                                        val returnType = signature.value.returnType;
-                                        
-                                        val new_argument = node.argument.rewrite(this);
-                                        val new_staticArgs = makeLinkedList();
-                                        val new_methodId = node.function.right.rewrite(this);
-                                        node.staticArgs.map( fn (item) => new_staticArgs.add( item.rewrite(this)) );
-                                        val methodCall = new ParsedMethodCall {
-                                            val argument = new_argument;
-                                            val staticArgs = new_staticArgs;
-                                            val receiver = new_function;
-                                            val methodId = new_methodId;
-                                            val token = node.function.token;
-                                        };
-                                        addStructureForAST(methodCall, returnType.structure);
-                                        
-                                        // compute statechanges 
-                                        computeStateChangeForMethodCall(methodCall, signature.value);
-
-                                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Method returns '" + returnType.toString()  +"'");
-                                        methodCall
-                                    }
-                                    default {
-                                        ABORT("FIXME3 " + signature.value.toString());
-                                    }
-                                }
-                            }
-                            case None { 
-                                val msg = "Cannot find '" + node.function.right.name + "' in type " + receiverStruct.value.toString();
-                                globalReporter.errorToken(node.function.left.token, msg, "");
-                                globalReporter.report();
-                                ABORT(msg);
-                            }
-                        }
+                        match (receiverStruct.value) {
+                        	case NominalStructure {
+								val signature = receiverStruct.value.getMember(node.function.right.name);
+								match (signature) {
+									case Some {
+										match (signature.value) {
+											case FieldSignature {
+												 DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>     Found field");
+												 val new_application = new ParsedApplication {
+													 val function   = new_function;
+													 val argument   = node.argument.rewrite(this);
+													 val staticArgs = node.staticArgs.map( fn (arg) => arg.rewrite(this) );
+													 val token      = node.token;
+												 };
+												 val fieldType = signature.value.getCurrentType();
+												 match (fieldType.structure) {
+													 case LambdaStructure {
+														 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     Field contains Lambda ");
+														 addStructureForAST(new_application, fieldType.structure.returnType.structure);
+														 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Lambda returns '" + fieldType.structure.returnType.toString() +"'");
+													 }
+													 default { 
+														 val msg = "Cannot apply to '" + fieldType.structure +"'"; 
+														 globalReporter.errorToken( node.function.left.token, msg, "");
+														 globalReporter.report();
+														 ABORT(msg);                                                 
+													 } 
+												 };
+												 
+												 new_application
+											}
+											case MethodSignature {
+												DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>     Found method call");
+												val returnType = signature.value.returnType;
+												
+												val new_argument = node.argument.rewrite(this);
+												val new_staticArgs = makeLinkedList();
+												val new_methodId = node.function.right.rewrite(this);
+												node.staticArgs.map( fn (item) => new_staticArgs.add( item.rewrite(this)) );
+												val methodCall = new ParsedMethodCall {
+													val argument = new_argument;
+													val staticArgs = new_staticArgs;
+													val receiver = new_function;
+													val methodId = new_methodId;
+													val token = node.function.token;
+												};
+												addStructureForAST(methodCall, returnType.structure);
+												
+												// compute statechanges 
+												computeStateChangeForMethodCall(methodCall, signature.value);
+		
+												DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Method signature '" + signature.value.toString()  +"'");
+												methodCall
+											}
+											default {
+												ABORT("FIXME3 " + signature.value.toString());
+											}
+										}
+									}
+									case None { 
+										val msg = "Cannot find '" + node.function.right.name + "' in type " + receiverStruct.value.toString();
+										globalReporter.errorToken(node.function.left.token, msg, "");
+										globalReporter.report();
+										ABORT(msg);
+									}
+								}
+							}
+							case JavaStructure {
+								match (node.function.right.name == "new") {
+									case True { //constructor - only nullary constructors for now
+										match (node.argument) {
+											case ParsedArgumentExpr {
+												match (node.argument.args.size() == 0) {
+													case True { //we can create the right signature, so make a method call out of this
+														val methodCall = new ParsedMethodCall {
+															val argument = node.argument;
+															val staticArgs = makeLinkedList();
+															val receiver = new_function;
+															val methodId = node.function.right;
+															val token = node.function.token;
+														};
+														
+														addStructureForAST(methodCall, receiverStruct.value);
+														
+														methodCall;
+													}
+													
+												}
+											}
+											default {
+												ABORT("non-arg expression as arg to java constructor");
+											}
+										}
+									}
+									case False { //cannot handle general Java methods yet
+										ABORT("Java members not yet supported");
+									}
+								}
+							}
+							default {
+								ABORT("Unsupported stucture as left of deref application");
+							}
+						}
                     }
                     case None {
                         val msg = "Cannot find type for '" + node.function.nodeName() + "'";
@@ -776,51 +815,66 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
             case None { /* noop */ }
         };
 
-        val leftStruct = structureForAST(new_node.left);
-        match (leftStruct) {
-            case Some {
-                match (leftStruct.value) {
-                    case NominalStructure {
-                        val signature = leftStruct.value.getMember(node.right.name);
-                        match ( signature ) {
-                            case Some {
-                                match (signature.value) {
-                                    case MethodSignature {
-                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a method signature for '" + node.right.name +"'");
-                                    }
-                                    case FieldSignature {
-                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a field signature for '" + node.right.name +"'");
-                                        addStructureForAST(new_node, signature.value.getCurrentType().structure);
-                                    }
-                                    case DatagroupSignature {
-                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a datagroup signature for '" + node.right.name +"'");
-                                        addStructureForAST(new_node, signature.value.getType().structure);                                    
-                                    }
-                                    default {
-                                        report_ERROR(node.token, "Found unsupported signature.", "", "TypeResolutionPass");
-                                    }
-                                }
-                            }
-                            case None {
-                                val msg = "Type '" + leftStruct.value.toString() + "' has no member '" + new_node.right.name + "'" ;
-                                globalReporter.errorToken(new_node.right.token, msg, "");
-                                globalReporter.report();
-                                ABORT(msg);
-                            }
-                        }
-                    }
-                    default {
-                        val x = leftStruct.value; //x = 1;
-                        ABORT("Found invalid type! " + leftStruct.value.toString());
-                    }
-                }
-            }
-            case None {
-                val msg = "Cannot find structure for left part of the dereference.";
-                globalReporter.errorToken(new_node.token, msg, "");
-                globalReporter.report();
-                ABORT(msg);
-            }
+		
+		val rightStruct = structureForAST(new_node.right);
+        match (rightStruct) {
+        	case Some { //use right struct for whole deref
+        		addStructureForAST(new_node, rightStruct.value);
+        	}
+        	case None { //otherwise look for right in the structure for left
+        
+				val leftStruct = structureForAST(new_node.left);
+				match (leftStruct) {
+					case Some {
+						match (leftStruct.value) {
+							case NominalStructure {
+								val signature = leftStruct.value.getMember(node.right.name);
+								match ( signature ) {
+									case Some {
+										match (signature.value) {
+											case MethodSignature {
+												DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a method signature for '" + node.right.name +"'");
+											}
+											case FieldSignature {
+												DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a field signature for '" + node.right.name +"'");
+												addStructureForAST(new_node, signature.value.getCurrentType().structure);
+											}
+											case DatagroupSignature {
+												DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a datagroup signature for '" + node.right.name +"'");
+												addStructureForAST(new_node, signature.value.getType().structure);                                    
+											}
+											default {
+												report_ERROR(node.token, "Found unsupported signature.", "", "TypeResolutionPass");
+											}
+										}
+									}
+									case None {
+										val msg = "Type '" + leftStruct.value.toString() + "' has no member '" + new_node.right.name + "'" ;
+										globalReporter.errorToken(new_node.right.token, msg, "");
+										globalReporter.report();
+										ABORT(msg);
+									}
+								}
+							}
+							case PackageStructure { /* nothing to do - continue */ }
+							case JavaStructure { /*TODO: not ready to resolve java members*/ 
+								ABORT("Java members not implemented " + leftStruct.value.toString());
+							}
+							default {
+								val x = leftStruct.value; //x = 1;
+								ABORT("Found invalid type! " + leftStruct.value.toString());
+							}
+						}
+					}
+					case None {
+						val msg = "Cannot find structure for left part of the dereference.";
+						globalReporter.errorToken(new_node.token, msg, "");
+						globalReporter.report();
+						ABORT(msg);
+					}
+				}
+			}
+        
         };
 
         new_node
@@ -866,6 +920,11 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 match (symbol.value) {
                     case OwningSymbol {
                         val idStruct = symbol.value.getStructure();
+                        addStructureForAST(new_node, idStruct);
+                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    set '"+ new_node.name+"' to '"+ idStruct.toString()+"'");
+                    }
+                    case JavaClassSymbol {
+                    	val idStruct = symbol.value.getStructure();
                         addStructureForAST(new_node, idStruct);
                         DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    set '"+ new_node.name+"' to '"+ idStruct.toString()+"'");
                     }
@@ -1014,7 +1073,10 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 			                             case StateSymbol {
 			                                 patternSymbol.getStructure();
 			                             }
-			                             default { ABORT("Can only handle states as patterns") }
+			                             case JavaClassSymbol {
+ 			                             	 patternSymbol.getStructure();
+			                             }
+			                             default { ABORT("Can only handle states or java classes as patterns") }
 			                        };
 			                        
 			                        val oldStructureOpt = getStructureForSymbol(expressionSymbol);
