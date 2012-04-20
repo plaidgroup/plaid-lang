@@ -6,12 +6,15 @@ import plaid.parser.Token;
 
 public class StateRef extends StatePrim {
 	private final Expr stateExpr;
+	private final List<Expr> staticArgs;
 	private final List<DeclOrStateOp> specializations;
 	
 	public StateRef(Token t, Expr st,
+			List<Expr> staticArgs,
 			List<DeclOrStateOp> specializations) {
 		super(t);
 		this.stateExpr = st;
+		this.staticArgs = staticArgs;
 		this.specializations = specializations;
 	}
 
@@ -21,6 +24,10 @@ public class StateRef extends StatePrim {
 
 	public List<DeclOrStateOp> getSpecializations() {
 		return specializations;
+	}
+	
+	public List<Expr> getStaticArgs() {
+		return staticArgs;
 	}
 	
 	@Override

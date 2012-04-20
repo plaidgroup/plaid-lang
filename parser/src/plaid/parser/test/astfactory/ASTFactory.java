@@ -344,12 +344,12 @@ public class ASTFactory {
 	}
 	
 	public static StateRef StateRef(Expr e) {
-		return new StateRef(ASTNode.DEFAULT_TOKEN, e, new ArrayList<DeclOrStateOp>());
+		return new StateRef(ASTNode.DEFAULT_TOKEN, e, new ArrayList<Expr>(), new ArrayList<DeclOrStateOp>());
 	}
 	
 	
 	public static StateRef StateRef(Expr e, DeclOrStateOp ...dops) {
-		return new StateRef(ASTNode.DEFAULT_TOKEN, e, Arrays.asList(dops));
+		return new StateRef(ASTNode.DEFAULT_TOKEN, e, new ArrayList<Expr>(),  Arrays.asList(dops));
 	}
 	
 	public static StringLiteral StringLiteral(String value) {
