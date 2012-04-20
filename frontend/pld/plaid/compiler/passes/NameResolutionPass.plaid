@@ -474,12 +474,22 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 	override method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedConcreteFieldDecl");
+        
+        
+        // add static parameter context
+        val staticCtx = new LocalContext { 
+            val parent = this.stack.peek().value;
+        };        
+        this.stack.push(staticCtx);
+        
         match (this.currentState.peek() ) {
             case Some {
                 // member
                 val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
                 addSymbolForAST(node, fieldSymbol);
                 this.currentState.peek().value.addMember(fieldSymbol);
+                // populate static paramaters
+                this.currentState.peek().value.getStaticParameters().do(fn (p) => staticCtx.put(p.name, p));
             }
             case None {
                 // top level
@@ -494,6 +504,9 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 }
             }
         };
+        
+        
+        
 		//node.name.accept(this);
 		//if (typecheckingEnabled(node) ) {
 		    node.expression.accept(this);
@@ -501,6 +514,9 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 		node.specifier.accept(this);
 		node.fieldType.accept(this);
 		//node.modifiers.map(fn (item) => { item.accept(this); item });
+		
+		// remove static parameter context
+		this.stack.pop();
 	}
 
 
@@ -632,14 +648,13 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 
 		node.StaticArgsSpec.map(fn (item) => {
-            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.id.name, item);
+            val shared StaticParameterSymbol mySymbol = this.sf.makeStaticParameterSymbol(item.id.name, item);
             addSymbolForAST(item, mySymbol);   
             addSymbolForAST(item.id, mySymbol);
-            val ctx = this.stack.peek().value;
-            ctx.put(item.id.name, mySymbol);
-            
-            // TODO : add to symbol
+            // add to state symbol
+            this.currentState.peek().value.addStaticParameter(mySymbol);
 		});
+		
 		node.caseOf.accept(this);
 		node.metaCaseOfArgs.map(fn (item) => { item.accept(this); item });
 		node.name.accept(this);
