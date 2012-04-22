@@ -57,7 +57,6 @@ import plaid.compiler.types.*;
 import java.util.Map;
 import java.util.IdentityHashMap;
 
-
 /*
  * expands the left most case of a dot
  */
@@ -104,9 +103,9 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> " + msg);
     }
     
-    method void ERROR(immutable Token token, immutable String msg) {
+    method void ERROR(immutable Token token, immutable String errCode, immutable String data) {
         this.hasErrors = true;
-        report_ERROR(token, msg, "", "NameResolutionPass");
+        report_ERROR(token, errCode, data, "NameResolutionPass");
     }
 
     method immutable Option getQualifiedIdentifierFromDereference(immutable Dereference dref) {
@@ -144,23 +143,31 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
     /*
      *  Takes symbol for the right hand side and maps it to the whole dereference
      *  as well, all the way down the dereference chain.
+     *  returns the top-most symbol
      */
-    method void fixSymbolsForDereference(immutable Dereference dref) {
+    method shared Symbol fixSymbolsForDereference(immutable Dereference dref) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> fix symbols for dereference " + makeStringFromQualifiedIdentifier(getQualifiedIdentifierFromDereference(dref).value));
-        match ( symbolForAST(dref.right) ) {
+        val leftSymOpt = match ( dref.left ) {
+            case ParsedDereference {  fixSymbolsForDereference(dref.left) }
+            default { new None;/* base - we are done */ }
+         };
+        
+        val rightSymOpt = match ( symbolForAST(dref.right) ) {
             case Some {
                 DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     remap right symbol");
                 val rightSymbol = symbolForAST(dref.right).value;
                 addSymbolForAST(dref, rightSymbol);
+                makeSome(rightSymbol);
             }
             case None { 
-                DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     no right symbol");             
+                DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     no right symbol"); 
+                new None;            
             }
          };
          
-         match ( dref.left ) {
-            case ParsedDereference { fixSymbolsForDereference(dref.left) }
-            default { /* base - we are done */ }
+         match (rightSymOpt) {
+            case Some { rightSymOpt }
+            case None { leftSymOpt }
          };
     }
     
@@ -217,8 +224,8 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                              case PackageSymbol { //lookup stopped at a package
                                 ERROR(makeTokenForFqn(qi.identifiers.get(0).value.token,
                                                       qi.identifiers.get(count).value.token),
-                                      "Cannot resolve '" + resolvedFqn + "." + 
-                                      qi.identifiers.get(count).value.name  + "'"
+                                      "N_QI_NOT_FOUND", resolvedFqn + "." + 
+                                      qi.identifiers.get(count).value.name
                                 ); 
                              }
                              case JavaClassSymbol { //might be static members that we should resolve
@@ -257,7 +264,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                              }
                              default {}
                          }
-                     }{                  
+                     }{
                          addSymbolForAST(qi, symbol.value);
                      };
                  } 
@@ -363,8 +370,8 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 //val unique Option stateSymbol = this.stack.peek().value.find(node.name.name);
                 val unique Option stateSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
                 match (stateSymbol) {
-                    case None {
-                        ERROR(node.token, "Cannot find symbol for state '" + node.name.name + "'");                        
+                    case None { //if resolver doesn't find this declaration, there is an implementation issue
+                        ABORT("(implementation Error) Cannot find symbol for state '" + node.name.name + "'");                        
                     }
                     case Some {
                         this.currentState.push(stateSymbol.value);
@@ -498,8 +505,8 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                     case Some {
                         addSymbolForAST(node, fieldSymbol.value);
                     }
-                    case None {
-                        ERROR(node.token, "Top-level method '" + this.packageName + "." + node.name.name + "' not found.");
+                    case None { //if resolver doesn't find this declaration, there is an implementation issue
+                        ABORT("Top-level method '" + this.packageName + "." + node.name.name + "' not found.");
                     }
                 }
             }
@@ -541,8 +548,8 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                     case Some {
                         addSymbolForAST(node, methodSymbol.value);
                     }
-                    case None {
-                        ERROR(node.token, "Top-level method '" + this.packageName + "." + node.name.name + "' not found.");
+                    case None { //if resolver doesn't find this declaration, there is an implementation issue
+                        ABORT("Top-level method '" + this.packageName + "." + node.name.name + "' not found.");
                     }
                 }
             }
@@ -571,7 +578,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             val ctx = this.stack.peek().value;
             ctx.put(arg.name.name, mySymbol);
             arg.argSpec.accept(this);
-            ymb
         });
 
         node.modifiers.do(fn (item) => { item.accept(this)  });
@@ -628,8 +634,8 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 //val unique Option stateSymbol = this.stack.peek().value.find(node.name.name);
                 val unique Option stateSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
                 match (stateSymbol) {
-                    case None {
-                        ERROR(node.token, "State '" + node.name.name + "' not found.");
+                    case None {//if resolver doesn't find this declaration, there is an implementation issue
+                        ABORT("State '" + node.name.name + "' not found.");
                     }
                     case Some {
                         this.currentState.push(stateSymbol.value);
@@ -710,14 +716,13 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> Found symbol for '" + node.name + "'");
                 match(symbol.value) {
                     case JavaClassSymbol {
-                        ABORT("<NameResolutionPass> Java class " + node.name + " cannot be a first class value " +
-                                node.token.toString());
+                        ERROR(node.token, "N_JAVA_CLASS", node.name);
                     }
                     default { addSymbolForAST(node, symbol.value); } 
                 }
            }
            case None {
-               ERROR(node.token, "Cannot resolve '" + node.name + "'");
+               ERROR(node.token, "N_ID_NOT_FOUND",node.name);
            }
        }
 	}
@@ -775,7 +780,28 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                             //ERROR(mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
                         	node.left.accept(this);
                         }{
-                            fixSymbolsForDereference(node);
+                            
+                            val qiSymOpt = fixSymbolsForDereference(node);
+                            //check that we resolved to a symbol that makes sense
+                            if ( resolvedCount == qiOpt.value.identifiers.size()) { 
+                                match (qiSymOpt) {
+                                    case Some {
+                                        match (qiSymOpt.value) {
+                                            case PackageSymbol {
+                                                ERROR(node.token, "N_PACKAGE", makeStringFromQualifiedIdentifier(qiOpt.value));
+                                            }
+                                            case JavaClassSymbol {
+                                                ERROR(node.token, "N_JAVA_CLASS", makeStringFromQualifiedIdentifier(qiOpt.value));
+                                            }
+                                            default { /* no op */ }
+                                        }
+                                    }
+                                    case None {
+                                        ABORT("(implementation error) no symbol found for successful QI resolution");
+                                    }
+                                }
+                            };
+                            
                         };
                 	}
                 	case False {
@@ -865,16 +891,12 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 	override method void visitParsedQualifiedIdentifier(immutable ParsedQualifiedIdentifier node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedQualifiedIdentifier");
         val resolveCount = this.resolveQualifiedIdentifier(this.stack.peek().value, node, false);
-        ifElse ( resolveCount == node.identifiers.size() ) {
+        if ( resolveCount == node.identifiers.size() ) {
             DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
             if ( !haveSymbolForAST(node) ) {
                 ABORT("QI not in cache !!!!!");
             };
-        }{
-            ERROR(makeTokenForFqn(node.identifiers.get(0).value.token,
-                                  node.identifiers.get(node.identifiers.size() - 1).value.token),
-                 "Failed to resolve '" + makeStringFromQualifiedIdentifier(node) + "'");
-        }
+        }; //otherwise resolveQualifiedIdentifier already through an error
 	}
 
 
@@ -945,10 +967,10 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             match (otherSymbol) {
                 case Some {
                    val otherDecl = otherSymbol.value.declaration;
-                   ERROR(node.id.token, "Variable '" +  node.id.name + "' already declared in line " + otherDecl.token.beginLine);
+                   ERROR(node.id.token, "N_DUPLICATE_VAR", node.id.name + " on line " + otherDecl.token.beginLine);
                 }
                 case None {
-                   ERROR(node.id.token, "Variable '" + node.id.name + "' already declared.");
+                   ERROR(node.id.token, "N_DUPLICATE_VAR", node.id.name);
                 }
             };
         }

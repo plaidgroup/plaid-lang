@@ -173,7 +173,21 @@ public class ErrorCodes {
 				"(Implementation Error) Cannot assign to missing member: ");
 		ERROR_MESSAGES.put("S_MERGE_FAILED",
 				"Structures cannot be merged: ");
-	
+		
+		/*
+		 *  NAME RESOLUTION ERROR MESSAGES
+		 */
+		ERROR_MESSAGES.put("N_PACKAGE",
+				"Packages are not first class values: ");
+		ERROR_MESSAGES.put("N_JAVA_CLASS",
+				"Java Classes are not first class values: ");
+		ERROR_MESSAGES.put("N_QI_NOT_FOUND",
+				"Could not resolve qualified identifier: ");
+		ERROR_MESSAGES.put("N_ID_NOT_FOUND",
+				"Could not resolve identifier: ");
+		ERROR_MESSAGES.put("N_DUPLICATE_VAR",
+			"Variable already declared: ");
+		
 	}
 	
 	public static final String getMessage(String errorCode) {
