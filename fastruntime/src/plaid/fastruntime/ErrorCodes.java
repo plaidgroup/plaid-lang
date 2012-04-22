@@ -187,7 +187,8 @@ public class ErrorCodes {
 				"Could not resolve identifier: ");
 		ERROR_MESSAGES.put("N_DUPLICATE_VAR",
 			"Variable already declared: ");
-		
+		ERROR_MESSAGES.put("N_ALREADY_DECLARED",
+			"Declaration already exists for name ");
 	}
 	
 	public static final String getMessage(String errorCode) {
