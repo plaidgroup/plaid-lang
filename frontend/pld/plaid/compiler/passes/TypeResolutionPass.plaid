@@ -67,10 +67,10 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         this.hasErrors=true;
     }
     
-    method void missingStructure() {
+    method void missingStructure(immutable ASTNode node) {
         match (this.hasErrors) {
             case True { /*no op - previous error*/ }
-            case False { ABORT("expected structure for node not found") }
+            case False { ABORT("expected structure for node not found: " + node.toString()) }
         }
     }
 
@@ -252,7 +252,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         addStructureForAST(arg, elemStruc.value);
                     }
                     case None {
-                        this.missingStructure()
+                        this.missingStructure(arg)
                     }
                 }
             });
@@ -274,7 +274,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         
         match(structureForAST(new_body)) {
              case Some { addStructureForAST(newAtomicBlock, structureForAST(new_body).value) }
-             case None { this.missingStructure() }
+             case None { this.missingStructure(new_body) }
         };
         
         newAtomicBlock
@@ -318,8 +318,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                         }
                                     }
                                     case None {                                    
-                                       val varStuct = symbol.value.getStructure();
-                                       match (varStuct) {
+                                       val varStruct = symbol.value.getStructure();
+                                       match (varStruct) {
                                            case LambdaStructure {
                                                val new_node = new ParsedApplication {
                                                     val function   = node.function.rewrite(this);
@@ -329,7 +329,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                                 };
 
                                                 // set structure for new node
-                                                val returnType = varStuct.returnType;
+                                                val returnType = varStruct.returnType;
                                                 addStructureForAST(new_node, returnType.structure);
 
                                                 new_node
@@ -368,11 +368,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                 methodCall           
                             }
                             default {
-                                
-                                val msg = "'"+node.function.name+"' is neither a lambda nor a method.";
-                                globalReporter.errorToken(node.function.token, msg, "");
-                                globalReporter.report();
-                                ABORT(msg);                        
+                                this.ERROR(node.function.token, "T_APP_NOT_FUNCTION_OR_METHOD", "" );
+                                node
                             }
                         }
                     } 
@@ -442,13 +439,13 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 												methodCall
 											}
 											default {
-												ABORT("FIXME3 " + signature.value.toString());
+												ABORT("Unexpected Signature " + signature.value.toString());
 											}
 										}
 									}
 									case None { 
 										this.ERROR(node.function.token,"T_CALL_MISSING", node.function.right.name);
-										node; //no rewite
+										node; //no rewrite
 									}
 								}
 							}
@@ -485,12 +482,13 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 								}
 							}
 							default {
-								ABORT("Unsupported stucture as left of deref application");
+								this.ERROR(node.function.left.token, "T_CALL_NON_OBJECT_STRUCTURE", receiverStruct.value.toString() );
+                                node 
 							}
 						}
                     }
                     case None {
-                        this.missingStructure();
+                        this.missingStructure(new_function);
                         node //no rewriting
                     }
                 }
@@ -524,7 +522,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         }
                     }
                     case None {
-                        this.missingStructure()
+                        this.missingStructure(new_function)
                     }
                 };
 
@@ -569,7 +567,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                    addStructureForAST(new_node, lastStmtStruct.value);
                }
                case None {
-                   this.missingStructure()
+                   this.missingStructure(lastStmt)
                }
             }
         };
@@ -677,7 +675,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
             }
         };
 
-        // populate context with variable mappings 
+        // clean up symbols for method
         this.symbolToStructureMap.clear();
 
 
@@ -785,7 +783,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 addStructureForAST(new_node, newNodeStruct.value);
             }
             case None {
-                this.missingStructure()
+                this.missingStructure(new_node.body)
             }
         };
 
@@ -829,6 +827,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 										match (signature.value) {
 											case MethodSignature {
 												DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a method signature for '" + node.right.name +"'");
+												this.ERROR(node.token, "T_DEREF_METHOD", "");
 											}
 											case FieldSignature {
 												DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a field signature for '" + node.right.name +"'");
@@ -839,15 +838,12 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 												addStructureForAST(new_node, signature.value.getType().structure);                                    
 											}
 											default {
-												report_ERROR(node.token, "Found unsupported signature.", "", "TypeResolutionPass");
+												this.ERROR(node.token, "UNEXPECTED_SIG", "");
 											}
 										}
 									}
-									case None {
-										val msg = "Type '" + leftStruct.value.toString() + "' has no member '" + new_node.right.name + "'" ;
-										globalReporter.errorToken(new_node.right.token, msg, "");
-										globalReporter.report();
-										ABORT(msg);
+									case None { 
+										this.ERROR(node.token, "T_DEREF_MISSING", node.right.name);
 									}
 								}
 							}
@@ -862,7 +858,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 						}
 					}
 					case None {
-						this.missingStructure()
+						this.missingStructure(new_node.left)
 					}
 				}
 			}
@@ -988,23 +984,25 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                         new_node
                                     }
                                     default {
-                                        ABORT("Operator definiton needs to be a method declaration.");
+                                        this.ERROR(node.token, "T_OP_NOT_METHOD", node.operator.name);
+                                        node
                                     }
                                 }
                             }
                             case None {
-                                ABORT("Cannot find operator definition '" + node.operator.name +"' in " + exprStructOpt.value.toString());
+                                this.ERROR(node.token, "T_CALL_MISSING", node.operator.name);
+                                node
                             }
                         }
                     }
                     default {
-                        report_ERROR(node.token, "Cannot call method on non-nominal structure: " + leftStructOpt.value.toString(), "", "TypeResolutionPass");
+                        this.ERROR(node.token, "T_CALL_NON_OBJECT_STRUCTURE", leftStructOpt.value.toString());
                         node
                     }
                 }
             }
             case None {
-                this.missingStructure();
+                this.missingStructure(new_left);
                 node
             }
         };        
@@ -1052,11 +1050,11 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                     case Some { symbolForAST(expression).value }
                     case None { ABORT("Cannot find symbol for expression " + expression.toString()) }
                 };
-                val new_node = new ParsedMatch {
-                    val expression = expression;
-                    val caseList= node.caseList.map(fn (item) => { 			    
-                            match (expressionSymbol) {
-                                case VariableSymbol {
+                val new_node = match (expressionSymbol) {
+                    case VariableSymbol {
+                        new ParsedMatch {
+                            val expression = expression;
+                            val caseList= node.caseList.map(fn (item) => { 			                                
                                     match (item) {
                                         case ParsedPatternCase {
                                             val patternSymbol = match (symbolForAST(item.pattern)) {
@@ -1064,37 +1062,48 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                                 case None { ABORT("Cannot find symbol for pattern " + makeStringFromQualifiedIdentifier(item.pattern)) }
                                             };
                                             
-                                            val patternStructure = match ( patternSymbol ) {
+                                            val immutable ?Structure patternStructure = match ( patternSymbol ) {
                                                  case StateSymbol {
                                                      patternSymbol.getStructure();
                                                  }
                                                  case JavaClassSymbol {
                                                      patternSymbol.getStructure();
                                                  }
-                                                 default { ABORT("Can only handle states or java classes as patterns") }
+                                                 default { 
+                                                    this.ERROR(item.pattern.token, "T_PATTERN_INVALID", patternSymbol.symbolType());
+                                                    unit;
+                                                }
                                             };
                                             
-                                            val oldStructureOpt = getStructureForSymbol(expressionSymbol);
-                                            setStructureForSymbol(expressionSymbol, patternStructure);
-                                            
-                                            val new_item = item.rewrite(this);
-                                            
-                                            match ( oldStructureOpt) {
-                                                case Some { setStructureForSymbol(expressionSymbol, oldStructureOpt.value) }
-                                                case None {}
-                                            };
-                                            
-                                            new_item
+                                            match (patternStructure) {
+                                                case Structure {
+                                                    val oldStructureOpt = getStructureForSymbol(expressionSymbol);
+                                                    setStructureForSymbol(expressionSymbol, patternStructure);
+                                                    
+                                                    val new_item = item.rewrite(this);
+                                                    
+                                                    match ( oldStructureOpt) {
+                                                        case Some { setStructureForSymbol(expressionSymbol, oldStructureOpt.value) }
+                                                        case None {}
+                                                    };
+                                                    
+                                                    new_item
+                                                }
+                                                default { item /* previous error*/ }
+                                            }
                                         }
                                         default {
                                             item.rewrite(this)  
                                         }
                                     }
-                                }
-                                default {  ABORT("Can only match on variables at the moment.") }
-                            }
-                    });
-                    val token = node.token;
+                            });
+                            val token = node.token;
+                        }
+                    }
+                    default {  
+                        this.ERROR(node.expression.token, "MATCH_NON_ID", "");
+                        node
+                    }  
                 };
         
                 // compute the least upper bound of all cases
@@ -1120,7 +1129,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                             }
                                         }
                                         case None { 
-                                            this.missingStructure();
+                                            this.missingStructure(caseNode);
                                             caseStruct 
                                         }
                                     }
@@ -1160,7 +1169,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 addStructureForAST(new_node, stateExprStruct.value);
             }
             case None {
-                this.missingStructure()
+                this.missingStructure(new_node.stateExpr)
             }
         };
 
@@ -1184,7 +1193,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 addStructureForAST(new_node, newNodeStruct.value);
             }
             case None {
-                this.missingStructure()
+                this.missingStructure(new_node.body)
             }
         };
 
@@ -1241,7 +1250,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                      setStructureForSymbol(symbolOpt.value, structOpt.value);
                                 }
                                 case None {
-                                     this.missingStructure()
+                                     this.missingStructure(new_node.stateExpr)
                                 }
                             }
                         }
@@ -1250,11 +1259,11 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         }
                     }
                 }{
-                    ABORT("Can only perform state change operation on 'this'.");
+                    this.ERROR(node.expression.token, "T_CHANGE_NOT_THIS", "");
                 }
             }
             default {
-                ABORT("Can only perform state change operation on 'this'.");
+                this.ERROR(node.expression.token, "T_CHANGE_NOT_THIS", "");
             }
         };    
         
@@ -1288,7 +1297,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                      setStructureForSymbol(symbolOpt.value, structOpt.value);
                                 }
                                 case None {
-                                     this.missingStructure()
+                                     this.missingStructure(new_node.stateExpr)
                                 }
                             }
                         }
@@ -1297,11 +1306,11 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         }
                     }
                 }{
-                    ABORT("Can only perform state change operation on 'this'.");
+                    this.ERROR(node.expression.token, "T_CHANGE_NOT_THIS", "");
                 }
             }
             default {
-                ABORT("Can only perform state change operation on 'this'.");
+                this.ERROR(node.expression.token, "T_CHANGE_NOT_THIS", "");
             }
         };    
 
@@ -1324,7 +1333,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 addStructureForAST(new_node, stateExprStruct.value);
             }
             case None {
-                this.missingStructure()
+                this.missingStructure(new_node.stateExpr)
             }
         };
         
@@ -1389,22 +1398,25 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                         new_node
                                     }
                                     default {
-                                        ABORT("Operator definiton needs to be a method declaration.");
+                                        this.ERROR(node.token, "T_OP_NOT_METHOD", node.operator.name);
+                                        node
                                     }
                                 }
                             }
                             case None {
-                                ABORT("Cannot find operator definition '" + node.operator.name +"' in " + exprStructOpt.value.toString());
+                                this.ERROR(node.token, "T_CALL_MISSING", node.operator.name);
+                                node
                             }
                         }
                     }
                     default {
-                        ABORT("Cannot call method on non-nominal structure.");
+                        this.ERROR(node.token, "T_CALL_NON_OBJECT_STRUCTURE", exprStructOpt.value.toString());
+                        node
                     }
                 }
             }
             case None {
-                this.missingStructure();
+                this.missingStructure(new_expression);
                 node
             }
         };        

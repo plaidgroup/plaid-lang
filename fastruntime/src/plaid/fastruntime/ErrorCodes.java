@@ -15,6 +15,8 @@ public class ErrorCodes {
 			"(Implementation Error) Symbol not found.");
 		ERROR_MESSAGES.put("UNEXPECTED_SYM",
 			"(Implementation Error) unexpected symbol found: ");
+		ERROR_MESSAGES.put("UNEXPECTED_SIG",
+			"(Implementation Error) unexpected signature type found");
 		ERROR_MESSAGES.put("STRUCT_NOT_FOUND", 
 			"(Implementation Error) Structure not found");
 		ERROR_MESSAGES.put("SCOPING_ERROR", 
@@ -73,6 +75,8 @@ public class ErrorCodes {
 		   "Could not merge contexts");
 		ERROR_MESSAGES.put("T_NO_RESULT_LUB",
 		   "No consistent result type");
+		ERROR_MESSAGES.put("T_PATTERN_INVALID",
+		   "Pattern must be a state or Java class: ");
 		ERROR_MESSAGES.put("T_CALL_NOT_METHOD",
 		   "Cannot call a non-method: ");
 		ERROR_MESSAGES.put("T_CALL_MISSING",
@@ -85,6 +89,8 @@ public class ErrorCodes {
 			"Target object of method call is not an object: ");
 		ERROR_MESSAGES.put("T_APP_NOT_FUNCTION",
 		   "Cannot call a non-function: ");
+		ERROR_MESSAGES.put("T_APP_NOT_FUNCTION_OR_METHOD",
+		   "Target of call is not a function or a method: ");
 		ERROR_MESSAGES.put("RESTORE_VAR", 
 			"Cannot restore to a 'var': ");	
 		ERROR_MESSAGES.put("T_VAR_ALREADY_DECLARED",
@@ -135,9 +141,12 @@ public class ErrorCodes {
 			"State changes have permission none: ");
 		ERROR_MESSAGES.put("T_METHOD_DECL_TOP_RCVR",
 			"Receiver of top level method must be void: ");
+		ERROR_MESSAGES.put("T_CHANGE_NOT_THIS",
+			"Target of state change must be 'this'.");
 		ERROR_MESSAGES.put("NON_VAR_STATE_CHANGE",
 			"State change of non-variables not yet supported.");
-	
+		ERROR_MESSAGES.put("T_OP_NOT_METHOD",
+			"Operator not a method: ");
 		
 		/*
 		 * Aeminium Error messages
