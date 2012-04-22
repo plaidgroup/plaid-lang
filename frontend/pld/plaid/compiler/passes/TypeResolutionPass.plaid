@@ -35,7 +35,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
             case UserJob {
                 match (job.ast) {
                     case Some {
-                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> started");
+                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> started for file " + job.source.path);
                         this.sourceFile = job.source.path;
                         this.resolver   = job.resolver;
 
@@ -60,6 +60,18 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 
     override method void LOG(immutable String msg) {
         DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> " + msg);
+    }
+    
+    method void ERROR(immutable Token t, immutable String errCode, immutable String msg) {
+        report_ERROR(t, errCode, msg, "TypeResolutionPass");
+        this.hasErrors=true;
+    }
+    
+    method void missingStructure() {
+        match (this.hasErrors) {
+            case True { /*no op - previous error*/ }
+            case False { ABORT("expected structure for node not found") }
+        }
     }
 
 
@@ -96,7 +108,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                     }
                 }
                 default {
-                    ABORT("Only support statechange operations on variables.");
+                    this.ERROR(mcall.token, "NON_VAR_STATE_CHANGE","");
                 }
             };
         };
@@ -124,7 +136,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                     }
                                 }
                                 default {
-                                    ABORT("Only support state changes on variables.");
+                                    this.ERROR(mcall.token, "NON_VAR_STATE_CHANGE","");
                                 }
                             }
                         }; 
@@ -132,7 +144,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         i = i + 1;
                     }
                 }{
-                    ABORT("Method '" +msig.name +"' takes " + msig.arguments.size() +" parameters.");
+                    this.ERROR(mcall.token, "T_CALL_ARG_NUM","got " + mcall.argument.args.size() +
+                                                " expected " + msig.arguments.size());
                 }
             }
             default {
@@ -239,11 +252,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         addStructureForAST(arg, elemStruc.value);
                     }
                     case None {
-                        val msg = "Cannot find type for '" + arg.toString() + "'";
-                        report_ERROR(arg.token, msg, "", "TypeResolutionPass");
-                        //TODO: fix this to use standard error erporting
-                        globalReporter.report();
-                        ABORT(msg);            
+                        this.missingStructure()
                     }
                 }
             });
@@ -257,18 +266,16 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
         val new_body       = node.body.rewrite(this);
         val new_datagroups = node.datagroups.map( fn (item) => item.rewrite(this) );
         
-        val bodyStruct = match(structureForAST(new_body)) {
-             case Some { structureForAST(new_body).value }
-             case None { ABORT("<TypeResolution> Cannot find structure for body " + new_body.toString()) }
-        };
-               
         val newAtomicBlock = new ParsedAtomicBlock {
             val token      = node.token;
             val body       = new_body;
             val datagroups = new_datagroups;
         };
         
-        addStructureForAST(newAtomicBlock, bodyStruct);
+        match(structureForAST(new_body)) {
+             case Some { addStructureForAST(newAtomicBlock, structureForAST(new_body).value) }
+             case None { this.missingStructure() }
+        };
         
         newAtomicBlock
     }
@@ -305,7 +312,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                                 new_node
                                             }
                                             default {
-                                                ABORT("Cannot apply value to '" + structOpt.value.toString() + "'");
+                                                this.ERROR(node.function.token, "T_APP_NOT_FUNCTION", structOpt.value.toString() );
+                                                node
                                             }
                                         }
                                     }
@@ -327,7 +335,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                                 new_node
                                            }
                                            default {
-                                               ABORT("Cannot apply value to '" + varStuct.toString() +"'");
+                                                this.ERROR(node.function.token, "T_APP_NOT_FUNCTION", varStruct.toString() );
+                                                node
                                            }
                                        }
                                     }
@@ -368,10 +377,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                         }
                     } 
                     case None {
-                        val msg = "Cannot find symbol information for '" + node.function.name +"'";
-                        globalReporter.errorToken(node.function.token, msg, "");
-                        globalReporter.report();
-                        ABORT(msg);                        
+                        ABORT("Cannot find symbol for Application function");                  
                     }
                 }
             }
@@ -405,10 +411,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 														 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Lambda returns '" + fieldType.structure.returnType.toString() +"'");
 													 }
 													 default { 
-														 val msg = "Cannot apply to '" + fieldType.structure +"'"; 
-														 globalReporter.errorToken( node.function.left.token, msg, "");
-														 globalReporter.report();
-														 ABORT(msg);                                                 
+														 this.ERROR(node.function.right.token, "T_APP_NOT_FUNCTION", fieldType.structure.toString() );
+                                                         node                                                
 													 } 
 												 };
 												 
@@ -443,10 +447,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 										}
 									}
 									case None { 
-										val msg = "Cannot find '" + node.function.right.name + "' in type " + receiverStruct.value.toString();
-										globalReporter.errorToken(node.function.left.token, msg, "");
-										globalReporter.report();
-										ABORT(msg);
+										this.ERROR(node.function.token,"T_CALL_MISSING", node.function.right.name);
+										node; //no rewite
 									}
 								}
 							}
@@ -488,10 +490,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 						}
                     }
                     case None {
-                        val msg = "Cannot find type for '" + node.function.nodeName() + "'";
-                        globalReporter.errorToken(node.function.left.token, msg, "");
-                        globalReporter.report();
-                        ABORT(msg);
+                        this.missingStructure();
+                        node //no rewriting
                     }
                 }
             }
@@ -518,18 +518,13 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                  addStructureForAST(new_node, returnType.structure);
                             }
                             default {
-                                val msg = "Cannot apply to non-lambda object " + functionStruct.value.toString() ;
-                                globalReporter.errorToken(new_function.token, msg, "");
-                                globalReporter.report();
-                                ABORT(msg);                                  
+                                this.ERROR(node.function.token, "T_APP_NOT_FUNCTION", functionStruct.value.toString() );
+                                node                                 
                             }
                         }
                     }
                     case None {
-                        val msg = "Cannot find type for '" + node.function.nodeName() + "'";
-                        globalReporter.errorToken(node.function.token, msg, "");
-                        globalReporter.report();
-                        ABORT(msg);
+                        this.missingStructure()
                     }
                 };
 
@@ -574,7 +569,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                    addStructureForAST(new_node, lastStmtStruct.value);
                }
                case None {
-                   ABORT("<TypeResolutionPass> Cannot find strucuture of last statement. "+ new_node.toString());
+                   this.missingStructure()
                }
             }
         };
@@ -790,7 +785,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 addStructureForAST(new_node, newNodeStruct.value);
             }
             case None {
-                ABORT("Cannot find structure for default case.");
+                this.missingStructure()
             }
         };
 
@@ -867,10 +862,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 						}
 					}
 					case None {
-						val msg = "Cannot find structure for left part of the dereference.";
-						globalReporter.errorToken(new_node.token, msg, "");
-						globalReporter.report();
-						ABORT(msg);
+						this.missingStructure()
 					}
 				}
 			}
@@ -1007,11 +999,13 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                     }
                     default {
                         report_ERROR(node.token, "Cannot call method on non-nominal structure: " + leftStructOpt.value.toString(), "", "TypeResolutionPass");
+                        node
                     }
                 }
             }
             case None {
-                ABORT("Cannot find structure of expression.");
+                this.missingStructure();
+                node
             }
         };        
 	}
@@ -1051,88 +1045,105 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 		// create new object
 		
 		// todo test for expression = ParsedIdentifier 
-		
-		val expression = node.expression.rewrite(this);
-		val expressionSymbol = match (symbolForAST(expression)) {
-		    case Some { symbolForAST(expression).value }
-		    case None { ABORT("Cannot find symbol for expression " + expression.toString()) }
-		};
-		val new_node = new ParsedMatch{
-			val expression = expression;
-			val caseList= node.caseList.map(fn (item) => { 			    
-			        match (expressionSymbol) {
-			            case VariableSymbol {
-			                match (item) {
-			                    case ParsedPatternCase {
-			                        val patternSymbol = match (symbolForAST(item.pattern)) {
-			                            case Some { symbolForAST(item.pattern).value }
-			                            case None { ABORT("Cannot find symbol for pattern " + makeStringFromQualifiedIdentifier(item.pattern)) }
-			                        };
-			                        
-			                        val patternStructure = match ( patternSymbol ) {
-			                             case StateSymbol {
-			                                 patternSymbol.getStructure();
-			                             }
-			                             case JavaClassSymbol {
- 			                             	 patternSymbol.getStructure();
-			                             }
-			                             default { ABORT("Can only handle states or java classes as patterns") }
-			                        };
-			                        
-			                        val oldStructureOpt = getStructureForSymbol(expressionSymbol);
-			                        setStructureForSymbol(expressionSymbol, patternStructure);
-			                        
-			                        val new_item = item.rewrite(this);
-			                        
-			                        match ( oldStructureOpt) {
-			                            case Some { setStructureForSymbol(expressionSymbol, oldStructureOpt.value) }
-			                            case None {}
-			                        };
-			                        
-			                        new_item
-			                    }
-			                    default {
-			                        item.rewrite(this)  
-			                    }
-			                }
-			            }
-			            default {  ABORT("Can only match on variables at the moment.") }
-			        }
-			});
-			val token = node.token;
-		};
-
-        // compute the least upper bound of all cases
-        val caseStructs = new_node.caseList.map( fn (item) => {
-            val itemStruct = structureForAST(item);
-            match (itemStruct) {
-                case Some { itemStruct.value }
-                case None { ABORT("Cannot find struct for match case.") }
+		match (node.expression) {
+		    case ParsedIdentifier {
+                val expression = node.expression.rewrite(this);
+                val expressionSymbol = match (symbolForAST(expression)) {
+                    case Some { symbolForAST(expression).value }
+                    case None { ABORT("Cannot find symbol for expression " + expression.toString()) }
+                };
+                val new_node = new ParsedMatch {
+                    val expression = expression;
+                    val caseList= node.caseList.map(fn (item) => { 			    
+                            match (expressionSymbol) {
+                                case VariableSymbol {
+                                    match (item) {
+                                        case ParsedPatternCase {
+                                            val patternSymbol = match (symbolForAST(item.pattern)) {
+                                                case Some { symbolForAST(item.pattern).value }
+                                                case None { ABORT("Cannot find symbol for pattern " + makeStringFromQualifiedIdentifier(item.pattern)) }
+                                            };
+                                            
+                                            val patternStructure = match ( patternSymbol ) {
+                                                 case StateSymbol {
+                                                     patternSymbol.getStructure();
+                                                 }
+                                                 case JavaClassSymbol {
+                                                     patternSymbol.getStructure();
+                                                 }
+                                                 default { ABORT("Can only handle states or java classes as patterns") }
+                                            };
+                                            
+                                            val oldStructureOpt = getStructureForSymbol(expressionSymbol);
+                                            setStructureForSymbol(expressionSymbol, patternStructure);
+                                            
+                                            val new_item = item.rewrite(this);
+                                            
+                                            match ( oldStructureOpt) {
+                                                case Some { setStructureForSymbol(expressionSymbol, oldStructureOpt.value) }
+                                                case None {}
+                                            };
+                                            
+                                            new_item
+                                        }
+                                        default {
+                                            item.rewrite(this)  
+                                        }
+                                    }
+                                }
+                                default {  ABORT("Can only match on variables at the moment.") }
+                            }
+                    });
+                    val token = node.token;
+                };
+        
+                // compute the least upper bound of all cases
+                val lubResultOpt = match (new_node.caseList.size() > 0) {
+                    case True {
+                        val seed = structureForAST(new_node.caseList.get(0).value);
+                        
+                        new_node.caseList.reduceLeft(seed, fn (prev, caseNode) => {
+                            match (prev) {
+                                case Some {
+                                    val caseStruct = structureForAST(caseNode);
+                                    match (caseStruct) {
+                                        case Some  {
+                                            val lubOpt = prev.value.leastUpperBound(caseStruct.value);
+                                            match (lubOpt) {
+                                                case Some {
+                                                    makeSome(lubOpt.value)
+                                                }
+                                                case None {
+                                                    this.ERROR(node.token, "T_NO_RESULT_LUB","");
+                                                    lubOpt
+                                                }
+                                            }
+                                        }
+                                        case None { 
+                                            this.missingStructure();
+                                            caseStruct 
+                                        }
+                                    }
+                                }
+                                case None { prev }
+                            }
+                        })
+                    }
+                    case False { makeSome(TOPSTRUCT) }
+                };
+        
+                match (lubResultOpt) {
+                    case Some { addStructureForAST(new_node, lubResultOpt.value); }
+                    case None { /* previous error - no op */ }
+                };
+        
+                new_node;
             }
-        });
-
-        val lubResult = match (caseStructs.size() > 0) {
-            case True {
-                var lub = caseStructs.get(0).value;
-                caseStructs.do(fn (struct) => {
-                   val lubOpt = lub.leastUpperBound(struct);
-                   match (lubOpt) {
-                       case Some {
-                           lub = lubOpt.value
-                       }
-                       case None {
-                           ABORT("Cannot compute least upper bound.");
-                       }
-                   }
-                });
-                lub
+            default {
+                this.ERROR(node.expression.token, "MATCH_NON_ID", "");
+                node
             }
-            case False { TOPSTRUCT }
-        };
-
-        addStructureForAST(new_node, lubResult);
-
-        new_node;
+        }
 	}
 
 	override method immutable ParsedNewInstance rewriteParsedNewInstance(immutable ParsedNewInstance node) {
@@ -1149,7 +1160,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 addStructureForAST(new_node, stateExprStruct.value);
             }
             case None {
-                ABORT("Cannot find type for new expression.");
+                this.missingStructure()
             }
         };
 
@@ -1173,7 +1184,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 addStructureForAST(new_node, newNodeStruct.value);
             }
             case None {
-                ABORT("Cannot find structure for default case.");
+                this.missingStructure()
             }
         };
 
@@ -1230,7 +1241,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                      setStructureForSymbol(symbolOpt.value, structOpt.value);
                                 }
                                 case None {
-                                     ABORT("Cannot find structure for state expression");
+                                     this.missingStructure()
                                 }
                             }
                         }
@@ -1277,7 +1288,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                      setStructureForSymbol(symbolOpt.value, structOpt.value);
                                 }
                                 case None {
-                                     ABORT("Cannot find structure for state expression");
+                                     this.missingStructure()
                                 }
                             }
                         }
@@ -1313,7 +1324,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 addStructureForAST(new_node, stateExprStruct.value);
             }
             case None {
-                ABORT("Cannot find type of state reference.");
+                this.missingStructure()
             }
         };
         
@@ -1393,7 +1404,8 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 }
             }
             case None {
-                ABORT("Cannot find structure of expression.");
+                this.missingStructure();
+                node
             }
         };        
 	}

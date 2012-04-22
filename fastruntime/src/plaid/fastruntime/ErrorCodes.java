@@ -83,6 +83,8 @@ public class ErrorCodes {
 		   "Incompatible argument structure provided: ");
 		ERROR_MESSAGES.put("T_CALL_NON_OBJECT_STRUCTURE",
 			"Target object of method call is not an object: ");
+		ERROR_MESSAGES.put("T_APP_NOT_FUNCTION",
+		   "Cannot call a non-function: ");
 		ERROR_MESSAGES.put("RESTORE_VAR", 
 			"Cannot restore to a 'var': ");	
 		ERROR_MESSAGES.put("T_VAR_ALREADY_DECLARED",
@@ -133,6 +135,8 @@ public class ErrorCodes {
 			"State changes have permission none: ");
 		ERROR_MESSAGES.put("T_METHOD_DECL_TOP_RCVR",
 			"Receiver of top level method must be void: ");
+		ERROR_MESSAGES.put("NON_VAR_STATE_CHANGE",
+			"State change of non-variables not yet supported.");
 	
 		
 		/*
