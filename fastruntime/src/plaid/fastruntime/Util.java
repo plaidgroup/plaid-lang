@@ -6,6 +6,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import plaid.fastruntime.PlaidJavaObject.JavaPrimitive;
 import plaid.fastruntime.dcg.DispatchGenerator;
@@ -35,6 +36,12 @@ public final class Util {
 	public static final PlaidState makeState(ObjectValue ov) {
 		PlaidDispatch dispatch = DISPATCH_GEN.createStateInstance(ov);
 		return SimplePlaidState.makeStaticallyDefinedState(dispatch);
+	}
+	
+	public static final PlaidState makeDynState(ObjectValue ov, 
+			Map<java.lang.String, PlaidLambda> memberDefinitions) {
+		PlaidDispatch dispatch = DISPATCH_GEN.createStateInstance(ov);
+		return SimplePlaidState.makeDynamicallyDefinedState(dispatch, memberDefinitions);
 	}
 	
 	public static PlaidObject unit() {
