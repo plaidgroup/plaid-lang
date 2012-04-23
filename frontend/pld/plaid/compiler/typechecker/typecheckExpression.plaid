@@ -667,50 +667,81 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
       val unique Option<immutable Symbol> idSymbolOption = symbolForAST(exp);
       match (idSymbolOption) {
         case Some {
-          match (ctx.containsSymbol(idSymbolOption.value)) {
-            case True {
-              val immutable Symbol idSymbol = idSymbolOption.value;
-              val immutable Type currentType = ctx.get(idSymbol);
-              val immutable ?Permission newPermission = currentType.permission.splitPerm(neededPerm);
-              match (newPermission) {
-                case Permission {
-                  ctx.update(idSymbol, makeType(newPermission,currentType.structure));
-                  val slList = makeLinkedList();
-                  val sloc = makeVarSourceLoc(idSymbol);
-                  slList.addFirst(sloc);
-                  
-                  if ( AEMINIUM_MODE() ) {
-                      // create split node
-                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) split permission of '" + exp.name + "' from " + currentType.permission + "=>" + neededPerm);
-                      val shared DependencyInformation splitInfo = makeSplitInformation(idSymbol, currentType.permission, neededPerm);
-                      splitInfo.inAtomic = ctx.inAtomic;
-                      val shared DependencyInformation oldDepInfo = depInfoForSymbol(idSymbol).value;
-                      addDependency(splitInfo, oldDepInfo);
-                      setDepInfoForSymbol(idSymbol, splitInfo);
-                      
-                      // create ASTNode 
-                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) create ASTInformation node for '" + exp.name + "'");
-                      val unique DependencyInformation expInfo = makeASTInformation(exp);
-                      addDependency(expInfo, splitInfo);
-                      addDepInfoForAST(exp, expInfo);
-                      
-                      // add sloc mapping
-                      addDepInfoForSLoc(sloc, splitInfo);
-                  };
-                  
-                  makeTypecheckResult(makeType(neededPerm,currentType.structure), ctx, slList)
-                }
-                default { 
-                    report_ERROR(exp.token, "P_SPLIT_FAIL", currentType.permission.toString() + " => " + neededPerm.toString() + " x ???", "typecheckIdentifier"); 
-                    unit;
-                }
-              }     
-            }
-            case False { 
-                report_ERROR(exp.token, "T_NOT_IN_SCOPE", exp.name, "typecheckIdentifier"); 
-                unit;
-            }
-          }
+          match (idSymbolOption.value) {
+          	case VariableSymbol {
+			  match (ctx.containsSymbol(idSymbolOption.value)) {
+				case True {
+				  val immutable Symbol idSymbol = idSymbolOption.value;
+				  val immutable Type currentType = ctx.get(idSymbol);
+				  val immutable ?Permission newPermission = currentType.permission.splitPerm(neededPerm);
+				  match (newPermission) {
+					case Permission {
+					  ctx.update(idSymbol, makeType(newPermission,currentType.structure));
+					  val slList = makeLinkedList();
+					  val sloc = makeVarSourceLoc(idSymbol);
+					  slList.addFirst(sloc);
+					  
+					  if ( AEMINIUM_MODE() ) {
+						  // create split node
+						  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) split permission of '" + exp.name + "' from " + currentType.permission + "=>" + neededPerm);
+						  val shared DependencyInformation splitInfo = makeSplitInformation(idSymbol, currentType.permission, neededPerm);
+						  splitInfo.inAtomic = ctx.inAtomic;
+						  val shared DependencyInformation oldDepInfo = depInfoForSymbol(idSymbol).value;
+						  addDependency(splitInfo, oldDepInfo);
+						  setDepInfoForSymbol(idSymbol, splitInfo);
+						  
+						  // create ASTNode 
+						  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) create ASTInformation node for '" + exp.name + "'");
+						  val unique DependencyInformation expInfo = makeASTInformation(exp);
+						  addDependency(expInfo, splitInfo);
+						  addDepInfoForAST(exp, expInfo);
+						  
+						  // add sloc mapping
+						  addDepInfoForSLoc(sloc, splitInfo);
+					  };
+					  
+					  makeTypecheckResult(makeType(neededPerm,currentType.structure), ctx, slList)
+					}
+					default { 
+						report_ERROR(exp.token, "P_SPLIT_FAIL", currentType.permission.toString() + " => " + neededPerm.toString() + " x ???", "typecheckIdentifier"); 
+						unit;
+					}
+				  }     
+				}
+				case False { 
+					report_ERROR(exp.token, "T_NOT_IN_SCOPE", exp.name, "typecheckIdentifier"); 
+					unit;
+				}
+			  }
+			}
+			case FieldSymbol {
+				val fieldType = idSymbolOption.value.getSignature().getDeclaredType();
+				val fieldPerm = fieldType.permission;
+				val immutable ?Permission newPermission = fieldPerm.splitPerm(neededPerm);
+				match (newPermission) {
+					case Permission {
+						match (newPermission == fieldPerm) {
+							case True {
+								makeTypecheckResult(makeType(neededPerm,fieldType.structure), ctx, makeLinkedList())
+							}
+							case False {
+								report_ERROR(exp.token, "T_TOP_FIELD_PERM", fieldPerm.toString() + " => " + neededPerm.toString() + " x " +
+												newPermission.toString(), "typecheckIdentifier"); 
+								unit;
+							}
+						}
+					}
+					default {
+						report_ERROR(exp.token, "P_SPLIT_FAIL", fieldPerm.toString() + " => " + neededPerm.toString() + " x ???", "typecheckIdentifier"); 
+						unit;
+					}
+				}
+				
+			}
+			default {
+				ABORT("unexpected symbol type " + idSymbolOpt.symbolType() + " for identifier " + exp.name);
+			}
+		  }
         }
         case None {
             report_ERROR(exp.token, "SYM_NOT_FOUND", "", "typecheckIdentifier"); 

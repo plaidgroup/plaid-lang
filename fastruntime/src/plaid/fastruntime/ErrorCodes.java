@@ -51,8 +51,8 @@ public class ErrorCodes {
 			"Target of field assignment must be an identifier");
 		ERROR_MESSAGES.put("T_ASSIGN_PERM",
 			"Assignment have permission none: ");
-		ERROR_MESSAGES.put("T_DEREF_METHOD",
-		   "Cannot dereference a method: ");
+		ERROR_MESSAGES.put("T_METHOD_FIRST_CLASS",
+		   "Methods are not first class values.");
 		ERROR_MESSAGES.put("T_DEREF_MISSING",
 		   "Field does not exist: ");
 		ERROR_MESSAGES.put("T_DOUBLE_PERM",
@@ -147,6 +147,8 @@ public class ErrorCodes {
 			"State change of non-variables not yet supported.");
 		ERROR_MESSAGES.put("T_OP_NOT_METHOD",
 			"Operator not a method: ");
+		ERROR_MESSAGES.put("T_TOP_FIELD_PERM",
+			"Cannot remove permissions from a package field.");
 		
 		/*
 		 * Aeminium Error messages
