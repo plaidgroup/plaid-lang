@@ -1,0 +1,1539 @@
+ /**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* *** global configuration options *** */
+options{	STATIC=false;
+}
+
+/* *** Specification of the parser class *** */
+PARSER_BEGIN(PlaidCoreParser)
+package plaid.parser;
+import java.util.*;
+import plaid.parser.ast.*;
+
+public class PlaidCoreParser
+{
+    protected Expr combineSimpleExp1(List<Expr> exps) throws ParseException {
+        Expr result;
+        
+        // reverse list 
+        Collections.reverse(exps);
+        
+        if ( exps.size() == 1 ) {
+            result = exps.get(0);
+        } else {
+            Expr left = exps.get(0);
+            for ( int i = 1; i < exps.size(); i++) {
+                Expr right = exps.get(i);
+                if ( right instanceof Application ) {
+                    Application app = (Application)right;
+                    left = new Application(combineTokens(left.getToken(), app.getToken(), "Application"),
+                                           left,
+                                           app.getStaticArgs(),
+                                           app.getArgument());
+                } else if ( right instanceof DestructiveDereference ) {
+                    DestructiveDereference ddref = (DestructiveDereference) right;
+                    left = new DestructiveDereference(ddref.getToken(), 
+                                                      left, 
+                                                      ddref.getRight());
+                } else if ( right instanceof Dereference ) {
+                    Dereference dref = (Dereference) right;
+                    left = new Dereference(dref.getToken(), 
+                                           left, 
+                                           dref.getRight());
+                } else {
+                    throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+                }
+            }
+            result = left;
+        }
+        
+        return result;                       
+    }
+
+    protected Expr combineSimpleExp2(List<Expr> exps) throws ParseException {
+        Expr result;
+        
+        // reverse list
+        Collections.reverse(exps);
+        
+        if ( exps.size() == 1 ) {
+            result = exps.get(0);
+        } else {
+	        Expr left = exps.get(0);
+	        for (int i = 1; i < exps.size(); i++ ) {
+	            Expr right = exps.get(i);
+	            if ( right instanceof Application ) {
+	                Application app = (Application)right;
+	                left = new Application(combineTokens(left.getToken(), app.getToken(), "Application"),
+	                                       left,
+	                                       app.getStaticArgs(),
+	                                       app.getArgument());
+	            } else {
+	                throw new ParseException("Cannot have " + exps.get(i) +" on the right hand size of an exception");
+	            }
+            }
+            result = left;
+        }
+        
+        return result;
+    }
+    
+    public Token combineTokens(final Token left, final Token right, final String image) {
+        final Token result = new Token();
+        
+        result.beginLine   = left.beginLine;
+        result.beginColumn = left.beginColumn;
+        result.endLine     = right.endLine;
+        result.endColumn   = right.endColumn;
+        result.image       = image;
+        
+        return result;
+    }
+    
+    public void setTabSize(int size) { jj_input_stream.setTabSize(size); }
+
+    public int getTabSize() { return jj_input_stream.getTabSize(0); }     
+    
+}
+
+PARSER_END(PlaidCoreParser)
+
+/* *** Token specification *** */
+/* Skip whitespace */
+SKIP :
+{
+		" "
+|		"\t"
+|		"\n"
+|		"\r"
+}
+
+SKIP :
+{
+		"/*" : WithinComment
+|		"/**" : WithinComment
+}
+
+< WithinComment >
+SKIP :
+{
+		"*/" : DEFAULT
+}
+
+< WithinComment >
+MORE :
+{
+		< ~[ ] >
+}
+
+// Single-line comments
+SPECIAL_TOKEN :
+{
+		< SINGLE_LINE_COMMENT :
+				"//" (~[ "\n", "\r" ])*
+				(
+						"\n"
+				|		"\r"
+				|		"\r\n"
+				) >
+}
+
+/* Keywords */
+TOKEN /*[IGNORE_CASE]*/:
+{
+	< AS : "as" >
+|   < ATOMIC : "atomic" >
+| 	< CASE : "case">
+|	< DEF : "default" >
+|	< DYN : "dyn">
+|	< DYNAMIC : "dynamic" >
+|   < EXCLUSIVE : "exclusive" >
+|	< FN : "fn" >
+|   < FREEZE : "freeze" >
+| 	< FULL : "full" >
+|   < GROUP : "group" >
+|	< IMMUTABLE : "immutable" >
+|	< IMPORT : "import" > 
+|   < LOCAL : "local" >
+|	< MATCH : "match" >
+|	< METHOD : "method">
+| 	< MUTABLE : "mutable" >
+|	< NEW : "new">
+|	< NONE : "none" >
+|	< OF : "of" >
+|	< OVERRIDE : "override" >
+|	< PACKAGE : "package" >
+|   < PROTECTED : "protected" >
+| 	< PURE : "pure" >
+| 	< READONLY : "readonly" >
+|	< REMOVE : "remove" >
+|	< RENAME : "rename" >
+|	< REQUIRES : "requires" >
+| 	< SHARED : "shared" >
+|	< STATE : "state" >
+|   < STATEVAL : "stateval" >
+|   < SPLIT : "split" >
+|	< TAKE : "take" >
+|	< THIS : "this" >
+| 	< TYPE : "type" >
+|	< UNIQUE : "unique" >
+| 	< UNIT : "unit" >
+|   < UNPACKINNERGROUPS : "unpackInnerGroups" >
+|	< VAL : "val" >
+|	< VAR : "var" >	
+|	< VOID : "void" >
+|	< WITH : "with" > 
+}
+
+
+/* Literals */
+TOKEN :
+{
+	< STRING_LITERAL :
+			"\""
+			(
+					(~[ "\"", "\\", "\n", "\r" ])
+			|
+					(
+							"\\"
+							(
+									[ "n", "t", "b", "r", "f", "\\", "'", "\"" ]
+							|		[ "0"-"7" ] ([ "0"-"7" ])?
+							|		[ "0"-"3" ] [ "0"-"7" ] [ "0"-"7" ]
+							)
+					)
+			)*
+			"\"" >
+|   < INTEGER:
+        <DECIMAL_LITERAL> 
+      | <HEX_LITERAL> 
+      | <OCTAL_LITERAL> 
+    >
+|
+    < #DECIMAL_LITERAL: ("-")? ["1"-"9"] (["0"-"9"])* >
+|
+    < #HEX_LITERAL: "0" ["x","X"] (["0"-"9","a"-"f","A"-"F"])+ >
+|
+    < #OCTAL_LITERAL: "0" (["0"-"7"])* >
+|
+    < FLOATING_POINT_LITERAL:
+          ("-")? (["0"-"9"])+ "." (["0"-"9"])* (<EXPONENT>)? 
+          | "." (["0"-"9"])+ (<EXPONENT>)? 
+          | ("-")? (["0"-"9"])+ <EXPONENT> 
+          | ("-")? (["0"-"9"])+ (<EXPONENT>)? 
+    >
+|
+    < #EXPONENT: ["e","E"] (["+","-"])? (["0"-"9"])+ >
+}
+
+/* Language Operators and Separators */
+TOKEN :
+{
+		< LPAREN : "(" >
+|		< RPAREN : ")" >
+|		< LBRACE : "{" >
+|		< RBRACE : "}" >
+|		< LBRACK : "[" >
+|		< RBRACK : "]" >
+|		< EQUALS : "=" >
+|		< RARROW : "->" >
+|		< LARROW : "<-" >
+| 		< DLARROW : "<<-" >
+|		< DARROW : "=>" >
+|		< MARROW : ">>" >
+|       < DOT : "." > 
+|		< SEMICOLON : ";">
+| 		< COMMA : "," >
+|       < AT : "@" >
+}
+
+/* Operators with Java Precedence */
+TOKEN : 
+{
+    < QST : "?" >
+| 	< COLON : ":" >
+|	< OR : "||" >
+|	< AND : "&&">
+|	< IOR : "|" >
+|	< XOR : "^" >
+|	< BITAND : "&" >
+|	< EQ : "==" >
+|	< NEQ : "!=" >
+|   < GT : ">" >
+|	< LT : "<" >
+|	< GEQ : ">=" >
+|	< LEQ : "<=" >
+|	< LSHIFT : "<<" >
+// | 	< RSHIFT : ">>" > duplicate of MARROW
+|	< RUNSIGNEDSHIFT : ">>>"> 
+|	< PLUS : "+" >
+| 	< MINUS : "-">
+|	< STAR : "*" >
+| 	< SLASH : "/" >
+|	< PERCENT : "%" >
+|	< BANG : "!" >
+|	< TILDE : "~" >
+}
+
+/* User operators */
+/* Do not allow comment-like things (// or /*) as user operators */
+/* Does not need to account for single character operators */
+TOKEN :
+{
+	< OP : 
+	(
+		( "/" [ "=", "<", ">", "!", "~", "?", ":", "&", "|", "+", "-", "^", "%" ]) |
+		( [ "=", "<", ">", "!", "~", "?", ":", "&", "|", "+", "-", "*", "^", "%" ] )
+	)+
+	("/")?>
+}
+
+/* Identifiers */
+TOKEN :
+{
+	< ID : ([ "A"-"Z", "a"-"z", "_" ]) ([ "A"-"Z", "a"-"z", "0"-"9", "_" ])* >
+}
+
+CompilationUnit CompilationUnit() :
+{
+	Decl d;
+	QualifiedIdentifier p;
+	List <Decl> decls = new ArrayList<Decl>();
+	List<Import> imports = new ArrayList<Import>();
+}
+{
+	p = Package()
+	( imports = Imports() )?
+	( d = Decl() { decls.add(d); } )*
+	< EOF >
+	{ return new CompilationUnit(p, imports, decls); }
+}
+
+QualifiedIdentifier Package() :
+{
+	QualifiedIdentifier dn;
+}
+{
+	< PACKAGE > dn = QualifiedIdentifier() < SEMICOLON >  {	return dn; }
+}
+
+/*****************************************************************************/
+/*								TYPING RULES	 							 */
+/*****************************************************************************/
+
+Type Type() :
+{
+	Token t;
+	Permission perm = Permission.EMPTY;
+	LambdaStructure l;
+    QualifiedIdentifier qi;
+    List<Expr> staticArgs = new ArrayList<Expr>();
+    Token optionToken = null;
+}
+{   
+(	    t= <UNIT> { return new UnitType(t); }
+  |	    t = <VOID> { return new UnitType(t); }
+  |	    LOOKAHEAD(2) [t = <IMMUTABLE> {perm = new ImmutablePermission(t);}] l = LambdaStructure() 
+            { return new ConcreteType(l.getToken(), perm, l); }
+  |     [perm = Permission()] [optionToken = <QST>] qi = QualifiedIdentifier() [LOOKAHEAD(StaticArgs()) staticArgs = StaticArgs()]
+	   {
+           NominalStructure s = new NominalStructure(qi.getToken(), qi, staticArgs);
+           if (optionToken == null) return new ConcreteType(qi.getToken(), perm, s);
+           else return new ConcreteType(qi.getToken(), perm, new OptionStructure(optionToken, s));
+	   }
+)
+}
+
+Permission Permission() :
+{
+    Token t;	Permission perm;
+	Expr datagroup = Expr.EMPTY;
+}
+{(    t = <UNIQUE>     { return new UniquePermission(t); }  
+ |  t = <NONE>       { return new NonePermission(t); }
+ |  perm = SymmetricPermission() { return perm; }
+ |  perm = LocalPermission() { return perm; }
+)
+}
+
+SymmetricPermission SymmetricPermission() :
+{
+    Token t;
+    SymmetricPermission perm;
+    Expr datagroup = Expr.EMPTY;
+}
+{
+    ( 
+        t = <IMMUTABLE>  { return new ImmutablePermission(t); }
+        |  t = <SHARED> [ <LT> datagroup = SimpleExpr() <GT>] 
+            {return new SharedPermission(t, datagroup); }
+    )
+}
+
+LocalPermission LocalPermission() :
+{
+    Token t;
+    SymmetricPermission perm;
+    Expr datagroup = Expr.EMPTY;
+}
+{
+    t = <LOCAL>  perm = SymmetricPermission() 
+    { return new LocalPermission(t, perm); }
+}
+
+
+List<ArgSpec> ArgSpecList() :{  List<ArgSpec> cl = new ArrayList<ArgSpec>();  ArgSpec c;}{  c = ArgSpec() { cl.add(c); }  ( 
+    <COMMA> c = ArgSpec() { cl.add(c); } 
+  )*  { return cl; }}
+
+
+ArgSpec ArgSpec() :
+{
+	Type input;
+	Type output = Type.EMPTY;
+	boolean borrow = false;
+	Token t = ASTNode.DEFAULT_TOKEN;
+}
+{
+	input = Type() [ t = <MARROW> output = Type() ]
+	{
+	    if ( t == ASTNode.DEFAULT_TOKEN ) t = input.getToken();
+		return new ArgSpec(t, input,output);
+	}
+}
+
+LambdaStructure LambdaStructure() :
+{
+	Token t;
+	List<Arg> env = new ArrayList<Arg>();
+	Type returnType;
+	List<ArgSpec> argTypes = new ArrayList<ArgSpec>();
+	List<StaticType> metaTypes = new ArrayList<StaticType>();
+}
+{
+	// <meta>( c )[E] -> pT
+	[metaTypes = StaticTypes(true)]
+	t = <LPAREN> [ argTypes = ArgSpecList() ] <RPAREN> [ <LBRACK> [ env = Environment() ] <RBRACK> ] <RARROW> returnType = Type()
+	{
+		return new LambdaStructure(t, metaTypes, argTypes, env, returnType); 
+	}
+
+}
+
+StaticType StaticType(boolean isMethod) : {    Token t;
+    Identifier id;    boolean isAbstract = true;    Type type = Type.EMPTY;    GroupPermission gp = GroupPermission.EMPTY;
+    List<Expr> metaArgs = new ArrayList<Expr>();
+    List<StaticArg> metaArgsSpec = new ArrayList<StaticArg>();
+    QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;}{    (        t = <GROUP> [gp = GroupPermission()] id = Identifier() [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]        {            if ( !isMethod && gp != GroupPermission.EMPTY ) {                throw new ParseException("Cannot specify group permissions in states.");            } else if ( isMethod && gp == GroupPermission.EMPTY ) {                throw new ParseException("Need to specify group permission.");            }            return new GroupType(t, gp, id, isAbstract);        }    |   t = <TYPE> id = Identifier() [LOOKAHEAD(StaticArgsSpec(false)) metaArgsSpec = StaticArgsSpec(false) ] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(StaticArgs()) metaArgs = StaticArgs()] ]         {            return new TypeArgType(t, id, metaArgsSpec, caseof, metaArgs);        }    )}List<StaticType> StaticTypes(boolean isMethod) :{  StaticType type;  List<StaticType> types = new ArrayList<StaticType>();}{    < LT >        type =  StaticType(isMethod) {  types.add(type); }        ( 
+            < COMMA > type =  StaticType(isMethod) {  types.add(type); }        )*     < GT >    {        return types;    }}
+
+/*****************************************************************************/
+/*							END OF TYPING RULES								 */
+/*****************************************************************************/
+
+
+Identifier Identifier() : {
+    Token t;
+}{
+    (
+        t = <ID>
+    )
+    { return new Identifier(t, t.image); }  
+}
+
+
+QualifiedIdentifier QualifiedIdentifier() : {
+    Identifier id;
+    List<Identifier> ids = new ArrayList<Identifier>(); 
+}{
+    id = Identifier() { ids.add(id) ; }
+    (LOOKAHEAD(2)
+        <DOT> id = Identifier() 
+            { ids.add(id); } 
+    )*
+    {
+        Token t = ids.get(0).getToken();
+        for ( int i = 1; i < ids.size(); i++ ) {
+            t = combineTokens(t, ids.get(i).getToken(), t.image+"."+ids.get(i).getToken().image);
+        } 
+        return new QualifiedIdentifier(t, ids); 
+    }   
+}
+
+List<Import> Imports() :
+{
+	Token tImp, tStar, tSemicolon;
+	QualifiedIdentifier qi;
+	boolean hasStar = false;
+	List <Import> imports = new ArrayList <Import> ();
+}
+{
+    (
+        { hasStar = false; }
+		tImp = <IMPORT>  qi = QualifiedIdentifier() [<DOT> tStar = <STAR> { hasStar= true; } ] tSemicolon=<SEMICOLON>
+		{  imports.add(new Import(combineTokens(tImp, tSemicolon, "import ... ;"), qi, hasStar)); }
+	)+
+	{ return imports; }
+}
+
+
+List<Expr> StaticArgs() :
+{
+    Expr arg;
+    List<Expr> args = new ArrayList<Expr>();
+}{
+    <LT>
+        arg =  SimpleExpr1() {  args.add(arg); }
+        (
+            <COMMA> arg =  SimpleExpr1() { args.add(arg); }
+        )* 
+    <GT>
+    { return args; }
+}
+
+
+StaticArg StaticArgSpec(boolean isMethod) :
+{
+    Token t;
+    Identifier id;
+    GroupPermission gp = GroupPermission.EMPTY;
+    QualifiedIdentifier qi = QualifiedIdentifier.EMPTY;
+}{
+  (
+    t=<GROUP> [gp = GroupPermission()] id = Identifier()
+    {
+        if ( isMethod && gp == GroupPermission.EMPTY ) {
+            throw new ParseException("Need to specify group permission");
+        } else if ( !isMethod && gp != GroupPermission.EMPTY ) {
+            throw new ParseException("Group permissions are not allowed at statet level");
+        }
+        return new GroupArg(t, gp, id);
+    }
+  | t= <TYPE> id = Identifier() [ <CASE> <OF> qi = QualifiedIdentifier() ]     {        return new TypeArg(t, id, qi);    }
+  )
+}
+
+
+List<StaticArg> StaticArgsSpec(boolean isMethod) :
+{
+    List<StaticArg> args = new ArrayList<StaticArg>();
+    StaticArg arg; 
+}
+{
+    <LT>
+        arg = StaticArgSpec(isMethod) { args.add(arg); }
+        (
+          <COMMA> arg = StaticArgSpec(isMethod) { args.add(arg); }          
+        )*
+    <GT>
+    { return args; }
+}
+
+
+Annotation Annotation() : {
+   Token t; 
+   Identifier id;
+}{
+    t = <AT> id = Identifier() { return new Annotation(t, id); }
+}
+
+List<Annotation> Annotations() :{
+    Annotation anno;
+    List<Annotation> annotations = new ArrayList<Annotation>();}{
+    (        anno = Annotation() { annotations.add(anno); }
+    )+
+    { return annotations; }
+}
+
+
+List<Modifier> Modifiers() : {
+    Token t;
+    List<Modifier> modifiers = new ArrayList<Modifier>();
+}{
+    (
+            t = <OVERRIDE>   { modifiers.add(new OverrideModifier(t));  }
+        |   t = <REQUIRES>   { modifiers.add(new RequiresModifier(t));  }
+        // immutable is handled by directly associating it to states to avoid conflicts with types
+    )+
+    { return modifiers; }
+}
+
+
+Specifier Specifier() : {
+    Token t;  
+}{
+        t = <VAL> { return new ValSpecifier(t); }
+    |   t = <VAR> { return new VarSpecifier(t); }
+}
+
+
+DeclOrStateOp DeclOrStateOp() : {
+    DeclOrStateOp dop;
+}{
+  (
+       dop = Decl()
+    |  dop = StateOp()
+  )
+  { return dop; } 
+}
+
+List<DeclOrStateOp> DeclOrStateOpList() : {
+    DeclOrStateOp dop;
+    List<DeclOrStateOp> list = new ArrayList<DeclOrStateOp>();
+}{
+    <LBRACE>
+        dop = DeclOrStateOp() { list.add(dop); } 
+        (
+            dop = DeclOrStateOp() { list.add(dop); }
+        )*
+    <RBRACE>
+    { return list; }
+}
+
+
+Decl Decl() :
+{
+    Decl d;
+    List<Modifier> modifiers = new ArrayList<Modifier>();
+    List<Annotation> annotations = new ArrayList<Annotation>();
+}
+{
+    [ annotations = Annotations() ]
+    [ modifiers = Modifiers() ]     
+
+    (LOOKAHEAD(2)  // check for 'immutable' field vs state
+    	d = StateDecl(annotations, modifiers)  { return d; }
+      | d = GroupDecl(annotations, modifiers)  { return d; }
+      | d = FieldDecl(annotations, modifiers)  { return d; }
+      | d = MethodDecl(annotations, modifiers) { return d; }
+    )
+}
+
+
+Decl StateDecl(List<Annotation> annotations, List< Modifier > modifiers) :
+{
+    Identifier name;
+	Token t;
+	boolean stateval = false;
+	StateExpr stb = null;
+	List<StaticArg> metaArgsSpec = new ArrayList<StaticArg>();
+	List<Expr> metaCaseOfArgs = new ArrayList<Expr>();
+	QualifiedIdentifier caseof = QualifiedIdentifier.EMPTY;
+}
+{
+    LOOKAHEAD(2) [ t = <IMMUTABLE>  { modifiers.add(new ImmutableModifier(t)); } ]
+    t= <STATE> name = Identifier() [LOOKAHEAD(StaticArgsSpec(false)) metaArgsSpec = StaticArgsSpec(false)] [ <CASE> <OF> caseof = QualifiedIdentifier() [LOOKAHEAD(StaticArgs()) metaCaseOfArgs = StaticArgs()] ] [stb = StateBinding()] // <SEMICOLON>    {
+        if (stb == null) {            return new AbstractStateDecl(t, annotations, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs);
+        } else {
+            return new ConcreteStateDecl(t, annotations, modifiers, name, metaArgsSpec, caseof, metaCaseOfArgs,stb);
+        }    }    | 
+    [ t = <IMMUTABLE>  { modifiers.add(new ImmutableModifier(t)); } ]
+    t = <STATEVAL> name = Identifier() [LOOKAHEAD(StaticArgsSpec(false)) metaArgsSpec = StaticArgsSpec(false)] [stb = StateBinding()] // <SEMICOLON>    {        if (stb == null) {
+            return new AbstractStateValDecl(t, annotations, modifiers, name, metaArgsSpec);
+        } else {
+            return new ConcreteStateValDecl(t, annotations, modifiers, name, metaArgsSpec, stb);
+        }    }
+}
+
+
+StateExpr StateBinding() : {
+    StateExpr state;
+}{
+  (
+      <EQUALS> state = State()
+    | state = DeclList()
+  )
+  { return state; }
+}
+
+
+StateExpr State() : {
+    StatePrim stprim;
+    Token t = ASTNode.DEFAULT_TOKEN;
+    List<StatePrim> stprims = new ArrayList<StatePrim>();
+    List<Token> tokens = new ArrayList<Token>();
+}{
+    stprim = StatePrim() { stprims.add(stprim); }  
+    (LOOKAHEAD(<WITH>)
+        t = <WITH> stprim = StatePrim()
+        {
+            stprims.add(stprim);
+            tokens.add(t);
+        }        
+    )*
+    {
+        if (stprims.size() == 1 ) {
+            return stprims.get(0);
+        } else {
+            StateExpr left = stprims.get(0);
+            for(int i = 1; i < stprims.size() ; i++ ) {
+                left = new With(tokens.get(i-1), left, stprims.get(i));
+            }
+            return left;
+        }
+    }
+
+}
+
+
+StatePrim StatePrim() : {
+    Token t;
+    Expr e;
+    List<DeclOrStateOp> dops = new ArrayList<DeclOrStateOp>();
+    StatePrim stp;
+    List<Expr> staticArgs = new ArrayList<Expr>();
+}{
+  (
+     LOOKAHEAD(SimpleExpr1() )
+     e = SimpleExpr1() [ LOOKAHEAD(StaticArgs()) staticArgs = StaticArgs() ] [ LOOKAHEAD(2) dops = DeclOrStateOpList()]
+     {
+         return new StateRef(e.getToken(), e, staticArgs, dops);
+     }
+  |  stp = DeclList()              { return stp; }
+  | t =  <FREEZE> e = SimpleExpr() { return new Freeze(t, e); }
+  )
+}
+
+
+StateOp StateOp () : {
+    Token t; 
+    Identifier id, to;
+}{
+     t = <REMOVE> id = Identifier() <SEMICOLON>
+     {
+         return new StateOpRemove(t, id);
+     } 
+  |  t = <RENAME> id = Identifier() <AS> to = Identifier() <SEMICOLON>
+     {
+         return new StateOpRename(t, id, to);
+     }
+}
+
+Decl FieldDecl(List<Annotation> annotations, List<Modifier> modifiers) :
+{
+	Expr e;
+	Identifier name;
+	Type type = Type.EMPTY;
+	Specifier specifier = Specifier.EMPTY;
+	Token t = ASTNode.DEFAULT_TOKEN;
+}
+{
+  (  
+     LOOKAHEAD(Specifier() Identifier() <SEMICOLON>)     specifier = Specifier() name = Identifier() t=<SEMICOLON>     {        return new AbstractFieldDecl(combineTokens(specifier.getToken(), t, "AbstractFieldDecl"), annotations, modifiers, specifier, type, name);     }
+  |
+     LOOKAHEAD(Specifier() Type() Identifier() <SEMICOLON>)
+     specifier = Specifier() type=Type() name = Identifier() t=<SEMICOLON>
+     {
+        return new AbstractFieldDecl(combineTokens(specifier.getToken(), t, "AbstractFieldDecl"), annotations, modifiers, specifier, type, name);
+     }
+  |
+     LOOKAHEAD(Type() Identifier() <SEMICOLON>)
+     type = Type() name = Identifier() t=<SEMICOLON>
+     {
+        return new AbstractFieldDecl(combineTokens(type.getToken(), t, "AbstractFieldDecl"), annotations, modifiers, specifier, type, name);
+     }
+  |  // concrete field decl
+     LOOKAHEAD(Specifier() type = Type() Identifier() <EQUALS> )
+     specifier = Specifier() type = Type() name = Identifier() <EQUALS> e = Expr() t=<SEMICOLON> 
+     {
+        return new ConcreteFieldDecl
+            (combineTokens(specifier.getToken(), t, "ConcreteFieldDecl"), annotations, modifiers, specifier, type, name, e);
+     }     
+  |  
+     LOOKAHEAD(Specifier() Identifier() <EQUALS>)
+     specifier = Specifier() name = Identifier() <EQUALS> e = Expr() t=<SEMICOLON> 
+     {
+        return new ConcreteFieldDecl
+            (combineTokens(specifier.getToken(), t, "ConcreteFieldDecl"), annotations, modifiers, specifier, type, name, e);
+     }
+  |  
+     LOOKAHEAD(Type() Identifier() <EQUALS>)
+     type = Type() name = Identifier() <EQUALS> e = Expr() t=<SEMICOLON> 
+     {
+        return new ConcreteFieldDecl
+            (combineTokens(type.getToken(), t, "ConcreteFieldDecl"), annotations, modifiers, specifier, type, name, e);
+     }
+  |  
+     LOOKAHEAD(Identifier() <EQUALS>)
+     name = Identifier() t=<EQUALS> e = Expr() <SEMICOLON> 
+     {
+        return new ConcreteFieldDecl
+            (t, annotations, modifiers, specifier, type, name, e);
+     }
+  ) 
+}
+
+
+Decl GroupDecl(List<Annotation> annotations, List<Modifier> modifiers) :{
+    Token t,t2;
+    Identifier id;
+}{    t = <GROUP> id = Identifier() <EQUALS> <NEW> <GROUP> t2 = <SEMICOLON> 
+    {        return new GroupDecl(this.combineTokens(t, t2, "group" + id.getName() + " = new group;"), annotations, modifiers, id);
+    }
+}
+
+GroupPermission GroupPermission() : {
+    Token t;
+}{
+    t = <EXCLUSIVE> { return new ExclusiveGroupPermission(t); }
+ |  t = <SHARED>    { return new SharedGroupPermission(t); }
+ |  t = <PROTECTED> { return new ProtectedGroupPermission(t); }   }
+
+
+Decl MethodDecl(List<Annotation> annotations, List<Modifier> modifiers) :
+{
+    Token t;
+	Identifier methodName;
+	Type returnType = Type.EMPTY; 
+	List<Arg> argList = new ArrayList<Arg>();
+	List<ArgSpec> argTypes = new ArrayList<ArgSpec>();
+	List<Arg> env = new ArrayList<Arg>();
+	BlockExpr e = null;
+	MethodDecl d;
+	List<StaticArg> metaArgsSpec = new ArrayList<StaticArg>();
+}{
+//      //method [T] m([T>>T x])[T >> T] ( {e} | ; )
+    t = <METHOD>
+    (   
+        LOOKAHEAD(Type() IdOrOperator() [StaticArgsSpec(true)] <LPAREN> [DeclArgs(false)] <RPAREN> [Environment()])  
+        returnType = Type() methodName = IdOrOperator() [metaArgsSpec = StaticArgsSpec(true)]  <LPAREN> [argList = DeclArgs(false)] <RPAREN> [env = Environment()]
+      |
+        LOOKAHEAD(IdOrOperator() [StaticArgsSpec(true)] <LPAREN> [DeclArgs(false)] <RPAREN> [Environment()])  
+        methodName = IdOrOperator() [metaArgsSpec = StaticArgsSpec(true)] <LPAREN> [argList = DeclArgs(false)] <RPAREN> [env = Environment()]
+    )
+    (
+        e = BlockExpr() 
+      | <SEMICOLON>
+    )
+         {
+            if (e==null) {
+                return new AbstractMethodDecl(t, 
+                                   annotations,
+                                   modifiers, 
+                                   returnType,
+                                   methodName, 
+                                   metaArgsSpec,
+                                   argList,
+                                   env);
+             } else {
+                return new ConcreteMethodDecl(t,
+                                   annotations, 
+                                   modifiers, 
+                                   returnType,
+                                   methodName, 
+                                   metaArgsSpec,
+                                   argList,
+                                   env,
+                                   e);
+             }
+         }
+}
+
+List<Arg> DeclArgs(boolean allowThis) :
+{
+    Arg arg;
+    List<Arg> args = new ArrayList<Arg>();
+}
+{    arg = Arg(allowThis) { args.add(arg); }
+    (
+	   <COMMA> arg = Arg(false) { args.add(arg);	}
+    )*
+	{ return args; }
+}
+
+
+Arg Arg(boolean allowThis) :
+{
+    Token t;
+    ArgSpec c = ArgSpec.EMPTY;
+	Identifier argId;
+}
+{
+  	(
+  	    LOOKAHEAD(ArgSpec() (Identifier()|<THIS>)) 
+  	    c = ArgSpec() 
+  	    ( 
+  	        argId = Identifier() 
+          | t = <THIS> { if (!allowThis) throw new ParseException("Cannot use 'this' as argument name in this place."); argId = new Identifier(t, t.image); }
+  	    ) 
+  	  | argId = Identifier()
+  	) 
+	{
+		return new Arg(argId.getToken(), c, argId);
+	}
+}
+
+DeclList DeclList() :
+{
+    Token t1, t2;
+    List<Decl> declList = new ArrayList<Decl>();
+    Decl d;
+}
+{
+		t1 = <LBRACE>
+		(
+				d = Decl()
+				{
+						declList.add(d);
+				}
+		)*
+		t2 = <RBRACE>
+		{
+		    t1.endLine = t2.endLine;
+		    t1.endColumn = t2.endColumn;
+		    t1.image = "{ ... }";
+		    return new DeclList(t1, declList);
+		}
+}
+
+BlockExpr BlockExpr() :
+{
+    Token t1, t2;
+	List<Stmt > stmts = new ArrayList<Stmt>();
+}
+{
+		t1 = <LBRACE> [ stmts = StmtList() ] t2 = <RBRACE>
+		{
+		  t1.endLine = t2.endLine;
+		  t1.endColumn = t2.endColumn;
+		  t1.image = "{ ... }";
+		  return new BlockExpr(t1, stmts);
+		}
+}
+
+List<Stmt> StmtList() :
+{
+    List < Stmt > stmtList = new ArrayList < Stmt > ();
+	Stmt s;	
+}
+{
+		
+		s = Stmt() { stmtList.add(s); }
+		(LOOKAHEAD(2)	< SEMICOLON > s = Stmt() { stmtList.add(s); }
+				
+		)*
+		[<SEMICOLON>]
+		{
+            return stmtList;
+		}
+}
+
+Stmt Stmt() :
+{
+		Stmt stmt;
+}
+{
+    (
+       stmt = Expr()
+     | stmt = LocalVarDecl()
+     | stmt = LocalStateValDecl()
+    )
+    { return stmt; }
+}
+
+
+Expr Expr() :
+{
+	Expr e;
+}
+{
+    e = Function() { return e; }
+  | e = Expr1() { return e; }
+}
+
+Expr Expr1() :
+{
+    Token t;
+    List<Expr > metaArgs = new ArrayList<Expr>();
+    List<Case > cl;
+    Expr pattern;
+    Identifier id;
+    Expr target;
+    Expr e;
+    BlockExpr be;
+    StateExpr st;
+    List<Expr> datagroups = new ArrayList<Expr>();
+    List<Stmt> stmtList = new ArrayList<Stmt>();}
+{
+    // This rule corresponds to the following rule:
+    // 
+    // [SimpleExp <DOT>] Identifier <EQUALS> Expr
+    // 
+    // Because SimpleExp.Identifier is itself an 
+    // Expr we simply parse a SimpleExpr 
+    // and check that we have a correct receiver. 
+    LOOKAHEAD(SimpleExpr() <EQUALS>) 
+    target = SimpleExpr()  t = <EQUALS> e = Expr()
+    {   
+        if ( target instanceof Identifier ) {
+            return new Assignment(t, Expr.EMPTY, (Identifier)target, e);
+        } else if ( target instanceof Dereference ) {
+           Dereference dref = (Dereference)target;
+           if ( dref.getRight() instanceof Identifier ) {
+               return new Assignment(t, dref.getLeft(), (Identifier)dref.getRight(), e);
+           } else {
+               throw new ParseException("Cannot assign value to expression.");
+           }
+            
+        } else {
+            throw new ParseException("Cannot assign value to expression.");
+        }
+    } 
+|   LOOKAHEAD(SimpleExpr() <LARROW>)
+    e = SimpleExpr() t=<LARROW> st = State()
+    {
+        return new StateChange(t, e,st);
+    }
+|   LOOKAHEAD(SimpleExpr() <DLARROW>)
+    e = SimpleExpr() t=<DLARROW> st = State()
+    {
+        return new Replace(t, e, st);
+    }               
+|   
+    t = < MATCH > <LPAREN> pattern = InfixExpr() <RPAREN> < LBRACE > cl = CaseList() < RBRACE >
+    {
+      return new Match(t, pattern, cl);
+    }
+|   
+    t = <ATOMIC> [datagroups = StaticArgs()] be = BlockExpr()
+    {
+      return new AtomicBlock(t, datagroups, be);
+    }
+|   
+    t = <SPLIT> datagroups = StaticArgs() be = BlockExpr()
+    {
+      return new SplitBlock(t, datagroups, be);
+    }
+|   
+    t = <UNPACKINNERGROUPS> e = BlockExpr() 
+    {
+      return new UnpackInnerGroups(t, e);
+    }
+|   e = InfixExpr()
+{
+  return e;}}
+
+Expr InfixExpr() :
+{
+		Expr e;
+		Token t = null;
+		Type type = Type.EMPTY;
+}
+{
+
+    LOOKAHEAD(SimpleExpr() <AS> Type() )
+    e = SimpleExpr() t=<AS> type=Type()
+    {
+        return new Cast(t, e, type);
+    }
+  |
+    LOOKAHEAD(UserInfixOperatorExpr())
+    e = UserInfixOperatorExpr()
+    {
+        return e;
+    }
+}
+
+Expr SimpleExpr() : {
+    Expr e;
+    Token t;
+    StateExpr st;
+    List<Expr> exps = new ArrayList<Expr>();
+}{
+
+    e = BlockExpr()  { return e; }
+|   t = <NEW> st = State() { return new NewInstance(t, st); }
+|   e = SimpleExpr2()      { return e; }
+}
+
+
+Expr SimpleExpr2() : {
+    Expr e;
+    List<Expr> rest;
+}{
+    e = SimpleExpr1() rest = SimpleExpr2Rest()
+    {
+        rest.add(e);
+        return combineSimpleExp2(rest);
+    }
+}
+
+
+List<Expr> SimpleExpr2Rest() : {
+    Expr block;
+    List<Expr> rest;
+}{
+    LOOKAHEAD(BlockExpr())
+    block = BlockExpr() rest = SimpleExpr2Rest()
+    {
+        rest.add(new Application(block.getToken(), Expr.EMPTY, new ArrayList<Expr>(), block));
+        return rest;
+    }
+  | { return new ArrayList<Expr>(); }
+}
+
+
+Expr SimpleExpr1() : {
+    Expr e;
+    List<Expr> rest;
+}{
+
+    (
+        e = Literal() rest = SimpleExp1Rest()      { rest.add (e); }
+      | e = Identifier() rest = SimpleExp1Rest()   { rest.add (e); }
+      | e = THIS() rest = SimpleExp1Rest()         { rest.add (e); }
+      | <LPAREN> e = Expr() <RPAREN> rest = SimpleExp1Rest() { rest.add (e); }
+    )
+    { return combineSimpleExp1(rest); }
+}
+
+
+List<Expr> SimpleExp1Rest() : {
+    Token t = ASTNode.DEFAULT_TOKEN;
+    Token tnew = ASTNode.DEFAULT_TOKEN;
+    Expr e;
+    Identifier id;
+    List<Expr> metaArgs = new ArrayList<Expr>();
+    List<Expr> args;
+    List<Expr> rest;
+}{
+     LOOKAHEAD(<DOT> <NEW>)
+     t = <DOT> tnew=<NEW> rest = SimpleExp1Rest()
+     {
+        rest.add(new Dereference(t, Expr.EMPTY, new Identifier(tnew, tnew.image)));
+        return rest; 
+     }
+|     t = <DOT> id = IdOrOperator() rest = SimpleExp1Rest()
+     {
+        rest.add(new Dereference(t, Expr.EMPTY, id));
+        return rest; 
+     } 
+  |  
+     t = <BANG> id = IdOrOperator() rest = SimpleExp1Rest()
+     {
+        rest.add(new DestructiveDereference(t, Expr.EMPTY, id));
+        return rest; 
+     } 
+  |  LOOKAHEAD([StaticArgs()] ArgumentExpr()) 
+     [ metaArgs = StaticArgs()] e = ArgumentExpr() rest = SimpleExp1Rest()
+     {
+        rest.add(new Application(e.getToken(), Expr.EMPTY, metaArgs, e));
+        return rest;
+     }
+  |  { return new ArrayList<Expr>() ;}
+}
+
+Identifier THIS() : {
+    Token t;
+}{
+    t = <THIS> { return new Identifier(t, t.image); }
+}
+
+ArgumentExpr ArgumentExpr() : {
+    Token t1,t2;
+    List<Expr> args = new ArrayList<Expr>();
+}{
+    t1 = <LPAREN> [args = ExprList()] t2=<RPAREN>
+    {
+        return new ArgumentExpr(combineTokens(t1,t2,"(...)"), args);
+    }
+}
+
+Expr UserInfixOperatorExpr() : 
+{
+    Expr e;
+    Expr arg;
+    Identifier op;
+}
+{
+    e = ConditionalOrExpr()
+    (
+       op = IdOrUserOperator() arg = ConditionalOrExpr()  { e = new InfixOperatorExpr(op.getToken(), e, op, arg); }
+    )*
+    { return e; }
+}
+
+//Expr ConditionalExpr() : //{//    Expr e;//    Expr arg;//    Expr arg2;//    Token t;//    Token t2;//}//{//    e = ConditionalOrExpr()//    (//        t = "?" arg = Expr() t2 =  ":" arg2 = ConditionalExpr()//		{//            e = new MethodCall(t, e, new Identifier(t,t.image), arg);//            e = new MethodCall(t2, e, new Identifier(t,t.image), arg2);//		}//	)?//	{ return e; }//}
+
+Expr ConditionalOrExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+}
+{
+    e = ConditionalAndExpr()
+    (
+	   t = "||" arg = ConditionalAndExpr() 	{ e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg); }
+    )*
+	{ return e; }
+}
+
+
+Expr ConditionalAndExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+}
+{
+    e = InclusiveOrExpr()
+    (
+	   t = "&&" arg = InclusiveOrExpr() {	e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg); }
+    )*
+	{ return e;	}
+}
+
+
+Expr InclusiveOrExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+}
+{
+    e = ExclusiveOrExpr()
+    (
+	   t = "|" arg = ExclusiveOrExpr() { e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);	}
+    )*
+	{ return e; }
+}
+
+
+Expr ExclusiveOrExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+}
+{
+    e = AndExpr()
+	(
+        t = "^" arg = AndExpr() {	e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg); }
+    )*
+	{ return e; }
+}
+
+
+Expr AndExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+}
+{
+    e = EqualityExpr()
+    (
+        t = "&" arg = EqualityExpr() { e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg); }
+    )*
+	{ return e; }
+}
+
+
+Expr EqualityExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+}
+{
+    e = RelationalExpr()
+    (
+	   (
+            t = "=="
+          | t = "!="
+	   )
+       arg = RelationalExpr()
+	   {
+           e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
+	   }
+    )*
+	{ return e; }
+}
+
+
+Expr RelationalExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+    List<Expr> argList = new ArrayList<Expr>();
+}
+{
+    e = ShiftExpr() 
+    (   
+        (
+            t = "<"
+        |	t = ">"
+        |   t = "<="
+        |	t = ">="
+	    )
+		arg = ShiftExpr()
+		{
+            e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
+        }
+    )*
+	{ return e; }
+}
+
+
+Expr ShiftExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+}
+{
+    e = AdditiveExpr()
+    (
+        (
+            t = "<<"
+        |   t = ">>"
+        |   t = ">>>"
+        )
+        arg = AdditiveExpr()
+        {
+            e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
+        }
+    )*
+    { return e; }
+}
+
+
+Expr AdditiveExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+}
+{
+    e = MultiplicativeExpr()
+    (
+        (
+            t = "+"
+        |   t = "-"
+        )
+	    arg = MultiplicativeExpr()
+        {
+            e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
+        }
+    )*
+	{ return e;	}
+}
+
+
+Expr MultiplicativeExpr() :
+{
+    Expr e;
+    Expr arg;
+    Token t;
+}
+{
+    e = UnaryExpr()
+    (
+        (
+            t = "*"
+        |   t = "/"
+        |    t = "%"
+        )
+		arg = UnaryExpr()
+        {
+            e = new InfixOperatorExpr(t, e, new Identifier(t,t.image), arg);
+        }
+    )*
+	{ return e; }
+}
+
+
+Expr UnaryExpr() :
+{
+    Expr e;
+    Token t;
+}
+{
+    (
+        (
+            t = "~"
+        |   t = "+"		
+        |   t = "-"
+        |   t = "!"
+        )
+        e = SimpleExpr()
+        {
+            e = new UnaryOperatorExpr(t, new Identifier(t,t.image), e);
+        }
+    |   e = SimpleExpr()
+	)
+	{ return e; }
+}
+
+
+Stmt LocalVarDecl() :{    Specifier spec;    Identifier id;    Expr e;    Type type = Type.EMPTY;}{    spec = Specifier()    (         LOOKAHEAD( Type() Identifier()) 
+        type = Type() id = Identifier() 
+    |   id = Identifier() 
+    )     <EQUALS> e = Expr() //local var declarations must be initialized	{    	return new VarDecl(spec.getToken(), spec, type, id, e);    }}
+
+
+Stmt LocalStateValDecl() :
+{
+    Token t;
+    Identifier id;
+    StateExpr st;
+}
+{
+    t = < STATEVAL > id = Identifier() st = StateBinding()
+    { return new LocalStateValDecl(t, id, st); }
+}
+
+List <Case> CaseList() :
+{
+    Token t,caseToken;
+    BlockExpr body;
+    List < Case > cl = new ArrayList < Case > ();
+    QualifiedIdentifier qi;
+}
+{
+    (
+        LOOKAHEAD(2)
+        caseToken = < CASE > qi = QualifiedIdentifier()
+        body = BlockExpr()
+        {
+            cl.add(new PatternCase(caseToken, qi, body)); // no bound variable	
+        }
+    )*
+	[
+	   caseToken = < DEF > body = BlockExpr()
+	   {
+          cl.add(new DefaultCase(caseToken, body));
+       }
+    ]
+	{ return cl; }
+}
+
+
+Identifier IdOrOperator() :
+{
+	Identifier id;
+}
+{
+	id = Identifier()  { return id; }
+ |  id = Operator()    { return id; }
+    
+}
+
+Identifier IdOrUserOperator() :
+{
+    Identifier id;
+    Token op;
+}
+{
+    id = Identifier()  { return id; }
+ |  op = <OP>          { return new Identifier(op, op.image); }
+    
+}
+
+List<Expr> ExprList() :
+{
+    Expr e, nextExp;
+    List < Expr > expList = new ArrayList < Expr > ();
+}
+{
+    e = Expr() { expList.add(e); }
+    (
+        < COMMA > nextExp = Expr() { expList.add(nextExp); }
+    )*
+    { return expList; }
+}
+
+
+Identifier Operator() :
+{
+    Token op;
+}
+{
+    (
+        op = < QST >
+    |   op = < COLON >
+    |   op = < OR >
+    |   op = < AND >
+    |   op = < IOR >
+    |   op = < XOR >
+    |   op = < BITAND >
+    |   op = < EQ >
+    |   op = < NEQ >
+    |   op = < GT >
+    |   op = < LT >
+    |   op = < GEQ >
+    |   op = < LEQ >
+    |   op = < LSHIFT >
+    |   op = < MARROW >
+    |   op = < RUNSIGNEDSHIFT >
+    |   op = < PLUS >
+    |   op = < MINUS >
+    |   op = < STAR >
+    |   op = < SLASH >
+    |   op = < PERCENT >
+    |   op = < BANG >
+    |   op = < TILDE >
+    |   op = < OP > /* User defined operator */
+    )
+    { return new Identifier(op, op.image);	}}
+
+List<Arg> Environment() : {
+    Arg arg;
+    List<Arg> env = new ArrayList<Arg>();
+}{
+    <LBRACK> 
+    arg = Arg(true) { env.add(arg); }
+    ( 
+        <COMMA> arg = Arg(false) { env.add(arg); } 
+    )*
+    <RBRACK>
+    { return env; }
+}
+
+
+Expr Function() :
+{
+    Token t;
+    List<Arg> argList = new ArrayList<Arg>();
+    List<StaticArg> metaArgsSpec = new ArrayList<StaticArg>();
+    List<Arg> env = new ArrayList<Arg>();
+    Expr body;
+}
+{
+    t = <FN> [metaArgsSpec = StaticArgsSpec(true)] <LPAREN> [argList = DeclArgs(false)] <RPAREN>
+    [ env = Environment() ]<DARROW> body = Expr()
+    {
+       return new Lambda(t, metaArgsSpec, argList, env, body);
+    }
+}
+
+
+Expr Literal() :
+{
+    Token t;
+}
+{
+    t = < STRING_LITERAL > { return new StringLiteral(t, t.image.substring(1, t.image.length() - 1)); }
+|   t = < INTEGER >        { return new IntLiteral(t, Integer.decode(t.image));	}
+|   t = <  FLOATING_POINT_LITERAL > { return new DoubleLiteral(t, Double.valueOf(t.image)); }
+|   t = < UNIT > { return new UnitLiteral(t); }
+}

@@ -1,0 +1,113 @@
+package plaid.compiler.typechecker;
+
+import plaid.collections.makeLinkedList;
+
+/**
+ *  Helper method for typechecking state change
+ *  Parameters:
+ *    - ctx : LinearContext representing the current permissions and structures of objects in scope
+ *    - target : ASTNode representing the target of the state change
+ *    - state : ASTNode representing the state that target should transition to
+ *    - replace : Boolean flag controlling which semantics are used - replace if true, restricted update if false
+ *
+ *  Currently the replace flag has no effect as both are treated the same without composition
+ *  Also we currently require both the target and the state to point directly to a variable in the context
+ *  and a stateSymbol
+ *
+ *  Assumes that the incoming state is fully initialized and so leaves the target packed
+ */
+method unique ?TypecheckResult typecheckStateChange(unique LinearContext ctx,
+                                                   immutable ParsedASTNode target,
+                                                   immutable ParsedASTNode stateRep, 
+                                                   immutable Boolean replace) 
+{
+  /* 1) get symbol representing the new state and create a structure for it */
+  val immutable ?Structure newStateStruct = match (stateRep) {
+    case ParsedStateRef {
+      val immutable Symbol stateSymOption = symbolForAST(stateRep);
+      match (stateSymOption) {
+        case Some {
+          val immutable Symbol stateSym = stateSymOption.value;
+          match (stateSym) {
+            case StateRefSymbol { 
+                match (checkStateRef(stateSym, "typecheckStateChange")) {
+                    case True { stateSym.getStructure() }
+                    case False { unit }
+                }
+            }
+            default { 
+                report_ERROR(stateRep.token, "UNEXPECTED_SYM", 
+                    "expected StateRefSymbol, got" + stateRefSymOpt.symbolType(), "typecheckStateChange");
+                unit
+            }
+          } 
+        }
+        case None { 
+            report_ERROR(stateRep.token, "SYM_NOT_FOUND", "", "typecheckStateChange");
+            unit
+        }
+      }
+    }
+    default { 
+        report_ERROR(stateRep.token, "UNEXPECTED_AST", "expected StateRef, got " + stateRep.nodeName(), "typecheckStateChange");
+        unit
+    }
+  };
+  
+  match (newStateStruct) {
+    case Structure {
+      
+      /* 2) find the target in the context, check if it has unique permission */
+      val immutable ?Symbol targetSymbol = match (target) {
+        case ParsedIdentifier {
+          val immutable Symbol targetSymOption = symbolForAST(target);
+          match (targetSymOption) {
+            case Some {
+              val immutable Symbol targetSym = targetSymOption.value;
+              match (ctx.containsSymbol(targetSym)) {
+                case True { 
+                  val immutable Type targetType = ctx.get(targetSym);
+                  match (targetType.permission) {
+                    case UniquePermission {
+                      targetSym
+                    }
+                    default { 
+                        report_ERROR(target.token, "T_CHNG_NOT_CHANGEABLE", targetType.permission.toString(), "typecheckStateChange");
+                        unit
+                    }
+                  }
+                }
+                case False { 
+                    report_ERROR(target.token, "T_NOT_IN_SCOPE", target.name, "typecheckStateChange");
+                    unit
+                }
+              } 
+            }
+            case None { 
+                report_ERROR(target.token, "SYM_NOT_FOUND", "", "typecheckStateChange");
+                unit
+            }
+          }
+        }
+        default { 
+            report_ERROR(target.token, "UNEXPECTED_AST", "expected Identifier, got " + target.nodeName(), "typecheckStateChange");
+            unit
+        }
+      };
+      
+      match (targetSymbol) {
+        case Symbol {
+          /* 3) downgrade the context and update the type of the target symbol with the new structure */
+          //ctx.downgrade(); - only need when shared can change state
+          ctx.update(targetSymbol, makeType(UNIQUE, newStateStruct));
+          
+          
+          /* 4) return a result with type VOID, the updated context, and an empty location list */
+          makeTypecheckResult(VOID, ctx, makeLinkedList());                                            
+        }
+        default { unit }
+      }
+    }
+    default { unit }
+  }
+}

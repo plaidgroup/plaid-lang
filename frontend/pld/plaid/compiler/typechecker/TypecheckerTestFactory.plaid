@@ -1,0 +1,626 @@
+/**
+ * Copyright (c) 2011 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.typechecker;
+
+import plaid.lang.testing.TestFactory;
+import plaid.lang.testing.Test;
+import plaid.compiler.*;
+import plaid.compiler.symbol.SymbolFactory;
+import plaid.ast.parsed.*;
+import plaid.compiler.types.*;
+import plaid.compiler.permissions.*;
+import plaid.compiler.symbol.*;
+import plaid.compiler.tests.ASTsForTests;
+import plaid.compiler.tests.SymbolsForTests;
+import plaid.compiler.tests.TypesForTests;
+
+import plaid.collections.makeLinkedList;
+
+//These tests all succeed, so we don't need them with the
+//new tests in tests project
+state TypecheckerTestFactory { //case of TestFactory {
+  
+  method immutable Boolean sourceLocListCompare(list1, list2) {
+    match (list1.size() == list2.size()) {
+      case True {
+        list1.zip(list2).reduce(true, fn(acc,next) => acc && ( next.fst == next.snd));
+      }
+      case False { false }
+    }
+  }
+  
+  method unique List<unique Test> createTests() {
+    val tests = makeLinkedList();
+    val test = fn(name,body) => { tests.add(mktest(name, body)) };
+    var result = unit;  //dummy variable to get around match scoping bug
+    var context = unit;
+    var contextCMP = unit;
+    var sourceLocListCMP = unit;
+    
+    val ast = new ASTsForTests;
+    ast.initASTs();
+    val symbols = new SymbolsForTests;
+    symbols.initSymbols(ast);
+    val types = new TypesForTests;
+    types.initPermissions();
+    types.initTypes(ast,symbols);
+    
+    val astCMP = new ASTsForTests;
+    astCMP.initASTs();
+    val symbolsCMP = new SymbolsForTests;
+    symbolsCMP.initSymbols(astCMP);
+    val typesCMP = new TypesForTests;
+    typesCMP.initPermissions();
+    typesCMP.initTypes(astCMP,symbolsCMP);
+    
+    globalReporter.clearErrors();
+    
+    /****************** Variables *******************/
+    
+    test("type variable", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym1u1, types.nominalType_i1);
+      
+      sourceLocListCMP = makeLinkedList();
+      sourceLocListCMP.add(types.sourceLocVal1u1);
+      
+      result = typecheckExpression(context, IMMUTABLE, ast.valID1u1);
+      
+      ctx.assertTrue(result.expType == types.nominalType_i1 &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    /****************** Assignment *******************/
+    
+    test("type assignment to Local (Depends on type variable)", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.varSym1u1, types.nominalType_u1);
+      context.put(symbols.varSym2u2, types.nominalType_u2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.varSym1u1, types.nominalType_u1);
+      contextCMP.put(symbols.varSym2u2, types.nominalType_n2);
+      
+      sourceLocListCMP = makeLinkedList();
+      sourceLocListCMP.add(types.sourceLocVar2u2);
+      
+      result = typecheckExpression(context, NONEP, ast.assignAST_var1u1TOvar2u2);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("type assignment to packed field (Depends on type variable)", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym4u4, types.nominalType_u4);
+      context.put(symbols.varSym2u2, types.nominalType_u2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym4u4, types.nominalType_u4);
+      contextCMP.put(symbols.varSym2u2, types.nominalType_n2);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.assignAST_val4u4DOTfield1TOvar2u2);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("type assignment to unpacked field (Depends on type variable)", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym4u4, types.unpackedType_u4Var3u1_1Bs1);
+      context.put(symbols.varSym3u3, types.nominalType_u3);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym4u4, types.nominalType_u4);
+      contextCMP.put(symbols.varSym3u3, types.nominalType_n3);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.assignAST_val4u4DOTfield3TOvar3u3);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    /****************** New Instance *******************/
+    
+    //broken test because of AST setup
+    //succeeds so use tests project tests
+    /*test("type new instance", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, IMMUTABLE, ast.newInstASTs1);
+      
+      ctx.assertTrue(result.expType == types.nominalType_i1 &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+    
+      ctx.assertFalse(globalReporter.wereErrors());
+    });*/
+    
+    /****************** Var Decls *******************/
+    
+    test("type varDecl", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym2u2, types.nominalType_u2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym2u2, types.nominalType_n2);
+      contextCMP.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      sourceLocListCMP = makeLinkedList();
+      sourceLocListCMP.add(types.sourceLocVal2u2);
+      
+      result = typecheckExpression(context, NONEP, ast.valDeclAST1u1EQval2);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("type varDecl", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym2u2, types.nominalType_u2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym2u2, types.nominalType_u2);
+      contextCMP.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.valDeclAST1u1EQnewS1);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    /****************** Blocks *******************/
+    
+    test("empty block expression", fn(ctx) => {
+      context = new LinearContext;
+      
+      contextCMP = new LinearContext;
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.blockAST_empty);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    
+    });
+    
+    test("singleton block expression (Depends on type variable)", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym1u1, types.nominalType_i1);
+      
+      sourceLocListCMP = makeLinkedList();
+      sourceLocListCMP.add(makeVarSourceLoc(symbols.valSym1u1));
+      
+      result = typecheckExpression(context, IMMUTABLE, ast.blockAST_1expr);
+      
+      ctx.assertTrue(result.expType == types.nominalType_i1 &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+
+    test("bigger block expression (Depends on type variable, assignment)", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      context.put(symbols.varSym2u2, types.nominalType_u2);
+      context.put(symbols.valSym4u4, types.nominalType_u4);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym1u1, types.nominalType_i1);
+      contextCMP.put(symbols.varSym2u2, types.nominalType_n2);
+      contextCMP.put(symbols.valSym4u4, types.nominalType_u4);
+      
+      sourceLocListCMP = makeLinkedList();
+      sourceLocListCMP.add(makeVarSourceLoc(symbols.valSym1u1));
+      
+      result = typecheckExpression(context, IMMUTABLE, ast.blockAST_3expr);
+      
+      ctx.assertTrue(result.expType == types.nominalType_i1 &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    //broken test because of bad hand-built ast
+    //now tested in tests project: plaid/typecheckertests.newinstance;
+    /*
+    test("single val declaration in block", fn(ctx) => {
+      context = new LinearContext;
+      
+      contextCMP = new LinearContext;
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.blockAST_localvar1);
+      match (result) { 
+        case TypecheckResult {
+            ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+        }
+        default { 
+            ctx.assertTrue(false);
+            globalReporter.report();
+            globalReporter.clearErrors();
+        }
+      };
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    */
+    
+     test("returning less than took from block", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      context.put(symbols.valSym2u2, types.nominalType_u2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym1u1, types.nominalType_n1);
+      contextCMP.put(symbols.valSym2u2, types.nominalType_u2);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.blockAST_localvar2);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("testing return order", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym3u3, types.nominalType_u3);
+      context.put(symbols.valSym2u2, types.nominalType_u2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym3u3, types.nominalType_u3);
+      contextCMP.put(symbols.valSym2u2, types.nominalType_u2);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.blockAST_localvar3);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    /****************** Dereferences *******************/
+    
+    test("testing deref no unpack", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym3u3, types.nominalType_u3);
+      context.put(symbols.varSym2s2, types.nominalType_s2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym3u3, types.nominalType_u3);
+      contextCMP.put(symbols.varSym2s2, types.nominalType_s2);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, SHARED, ast.derefASTvar2s2_f1);
+      
+      ctx.assertTrue(result.expType == types.nominalType_s1 &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("testing deref li from li.u", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym1li1, types.nominalType_li1);
+      context.put(symbols.valSym3u3, types.nominalType_u3);
+      context.put(symbols.varSym2s2, types.nominalType_s2);
+      
+      val upkField = makeUnpackedFieldSignature(types.fvalSig3u1, 
+                                     locationIDcount+1,
+                                     types.nominalType_Bi1u1);
+      val fieldMap = java.util.HashMap.new();
+      fieldMap.put(ast.fieldName3, upkField);
+      val upkStruct = makeUnpackedStructureWithFieldMap(types.nominalStruct1,fieldMap);
+      val upkType = makeType(LOCALIMMUTABLE, upkStruct);
+                                     
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym1li1, upkType);
+      contextCMP.put(symbols.valSym3u3, types.nominalType_u3);
+      contextCMP.put(symbols.varSym2s2, types.nominalType_s2);
+      
+      sourceLocListCMP = makeLinkedList();
+      sourceLocListCMP.add(makeFieldSourceLoc(symbols.valSym1li1, upkField));
+      
+      result = typecheckExpression(context, LOCALIMMUTABLE, ast.derefASTval1li1_f3);
+      
+      ctx.assertTrue(result.expType == types.nominalType_li1 &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    /****************** State Change *******************/
+    
+    test("testing state change", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym3u3, types.nominalType_u3);
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      context.put(symbols.varSym2s2, types.nominalType_s2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym3u3, types.nominalType_u3);
+      contextCMP.put(symbols.valSym1u1, types.nominalType_u2);
+      contextCMP.put(symbols.varSym2s2, types.nominalType_sT);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.stateChangeASTval1u1TOs2);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    /****************** State Replace *******************/
+    
+    test("testing state replace", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym3u3, types.nominalType_u3);
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      context.put(symbols.varSym2s2, types.nominalType_s2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym3u3, types.nominalType_u3);
+      contextCMP.put(symbols.valSym1u1, types.nominalType_u2);
+      contextCMP.put(symbols.varSym2s2, types.nominalType_sT);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.stateReplaceASTval1u1TOs2);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+
+    /****************** Match *******************/
+    
+    test("testing match empty case", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym3u3, types.nominalType_u3);
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym3u3, types.nominalType_u3);
+      contextCMP.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, ast.matchAST1_val1u1);
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("testing match two case", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym3u3, types.nominalType_u3);
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym3u3, types.nominalType_u3);
+      contextCMP.put(symbols.valSym1u1, types.nominalType_u1);
+      
+      sourceLocListCMP = makeLinkedList();
+      sourceLocListCMP.add(makeVarSourceLoc(symbols.valSym3u3));
+      
+      result = typecheckExpression(context, NONEP, ast.matchAST2_val1u1);
+      java.lang.System.out.println(result.sourceLocList.toString());
+      java.lang.System.out.println(sourceLocListCMP.toString());
+      
+      ctx.assertTrue(result.expType == VOID &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("testing match concat source loc list", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym3u3, types.nominalType_u3);
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      context.put(symbols.valSym2u2, types.nominalType_s2);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym3u3, types.nominalType_s3);
+      contextCMP.put(symbols.valSym1u1, types.nominalType_u1);
+      contextCMP.put(symbols.valSym2u2, types.nominalType_s2);
+      
+      sourceLocListCMP = makeLinkedList();
+      sourceLocListCMP.addFirst(makeVarSourceLoc(symbols.valSym3u3));
+      sourceLocListCMP.addFirst(makeVarSourceLoc(symbols.valSym2u2));
+      
+      result = typecheckExpression(context, SHARED, ast.matchAST3_val1u1);
+      
+      ctx.assertTrue(result.expType == types.nominalType_s1 &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+     /****************** Method Call *******************/
+    
+    test("testing method call 1", fn(ctx) => {
+      context = new LinearContext;
+      context.put(symbols.valSym3u3, types.nominalType_u3);
+      context.put(symbols.valSym1u1, types.nominalType_u1);
+      context.put(symbols.valSym2u2, types.nominalType_u2);
+      context.put(symbols.valSym4u4, types.nominalType_u4);
+      
+      contextCMP = new LinearContext;
+      contextCMP.put(symbols.valSym3u3, types.nominalType_n1);
+      contextCMP.put(symbols.valSym1u1, types.nominalType_n1);
+      contextCMP.put(symbols.valSym2u2, types.nominalType_u1);
+      contextCMP.put(symbols.valSym4u4, types.nominalType_u4);
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, IMMUTABLE, ast.callAST1);
+      
+      ctx.assertTrue(result.expType == types.nominalType_i1 &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    /****************** Literals *******************/
+    
+    test("testing unit literal", fn(ctx) => {
+      context = new LinearContext;
+      
+      contextCMP = new LinearContext;
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, NONEP, new ParsedUnitLiteral);
+      
+      ctx.assertTrue(result.expType == types.none_Unit &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("testing String literal", fn(ctx) => {
+      context = new LinearContext;
+      
+      contextCMP = new LinearContext;
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, IMMUTABLE, ast.literalAST_String);
+      
+      ctx.assertTrue(result.expType == types.nominalType_iString &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("testing Integer literal", fn(ctx) => {
+      context = new LinearContext;
+      
+      contextCMP = new LinearContext;
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, IMMUTABLE, ast.literalAST_Int);
+      
+      ctx.assertTrue(result.expType == types.nominalType_iInt &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("testing Double literal", fn(ctx) => {
+      context = new LinearContext;
+      
+      contextCMP = new LinearContext;
+      
+      sourceLocListCMP = makeLinkedList();
+      
+      result = typecheckExpression(context, IMMUTABLE, ast.literalAST_Double);
+      
+      ctx.assertTrue(result.expType == types.nominalType_iDouble &&
+                     result.ctxResult == contextCMP &&
+                     this.sourceLocListCompare(result.sourceLocList,sourceLocListCMP));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    /****************** Method Decl *******************/
+    
+    test("testing concrete method typing", fn(ctx) => {
+      ctx.assertTrue(typecheckDecl(ast.methodAST1Ru1A1u1n12u1u1Tu1n1E, new LinearContext));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("testing abstract method typing", fn(ctx) => {
+      ctx.assertFalse(typecheckDecl(ast.methodAST2Ru1A1u1n12u1u1TE, new LinearContext));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    /****************** Field Decl *******************/
+    
+    test("testing concrete field typing", fn(ctx) => {
+      ctx.assertTrue(typecheckDecl(ast.fvalAST1s1P, new LinearContext));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+    
+    test("testing abstract field typing", fn(ctx) => {
+      ctx.assertFalse(typecheckDecl(ast.fvalAST1u1P, new LinearContext));
+      ctx.assertFalse(globalReporter.wereErrors());
+    });
+
+    /****************** State Decl *******************/
+    
+    //broken because of bad AST handbuilt structure
+    //succeeding test now tested in test project
+    /*test("testing concrete state typing", fn(ctx) => {
+      ctx.assertTrue(typecheckDecl(ast.stateAST3));
+      globalReporter.report();
+      ctx.assertFalse(globalReporter.wereErrors());
+    });*/
+    
+    tests
+  }
+}    
+  
