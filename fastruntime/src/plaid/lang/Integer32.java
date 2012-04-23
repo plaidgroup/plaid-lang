@@ -20,6 +20,7 @@ import plaid.generated.Imult$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
+import plaid.generated.IasInt32$0$plaid;
 
 public final class Integer32 extends AbstractPlaidDispatch
 						   implements Iplus$plaid$1$plaid,
@@ -31,7 +32,8 @@ public final class Integer32 extends AbstractPlaidDispatch
 						   			  plaid.generated.InativeLessThan$1$plaid,
 						   			  Igteq$plaid$1$plaid,
 						   			  Ilteq$plaid$1$plaid,
-						   			  ItoString$0$plaid {
+						   			  ItoString$0$plaid,
+						   			  IasInt32$0$plaid{
 
 	private final static int CACHE_LOWER_BOUND = -127;
 	private final static int CACHE_UPPER_BOUND =  128;
@@ -179,6 +181,11 @@ public final class Integer32 extends AbstractPlaidDispatch
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("/ failed", e.getCause());
 		}
+	}
+	
+	@Override
+	public PlaidObject asInt32(PlaidObject receiver) {
+		return receiver;
 	}
 
 	@Override
