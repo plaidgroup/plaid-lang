@@ -37,7 +37,7 @@ method ERROR(immutable Token t, immutable String msg) {
 state CodeGenOps {
     method codegenCU(immutable CodeGenOps ops, unique Job job, immutable ParsedCompilationUnit node);
     method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen, classNameCounter);
-    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter);
+    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter, isAnonymous);
     method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, classNameCounter);
     method codegenStmtBlock(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter);
     method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter);
@@ -212,7 +212,7 @@ state SequentialCodeGenOps {
                     
                     case ParsedDeclList {
                         node.stateBinding.decls.map( fn(innerDecl) => { 
-                            ops.codegenInnerDecl(ops, innerDecl, sb, idgen, classNameCounter);
+                            ops.codegenInnerDecl(ops, innerDecl, sb, idgen, classNameCounter, false);
                             match(innerDecl) {
                                 case ParsedConcreteMethodDecl {
                                     sbStateInitializer.append(ovfId + ".mthd(\"" + innerDecl.name.name + "\"," 
@@ -273,13 +273,20 @@ state SequentialCodeGenOps {
     
     
     
-    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
+    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter, isAnonymous) {
         match (node) {
             case ParsedConcreteMethodDecl {
                 // begin invoke method
-                val methodName = NamingConventions.getGeneratedIdentifier(node.name.name);
-                sb.append("public static plaid.fastruntime.PlaidObject " + methodName + "(");
-                
+                match(isAnonymous) {
+                    case True {
+                        val methodName = NamingConventions.getGeneratedIdentifier(node.name.name);
+                        sb.append("public static plaid.fastruntime.PlaidObject " + methodName + "(");
+                    }
+                    case False {
+                        sb.append("@Override\n");
+                        sb.append("public plaid.fastruntime.PlaidObject invoke$plaid(");
+                    }
+                };
                 sb.append("final plaid.fastruntime.PlaidObject " + NamingConventions.GENERATED_THIS);
                 if(node.arguments.size() > 0) {
                     sb.append(",");
@@ -297,11 +304,18 @@ state SequentialCodeGenOps {
             case ParsedConcreteFieldDecl {
                 // generate static field to contain initialization code for fields.
                 // begin invoke method
-                sb.append("public static plaid.fastruntime.PlaidFieldInitializer " + node.name.name + ";\n"); // field declaration
-                
-                //preliminiaries
-                sb.append("static {\n");
-                sb.append(node.name.name + " = new plaid.fastruntime.PlaidFieldInitializer() { \n");
+                match(isAnonymous) { 
+                    case True {
+                        sb.append("public static plaid.fastruntime.PlaidFieldInitializer " + node.name.name + ";\n"); // field declaration
+                        
+                        //preliminiaries
+                        sb.append("static {\n");
+                        sb.append(node.name.name + " = new plaid.fastruntime.PlaidFieldInitializer() { \n");
+                    }
+                    default { 
+                        // no-op 
+                    }
+                };
                 sb.append("@Override\n");
                 sb.append("public plaid.fastruntime.PlaidObject invoke$plaid() {\n");
                 
@@ -313,9 +327,15 @@ state SequentialCodeGenOps {
                 
                 //finalize
                 sb.append("}\n"); // end invoke$plaidmethod
-                sb.append("};\n"); // end FieldInitializer anonymous class
-                sb.append("}\n"); // end static
-                
+                match(isAnonymous) { 
+                    case True {
+                        sb.append("};\n"); // end FieldInitializer anonymous class
+                        sb.append("}\n"); // end static
+                    }
+                    default { 
+                        // no-op 
+                    }
+                }; 
             }
             case ParsedAbstractFieldDecl {
                 //no-op
@@ -806,13 +826,17 @@ state SequentialCodeGenOps {
                 
                 match(node.specializations.size() > 0) {
                     case True {
-                        val anonymousSb = java.lang.StringBuilder.new();        
+                        //val anonymousSb = java.lang.StringBuilder.new();        
                         
                         val ovfId = idgen.getId();
                         sb.append("plaid.fastruntime.reference.ObjectValueFactory " + ovfId + " = ");
                         sb.append("new plaid.fastruntime.reference.ObjectValueFactory();\n");
                         
                         //val fullyQualifiedClassName = classNameCounter.nextFullyQualifiedClassName();
+                        
+                        val hashMapId = idgen.getId();
+                        sb.append("java.util.Map<String, plaid.fastruntime.PlaidLambda> " + hashMapId + " = ");
+                        sb.append("new java.util.HashMap<String, plaid.fastruntime.PlaidLambda>();\n");
                         
                         node.specializations.map(
                             fn(declorstateop) => {
@@ -824,12 +848,29 @@ state SequentialCodeGenOps {
                                         // do nothing for now
                                     }
                                     default {
+                                        val anonId = idgen.getId();
+                                        sb.append("final plaid.fastruntime.PlaidLambda " + anonId + " = ");
+                                        
                                         //decl
-                                        ops.codegenInnerDecl(ops, declorstateop, anonymousSb, idgen, classNameCounter);
+                                        match(declorstateop){
+                                            case ParsedConcreteFieldDecl {
+                                                sb.append("new plaid.fastruntime.PlaidLambda$0() {\n");
+                                            }
+                                            case ParsedConcreteMethodDecl {
+                                                val lambdaSize = declorstateop.arguments.size() + 1;
+                                                sb.append("new plaid.fastruntime.PlaidLambda$" + lambdaSize + "() {\n");
+                                            }
+                                        };
+                                        ops.codegenInnerDecl(ops, declorstateop, sb, idgen, classNameCounter, true);
+                                        sb.append("};\n"); // end anonymous inner class
+                                        
+                                        sb.append(hashMapId + ".put(\"" + declorstateop.name.name + "\",");
+                                        sb.append(anonId + ");\n");
+                                        
                                         match(declorstateop) {
                                             case ParsedConcreteMethodDecl {
-                                                sb.append(ovfId + ".mthd(\"" + declorstateop.name.name + "\"," 
-                                                    + declorstateop.arguments.size() + ",\"" + fullyQualifiedClassName + "\");\n");
+                                                sb.append(ovfId + ".dynMthd(\"" + declorstateop.name.name + "\"," 
+                                                    + declorstateop.arguments.size() + ");\n");
                                             }
                                             case ParsedConcreteFieldDecl {
                                                 var settable = "";
@@ -841,14 +882,14 @@ state SequentialCodeGenOps {
                                                         settable = "true";
                                                     }
                                                 };
-                                                sb.append(ovfId + ".field(" + settable + ", \"" + declorstateop.name.name + "\"," 
-                                                    + "\"" + fullyQualifiedClassName + "\");\n");
-                                                }
+                                                sb.append(ovfId + ".dynField(" + settable + ", \"" + declorstateop.name.name + ");\n");
                                             }
                                         }
                                     }
                                 }
-                            );
+                            }
+                        );
+                        
                         //classNameCounter.writeCode(anonymousSb.toString());
                         
                         val specializedValueId = idgen.getId();
@@ -859,7 +900,7 @@ state SequentialCodeGenOps {
                         sb.append("plaid.fastruntime.ObjectValue " + fullValueId + " = ");
                         sb.append(unspecializedStateId + ".getObjectValue()");
                         sb.append(".specialize(" + specializedValueId + ");\n" );
-                        sb.append(y + " = plaid.fastruntime.Util.makeState(" + fullValueId + ");\n");
+                        sb.append(y + " = plaid.fastruntime.Util.makeDynState(" + fullValueId + ", " + hashMapId + ");\n");
                     }
                     case False {
                         ops.setLocalVariable(y , ops.getLocalVariable(unspecializedStateId), sb);
