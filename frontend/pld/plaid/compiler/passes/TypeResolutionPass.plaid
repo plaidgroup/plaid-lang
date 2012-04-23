@@ -1328,14 +1328,31 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 		// create new object
 		val new_node = new ParsedStateRef{
 			val stateExpr = node.stateExpr.rewrite(this);
+			val staticArgs = node.staticArgs;
 			val specializations= node.specializations.map(fn (item) => { item.rewrite(this) });
 			val token = node.token;
 		};
 
+        val staticArgs = node.staticArgs.map( fn (arg) => {
+            val expr = makeAbstractExpressionFromAST(arg);
+            match ( expr ) {
+                case AbstractExpression { expr }
+                default { ABORT("<TypeResolution> Cannot convert static argument to abstract expression.") }
+            };
+        });
+
         val stateExprStruct = structureForAST(new_node.stateExpr);
         match(stateExprStruct) {
             case Some {
-                addStructureForAST(new_node, stateExprStruct.value);
+                val struct = ifElse ( staticArgs.size() == 0 ) {
+                    stateExprStruct.value
+                }{
+                    match ( stateExprStruct.value ) {
+                        case NominalStructure { stateExprStruct.value.substitute(staticArgs); }
+                        default { ABORT("<TypeResolutionPass> Cannot use static args with non-NominalStructure.") }
+                    }
+                };
+                addStructureForAST(new_node, struct);
             }
             case None {
                 this.missingStructure(new_node.stateExpr)
