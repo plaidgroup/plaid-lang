@@ -1,0 +1,185 @@
+package plaid.compiler.aeminium;
+
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+import plaid.compiler.aeminium.*;
+import plaid.ast.parsed.*;
+
+import plaid.collections.makeLinkedList;
+
+state MethodInformationObject {
+    val immutable ASTNode node;
+    // all top-level tasks of the method body 
+    val unique List tasks;
+    val unique Set /*<MatchInformationObjects>*/ matchInfos;
+    val unique Map /*<MatchLeaveInformation, Set<CaseTashGraph>>*/ matchFixupTable;
+    val unique Map astToTaskMap = java.util.HashMap.new();
+    val unique Map taskIndexMap = java.util.HashMap.new();
+    
+    method immutable Boolean isSingleTask() {
+        ifElse( tasks.size() == 1 && matchInfos.size() == 0 ) {
+            true
+        }{
+            false 
+        }
+    }
+
+    method void dumpFinalTaskGraph(immutable String path) {
+        val tb = new TaskBuilderPass;
+        tb.matchFixupTable.clear();
+        tb.matchFixupTable.putAll(this.matchFixupTable);
+        val expTasks = tb.expandMatchBlocks(path, this.tasks);
+        val noTransTasks = tb.removeTransitiveEdgesFromTasks(expTasks);
+        dumpTaskGraph(path, "TASK-FINAL", noTransTasks);
+    }
+    
+    method unique Option taskForDepInfo(shared DependencyInformation depInfo) {
+        DEBUG(DEBUG_PRIO_LOW, "<MethodInformationObject> taskForDepInfo");
+        var result = new None;
+        
+        val it = getAllTasks().iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+            if ( curTask.infos.contains( depInfo ) ) {
+                result = makeSome(curTask);
+            };
+        };
+        
+        result
+    }
+    
+    method unique Option taskForAST(immutable ASTNode node) {
+        DEBUG(DEBUG_PRIO_LOW, "<MethodInformationObject> taskForAST");
+        match ( this.astToTaskMap.size() == 0 ) {
+            case True { 
+                // initialize map
+                DEBUG(DEBUG_PRIO_LOW, "<MethodInformationObject>     initialize map");
+                val it = getAllTasks().iterator();
+                while { it.hasNext() }{
+                    val curTask = it.next();
+                    val infosIt = curTask.infos.iterator();
+                    while { infosIt.hasNext() }{
+                        val curInfo = infosIt.next();
+                        match ( curInfo ) {
+                            case ASTInformation { 
+                                this.astToTaskMap.put(curInfo.node, curTask);
+                            }
+                            case MatchEnterInformation {
+                                this.astToTaskMap.put(curInfo.node, curTask);
+                            }
+                            case AtomicEnterInformation {
+                                this.astToTaskMap.put(curInfo.node, curTask);
+                            }
+                            default { /*nop*/ }
+                        };
+                    };
+                };
+            }
+            case False { /*nop*/ }
+        };
+        
+        match ( this.astToTaskMap.containsKey(node) ) {
+            case True { makeSome(this.astToTaskMap.get(node)) }
+            case False { new None }
+        };
+    }
+    
+    method unique Option matchInfoForAST(immutable ASTNode node) {
+        var result = new None;
+        val matchInfosIt = this.matchInfos.iterator();
+        val nodeSet = java.util.HashSet.new();
+        nodeSet.add(node);
+        while { matchInfosIt.hasNext() }{
+            val matchInfo = matchInfosIt.next();
+            if ( nodeSet.contains(matchInfo.enterInfo.node) ) {
+                result = makeSome(matchInfo);
+            };
+        };
+        
+        result
+    } 
+    
+    method unique Set getAllTasks() {
+        DEBUG(DEBUG_PRIO_LOW, "<MethodInformationObject> getAllTasks");
+        val unique Set allTasks = java.util.HashSet.new();
+        
+        allTasks.addAll(this.tasks);
+        val it = matchInfos.iterator();
+        while { it.hasNext() }{
+            DEBUG(DEBUG_PRIO_LOW, "<MethodInformationObject>     add case tasks");
+            val curMatchInfo = it.next();
+            val caseIt = curMatchInfo.caseInfos.iterator();
+            while{ caseIt.hasNext() }{
+                val curCaseInfo = caseIt.next();
+                allTasks.addAll(curCaseInfo.allTasks);
+            };
+        };
+        
+        allTasks
+    }
+    
+    method immutable Integer getTaskIndex(shared Task task) {
+        match ( this.taskIndexMap.size() == 0 ) {
+            case True  {
+                val allTasks = getAllTasks();
+                var index = 0;
+                val it = allTasks.iterator();
+                while { it.hasNext() }{
+                    val curTask = it.next();
+                    this.taskIndexMap.put(curTask, index);
+                    index  = index + 1;
+                };
+            }
+            case False { /* nop */ }
+        };
+        
+        this.taskIndexMap.get(task); 
+    }
+    
+    method immutable Boolean forkTask(shared Task task) {
+        ifElse ( task.rdeps.size() == 0 ) {
+            // check if this is the body task of the method
+            ifElse (this.tasks.contains(task) ) {
+                var result = true;
+                val infosIt = task.infos.iterator();
+                val nodeSet = java.util.HashSet.new();
+                nodeSet.add(this.node.body); 
+                while { infosIt.hasNext() }{
+                    val curInfo = infosIt.next();
+                    match ( curInfo ) {
+                        case ASTInformation { 
+                            if ( nodeSet.contains(curInfo.node) ) {
+                                result = false
+                            }
+                        }
+                        default { /* nop */ }
+                    }
+                };
+                
+                result
+            }{
+                // check matches
+                var result = false;
+                val matchIt = this.matchInfos.iterator();
+                while { matchIt.hasNext() } {
+                    val curMatchInfo = matchIt.next();
+                    val caseIt = curMatchInfo.caseInfos.iterator();
+                    while { caseIt.hasNext() }{
+                        val curCaseInfo = caseIt.next();
+                        if ( curCaseInfo.allTasks.contains(task) ) {
+                            val intersection = java.util.HashSet.new(curCaseInfo.infosMatchLeaveDependsOn);
+                            intersection.retainAll(task.infos);
+                            if ( intersection.size() == 0 ) {
+                                result = true;
+                            };
+                        };
+                    }
+                };
+                
+                result
+            }
+        }{
+            false
+        }
+    }
+}

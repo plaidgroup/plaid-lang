@@ -1,0 +1,115 @@
+package plaid.typecheckertests.matching;
+
+state Matching {
+
+    var unique MatchState f = new MatchState;
+
+    //match succeed
+    method void test(unique MatchState x) {
+        match (x) {
+            case MatchSubState { unit }
+        }
+    }
+    
+    //match option ok
+    method immutable String test2(unique ?MatchState x) {
+        match (x) {
+            case MatchState {
+                "some"
+            }
+            default {
+                "none"
+            }
+        }
+    }
+    
+    //match no cases
+    method void test3(unique MatchState x) {
+        match (x) {
+        
+        }
+    }
+    
+    //case pattern not a state
+    //method void test4(unique MatchState x) {
+    //    match (x) {
+    //        case x { unit }
+    //    }
+    //}
+    
+    //case pattern not a substructure
+    method void test5(unique MatchSubState x) {
+        match (x) {
+            case MatchState { unit }
+        }
+    }
+    
+    //cannot match on non id - need to update name resolution pass
+    //method void test6()[unique Matching this] {
+    //    match (this.f) {
+    //        case MatchSubState { unit }
+    //        default { unit }
+    //    }
+    //}
+    
+    //merging contexts fails- when have dynamic in the language
+    //method void test7(unique MatchState x) {
+    //    val immutable String t = "foo";
+    //    match (x) {
+    //        case MatchSubState { unit }
+    //        default { t as Dynamic }
+    //    }
+    //}
+    
+    //no lub of result - lots of things wrong, but hits this error first
+    method void test8()[unique Matching this] {
+        val unique MatchState toMatch = new MatchState; 
+        val unique Matching x = match (toMatch) {
+            case MatchSubState {
+                val unique Matching s = new Matching;
+                s.f = this.f;
+                this
+            }
+            default {
+                val unique ?Matching t = new Matching;
+                t
+            }
+        
+        }
+    
+    }
+    
+    //previously passed, should error because not enough permission in mss
+    method unique MatchSubState test9(unique MatchState ms, unique MatchSubState mss)
+                                     [unique Matching this] {
+        
+      val void temp = match (this) {
+        case Matching {
+          val unique MatchSubState temp2 = match (ms) {
+            case MatchState {
+                ms.f = mss;
+                new MatchSubState;
+            }
+            default { mss }
+          };
+          unit
+        }
+        default { unit }
+      };
+      mss
+    }
+    
+    //combining SLL - remove elements from list that are going out of scope - should succeed
+    method void test10()[unique Matching this] {
+      val immutable Integer t1 = 5;
+       
+      val immutable Integer temp = match (this) {
+        case Matching {
+        	val immutable Integer t2 = 3;
+        	t2;
+        }
+        default { 5 }
+      };
+    }
+
+}

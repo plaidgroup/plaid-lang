@@ -1,0 +1,182 @@
+/**
+ * Copyright (c) 2011 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.typechecker;
+
+import plaid.compiler.Symbol;
+
+/***********************************************
+ ***               Combine SLLs              ***
+ ***********************************************/
+
+method immutable ?LinkedList combineSLL(unique LinearContext mergedCtx,
+                                       immutable Permission neededPerm,
+                                       unique LinearContext fstCtx,
+                                       immutable LinkedList fstSLL,
+                                       unique LinearContext sndCtx,
+                                       immutable LinkedList sndSLL) 
+{
+  var immutable Boolean errors = false;
+  val unique LinkedList fstResult = fstSLL.collect(fn (loc) => 
+  {
+    match (sndSLL.exists(fn (sndLoc) => loc == sndLoc)) {
+      case True { //location in both, add
+        true;
+      }
+      case False { 
+        val immutable ?Boolean temp = combineSLLhelper(loc, neededPerm, mergedCtx, fstCtx, sndCtx);
+        match (temp) {
+          case Boolean { temp }
+          default { errors = true; false }
+        }
+      }
+    }
+  });
+  
+  //everything from the second list that wasn't added in the first pass
+  val immutable LinkedList sndSLLtodo = sndSLL.reject(fn (sndLoc) => fstResult.exists(fn (fstLoc) => sndLoc == fstLoc));
+
+  val unique LinkedList sndResult = sndSLLtodo.collect(fn (loc) => {
+    val immutable ?Boolean temp = combineSLLhelper(loc, neededPerm, mergedCtx, sndCtx, fstCtx);
+    match (temp) {
+      case Boolean { temp }
+      default { errors = true; false }
+    }
+  });
+  
+  match (errors) {
+    case True { unit }
+    case False { 
+      fstResult.append(sndResult);
+      fstResult;
+    }
+  };
+}
+
+method immutable ?Boolean combineSLLhelper(immutable SourceLocation loc,
+                                          immutable Permission neededPerm,
+                                          unique LinearContext mergedCtx,
+                                          unique LinearContext thisCtx,
+                                          unique LinearContext otherCtx)
+{
+val immutable ?Type typeFromOtherCtx = loc.locationType(otherCtx);
+  match (typeFromOtherCtx) {
+    case Type {
+      val immutable ?Permission updatedPerm = typeFromOtherCtx.permission.splitPerm(neededPerm);
+      match (updatedPerm) {
+        case Permission {
+          val immutable ?Type typeFromThisCtx = loc.locationType(thisCtx);
+          match (typeFromThisCtx) {
+            case Type {
+              val immutable ?Permission lubPerm = updatedPerm.leastUpperBound(typeFromThisCtx.permission);
+              match (lubPerm) {
+                case Permission {
+                  val immutable ?Type typeFromMergedCtx = loc.locationType(mergedCtx);
+                  match (typeFromMergedCtx) {
+                    case Type {
+                      match (typeFromMergedCtx.permission == lubPerm) {
+                        case True {  //safe to add
+                          true;
+                        }
+                        case False { //do not add - would change the merged permission
+                          false;
+                        }
+                      }
+                    }
+                    default { unit }
+                  }
+                }
+                default { unit }
+              }
+            }
+            default { unit }
+          }
+        }
+        default { false } //cannot split permission
+      }
+    }
+    default { 
+      match (loc) {
+        case VarSourceLocation { unit } //definitely an error
+        case FieldSourceLocation {
+          val unique Option typeOpt = otherCtx.getOption(loc.objectVarSymbol);
+          match (typeOpt) {
+            case Some {
+              match (typeOpt.value.structure.getMember(loc.fieldName)) {
+                case Some { false } //not an error - just different object IDs
+                case None { unit } //definitely an error
+              }
+            }
+            case None { unit } //definitely an error
+          } 
+        }
+      }
+    }
+  }
+}
+
+
+/**
+ *  factory methods for source locations
+ */
+method immutable VarSourceLocation makeVarSourceLoc(immutable Symbol varSymbol) {
+  new VarSourceLocation {
+    val varSymbol = varSymbol;
+  }
+}
+
+method immutable FieldSourceLocation makeFieldSourceLoc(immutable Symbol objectVarSymbol, immutable UnpackedFieldSignature fsig) {
+  new FieldSourceLocation {
+    val objectVarSymbol = objectVarSymbol;
+    val fieldName = fsig.getFieldName();
+    val objectID = fsig.objectID;
+  }
+}
+
+//DO NOT USE EXCEPT FOR TESTING
+method immutable FieldSourceLocation makeFieldSourceLocSetID(immutable Symbol objectVarSymbol, 
+                                                             immutable String fieldName, 
+                                                             immutable Integer objectID) {
+  new FieldSourceLocation {
+    val objectVarSymbol = objectVarSymbol;
+    val fieldName = fieldName;
+    val objectID = objectID;
+  }
+}
+
+/**
+ * Restores Permission perm to each source location in sourceLocs to LinearContext ctx
+ */
+method void listRestore(unique LinkedList<SourceLocation> sourceLocs, immutable Type retType, unique LinearContext ctx) {
+  sourceLocs.do(fn (immutable SourceLocation sourceLoc)[immutable Type retType, unique LinearContext ctx] => { sourceLoc.restoreToLoc(retType, ctx) })
+}
+
+/**
+ * factory method for TypecheckResult - when tuples work better, just use those
+ */
+method unique TypecheckResult makeTypecheckResult(immutable Type expType, 
+                                                  unique LinearContext ctxResult,
+                                                  immutable LinkedList<immutable SourceLocaiton> sourceLocList)
+{
+  new TypecheckResult {
+    val expType = expType;
+    val ctxResult = ctxResult;
+    val sourceLocList = sourceLocList;
+  }
+}
