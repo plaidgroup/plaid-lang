@@ -1,0 +1,140 @@
+package plaid.compiler;
+
+import plaid.collections.makeLinkedList;
+
+state CompilerConfiguration {
+    val immutable List     plaidpath;
+    val immutable List     bytecodeClasspath;
+    val immutable Boolean  force;
+    val immutable Boolean  keep;
+    val immutable String   outputDir;
+    val immutable String   inputDir;
+    val immutable String   tempDir;
+    val immutable List     inputFiles;
+    val immutable Boolean  enableTypechecking;
+    val immutable Boolean  enableAeminium;
+    val immutable Boolean  viewAST;
+    val immutable Boolean  dumpSymbolMap;
+    val immutable Boolean  enableCodegen;
+    val immutable Boolean  enableBytecode;
+    val immutable Boolean  compactErrors;
+    val immutable Map      propertyMap;
+    val immutable String   bootClasspath;
+    
+
+    method unique CompilerConfiguration expand() [unique CompilerConfiguration  >> none CompilerConfiguration this] {
+        DEBUG(DEBUG_PRIO_MEDIUM, "Expand CompilerConfiguration.");
+
+        var immutable String outputDir = System.getProperty("user.dir");
+        var immutable String tempDir   = System.getProperty("user.dir");
+        var immutable String inputDir  = System.getProperty("user.dir");
+        var immutable List inputFiles  = this.inputFiles;
+
+        if ( this.outputDir.length() > 0 ) { outputDir = this.outputDir };
+        if ( this.tempDir.length() > 0 )   { tempDir   = this.tempDir };
+        if ( this.inputDir.length() > 0 )  { 
+            inputDir = this.inputDir;
+            // expand file 
+            inputFiles = findPlaidFiles(inputDir);
+        };
+        
+        // add boostrap class path in front of classpath
+        this.plaidpath.addFirst(this.bootClasspath);
+ 
+        new CompilerConfiguration {
+            val plaidpath          = this.plaidpath;
+            val bytecodeClasspath  = this.bytecodeClasspath;
+            val force              = this.force;
+            val keep               = this.keep;
+            val outputDir          = outputDir;
+            val inputDir           = inputDir;
+            val tempDir            = tempDir;
+            val inputFiles         = inputFiles;
+            val enableTypechecking = this.enableTypechecking;
+            val enableAeminium     = this.enableAeminium;
+            val viewAST            = this.viewAST;
+            val dumpSymbolMap      = this.dumpSymbolMap;
+            val enableCodegen      = this.enableCodegen;
+            val enableBytecode     = this.enableBytecode;
+            val compactErrors      = this.compactErrors;
+            val propertyMap        = this.propertyMap;
+            val bootClasspath      = this.bootClasspath;
+        }; 
+    }
+
+    method immutable List findPlaidFiles(immutable String path) {
+        val unique File currentDir = java.io.File.new(path);
+        val unique List files = makeLinkedList();
+
+        findPlaidFilesHelper(currentDir, files);
+
+        files        
+    }
+
+    method void findPlaidFilesHelper(immutable File currentDir, unique LinkedList files) {
+        DEBUG(DEBUG_PRIO_LOW, "Searching for file in " + currentDir.getCanonicalPath().toString());
+        val content = java.util.Arrays.asList(currentDir.listFiles());
+        val it = content.iterator();
+
+        while {  it.hasNext() }{
+            val f = it.next();
+            ifElse ( f.isDirectory() ) {
+                findPlaidFilesHelper(f, files);
+            }{
+                if ( f.isFile() && f.getCanonicalPath().endsWith(".plaid") ) {
+                    DEBUG(DEBUG_PRIO_MEDIUM, "  Found Plaid file '" + f.getCanonicalPath() + "'.");
+                    files.add(f.getCanonicalPath());
+                }
+            };
+        };        
+    }
+
+    method immutable String getStringProperty(immutable String key,
+                                              immutable String defaultValue) {
+        match ( this.propertyMap.containsKey(key) ) {
+            case True { this.propertyMap.get(key) }
+            case False { defaultValue }
+        };                                          
+    }
+    
+    method immutable String getBooleanProperty(immutable String key,
+                                               immutable Boolean defaultValue) {
+        match ( this.propertyMap.containsKey(key) ) {
+            case True { 
+                val value = this.propertyMap.get(key);
+                ifElse ( value.toLowerCase().equals("false") ) {
+                    false
+                }{
+                    ifElse ( value.toLowerCase().equals("true") ) {
+                        true
+                    }{
+                        WARNING("Value of '"+key+"' is not boolean (" + value +")");
+                        defaultValue
+                    };
+                };
+            }
+            case False { defaultValue }
+        };                                          
+    }
+
+    method toString() {
+        "CompilerCompilation("+
+            "outputDir=" + this.outputDir +
+            ",inputDir=" + this.inputDir +
+            ",tempDir=" + this.tempDir +
+            ",plaidpath=[" + this.plaidpath.toString()+"]" +
+            ",bytecodeClasspath=[" + this.bytecodeClasspath.toString()+"]" +
+            ",force=" + force.toString() + 
+            ",keep=" + keep.toString() +
+            ",inputFiles=[" + inputFiles.toString() +"]" +   
+            ",typecheckingEnabled=" + this.enableTypechecking.toString() +
+            ",aeminiumEnabled=" + this.enableAeminium.toString() +     
+            ",dumpSymbolMap=" + this.dumpSymbolMap.toString() +  
+            ",enableCodegen=" + this.enableCodegen.toString() +  
+            ",enableBytecode=" + this.enableBytecode.toString() + 
+            ",compactErrors=" + this.compactErrors.toString() + 
+            ",propertyMap=" + this.propertyMap.toString() + 
+            ",bootclasspath=" + this.bootClasspath + 
+            ")"            
+    }
+}
