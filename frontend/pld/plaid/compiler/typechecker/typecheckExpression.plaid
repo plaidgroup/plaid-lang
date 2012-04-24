@@ -417,41 +417,71 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
       
       match (blockResult) {
       	case TypecheckResult {
-            
-          var immutable Boolean scopingOk = true;
 		  //remove introduced variables from scope, returning to their source locations,
 		  //this updates blockResult.ctxResult, which gets returned  (will never create a new context - no merging) 
-		  introducedLocalVars.do(fn (pairToRet) => {
+		  val unique ?TypecheckResult afterReturns = introducedLocalVars.reduce(blockResult, fn (returningResult, pairToRet) => {
 			val immutable Symbol symLeavingScope = pairToRet.fst;
-			match (blockResult.ctxResult.containsSymbol(symLeavingScope)) {
-			  case True {
-				val immutable Type restoreType = blockResult.ctxResult.remove(symLeavingScope);
-				
-				val immutable Boolean returnsOk = pairToRet.snd.reduceLeft(true, fn (ok, sourceLoc) => { 
-                    val immutable Boolean restored = match (sourceLoc.restoreToLoc(restoreType, blockResult.ctxResult)) {
-                        case True {
-                            true
-                        }
-                        case False { //can we do better for this error message, esp on token.
-                            val immutable ?Type badReturnTypeOpt = sourceLoc.locationType(reducedContext);
-                            val immutable String badReturnTypeString = match (badReturnTypeOpt) {
-                                case Type { badReturnTypeOpt.toString(); }
-                                default { "UNKNOWN" }
-                            };
-                            
-                            report_ERROR(exp.token,""," return of type " + restoreType.toString() +
-                                " to variable " + symLeavingScope.name.toString() + "'s location " + sourceLoc.toString() + " of type " + badReturnTypeString + " failed",
-                                "typecheckBlockExpression");
-                            false
-                        }
-                    };
-                    restored && ok;
-                  });
-			  }
-			  case False {  
-			    report_ERROR(exp.token, "SCOPING_ERROR", "", "typecheckBlockExpression"); 
-			    scopingOk = false;
-			  }
+			match (returningResult) {
+				case TypecheckResult {
+					val unique ?LinearContext updatedCtx = match (returningResult.ctxResult.containsSymbol(symLeavingScope)) {
+					  case True {
+						val immutable Type restoreType = returningResult.ctxResult.remove(symLeavingScope);
+						
+						val immutable Boolean returnsOk = pairToRet.snd.reduceLeft(true, fn (ok, sourceLoc) => { 
+							val immutable Boolean restored = match (sourceLoc.restoreToLoc(restoreType, returningResult.ctxResult)) {
+								case True { true }
+								case False { //can we do better for this error message, esp on token.
+									val immutable ?Type badReturnTypeOpt = sourceLoc.locationType(returningResult.ctxResult);
+									val immutable String badReturnTypeString = match (badReturnTypeOpt) {
+										case Type { badReturnTypeOpt.toString(); }
+										default { "UNKNOWN" }
+									};
+									
+									report_ERROR(exp.token,""," return of type " + restoreType.toString() +
+										" to variable " + symLeavingScope.name.toString() + "'s location " + 
+										sourceLoc.toString() + " of type " + badReturnTypeString + " failed",
+										"typecheckBlockExpression");
+									false
+								}
+							};
+							restored && ok;
+						});
+						match (returnsOk) {
+							case True { returningResult.ctxResult }
+							case False { unit }
+						}
+					  }
+					  case False {  
+						report_ERROR(exp.token, "SCOPING_ERROR", "", "typecheckBlockExpression"); 
+						unit
+					  }
+					};
+					//also remove variables going out of scope from SLL
+					match (updatedCtx) {
+						case LinearContext {
+							val immutable LinkedList updatedSLL = returningResult.sourceLocList.reject(fn (loc) => {
+									match (loc) {
+										case VarSourceLocation {
+											match (loc.varSymbol == symLeavingScope) {
+												case True { true }
+												case False { false }
+											}
+										}
+										case FieldSourceLocation {
+											match (loc.objectVarSymbol == symLeavingScope) {
+												case True { true }
+												case False { false }
+											}
+										}
+									}
+								
+							});
+							makeTypecheckResult(returningResult.expType, updatedCtx, updatedSLL);
+						}
+						default { unit }
+					}
+				}
+				default { unit }
 			}
 		  });
 		  
@@ -473,10 +503,15 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
 				  match (symInfo) { case DependencyInformation { addDependency(blockInfo, symInfo); } default {/*no op*/ } };
 			  };
 		  };
-		  match (dependencyOk && scopingOk) {
+		  match (dependencyOk) {
 		    case True {
-    		  blockResult.ctxResult.methodBlock = methodBlock;  
-	    	  blockResult;
+		    	match (afterReturns) {
+		    		case TypecheckResult {
+		    			afterReturns.ctxResult.methodBlock = methodBlock;  
+		    			afterReturns;
+		    		}
+		    		default { unit }	
+		    	}
 	    	}
 	    	case False {
 	    	  unit
