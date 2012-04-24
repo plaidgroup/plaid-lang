@@ -915,6 +915,9 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                     val shared StateRefSymbol stateRefSymbol = this.sf.makeStateRefSymbol(node, refStateOpt.value);
                     this.currentState.push(stateRefSymbol);
     
+                    if ( refStateOpt.value.getStaticParameters().size() != node.staticArgs.size() ) {
+                        ABORT("<NameResolverPass> State '" + refStateOpt.value.getFQN() + "' requires " + refStateOpt.value.getStaticParameters().size()  + " static arguments and not " + node.staticArgs.size());
+                    };
                     node.staticArgs.map(fn (item) => { item.accept(this); item });
                     // todo: set static parameters ?!?
                     node.specializations.map(fn (item) => { item.accept(this); item });
@@ -945,6 +948,22 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 	      ABORT("(implementation error) cannot find String Literal state");
 	    }
 	  }
+	}
+	
+	override method void visitParsedNominalStructure(immutable ParsedNominalStructure node) {
+		LOG("visit ParsedNominalStructure");
+		node.stateQi.accept(this);
+		node.staticArgs.map(fn (item) => { item.accept(this); item });
+		
+		match ( symbolForAST(node.stateQi) ) {
+		    case Some {
+		        val sym = symbolForAST(node.stateQi).value;
+		        if ( sym.getStaticParameters().size() != node.staticArgs.size() ) {
+                    ABORT("<NameResolverPass> State '" + sym.getFQN() + "' requires " + sym.getStaticParameters().size()  + " static arguments and not " + node.staticArgs.size());
+		        };
+		    }
+		    default { ABORT("<NameResolutionPass> Cannot find symbol for state qualifier.") }
+		};
 	}
 
 	override method void visitParsedUnaryOperatorExpr(immutable ParsedUnaryOperatorExpr node) {
