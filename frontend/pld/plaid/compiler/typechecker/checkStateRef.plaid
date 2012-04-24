@@ -1,0 +1,54 @@
+package plaid.compiler.typechecker;
+
+method immutable Boolean checkStateRef(shared StateRefSymbol srs,
+                                        //Structure startingStruct, //for typechange (not implemented)
+                                        immutable String context)   //for errors
+{
+    val /*List<symbol>*/ abstractList = srs.referencedState.getAbstractMembers();
+    val /*List<symbol>*/ specializedList = srs.members;
+    
+    match (abstractList.size() == specializedList.size()) {
+        case True {
+            abstractList.reduceLeft(true, fn (stateRefOk, abstractMember) => {
+                match (stateRefOk) {
+                    case True{
+                        val immutable Option<immutable Symbol> specSymOpt = 
+                            specializedList.find(fn (sp) => sp.name == abstractMember.name );
+                            
+                        match (specSymOpt) {
+                            case Some {
+                                val immutable Signature declaredSig = abstractMember.getSignature();
+                                val immutable Signature concreteSig = specSymOpt.value.getSignature();
+                                match (concreteSig.isSubSignatureOf(declaredSig)) {
+                                    case True { true }
+                                    case False {
+                                        report_ERROR(srs.declaration.token, "T_NEW_BAD_SPEC", "for member " + srs.referencedState.name + "." + abstractMember.name + 
+                                            " expected " + declaredSig.toString() + ", got " + concreteSig.toString(),
+                                            context);
+                                        false
+                                    }
+                                }
+                            }
+                            case None {
+                                report_ERROR(srs.declaration.token, 
+                                            "T_NEW_ABSTRACT_MEMBER", 
+                                            srs.referencedState.name + "." + abstractMember.name, 
+                                            context);
+                                false
+                            }
+                        }
+                    
+                    }
+                    case False { false } // previous error
+                }
+            });
+        }
+        case False {
+            report_ERROR(srs.declaration.token, "SPECIALIZATIONS", " wrong number of specializations", context);
+            false
+        }
+    }
+    
+
+
+}

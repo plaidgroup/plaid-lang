@@ -1,0 +1,85 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.ParsedLeafVisitor;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
+import plaid.compiler.report_ERROR;
+import plaid.ast.util.makeTokenForFile;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.Pass;
+
+import plaid.compiler.*;
+import plaid.compiler.typechecker.*;
+import plaid.compiler.aeminium.*;
+import plaid.compiler.permissions.*;
+import plaid.compiler.util.*;
+
+import plaid.ast.parsed.*;
+import plaid.ast.util.*;
+
+import plaid.lang.math.*;
+
+state TailCallFinderPass case of Pass = ParsedLeafVisitor with {
+    var shared Job job;
+    val unique Map tailCalls = java.util.HashSet.new();
+    val hasErrors = false;
+    
+    method immutable Boolean run(unique Job job) {
+        match (job) {
+          case UserJob {
+              match (job.ast) {
+                  case Some {
+                    DEBUG(DEBUG_PRIO_HIGH, "<TailCallFinderPass> started");
+                
+                    this.job = job;
+                    job.ast.value.accept(this);
+            
+                    // TODO: safe tailsCalls in job for code generation
+            
+                    DEBUG(DEBUG_PRIO_HIGH, "<TailCallFinderPass> finished");
+                    !this.hasErrors;
+                  }
+                  default {
+                      report_ERROR(makeTokenForFile(job.source.path), "AST invalid", "", "TailCallFinderPass");
+                      false
+                  }
+              }
+          }
+          case CompilerJob {
+              DEBUG(DEBUG_PRIO_HIGH, "<TailCallFinderPass> skip CompilerJob");
+              true
+          }
+        }
+    }
+    
+    override method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_LOW, "<TailCallFinderPass> " + msg);
+    }
+    
+    override method void visitParsedBlockExpr(immutable ParsedBlockExpr node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TailCallFinderPass> found BlockExpr");
+        if ( node.statements.size() > 0 ) {
+            val lastStmt = node.statements.get(node.statements.size() - 1);
+            lastStmt.value.accept(this);
+        };
+    }
+    
+    override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TailCallFinderPass> found Method Declaration '" + node.name.name + "'");
+        node.body.accept(this);
+    }
+
+    override method void visitParsedMethodCall(immutable ParsedMethodCall node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TailCallFinderPass> found Method Call ");
+        DEBUG(DEBUG_PRIO_HIGH, "<TailCallFinderPass>     Found Tail Call @ " + node.token.toString());
+        this.tailCalls.add(node);
+    }
+    
+    override method void visitParsedApplication(immutable Application node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TailCallFinderPass> found Application");
+        DEBUG(DEBUG_PRIO_HIGH, "<TailCallFinderPass>     Found Tail Call @ " + node.token.toString());
+        this.tailCalls.add(node);
+    }
+    
+}

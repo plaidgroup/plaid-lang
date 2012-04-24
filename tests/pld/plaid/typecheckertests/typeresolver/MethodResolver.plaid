@@ -1,0 +1,66 @@
+package plaid.typecheckertests.typeresolver;
+
+state MethodResolver {
+
+    val unique TopState ms = new OtherMethodState;
+    val unique OtherMethodState oms = new OtherMethodState;
+    
+    method immutable MethodState m1(immutable String s)[unique MethodResolver this] {
+        new MethodState;
+    }
+    
+     //call something not there - test when fixing type resolution
+    method void test1()[unique MethodResolver this] {
+        this.notAMethod();
+    }
+    
+    //call something not a method
+    method void test2()[unique MethodResolver this] {
+        this.ms();
+    }
+
+    //call a method on a lambda
+    method void test3(()->void x) {
+        x.notAMethod()
+    }
+        
+    //call a method with the wrong number of args
+    method void test4()[unique MethodResolver this] {
+        this.m1();
+    }
+    
+    //error for changing state of non-variable, parameter
+    method void test5()[unique MethodResolver this] {
+        val unique TopState temp = this.ms;
+        match (temp) {
+            case OtherMethodState { temp.changeStateParam(this.ms); }
+            default { /*no op*/ }
+        }
+    }
+
+    //error for changing state of non-variable, parameter
+    method void test6()[unique MethodResolver >> void this] {
+        this.oms.changeStateThis();
+    }
+    
+    //application not a function
+    method void test7(immutable Integer i)[unique MethodResolver >> void this] {
+        i ();
+    }
+    
+    //top level field that does not contain a lambda - TODO
+    method void test8()[unique MethodResolver >> void this] {
+     topField ()
+    }
+    
+    //application to method call returning a non-lambda
+    method void test9()[unique MethodResolver >> void this] {
+        val unique OtherMethodState temp = new OtherMethodState;
+        this.oms.changeStateParam(temp) ()
+    }
+    
+    //refer to top-level method without application
+    method void test10()[unique MethodResolver >> void this] {
+        topMethod
+    }
+}

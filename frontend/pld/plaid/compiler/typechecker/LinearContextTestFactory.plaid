@@ -1,0 +1,566 @@
+/**
+ * Copyright (c) 2011 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.typechecker;
+
+import plaid.lang.testing.TestFactory;
+import plaid.lang.testing.Test;
+import plaid.compiler.*;
+import plaid.compiler.symbol.SymbolFactory;
+import plaid.ast.parsed.*;
+import plaid.compiler.types.*;
+import plaid.compiler.permissions.*;
+import plaid.compiler.symbol.*;
+import plaid.compiler.tests.ASTsForTests;
+import plaid.compiler.tests.SymbolsForTests;
+import plaid.compiler.tests.TypesForTests;
+
+import plaid.collections.makeLinkedList;
+import plaid.collections.LinkedList;
+
+state LinearContextTestFactory case of TestFactory {
+	
+	method unique List<unique Test> createTests() {
+		val tests = makeLinkedList();
+		val test = fn(name,body) => { tests.add(mktest(name, body)) };
+		var result = new None;  //dummy variable to get around match scoping bug
+		var testCtx = unit;
+	  
+	  val ast = new ASTsForTests;
+    ast.initASTs();
+    val symbols = new SymbolsForTests;
+    symbols.initSymbols(ast);
+    val types = new TypesForTests;
+    types.initPermissions();
+    types.initTypes(ast,symbols);
+	  
+	  val astCMP = new ASTsForTests;
+    astCMP.initASTs();
+    val symbolsCMP = new SymbolsForTests;
+    symbolsCMP.initSymbols(astCMP);
+    val typesCMP = new TypesForTests;
+    typesCMP.initPermissions();
+    typesCMP.initTypes(astCMP,symbolsCMP);
+	  
+    /****************** LinearContext.== and put *******************/
+    
+    val unique LinearContext emptyContext = new LinearContext;
+    
+    val unique LinearContext c1 = new LinearContext;
+    c1.put(symbols.varSym1u1,VOID);
+    val unique LinearContext c1eq = new LinearContext;
+    c1eq.put(symbolsCMP.varSym1u1,VOID);
+    val unique LinearContext c1neq1 = new LinearContext;
+    c1neq1.put(symbols.varSym2u2,VOID);
+    val unique LinearContext c1neq2 = new LinearContext;
+    c1neq2.put(symbols.varSym1u1,DYNAMICTYPE);
+    
+    val unique LinearContext c2 = new LinearContext;
+    c2.put(symbols.varSym1u1,VOID);
+    c2.put(symbols.varSym2u2,VOID);
+    c2.put(symbols.varSym4u4,VOID);
+    val unique LinearContext c2eq = new LinearContext;
+    c2eq.put(symbolsCMP.varSym2u2,VOID);
+    c2eq.put(symbolsCMP.varSym4u4,VOID);
+    c2eq.put(symbolsCMP.varSym1u1,VOID);
+    val unique LinearContext c2neq1 = new LinearContext;
+    c2neq1.put(symbols.varSym1u1,VOID);
+    c2neq1.put(symbols.varSym2u2,VOID);
+    c2neq1.put(symbols.varSym3u3,VOID);
+    val unique LinearContext c2neq2 = new LinearContext;
+    c2neq2.put(symbols.varSym1u1,VOID);
+    c2neq2.put(symbols.varSym2u2,VOID);
+    c2neq2.put(symbols.varSym3u3,VOID);
+    c2neq2.put(symbols.varSym4u4,VOID);
+    val unique LinearContext c2neq3 = new LinearContext;
+    c2neq3.put(symbols.varSym1u1,VOID);
+    c2neq3.put(symbols.varSym2u2,DYNAMICTYPE);
+    c2neq3.put(symbols.varSym4u4,VOID);
+
+    test("LinearContext equality and put", fn(ctx) => {
+      ctx.assertTrue(emptyContext == new LinearContext);
+      ctx.assertTrue(c1 == c1eq);
+      ctx.assertFalse(c1 == c1neq1);
+      ctx.assertFalse(c1 == c1neq2);
+      ctx.assertTrue(c2 == c2eq);
+      ctx.assertFalse(c2 == c2neq1);
+      ctx.assertFalse(c2 == c2neq2);
+      ctx.assertFalse(c2 == c2neq3);
+    });
+    
+    /****************** LinearContext.get *******************/
+	
+	  test("LinearContext get", fn(ctx) => {
+      ctx.assertTrue(c1.get(symbols.varSym1u1) == VOID);
+      ctx.assertFalse(c1.get(symbols.varSym1u1) == DYNAMICTYPE);
+      //test exception thrown when trying to get something that isn't there since no null in plaid
+    });
+    
+    /****************** LinearContext.getOption *******************/
+  
+    test("LinearContext getOption", fn(ctx) => {
+      ctx.assertTrue(match (c1.getOption(symbols.varSym1u1)) { case Some { c1.getOption(symbols.varSym1u1).value == VOID } case None { false } });
+      ctx.assertTrue(match (c1.getOption(symbols.varSym2u2)) { case Some { false } case None { true } });
+    });
+    
+    /****************** LinearContext.containsSymbol *******************/
+  
+    test("LinearContext containsSymbol", fn(ctx) => {
+      ctx.assertTrue(c1.containsSymbol(symbols.varSym1u1));
+      ctx.assertFalse(c1.containsSymbol(symbols.varSym2u2));
+    });
+    
+    /****************** LinearContext.remove *******************/
+  
+    val unique LinearContext cr1 = new LinearContext;
+    cr1.put(symbols.varSym1u1,VOID);
+    cr1.remove(symbols.varSym1u1);
+    
+    val unique LinearContext cr2 = new LinearContext;
+    cr2.put(symbols.varSym1u1,VOID);
+    cr2.put(symbols.varSym4u4,VOID);
+    cr2.put(symbols.varSym2u2,VOID);
+    cr2.put(symbols.varSym3u3,VOID);
+    cr2.remove(symbols.varSym4u4);
+    
+    val unique LinearContext cr3 = new LinearContext;
+    cr3.put(symbols.varSym1u1,VOID);
+    cr3.remove(symbols.varSym2u2);
+  
+    test("LinearContext remove", fn(ctx) => {
+      ctx.assertTrue(cr1 == emptyContext);
+      ctx.assertTrue(cr2 == c2neq1);
+      ctx.assertTrue(cr3 == c1);
+    });
+    
+    /****************** LinearContext.update *******************/
+  
+    val unique LinearContext cu1 = new LinearContext;
+    cu1.put(symbols.varSym1u1,VOID);
+    cu1.update(symbols.varSym1u1,DYNAMICTYPE);
+    
+    val unique LinearContext cu2 = new LinearContext;
+    cu2.put(symbols.varSym1u1,DYNAMICTYPE);
+    cu2.put(symbols.varSym2u2,DYNAMICTYPE);
+    cu2.update(symbols.varSym2u2,VOID);
+    
+    val unique LinearContext cu3 = new LinearContext;
+    cu3.put(symbols.varSym1u1,VOID);
+    printLine("should print error:");
+    cu3.update(symbols.varSym2u2,DYNAMICTYPE);  //This throws an observable error - should catchwhen have exceptions
+  
+    test("LinearContext update", fn(ctx) => {
+      ctx.assertTrue(cu1.get(symbols.varSym1u1) == DYNAMICTYPE);
+      ctx.assertTrue(cu2.get(symbols.varSym1u1) == DYNAMICTYPE && cu2.get(symbols.varSym2u2) == VOID);
+      ctx.assertTrue(cu3 == c1);
+    });
+
+    /****************** LinearContext.downgrade *******************/
+    
+    val unique LinearContext cd1 = new LinearContext;
+    cd1.put(symbols.varSym1u1,types.nominalType_n1);
+    cd1.put(symbols.varSym2u2,types.nominalType_s1);
+    cd1.put(symbols.varSym3u3,DYNAMICTYPE);
+    cd1.put(symbols.varSym4u4,types.nominalType_u1);
+    cd1.downgrade();
+    
+    val unique LinearContext cd1cmp = new LinearContext;
+    cd1cmp.put(symbols.varSym1u1,VOID);
+    cd1cmp.put(symbols.varSym2u2,types.nominalType_sT);
+    cd1cmp.put(symbols.varSym3u3,DYNAMICTYPE);
+    cd1cmp.put(symbols.varSym4u4,types.nominalType_u1);
+  
+    test("LinearContext downgrade", fn(ctx) => {
+      ctx.assertTrue(cd1 == cd1cmp);
+    });
+    
+    /****************** LinearContext.merge *******************/
+    
+    val unique LinearContext cm1 = new LinearContext;
+    cm1.put(symbols.varSym1u1,types.nominalType_i2);
+    
+    val unique LinearContext cm2 = new LinearContext;
+    cm2.put(symbols.varSym1u1,types.nominalType_i2);
+    cm2.put(symbols.varSym2u2,types.nominalType_s1);
+    cm2.put(symbols.varSym3u3,DYNAMICTYPE);
+    
+    val unique LinearContext cm3 = new LinearContext;
+    cm3.put(symbols.varSym1u1,types.nominalType_li1);
+    cm3.put(symbols.varSym2u2,types.nominalType_n4);
+    cm3.put(symbols.varSym3u3,DYNAMICTYPE);
+    
+    val unique LinearContext cm23Cmp = new LinearContext;
+    cm23Cmp.put(symbols.varSym1u1,types.nominalType_li1);
+    cm23Cmp.put(symbols.varSym2u2,VOID);
+    cm23Cmp.put(symbols.varSym3u3,DYNAMICTYPE);
+    
+    val unique LinearContext cm4 = new LinearContext;
+    cm4.put(symbols.varSym1u1,types.nominalType_li1);
+    cm4.put(symbols.varSym2u2,types.nominalType_n4);
+    cm4.put(symbols.varSym3u3,VOID);
+    
+    test("LinearContext merge", fn(ctx) => {
+      result = cm1.merge(cm2);
+      ctx.assertTrue(match (result) { case Some { false } case None { true } });
+      result = cm2.merge(cm1);
+      ctx.assertTrue(match (result) { case Some { false } case None { true } });
+      result = cm2.merge(cm3);
+      ctx.assertTrue(match (result) { case Some { result.value == cm23Cmp } case None { false } });
+      result = cm3.merge(cm2);
+      ctx.assertTrue(match (result) { case Some { result.value == cm23Cmp } case None { false } });
+      result = cm4.merge(cm2);
+      ctx.assertTrue(match (result) { case Some { false } case None { true } });
+      result = cm2.merge(cm4);
+      ctx.assertTrue(match (result) { case Some { false } case None { true } });
+    });
+    
+    /****************** LinearContext.copy *******************/
+    
+    val unique LinearContext cc1 = new LinearContext;
+    cc1.put(symbols.varSym1u1,types.nominalType_i2);
+    cc1.put(symbols.varSym2u2,types.nominalType_s1);
+    cc1.put(symbols.varSym3u3,DYNAMICTYPE);
+    
+    val unique LinearContext cc1cmp = new LinearContext;
+    cc1cmp.put(symbolsCMP.varSym1u1,typesCMP.nominalType_i2);
+    cc1cmp.put(symbolsCMP.varSym2u2,typesCMP.nominalType_s1);
+    cc1cmp.put(symbolsCMP.varSym3u3,DYNAMICTYPE);
+    
+    test("LinearContext copy", fn(ctx) => {
+      ctx.assertTrue(cc1.copy() == cc1cmp);
+    });
+    
+    /****************** SourceLocation restore *******************/
+  
+    val unique LinearContext cslBase = new LinearContext;
+    cslBase.put(symbols.valSym1u1,VOID);
+    cslBase.put(symbols.valSym2u2,types.unpackedType_u1Val3u1_1Bs1);
+    
+    val unique LinearContext cslBase2 = new LinearContext;
+    cslBase2.put(symbols.valSym1u1,types.nominalType_Bs1u1);
+    cslBase2.put(symbols.valSym2u2,types.unpackedType_u1Val3u1_1Bs1);
+    
+    val unique LinearContext cslEq = new LinearContext;
+    cslEq.put(symbolsCMP.valSym1u1,VOID);
+    cslEq.put(symbolsCMP.valSym2u2,typesCMP.unpackedType_u1Val3u1_1Bs1);
+    
+    val unique LinearContext cslCmp1 = new LinearContext;
+    cslCmp1.put(symbols.valSym1u1,types.nominalType_u1);
+    cslCmp1.put(symbols.valSym2u2,types.unpackedType_u1Val3u1_1Bs1);
+    
+    val unique LinearContext cslCmp2 = new LinearContext;
+    cslCmp2.put(symbols.valSym1u1,VOID);
+    cslCmp2.put(symbols.valSym2u2,types.nominalType_u1);
+
+    val unique LinearContext cslCmp3 = new LinearContext;
+    cslCmp3.put(symbols.valSym1u1,types.nominalType_u1);
+    cslCmp3.put(symbols.valSym2u2,types.nominalType_u1);
+  
+    val immutable VarSourceLocation slVar1 = makeVarSourceLoc(symbols.valSym1u1);
+    val immutable VarSourceLocation slVar3 = makeVarSourceLoc(symbols.valSym3u3); //not there
+    val immutable FieldSourceLocation slField2 = 
+      makeFieldSourceLocSetID(symbols.valSym2u2, ast.fieldName3, 1);
+    val immutable FieldSourceLocation slField4 = //not there
+      makeFieldSourceLocSetID(symbols.valSym4u4, ast.fieldName3, 1);
+    
+    test("source locations restore", fn(ctx) => {
+      testCtx = cslBase.copy();
+      slVar1.restoreToLoc(types.nominalType_u1,testCtx);
+      ctx.assertTrue(testCtx == cslCmp1);
+      testCtx = cslBase.copy();
+      slField2.restoreToLoc(types.nominalType_ls1,testCtx);
+      ctx.assertTrue(testCtx == cslCmp2);
+      testCtx = cslBase.copy();
+      slVar3.restoreToLoc(types.nominalType_u1,testCtx);
+      ctx.assertTrue(testCtx == cslEq);
+      testCtx = cslBase.copy();
+      slField4.restoreToLoc(types.nominalType_ls1,testCtx);
+      ctx.assertTrue(testCtx == cslEq);
+      testCtx = cslBase2.copy();
+    });
+    
+    test("source locations locationType", fn (ctx) => {
+      testCtx = cslBase.copy();
+      result = slVar1.locationType(testCtx); //there
+      ctx.assertTrue(match (result) {
+        case Type { result == VOID }
+        default { false }
+      });
+      result = slVar3.locationType(testCtx); //not there
+      ctx.assertTrue(match (result) {
+        case Type { false }
+        default { true }
+      });
+      result = slField2.locationType(testCtx); // there
+      ctx.assertTrue(match (result) {
+        case Type { result == types.nominalType_Bs1u1 }
+        default { false }
+      });
+      result = slField4.locationType(testCtx); //not there
+      ctx.assertTrue(match (result) {
+        case Type { false }
+        default { true }
+      });
+    
+    
+    });
+  
+    /****************** SourceLocationList combine *******************/
+    val combineBase = new LinearContext;
+    combineBase.put(symbols.valSym1u1,types.nominalType_u1);
+    combineBase.put(symbols.valSymThis,types.nominalType_u1);
+    var mergedCtx = unit;
+    var fstCtx = unit;
+    var sndCtx = unit;
+    var fstSLL = unit;
+    var sndSLL = unit;
+    var resultSLL = unit;
+    var compareSLL = unit;
+    
+    test("combining SLLs - in both", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      fstCtx = mergedCtx.copy();
+      sndCtx = fstCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = fstSLL.map(fn (loc) => loc);
+      compareSLL = fstSLL.map(fn (loc) => loc);
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(compareSLL.zip(resultSLL).forall(fn (p) => p.fst == p.snd));
+    });
+  
+    test("combining SLLs - in fst add", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      fstCtx = mergedCtx.copy();
+      sndCtx = combineBase.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+      compareSLL = fstSLL.map(fn (loc) => loc);
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(compareSLL.zip(resultSLL).forall(fn (p) => p.fst == p.snd));
+    });
+    
+    test("combining SLLs - in snd add", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      sndCtx = mergedCtx.copy();
+      fstCtx = combineBase.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+      compareSLL = sndSLL.map(fn (loc) => loc);
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(compareSLL.zip(resultSLL).forall(fn (p) => p.fst == p.snd));
+    });
+    
+    test("combining SLLs - in fst can't split", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      fstCtx = mergedCtx.copy();
+      sndCtx = mergedCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
+    
+    test("combining SLLs - in snd can't split", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      sndCtx = mergedCtx.copy();
+      fstCtx = mergedCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
+    
+    test("combining SLLs - in fst can't split", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      fstCtx = mergedCtx.copy();
+      sndCtx = mergedCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
+  
+    test("combining SLLs - in snd changes merge", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      sndCtx = mergedCtx.copy();
+      fstCtx = mergedCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
+    
+    test("combining SLLs - error - loc from fst not in sndCtx", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      sndCtx = new LinearContext;
+      fstCtx = mergedCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - loc from snd not in fstCtx", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      fstCtx = new LinearContext;
+      sndCtx = mergedCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - loc from snd not in sndCtx", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      sndCtx = new LinearContext;
+      fstCtx = mergedCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - loc from fst not in fstCtx", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      fstCtx = new LinearContext;
+      sndCtx = mergedCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+  
+    test("combining SLLs - error - loc from fst not in mergedCtx", fn (ctx) => {
+      sndCtx = combineBase.copy();
+      sndCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      mergedCtx = new LinearContext;
+      fstCtx = sndCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - loc from snd not in mergedCtx", fn (ctx) => {
+      fstCtx = combineBase.copy();
+      fstCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      mergedContext = new LinearContext;
+      sndCtx = fstCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - fieldloc from fst not in mergedCtx", fn (ctx) => {
+      sndCtx = combineBase.copy();
+      sndCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      mergedCtx = new LinearContext;
+      fstCtx = sndCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slField2);
+      sndSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - fieldloc from snd not in mergedCtx", fn (ctx) => {
+      fstCtx = combineBase.copy();
+      fstCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      mergedContext = new LinearContext;
+      sndCtx = fstCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slField2);
+      fstSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - not added - different field ID", fn (ctx) => {
+      mergedCtx = new LinearContext;
+      mergedCtx.put(symbols.valSym1u1, makeType(UNIQUE,types.unpackedStruct1Val1u1_2vVal3u1_1Bs1));
+      sndCtx = mergedCtx.copy();
+      fstCtx = new LinearContext;
+      fstCtx.put(symbols.valSym1u1, makeType(UNIQUE,types.unpackedStruct1Val1u1_1vVal3u1_1Bs1));
+      sndSLL = makeLinkedList();
+      sndSLL.add(makeFieldSourceLocSetID(symbols.valSym1u1, ast.fieldName1, 2));
+      fstSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
+  
+	  tests
+  }
+}

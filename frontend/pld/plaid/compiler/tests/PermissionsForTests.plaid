@@ -1,0 +1,59 @@
+package plaid.compiler.tests;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+import plaid.compiler.types.*;
+import plaid.compiler.typechecker.*;
+import plaid.ast.util.*;
+import plaid.compiler.permissions.*;
+
+import plaid.collections.makeLinkedList;
+
+state PermissionsForTests {
+    var unique SharedPermission sharedEmpty = SHARED;
+    var unique SharedPermission sharedFoo = unit;
+    var unique SharedPermission sharedFooBar = unit;
+    var unique LocalPermission localSharedFoo = unit;
+    var unique LocalPermission localSharedFooBar = unit;
+    var unique BorrowedPermission borrowedSharedFoo = unit;
+    var unique BorrowedPermission borrowedSharedFooBar = unit;
+    var unique BorrowedPermission borrowedLocalSharedFoo = unit;
+    var unique BorrowedPermission borrowedLocalSharedFooBar = unit;
+    
+    method void init() {
+        // ast nodes for 
+        val fooDecl = new ParsedVarDecl { // var Foo;
+            val specifier = new ParsedVarSpecifier{ val token = EMPTY_TOKEN; }; 
+            val varType = new ParsedEmptyType { val token = EMPTY_TOKEN; };
+            val id = new ParsedIdentifier{ val token = EMPTY_TOKEN; val id =  "Foo"; };
+            val expr = new ParsedEmptyExpr{ val token = EMPTY_TOKEN; };
+        };
+        
+        val sf = new SymbolFactory;
+        val fooSym = sf.makeVariableSymbol("Foo", fooDecl);
+        
+        val fooAbsExpr = new AbstractDereferenceExpression {
+            val symbol = fooSym;
+        };
+        
+        val fooBarAbsExpr = new AbstractDereferenceExpression {
+            val symbol = fooSym;
+        };
+        fooBarAbsExpr.drefs.addLast("Bar");
+        
+    	// create shared permissions with data groups
+
+        this.sharedFoo = makeShared(fooAbsExpr);
+        this.sharedFooBar = makeShared(fooBarAbsExpr);
+        
+        this.localSharedFoo    = makeLocal(this.sharedFoo);
+        this.localSharedFooBar = makeLocal(this.sharedFooBar);
+        
+        this.borrowedSharedFoo = makeBorrowedPerm(this.sharedFoo, this.sharedFoo, 1);
+        this.borrowedSharedFooBar = makeBorrowedPerm(this.sharedFooBar, this.sharedFooBar, 1);
+
+        this.borrowedLocalSharedFoo = makeBorrowedPerm(this.sharedFoo, this.localSharedFoo, 1);
+        this.borrowedLocalSharedFooBar = makeBorrowedPerm(this.sharedFooBar, this.localSharedFooBar, 1);
+    }
+}

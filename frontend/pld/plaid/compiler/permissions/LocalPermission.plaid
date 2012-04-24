@@ -1,0 +1,80 @@
+package plaid.compiler.permissions;
+
+import plaid.compiler.Permission;
+
+/**
+ *	Local permissions cannot be written into the heap
+ *  and will be returned to their original source when
+ * 	they leave scope.  The underlying permission must
+ *	be symmetric.  
+ *
+ *	a local permission may have been split in which case
+ *  we also keep track of its original permission prior
+ * 	to the split and how many times it has been split
+ * 	to allow the original permission to be regained
+ *	when all splits have been rejoined.
+ */
+state LocalPermission case of SourcePermission {
+	val immutable SymmetricPermission thePerm;
+	
+	//delegate to underlying permission
+	method immutable Boolean isWritable()[immutable LocalPermission >> void] {
+		this.thePerm.isWritable();
+	}	
+
+	//delegate to underlying permission
+	method immutable Boolean guaranteesState()[immutable LocalPermission >> void] {
+		this.thePerm.guaranteesState();
+	}
+	
+	method immutable Boolean ==(immutable Permission >> void other)
+							   [immutable LocalPermission >> void] 
+	{
+		match (other) {
+			case LocalPermission {
+				this.thePerm == other.thePerm
+			}
+			default { false }
+		}
+	}
+	
+	method immutable String toString()[immutable LocalPermission >> void] {
+		"local " + this.thePerm.toString()
+	}
+	
+	/**
+	 *  We can only split local permissions from a local permission
+	 *  and only if the underlying permissions match
+	 *  If they do, then we transform the source into a borrow to
+	 *  record that it is waiting for a local to be returned
+	 */
+	method immutable ?Permission splitPerm(immutable Permission >> void p2)
+												[immutable SourcePermission >> void] 
+	{
+		match (p2) {
+			case LocalPermission {
+				ifElse ( p2.thePerm == this.thePerm ) 
+					{ makeBorrowedPerm(this.thePerm, this, 1) }
+					{ unit }
+			}
+			case NonePermission { this }
+			default { unit }
+		}														
+	}
+	
+	/**
+	 * nothing can be returned to a local permission, if something is
+	 * then there was an error (Except none)
+	 */
+	method immutable ?Permission returnPerm(immutable Permission p2)
+												 [immutable LocalPermission this]
+	{
+		match (p2) {
+			case NonePermission { this }
+			default { 
+				this.incompatibleReturnError(p2);
+				unit	
+			}
+		}
+	}
+}
