@@ -32,6 +32,7 @@ import plaid.compiler.tests.SymbolsForTests;
 import plaid.compiler.tests.TypesForTests;
 
 import plaid.collections.makeLinkedList;
+import plaid.collections.LinkedList;
 
 state LinearContextTestFactory case of TestFactory {
 	
@@ -320,6 +321,245 @@ state LinearContextTestFactory case of TestFactory {
     
     });
   
+    /****************** SourceLocationList combine *******************/
+    val combineBase = new LinearContext;
+    combineBase.put(symbols.valSym1u1,types.nominalType_u1);
+    combineBase.put(symbols.valSymThis,types.nominalType_u1);
+    var mergedCtx = unit;
+    var fstCtx = unit;
+    var sndCtx = unit;
+    var fstSLL = unit;
+    var sndSLL = unit;
+    var resultSLL = unit;
+    var compareSLL = unit;
+    
+    test("combining SLLs - in both", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      fstCtx = mergedCtx.copy();
+      sndCtx = fstCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = fstSLL.map(fn (loc) => loc);
+      compareSLL = fstSLL.map(fn (loc) => loc);
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(compareSLL.zip(resultSLL).forall(fn (p) => p.fst == p.snd));
+    });
+  
+    test("combining SLLs - in fst add", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      fstCtx = mergedCtx.copy();
+      sndCtx = combineBase.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+      compareSLL = fstSLL.map(fn (loc) => loc);
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(compareSLL.zip(resultSLL).forall(fn (p) => p.fst == p.snd));
+    });
+    
+    test("combining SLLs - in snd add", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      sndCtx = mergedCtx.copy();
+      fstCtx = combineBase.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+      compareSLL = sndSLL.map(fn (loc) => loc);
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(compareSLL.zip(resultSLL).forall(fn (p) => p.fst == p.snd));
+    });
+    
+    test("combining SLLs - in fst can't split", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      fstCtx = mergedCtx.copy();
+      sndCtx = mergedCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
+    
+    test("combining SLLs - in snd can't split", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_n1);
+      sndCtx = mergedCtx.copy();
+      fstCtx = mergedCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
+    
+    test("combining SLLs - in fst can't split", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      fstCtx = mergedCtx.copy();
+      sndCtx = mergedCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
+  
+    test("combining SLLs - in snd changes merge", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      sndCtx = mergedCtx.copy();
+      fstCtx = mergedCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
+    
+    test("combining SLLs - error - loc from fst not in sndCtx", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      sndCtx = new LinearContext;
+      fstCtx = mergedCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - loc from snd not in fstCtx", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      fstCtx = new LinearContext;
+      sndCtx = mergedCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - loc from snd not in sndCtx", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      sndCtx = new LinearContext;
+      fstCtx = mergedCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - loc from fst not in fstCtx", fn (ctx) => {
+      mergedCtx = combineBase.copy();
+      mergedCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      fstCtx = new LinearContext;
+      sndCtx = mergedCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+  
+    test("combining SLLs - error - loc from fst not in mergedCtx", fn (ctx) => {
+      sndCtx = combineBase.copy();
+      sndCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      mergedCtx = new LinearContext;
+      fstCtx = sndCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slVar1);
+      sndSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - loc from snd not in mergedCtx", fn (ctx) => {
+      fstCtx = combineBase.copy();
+      fstCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      mergedContext = new LinearContext;
+      sndCtx = fstCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slVar1);
+      fstSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - fieldloc from fst not in mergedCtx", fn (ctx) => {
+      sndCtx = combineBase.copy();
+      sndCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      mergedCtx = new LinearContext;
+      fstCtx = sndCtx.copy();
+      fstSLL = makeLinkedList();
+      fstSLL.add(slField2);
+      sndSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - error - fieldloc from snd not in mergedCtx", fn (ctx) => {
+      fstCtx = combineBase.copy();
+      fstCtx.update(symbols.valSym1u1,types.nominalType_Bs1u1);
+      mergedContext = new LinearContext;
+      sndCtx = fstCtx.copy();
+      sndSLL = makeLinkedList();
+      sndSLL.add(slField2);
+      fstSLL = makeLinkedList();
+
+      ctx.assertTrue(match(combineSLL(mergedCtx, LOCALSHARED, fstCtx, fstSLL, sndCtx, sndSLL)) {
+        case LinkedList { false }
+        default { true }
+      });
+    });
+    
+    test("combining SLLs - not added - different field ID", fn (ctx) => {
+      mergedCtx = new LinearContext;
+      mergedCtx.put(symbols.valSym1u1, makeType(UNIQUE,types.unpackedStruct1Val1u1_2vVal3u1_1Bs1));
+      sndCtx = mergedCtx.copy();
+      fstCtx = new LinearContext;
+      fstCtx.put(symbols.valSym1u1, makeType(UNIQUE,types.unpackedStruct1Val1u1_1vVal3u1_1Bs1));
+      sndSLL = makeLinkedList();
+      sndSLL.add(makeFieldSourceLocSetID(symbols.valSym1u1, ast.fieldName1, 2));
+      fstSLL = makeLinkedList();
+
+      resultSLL = combineSLL(mergedCtx, UNIQUE, fstCtx, fstSLL, sndCtx, sndSLL);
+      ctx.assertTrue(resultSLL.size() == 0);
+    });
   
 	  tests
   }
