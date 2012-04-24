@@ -23,7 +23,6 @@ import plaid.collections.makeLinkedList;
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.CompilerUtil;
 import plaid.fastruntime.util.FileGen;
-import plaid.fastruntime.util.ClassNameCounter;
 
 method LOG (immutable String msg) {
 	DEBUG(DEBUG_PRIO_LOW, "<CodeGenPass> " + msg);
@@ -36,16 +35,16 @@ method ERROR(immutable Token t, immutable String msg) {
 
 state CodeGenOps {
     method codegenCU(immutable CodeGenOps ops, unique Job job, immutable ParsedCompilationUnit node);
-    method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen, classNameCounter);
-    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter, isAnonymous);
-    method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, classNameCounter);
-    method codegenStmtBlock(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter);
-    method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter);
-    method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y, classNameCounter);
-    method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter);
+    method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen);
+    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, isAnonymous);
+    method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen);
+    method codegenStmtBlock(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y);
+    method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y);
+    method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y);
+    method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y);
     method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functionExpr, immutable List args, 
 	    					  shared StringBuilder sb, shared IdGen idgen, 
-		    				  immutable String y, classNameCounter);
+		    				  immutable String y);
 	method void codegenMain(immutable String methodName, unique StringBuilder sb);
 	method void createLocalVariable(immutable String name, unique StringBuilder sb, immutable Boolean isFinal);
 	method void setLocalVariable(immutable String varName, immutable String value, unique StringBuilder sb);
@@ -83,8 +82,7 @@ state SequentialCodeGenOps {
                 val declName = NamingConventions.getGeneratedIdentifier(item.first().name.name);
            
                 val outputDir = COMPILER_CONFIGURATION().tempDir;
-                val classNameCounter = ClassNameCounter.new(declName, outputDir, packageDir);
-                ops.codegenTopLevelDecl(ops, item.first(), packageString, item.second(), idGen, classNameCounter); 
+                ops.codegenTopLevelDecl(ops, item.first(), packageString, item.second(), idGen); 
               }
             }
         } );
@@ -109,7 +107,7 @@ state SequentialCodeGenOps {
         } );
     }
     
-    method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
+    method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen) {
         LOG("generating code for Top Level Decl");
         match(node) {
             case ParsedConcreteMethodDecl {
@@ -127,7 +125,7 @@ state SequentialCodeGenOps {
                 sb.append(") {\n");
                 
                 //method body
-                ops.codegenMethodBody(ops, node.body, sb, idgen, classNameCounter);
+                ops.codegenMethodBody(ops, node.body, sb, idgen);
                 
                 sb.append("}\n"); // end invoke method
                 
@@ -152,7 +150,7 @@ state SequentialCodeGenOps {
                 // field initializer body
                 val exprVarName = idgen.getId();
                 ops.createLocalVariable(exprVarName, sb, true);
-                ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName, classNameCounter);
+                ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName);
                 //sb.append("" + fieldName + " = " + exprVarName + ";\n");
                 sb.append("" + fieldName + " = " + ops.getLocalVariable(exprVarName) + ";\n");
                 
@@ -212,7 +210,7 @@ state SequentialCodeGenOps {
                     
                     case ParsedDeclList {
                         node.stateBinding.decls.map( fn(innerDecl) => { 
-                            ops.codegenInnerDecl(ops, innerDecl, sb, idgen, classNameCounter, false);
+                            ops.codegenInnerDecl(ops, innerDecl, sb, idgen, false);
                             match(innerDecl) {
                                 case ParsedConcreteMethodDecl {
                                     sbStateInitializer.append(ovfId + ".mthd(\"" + innerDecl.name.name + "\"," 
@@ -273,7 +271,7 @@ state SequentialCodeGenOps {
     
     
     
-    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, classNameCounter, isAnonymous) {
+    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, isAnonymous) {
         match (node) {
             case ParsedConcreteMethodDecl {
                 // begin invoke method
@@ -297,7 +295,7 @@ state SequentialCodeGenOps {
                 sb.append(") {\n");
                 
                 //method body
-                ops.codegenMethodBody(ops, node.body, sb, idgen, classNameCounter);
+                ops.codegenMethodBody(ops, node.body, sb, idgen);
                 
                 sb.append("}\n"); // end invoke method
             }
@@ -322,7 +320,7 @@ state SequentialCodeGenOps {
                 //body of invoke, generate code for expression, return the value
                 val exprVarName = idgen.getId();
                 ops.createLocalVariable(exprVarName, sb, true);
-                ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName, classNameCounter);
+                ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName);
                 sb.append("return " + ops.getLocalVariable(exprVarName) + ";\n");
                 
                 //finalize
@@ -349,43 +347,43 @@ state SequentialCodeGenOps {
         }
     }
         
-    method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, classNameCounter) {
+    method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen) {
         LOG("generating code for method body block expression");
         ifElse(node.statements.size() > 0) {
             val y = idgen.getId();
             ops.createLocalVariable(y, sb, true);
-            ops.codegenStmtBlock(ops, node, sb, idgen, y, classNameCounter);
+            ops.codegenStmtBlock(ops, node, sb, idgen, y);
             sb.append("return " + ops.getLocalVariable(y) + ";\n");
         } {
             sb.append("return plaid.fastruntime.Util.unit();\n");
         }
     }
     
-    method codegenStmtBlock(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
+    method codegenStmtBlock(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
         LOG("generating code for case body block expression");
         ifElse(node.statements.size() > 0) {
-            //node.statements.map( fn(item) => { ops.codegenStmt(ops, item, sb, idgen, y, classNameCounter); } );
+            //node.statements.map( fn(item) => { ops.codegenStmt(ops, item, sb, idgen, y); } );
             var stmtCount = 0;
             while { stmtCount < node.statements.size() - 1 }{
                 // create 
                 val yy = idgen.getId();
                 ops.createLocalVariable(yy, sb, true);
                 val stmt = node.statements.get(stmtCount).value;
-                ops.codegenStmt(ops, stmt, sb, idgen, yy, classNameCounter);
+                ops.codegenStmt(ops, stmt, sb, idgen, yy);
                 stmtCount = stmtCount + 1;
             };
             
             // create last statement with provided variable
             val stmt = node.statements.get(stmtCount).value;
             stmtCount = stmtCount + 1;
-            ops.codegenStmt(ops, stmt, sb, idgen, y, classNameCounter);
+            ops.codegenStmt(ops, stmt, sb, idgen, y);
         } {
             ops.setLocalVariable(y, "plaid.fastruntime.Util.unit()", sb);
         }
     }
     
     method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, 
-            immutable String y, classNameCounter) {
+            immutable String y) {
         LOG("generating code for statement '" + node.nodeName() + "'");
         match(node) {
             case ParsedAtomicBlock {
@@ -417,12 +415,12 @@ state SequentialCodeGenOps {
 					
 						yList.map( fn(yItem) => { ops.createLocalVariable(yItem, sb, true) });
 						val argsYs = argumentExpr.args.zip(yList);
-						argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second(), classNameCounter); } );
+						argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second()); } );
 							
 						//generate code for method call
 						 var receiverString = idgen.getId();
 						ops.createLocalVariable(receiverString, sb, true);
-						ops.codegenStmt(ops, receiverExpr, sb, idgen, receiverString, classNameCounter);
+						ops.codegenStmt(ops, receiverExpr, sb, idgen, receiverString);
 												
 						//generate interface
 						plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, yList.size());
@@ -493,7 +491,7 @@ state SequentialCodeGenOps {
                         // generated code for receiver expression
                         val receiverId = idgen.getId();
                         ops.createLocalVariable(receiverId, sb, true);
-                        ops.codegenStmt(ops, node.left, sb, idgen, receiverId, classNameCounter);
+                        ops.codegenStmt(ops, node.left, sb, idgen, receiverId);
                         
                         //getter preliminaries
                         val getterName = NamingConventions.getGetterName(node.right.name);
@@ -522,12 +520,12 @@ state SequentialCodeGenOps {
                         // generated code for receiver expression
                         val receiverId = idgen.getId();
                         ops.createLocalVariable(receiverId, sb, true);
-                        ops.codegenStmt(ops, node.target, sb, idgen, receiverId, classNameCounter);
+                        ops.codegenStmt(ops, node.target, sb, idgen, receiverId);
                         
                         //generate code for value to assign
                         val valueId = idgen.getId();
                         ops.createLocalVariable(valueId, sb, true);
-                        ops.codegenStmt(ops, node.value, sb, idgen, valueId, classNameCounter);
+                        ops.codegenStmt(ops, node.value, sb, idgen, valueId);
                         
                         val setterName = NamingConventions.getSetterName(node.field.name);
                         plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(setterName, 1);
@@ -547,12 +545,12 @@ state SequentialCodeGenOps {
                 val argumentExpr = node.argument;
                 match(argumentExpr) {
                     case ParsedArgumentExpr {
-                        ops.codegenApplication(ops, node.function, argumentExpr.args, sb, idgen, y, classNameCounter);
+                        ops.codegenApplication(ops, node.function, argumentExpr.args, sb, idgen, y);
                     }
                     default { 
                         val argList = makeLinkedList();
                         argList.add(argumentExpr);
-                        ops.codegenApplication(ops, node.function, argList, sb, idgen, y, classNameCounter);
+                        ops.codegenApplication(ops, node.function, argList, sb, idgen, y);
                     }
                 };
             }
@@ -573,12 +571,12 @@ state SequentialCodeGenOps {
                 // generate code for receiver
                 val receiverString = idgen.getId();
                 ops.createLocalVariable(receiverString, sb, true);
-                ops.codegenStmt(ops, node.left, sb, idgen, receiverString, classNameCounter);
+                ops.codegenStmt(ops, node.left, sb, idgen, receiverString);
                 
                 //generate code for argument
                 val argId = idgen.getId();
                 ops.createLocalVariable(argId, sb, true);
-                ops.codegenStmt(ops, node.right, sb, idgen, argId, classNameCounter);
+                ops.codegenStmt(ops, node.right, sb, idgen, argId);
                 
                 //generate interface
                 plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, 1);
@@ -607,7 +605,7 @@ state SequentialCodeGenOps {
                 // generate code for receiver
                 val receiverString = idgen.getId();
                 ops.createLocalVariable(receiverString, sb, true);
-                ops.codegenStmt(ops, node.expression, sb, idgen, receiverString, classNameCounter);
+                ops.codegenStmt(ops, node.expression, sb, idgen, receiverString);
                 
                 //generate interface
                 plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(methodName, 0);
@@ -629,7 +627,7 @@ state SequentialCodeGenOps {
             case ParsedVarDecl {
                 val exprVarName = idgen.getId();
                 ops.createLocalVariable(exprVarName, sb, true);
-                ops.codegenStmt(ops, node.expr, sb, idgen, exprVarName, classNameCounter);
+                ops.codegenStmt(ops, node.expr, sb, idgen, exprVarName);
                 ops.createLocalVariable(node.id.name, sb, true);
                 ops.setLocalVariable(node.id.name, ops.getLocalVariable(exprVarName), sb);
                 ops.setLocalVariable(y, "plaid.fastruntime.Util.unit()",sb);
@@ -689,14 +687,14 @@ state SequentialCodeGenOps {
             case ParsedNewInstance {
                 val exprVarName = idgen.getId();
                 sb.append("plaid.fastruntime.PlaidState " + exprVarName + ";\n");
-                ops.codegenStateExpr(ops, node.stateExpr, sb, idgen, exprVarName, classNameCounter);
+                ops.codegenStateExpr(ops, node.stateExpr, sb, idgen, exprVarName);
                 ops.setLocalVariable(y, ops.getLocalVariable(exprVarName) + ".instantiate()", sb);
             }
             case ParsedMatch {
                 LOG("generating code for match");
                 val exprVarName = idgen.getId();
                 ops.createLocalVariable(exprVarName, sb, true);
-                ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName, classNameCounter);
+                ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName);
                 
                 val caseStringList = new LinkedList;
                 node.caseList.map(fn(c) => {
@@ -714,7 +712,7 @@ state SequentialCodeGenOps {
                                             caseSB.append(patternSymbol.getFQN() + "." + NamingConventions.GENERATED_STATE_NAME + ".getTopTag())) {\n");
                                             val bodyVarName = idgen.getId();
                                             ops.createLocalVariable(bodyVarName, sb, true);
-                                            ops.codegenStmtBlock(ops, c.body, caseSB, idgen, bodyVarName, classNameCounter);
+                                            ops.codegenStmtBlock(ops, c.body, caseSB, idgen, bodyVarName);
                                             ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseSB);
                                             caseSB.append("}\n");
                                             caseStringList.addLast(caseSB.toString());
@@ -728,7 +726,7 @@ state SequentialCodeGenOps {
                                         	javaCaseSB.append(patternSymbol.clazz.getCanonicalName() + ")) { \n");
 											val bodyVarName = idgen.getId();
                                             ops.createLocalVariable(bodyVarName, sb, true);
-                                            ops.codegenStmtBlock(ops, c.body, javaCaseSB, idgen, bodyVarName, classNameCounter);
+                                            ops.codegenStmtBlock(ops, c.body, javaCaseSB, idgen, bodyVarName);
                                             ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), javaCaseSB);
                                             javaCaseSB.append("}\n");
                                             caseStringList.addLast(javaCaseSB.toString());
@@ -748,7 +746,7 @@ state SequentialCodeGenOps {
                             val bodyVarName = idgen.getId();
                             caseSB.append("{\n");
                             caseSB.append("plaid.fastruntime.PlaidObject " + bodyVarName + ";\n");
-                            ops.codegenStmtBlock(ops, c.body, caseSB, idgen, bodyVarName, classNameCounter);
+                            ops.codegenStmtBlock(ops, c.body, caseSB, idgen, bodyVarName);
                             ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseSB);
                             caseSB.append("}\n");
                             caseStringList.addLast(caseSB.toString());
@@ -772,10 +770,10 @@ state SequentialCodeGenOps {
             case ParsedBlockExpr {
                 // this should not be called if parent node is ConcreteMethodDecl, Case, Split, o r
                 //delegate to lambda expression code generator
-                ops.codegenLambda(ops, new LinkedList, node, sb, idgen, y, classNameCounter);
+                ops.codegenLambda(ops, new LinkedList, node, sb, idgen, y);
             }
             case ParsedLambda {
-                ops.codegenLambda(ops, node.arguments, node.body, sb, idgen, y, classNameCounter);
+                ops.codegenLambda(ops, node.arguments, node.body, sb, idgen, y);
             }
             case ParsedUnitLiteral {
                 ops.setLocalVariable(y, "plaid.fastruntime.Util.unit()", sb);
@@ -786,7 +784,7 @@ state SequentialCodeGenOps {
         }
     }
     
-    method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y, classNameCounter) {
+    method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y) {
         sb.append(y + " = new plaid.fastruntime.PlaidLambda$" + args.size() + "() {\n");
         sb.append("public plaid.fastruntime.PlaidObject invoke$plaid(");
         if(args.size() > 0) {
@@ -799,13 +797,13 @@ state SequentialCodeGenOps {
             case ParsedBlockExpr {
                 val toReturn = idgen.getId();
                 ops.createLocalVariable(y, sb, true);
-                ops.codegenStmtBlock(ops, body, sb, idgen, y, classNameCounter);
+                ops.codegenStmtBlock(ops, body, sb, idgen, y);
                 sb.append("return " + ops.getLocalVariable(y) + ";\n");
             }
             default {
                 val toReturn = idgen.getId();
                 ops.createLocalVariable(y, sb, true);
-                ops.codegenStmt(ops, body, sb, idgen, toReturn, classNameCounter);
+                ops.codegenStmt(ops, body, sb, idgen, toReturn);
                 sb.append("return " + ops.getLocalVariable(y) + ";\n");
             }
         };
@@ -813,12 +811,12 @@ state SequentialCodeGenOps {
         sb.append("};\n"); // end anonymous inner class
     }
     
-    method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y, classNameCounter) {
+    method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
         match(node) {
             case ParsedStateRef {
                 val stateExprId = idgen.getId();
                 ops.createLocalVariable(stateExprId, sb, true);
-                ops.codegenStmt(ops, node.stateExpr, sb, idgen, stateExprId, classNameCounter);
+                ops.codegenStmt(ops, node.stateExpr, sb, idgen, stateExprId);
                 
                 //cast to PlaidState
                 val unspecializedStateId = idgen.getId();
@@ -861,7 +859,7 @@ state SequentialCodeGenOps {
                                                 sb.append("new plaid.fastruntime.PlaidLambda$" + lambdaSize + "() {\n");
                                             }
                                         };
-                                        ops.codegenInnerDecl(ops, declorstateop, sb, idgen, classNameCounter, true);
+                                        ops.codegenInnerDecl(ops, declorstateop, sb, idgen, true);
                                         sb.append("};\n"); // end anonymous inner class
                                         
                                         sb.append(hashMapId + ".put(\"" + declorstateop.name.name + "\",");
@@ -933,12 +931,12 @@ state SequentialCodeGenOps {
     
     method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functionExpr, immutable List args, 
                               shared StringBuilder sb, shared IdGen idgen, 
-                              immutable String y, classNameCounter) {
+                              immutable String y) {
     
         val yList = args.map( fn(item) => { idgen.getId(); } );
         yList.map( fn(yItem) => { ops.createLocalVariable(yItem, sb, true) });
         val argsYs = args.zip(yList);
-        argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second(), classNameCounter); } );
+        argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second()); } );
         match(functionExpr) {
             case ParsedDereference {
             
@@ -968,7 +966,7 @@ state SequentialCodeGenOps {
                         
                         var receiverString = idgen.getId();
                         ops.createLocalVariable(receiverString, sb, true);
-                        ops.codegenStmt(ops, receiverExpr, sb, idgen, receiverString, classNameCounter);
+                        ops.codegenStmt(ops, receiverExpr, sb, idgen, receiverString);
                         
                         val methodId = functionExpr.right;
                         val methodName = NamingConventions.getGeneratedIdentifier(methodId.name);
@@ -1062,7 +1060,7 @@ state SequentialCodeGenOps {
                             default {
                                 val functionExprVarName = idgen.getId();
                                 ops.createLocalVariable(functionExprVarName, sb, true);
-                                ops.codegenStmt(ops, functionExpr, sb, idgen, functionExprVarName, classNameCounter);
+                                ops.codegenStmt(ops, functionExpr, sb, idgen, functionExprVarName);
                                 ops.setLocalVariable(y, "((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(" + makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",") + ")", sb);
                             }
                         }
@@ -1075,7 +1073,7 @@ state SequentialCodeGenOps {
             default {
                 val functionExprVarName = idgen.getId();
                 ops.createLocalVariable(functionExprVarName, sb, true);
-                ops.codegenStmt(ops, functionExpr, sb, idgen, functionExprVarName, classNameCounter);
+                ops.codegenStmt(ops, functionExpr, sb, idgen, functionExprVarName);
                 ops.setLocalVariable(y, "((plaid.fastruntime.PlaidLambda$" + yList.size() + ")" + functionExprVarName + ").invoke$plaid(" + makeSeperatedString(yList.map(fn (yItem) =>{ops.getLocalVariable(yItem)}), ",") + ")", sb);
             }
         }
