@@ -518,6 +518,7 @@ state SequentialCodeGenOps {
                 match(node.target) {
                     case ParsedEmptyExpr { // assignment to local variable
 						sb.append(node.field.name + ".value = " + ops.getLocalVariable(valueId) + ";\n");
+						ops.setLocalVariable(y, "plaid.fastruntime.Util.unit()", sb);
                     }
                     default { // assignment to field of an object
                         //TODO: deal with assignment to java static fields, very unimportant use case
@@ -636,7 +637,7 @@ state SequentialCodeGenOps {
                 	case ParsedVarSpecifier {
                 		sb.append("final plaid.fastruntime.PlaidAssignable " + node.id.name + " = ");
                 		sb.append("new plaid.fastruntime.PlaidAssignable();\n");
-                		sb.append(node.id.name + ".value = " + ops.getLocalVariable(exprVarName) + ";");
+                		sb.append(node.id.name + ".value = " + ops.getLocalVariable(exprVarName) + ";\n");
                 		
                 	}
                 	case ParsedValSpecifier {
@@ -822,15 +823,15 @@ state SequentialCodeGenOps {
         match(body) {
             case ParsedBlockExpr {
                 val toReturn = idgen.getId();
-                ops.createLocalVariable(y, sb, true);
-                ops.codegenStmtBlock(ops, body, sb, idgen, y);
-                sb.append("return " + ops.getLocalVariable(y) + ";\n");
+                ops.createLocalVariable(toReturn, sb, true);
+                ops.codegenStmtBlock(ops, body, sb, idgen, toReturn);
+                sb.append("return " + ops.getLocalVariable(toReturn) + ";\n");
             }
             default {
                 val toReturn = idgen.getId();
-                ops.createLocalVariable(y, sb, true);
+                ops.createLocalVariable(toReturn, sb, true);
                 ops.codegenStmt(ops, body, sb, idgen, toReturn);
-                sb.append("return " + ops.getLocalVariable(y) + ";\n");
+                sb.append("return " + ops.getLocalVariable(toReturn) + ";\n");
             }
         };
         sb.append("}\n"); // end invoke method
@@ -904,6 +905,9 @@ state SequentialCodeGenOps {
                                                     }
                                                     case ParsedVarSpecifier {
                                                         settable = "true";
+                                                    }
+                                                    case EmptySpecifier {
+                                                        ABORT("TODO: lookup field specializer in specialized state");
                                                     }
                                                 };
                                                 sb.append(ovfId + ".dynField(" + settable + ", \"" + declorstateop.name.name + "\");\n");
