@@ -195,3 +195,93 @@ method immutable Integer getUniqueLocationID()[immutable Integer locationIDcount
   locationIDcount = locationIDcount + 1;
   locationIDcount
 }
+
+
+/***********************************************
+ *** Substitution methods ***
+ ***********************************************/
+
+method immutable AbstractExpression getMapping(immutable String name, unique Map substMap) {
+    match ( substMap.containsKey(name) ) {
+        case True { substMap.get(name) }
+        default { ABORT("Cannot find mapping for " + name) } 
+    }
+}
+
+method immutable Permission substitutePermission(immutable Permission perm, unique Map substMap) {
+  match ( perm ) {
+      case SharedPermission {
+          makeShared(getMapping(perm.groupExpr.toString(), substMap));
+      }
+      default { perm }
+  }
+}
+
+method immutable Structure substituteStructure(immutable Structure struct, unique Map substMap) {
+  match (struct) {
+      case NominalStructure {
+          val staticArgs = getStaticArgs(struct).map( fn (arg) => {
+              val newVal = getMapping(arg.toString(), substMap); 
+              DEBUG(DEBUG_PRIO_LOW, "<NominalStructure> subst '" + arg.toString() + "' --> '" + newVal.toString() + "'");
+              newVal
+          });
+          substituteStaticArgs(struct, staticArgs);
+      }
+      default { ABORT("Unsupported structure " + struct.toString() ) }
+  }
+}
+
+method immutable Type substituteType(immutable Type type, unique Map substMap) {
+    val substPerm = substitutePermission(type.permission, substMap);
+    val substStruct = substituteStructure(type.structure, substMap);
+    makeType(substPerm, substStruct);    
+}
+
+method immutable Type substituteArgSpec(immutable ArgSpec argSpec, unique Map substMap) {
+    val inputType  = substituteType(argSepc.inputType, substMap);
+    val outputType = substituteType(argSepc.outputType, substMap);
+    makeArgSpec(inputType, outputType);    
+}
+
+
+method immutable Signature substituteSignature(immutable Signature signature, unique Map substMap ) {
+  DEBUG(DEBUG_PRIO_MEDIUM, "<substituteSignature> substituteSignature : " + signature.toString());
+  DEBUG(DEBUG_PRIO_MEDIUM, "<substituteSignature>     mapping         : " + substMap.toString());
+  match ( signature ) {
+      case PackedFieldSignature {
+          makePackedFieldSignature(signature.isVar,
+                                   substituteType(signature.fieldType, substMap),
+                                   signature.name);
+      }
+      case UnpackedFieldStructure {
+          makeUnpackedFieldSignature(signature.packedSignature,
+                                     signature.objectID,
+                                     substituteType(signature.currentType, substMap));          
+      }
+      case MethodSignature {
+          val returnType = substituteType(signature.returnType, substMap);
+          val receiverSpec = substituteArgSpec(signature.receiverSpec, substMap);
+          val environment = java.util.HashMap.new();
+          val arguments = signature.arguments.map( fn (arg) => {
+              val sym = arg.fst;
+              val argSpec = substituteArgSpec(arg.snd, substMap);
+              makePair(sym, argSpec);
+          });
+          val envIt = signature.environment.keySet().iterator();
+          while { envIt.hasNext() }{
+              val curKey = envIt.next();
+              val argSpec = substituteArgSpec(signatutre.environment.get(curKey), substMap);
+              environment.put(curKey, argSpec);
+          };
+          makeMethodSignature(returnType,
+                              signature.name.
+                              arguments,
+                              receiverSpec,
+                              environment,
+                              signature.staticArgSpec);
+      }
+      default {
+          ABORT("Unsupported signature;");
+      }
+  }
+}
