@@ -8,16 +8,14 @@ public class LambdaStructure extends Structure {
 	
 	private final List<StaticType> metaTypes;
 	private final List<ArgSpec> argTypes;
-	private final List<Arg> env;
 	private final Type returnType;
 	
 	public LambdaStructure(Token t, List<StaticType> metaTypes,
-			List<ArgSpec> argTypes, List<Arg> env,
+			List<ArgSpec> argTypes,
 			Type returnType) {
 		super(t);
 		this.metaTypes = metaTypes;
 		this.argTypes = argTypes;
-		this.env = env;
 		this.returnType = returnType;
 	}
 	
@@ -26,9 +24,6 @@ public class LambdaStructure extends Structure {
 	}
 	public List<ArgSpec> getArgTypes() {
 		return argTypes;
-	}
-	public List<Arg> getEnv() {
-		return env;
 	}
 	public Type getReturnType() {
 		return returnType;
