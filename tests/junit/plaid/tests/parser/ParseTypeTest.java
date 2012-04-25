@@ -189,8 +189,7 @@ public class ParseTypeTest {
 	throws ParseException{
 		Type goalType = new ConcreteType(ASTNode.DEFAULT_TOKEN, 
 					Permission.EMPTY,
-					new LambdaStructure(null,new ArrayList<StaticType>(),argsSpec,
-							new ArrayList<Arg>(), returnType));
+					new LambdaStructure(null,new ArrayList<StaticType>(),argsSpec, returnType));
 		testLambdaType(code, goalType);
 	}
 	

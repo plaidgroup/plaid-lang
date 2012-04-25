@@ -236,8 +236,7 @@ public class ASTFactory {
 	
 	public static Type LambdaType(List<ArgSpec>argsSpec, Type returnType) {
 		return new ConcreteType(ASTNode.DEFAULT_TOKEN, Permission.EMPTY,
-				new LambdaStructure(null,new ArrayList<StaticType>(),argsSpec,
-				new ArrayList<Arg>(), returnType));
+				new LambdaStructure(null,new ArrayList<StaticType>(),argsSpec,returnType));
 	}
 
 	public static Type LambdaType(Type returnType) {
