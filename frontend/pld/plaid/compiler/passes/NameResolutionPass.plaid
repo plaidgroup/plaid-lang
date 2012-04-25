@@ -286,13 +286,26 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 	override method void visitParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAbstractFieldDecl");
+        
+        // add static parameter context
+        val staticCtx = new LocalContext { 
+            val parent = this.stack.peek().value;
+        };        
+        this.stack.push(staticCtx);
+        
         val curStateOpt = this.currentState.peek();
         match (curStateOpt ) {
             case Some {
                 val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, curStateOpt.value);
                 addSymbolForAST(node, fieldSymbol);
                 match (curStateOpt.value) {
-                    case StateSymbol { curStateOpt.value.addAbstractMember(fieldSymbol); }
+                    case StateSymbol { 
+                        // populate static paramaters
+                        this.currentState.peek().value.getStaticParameters().do(fn (p) => {
+                            staticCtx.put(p.name, p);
+                        });
+                        curStateOpt.value.addAbstractMember(fieldSymbol); 
+                    }
                     case StateRefSymbol { /* no op - adding abstract member to state ref has no impact in current system*/ }
                 }
             }
@@ -307,6 +320,8 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 		node.fieldType.accept(this);
 		//node.name.accept(this);
 		node.modifiers.map(fn (item) => { item.accept(this); item });
+		
+		this.stack.pop(); // remove static parameters context
 	}
     
 
@@ -500,7 +515,9 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 addSymbolForAST(node, fieldSymbol);
                 this.currentState.peek().value.addMember(fieldSymbol);
                 // populate static paramaters
-                this.currentState.peek().value.getStaticParameters().do(fn (p) => staticCtx.put(p.name, p));
+                this.currentState.peek().value.getStaticParameters().do(fn (p) => {
+                    staticCtx.put(p.name, p);
+                });
             }
             case None {
                 // top level
@@ -519,9 +536,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         
         
 		//node.name.accept(this);
-		//if (typecheckingEnabled(node) ) {
-		    node.expression.accept(this);
-		//};
+        node.expression.accept(this);
 		node.specifier.accept(this);
 		node.fieldType.accept(this);
 		//node.modifiers.map(fn (item) => { item.accept(this); item });
@@ -658,6 +673,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
 
 		node.StaticArgsSpec.map(fn (item) => {
+		    DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     add static paramater '" + item.id.name + "' to state symbol");
             val shared StaticParameterSymbol mySymbol = this.sf.makeStaticParameterSymbol(item.id.name, item);
             addSymbolForAST(item, mySymbol);   
             addSymbolForAST(item.id, mySymbol);
