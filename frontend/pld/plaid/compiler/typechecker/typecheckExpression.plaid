@@ -523,7 +523,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
       
     }
     case ParsedCast { // Cast requires dynamic permission - may want to generalize this later - probably could also grab none?
-      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedCast");
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>(ParsedCast) check ParsedCast");
       val unique ?TypecheckResult castExpResult = typecheckExpression(ctx, DYNAMICP, exp.expression);
       match (castExpResult) {
       	case TypecheckResult {  
@@ -533,7 +533,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
 	  }
     }
     case ParsedDereference { /* Chained Dereferences not implemented currently */
-      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedDereference");
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>(ParsedDereference) check ParsedDereference");
       match (exp.left) {
         case ParsedIdentifier {
           val unique Option<immutable Symbol> targetSymbolOption = symbolForAST(exp.left);
@@ -564,7 +564,10 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                     case False {
                       match (fieldSigOption) {
                         case Some {
-                          val immutable Signature fieldSig = fieldSigOption.value;
+                          val immutable Signature fieldSig = if ( true )  {
+                            val substMap = getSubstitutionMap(targetType.structure);
+                            substituteSignature(fieldSigOption.value, substMap);
+                          };
                           match (fieldSig) {
                             case FieldSignature {
                               val immutable Option<immutable FieldSignature> newFieldSigOption = fieldSig.splitPermFromField(neededPerm, targetType.permission);
@@ -1750,7 +1753,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
       makeTypecheckResult(makeType(neededPerm, UNITSTRUCT),ctx,makeLinkedList())
     }
     case ParsedVarDecl { 
-      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedVarDecl");
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>(ParsedVarDecl) check ParsedVarDecl");
       val immutable Option<immutable Symbol> idSymOption = symbolForAST(exp.id);
       match (idSymOption) {
         case Some {
@@ -1762,12 +1765,17 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
             }
             case False {
               val immutable Type neededType = makeTypeFromAST(exp.varType);
+              printLine("before deref");
               val unique ?TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.expr);
               match (valueResult) {
               	case TypecheckResult {
+              	  printLine("before subtype");
 				  match (valueResult.expType.isSubTypeOf(neededType)) {
 					case True {
+					  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>     set '" + idSym.name + "' -> " + neededType.toString() );
 					  valueResult.ctxResult.put(idSym,neededType);
+					  
+					  
 					  
 					  match  ( AEMINIUM_MODE() ) {
 						  case True {

@@ -14,6 +14,7 @@ state NominalStructure case of ObjectStructure {
   val shared StateSymbol symbol;
   val immutable Structure owner;
   val immutable String name;
+  val unique LinkedList staticArgs = makeLinkedList();
 
   method immutable String getName() { this.name }
 
@@ -72,57 +73,19 @@ state NominalStructure case of ObjectStructure {
     "STRUCT(" + this.symbol.getFQN() + args + ")";
   }
 
-  method shared AbstractExpression getMapping(immutable String name) {
+  method unique Map getSubstitutionMap() {
+      DEBUG(DEBUG_PRIO_LOW, "<NominalStructure> getSubstitutionMap");
       val unique Map substMap = java.util.HashMap.new();
+      
       val zipped = this.symbol.getStaticParameters().zip(this.staticArgs);
       zipped.do( fn (pair) => {
           DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>     add subst mapping '" + pair.fst.name + "' -> '" + pair.snd.toString() + "'");
           substMap.put(pair.fst.name, pair.snd);
       });
-      match ( substMap.containsKey(name) ) {
-          case True { substMap.get(name) }
-          default { ABORT("Cannot find mapping for : " + name + "\n" + substMap.toString()); }
-      }
-  }
-
-  method immutable Permission substitutePermission(immutable Permission perm) {
-      match ( perm ) {
-          case SharedPermission {
-              makeShared(getMapping(perm.groupExpr.toString()));
-          }
-          default { perm }
-      }
-  }
-  
-  method immutable Structure substituteStructure(immutable Structure struct) {
-      match (struct) {
-          case NominalStructure {
-              val staticArgs = struct.staticArgs.map( fn (arg) => {
-                  val newVal = getMapping(arg.toString()); 
-                  DEBUG(DEBUG_PRIO_LOW, "<NominalStructure> subst '" + arg.toString() + "' --> '" + newVal.toString() + "'");
-                  newVal
-              });
-              substituteStaticArgs(struct, staticArgs);
-          }
-          default { ABORT("Unsupported structure " + struct.toString() ) }
-      }
-  }
-  
-  method immutable Signature substituteSignature(immutable Signature signature) {
-      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> substituteSignature : " + signature.toString());
-      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>    current structure  : " + this.toString());
-      match ( signature ) {
-          case PackedFieldSignature {
-              val substPerm = substitutePermission(signature.fieldType.permission);
-              val substStruct = substituteStructure(signature.fieldType.structure);
-              makePackedFieldSignature(signature.isVar,
-                                       makeType(substPerm, substStruct),
-                                       signature.name);
-          }
-          default {
-              ABORT("Unsupported signature;");
-          }
-      }
+      
+      // todo: add map local data groups identity
+      
+      substMap
   }
   
   /**
@@ -212,14 +175,14 @@ state NominalStructure case of ObjectStructure {
    *    None
    */
   method unique Option<immutable Signature> getMember(immutable String memberName) {
-      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> searching for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> searching for '"+memberName+"' in '" + this.toString() + "'");
       val memberSymbolOption = this.symbol.getMember(memberName);
       match (memberSymbolOption) {
           case Some {
               match (memberSymbolOption.value) {
                   case FieldSymbol {
                       DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+memberName+"'");
-                      makeSome(this.substituteSignature(memberSymbolOption.value.getSignature()))
+                      makeSome(memberSymbolOption.value.getSignature())
                   }
                   case MethodSymbol {
                       DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+memberName+"'");
