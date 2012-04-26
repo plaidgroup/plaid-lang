@@ -30,7 +30,7 @@ along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses
     <property name="PLAID.LIBRARY.PLAID.SRC" value="../stdlib/plaid/"/>
     <property name="PLAID.RUNTIME.SRC" value="../runtime/src/"/>
     <property name="JAVACC.JAR" value="../builder/tools/javacc-5.0/bin/lib/javacc.jar"/>
-    <property name="JUNIT.JAR" value="$../builder/tools/junit-4.8.1.jar"/>
+    <property name="JUNIT.JAR" value="../builder/tools/junit-4.8.1.jar"/>
     <property name="PLAID.COMPILER.JAR" value="${BUILD.DIR}/lib/plaid/plaidc.jar"/>
     <property name="PLAID.LIBRARY.JAR" value="${BUILD.DIR}/lib/plaid/plaidsl.jar"/>
     <property name="PLAID.RUNTIME.JAR" value="${BUILD.DIR}/lib/plaid/plaidrt.jar"/>
@@ -42,14 +42,21 @@ along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses
     <property name="FASTRUNTIME.BIN" value="../fastruntime/bin"/>
     <property name="GENERATED.BIN" value="../generated/bin"/>
     <property name="FRONTEND.BIN" value="../frontend/bin"/>
+	<property name="PARSER.BIN" value="../parser/bin"/>
 	<property name="TEST.CLASS.NAME" value="plaid.tests.RunCompilerTests"/>
-
+    <property name="FJ.JAR" value="../fastruntime/lib/functionaljava.jar"/>
+    <property name="ASM.JAR" value="../fastruntime/lib/asm-debug-all-3.3.1.jar"/>
+    <property name="CALIPER.JAR" value="../fastruntime/lib/caliper-0.0.jar"/>
     <path id="test.classpath">
     	<pathelement location="${COMPILE.BIN}" />
     	<pathelement location="${FASTRUNTIME.BIN}" />
     	<pathelement location="${GENERATED.BIN}" />
+    	<pathelement location="${PARSER.BIN}" />
     	<pathelement location="lib/json.jar" />
     	<pathelement location="lib/junit-4.10.jar" />
+    	<pathelement location="${ASM.JAR}" />
+    	<pathelement location="${FJ.JAR}" />
+    	<pathelement location="${CALIPER.JAR}" />
     </path>
 	
     <target name="init">
@@ -97,15 +104,35 @@ along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses
         <ant dir="../faststdlib" target="dist"/> 
     </target>
 
-    <target name="build" depends="dist-clean, 
-                                  runtime.dist,
-                                  compilerjava.dist,
-                                  stl.dist,
-                                  parser.dist,
-                                  ast.dist,
-                                  frontend.dist,
-                                  fastruntime.dist,
-                                  faststdlib.dist">
+    <target name="build" depends="dist-clean">
+    	<ant dir="../runtime" target="compile"/>
+        <ant dir="../compilerjava" target="compile"/>
+    	<ant dir="../stdlib/" target="compile"/>
+    	<ant dir="../parser" target="compile"/>
+    	<ant dir="../ast" target="compile"/>
+    	<ant dir="../fastruntime" target="compile"/>
+    	<ant dir="../frontend" target="compile"/>
+    	<ant dir="../faststdlib" target="compile"/>
+    	<mkdir dir="${basedir}/${COMPILE.BIN}"/>
+    	<javac debug="true" destdir="${basedir}/${COMPILE.BIN}">
+    		<src>
+    			<pathelement location="./junit/"/>
+    		</src>
+    		<classpath>
+    	        <pathelement path="${CLASSPATH}"/>
+    	        <pathelement location="./lib/json.jar"/>
+        		<pathelement location="../fastruntime/bin/"/>
+        		<pathelement location="../runtime/bin/"/>
+        		<pathelement location="../parser/bin/"/>
+        		<pathelement location="../generated/bin/"/>
+        		<pathelement location="../fastruntime/lib/"/>
+        		<pathelement location="../stdlib/bin/"/>
+        		<pathelement location="../faststdlib/bin/"/>
+        		<pathelement location="${JUNIT.JAR}"/>
+        		<pathelement location="../fastruntime/lib/functionaljava.jar"/>
+        		<pathelement location="../fastruntime/lib/asm-debug-all-3.3.1.jar"/>
+    		</classpath>
+    	</javac>
     </target>
 
 
@@ -119,18 +146,29 @@ along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses
         <delete file="${PLAID.TAR.GZ}" verbose="${VERBOSE}"/>
         <ant dir="../runtime/" target="clean"/>
         <ant dir="../compilerjava/" target="clean"/>
+        <ant dir="../faststdlib/" target="clean"/> 
         <ant dir="../stdlib/" target="clean"/>  
-        <ant dir="../parser/" target="clean"/> 
         <ant dir="../ast/" target="clean"/> 
+        <ant dir="../parser/" target="clean"/> 
         <ant dir="../frontend/" target="clean"/> 
    </target>
-	
-    <target name="test">
-        <junit fork="yes" haltonfailure="no" logfailedtests="yes">
-        	   <test name="${TEST.CLASS.NAME}" />
-        	   <formatter type="plain" usefile="false" />
-        	   <classpath refid="test.classpath" />
+   
+	<target name="test" depends="build">
+        <junit fork="yes" haltonfailure="no" logfailedtests="yes" maxmemory="1024M" errorproperty="TESTS.FAILED" failureproperty="TESTS.FAILED">
+            <batchtest>
+                 <fileset dir="bin/" includes="plaid/tests/**/*Test*.class">
+                     <exclude name="**/*$*.class"/>
+                     <exclude name="plaid/tests/TestFailedException.class"/>
+                 	 <exclude name="plaid/tests/RunCompilerUnitTests.class"/>
+                 	 <exclude name="plaid/tests/RunStdLibUnitTests.class"/>
+                 	 <exclude name="plaid/tests/StdTestExecutor.class"/>
+                 </fileset>
+             </batchtest>
+        	<formatter type="plain" usefile="false" />
+        	<classpath refid="test.classpath" />
+        	<!--<test name="${TEST.CLASS.NAME}"/>-->
         </junit>
+		<fail message="Tests failed. Please see test reports." if="TESTS.FAILED"/>
 	</target>
 
 </project>
