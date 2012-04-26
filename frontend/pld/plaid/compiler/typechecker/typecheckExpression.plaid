@@ -815,7 +815,157 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
         }
       }
     }
-    //case ParsedLambda { }
+    case ParsedLambda { 
+        DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> checking lambda declaration");
+        var isAffine = false;
+        val unique ?LinearContext envCheckedCtx = exp.environment.reduce(ctx, fn (envCtx, envEntry) => {
+            match (envCtx) {
+                case LinearContext {
+                    //get input type of env variable
+                    val requiredType = makeTypeFromAST(envEntry.argSpec.inputType);
+
+                    //if the type of an environment variable changes, then this must be linear/affine
+                    val endType = makeTypeFromAST(envEntry.argSpec.outputType); 
+                    match (requiredType == endType) {
+                        case False { isAffine = true }
+                        case True { /*no op*/ }
+                    };
+                    //typecheck envVar requesting input permission
+                    val envVarResult = typecheckExpression(envCtx,requiredType.permission, envEntry.name);
+                    match (envVarResult) {
+                        case TypecheckResult {
+                            //check that returned structure is a substructure or required structure
+                            match (envVarResult.expType.structure.isSubStructureOf(requiredType.structure)) {
+                                case True { 
+                                    envVarResult.ctxResult 
+                                }
+                                case False {
+                                    report_ERROR(envEntry.token, "T_LAMBDA_DECL_ENV_STRUCT",
+                                        "Got " + envVarResult.expType.structure.toString() + 
+                                        ", expected " + requiredType.structure.toString(),"typecheckLambda");
+                                    unit
+                                }
+                            }
+                        }
+                        default { 
+                            DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> error in Environment Input Checks");
+                            unit 
+                        } //error in typechecking
+                    }
+                }
+                default { 
+                    DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> error before checking lambda");
+                    unit 
+                } //previous error          
+            }
+        });
+        
+        match (envCheckedCtx) {
+            
+            case LinearContext {
+                DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> Lambda Env Ok");
+                 
+                //create context for checking body
+                val lambdaCtx = new LinearContext;
+                val addToCtxFunction = fn (inputEntry) => {
+                    val inputSymOpt = symbolForAST(inputEntry.name);
+                    match (inputSymOpt) {
+                        case Some {
+                            lambdaCtx.put(inputSymOpt.value, makeTypeFromAST(inputEntry.argSpec.inputType))
+                        }
+                        case None {
+                            report_ERROR(inputEntry.token, "SYM_NOT_FOUND", 
+                                        "",
+                                        "typecheckLambda");
+                        }    
+                    } 
+                };
+                exp.environment.map(addToCtxFunction);
+                exp.arguments.map(addToCtxFunction);
+                
+                val returnType = makeTypeFromAST(exp.returnType);
+                
+                val unique ?TypecheckResult bodyResult = typecheckExpression(lambdaCtx, returnType.permission, exp.body);
+                
+                match (bodyResult) {
+                    case TypecheckResult {
+                        DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> Lambda Body Ok");
+                        val checkOutputFunction = fn (outputCtx, outputEntry) => {
+                            match (outputCtx) {
+                                case LinearContext {
+                                    DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> check output of " + outputEntry.name.name);
+                                    val outputType = makeTypeFromAST(outputEntry.argSpec.outputType);
+                                    val unique ?TypecheckResult outputResult = 
+                                        typecheckExpression(outputCtx, 
+                                                            outputType.permission,
+                                                            outputEntry.name);
+                                    match (outputResult) {
+                                        case TypecheckResult {
+                                            match (outputResult.expType.structure.isSubStructureOf(outputType.structure)) {
+                                                case True { outputResult.ctxResult }
+                                                case False { unit }
+                                            }
+                                        }
+                                        default { unit } //error in return typechecking
+                                    }
+                                }
+                                default { unit } //previous error
+                            }
+                        };
+                        
+                        //check both args and environment
+                        val unique ?LinearContext checkedCtx = exp.environment.reduce(
+                            exp.arguments.reduce(bodyResult.ctxResult, checkOutputFunction),
+                            checkOutputFunction);
+                        
+                        match(checkedCtx) {
+                            case LinearContext {
+                                DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> Lambda Returns Ok");
+                                val fnTypeOpt = structureForAST(exp);
+                                match (fnTypeOpt) {
+                                    case Some {
+                                         match (isAffine) {
+                                            case True {
+                                                ABORT("TODO: affine permission support");
+                                            }
+                                            case False {
+                                                match (UNIQUE.splitPerm(neededPerm)) {
+                                                    case Permission {
+                                                        //TODO: implement lambda SLLs
+                                                        makeTypecheckResult(makeType(neededPerm, fnTypeOpt.value), 
+                                                                            envCheckedCtx, 
+                                                                            makeLinkedList());
+                                                    }
+                                                    default {
+                                                        report_ERROR(exp.token, "T_LAMBDA_INVALID_PERM", 
+                                                            neededPerm.toString(), "typecheckLambda");
+                                                        unit
+                                                    }
+                                                }
+                                            }
+                                        };
+                                    }
+                                    case None { //error in type resolution
+                                        report_ERROR(exp.token,"STRUCT_NOT_FOUND", "for lambda", "typecheckLambda");
+                                        unit
+                                    }
+                                }
+                            }
+                            default { 
+                                DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> error in return type of inputs");
+                                unit 
+                            } //errors in return
+                        } 
+                    }
+                    default { 
+                        DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> error in typechecking body");
+                        unit 
+                    } //error in typechecking body
+                }
+            }
+            default { unit } //error in environment checks
+        }   
+    }
     case ParsedMatch { 
       DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedMatch");
       match (exp.expression) {

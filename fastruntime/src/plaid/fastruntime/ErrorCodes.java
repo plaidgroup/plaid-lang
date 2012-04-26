@@ -126,9 +126,9 @@ public class ErrorCodes {
 		ERROR_MESSAGES.put("T_METHOD_DECL_ENV_SCOPE", 
 			"Method environment variable not in scope at declaration: ");
 		ERROR_MESSAGES.put("T_METHOD_DECL_ENV_STRUCT", 
-			"Method environment variable not in scope at declaration: ");
+			"Method environment variable has wrong structure: ");
 		ERROR_MESSAGES.put("T_METHOD_DECL_RET_STRUCT", 
-			"Method body do not provide required return structure: ");
+			"Method body does not provide required return structure: ");
 		ERROR_MESSAGES.put("T_METHOD_DECL_RCVR_TYPE_OUT", 
 			"Method receiver did not end with the right type: ");
 		ERROR_MESSAGES.put("T_METHOD_DECL_ARG_TYPE_OUT", 
@@ -149,6 +149,16 @@ public class ErrorCodes {
 			"Operator not a method: ");
 		ERROR_MESSAGES.put("T_TOP_FIELD_PERM",
 			"Cannot remove permissions from a package field.");
+		ERROR_MESSAGES.put("T_LAMBDA_DECL_ENV_CHANGE", 
+			"Lambda environment variables cannot consume permissions or change out of starting state: ");
+		ERROR_MESSAGES.put("T_LAMBDA_DECL_ENV_SCOPE", 
+			"Lambda environment variable not in scope at declaration: ");
+		ERROR_MESSAGES.put("T_LAMBDA_DECL_ENV_STRUCT", 
+			"Lambda environment variable has wrong structure: ");
+		ERROR_MESSAGES.put("T_LAMBDA_DECL_RET_STRUCT", 
+			"Lambda body does not provide required return structure: ");
+		ERROR_MESSAGES.put("T_LAMBDA_INVALID_PERM", 
+			"Lambda literal cannot be given permission: ");
 		
 		/*
 		 * Aeminium Error messages
@@ -204,6 +214,9 @@ public class ErrorCodes {
 			"Variable already declared: ");
 		ERROR_MESSAGES.put("N_ALREADY_DECLARED",
 			"Declaration already exists for name ");
+		
+		ERROR_MESSAGES.put("PARSER_ERROR",
+			"Parse Error: ");
 	}
 	
 	public static final String getMessage(String errorCode) {
