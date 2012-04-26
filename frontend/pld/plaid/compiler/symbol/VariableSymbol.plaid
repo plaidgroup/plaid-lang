@@ -107,22 +107,42 @@ state VariableSymbol case of Symbol {
               val token = EMPTY_TOKEN;
           };
           ids.add(name);
-          val stateSymbol = symbolForAST(this.declaration);
+          val stateSymbol = match (symbolForAST(this.declaration) ) {
+              case Some { symbolForAST(this.declaration).value } 
+              default { ABORT("Cannot find symbol for state declaration") }
+          };
           addSymbolForAST(name, stateSymbol);
           addSymbolForAST(ids, stateSymbol);
-          new PasredConcreteType {
+          val newType = new ParsedConcreteType {
               val permission = new ParsedImmutablePermission {
                   val token = EMPTY_TOKEN;
               };
-              val structure = new PasredNominalStructure {
+              val structure = new ParsedNominalStructure {
                   val stateQi = new ParsedQualifiedIdentifier {
                       val identifiers = ids;
                       val token = EMPTY_TOKEN;
                   };
+                  val staticArgs = this.declaration.StaticArgsSpec.map(fn (spec) => {
+                      val specSym = match ( symbolForAST(spec) ) {
+                          case Some { symbolForAST(spec).value }
+                          default { ABORT("Cannot find symbol for group arg.") }
+                      };
+                      match ( spec ) {
+                          case ParsedGroupArg {
+                              val id = new ParsedIdentifier{ val name = spec.id.name; };
+                              addSymbolForAST(id, specSym);
+                              id
+                          }
+                          default { ABORT("Unsupported static parameter type " + spec.nodeName()) }
+                      };
+                  });
                   val token = EMPTY_TOKEN;
               };              
               val token = EMPTY_TOKEN;
-          }
+          };
+          addSymbolForAST(newType.structure.stateQi, stateSymbol);
+          
+          newType
         }
         case ParsedGroupArg {
             this.declaration

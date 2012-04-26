@@ -292,7 +292,11 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             val parent = this.stack.peek().value;
         };        
         this.stack.push(staticCtx);
-        
+        val thisCtx = new LocalContext { 
+            val parent = this.stack.peek().value;
+        };        
+        this.stack.push(thisCtx);
+
         val curStateOpt = this.currentState.peek();
         match (curStateOpt ) {
             case Some {
@@ -305,6 +309,10 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                             staticCtx.put(p.name, p);
                         });
                         curStateOpt.value.addAbstractMember(fieldSymbol); 
+
+                        // add this symbol for depenent tupes
+                        val shared VariableSymbol thisSymbol = this.sf.makeVariableSymbol("this", this.currentState.peek().value.declaration);
+                        thisCtx.put("this", thisSymbol);
                     }
                     case StateRefSymbol { /* no op - adding abstract member to state ref has no impact in current system*/ }
                 }
@@ -316,8 +324,10 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             }
         };
 
-		node.specifier.accept(this);
 		node.fieldType.accept(this);
+        this.stack.pop(); // remove this context  
+		
+		node.specifier.accept(this);
 		//node.name.accept(this);
 		node.modifiers.map(fn (item) => { item.accept(this); item });
 		
@@ -507,6 +517,10 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             val parent = this.stack.peek().value;
         };        
         this.stack.push(staticCtx);
+        val thisCtx = new LocalContext { 
+            val parent = this.stack.peek().value;
+        };        
+        this.stack.push(thisCtx);
         
         match (this.currentState.peek() ) {
             case Some {
@@ -518,6 +532,10 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
                 this.currentState.peek().value.getStaticParameters().do(fn (p) => {
                     staticCtx.put(p.name, p);
                 });
+                
+                // add this symbol for depenent tupes
+                val shared VariableSymbol thisSymbol = this.sf.makeVariableSymbol("this", this.currentState.peek().value.declaration);
+                thisCtx.put("this", thisSymbol);
             }
             case None {
                 // top level
@@ -533,12 +551,12 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             }
         };
         
-        
+		node.fieldType.accept(this);
+        this.stack.pop(); // remove this context        
         
 		//node.name.accept(this);
         node.expression.accept(this);
 		node.specifier.accept(this);
-		node.fieldType.accept(this);
 		//node.modifiers.map(fn (item) => { item.accept(this); item });
 		
 		// remove static parameter context
