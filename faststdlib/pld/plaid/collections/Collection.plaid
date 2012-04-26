@@ -1,0 +1,104 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.collections;
+
+/**
+ * Represents a collection of elements of type T, with an undefined order.
+ */
+state Collection {
+	/* type T; */
+
+	/**
+	 * Returns the size of the collection.
+	 */
+	method immutable Integer size();
+
+	/**
+	 * Returns whether or not the collection is empty.
+	 */
+	method immutable Boolean isEmpty() { this.size() == 0 }
+
+	/**
+	 * Applies the function f to all elements in the collection, adding the results to
+	 * a new collection.
+	 */
+	method /*<R>*/ /*Collection<R>*/ map(/*T -> R*/ f);
+
+	/**
+	 * Applies the function f to elements in the collection until f returns true.
+	 */
+	method void doUntil(/*T -> immutable Boolean*/ f);
+
+	/**
+	 * Applies the function f to elements in the collection, and returns the first element
+	 * found for which f returns the value true.
+	 */
+	method /*Option<T>*/ find(/*T -> immutable Boolean*/ f) {
+		var result = new None;
+		this.doUntil(fn(elem) => { match (f(elem)) { case True { result = makeSome(elem); true } case False { false }  }});
+		result
+	}
+
+
+	/**
+	 * Applies the function f to all elements in the collection.
+	 */
+	method void do(/*T -> ()*/ f) {
+		val g = fn(elem) => { f(elem); false };
+		this.doUntil(g);
+	}
+
+	/**
+	 * Accumulates a single value by applying the associative function f to all of the elements
+	 * in the collection. It is assumed that the provided base value is the identity for the function
+	 * f, such that for all x, f(base, x) == x. The order in which elements will be combined using
+	 * the provided is undefined, however with the associative property of f the result will be
+	 * the same regardless.
+	 *
+	 * Example:
+	 * val coll = ... // some collection containing 1, 2, 5, 10
+	 * val result = coll.reduce(0, fn(acc, elem) => { acc + elem });
+	 * result == 18
+	 */
+	override method /*<R>*/ /*R*/ reduce(/*R*/ base, /*R -> T -> R*/ f) {
+		var result = base;
+		this.do(fn(x) => { result = f(result, x) });
+		result
+	}
+	
+	/**
+	 * Returns true if the function f returns true for every element in the collection.
+	 */
+	method immutable Boolean forall(/*T -> immutable Boolean*/ f) {
+		var result = true;
+		this.doUntil(fn(x) => { result = result && f(x); !result });
+		result
+	}
+
+	/**
+	 * Returns true if there is at least one element in the collection for which f returns
+	 * true.
+	 */
+	method immutable Boolean exists(/*T -> immutable Boolean*/ f) {
+		var result = false;
+		this.doUntil(fn(x) => { result = result || f(x); result });
+		result
+	}
+}
