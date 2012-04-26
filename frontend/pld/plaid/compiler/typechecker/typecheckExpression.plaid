@@ -1327,201 +1327,56 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
       
       match (methodSig) {
         case MethodSignature {
-          /* check that the neededPerm can be split from the return permission of the method */
-          match (methodSig.returnType.permission.splitPerm(neededPerm)) {
-            case Permission {
-              /* use method signature to find the permissions needed for the receiver and the arguments */
+          //aeminium dependency info
+          if ( AEMINIUM_MODE() ) {
+               // AEminium dependency information
+               val unique DependencyInformation mcallInfo = makeASTInformation(exp);
+               addDepInfoForAST(exp, mcallInfo);
           
-          	  val immutable Boolean noReceiver = methodSig.receiverSpec == makeArgSpec(VOID,VOID);
-          	  
-          
-              //build list of (argSpec, expression) with receiver followed by arguments
-              val unique LinkedList<immutable ArgSpec> argSpecs = makeLinkedList();
-              match (noReceiver) { case True { /* no op */ } case False { argSpecs.add(methodSig.receiverSpec); } };
-              argSpecs.append(methodSig.arguments.map(fn (arg) => arg.snd));
-              
-              val unique LinkedList<immutable ParsedASTNode> inputExprs = makeLinkedList();
-              match (noReceiver) { case True { /* no op */ } case False { inputExprs.add(exp.receiver); } };
-              
-              match (exp.argument) {
-                case ParsedArgumentExpr { inputExprs.append(exp.argument.args.map(fn (arg) => arg)) }
-                default { inputExprs.addLast(exp.argument) }
-              };
-              
-              match ( argSpecs.size() == inputExprs.size() ) {
-                case True {
-                  val /*immutable LinkedList<immutable Pair<immutable ParsedASTNode, immutable ArgSpec>>*/
-                      inputArgSpecList = inputExprs.zip(argSpecs); 
-                  
-                  var unique ?LinearContext currentContext = ctx;
-                  var immutable Integer inputCount = 0;
-                  
-                  //go through list in order typechecking each expression with the input permission
-                  val unique LinkedList<unique TypecheckResult> returnLocations = 
-                    inputArgSpecList.map(fn (ias) => {
-                      match (currentContext) {
-                        case LinearContext {
-                          val immutable ParsedASTNode inputAST = ias.fst;
-                          val immutable ArgSpec inputSpec = ias.snd;
-                          
-                          val unique ?TypecheckResult inputResult = 
-                            typecheckExpression(currentContext, inputSpec.inputType.permission, inputAST);
-                          //once we have exceptions, catch errors here
-                          
-                          match (inputResult) {
-                            case TypecheckResult {
-                          
-                              //check returned structure
-                              match (inputResult.expType.structure.isSubStructureOf(inputSpec.inputType.structure)) {
-                                case True {
-                                    inputCount = inputCount + 1;
-                                    currentContext = inputResult.ctxResult;
-                                    inputResult.sourceLocList;
-                                }
-                                case False {
-                                    val immutable String inputName = match (noReceiver) {
-                                    	case True { "argument " + (inputCount + 1) } 
-                                    	case False {
-                                    		match (inputCount == 0) {
-                                        		case True { "receiver" }
-		                                        case False { "argument " + inputCount }
-		                                    }
-		                                }
-                                    };
-                                    report_ERROR(inputAST.token, "T_CALL_WRONG_ARG_STRUCT",
-                                        "for " + inputName + " expected " + inputSpec.inputType.structure.toString() + ", got " + inputResult.expType.structure.toString(),
-                                        "typecheckMethodCall");
-                                    currentContext = unit;
-                                    makeLinkedList();
-                                }
-                              };
-                            }
-                            default { makeLinkedList(); } //error typechecking argument
-                          }
-                          
-                        }
-                        default { makeLinkedList(); } //previous argument error
-                      }
-                  });
-                    
-                  match (currentContext)  {
-                    case LinearContext { //no errors in arguments
-                      // connect to parameters/receiver
-                      if ( AEMINIUM_MODE() ) {
-                           // AEminium dependency information
-                           val unique DependencyInformation mcallInfo = makeASTInformation(exp);
-                           addDepInfoForAST(exp, mcallInfo);
-                      
-                           // add dependency to parameters
-                           DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its receiver ");
-                           val receiverInfo = match (depInfoForAST(exp.receiver)) {
-                               case Some { depInfoForAST(exp.receiver).value}
+               // add dependency to parameters
+               DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its receiver ");
+               val receiverInfo = match (depInfoForAST(exp.receiver)) {
+                   case Some { depInfoForAST(exp.receiver).value}
+                   case None { ABORT("<typecheckExpression>(MethodCall) cannot find dependency information receiver ") }
+               };
+               addDependency(mcallInfo, receiverInfo);
+    
+               DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its parameters ");
+               match (exp.argument) {
+                   case ParsedArgumentExpr {
+                       exp.argument.args.do(fn (arg) => {
+                           val argInfo = match (depInfoForAST(arg)) {
+                               case Some { depInfoForAST(arg).value}
                                case None { ABORT("<typecheckExpression>(MethodCall) cannot find dependency information receiver ") }
-                           };
-                           addDependency(mcallInfo, receiverInfo);
-                
-                           DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its parameters ");
-                           match (exp.argument) {
-                               case ParsedArgumentExpr {
-                                   exp.argument.args.do(fn (arg) => {
-                                       val argInfo = match (depInfoForAST(arg)) {
-                                           case Some { depInfoForAST(arg).value}
-                                           case None { ABORT("<typecheckExpression>(MethodCall) cannot find dependency information receiver ") }
-                                       };    
-                                       addDependency(mcallInfo, argInfo);
-                                   });
-                               }
-                               default {
-                                   ABORT("<typecheckExpression>(MethodCall) cannot handle non ArgExpressions yet ");
-                               }
-                           };
-                      };
-                      
-                      if ( AEMINIUM_MODE() == false ) {
-                          //downgrade context
-                          currentContext.downgrade();
-                      };
-                      
-                      //go through list in reverse order returning the output permission to generated sourceLocationList
-                      val /*immutable LinkedList<immutable Pair<immutable LinkedList<immutable SourceLocation>, immutable ArgSpec>>*/
-                          returnLocArgSpecList = returnLocations.zip(argSpecs); 
-                      
-                      inputCount = argSpecs.size() - 1;
-                      val unique ?LinearContext outputContext = 
-                        returnLocArgSpecList.reduceRight(fn (rlas, reducedContext) => {
-                          match (reducedContext) {
-                            case LinearContext {                      
-                              val immutable LinkedList<immutable SourceLocaiton> returnList = rlas.fst;
-                              val immutable ArgSpec inputSpec = rlas.snd;
-                              
-                              val immutable Boolean returnsOk = returnList.reduceLeft(true, fn (ok, sourceLoc) => { 
-                                val immutable Boolean restored = match (sourceLoc.restoreToLoc(inputSpec.outputType, reducedContext)) {
-                                    case True {
-                                        true
-                                    }
-                                    case False { //can we do better for this error message, esp on token.
-                                        val immutable String inputString = match (noReceiver) {
-                                    	case True { "argument " + (inputCount + 1) } 
-											case False {
-												match (inputCount == 0) {
-													case True { "receiver" }
-													case False { "argument " + inputCount }
-												}
-											}
-										};
-                                        val immutable ?Type badReturnTypeOpt = sourceLoc.locationType(reducedContext);
-                                        val immutable String badReturnTypeString = match (badReturnTypeOpt) {
-                                            case Type { badReturnTypeOpt.toString(); }
-                                            default { "UNKNOWN" }
-                                        };
-                                        
-                                        report_ERROR(exp.token,""," return of type " + inputSpec.outputType.toString() +
-                                            " to " + inputString + " location " + sourceLoc.toString() + " of type " + badReturnTypeString + " failed",
-                                            "typecheckMethodCall");
-                                        false
-                                    }
-                                };
-                                restored && ok;
-                              });
-                              
-                              inputCount = inputCount - 1;
-                              
-                              reducedContext
-                            }
-                            default { unit } //previous error
-                          }
-                        
-                        }, currentContext);
-                      
-                      match (outputContext) {
-                        case LinearContext {
-                          /* return needed permission with structure of method return 
-                           * (already checked return perm could be split)
-                           * with outputContext and no return locations  */
-                          makeTypecheckResult(makeType(neededPerm, methodSig.returnType.structure), outputContext, makeLinkedList());
-                        }
-                        default { unit } 
-                      }
-                    }
-                    default { unit } //args didn't check out
-                  }
-                }
-                case False {
-                  report_ERROR(exp.token, "T_CALL_ARG_NUM", "expected " + argSpecs.size() + ", got " +
-                    inputExprs.size(), "typecheckMethodCall");
-                  unit;
-                }
-              };
-              
-            }
-            default {
-              report_ERROR(exp.token, "P_SPLIT_FAIL", methodSig.returnType.permission.toString() + " =>" + neededPerm.toString() +
-                    " x ???", "typecheckMethodCall");
-              unit
-            }
-          }; 
+                           };    
+                           addDependency(mcallInfo, argInfo);
+                       });
+                   }
+                   default {
+                       ABORT("<typecheckExpression>(MethodCall) cannot handle non ArgExpressions yet ");
+                   }
+               };
+          };
+          
+          val immutable Boolean noReceiver = methodSig.receiverSpec == makeArgSpec(VOID,VOID);
+          
+          //build list of (argSpec, expression) with receiver followed by arguments
+          val unique LinkedList<immutable ArgSpec> argSpecs = makeLinkedList();
+          match (noReceiver) { case True { /* no op */ } case False { argSpecs.add(methodSig.receiverSpec); } };
+          argSpecs.append(methodSig.arguments.map(fn (arg) => arg.snd));
+          
+          val unique LinkedList<immutable ParsedASTNode> inputExprs = makeLinkedList();
+          match (noReceiver) { case True { /* no op */ } case False { inputExprs.add(exp.receiver); } };
+          
+          match (exp.argument) {
+            case ParsedArgumentExpr { inputExprs.append(exp.argument.args.map(fn (arg) => arg)) }
+            default { inputExprs.addLast(exp.argument) }
+          };
+          
+          typecheckCall(ctx, neededPerm, argSpecs, inputExprs, methodSig.returnType, !noReceiver,
+                        "T_CALL_", "typecheckMethodCall", exp.token); 
         }
-        default { unit } //previous error
+        default { unit } //error in finding method sig
       }
     
     }
