@@ -139,8 +139,10 @@ public class LabeledParameterized extends Parameterized {
 		    .createSuiteDescription(label);
 	    ArrayList<Description> grandChildren = childDescription
 		    .getChildren();
-	    for (Description grandChild : grandChildren)
+	    for (Description grandChild : grandChildren) {
 	    	newDescription.addChild(grandChild);
+	    	System.out.println(grandChild.getDisplayName() + " --> " + label);
+	    }
 	    labelledDescription.addChild(newDescription);
 	}
     }
