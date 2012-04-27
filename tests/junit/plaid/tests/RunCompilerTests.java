@@ -133,7 +133,8 @@ public class RunCompilerTests {
 		try {
 			String actualOutput = runner.run();
 			if(this.compareOutput) {
-				Assert.assertEquals(this.expectedOutput, actualOutput);
+				String reformattedExpectedOutput = this.expectedOutput.replaceAll("\n", System.getProperty("line.separator"));
+				Assert.assertEquals(reformattedExpectedOutput, actualOutput);
 			}
 		} catch(Throwable e) {
 			if(this.shouldSucceed) {
