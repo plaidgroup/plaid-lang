@@ -10,11 +10,11 @@ import plaid.compiler.aeminium.*;
 method unique ?TypecheckResult typecheckCall(unique LinearContext ctx, immutable Permission neededPerm,
                                              immutable LinkedList inputSpecs, immutable LinkedList inputExprs,
                                              immutable Type returnType, immutable Boolean includeReceiver, 
-                                             immutable String errorPrefix, immutable String errorLoc, immutable Token callToken)  
+                                             immutable String errorLoc, immutable ASTNode callNode)  
   {                                                                       
-          val immutable String callType = match (errorPrefix == "T_CALL") {
-              case True { "method call" }
-              case False { "application" }
+          val immutable String callType = match (errorLoc == "typecheckApplication") {
+              case False { "method call" }
+              case True { "application" }
           };
           
           match (returnType.permission.splitPerm(neededPerm)) {
@@ -59,7 +59,7 @@ method unique ?TypecheckResult typecheckCall(unique LinearContext ctx, immutable
 		                                    }
 		                                }
                                     };
-                                    report_ERROR(inputAST.token, errorPrefix + "WRONG_ARG_STRUCT", "in " + callType + 
+                                    report_ERROR(inputAST.token, "T_CALL_WRONG_ARG_STRUCT", "in " + callType + 
                                         " for " + inputName + " expected " + inputSpec.inputType.structure.toString() + ", got " + inputResult.expType.structure.toString(),
                                         errorLoc);
                                     currentContext = unit;
@@ -80,6 +80,22 @@ method unique ?TypecheckResult typecheckCall(unique LinearContext ctx, immutable
                     
                   match (currentContext)  {
                     case LinearContext { //no errors in arguments
+                      
+                      //aeminium dependency info
+                      if ( AEMINIUM_MODE() ) {
+                           // AEminium dependency information
+                           val unique DependencyInformation mcallInfo = makeASTInformation(callNode);
+                           addDepInfoForAST(callNode, mcallInfo);
+                      
+                           DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its inputs ");
+                           inputExprs.map(fn (arg) => {
+                             val argInfo = match (depInfoForAST(arg)) {
+                               case Some { depInfoForAST(arg).value}
+                               case None { ABORT("<typecheckExpression>(MethodCall) cannot find dependency information for input") }
+                             };    
+                             addDependency(mcallInfo, argInfo);
+                           });
+                      };
                       
                       if ( AEMINIUM_MODE() == false ) {
                           //downgrade context
@@ -119,7 +135,7 @@ method unique ?TypecheckResult typecheckCall(unique LinearContext ctx, immutable
                                             default { "UNKNOWN" }
                                         };
                                         
-                                        report_ERROR(callToken,"P_RETURN_FAIL"," in " + callType + ", return of type " + outputType.toString() +
+                                        report_ERROR(callNode.token,"P_RETURN_FAIL"," in " + callType + ", return of type " + outputType.toString() +
                                             " to " + inputString + " location " + sourceLoc.toString() + " of type " + badReturnTypeString + " failed",
                                             errorLoc);
                                         false
@@ -151,14 +167,14 @@ method unique ?TypecheckResult typecheckCall(unique LinearContext ctx, immutable
                   }
                 }
                 case False {
-                  report_ERROR(callToken, errorPrefix + "_ARG_NUM", "expected " + inputSpecs.size() + ", got " +
+                  report_ERROR(callNode.token,  "T_CALL_ARG_NUM", "expected " + inputSpecs.size() + ", got " +
                     inputExprs.size(), errorLoc);
                   unit;
                 }
               };
             }
             default {
-              report_ERROR(callToken, "P_SPLIT_FAIL", " for result of " + callType + ", " + returnType.permission.toString() + " =>" + neededPerm.toString() +
+              report_ERROR(callNode.token, "P_SPLIT_FAIL", " for result of " + callType + ", " + returnType.permission.toString() + " =>" + neededPerm.toString() +
                     " x ???", errorLoc);
               unit
             }

@@ -177,7 +177,7 @@ public class ErrorCodes {
 		ERROR_MESSAGES.put("P_RETURN_FAIL",
 				   "(Implementation Error) Invalid Permission Return: ");
 		ERROR_MESSAGES.put("P_SPLIT_FAIL",
-				"Could not split permission: ");
+				"Insufficient Permission ");
 		
 		/*
 		 *  STRUCTURE ERROR MESSAGES
