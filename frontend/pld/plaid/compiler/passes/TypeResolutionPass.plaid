@@ -15,6 +15,8 @@ import plaid.compiler.addSymbolForAST;
 import plaid.compiler.symbol.*;
 import plaid.compiler.*;
 import plaid.compiler.types.*;
+import plaid.compiler.util.makeArgSpecFromAST;
+import plaid.compiler.util.makeTypeFromAST;
 
 import plaid.compiler.typechecker.*;
 
@@ -1490,5 +1492,26 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 		LOG("rewrite ParsedUnitLiteral");
         addStructureForAST(node, TOPSTRUCT);
         node
+	}
+	
+	override method immutable ParsedLambda rewriteParsedLambda(immutable ParsedLambda node) {
+		LOG("rewrite ParsedLambda");
+        val new_node = new ParsedLambda {
+			val arguments= node.arguments.map(fn (item) => { item.rewrite(this) });
+			val StaticArgsSpec= node.StaticArgsSpec.map(fn (item) => { item.rewrite(this) });
+			val environment= node.environment.map(fn (item) => { item.rewrite(this) });
+			val returnType = node.returnType.rewrite(this);
+			val body = node.body.rewrite(this);
+			val token = node.token;
+		};
+		
+		val argTypes = new_node.arguments.map(fn (parsedArg) => makeArgSpecFromAST(parsedArg.argSpec));
+		val metaArgs =  makeLinkedList(); //TODO
+		
+		val lambdaStruct = makeLambdaStructure(argTypes, metaArgs, makeTypeFromAST(new_node.returnType));
+		
+		addStructureForAST(new_node, lambdaStruct);
+		
+        new_node
 	}
 }

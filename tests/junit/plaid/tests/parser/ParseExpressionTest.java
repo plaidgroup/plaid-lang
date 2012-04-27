@@ -961,7 +961,8 @@ public class ParseExpressionTest {
 			Lambda(
 				Collections.EMPTY_LIST, 
 				Collections.EMPTY_LIST, 
-				Collections.EMPTY_LIST, 
+				Collections.EMPTY_LIST,
+				Type.EMPTY,
 				BlockExpr()
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
@@ -981,7 +982,8 @@ public class ParseExpressionTest {
 			Lambda(
 				Collections.EMPTY_LIST, 
 				Collections.EMPTY_LIST, 
-				Collections.EMPTY_LIST, 
+				Collections.EMPTY_LIST,
+				Type.EMPTY,
 				BlockExpr()
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
@@ -1001,6 +1003,7 @@ public class ParseExpressionTest {
 					Arg(EmptyArgSpec.EMPTY, Identifier("x"))
 				),
 				Collections.EMPTY_LIST, 
+				Type.EMPTY,
 				Identifier("x")
 			);
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
@@ -1011,7 +1014,7 @@ public class ParseExpressionTest {
 	
 	@Test
 	public void parseLambdaEnvironment() throws ParseException, UnsupportedEncodingException {
-		final String code = "fn (x)[Integer y, Integer z] => x + y + z";
+		final String code = "fn (x)[Integer y, Integer z] : Integer => x + y + z";
 		final Lambda goal = 
 			Lambda(
 				Collections.EMPTY_LIST, 
@@ -1022,6 +1025,7 @@ public class ParseExpressionTest {
 					Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("y")),
 					Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("z"))
 				), 
+				NominalObjectType(QualifiedIdentifier("Integer")),
 				InfixOperator(
 					InfixOperator(
 						Identifier("x"), 
@@ -1053,6 +1057,7 @@ public class ParseExpressionTest {
 					Arg(ArgSpec(NominalObjectType(Shared(Identifier("A")), QualifiedIdentifier("Integer"))), Identifier("y")),
 					Arg(ArgSpec(NominalObjectType(QualifiedIdentifier("Integer"))), Identifier("z"))
 				), 
+				Type.EMPTY,
 				InfixOperator(
 					InfixOperator(
 						Identifier("x"), 

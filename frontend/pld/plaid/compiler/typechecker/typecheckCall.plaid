@@ -1,0 +1,182 @@
+package plaid.compiler.typechecker;
+
+import plaid.collections.LinkedList;
+import plaid.compiler.Permission;
+import plaid.compiler.Type;
+import plaid.ast.util.Token;
+
+import plaid.compiler.aeminium.*;
+
+method unique ?TypecheckResult typecheckCall(unique LinearContext ctx, immutable Permission neededPerm,
+                                             immutable LinkedList inputSpecs, immutable LinkedList inputExprs,
+                                             immutable Type returnType, immutable Boolean includeReceiver, 
+                                             immutable String errorLoc, immutable ASTNode callNode)  
+  {                                                                       
+          val immutable String callType = match (errorLoc == "typecheckApplication") {
+              case False { "method call" }
+              case True { "application" }
+          };
+          
+          match (returnType.permission.splitPerm(neededPerm)) {
+            case Permission {
+              match ( inputSpecs.size() == inputExprs.size() ) {
+                case True {
+                  val /*immutable LinkedList<immutable Pair<immutable ParsedASTNode, immutable ArgSpec>>*/
+                      inputSpecExprList = inputExprs.zip(inputSpecs); 
+                  
+                  var unique ?LinearContext currentContext = ctx;
+                  var immutable Integer inputCount = 0;
+                  
+                  //go through list in order typechecking each expression with the input permission
+                  val unique LinkedList<immutable LinkedList> returnLocations = 
+                    inputSpecExprList.map(fn (specAndExpr) => {
+                      match (currentContext) {
+                        case LinearContext {
+                          val immutable ParsedASTNode inputAST = specAndExpr.fst;
+                          val immutable ArgSpec inputSpec = specAndExpr.snd;
+                          
+                          val unique ?TypecheckResult inputResult = 
+                            typecheckExpression(currentContext, inputSpec.inputType.permission, inputAST);
+                          //once we have exceptions, catch errors here
+                          
+                          match (inputResult) {
+                            case TypecheckResult {
+                          
+                              //check returned structure
+                              match (inputResult.expType.structure.isSubStructureOf(inputSpec.inputType.structure)) {
+                                case True {
+                                    inputCount = inputCount + 1;
+                                    currentContext = inputResult.ctxResult;
+                                    inputResult.sourceLocList;
+                                }
+                                case False {
+                                    val immutable String inputName = match (includeReceiver) {
+                                    	case False { "argument " + (inputCount + 1) } 
+                                    	case True {
+                                    		match (inputCount == 0) {
+                                        		case True { "receiver" }
+		                                        case False { "argument " + inputCount }
+		                                    }
+		                                }
+                                    };
+                                    report_ERROR(inputAST.token, "T_CALL_WRONG_ARG_STRUCT", "in " + callType + 
+                                        " for " + inputName + " expected " + inputSpec.inputType.structure.toString() + ", got " + inputResult.expType.structure.toString(),
+                                        errorLoc);
+                                    currentContext = unit;
+                                    makeLinkedList();
+                                }
+                              };
+                            }
+                            default { 
+                                makeLinkedList(); 
+                                currentContext = unit;
+                            } //error typechecking argument
+                          }
+                          
+                        }
+                        default { makeLinkedList(); } //previous argument error
+                      }
+                  });
+                    
+                  match (currentContext)  {
+                    case LinearContext { //no errors in arguments
+                      
+                      //aeminium dependency info
+                      if ( AEMINIUM_MODE() ) {
+                           // AEminium dependency information
+                           val unique DependencyInformation mcallInfo = makeASTInformation(callNode);
+                           addDepInfoForAST(callNode, mcallInfo);
+                      
+                           DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its inputs ");
+                           inputExprs.map(fn (arg) => {
+                             val argInfo = match (depInfoForAST(arg)) {
+                               case Some { depInfoForAST(arg).value}
+                               case None { ABORT("<typecheckExpression>(MethodCall) cannot find dependency information for input") }
+                             };    
+                             addDependency(mcallInfo, argInfo);
+                           });
+                      };
+                      
+                      if ( AEMINIUM_MODE() == false ) {
+                          //downgrade context
+                          currentContext.downgrade();
+                      };
+                      
+                      //go through list in reverse order returning the output permission to generated sourceLocationList
+                      val /*immutable LinkedList<immutable Pair<immutable LinkedList<immutable SourceLocation>, immutable ArgSpec>>*/
+                          returnLocSpecList = returnLocations.zip(inputSpecs); 
+                      
+                      inputCount = inputSpecs.size() - 1;
+                      val unique ?LinearContext outputContext = 
+                        returnLocSpecList.reduceRight(fn (locAndSpec, reducedContext) => {
+                          match (reducedContext) {
+                            case LinearContext {                      
+                              val immutable LinkedList<immutable SourceLocaiton> returnList = locAndSpec.fst;
+                              val immutable Type outputType = locAndSpec.snd.outputType;
+                              
+                              val immutable Boolean returnsOk = returnList.reduceLeft(true, fn (ok, sourceLoc) => { 
+                                val immutable Boolean restored = match (sourceLoc.restoreToLoc(outputType, reducedContext)) {
+                                    case True {
+                                        true
+                                    }
+                                    case False { //can we do better for this error message, esp on token.
+                                        val immutable String inputString = match (noReceiver) {
+                                    	case True { "argument " + (inputCount + 1) } 
+											case False {
+												match (inputCount == 0) {
+													case True { "receiver" }
+													case False { "argument " + inputCount }
+												}
+											}
+										};
+                                        val immutable ?Type badReturnTypeOpt = sourceLoc.locationType(reducedContext);
+                                        val immutable String badReturnTypeString = match (badReturnTypeOpt) {
+                                            case Type { badReturnTypeOpt.toString(); }
+                                            default { "UNKNOWN" }
+                                        };
+                                        
+                                        report_ERROR(callNode.token,"P_RETURN_FAIL"," in " + callType + ", return of type " + outputType.toString() +
+                                            " to " + inputString + " location " + sourceLoc.toString() + " of type " + badReturnTypeString + " failed",
+                                            errorLoc);
+                                        false
+                                    }
+                                };
+                                restored && ok;
+                              });
+                              
+                              inputCount = inputCount - 1;
+                              
+                              reducedContext
+                            }
+                            default { unit } //previous error
+                          }
+                        
+                        }, currentContext);
+                      
+                      match (outputContext) {
+                        case LinearContext {
+                          /* return needed permission with structure of method return 
+                           * (already checked return perm could be split)
+                           * with outputContext and no return locations  */
+                          makeTypecheckResult(makeType(neededPerm, returnType.structure), outputContext, makeLinkedList());
+                        }
+                        default { unit } 
+                      }
+                    }
+                    default { unit } //args didn't check out
+                  }
+                }
+                case False {
+                  report_ERROR(callNode.token,  "T_CALL_ARG_NUM", "expected " + inputSpecs.size() + ", got " +
+                    inputExprs.size(), errorLoc);
+                  unit;
+                }
+              };
+            }
+            default {
+              report_ERROR(callNode.token, "P_SPLIT_FAIL", " for result of " + callType + ", " + returnType.permission.toString() + " =>" + neededPerm.toString() +
+                    " x ???", errorLoc);
+              unit
+            }
+          }; 
+  }
