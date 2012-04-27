@@ -230,14 +230,13 @@ public class ASTFactory {
 		return new IntLiteral(ASTNode.DEFAULT_TOKEN, value);
 	}
 
-	public static Lambda Lambda(List<StaticArg> metaArgsSpec, List<Arg> args, List<Arg> env, Expr body) {
-		return new Lambda(ASTNode.DEFAULT_TOKEN, metaArgsSpec, args, env, body);
+	public static Lambda Lambda(List<StaticArg> metaArgsSpec, List<Arg> args, List<Arg> env, Type returnType, Expr body) {
+		return new Lambda(ASTNode.DEFAULT_TOKEN, metaArgsSpec, args, env, returnType, body);
 	}
 	
 	public static Type LambdaType(List<ArgSpec>argsSpec, Type returnType) {
 		return new ConcreteType(ASTNode.DEFAULT_TOKEN, Permission.EMPTY,
-				new LambdaStructure(null,new ArrayList<StaticType>(),argsSpec,
-				new ArrayList<Arg>(), returnType));
+				new LambdaStructure(null,new ArrayList<StaticType>(),argsSpec,returnType));
 	}
 
 	public static Type LambdaType(Type returnType) {

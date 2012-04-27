@@ -28,16 +28,20 @@ public final class Lambda extends Expr {
 	private final List<Arg> arguments;
 	private final List<StaticArg> StaticArgsSpec;
 	private final List<Arg> environment ;
+	private final Type returnType;
 	private final Expr body;
 	
 	public Lambda(Token token, 
 			List<StaticArg> StaticArgsSpec,
 			List<Arg> arguments,
-			List<Arg> environment, Expr body) {
+			List<Arg> environment,
+			Type returnType,
+			Expr body) {
 		super(token);
 		this.arguments = arguments;
 		this.StaticArgsSpec = StaticArgsSpec;
 		this.environment = environment;
+		this.returnType = returnType;
 		this.body = body;
 	}
 	
@@ -51,6 +55,10 @@ public final class Lambda extends Expr {
 	
 	public List<Arg> getEnvironment() {
 		return environment;
+	}
+	
+	public Type getReturnType() {
+		return returnType;
 	}
 	
 	public Expr getBody() {
@@ -70,6 +78,10 @@ public final class Lambda extends Expr {
 			sb.append("[");
 			sb.append(Decl.argsToString(getEnvironment()));
 			sb.append("]");
+		}
+		if ( getReturnType() != Type.EMPTY) {
+			sb.append(" : ");
+			sb.append(getReturnType().toString()+ " ");
 		}
 		sb.append("=>");
 		sb.append(body.toString());

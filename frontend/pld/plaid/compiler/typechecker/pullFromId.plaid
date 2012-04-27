@@ -1,0 +1,99 @@
+package plaid.compiler.typechecker;
+
+method immutable ?Permission pullFromId(immutable ParsedIdentifier id, 
+                                        unique LinearContext ctx,
+                                        immutable Permission neededPerm,
+                                        immutable Boolean createSplit,
+                                        immutable String errorLoc,
+                                        immutable String errMsg) 
+{
+      val unique Option<immutable Symbol> idSymbolOption = symbolForAST(id);
+      match (idSymbolOption) {
+        case Some {
+          match (idSymbolOption.value) {
+          	case VariableSymbol {
+			  match (ctx.containsSymbol(idSymbolOption.value)) {
+				case True {
+				  val immutable Symbol idSymbol = idSymbolOption.value;
+				  val immutable Type currentType = ctx.get(idSymbol);
+				  val immutable ?Permission newPermission = currentType.permission.splitPerm(neededPerm);
+				  match (newPermission) {
+					case Permission {
+					  ctx.update(idSymbol, makeType(newPermission,currentType.structure));
+					  val slList = makeLinkedList();
+					  val sloc = makeVarSourceLoc(idSymbol);
+					  slList.add(sloc);
+					  
+					  //not always creating split - used to check if method inputs have sufficient permissions
+					  //at end of the method - no split created then
+					  if ( createSplit && AEMINIUM_MODE() ) {
+						  // create split node
+						  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(" + errorLoc + ") split permission of '" + id.name + "' from " + currentType.permission + "=>" + neededPerm);
+						  val shared DependencyInformation splitInfo = makeSplitInformation(idSymbol, currentType.permission, neededPerm);
+						  splitInfo.inAtomic = ctx.inAtomic;
+						  val shared DependencyInformation oldDepInfo = depInfoForSymbol(idSymbol).value;
+						  addDependency(splitInfo, oldDepInfo);
+						  setDepInfoForSymbol(idSymbol, splitInfo);
+						  
+						  // create ASTNode 
+						  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(" + errorLoc + ") create ASTInformation node for '" + id.name + "'");
+						  val unique DependencyInformation idInfo = makeASTInformation(id);
+						  addDependency(idInfo, splitInfo);
+						  addDepInfoForAST(id, idInfo);
+						  
+						  // add sloc mapping
+						  addDepInfoForSLoc(sloc, splitInfo);
+					  };
+					  
+					  makeTypecheckResult(makeType(neededPerm,currentType.structure), ctx, slList)
+					}
+					default { 
+						report_ERROR(id.token, "P_SPLIT_FAIL", errMsg + ": needed '" + neededPerm.toString() +
+        						     "', got '" + currentType.permission.toString() + "'.", 
+						             errorLoc); 
+						unit;
+					}
+				  }     
+				}
+				case False { 
+					ABORT("error in name-resolver - ID " + id.name + "not found");
+					unit;
+				}
+			  }
+			}
+			case FieldSymbol { //Top field
+				val fieldType = idSymbolOption.value.getSignature().getDeclaredType();
+				val fieldPerm = fieldType.permission;
+				val immutable ?Permission newPermission = fieldPerm.splitPerm(neededPerm);
+				match (newPermission) {
+					case Permission {
+						match (newPermission == fieldPerm) {
+							case True {
+								makeTypecheckResult(makeType(neededPerm,fieldType.structure), ctx, makeLinkedList())
+							}
+							case False {
+								report_ERROR(id.token, "T_TOP_FIELD_PERM", fieldPerm.toString() + " => " + neededPerm.toString() + " x " +
+												newPermission.toString(), "typecheckIdentifier"); 
+								unit;
+							}
+						}
+					}
+					default {
+						report_ERROR(id.token, "P_SPLIT_FAIL", fieldPerm.toString() + " => " + neededPerm.toString() + " x ???", "typecheckIdentifier"); 
+						unit;
+					}
+				}
+				
+			}
+			default {
+				ABORT("unexpected symbol type " + idSymbolOpt.symbolType() + " for identifier " + id.name);
+			}
+		  }
+        }
+        case None {
+            ABORT("error in name resolver: Symbol not found for " + id.name);
+        }
+      }                                  
+                                        
+                                        
+}
