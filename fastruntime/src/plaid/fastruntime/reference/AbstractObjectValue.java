@@ -327,29 +327,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		}
 	}
 	
-	@Override
-	public final ObjectValue specialize(ObjectValue newMembers) {
-		AbstractObjectValue currentValue = this;
-		if (newMembers instanceof ListValue) {
-			for (SingleValue sv : ((ListValue) newMembers).getAll()) {
-				if (sv instanceof DimensionValue) {
-					throw new plaid.fastruntime.errors.PlaidInternalException("Cannot specialize with DimensionValue.");
-				} else {
-					MemberValue mv = (MemberValue)sv;
-					currentValue = (AbstractObjectValue)currentValue.remove(mv.getName());
-					currentValue = currentValue.add(mv);
-				}
-			}
-		} else if(newMembers instanceof MemberValue) {
-			MemberValue mv = (MemberValue)newMembers;
-			currentValue = (AbstractObjectValue)currentValue.remove(mv.getName());
-			currentValue = currentValue.add(mv);
-		} else {
-			throw new PlaidInternalException("Cannot specialize with anything exception ListValue or MemberValue");
-		}
-		return currentValue;
-	}
-	
 	public abstract ListValue addValue(SingleValue other);
 	
 	public abstract AbstractObjectValue add(MemberValue mv);
@@ -372,6 +349,117 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	@Override
 	public final String toString() {
 		return this.getCanonicalRep();
+	}
+	
+	@Override
+	public ObjectValue addParent(ObjectValue ov) {
+		if(ov instanceof DimensionValue) {
+			if(this instanceof DimensionValue) {
+				DimensionValue dvCurrent = (DimensionValue) this;
+				DimensionValue dvParent = (DimensionValue) ov;
+				return new DimensionValue(dvCurrent.getTag(), dvCurrent.getInnerValue(), dvParent);
+			} else {
+				throw new PlaidInternalException("Cannot add a parent to non-dimension value.");
+			}
+		} else {
+			throw new PlaidInternalException("Cannot add parent object that was not a dimension value.");
+		}
+	}
+	
+	@Override
+	public ObjectValue addTag(String tag) {
+		if (this instanceof DimensionValue) {
+			DimensionValue thisDV = (DimensionValue) this;
+			if (thisDV.getTag() == null) {
+				return new DimensionValue(tag, thisDV.getInnerValue(), thisDV.getParent());
+			}
+			else {
+				throw new PlaidInternalException("Cannot add a tag to a DimensionValue that already has a tag.");
+			}
+		} else {
+			//convert into a dimension value with no parent and this current object value as the innerValue
+			return new DimensionValue(tag, this, null);
+		}
+	}
+	
+	/**
+	 * Name is strangely spelled to avoid collision with plaid keyword.
+	 */
+	@Override
+	public ObjectValue addMethod(String name, int numArgs, String fullyQualifiedClassName) {
+		String internalClassName = fullyQualifiedClassName.replace('.', '/');
+		MethodValue toAdd = MethodValue.createMethodWithStaticDefinition(name, numArgs, internalClassName);
+		return member(toAdd);
+	}
+	
+	@Override
+	public ObjectValue addDynMethod(String name, int numArgs) {
+		MethodValue toAdd = MethodValue.createMethodWithDynamicDefinition(name, numArgs);
+		return member(toAdd);
+	}
+
+	@Override
+	public ObjectValue addField(boolean settable, String name, String fullyQualifiedClassName) {
+		String internalClassName = fullyQualifiedClassName.replace('.', '/');
+		FieldValue toAdd = FieldValue.createFieldWithStaticDefinition(name, settable, internalClassName);
+		return member(toAdd);
+	}
+	
+	@Override
+	public ObjectValue addDynField(boolean settable, String name) {	
+		FieldValue toAdd = FieldValue.createFieldWithDynamicDefinition(name,settable);
+		return member(toAdd);
+	}
+	
+	private ObjectValue member(MemberValue toAdd) {	
+		return this.add(toAdd);
+		
+		
+//		if (this instanceof DimensionValue) {
+//			DimensionValue currentDV = (DimensionValue) this;
+//			AbstractObjectValue newInnerValue;
+//			if (currentDV.getInnerValue() == null) {
+//				newInnerValue = toAdd;
+//			} else if (currentDV.getInnerValue() instanceof SingleValue) {
+//				newInnerValue = new ListValue((SingleValue)currentDV.getInnerValue(), toAdd);
+//			} else { // innerValue is a ListValue
+//				newInnerValue = ((ListValue)currentDV.getInnerValue()).addValue(toAdd);
+//			}
+//			return new DimensionValue(currentDV.getTag(), newInnerValue, currentDV.getParent());
+//		} else if (this instanceof MemberValue) {
+//			return new ListValue((MemberValue)this, toAdd);
+//		} else if (this instanceof ListValue) {
+//			return ((ListValue)this).addValue(toAdd);
+//		} else if (this instanceof EmptySingleValue) {
+//			return toAdd;
+//		} else if(this == null) {
+//			return toAdd;
+//		} else {
+//			throw new PlaidInternalException("Current value stored in the object value factory has unexpected type. " +
+//					"It's type is " + this.getClass().getCanonicalName());
+//		}
+	}
+	
+	@Override
+	public ObjectValue with(ObjectValue other) {
+		if(this instanceof ListValue) {
+			if(other instanceof ListValue) {
+				//merge lists
+				return ((ListValue)this).addListValue((ListValue)other);
+			} else {
+				// other is a single value
+				return ((ListValue)this).addValue((SingleValue)other);
+			}
+		} else {
+			// this is a single value
+			if(other instanceof ListValue) {
+				//add this value to other list
+				return ((ListValue)other).addValue((SingleValue)this);
+			} else {
+				// other is a single value
+				return new ListValue((SingleValue) this, (SingleValue) other);
+			}
+		}
 	}
 
 }

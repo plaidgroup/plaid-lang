@@ -76,12 +76,6 @@ public abstract class AbstractPlaidState implements PlaidState {
 		ObjectValue newOV = this.getObjectValue().rename(from, to);
 		return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(newOV));
 	}
-
-	@Override
-	public final PlaidState specialize(PlaidState other) {
-		ObjectValue newOV = this.getObjectValue().specialize(other.getObjectValue());
-		return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(newOV));
-	}
 	
 	@Override
 	public final PlaidDispatch getDispatch() {
