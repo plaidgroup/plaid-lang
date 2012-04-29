@@ -14,6 +14,8 @@ import plaid.fastruntime.dcg.InterfaceGenerator;
 import plaid.fastruntime.dcg.JavaDispatchGenerator;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
+import plaid.fastruntime.reference.AbstractObjectValue;
+import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidState;
 import plaid.lang.False;
 import plaid.lang.Float64;
@@ -252,9 +254,15 @@ public final class Util {
 			throw new PlaidIllegalOperationException("Java static method " + mName + " not available for provided arguments in class " + theClass.getName() ,e.getCause());
 		}
 		
-		
 	}
 	
+	public static ObjectValue getEmptyObjectValue() {
+		return new plaid.fastruntime.reference.EmptySingleValue();
+	}
+	
+	public static ObjectValue getDimensionValue(java.lang.String tag, ObjectValue innerValue, ObjectValue parent) {
+		return new plaid.fastruntime.reference.DimensionValue(tag, (AbstractObjectValue) innerValue, (DimensionValue)parent);
+	}
 	
 	private static class Signature {
 		
