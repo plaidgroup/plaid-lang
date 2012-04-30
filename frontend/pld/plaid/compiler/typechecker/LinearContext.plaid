@@ -30,12 +30,15 @@ state LinearContext {
   val unique Map<immutable VariableSymbol,immutable Type> contextMap = HashMap.new();
   var immutable Boolean inAtomic = false;
   var immutable Boolean methodBlock = false;
+  val unique Map<immutable String, immutable GroupPermission>  gpMap = HashMap.new();
+  
   
   /**
    * two linear contexts are equal if they contain the same symbols and map
    * them to the same types.
    */
   method immutable Boolean ==(unique LinearContext other)[unique LinearContext this] {
+    // check type context
     var immutable Boolean eq = this.contextMap.size() == other.contextMap.size();
     val unique Iterator iter = this.contextMap.keySet().iterator();
     while { eq && iter.hasNext() } {
@@ -43,6 +46,17 @@ state LinearContext {
       ifElse (other.containsSymbol(sym))
         { eq = this.get(sym) == other.get(sym) } 
         { eq = false }
+    };
+    // check group permission context
+    eq = eq && this.gpMap.size() == other.gpMap.size();
+    val unique Iterator gpMapIt = this.gpMap.keySet().iterator();
+    while { eq && gpMapIt.hasNext() }{
+        val immutable String name = gpMapIt.next();
+        ifElse ( other.gpMap.contains(name) ) {
+            eq = eq && ( this.gpMap.get(name) == other.gpMap.get(name) )
+        }{
+            eq = false
+        };
     };
     eq
   }
@@ -155,6 +169,18 @@ state LinearContext {
         case False { ok = false; }
       }
     };
+    
+    // check group permissions
+    mergedContext.gpMap.putAll(this.gpMap);
+    val gpMapIt = other.gpMap.keySet().iterator();
+    while { ok && gpMapIt.hasNext() }{
+        val name = gpMapIt.next();
+        ifElse ( mergedContex.gpMap.contains(name) ) {
+            ok == ok && mergedContex.gpMap.get(name) == other.gpMap.get(name)
+        }{
+            mergedConext.gpMap.put(name, other.gpMap.get(name));
+        }
+    };
     match (ok) {
       case True { makeSome(mergedContext) }
       case False { new None }
@@ -180,6 +206,14 @@ state LinearContext {
           val immutable Symbol sym = iter.next();
           ret = ret + sym.name + " : " + this.get(sym).toString() + "\n";
         };
+        
+        // add gp mapping
+        val gpMapIt = this.gpMap.keySet().iterator();
+        while { gpMapIt.hasNext(); }{
+            val name = gpMapIt.next();
+            ret = ret + name + " : " + this.gpMapIt.get(name).toString() + "\n";
+        };
+        
         ret
       } 
     }
