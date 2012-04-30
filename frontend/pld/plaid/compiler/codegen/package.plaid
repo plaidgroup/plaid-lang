@@ -425,61 +425,64 @@ state SequentialCodeGenOps {
                 val symbolLeftOption = symbolForAST(node.left);
                 val symbolRightOption = symbolForAST(node.right);
                 var symbolLeft = "";
-                match(symbolLeftOption) {
+                val javaDeref = match(symbolLeftOption) {
                     case Some {
                         symbolLeft = symbolLeftOption.getValue();
+                        match(symbolLeft) {
+							case JavaClassSymbol {
+								match(symbolRightOption) {
+									case Some {
+										match(symbolRightOption.getValue()) {
+											case JavaStaticFieldSymbol  {
+												val parent = symbolLeft.owner;
+												val classFQN = symbolLeft.getFQN();
+												ops.setLocalVariable(y, "plaid.fastruntime.Util.javaToPlaid(" + classFQN + "." + node.right.name + ")", sb);
+											}
+											case JavaStaticMethodSymbol {
+												ERROR(node.token, "java methods cannot be dereferenced except as a part of an application/method call");
+											}
+											case JavaConstructorSymbol {
+												ERROR(node.token, "java constructors cannot be dereferenced except as a part of an application/method call");
+											}
+											default {
+												ERROR(node.token, "Unexpected symbol for the right side of a dereference of Java class");
+											}
+										}
+									}
+									default {
+										ERROR(node.token, "Found no symbol for the right side of a dereference of Java class.");
+									}
+								};
+								true
+							}
+							default { false }
+						}			
                     }
-                    case None {
-                        ERROR(node.token, "There was no symbol for the left component of a dereference. The left value is " + node.left.toString());
-                    }
+                    case None { false }
                 };
-                match(symbolLeft) {
-                    case JavaClassSymbol {
-                        match(symbolRightOption) {
-                            case Some {
-                                match(symbolRightOption.getValue()) {
-                                    case JavaStaticFieldSymbol  {
-                                        val parent = symbolLeft.owner;
-                                        val classFQN = symbolLeft.getFQN();
-                                        ops.setLocalVariable(y, "plaid.fastruntime.Util.javaToPlaid(" + classFQN + "." + node.right.name + ")", sb);
-                                    }
-                                    case JavaStaticMethodSymbol {
-                                        ERROR(node.token, "java methods cannot be dereferenced except as a part of an application/method call");
-                                    }
-                                    case JavaConstructorSymbol {
-                                        ERROR(node.token, "java constructors cannot be dereferenced except as a part of an application/method call");
-                                    }
-                                    default {
-                                        ERROR(node.token, "Unexpected symbol for the right side of a dereference of Java class");
-                                    }
-                                }
-                            }
-                            default {
-                                ERROR(node.token, "Found no symbol for the right side of a dereference of Java class.");
-                            }
-                        }
-                    }
-                    default {
-                        // generated code for receiver expression
-                        val receiverId = idgen.getId();
-                        ops.createLocalVariable(receiverId, sb, true);
-                        ops.codegenStmt(ops, node.left, sb, idgen, receiverId);
-                        
-                        //getter preliminaries
-                        val getterName = NamingConventions.getGetterName(node.right.name);
-                        plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
-                        val ifaceName = NamingConventions.getGeneratedInterfaceFullyQualifiedName(getterName, 0);
-                        
-                        //call getter and assign result to y
-                        val ysb = java.lang.StringBuilder.new();
-                        ysb.append("("); // parentheses around casted object
-                        ysb.append("(" + ifaceName + ")");
-                        ysb.append("" + ops.getLocalVariable(receiverId) + ".getDispatch()");
-                        ysb.append(")"); // end parentheses around casted object  
-                        ysb.append("." + getterName + "(" + ops.getLocalVariable(receiverId) + ")");
-                        ops.setLocalVariable(y, ysb.toString(), sb);
-                    }
-                }			
+                match (javaDeref) {
+                 	case False {
+                 		// generated code for receiver expression
+						val receiverId = idgen.getId();
+						ops.createLocalVariable(receiverId, sb, true);
+						ops.codegenStmt(ops, node.left, sb, idgen, receiverId);
+						
+						//getter preliminaries
+						val getterName = NamingConventions.getGetterName(node.right.name);
+						plaid.fastruntime.Util.INTERFACE_GEN.saveInterfaceFile(getterName, 0);
+						val ifaceName = NamingConventions.getGeneratedInterfaceFullyQualifiedName(getterName, 0);
+						
+						//call getter and assign result to y
+						val ysb = java.lang.StringBuilder.new();
+						ysb.append("("); // parentheses around casted object
+						ysb.append("(" + ifaceName + ")");
+						ysb.append("" + ops.getLocalVariable(receiverId) + ".getDispatch()");
+						ysb.append(")"); // end parentheses around casted object  
+						ysb.append("." + getterName + "(" + ops.getLocalVariable(receiverId) + ")");
+						ops.setLocalVariable(y, ysb.toString(), sb);
+                 	}
+                 	case True { /*code already generated -no op */ }
+                }
             }
             case ParsedAssignment {
                 //generate code for value to assign
