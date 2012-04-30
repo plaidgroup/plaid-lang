@@ -1,3 +1,7 @@
+if(typeof require !== 'undefined') {
+  var Plaid = require('Plaid.js').Plaid
+}
+
 describe("Plaid", function() {
 	var target;
 	describe("global methods", function() {

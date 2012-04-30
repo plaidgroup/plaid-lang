@@ -1,3 +1,7 @@
+if(typeof require !== 'undefined') {
+  var Plaid = require('Plaid.js').Plaid
+}
+
 describe("PlaidState", function(){
 	var target;
 	var stateAfterRemove;

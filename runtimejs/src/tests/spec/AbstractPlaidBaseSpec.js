@@ -1,3 +1,7 @@
+if(typeof require !== 'undefined') {
+  var Plaid = require('Plaid.js').Plaid
+}
+
 describe("AbstractPlaidBase", function(){
 	var target;
   var members;
@@ -147,3 +151,4 @@ describe("AbstractPlaidBase", function(){
 		});
 	});
 });
+
