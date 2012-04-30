@@ -1,3 +1,7 @@
+if(typeof require !== 'undefined') {
+  var Plaid = require('Plaid.js').Plaid
+}
+
 describe("CaseOfNode", function(){
   var target = new Plaid.tree.CaseOfNode();
 
@@ -6,3 +10,4 @@ describe("CaseOfNode", function(){
 		expect(target instanceof Plaid.tree.CaseOfNode).toBeTruthy();
 	});
 });
+

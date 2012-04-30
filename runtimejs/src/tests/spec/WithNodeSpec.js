@@ -1,3 +1,7 @@
+if(typeof require !== 'undefined') {
+  var Plaid = require('Plaid.js').Plaid
+}
+
 describe("WithNode", function(){
   var target = new Plaid.tree.WithNode();
 
