@@ -17,7 +17,9 @@ var Plaid = (function() {
 		clone: function(obj) {
 			var clone = new obj.constructor();
 			for(var prop in obj) {
-				if(obj[prop] && typeof obj[prop] == "object"){
+				if(prop == Plaid.superclass) {
+					clone[Plaid.superclass] = obj[prop];
+				} else if(obj[prop] && typeof obj[prop] == "object"){
 					clone[prop] = Plaid.clone(obj[prop]);
 				} else {
 					clone[prop] = obj[prop];
