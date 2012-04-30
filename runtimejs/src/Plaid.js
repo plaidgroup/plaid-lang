@@ -195,7 +195,7 @@ var Plaid = (function() {
 					arg.each(function(elm){
 						a.push(elm);
 					});
-				} else {
+				} else if(arg){
 					a.push(arg);
 				}
 			}
@@ -284,11 +284,11 @@ var Plaid = (function() {
 		this.addMember = function(memberName, member){
 			if (member == null) {
 				this[memberName] = null;
-			}
-			else if (typeof member == "object") {
+			}	else if (typeof member == "object") {
 				this[memberName] = Plaid.clone(member);
-			} 
-			else {
+			} else if (Plaid.isCallback(memberName)) {
+				this.addCallback(memberName, member);
+			}	else {
 				this[memberName] = member;
 			}
 		}
@@ -299,7 +299,8 @@ var Plaid = (function() {
 				if (!obj.hasOwnProperty(prop)) {
 					/* no instance specific data is inherited, thus just skip them */
 					continue;
-				} else if(prop == Plaid.keyword){
+				} 
+				if(prop == Plaid.keyword){
 					/* Plaid specific data should be treated specifically */
 					continue;
 				}
@@ -336,9 +337,20 @@ var Plaid = (function() {
 			var tags = this.tags();
 			tags.each(function(tag, i) {
 				if(tags.slice(i+1).count(tag) >= 1) {
-						throw message.replace("$1", tag);
+					throw message.replace("$1", tag);
 				}
 			});
+		}
+
+		this.addCallback = function(name, callback) {
+			var prepend = this[Plaid.keyword].prepend;
+			if(prepend[name] == undefined){
+				prepend[name] = new Plaid.Array();
+			}
+			
+			if(prepend[name].indexOf(callback) == -1) {
+				prepend[name].unshift(callback);
+			}
 		}
 	});
 
@@ -401,13 +413,8 @@ var Plaid = (function() {
 			var obj = Plaid.clone(this);
 
 			/* if the member is callback, add to prepend and return */
-			var prepend = obj[Plaid.keyword].prepend;
 			if(Plaid.isCallback(member)){
-				if(prepend[member] == undefined){
-					prepend[member] = new Plaid.Array();
-				}
-				prepend[member].unshift(value);
-				
+				obj.addCallback(member, value);
 				return obj;
 			}
 
@@ -523,6 +530,9 @@ var Plaid = (function() {
 			//check unique members
 			add.each(function(addItem) {
 				members.each(function(member) {
+					if(Plaid.isCallback(addItem.name)) {
+						return;
+					}
 					if(addItem.name === member.name){
 						//a member to be added is already present in the object; this is appropriate if the member is present in the member's own hierarchy, or if the member is being removed
 						//because both md1 and md2 must be well-formed at the start, if memberName is on the remove list, we know that it is appropriate to add it, because it can only be removed if the current branch is removing all old x members, or if it is itself in a path that is permitted to have x
@@ -560,7 +570,7 @@ var Plaid = (function() {
 			remove.each(function(member) {
 				if(Plaid.isCallbackOnPassivate(member)){
 					var result = s.executeMethodChain(member);
-					if(result !== false){
+					if(result !== false && s[member.name]){
 						s[member]();
 					}
 				}
@@ -570,9 +580,12 @@ var Plaid = (function() {
 			//add the members that need to be added
 			add.each(function(member) {
 				s.addMember(member.name, state[member.name]);
+				if(Plaid.isCallback(member.name) && state[Plaid.keyword].prepend[member.name]){
+					s[Plaid.keyword].prepend[member.name] = state[Plaid.keyword].prepend[member.name].concat(s[Plaid.keyword].prepend[member.name]);
+				}
 				if(Plaid.isCallbackOnActivate(member.name)){
 					var result = s.executeMethodChain(member.name);
-					if(result !== false) {
+					if(result !== false && s[member.name]) {
 						s[member.name]();
 					}
 				}
@@ -1020,6 +1033,9 @@ var Plaid = (function() {
 			this.memberList.until(function(member) {
 				//check if this item is already in the memberList
 				itemList.until(function(item) {
+					if(Plaid.isCallback(item.name)){
+						return false;
+					}
 					if(item.name == member) {
 						if(hierarchy.indexOf(item.tag) == -1){
 							itemToReturn = { unique: false, member: item.name };
@@ -1068,3 +1084,4 @@ if (!window.console) { window.console = {}; }
 if (!window.console.log) { window.console.log = function() {};}
 
 if (typeof exports !== 'undefined') { exports.Plaid = Plaid; }
+
