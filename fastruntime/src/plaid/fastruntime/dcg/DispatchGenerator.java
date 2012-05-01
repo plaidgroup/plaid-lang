@@ -102,10 +102,10 @@ public final class DispatchGenerator implements Opcodes {
 				mv.visitVarInsn(ALOAD, 0);
 				mv.visitVarInsn(ALOAD, 1);
 				mv.visitMethodInsn(INVOKEVIRTUAL, name, helperName, helperDescriptor);
-				final String lambdaType = "plaid/fastruntime/PlaidLambda$" + m.numArgs();
+				final String lambdaType = "plaid/fastruntime/PlaidLambda$" + (m.numArgs() + 1); // normal arguments + receiver
 				mv.visitTypeInsn(CHECKCAST, lambdaType);
 				// add parameters
-				for (int x = 2; x <= m.numArgs()+1; x++ ) {
+				for (int x = 1; x <= m.numArgs()+1; x++ ) {
 					mv.visitVarInsn(ALOAD, x);
 				}
 				mv.visitMethodInsn(INVOKEVIRTUAL, lambdaType, "invoke$plaid", m.getMethodDescriptor());
@@ -173,7 +173,7 @@ public final class DispatchGenerator implements Opcodes {
 		try {
 			byte[] b = cw.toByteArray();
 			Class<?> plaidStateClass = ClassInjector.defineClass(name, cw.toByteArray(), 0, b.length);
-			//ClassInjector.writeClass(cw.toByteArray(), "exampleoutput/" + name  + ".class");
+			ClassInjector.writeClass(cw.toByteArray(), "../exampleoutput/" + name  + ".class");
 			Constructor<?> cstr =  plaidStateClass.getConstructor(ObjectValue.class);
 			result = (PlaidDispatch)cstr.newInstance(ov);
 		} catch(NoSuchMethodException e) {
