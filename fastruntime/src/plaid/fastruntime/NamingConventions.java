@@ -78,6 +78,11 @@ public class NamingConventions {
 		return storageName.toString();
 	}
 	
+	public static final String getGeneratedMemberName(MemberInfo mi) {
+		return getGeneratedIdentifier(mi.getName());
+	}
+	
+	
 	public static final String getGeneratedInterfaceInternalName(String method, int numArgs) {
 		return GENERATED_PKG + "/" + 
 		getGeneratedInterfaceSimpleName(method, numArgs);
