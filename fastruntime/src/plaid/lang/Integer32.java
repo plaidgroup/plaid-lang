@@ -14,6 +14,7 @@ import plaid.fastruntime.reference.DimensionValue;
 import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
+import plaid.generated.Ilt$plaid$1$plaid;
 import plaid.generated.Ilteq$plaid$1$plaid;
 import plaid.generated.Imod$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
@@ -31,6 +32,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 						   			  Imod$plaid$1$plaid,
 						   			  plaid.generated.InativeLessThan$1$plaid,
 						   			  Igteq$plaid$1$plaid,
+						   			  Ilt$plaid$1$plaid,
 						   			  Ilteq$plaid$1$plaid,
 						   			  ItoString$0$plaid,
 						   			  IasInt32$0$plaid{
@@ -132,7 +134,20 @@ public final class Integer32 extends AbstractPlaidDispatch
 	}
 	
 	@Override
-	public PlaidObject lteq$plaid$1$plaid(PlaidObject receiver, PlaidObject arg) {
+	public PlaidObject lt$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
+			int second = ((Integer32PlaidJavaObject) arg).integerValue;
+			boolean b = first < second;
+			return Util.bool(b);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("<= failed", e.getCause());
+		}
+	}
+	
+	@Override
+	public PlaidObject lteq$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
 			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
 			int second = ((Integer32PlaidJavaObject) arg).integerValue;
@@ -251,7 +266,4 @@ public final class Integer32 extends AbstractPlaidDispatch
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
 		}
 	}
-
-
-
 }
