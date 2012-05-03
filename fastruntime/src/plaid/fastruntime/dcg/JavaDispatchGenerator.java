@@ -115,7 +115,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			Collection<String> ifaces = new ArrayList<String>();
 			for (MethodSig mSig : methodMap.keySet()) {
 				String methodName = NamingConventions.getGeneratedIdentifier(mSig.name);
-				ifaces.add(NamingConventions.getGeneratedInterfaceName(methodName, mSig.numArgs));
+				ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(methodName, mSig.numArgs));
 				Util.INTERFACE_GEN.createInterfaceAsClass(methodName,mSig.numArgs);
 			}
 			
