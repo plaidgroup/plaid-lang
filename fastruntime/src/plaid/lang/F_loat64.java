@@ -18,22 +18,22 @@ import plaid.generated.Imod$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
-import plaid.generated.ItoString$0$plaid;
+import plaid.generated.ItoS_tring$0$plaid;
 
-public final class Float64 extends AbstractPlaidDispatch
+public final class F_loat64 extends AbstractPlaidDispatch
 					implements Iplus$plaid$1$plaid,
 					Ieqeq$plaid$1$plaid,
 					Imult$plaid$1$plaid,
 					Isub$plaid$1$plaid,
 					Igteq$plaid$1$plaid,
 					Idiv$plaid$1$plaid, 
-					ItoString$0$plaid,
+					ItoS_tring$0$plaid,
 					Imod$plaid$1$plaid,
 					plaid.generated.InativeLessThan$1$plaid{
 
 	public static final PlaidState theState$plaid;
 	static {
-		theState$plaid = new AbstractPlaidState(new Float64(new DimensionValue("plaid/lang/Float64", null, null))) {
+		theState$plaid = new AbstractPlaidState(new F_loat64(new DimensionValue("plaid/lang/Float64", null, null))) {
 			@Override
 			public PlaidObject instantiate() {
 				throw new PlaidIllegalOperationException("Cannot instantiate Float64 state");
@@ -45,7 +45,7 @@ public final class Float64 extends AbstractPlaidDispatch
 		return new Float64PlaidJavaObject(d);
 	}
 	
-	private Float64(ObjectValue metadata) {
+	private F_loat64(ObjectValue metadata) {
 		super(metadata);
 	}
 	
@@ -193,7 +193,7 @@ public final class Float64 extends AbstractPlaidDispatch
 
 		@Override
 		public final PlaidDispatch getDispatch() {
-			return Float64.theState$plaid.getDispatch();
+			return F_loat64.theState$plaid.getDispatch();
 		}
 		
 		@Override

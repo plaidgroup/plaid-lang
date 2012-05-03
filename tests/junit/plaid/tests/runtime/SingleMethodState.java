@@ -9,7 +9,7 @@ import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.MethodValue;
-import plaid.generated.IdoAddFive$1$plaid;
+import plaid.generated.IdoA_ddF_ive$1$plaid;
 
 public class SingleMethodState {
 
@@ -18,7 +18,7 @@ public class SingleMethodState {
 		MethodValue mv = MethodValue.createMethodWithStaticDefinition("doAddFive",1,"plaid/tests/runtime/SingleMethodState");
 		DimensionValue dv = new DimensionValue("plaid/tests/runtime/SingleMethodState", mv, null);
 		PlaidDispatch ps = Util.DISPATCH_GEN.createStateInstance(dv);
-		PlaidJavaObject returnedValue = (PlaidJavaObject) ((IdoAddFive$1$plaid)ps).doAddFive(Util.unit(), Util.integer(7));
+		PlaidJavaObject returnedValue = (PlaidJavaObject) ((IdoA_ddF_ive$1$plaid)ps).doA_ddF_ive(Util.unit(), Util.integer(7));
 		//System.out.println(returnedValue.getJavaObject().toString());
 		Assert.assertEquals("12", returnedValue.getJavaObject().toString());
 	}
@@ -30,12 +30,12 @@ public class SingleMethodState {
         ovf.mthd("doAddFive",1,"plaid.tests.runtime.SingleMethodState");
         plaid.fastruntime.ObjectValue ov = ovf.value();
         PlaidDispatch ps = plaid.fastruntime.Util.DISPATCH_GEN.createStateInstance(ov);
-        PlaidJavaObject returnedValue = (PlaidJavaObject) ((IdoAddFive$1$plaid)ps).doAddFive(Util.unit(), Util.integer(7));
+        PlaidJavaObject returnedValue = (PlaidJavaObject) ((IdoA_ddF_ive$1$plaid)ps).doA_ddF_ive(Util.unit(), Util.integer(7));
 		//System.out.println(returnedValue.getJavaObject().toString());
 		Assert.assertEquals("12", returnedValue.getJavaObject().toString());
 	}
 	
-	public static plaid.fastruntime.PlaidObject doAddFive(plaid.fastruntime.PlaidObject this$plaid, plaid.fastruntime.PlaidObject y) {
+	public static plaid.fastruntime.PlaidObject doA_ddF_ive(plaid.fastruntime.PlaidObject this$plaid, plaid.fastruntime.PlaidObject y) {
 		plaid.fastruntime.PlaidObject vaR0$plaid;
 		plaid.fastruntime.PlaidObject vaR1$plaid;
 		vaR1$plaid = plaid.fastruntime.Util.integer(5);

@@ -18,6 +18,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized.Parameters;
 
+import plaid.fastruntime.NamingConventions;
+
 
 @RunWith(LabeledParameterized.class)
 public class RunCompilerTests {
@@ -256,15 +258,15 @@ public class RunCompilerTests {
 					for (File plaidFile : config.getPlaidFiles()) {
 						compilerArgsList.add(plaidFile.getAbsolutePath());
 					}
-					allParams.add(
-							getParams(frontEndTest.getString(NAME_KEY), //testName
-									"plaid.compiler.main", //mainClass
-									compilerArgsList, //mainArgs
-									COMPILEPLAID_CLASSPATH, //classPath
-									output, //expectedOutput
-									true, //compareOutput
-									true) //shouldSucceed
-							);
+//					allParams.add(
+//							getParams(frontEndTest.getString(NAME_KEY), //testName
+//									"plaid.compiler.main", //mainClass
+//									compilerArgsList, //mainArgs
+//									COMPILEPLAID_CLASSPATH, //classPath
+//									output, //expectedOutput
+//									true, //compareOutput
+//									true) //shouldSucceed
+//							);
 					
 				}
 				
@@ -303,15 +305,15 @@ public class RunCompilerTests {
 					compilerArgsList.add(plaidFile.getAbsolutePath());
 				}
 				//NOTE: test will fail if there are warnings.
-				allParams.add(
-						getParams("Backend compiling " + configFile.getParentFile().getCanonicalPath(), //testName
-								"plaid.compiler.main", //mainClass
-								compilerArgsList, //mainArgs
-								COMPILEPLAID_CLASSPATH, //classPath
-								"Compilation Succeeded!\n", //expectedOutput
-								true, //compareOutput
-								true) //shouldSucceed
-						);
+//				allParams.add(
+//						getParams("Backend compiling " + configFile.getParentFile().getCanonicalPath(), //testName
+//								"plaid.compiler.main", //mainClass
+//								compilerArgsList, //mainArgs
+//								COMPILEPLAID_CLASSPATH, //classPath
+//								"Compilation Succeeded!\n", //expectedOutput
+//								true, //compareOutput
+//								true) //shouldSucceed
+//						);
 				
 			
 			
@@ -322,7 +324,7 @@ public class RunCompilerTests {
 					JSONObject test = backEndTests.getJSONObject(i);	
 					
 					
-					String mainClass = (String)test.get(RunCompilerTests.CLASSNAME_KEY);
+					String mainClass = NamingConventions.getGeneratedFQN((String)test.get(RunCompilerTests.CLASSNAME_KEY));
 					String expectedOutput = (String)test.get(RunCompilerTests.OUTPUT_KEY);
 					
 					allParams.add(

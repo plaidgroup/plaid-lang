@@ -1492,6 +1492,25 @@ public class ParseExpressionTest {
 		assertTrue(e.equivalent(goal));
 	}
 	
+	@Test
+	public void parseWhileLoop() throws ParseException, UnsupportedEncodingException {
+		final StringBuilder codeBuilder = new StringBuilder();
+		codeBuilder.append("method test(isEmpty) { \n");
+			codeBuilder.append("match(isEmpty) { \n");
+				codeBuilder.append("case True {\n");
+					codeBuilder.append("var switch = true;\n");
+					codeBuilder.append("while {switch} { switch = false; };\n");
+				codeBuilder.append("}\n");
+				codeBuilder.append("case False {\n");
+					codeBuilder.append("5\n");
+				codeBuilder.append("}\n");
+			codeBuilder.append("};\n");
+		codeBuilder.append("}");
+		String code = codeBuilder.toString();
+		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
+		Decl e = pp.MethodDecl(new ArrayList<Annotation>(), new ArrayList<Modifier>());
+	}
+	
 	/************************************************************
 	 **                        Decl                            **
 	 ************************************************************/

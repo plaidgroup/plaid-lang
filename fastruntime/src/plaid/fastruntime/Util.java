@@ -17,12 +17,12 @@ import plaid.fastruntime.errors.PlaidInternalException;
 import plaid.fastruntime.reference.AbstractObjectValue;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidState;
-import plaid.lang.False;
-import plaid.lang.Float64;
-import plaid.lang.Integer32;
-import plaid.lang.String;
-import plaid.lang.True;
-import plaid.lang.Unit;
+import plaid.lang.F_alse;
+import plaid.lang.F_loat64;
+import plaid.lang.I_nteger32;
+import plaid.lang.S_tring;
+import plaid.lang.T_rue;
+import plaid.lang.U_nit;
 
 public final class Util {
 	
@@ -47,25 +47,25 @@ public final class Util {
 	}
 	
 	public static PlaidObject unit() {
-		return Unit.UNIT_VALUE;
+		return U_nit.UNIT_VALUE;
 	}
 	public static PlaidObject string(java.lang.String javaString) {
-		return String.plaidString(javaString);
+		return S_tring.plaidString(javaString);
 	}
 	public static final PlaidObject bool(boolean javaBool) {
 		if (javaBool) {
-			return True.TRUE_VALUE;
+			return T_rue.TRUE_VALUE;
 		} else {
-			return False.FALSE_VALUE;
+			return F_alse.FALSE_VALUE;
 		}
 	}
 	
 	public static final PlaidObject integer(int javaInt) {
-		return Integer32.plaidInteger(javaInt);
+		return I_nteger32.plaidInteger(javaInt);
 	}
 	
 	public static final PlaidObject float64(double javaDouble) {
-		return Float64.plaidFloat64(javaDouble);
+		return F_loat64.plaidFloat64(javaDouble);
 	}
 	
 	public static PlaidObject javaToPlaid(Object javaObject) {

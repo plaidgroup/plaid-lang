@@ -36,11 +36,11 @@ public final class DispatchGenerator implements Opcodes {
 			Util.INTERFACE_GEN.createInterfaceAsClass(getGeneratedMemberName(m), m.numArgs());
 		}
 		for(FieldInfo f: ov.getFields()) {
-			String getterName = NamingConventions.getGetterName(getGeneratedMemberName(f));
+			String getterName = NamingConventions.getGetterName(f.getName());
 			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(getterName, 0));
 			Util.INTERFACE_GEN.createInterfaceAsClass(getterName, 0);
 			if(f.isSettable()) {
-				String setterName = NamingConventions.getSetterName(getGeneratedMemberName(f));
+				String setterName = NamingConventions.getSetterName(f.getName());
 				ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(setterName, 1));
 				Util.INTERFACE_GEN.createInterfaceAsClass(setterName, 1);
 			}
@@ -70,13 +70,13 @@ public final class DispatchGenerator implements Opcodes {
 				for (int x = 2; x <= m.numArgs()+1; x++ ) {
 					mv.visitVarInsn(ALOAD, x);
 				}
-				mv.visitMethodInsn(INVOKESTATIC, m.getStaticClassInternalName(), getGeneratedMemberName(m), m.getMethodDescriptor());
+				mv.visitMethodInsn(INVOKESTATIC, NamingConventions.getGeneratedInternal(m), getGeneratedMemberName(m), m.getMethodDescriptor());
 				mv.visitInsn(ARETURN);
 				mv.visitMaxs(2,3);
 				mv.visitEnd();
 			} else { //dynamically defined
 				
-				String helperName = NamingConventions.getGetterName(getGeneratedMemberName(m));
+				String helperName = NamingConventions.getGetterName(m.getName());
 				String helperDescriptor = NamingConventions.getMethodDescriptor(1);
 						
 						
@@ -91,7 +91,7 @@ public final class DispatchGenerator implements Opcodes {
 				mvHelper.visitCode();
 				mvHelper.visitVarInsn(ALOAD, 1);
 				mvHelper.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getStorage", "()[Lplaid/fastruntime/PlaidObject;");
-				int index = ov.getStorageIndex(getGeneratedMemberName(m));
+				int index = ov.getStorageIndex(m.getName());
 				mvHelper.visitIntInsn(BIPUSH, index);
 				mvHelper.visitInsn(AALOAD);
 				mvHelper.visitInsn(ARETURN);
@@ -122,7 +122,7 @@ public final class DispatchGenerator implements Opcodes {
 			//System.out.println("add method: " + getGeneratedMemberName(m));
 			MethodVisitor mv;
 			mv = cw.visitMethod(ACC_PUBLIC, 
-					NamingConventions.getGetterName(getGeneratedMemberName(f)),
+					NamingConventions.getGetterName(f.getName()),
 					NamingConventions.getMethodDescriptor(1),
 					null,
 					null); // TODO: add exception
@@ -130,7 +130,7 @@ public final class DispatchGenerator implements Opcodes {
 			mv.visitCode();
 			mv.visitVarInsn(ALOAD, 1);
 			mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getStorage", "()[Lplaid/fastruntime/PlaidObject;");
-			int index = ov.getStorageIndex(getGeneratedMemberName(f));
+			int index = ov.getStorageIndex(f.getName());
 			mv.visitIntInsn(BIPUSH, index);
 			mv.visitInsn(AALOAD);
 			mv.visitInsn(ARETURN);
@@ -175,7 +175,7 @@ public final class DispatchGenerator implements Opcodes {
 		try {
 			byte[] b = cw.toByteArray();
 			Class<?> plaidStateClass = ClassInjector.defineClass(name, cw.toByteArray(), 0, b.length);
-			ClassInjector.writeClass(cw.toByteArray(), "../exampleoutput/" + name  + ".class");
+			//ClassInjector.writeClass(cw.toByteArray(), "../exampleoutput/" + name  + ".class");
 			Constructor<?> cstr =  plaidStateClass.getConstructor(ObjectValue.class);
 			result = (PlaidDispatch)cstr.newInstance(ov);
 		} catch(NoSuchMethodException e) {
