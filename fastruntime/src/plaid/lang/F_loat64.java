@@ -154,7 +154,7 @@ public final class F_loat64 extends AbstractPlaidDispatch
 	}
 	
 	@Override
-	public PlaidObject toString(PlaidObject x) {
+	public PlaidObject toS_tring(PlaidObject x) {
 		return plaid.fastruntime.Util.string(((PlaidJavaObject)x).getJavaObject().toString());
 	}
 	

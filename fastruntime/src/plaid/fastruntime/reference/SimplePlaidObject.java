@@ -36,7 +36,7 @@ public class SimplePlaidObject implements PlaidObject {
 	@Override
 	public String toString() {
 		if ( this.getDispatch() instanceof ItoS_tring$0$plaid ) {
-			PlaidObject toStringValue = ((ItoS_tring$0$plaid)this.getDispatch()).toString(this);
+			PlaidObject toStringValue = ((ItoS_tring$0$plaid)this.getDispatch()).toS_tring(this);
 			if ( toStringValue instanceof PlaidJavaObject ) {
 				return ((PlaidJavaObject)toStringValue).getJavaObject().toString();
 			} else {
