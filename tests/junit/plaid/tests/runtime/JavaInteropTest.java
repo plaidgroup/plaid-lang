@@ -37,7 +37,7 @@ public class JavaInteropTest {
 	}
 	
 	public class JavaInterop{
-		public boolean unitT_est(Object o) {
+		public boolean unitTest(Object o) {
 			return o == null;
 		}
 		
