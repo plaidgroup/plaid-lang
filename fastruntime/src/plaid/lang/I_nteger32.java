@@ -11,8 +11,10 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
+import plaid.generated.IasInt32$0$plaid;
 import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
+import plaid.generated.Igt$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
 import plaid.generated.Ilt$plaid$1$plaid;
 import plaid.generated.Ilteq$plaid$1$plaid;
@@ -21,7 +23,6 @@ import plaid.generated.Imult$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
 import plaid.generated.ItoS_tring$0$plaid;
-import plaid.generated.IasInt32$0$plaid;
 
 public final class I_nteger32 extends AbstractPlaidDispatch
 						   implements Iplus$plaid$1$plaid,
@@ -32,6 +33,7 @@ public final class I_nteger32 extends AbstractPlaidDispatch
 						   			  Imod$plaid$1$plaid,
 						   			  plaid.generated.InativeLessThan$1$plaid,
 						   			  Igteq$plaid$1$plaid,
+						   			  Igt$plaid$1$plaid,
 						   			  Ilt$plaid$1$plaid,
 						   			  Ilteq$plaid$1$plaid,
 						   			  ItoS_tring$0$plaid,
@@ -74,6 +76,19 @@ public final class I_nteger32 extends AbstractPlaidDispatch
 			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
 			int second = ((Integer32PlaidJavaObject) arg).integerValue;
 			boolean b = first >= second;
+			return Util.bool(b);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException(">= failed", e.getCause());
+		}
+	}
+	
+	@Override
+	public PlaidObject gt$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
+			int second = ((Integer32PlaidJavaObject) arg).integerValue;
+			boolean b = first > second;
 			return Util.bool(b);
 			
 		} catch (ClassCastException e) {
