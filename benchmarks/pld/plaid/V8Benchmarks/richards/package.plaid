@@ -1,5 +1,9 @@
 package plaid.V8Benchmarks.richards;
 
+import plaid.V8Benchmarks.if;
+import plaid.V8Benchmarks.ifElse;
+import plaid.collections.makeArray;
+
 /**
  * The task is running and is currently scheduled.
  */
@@ -21,7 +25,7 @@ var STATE_SUSPENDED = 2;
  */
 var STATE_HELD = 4;
 
-var STATE_SUSPENDED_RUNNABLE = STATE_SUSPENDED | STATE_RUNNABLE;
+var STATE_SUSPENDED_RUNNABLE = STATE_SUSPENDED || STATE_RUNNABLE;
 var STATE_NOT_HELD = ~STATE_HELD;
 
 var NEWNONE = new None;
@@ -51,59 +55,36 @@ var NUMBER_OF_IDS = 6;
 var KIND_DEVICE   = 0;
 var KIND_WORK     = 1;
 
-method makeRichards(){
-  var Richards = new BenchmarkSuite;
-  var arr = new Array;
-  var bm = new Benchmark;
-  bm.setData("Richards",runRichards);
-  arr.push(bm);
-  Richards.setData("Richards", 35302, arr);
-}
-
 
 /**
  * The Richards benchmark simulates the task dispatcher of an
  * operating system.
  **/
-method runRichards() {
+method runRichardsCompiled() {
   
   var scheduler = new Scheduler;
-  scheduler.setBlocks();
   scheduler.addIdleTask(ID_IDLE, 0, NEWNONE, COUNT);
 
-  printLine("here");
   var queue = new Packet;
-  queue.setData("first",NEWNONE, ID_WORKER, KIND_WORK);
-  queue.printRep();
-  printLine("here2");
+  queue.setData(NEWNONE, ID_WORKER, KIND_WORK);
   var queue2 = new Packet;
-  queue2.setData("second",queue,  ID_WORKER, KIND_WORK);
-  printLine("here3");
-  queue2.printRep();
-  printLine("here4");
+  queue2.setData(queue,  ID_WORKER, KIND_WORK);
   scheduler.addWorkerTask(ID_WORKER, 1000, queue2);
-  printLine("here5");
 
   var queue3 = new Packet;
-  queue3.setData("third",NEWNONE, ID_DEVICE_A, KIND_DEVICE);
-  queue3.printRep();
+  queue3.setData(NEWNONE, ID_DEVICE_A, KIND_DEVICE);
   var queue4 = new Packet;
-  queue4.setData("fourth",queue3,  ID_DEVICE_A, KIND_DEVICE);
-  queue4.printRep();
+  queue4.setData(queue3,  ID_DEVICE_A, KIND_DEVICE);
   var queue5 = new Packet;
-  queue5.setData("fifth",queue4,  ID_DEVICE_A, KIND_DEVICE);
-  queue5.printRep();
+  queue5.setData(queue4,  ID_DEVICE_A, KIND_DEVICE);
   scheduler.addHandlerTask(ID_HANDLER_A, 2000, queue5);
 
   var queue6 = new Packet;
-  queue6.setData("sixth",NEWNONE, ID_DEVICE_B, KIND_DEVICE);
-  queue6.printRep();
+  queue6.setData(NEWNONE, ID_DEVICE_B, KIND_DEVICE);
   var queue7 = new Packet;
-  queue7.setData("seventh",queue6,  ID_DEVICE_B, KIND_DEVICE);
-  queue7.printRep();
+  queue7.setData(queue6,  ID_DEVICE_B, KIND_DEVICE);
   var queue8 = new Packet;
-  queue8.setData("eighth",queue7,  ID_DEVICE_B, KIND_DEVICE);
-  queue8.printRep();
+  queue8.setData(queue7,  ID_DEVICE_B, KIND_DEVICE);
   scheduler.addHandlerTask(ID_HANDLER_B, 3000, queue8);
 
   scheduler.addDeviceTask(ID_DEVICE_A, 4000, NEWNONE);
@@ -130,15 +111,10 @@ method runRichards() {
 state Scheduler {
   var queueCount = 0;
   var holdCount = 0;
-  var blocks;
+  var blocks = makeArray(NUMBER_OF_IDS);
   var list = NEWNONE;
   var currentTcb = NEWNONE;
   var currentId = NEWNONE;
-  
-method setBlocks(){
-  	this.blocks = java.util.ArrayList.new();
-  	this.blocks.ensureCapacity(NUMBER_OF_IDS);
-}
 
 /**
  * Add an idle task to this scheduler.
@@ -210,18 +186,9 @@ method addRunningTask(id, priority, queue, task) {
  */
 method addTask(id, priority, queue, task) {
   this.currentTcb = new TaskControlBlock;
-  printLine("adding task"+" "+this.list+" "+id+" "+priority+" "+queue+" "+task);
-  printLine("---");
-  printLine("this.list: "+this.list);
-  printLine("id: "+id);
-  printLine("priority: "+priority);
-  printLine("queue: "+queue);
-  printLine("task: "+task);
   this.currentTcb.setData(this.list, id, priority, queue, task);
-  printLine("---");
   this.list = this.currentTcb;
-  printLine(id);
-  this.blocks.add(id,this.currentTcb);
+  this.blocks.set(id, this.currentTcb);
 }
 
 /**
@@ -229,19 +196,14 @@ method addTask(id, priority, queue, task) {
  */
 method schedule() {
   this.currentTcb = this.list;
-  printLine("list: "+this.list);
   while ({this.currentTcb != NEWNONE}) {
-    printLine("while loop in schedule");
     ifElse (this.currentTcb.isHeldOrSuspended()) {
-      printLine("held");
       this.currentTcb = this.currentTcb.link;
     }
     {
-      printLine("not held");
       this.currentId = this.currentTcb.id;
       this.currentTcb = this.currentTcb.run();
     };
-    printLine(this.currentTcb);
   }
 }
 
@@ -251,21 +213,18 @@ method schedule() {
  */
 method release(id) {
   var tcb = this.blocks.get(id);
-  printLine("1");
-  match(tcb) {
-  	case None {
-  		tcb;
-  	}
-  	default{
-	  	tcb.markAsNotHeld();
-	    ifElse (tcb.priority > this.currentTcb.priority) {
-	      tcb;
-	    }
-	    {
-	      this.currentTcb;
-	    }
-  	}
-  };
+  ifElse (tcb == NEWNONE) {
+    tcb;
+  }
+  {
+    tcb.markAsNotHeld();
+    ifElse (tcb.priority > this.currentTcb.priority) {
+      tcb;
+    }
+    {
+      this.currentTcb;
+    }
+  }
 }
 
 /**
@@ -296,22 +255,21 @@ method suspendCurrent() {
  */
 method queue(packet) {
   var t = this.blocks.get(packet.id);
-  printLine("2");
-  match(t) {
-  	case None {
-  		t;
-  	}
-  	default{
-	    this.queueCount=this.queueCount+1;
-	    packet.link = NEWNONE;
-	    packet.id = this.currentId;
-	    t.checkPriorityAdd(this.currentTcb, packet);
-  	}
-  };
+  ifElse (t == NEWNONE) {
+    t;
+  }
+  {
+    this.queueCount=this.queueCount+1;
+    packet.link = NEWNONE;
+    packet.id = this.currentId;
+    t.checkPriorityAdd(this.currentTcb, packet);
+  }
 }
 
 }
 //End Scheduler
+
+
 
 
 
@@ -326,12 +284,12 @@ method queue(packet) {
  * @constructor
  */
 state TaskControlBlock {
-  var link;
-  var id;
-  var priority;
-  var queue;
-  var task;
-  var currState;
+  var link = unit;
+  var id = unit;
+  var priority = unit;
+  var queue = unit;
+  var task = unit;
+  var currState = unit;
 
 method setData(link, id, priority, queue, task){
   this.link = link;
@@ -339,48 +297,35 @@ method setData(link, id, priority, queue, task){
   this.priority = priority;
   this.queue = queue;
   this.task = task;
-  printLine("2.5");
-  match(queue){
-  	case None{
-    	printLine("change to suspended");
-    	this.currState = STATE_SUSPENDED;
-  	}
-  	default{
-  		printLine(STATE_SUSPENDED);
-    	printLine("change to suspended_runnable");
-    	this.currState = STATE_SUSPENDED_RUNNABLE;
-  	}
+  ifElse (queue == NEWNONE) {
+    this.currState = STATE_SUSPENDED;
+  }
+  {
+    this.currState = STATE_SUSPENDED_RUNNABLE;
   };
-  printLine("I'm here");
 }
 
 method setRunning() {
-  printLine("change to running");
   this.currState = STATE_RUNNING;
 }
 
 method markAsNotHeld() {
-  printLine("change to not_held");
   this.currState = this.currState & STATE_NOT_HELD;
 }
 
 method markAsHeld() {
-  printLine("change to held");
   this.currState = this.currState | STATE_HELD;
 }
 
 method isHeldOrSuspended() {
-  printLine("3");
-  (this.currState & STATE_HELD) != 0 || (this.currState == STATE_SUSPENDED);
+  (this.currState != 0 && STATE_HELD != 0)  || (this.currState == STATE_SUSPENDED);
 }
 
 method markAsSuspended() {
-    printLine("change to suspended");
   this.currState = this.currState | STATE_SUSPENDED;
 }
 
 method markAsRunnable() {
-    printLine("change to runnable");
   this.currState = this.currState | STATE_RUNNABLE;
 }
 
@@ -390,26 +335,15 @@ method markAsRunnable() {
 method run() {
   //error might be here???  returning wrong link?
   var packet = "";
-    //printLine("IN RUN -----------");
-    //this.queue.printRep();
-    //this.queue.link.printRep();
-    //this.queue.link.link.printRep();
-    //printLine("END RUN -----------");
-  printLine("4");
   ifElse (this.currState == STATE_SUSPENDED_RUNNABLE) {
     packet = this.queue;
     this.queue = packet.link;
-    printLine("5");  
-	match(this.queue) {
-	  	case None {
-      		printLine("change to running");
-      		this.currState = STATE_RUNNING;
-	  	}
-	  	default{
-      		printLine("change to runnable");
-      		this.currState = STATE_RUNNABLE;
-	  	}
-	};
+    ifElse (this.queue == NEWNONE) {
+      this.currState = STATE_RUNNING;
+    }
+    {
+      this.currState = STATE_RUNNABLE;
+    };
   }
   {
     packet = NEWNONE;
@@ -424,18 +358,15 @@ method run() {
  */
 method checkPriorityAdd(task, packet) {
   var toReturn=task;
-  printLine("6");
-  match(this.queue) {
-  	case None {
-	    this.queue = packet;
-	    this.markAsRunnable();
-	    if (this.priority > task.priority){
-	      toReturn=this;
-	    }
-  	}
-  	default{
-    	this.queue = packet.addTo(this.queue);
-  	}
+  ifElse (this.queue == NEWNONE) {
+    this.queue = packet;
+    this.markAsRunnable();
+    if (this.priority > task.priority){
+      toReturn=this;
+    }
+  }
+  {
+    this.queue = packet.addTo(this.queue);
   };
   toReturn;
 }
@@ -456,9 +387,9 @@ method toString() {
  * @constructor
  */
 state IdleTask {
-  var scheduler;
-  var v1;
-  var count;
+  var scheduler = unit;
+  var v1 = unit;
+  var count = unit;
 
 method setData(scheduler, v1, count) {
   this.scheduler = scheduler;
@@ -469,21 +400,16 @@ method setData(scheduler, v1, count) {
 method run(packet) {
   this.count=this.count - 1;
   var toReturn = "";
-  printLine("7");
   ifElse (this.count == 0) {
-  	printLine("1");
     toReturn = this.scheduler.holdCurrent();
   }
   {
-  printLine("8");
     ifElse ((this.v1 & 1) == 0) {
-  	  printLine("2");
       this.v1 = this.v1 >> 1;
       toReturn = this.scheduler.release(ID_DEVICE_A);
     }
     {
-  	  printLine("3");
-      this.v1 = (this.v1 >> 1) ^ 0xD008;
+      this.v1 = (this.v1 >> 1) ^ 53256;
       toReturn = this.scheduler.release(ID_DEVICE_B);
     };
   };
@@ -504,7 +430,7 @@ method toString() {
  */
 state DeviceTask {
   var v1 = NEWNONE;
-  var scheduler;
+  var scheduler = unit;
 
 method setData(scheduler) {
   this.scheduler = scheduler;
@@ -512,25 +438,19 @@ method setData(scheduler) {
 
 method run (packet) {
   var toReturn="";
-  printLine("9");
-  match(packet) {
-  	case None {
-	  	printLine("10");  
-		  match(this.v1) {
-		  	case None {
-	      		toReturn = this.scheduler.suspendCurrent();
-		  	}
-			default{
-			    var v = this.v1;
-			    this.v1 = NEWNONE;
-			    toReturn = this.scheduler.queue(v);
-		  	}
-		  };
-  	}
-  	default{
-    	this.v1 = packet;
-    	toReturn = this.scheduler.holdCurrent();
-  	}
+  ifElse (packet == NEWNONE) {
+    ifElse (this.v1 == NEWNONE) {
+      toReturn = this.scheduler.suspendCurrent();
+    }
+    {
+    var v = this.v1;
+    this.v1 = NEWNONE;
+    toReturn = this.scheduler.queue(v);
+    };
+  }
+  {
+    this.v1 = packet;
+    toReturn = this.scheduler.holdCurrent();
   };
 }
 
@@ -548,9 +468,9 @@ method toString() {
  * @constructor
  */
 state WorkerTask {
-  var scheduler;
-  var v1;
-  var v2;
+  var scheduler = unit;
+  var v1 = unit;
+  var v2 = unit;
 
 method setData(scheduler, v1, v2) {
   this.scheduler = scheduler;
@@ -560,32 +480,28 @@ method setData(scheduler, v1, v2) {
 
 method run(packet) {
   var toReturn="";
-  printLine("11");
-  match(packet) {
-  	case None {
-    	toReturn = this.scheduler.suspendCurrent();
-  	}
-  	default{
-	  	printLine("12");
-	    ifElse (this.v1 == ID_HANDLER_A) {
-	      this.v1 = ID_HANDLER_B;
-	    }
-	    {
-	      this.v1 = ID_HANDLER_A;
-	    };
-	    packet.id = this.v1;
-	    packet.a1 = 0;
-	    var i=0;
-	    while ({i < DATA_SIZE;}) {
-	      this.v2=this.v2+1;
-	      if (this.v2 > 26) {
-	        this.v2 = 1;
-	      };
-	      packet.a2.set(i, this.v2);
-	      i=i+1;
-	    };
-	    toReturn = this.scheduler.queue(packet);
-  	}
+  ifElse (packet == NEWNONE) {
+    toReturn = this.scheduler.suspendCurrent();
+  }
+  {
+    ifElse (this.v1 == ID_HANDLER_A) {
+      this.v1 = ID_HANDLER_B;
+    }
+    {
+      this.v1 = ID_HANDLER_A;
+    };
+    packet.id = this.v1;
+    packet.a1 = 0;
+    var i=0;
+    while ({i < DATA_SIZE;}) {
+      this.v2=this.v2+1;
+      if (this.v2 > 26) {
+        this.v2 = 1;
+      };
+      packet.a2.set(i, this.v2);
+      i=i+1;
+    };
+    toReturn = this.scheduler.queue(packet);
   };
   toReturn;
 }
@@ -602,59 +518,54 @@ method toString() {
  * @constructor
  */
 state HandlerTask{
-  var scheduler;
-  var v1;
-  var v2;
+  var scheduler = unit;
+  var v1 = unit;
+  var v2 = unit;
 
-method setData(scheduler) {
-  this.scheduler = scheduler;
-  this.v1 = NEWNONE;
-  this.v2 = NEWNONE;
-}
-
-method run(packet) {
-  //this might be where problem is.  returning wrong item?
-  if (packet != NEWNONE) {
-  printLine("13");
-    ifElse (packet.kind == KIND_WORK) {
-      this.v1 = packet.addTo(this.v1);
-    }
-    {
-      this.v2 = packet.addTo(this.v2);
-    };
-  };
-  var toReturn="";
-  if (this.v1 != NEWNONE) {
-    var count = this.v1.a1;
-    var v="";
-    ifElse (count < DATA_SIZE) {
-      if (this.v2 != NEWNONE) {
-        v = this.v2;
-        this.v2 = this.v2.link;
-        v.a1 = this.v1.a2.get(count);
-        this.v1.a1 = count + 1;
-  	    printLine("1");
-        toReturn = this.scheduler.queue(v);
-      }
-    }
-    {
-      v = this.v1;
-      this.v1 = this.v1.link;
-  	  printLine("2");
-      toReturn = this.scheduler.queue(v);
-    };
-  };
-  printLine("14");
-  if (toReturn==""){
-  	printLine("3");
-    toReturn = this.scheduler.suspendCurrent();
-  };
-  toReturn;
-}
-
-method toString() {
-  "HandlerTask";
-}
+	method setData(scheduler) {
+	  this.scheduler = scheduler;
+	  this.v1 = NEWNONE;
+	  this.v2 = NEWNONE;
+	}
+	
+	method run(packet) {
+	  //this might be where problem is.  returning wrong item?
+	  if (packet != NEWNONE) {
+		ifElse (packet.kind == KIND_WORK) {
+		  this.v1 = packet.addTo(this.v1);
+		}
+		{
+		  this.v2 = packet.addTo(this.v2);
+		};
+	  };
+	  var toReturn="";
+	  if (this.v1 != NEWNONE) {
+		var count = this.v1.a1;
+		var v="";
+		ifElse (count < DATA_SIZE) {
+		  if (this.v2 != NEWNONE) {
+			v = this.v2;
+			this.v2 = this.v2.link;
+			v.a1 = this.v1.a2.get(count);
+			this.v1.a1 = count + 1;
+			toReturn = this.scheduler.queue(v);
+		  }
+		}
+		{
+		  v = this.v1;
+		  this.v1 = this.v1.link;
+		  toReturn = this.scheduler.queue(v);
+		};
+	  };
+	  if (toReturn==""){
+		toReturn = this.scheduler.suspendCurrent();
+	  };
+	  toReturn;
+	}
+	
+	method toString() {
+	  "HandlerTask";
+	}
 }
 //end HandlerTask
 
@@ -677,26 +588,18 @@ var DATA_SIZE = 4;
  * @constructor
  */
 state Packet {
-  var name;
-  var link;
-  var id;
-  var kind;
-  var a1;
-  var a2;
+  var link = unit;
+  var id = unit;
+  var kind = unit;
+  var a1 = unit;
+  var a2 = unit;
 
-method printRep(){
-  printLine("packet print rep: "+this.name+" "+this.link+" "+this.id+" "+this.kind+" "+this.a1+" "+this.a2);
-}
-
-method setData(name, link, id, kind) {
-  this.name = name;
+method setData(link, id, kind) {
   this.link = link;
   this.id = id;
   this.kind = kind;
   this.a1 = 0;
-  var temp = java.util.ArrayList.new();
-  temp.ensureCapacity(DATA_SIZE);
-  this.a2 = temp;
+  this.a2 = makeArray(DATA_SIZE);
 }
 
 /**
@@ -705,21 +608,18 @@ method setData(name, link, id, kind) {
  */
 method addTo(queue) {
   this.link = NEWNONE;
-  printLine("15");
-  match(queue) {
-  	case None {
-  		this;
-  	}
-  	default{
-	  var peek = queue;
-	  var next = queue;
-	  while ({peek != NEWNONE}) {
-	    next = peek;
-	    peek=next.link;
-	  };
-	  next.link = this;
-	  queue;
-  	}
+  ifElse (queue == NEWNONE) {
+    this;
+  }
+  {
+  var peek = queue;
+  var next = queue;
+  while ({peek != NEWNONE}) {
+    next = peek;
+    peek=next.link;
+  };
+  next.link = this;
+  queue;
   };
 }
 
@@ -729,6 +629,16 @@ method toString() {
 }
 //end Packet
 
-method main(){
-  runRichards();
+
+method main() {
+	printLine("Plaid");
+	var time=0;
+	var i=0;
+	printLine("Start: " + java.util.Date.new().toString());
+	while({i<10}){
+		runRichardsCompiled();
+		printLine(java.util.Date.new().toString());
+		i=i+1;
+	};
 }
+

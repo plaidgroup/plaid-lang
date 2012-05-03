@@ -1,7 +1,12 @@
-package plaid.V8Benchmarks.splay;
+package V8Benchmarks.splay;
 
 //import V8Benchmarks.splay.helper;
 
+method runSplayCompiled(){
+   SplaySetupCompiled();
+   SplayRunCompiled();
+   SplayTearDownCompiled();
+}
 
 var NEWNONE = new None;
 var FALSE = new False;
@@ -12,51 +17,113 @@ var kSplayTreeSize = 8000;
 var kSplayTreeModifications = 80;
 var kSplayTreePayloadDepth = 5;
 
-var mySplayTree = NEWNONE;
+var splayTree = NEWNONE;
 
-state Node {
-	  var key;
-	  var value;
-	  var left;
-	  var right;
-	  
-	  method setData(key,value){
-	  	this.key=key;
-	  	this.value=value;
-	  	this.left=NEWNONE;
-	  	this.right=NEWNONE;
-	  }
-	
-	
-		/**
-		 * Performs an ordered traversal of the subtree starting at
-		 * this SplayTree.Node.
-		 *
-		 * @param {function(SplayTree.Node)} f Visitor function.
-		 * @private
-		 */
-		method traverse_(f) {
-		  var current = this;
-		  while ({!isNone(current)}) {
-		    var left = current.left;
-    		if (!isNone(left)) {
-		    	left.traverse_(f);
-		    };
-		    f(current);
-		    current = current.right;
-		  };
-		}
-		
-		method toString() {
-			"treeNode:" + this.key + "right: " + this.right.toString();
-		}
-	//end Node
-	}
+state ArrayString{
+	var array;
+	var string;
+}
 
-	method isNone(node) {
-		match(node) {
-			case None {true} default {false}}
-	}
+state LeftRight{
+	var left;
+	var right;
+}
+
+method GeneratePayloadTreeCompiled(depth, tag) {
+  ifElse (depth == 0) {
+  	var a = new Array;
+  	a.push(0);
+  	a.push(1);
+  	a.push(2);
+  	a.push(3);
+  	a.push(4);
+  	a.push(5);
+  	a.push(6);
+  	a.push(7);
+  	a.push(8);
+  	a.push(9);
+  	var s = "String for key " + tag + " in leaf node";
+  	new ArrayString with {var array=a; var string=s;};
+  };
+  {
+  	var l = GeneratePayloadTreeCompiled(depth - 1, tag);
+  	var r = GeneratePayloadTreeCompiled(depth - 1, tag);
+    new LeftRight with {var left=l; var right=r;};
+  };
+}
+
+
+method GenerateKeyCompiled() {
+  // The benchmark framework guarantees that Math.random is
+  // deterministic; see base.js.
+  random2();
+}
+
+
+method InsertNewNodeCompiled() {
+  // Insert new node with a unique key.
+  var key=NEWNONE;
+  key = GenerateKeyCompiled();
+  while({splayTree.find(key) != null}){
+  	key = GenerateKeyCompiled();
+  };
+  var payload = GeneratePayloadTreeCompiled(kSplayTreePayloadDepth, String(key));
+  splayTree.insert(key, payload);
+  key;
+}
+
+
+
+method SplaySetupCompiled() {
+  splayTree = new SplayTree;
+  var i=0;
+  while({i<kSplayTreeSize}){
+  	InsertNewNodeCompiled();
+  	i=i+1;
+  };
+}
+
+
+method SplayTearDownCompiled() {
+  // Allow the garbage collector to reclaim the memory
+  // used by the splay tree no matter how we exit the
+  // tear down function.
+  var keys = splayTree.exportKeys();
+  splayTree = NEWNONE;
+
+  // Verify that the splay tree has the right size.
+  var length = keys.length;
+  if (length != kSplayTreeSize) {
+    printLine("Splay tree has wrong size");
+  };
+
+  // Verify that the splay tree has sorted, unique keys.
+  var i = 0;
+  while({i < length;}) {
+    if (keys.get(i) >= keys.get(i + 1)) {
+      printLine("Splay tree not sorted");
+    };
+  	i = i + 1;
+  };
+}
+
+
+method SplayRunCompiled() {
+  // Replace a few nodes in the splay tree.
+  var i=0;
+  while({i<kSplayTreeModifications}){
+    var key = InsertNewNodeCompiled();
+    var greatest = splayTree.findGreatestLessThan(key);
+    ifElse(greatest == NEWNONE) {
+    	splayTree.remove2(key);
+    }
+    {
+    	splayTree.remove2(greatest.key);
+    };
+  	i=i+1;
+  };
+}
+
 
 /**
  * Constructs a Splay tree.  A splay tree is a self-balancing binary
@@ -67,8 +134,6 @@ state Node {
  * @constructor
  */
 state SplayTree {
-
-	
 
 	/**
 	 * Pointer to the root node of the tree.
@@ -83,7 +148,7 @@ state SplayTree {
 	 * @return {boolean} Whether the tree is empty.
 	 */
 	method isEmpty() {
-	  isNone(root_);
+	  this.root_==NEWNONE;
 	}
 	
 	
@@ -137,14 +202,14 @@ state SplayTree {
 	 */
 	method remove2(key) {
 	  if (this.isEmpty()) {
-	    //printLine("Key not found: " + key);
+	    printLine("Key not found: " + key);
 	  };
 	  this.splay_(key);
 	  if (this.root_.key != key) {
-	    //printLine("Key not found: " + key);
+	    printLine("Key not found: " + key);
 	  };
 	  var removed = this.root_;
-	  ifElse (isNone(this.root_.left)) {
+	  ifElse (this.root_.left==NEWNONE) {
 	    this.root_ = this.root_.right;
 	  }
 	  {
@@ -191,12 +256,8 @@ state SplayTree {
 	    NEWNONE;
 	  }
 	  {
-	    var current = opt_startNode;
-	    if(isNone(opt_startNode)) {
-	      current = this.root_;
-	    };
-	  	while ({!isNone(current.right)}) {
-        //printLine(current.toString());
+		  var current = opt_startNode || this.root_;
+		  while ({current.right!=NEWNONE;}) {
 		    current = current.right;
 		  };
 		  current;
@@ -209,8 +270,6 @@ state SplayTree {
 	 *     is less than the specified key value.
 	 */
 	method findGreatestLessThan(key) {
-	  //printLine("Finding greatest");
-	  //printLine(this.root_);
 	  ifElse (this.isEmpty()) {
 	    NEWNONE;
 	  }
@@ -224,9 +283,7 @@ state SplayTree {
 		    this.root_;
 		  }
 		  {
-			  ifElse (!isNone(this.root_.left)) {
-			    //printLine("Calling find max");
-			    //printLine("root: " + this.root_.toString());
+			  ifElse (this.root_.left!=NEWNONE) {
 			    this.findMax(this.root_.left);
 			  }
 			  {
@@ -241,9 +298,9 @@ state SplayTree {
 	 * @return {Array<*>} An array containing all the keys of tree's nodes.
 	 */
 	method exportKeys() {
-	  var result = makeEmptyList();
+	  var result = new Array;
 	  if (!this.isEmpty()) {
-	    this.root_.traverse_(fn (node) => { result.add(node.key); });
+	    this.root_.traverse_(fn (node) => { result.push(node.key); });
 	  };
 	  result;
 	}
@@ -259,7 +316,7 @@ state SplayTree {
 	 * @param {number} key Key to splay the tree on.
 	 * @private
 	 */
-  method splay_(key) {
+	method splay_(key) {
 	  ifElse ( this.isEmpty() ) {
 	  	//this may make an error problem later!
 	  	NEWNONE;
@@ -277,73 +334,71 @@ state SplayTree {
 		  //look above for problem?
 		  var current = this.root_;
 		  var loopControl=TRUE;
-      while ({loopControl;}) {
-        ifElse (key < current.key) {
+		  while ({loopControl;}) {
+		    ifElse (key < current.key) {
 		      //printLine("key less than current.key");
-		      //printLine(""+key+" "+current.key);
-		      ifElse (isNone(current.left)) {
+		      //printLine(key+" "+current.key);
+		      ifElse (current.left==NEWNONE) {
 		        //printLine("!current.left 1");
 		        //printLine(key);
 		        loopControl=FALSE;
 		      }
 		      {
 			      if (key < current.left.key) {
-		          //printLine("key less than current.left.key");
-		        	//printLine(""+key+" "+current.left.key);
+		            //printLine("key less than current.left.key");
+		        	//printLine(key+" "+current.left.key);
 			        // Rotate right.
 			        var tmp = current.left;
 			        current.left = tmp.right;
 			        tmp.right = current;
 			        current = tmp;
-			        if (isNone(current.left)) {
-		            //printLine("!current.left 2");
+			        if (current.left==NEWNONE) {
+		              //printLine("!current.left 2");
 		        	  //printLine(key);
 			          loopControl=FALSE;
 			        }
 			      }
-				  };
-				  if( loopControl ){
-					  // Link right.
-					  //printLine("1");
-					  right.left = current;
-					  right = current;
-					  current = current.left;
-				  };
+				};
+				var test = loopControl==TRUE;
+				if( test ){
+					// Link right.
+					//printLine("1");
+					right.left = current;
+					right = current;
+					current = current.left;
+				};
 		    }
 		    {
 			    ifElse(key > current.key) {
-		        //printLine("key>current.key");
-		        //printLine(""+key+" "+current.key);
-			      ifElse (isNone(current.right)) {
-		          //printLine("!current.right 1");
+		          //printLine("key>current.key");
+		          //printLine(key+" "+current.key);
+			      ifElse (current.right==NEWNONE) {
+		            //printLine("!current.right 1");
 		        	//printLine(key);
 			        loopControl=FALSE;
-			        //printLine(loopControl);
 			      }
 			      {
-			      	var ifCondition=FALSE;
+			      	  var ifCondition=FALSE;
 				      if (key > current.right.key) {
 				        ifCondition=TRUE;
-		            //printLine("key>current.right.key");
-		        		//printLine("" + key+" "+current.right.key);
-				        
-                // Rotate left.
+		                //printLine("key>current.right.key");
+		        		//printLine(key+" "+current.right.key);
+				        // Rotate left.
 				        var tmp = current.right;
 				        current.right = tmp.left;
 				        tmp.left = current;
 				        current = tmp;
 				      };
-				      var test = (ifCondition) && (isNone(current.right));
+				      var test = (ifCondition) && (!current.right);
 				      if( test ){
-		            //printLine("!current.right 2");
-		        	  //printLine(key);
-				        loopControl=FALSE;
+		                  //printLine("!current.right 2");
+		        		  //printLine(key);
+				      	  loopControl=FALSE;
 				      };
-				    };   
-				    if(loopControl){ 
-				  	  //printLine(loopControl);
-					    //printLine("2");
-					    //printLine("current.right: " + current.right.toString());
+				  };   
+				  //var test = loopControl==TRUE; 
+				  if( loopControl==TRUE ){ 
+					  //printLine("2");
 				      // Link left.
 				      left.right = current;
 				      left = current;
@@ -351,11 +406,11 @@ state SplayTree {
 			      };
 			    }
 			    {
-				    //printLine("else");
-		        //printLine(key); 
+				  //printLine("else");
+		          //printLine(key); 
 			      loopControl=FALSE;
 			    };
-			  };
+			 };
 		  };
 		  // Assemble.
 		  //printLine("3");
@@ -363,10 +418,10 @@ state SplayTree {
 		  right.left = current.right;
 		  current.left = dummy.right;
 		  current.right = dummy.left;
-      //printLine(left.right.toString()+" "+right.left.toString()+" "+current.left.toString()+" "+current.right.toString());
+  		  //printLine(left.right+" "+right.left+" "+current.left+" "+current.right);
 		  this.root_ = current;
-    };
-  }
+	   };
+	}
 	
 	
 	/**
@@ -375,153 +430,45 @@ state SplayTree {
 	 * @param {number} key Key.
 	 * @param {*} value Value.
 	 */
-
+	state Node {
+	  var key;
+	  var value;
+	  var left;
+	  var right;
+	  
+	  method setData(key,value){
+	  	this.key=key;
+	  	this.value=value;
+	  	this.left=NEWNONE;
+	  	this.right=NEWNONE;
+	  }
+	
+	
+		/**
+		 * Performs an ordered traversal of the subtree starting at
+		 * this SplayTree.Node.
+		 *
+		 * @param {function(SplayTree.Node)} f Visitor function.
+		 * @private
+		 */
+		method traverse_(f) {
+		  var current = this;
+		  while ({current!=NEWNONE;}) {
+		    var left = current.left;
+		    if (left!=NEWNONE) {
+		    	left.traverse_(f);
+		    };
+		    f(current);
+		    current = current.right;
+		  };
+		}
+	//end Node
+	}
 //end SplayTree
 }
 
-
-method runSplayCompiled(){
-   SplaySetupCompiled();
-   SplayRunCompiled();
-   SplayTearDownCompiled();
-}
-
-
 method main(){
-  var i = 0;
-  while({i<120}){
-    var start = (java.util.Date.new().getTime());
-	  runSplayCompiled();
-	  var end = (java.util.Date.new().getTime());
-	  var startString = start.toString();
-	  var endString = end.toString();
-	  var startBigInt = java.math.BigInteger.new(startString);
-	  var endBigInt = java.math.BigInteger.new(endString);
-    var diff = endBigInt.subtract(startBigInt);
-	  printLine(diff);
-	  i = i+1;
-	}
+    var start = new Date;
+	runSplayCompiled();
+	printLine(new Date-start);
 }
-
-
-state ArrayString{
-	val array;
-	val string;
-}
-
-state LeftRight{
-	var left;
-	var right;
-}
-
-method GeneratePayloadTreeCompiled(depth, tag) {
-  ifElse (depth == 0) {
-  	var a = new Array;
-  	a.push(0);
-  	a.push(1);
-  	a.push(2);
-  	a.push(3);
-  	a.push(4);
-  	a.push(5);
-  	a.push(6);
-  	a.push(7);
-  	a.push(8);
-  	a.push(9);
-  	var s = "String for key " + tag + " in leaf node";
-  	new ArrayString with {val array=a; val string=s;};
-  };
-  {
-  	var l = GeneratePayloadTreeCompiled(depth - 1, tag);
-  	var r = GeneratePayloadTreeCompiled(depth - 1, tag);
-    new LeftRight with {var left=l; var right=r;};
-  };
-}
-
-
-method GenerateKeyCompiled() {
-  // The benchmark framework guarantees that Math.random is
-  // deterministic; see base.js.
-  java.lang.Math.random();
-}
-
-
-method InsertNewNodeCompiled() {
-  // Insert new node with a unique key.
-  var key=NEWNONE;
-  key = GenerateKeyCompiled();
-  while({!isNone(mySplayTree.find(key))}){
-  	key = GenerateKeyCompiled();
-  };
-  var payload = GeneratePayloadTreeCompiled(kSplayTreePayloadDepth, ""+key);
-  mySplayTree.insert(key, payload);
-  key;
-}
-
-
-
-method SplaySetupCompiled() {
-  mySplayTree = new SplayTree;
-  var i=0;
-  while({i<kSplayTreeSize}){
-  	InsertNewNodeCompiled();
-  	i=i+1;
-  };
-}
-
-
-method SplayTearDownCompiled() {
-  // Allow the garbage collector to reclaim the memory
-  // used by the splay tree no matter how we exit the
-  // tear down function.
-  var keys = mySplayTree.exportKeys();
-  mySplayTree = NEWNONE;
-
-  // Verify that the splay tree has the right size.
-  var length = keys.length();
-  if (length != kSplayTreeSize) {
-    printLine("Splay tree has wrong size");
-  };
-
-  // Verify that the splay tree has sorted, unique keys.
-  var max = 0;
-  //printLine("while loop");
-  //printLine(keys.isEmpty().toString());
-  while({!keys.isEmpty()}) {
-    val n = keys.car();
-    //printLine(n);
-    if(max >= n) { 
-        printLine("NOT SORTED"); 
-    };
-    max = n;
-    keys = keys.cdr();
-  };
-  //printLine("Success");
-}
-
-
-method SplayRunCompiled() {
-  // Replace a few nodes in the splay tree.
-  var i=0;
-  while({i<kSplayTreeModifications}){
-    var key = InsertNewNodeCompiled();
-    var greatest = mySplayTree.findGreatestLessThan(key);
-    ifElse(isNone(greatest)) {
-    	mySplayTree.remove2(key);
-    }
-    {
-    	mySplayTree.remove2(greatest.key);
-    };
-  	i=i+1;
-  };
-}
-
-
-
-
-
-
-
-
-
-
-
