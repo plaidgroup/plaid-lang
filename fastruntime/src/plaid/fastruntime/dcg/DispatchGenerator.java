@@ -36,11 +36,11 @@ public final class DispatchGenerator implements Opcodes {
 			Util.INTERFACE_GEN.createInterfaceAsClass(getGeneratedMemberName(m), m.numArgs());
 		}
 		for(FieldInfo f: ov.getFields()) {
-			String getterName = NamingConventions.getGetterName(f.getName());
+			String getterName = NamingConventions.getGetterName(getGeneratedMemberName(f));
 			ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(getterName, 0));
 			Util.INTERFACE_GEN.createInterfaceAsClass(getterName, 0);
 			if(f.isSettable()) {
-				String setterName = NamingConventions.getSetterName(f.getName());
+				String setterName = NamingConventions.getSetterName(getGeneratedMemberName(f));
 				ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(setterName, 1));
 				Util.INTERFACE_GEN.createInterfaceAsClass(setterName, 1);
 			}
@@ -76,7 +76,7 @@ public final class DispatchGenerator implements Opcodes {
 				mv.visitEnd();
 			} else { //dynamically defined
 				
-				String helperName = NamingConventions.getGetterName(m.getName());
+				String helperName = NamingConventions.getGetterName(getGeneratedMemberName(m));
 				String helperDescriptor = NamingConventions.getMethodDescriptor(1);
 						
 						
@@ -122,7 +122,7 @@ public final class DispatchGenerator implements Opcodes {
 			//System.out.println("add method: " + getGeneratedMemberName(m));
 			MethodVisitor mv;
 			mv = cw.visitMethod(ACC_PUBLIC, 
-					NamingConventions.getGetterName(f.getName()),
+					NamingConventions.getGetterName(getGeneratedMemberName(f)),
 					NamingConventions.getMethodDescriptor(1),
 					null,
 					null); // TODO: add exception
