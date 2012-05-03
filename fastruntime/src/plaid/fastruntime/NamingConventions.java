@@ -49,12 +49,14 @@ public class NamingConventions {
 				1, "[" + PLAID_JAVA_OBJECT_DESCRIPTOR, 
 				JAVA_OBJECT_DESCRIPTOR);	
 
-	public static final String getGetterName(String fieldName) {
-		return GENERATED_GET_PREFIX + NamingConventions.getGeneratedIdentifier(fieldName) + GENERATED_SUFFIX;
+	//precondition: mangledFieldName must have already been mangled by called getGeneratedIdentifier()
+	public static final String getGetterName(String mangledFieldName) {
+		return GENERATED_GET_PREFIX + mangledFieldName + GENERATED_SUFFIX;
 	}
 	
-	public static final String getSetterName(String fieldName) {
-		return GENERATED_SET_PREFIX + NamingConventions.getGeneratedIdentifier(fieldName) + GENERATED_SUFFIX;
+	//precondition: mangledFieldName must have already been mangled by called getGeneratedIdentifier()
+	public static final String getSetterName(String mangledFieldName) {
+		return GENERATED_SET_PREFIX + mangledFieldName + GENERATED_SUFFIX;
 	}
 	
 	public static final String getGeneratedInterfaceSimpleName(String method, int numArgs) {
