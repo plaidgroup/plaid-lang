@@ -114,8 +114,9 @@ public class JavaDispatchGenerator implements Opcodes {
 			// collect all necessary interfaces and ensure they have been generated
 			Collection<String> ifaces = new ArrayList<String>();
 			for (MethodSig mSig : methodMap.keySet()) {
-				ifaces.add(mSig.interfaceName());
-				Util.INTERFACE_GEN.createInterfaceAsClass(mSig.name,mSig.numArgs);
+				String methodName = NamingConventions.getGeneratedIdentifier(mSig.name);
+				ifaces.add(NamingConventions.getGeneratedInterfaceName(methodName, mSig.numArgs));
+				Util.INTERFACE_GEN.createInterfaceAsClass(methodName,mSig.numArgs);
 			}
 			
 			// generate class
@@ -229,11 +230,13 @@ public class JavaDispatchGenerator implements Opcodes {
 		}
 		boolean isConstructor = isStatic && m.name.equals(NamingConventions.GENERATED_CONSTRUCTOR);
 		List<org.objectweb.asm.commons.Method> overloadSet = methodMap.get(m);
-			
+		
+		final String methodName = isStatic ? m.name : NamingConventions.getGeneratedIdentifier(m.name);
+		
 		MethodVisitor mv;
 		{
 			mv = cw.visitMethod(modifiers, 
-					m.name, 
+					methodName, 
 					NamingConventions.getMethodDescriptor(numArgs), null, null);
 			mv.visitCode();
 			
@@ -475,10 +478,6 @@ public class JavaDispatchGenerator implements Opcodes {
 		public boolean equals(MethodSig o) {
 			return this.name.equals(o.name) &&
 				this.numArgs == o.numArgs;
-		}
-		
-		public String interfaceName() {
-			return NamingConventions.getGeneratedInterfaceInternalName(this.name,this.numArgs);
 		}
 		public String toString() {
 			return this.name + "(" + this.numArgs + ")";

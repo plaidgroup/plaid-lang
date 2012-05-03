@@ -50,11 +50,11 @@ public class NamingConventions {
 				JAVA_OBJECT_DESCRIPTOR);	
 
 	public static final String getGetterName(String fieldName) {
-		return GENERATED_GET_PREFIX + fieldName + GENERATED_SUFFIX;
+		return GENERATED_GET_PREFIX + NamingConventions.getGeneratedIdentifier(fieldName) + GENERATED_SUFFIX;
 	}
 	
 	public static final String getSetterName(String fieldName) {
-		return GENERATED_SET_PREFIX + fieldName + GENERATED_SUFFIX;
+		return GENERATED_SET_PREFIX + NamingConventions.getGeneratedIdentifier(fieldName) + GENERATED_SUFFIX;
 	}
 	
 	public static final String getGeneratedInterfaceSimpleName(String method, int numArgs) {
@@ -79,7 +79,37 @@ public class NamingConventions {
 	}
 	
 	public static final String getGeneratedMemberName(MemberInfo mi) {
-		return getGeneratedIdentifier(mi.getName());
+		return  getGeneratedIdentifier(mi.getName());
+	}
+	
+	public static final String getGeneratedInternal(MemberInfo mi) {
+		return  getInternalFQN(mi.getStaticClassInternalName());
+	}
+	
+	public static final String getGeneratedFQN(String fqn) {
+		String[] ids = fqn.split("\\.");
+		StringBuilder newFqn = new StringBuilder();
+		for(int i=0; i<ids.length; i++) {
+			if(i == ids.length - 1) {
+				newFqn.append(getGeneratedIdentifier(ids[i]));
+			} else {
+				newFqn.append(ids[i] + ".");
+			}
+		}
+		return newFqn.toString();
+	}
+	
+	public static final String getInternalFQN(String fqn) {
+		String[] ids = fqn.split("/");
+		StringBuilder newFqn = new StringBuilder();
+		for(int i=0; i<ids.length; i++) {
+			if(i == ids.length - 1) {
+				newFqn.append(getGeneratedIdentifier(ids[i]));
+			} else {
+				newFqn.append(ids[i] + "/");
+			}
+		}
+		return newFqn.toString();
 	}
 	
 	
@@ -207,8 +237,23 @@ public class NamingConventions {
 		if(javaReservedMap.containsKey(id)) {
 			return javaReservedMap.get(id);
 		} else {
-			return convertOpStringToMethodName(id);
+			String mangledOps = convertOpStringToMethodName(id);
+			return convertUpperCase(mangledOps);
 		}
+	}
+	
+	private static final String convertUpperCase(String id) {
+		StringBuilder newId = new StringBuilder();
+		char[] chars = id.toCharArray();
+		for(char c : chars) {
+			newId.append(c);
+			if (Character.isUpperCase(c)) {
+				newId.append('_');
+			} else if(c == '_') {
+				newId.append('$');
+			}
+		}
+		return newId.toString();
 	}
 	
 	private static final HashMap<String,String> opNames = new HashMap<String,String>();

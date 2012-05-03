@@ -7,6 +7,7 @@ import java.util.TreeSet;
 
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
+import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidFieldInitializer;
 import plaid.fastruntime.PlaidLambda;
@@ -256,7 +257,10 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		for(FieldInfo field : fields) {
 			ClassLoader cl = this.getClass().getClassLoader();
 			if(field.isStaticallyDefined()) {
-				String className = field.getStaticClassInternalName().replace('/', '.');
+				String className = NamingConventions.getGeneratedFQN(
+						field.getStaticClassInternalName().replace('/', '.')
+						);
+				
 				try {
 					Class<?> fieldClass = cl.loadClass(className);
 					Field myField = fieldClass.getField(field.getName());

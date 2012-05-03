@@ -16,11 +16,11 @@ import plaid.generated.Ibang$plaid$0$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Ipipepipe$plaid$1$plaid;
 import plaid.generated.Isubsubgt$plaid$1$plaid;
-import plaid.generated.ItoString$0$plaid;
+import plaid.generated.ItoS_tring$0$plaid;
 
-public final class False extends AbstractPlaidDispatch 
+public final class F_alse extends AbstractPlaidDispatch 
 implements Iampamp$plaid$1$plaid,
-		   ItoString$0$plaid,
+		   ItoS_tring$0$plaid,
 		   Ieqeq$plaid$1$plaid,
 		   Ibang$plaid$0$plaid,
 		   Ipipepipe$plaid$1$plaid,
@@ -33,12 +33,12 @@ implements Iampamp$plaid$1$plaid,
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	public static final PlaidJavaObject FALSE_VALUE;
 	static {
-		False falseDispatch = new False(new DimensionValue(FALSE_TAG, null, new DimensionValue(BOOLEAN_TAG, null, null)));
+		F_alse falseDispatch = new F_alse(new DimensionValue(FALSE_TAG, null, new DimensionValue(BOOLEAN_TAG, null, null)));
 		FALSE_VALUE = falseDispatch.new FalsePlaidJavaObject(falseDispatch);
 		theState$plaid = new AbstractPlaidState(falseDispatch) {
 			@Override
 			public final PlaidObject instantiate() {
-				return False.FALSE_VALUE;
+				return F_alse.FALSE_VALUE;
 			}
 			@Override
 			public final java.lang.String getTopTag() {
@@ -47,7 +47,7 @@ implements Iampamp$plaid$1$plaid,
 		};
 	}
 	
-	private False(ObjectValue metadata) {
+	private F_alse(ObjectValue metadata) {
 		super(metadata); 	
 	}
 
@@ -57,7 +57,7 @@ implements Iampamp$plaid$1$plaid,
 	}
 	
 	@Override
-	public PlaidObject toString(PlaidObject x) {
+	public PlaidObject toS_tring(PlaidObject x) {
 		return Util.string("false");
 	}
 	
@@ -90,7 +90,7 @@ implements Iampamp$plaid$1$plaid,
 
 	@Override
 	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg) {
-		return Util.bool(arg.getDispatch() instanceof False);
+		return Util.bool(arg.getDispatch() instanceof F_alse);
 	}
 
 	@Override
@@ -100,12 +100,12 @@ implements Iampamp$plaid$1$plaid,
 
 	@Override
 	public PlaidObject XOR(PlaidObject x, PlaidObject y) {
-		return Util.bool(y.getDispatch() instanceof True);
+		return Util.bool(y.getDispatch() instanceof T_rue);
 	}
 
 	@Override
 	public PlaidObject pipepipe$plaid(PlaidObject receiver, PlaidObject arg) {
-		return Util.bool(arg.getDispatch() instanceof True);
+		return Util.bool(arg.getDispatch() instanceof T_rue);
 	}
 
 	@Override

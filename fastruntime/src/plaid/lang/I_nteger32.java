@@ -20,10 +20,10 @@ import plaid.generated.Imod$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
-import plaid.generated.ItoString$0$plaid;
+import plaid.generated.ItoS_tring$0$plaid;
 import plaid.generated.IasInt32$0$plaid;
 
-public final class Integer32 extends AbstractPlaidDispatch
+public final class I_nteger32 extends AbstractPlaidDispatch
 						   implements Iplus$plaid$1$plaid,
 						   			  Ieqeq$plaid$1$plaid,
 						   			  Imult$plaid$1$plaid,
@@ -34,7 +34,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 						   			  Igteq$plaid$1$plaid,
 						   			  Ilt$plaid$1$plaid,
 						   			  Ilteq$plaid$1$plaid,
-						   			  ItoString$0$plaid,
+						   			  ItoS_tring$0$plaid,
 						   			  IasInt32$0$plaid{
 
 	private final static int CACHE_LOWER_BOUND = -127;
@@ -48,7 +48,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 	
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	static {
-		theState$plaid = new AbstractPlaidState(new Integer32(new DimensionValue("plaid/lang/Integer", null, null))) {
+		theState$plaid = new AbstractPlaidState(new I_nteger32(new DimensionValue("plaid/lang/Integer", null, null))) {
 			@Override
 			public PlaidObject instantiate() {
 				throw new PlaidIllegalOperationException("Cannot instantiate Integer32 state");
@@ -64,7 +64,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}
 	}
 	
-	private Integer32(ObjectValue metadata) {
+	private I_nteger32(ObjectValue metadata) {
 		super(metadata);
 	}
 
@@ -204,7 +204,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 	}
 
 	@Override
-	public PlaidObject toString(PlaidObject receiver) {
+	public PlaidObject toS_tring(PlaidObject receiver) {
 		try {
 			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
 			return Util.string(""+first);
@@ -253,7 +253,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 		
 		@Override
 		public PlaidDispatch getDispatch() {
-			return Integer32.theState$plaid.getDispatch();
+			return I_nteger32.theState$plaid.getDispatch();
 		}
 		
 		@Override

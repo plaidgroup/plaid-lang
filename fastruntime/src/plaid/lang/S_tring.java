@@ -10,7 +10,7 @@ import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidJavaObject;
-import plaid.generated.IcharAt$1$plaid;
+import plaid.generated.IcharA_t$1$plaid;
 import plaid.generated.IendsWith$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.IindexOf$1$plaid;
@@ -20,27 +20,27 @@ import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Ireplace$2$plaid;
 import plaid.generated.IstartsWith$1$plaid;
 import plaid.generated.Isubstring$2$plaid;
-import plaid.generated.ItoLowerCase$0$plaid;
-import plaid.generated.ItoString$0$plaid;
+import plaid.generated.ItoL_owerC_ase$0$plaid;
+import plaid.generated.ItoS_tring$0$plaid;
 
-public class String extends AbstractPlaidDispatch
+public class S_tring extends AbstractPlaidDispatch
 						  implements Iplus$plaid$1$plaid,
 						  			 Ieqeq$plaid$1$plaid,
 						  			 IstartsWith$1$plaid,
 						  			 IendsWith$1$plaid,
-						  			 ItoLowerCase$0$plaid,
+						  			 ItoL_owerC_ase$0$plaid,
 						  			 Isubstring$2$plaid,
 						  			 Ilength$0$plaid,
-						  			 IcharAt$1$plaid,
+						  			 IcharA_t$1$plaid,
 						  			 IindexOf$1$plaid,
 						  			 IlastIndexOf$1$plaid,
 						  			 Ireplace$2$plaid,
-						  			 ItoString$0$plaid
+						  			 ItoS_tring$0$plaid
 {
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	static {
-		theState$plaid = new AbstractPlaidState(new String(new DimensionValue("plaid/lang/String", null, null))) {
+		theState$plaid = new AbstractPlaidState(new S_tring(new DimensionValue("plaid/lang/String", null, null))) {
 			@Override
 			public PlaidObject instantiate() {
 				throw new PlaidIllegalOperationException("Cannot instantiate String state");
@@ -52,7 +52,7 @@ public class String extends AbstractPlaidDispatch
 		return new SimplePlaidJavaObject(theState$plaid.getDispatch(),null, s); 
 	}
 	
-	private String(ObjectValue metadata) {
+	private S_tring(ObjectValue metadata) {
 		super(metadata);
 	}
 
@@ -84,7 +84,7 @@ public class String extends AbstractPlaidDispatch
 	}
 
 	@Override
-	public PlaidObject toLowerCase(PlaidObject receiver) {
+	public PlaidObject toL_owerC_ase(PlaidObject receiver) {
 		try {
 			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
 			java.lang.String lower = first.toLowerCase();
@@ -147,7 +147,7 @@ public class String extends AbstractPlaidDispatch
 	}
 	
 	@Override
-	public PlaidObject charAt(PlaidObject receiver, PlaidObject arg) {
+	public PlaidObject charA_t(PlaidObject receiver, PlaidObject arg) {
 		try {
 			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
 			java.lang.Integer second = ((java.lang.Integer) ((PlaidJavaObject) arg).getJavaObject());
@@ -201,7 +201,7 @@ public class String extends AbstractPlaidDispatch
 	}
 
 	@Override
-	public PlaidObject toString(PlaidObject x) {
+	public PlaidObject toS_tring(PlaidObject x) {
 		return x;
 	}
 

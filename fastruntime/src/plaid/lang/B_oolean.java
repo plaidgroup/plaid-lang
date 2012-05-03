@@ -3,9 +3,9 @@ package plaid.lang;
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
 
-public class Boolean extends AbstractPlaidDispatch {
+public class B_oolean extends AbstractPlaidDispatch {
 		
-	public Boolean(ObjectValue metadata) {
+	public B_oolean(ObjectValue metadata) {
 		super(metadata);
 	}
 }

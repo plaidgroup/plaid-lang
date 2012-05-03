@@ -4,7 +4,7 @@ import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidState;
-import plaid.generated.ItoString$0$plaid;
+import plaid.generated.ItoS_tring$0$plaid;
 
 public class SimplePlaidObject implements PlaidObject {
 
@@ -35,8 +35,8 @@ public class SimplePlaidObject implements PlaidObject {
 
 	@Override
 	public String toString() {
-		if ( this.getDispatch() instanceof ItoString$0$plaid ) {
-			PlaidObject toStringValue = ((ItoString$0$plaid)this.getDispatch()).toString(this);
+		if ( this.getDispatch() instanceof ItoS_tring$0$plaid ) {
+			PlaidObject toStringValue = ((ItoS_tring$0$plaid)this.getDispatch()).toString(this);
 			if ( toStringValue instanceof PlaidJavaObject ) {
 				return ((PlaidJavaObject)toStringValue).getJavaObject().toString();
 			} else {

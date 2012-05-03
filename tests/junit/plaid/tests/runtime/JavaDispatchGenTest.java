@@ -10,7 +10,7 @@ import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.generated.Iadd$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
-import plaid.generated.ItoString$0$plaid;
+import plaid.generated.ItoS_tring$0$plaid;
 
 public class JavaDispatchGenTest {
 
@@ -21,8 +21,8 @@ public class JavaDispatchGenTest {
 		
 		PlaidObject onePlaid = Util.javaToPlaid(one);
 		PlaidObject twoPlaid = Util.javaToPlaid(two);
-		PlaidObject oneString = ((ItoString$0$plaid) onePlaid.getDispatch()).toString(onePlaid);
-		PlaidObject twoString = ((ItoString$0$plaid) twoPlaid.getDispatch()).toString(twoPlaid);
+		PlaidObject oneString = ((ItoS_tring$0$plaid) onePlaid.getDispatch()).toS_tring(onePlaid);
+		PlaidObject twoString = ((ItoS_tring$0$plaid) twoPlaid.getDispatch()).toS_tring(twoPlaid);
 		
 		Assert.assertTrue(((PlaidJavaObject) oneString).getJavaObject().equals("1"));
 		Assert.assertTrue(((PlaidJavaObject) twoString).getJavaObject().equals("2"));
@@ -77,7 +77,7 @@ public class JavaDispatchGenTest {
 			this.i = i;
 		}
 		
-		public String toString() {
+		public String toS_tring() {
 			return "" + this.i;
 		}
 		
