@@ -77,7 +77,7 @@ public class JavaDispatchGenTest {
 			this.i = i;
 		}
 		
-		public String toS_tring() {
+		public String toString() {
 			return "" + this.i;
 		}
 		
