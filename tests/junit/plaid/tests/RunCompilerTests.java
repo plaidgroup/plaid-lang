@@ -258,15 +258,15 @@ public class RunCompilerTests {
 					for (File plaidFile : config.getPlaidFiles()) {
 						compilerArgsList.add(plaidFile.getAbsolutePath());
 					}
-//					allParams.add(
-//							getParams(frontEndTest.getString(NAME_KEY), //testName
-//									"plaid.compiler.main", //mainClass
-//									compilerArgsList, //mainArgs
-//									COMPILEPLAID_CLASSPATH, //classPath
-//									output, //expectedOutput
-//									true, //compareOutput
-//									true) //shouldSucceed
-//							);
+					allParams.add(
+							getParams(frontEndTest.getString(NAME_KEY), //testName
+									"plaid.compiler.main", //mainClass
+									compilerArgsList, //mainArgs
+									COMPILEPLAID_CLASSPATH, //classPath
+									output, //expectedOutput
+									true, //compareOutput
+									true) //shouldSucceed
+							);
 					
 				}
 				
@@ -305,15 +305,15 @@ public class RunCompilerTests {
 					compilerArgsList.add(plaidFile.getAbsolutePath());
 				}
 				//NOTE: test will fail if there are warnings.
-//				allParams.add(
-//						getParams("Backend compiling " + configFile.getParentFile().getCanonicalPath(), //testName
-//								"plaid.compiler.main", //mainClass
-//								compilerArgsList, //mainArgs
-//								COMPILEPLAID_CLASSPATH, //classPath
-//								"Compilation Succeeded!\n", //expectedOutput
-//								true, //compareOutput
-//								true) //shouldSucceed
-//						);
+				allParams.add(
+						getParams("Backend compiling " + configFile.getParentFile().getCanonicalPath(), //testName
+								"plaid.compiler.main", //mainClass
+								compilerArgsList, //mainArgs
+								COMPILEPLAID_CLASSPATH, //classPath
+								"Compilation Succeeded!\n", //expectedOutput
+								true, //compareOutput
+								true) //shouldSucceed
+						);
 				
 			
 			
