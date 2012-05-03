@@ -1,0 +1,45 @@
+package plaidapps.webserver;
+
+state WaitingHttpServer case of HttpServer {
+	
+	var inputStream;
+	var outputStream;
+	var socket;
+	var serverSocket;
+	
+	method stop(){
+		serversocket.close();
+		this <- StoppedHttpServer;
+	}
+	
+	method await(){
+		System.out.println("Waiting for request");
+		var servletContainer = new ServletContainer;
+		while{ true }{
+			socket = this.serverSocket.accept();
+			inputStream = socket.getInputStream();
+			outputStream = socket.getOutputStream();
+	        var request = new Request{
+	        	var inputStream = this.inputStream;
+	        };
+	        //changes the state to ParsedRequest here
+	        var parsedRequest = request.parse(inputStream);
+	        var response = new Response{
+	        	var outputStream = this.outputStream;
+	        	var request = parsedRequest;
+	        };
+	        ifElse(parsedRequest.getUri().startsWith("/servlet/")){
+	        	System.out.println("I am servlet"+request.getUri());
+	        	var plaidServlet = servletContainer.getOrAddServletInstanceToPool(request.getUri());
+	        	var servletRequest = parsedRequest.makeServletRequest();
+	        	var servletResponse = response.makeServletResponse();
+	        	plaidServlet.service(servletRequest,servletResponse);
+	        	
+	        }{
+	        	System.out.println("I am not a servlet");
+		        response.serveFileResource();
+	        };
+	        socket.close();
+		};
+	}
+}

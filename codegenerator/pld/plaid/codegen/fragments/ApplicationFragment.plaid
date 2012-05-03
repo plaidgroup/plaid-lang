@@ -1,0 +1,116 @@
+package plaid.codegen.fragments;
+
+import plaid.ast.UnitLiteral;
+import plaid.ast.FieldDecl;
+import plaid.ast.DeclList;
+import plaid.ast.NewInstance;
+import plaid.ast.QI;
+import plaid.ast.types.UncheckedType;
+import plaid.ast.types.permissions.*;
+
+
+state ApplicationFragment {
+	method foldToPairs(/*List<Expression>*/ expList) {
+		val len = expList.length();
+		
+		
+		ifElse (len == 0) {
+			new UnitLiteral { val token = new None; };
+		} {
+			ifElse (len == 1) {
+				expList.head.value;
+			} {
+				// FIXME:  This code is untested!
+				
+				var second = new UnitLiteral { val token = new None; };
+				var fst = 0;
+				var snd = 0;
+				
+				val reversedList = new List { var head = new Nil; };
+				expList.map(fn (x) => reversedList.prepend(x));
+	
+				reversedList.map(fn (exp) => {
+					fst = new FieldDecl {
+						val f = new ID {val name = "fst"; val token = new None;};
+						val token = exp.token;
+						val e = exp;
+						val abstractField = false;
+						val immutableField = true;
+						val fieldType = new FieldType{
+							val name = f;
+							val permType = this.getDynPT();
+							val isImmutable = true;
+						};
+						val overrides = false;
+					};
+					snd = new FieldDecl {
+						val f = new ID{val name = "snd"; val token = new None;};
+						val token = new None;
+						val e = second;
+						val abstractField = false;
+						val immutableField = true;
+						val fieldTye = new FieldType{
+							val name = f;
+							val permType = this.getDynPT();
+							val isImmutable = true;
+						};
+						val overrides = false;
+					};
+					val pairFields = new List { var head = new Nil; };
+					pairFields.add(fst);
+					pairFields.add(snd);
+					
+					val pairName = new List { var head = new Nil; };
+					pairName.add("plaid");
+					pairName.add("lang");
+					pairName.add("Pair");
+					
+					val pairWith = new QI {
+						val token = new None;
+						val qid = pairName;
+						val initState = new DeclList { val token = new None; val decls = pairFields; };
+					};
+					second = new NewInstance {
+						val token = exp.token;
+						val s = pairWith;
+					};
+				});
+				second;
+			};
+		};
+	}
+
+	method visitApplication(node) {
+		this.setLocation(node.token);
+		var /* ID */ x = this.idgen.getId();
+		var /* ID */ y = this.y;
+		var /* ID */ z = this.idgen.getId();
+		// public final PlaidObject x;
+		// public final PlaidObject z;
+		this.out.declareFinalVar(this.out.plaidObjectType, x.name);
+		this.out.declareFinalVar(this.out.plaidObjectType, z.name);
+		
+		this.y = x;
+		node.f.accept(this);
+		
+		this.y = z;
+		
+		this.foldToPairs(node.arguments).accept(this);
+		this.setLocation(node.token);
+		
+		// y = Util.call(x,z);
+		ifElse (node.isTailCall) {
+			this.out.assignToTailCall(y.name, x.name, z.name); 
+		} {
+			this.out.assignToCall(y.name, x.name, z.name); 
+		};
+	}
+	
+	method getDynPT(){
+		new PermType{
+			val perm = new DynPermission;
+			val type = new Dyn;
+			val borrowed = false;
+		};
+	}
+}

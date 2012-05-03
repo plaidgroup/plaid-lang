@@ -1,0 +1,543 @@
+package plaid.typechecker.rewriting;
+
+import plaid.lang.*;
+import plaid.ast.visitor.*;
+import plaid.ast.*;
+import plaid.ast.stateTable.StateTable;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.typechecker.context.*;
+import java.lang.System;
+
+state PermissionAnalysisVisitor case of ASTVisitor {
+    var unique Context context = new Context;
+	var unique NeedsContext needsContext = new NeedsContext;
+	val unique StateTable st = new StateTable;
+	var unique Permission neededPerm = NONEP;
+	
+	method visitTakeBinding(node) {
+		val oldContext = this.context;
+		val typeFetchVisitor = new TypeFetchVisitor {
+			st = this.st; 
+			context = this.context.copy();
+		};
+		node.exp.accept(typeFetchVisitor);
+		this.context = typeFetchVisitor.context;
+		match(node) {
+			case NoTypeAnnotation {
+				// TODO:  Throw an error here
+				// we need an error strategy for permission analysis
+				// another comment
+			}
+			// TODO: Add support for function bindings
+			default {
+				val immutable Boolean recLambdaInf = match(node) {
+					case PermTypeAnnotation {					  
+					  this.context.put(node.x.copy(), node.pType.type);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					  false;
+					}
+					case ObjectTypeAnnotation {
+					  this.context.put(node.x.copy(), node.oType);
+					  this.needsContext.put(node.x.copy(), makePair(false, NONEP));
+					  node.body.accept(this);
+					  val need = needsContext.get(node.x.copy()).second();
+					  match(node.oType) {
+					    case LambdaType {
+					      val newRetType = createPermType(need,node.oType.returnType); //at this point return type is just a object type, not yet a permType
+					      node.oType.returnType = newRetType;
+					      node.addPermission(IMM);
+					      match (node.exp.recursiveName) { //by LNF node.exp must be a Lambda
+					      	case Some { true }
+					      	case None { false }
+					      };
+					    }
+					    default {
+					      node.addPermission(need);
+					      false;
+					    }
+					  }
+					}
+				};
+				
+				//in the case of a function, the needed type is the return permission
+				//otherwise it is the permission from the binding
+				match (node.pType.type) {
+				  case LambdaType {
+				    this.neededPerm = node.pType.type.returnType.perm;
+				  	if (recLambdaInf) { //need to add recursive name to context with lambdaType
+				  		oldContext.put(node.exp.recursiveName.value.copy(),node.pType.type)
+				  	}
+				  }
+				  default {
+				  	this.neededPerm = node.pType.perm
+				  }
+				};
+				this.needsContext.remove(node.x.copy());
+				this.context = oldContext;
+				node.exp.accept(this);
+				
+				//TODO : this doesn't work right now - need to do a dry run 
+				// of permission analysis first if we have a recursively bound lambda
+				// This is a good enough approximation for now
+				//fix needed perm for function return type based on recursive calls
+				//will need to analyze exp again with actual return type need
+				if (recLambdaInf) {
+					//java.lang.System.out.println(this.needsContext.toString());
+					val recNeed = this.needsContext.get(node.exp.recursiveName.value);
+					val updatedRetPerm = recNeed.snd.leastUpperBound(node.pType.type.returnType.perm);
+					this.needsContext.remove(node.exp.recursiveName.value);
+					node.pType.type.returnType = createPermType(updatedRetPerm,node.pType.type.returnType.type);
+				}
+			}
+		}
+	}
+	
+	method visitBorrowBinding(node) {
+		match (node.exp) {
+			case ID {
+				visitBorrowVar(node)
+			}
+			case Dereference {
+				visitBorrowField(node)
+			}
+			default {/* error */}
+		}
+	}
+	
+	//requires node.exp is an ID
+	method visitBorrowVar(node) {
+		val varID = node.exp.copy();
+		val varNeedIn = this.needsContext.get(varID);
+		val strongBorrowed = varNeedIn.fst;
+		match(node) {
+			case NoTypeAnnotation {
+				// TODO:  Throw an error
+			}
+			default {
+				val boundNeed = match(node) {
+					case PermTypeAnnotation {
+					  this.context.put(node.x.copy(), node.pType.type);
+					  this.needsContext.put(node.x.copy(), makePair(strongBorrowed, NONEP));
+					  this.needsContext.update(node.exp.copy(),makePair(strongBorrowed,NONEP));
+					  node.body.accept(this);
+					  node.pType.perm  //put into boundNeed
+					}
+					case ObjectTypeAnnotation {
+					  this.context.put(node.x.copy(), node.oType);
+					  this.needsContext.put(node.x.copy(), makePair(strongBorrowed, NONEP));
+					  this.needsContext.update(node.exp.copy(),makePair(strongBorrowed,NONEP));
+					  node.body.accept(this);
+					  val need = needsContext.get(node.x.copy()).second();
+					  node.addPermission(need);
+					  need //put into boundNeed
+					}
+				};
+				
+				//update binding
+				match (strongBorrowed) {
+					case True { 
+						node.toStrongBorrow();
+						node.addLowerBound(boundNeed); 
+					}
+					case False { 
+						node.toNotStrongBorrow();
+						node.addLowerBound(NONEP) 
+					}
+				};
+				
+				//update needs context
+				val varNeedBody = this.needsContext.get(node.exp.copy());
+				val varNeedLUB = 
+					varNeedIn.snd.leastUpperBound(varNeedBody.snd).leastUpperBound(boundNeed);
+				this.needsContext.update(node.exp.copy(),makePair(strongBorrowed,varNeedLUB));
+				this.needsContext.remove(node.x.copy());
+			}
+		}
+	}
+	
+	//requires node.exp is a dereference
+	method visitBorrowField(node) {
+		val /* immutable ID */ baseObj = node.exp.left.copy();
+		val baseObjNeedIn = this.needsContext.get(baseObj); //left had better be an ID - guaranteed by LNF?
+		val strongBorrowed = baseObjNeedIn.fst;
+		match(node) {
+			case NoTypeAnnotation {
+				// TODO:  Throw an error
+			}
+			default {
+				val boundNeed = match(node) {
+					case PermTypeAnnotation {
+					  this.context.put(node.x.copy(), node.pType.type);
+					  this.needsContext.put(node.x.copy(), makePair(strongBorrowed, NONEP));
+					  node.body.accept(this);
+					  node.pType.perm  //put into boundNeed
+					}
+					case ObjectTypeAnnotation {
+					  this.context.put(node.x.copy(), node.oType);
+					  this.needsContext.put(node.x.copy(), makePair(strongBorrowed, NONEP));
+					  node.body.accept(this);
+					  val need = needsContext.get(node.x.copy()).second();
+					  node.addPermission(need);
+					  need //put into boundNeed
+					}
+				};
+				
+				//update binding
+				match (strongBorrowed) {
+					case True { 
+						node.toStrongBorrow();
+						node.addLowerBound(boundNeed); 
+					}
+					case False { 
+						node.toNotStrongBorrow();
+						node.addLowerBound(NONEP) 
+					}
+				};
+				
+				//update needs context
+				//should do more checks here when have time - assume previous passes will catch
+				val /* immutable ID */ field = node.exp.right.copy();
+				val /* immutable NominalType */ objType = this.context.get(baseObj); 
+				val /* immutable Permission */ fieldPerm = 
+					objType.declaredType(field, this.st).value.getBinding().getPerm();
+					
+				val objPermToPull = fieldReadPermission(fieldPerm, boundNeed, strongBorrowed);
+				val baseObjNeedBody = this.needsContext.get(baseObj);
+				
+				
+				val baseObjNeedLUB = 
+					baseObjNeedBody.snd.leastUpperBound(objPermToPull.value);
+				this.needsContext.update(node.exp.copy(),makePair(strongBorrowed,baseObjNeedLUB));
+				this.needsContext.remove(node.x.copy());
+			}
+		}
+	}
+	
+	method visitID(node) {
+	  val contextNeed = this.needsContext.get(node.copy());
+	  val newNeed = this.neededPerm.leastUpperBound(contextNeed.second());
+	  this.needsContext.update(node.copy(), makePair(contextNeed.first(), newNeed));
+	}
+	
+	method visitNewInstance(node) {
+		match(node.s) {
+			case QI {
+				node.s.accept(this);
+			}
+			default { 
+				//only nominal states supported
+			}
+		}
+	}
+	method visitUnitLiteral(node) {
+	}
+	
+	method visitAtomicBlock(node) {
+	}
+
+	method visitCase(node) {
+		/* no op - handled in match */
+					
+	}
+	
+	method visitChangeState(node) {		
+		match(node.s) {
+			case QI {
+				node.s.accept(this);
+				val immutable ID targetID = node.e.copy(); //must be ID in LNF
+				val targetNeedIn = this.needsContext.get(targetID);
+				this.needsContext.update(targetID.copy(),makePair(targetNeedIn.fst,UNIQUE));
+			}
+			default { 
+				//only nominal states supported
+			}
+		}
+	}
+	
+	method visitCompilationUnit(node) {
+		node.decls.map(fn(d) => d.accept(this))
+	}
+	
+	method visitDeclList(node) {
+		node.decls.map(fn(d) => d.accept(this))
+	}
+	
+	method visitDereference(node) {
+		val immutable ID baseObj = node.left.copy();
+		val baseObjNeedIn = this.needsContext.get(baseObj);
+		//should do more checks here when have time - assume previous passes will catch
+		val immutable ID field = node.right.copy();
+		val immutable NominalType objType = this.context.get(baseObj); 
+		val immutable Permission fieldPerm = 
+			objType.declaredType(field, this.st).value.getBinding().getPerm();
+		val objPermToPull = fieldReadPermission(fieldPerm, this.neededPerm, false);
+		val baseObjNeedOut = objPermToPull.value.leastUpperBound(baseObjNeedIn.snd);
+		this.needsContext.update(baseObj.copy(),makePair(baseObjNeedIn.fst,baseObjNeedOut));
+	}
+	
+	method visitDestructiveDereference(node) {
+		//error - no infrastructure yet
+	}
+	
+	method visitAssignment(node) {
+		//error if needed perm is not none
+		val immutable ID baseObj = node.target.value.copy();
+		val baseObjNeedIn = this.needsContext.get(baseObj);
+		//should do more checks here when have time - assume previous passes will catch
+		val immutable ID field = node.field.copy();
+		val immutable NominalType objType = this.context.get(baseObj); 
+		val immutable Permission fieldPerm = 
+			objType.declaredType(field, this.st).value.getBinding().getPerm();
+		val immutable ID valueID = node.value.copy(); //ID in let normal form
+		val valueNeedIn = this.needsContext.get(valueID);
+		val valueNeedOut = valueNeedIn.snd.leastUpperBound(fieldPerm);
+		this.needsContext.update(valueID.copy(),makePair(valueNeedIn.fst,valueNeedOut));
+		this.needsContext.update(baseObj.copy(),makePair(baseObjNeedIn.fst,UNIQUE));
+	}
+	
+	method visitQI(node) {
+		//run on the initializers in reverse order, using this context
+		match (node.initState) {
+			case Some {
+				val savedNeed = this.neededPerm;
+				node.initState.value.decls.foldr(fn (d,e) => {
+					match (d) {
+						case FieldDecl { //for field initializers, allow the use of outside variables
+							val fieldPermType = d.fieldType.binding.currentType.copy();
+							match (fieldPermType.type) {
+								case LambdaType {
+									this.neededPerm = fieldPermType.type.returnType.perm;
+								}
+								default {
+									this.neededPerm = fieldPermType.perm;
+								}
+							};
+							d.e.accept(this);
+							new None;
+						}
+						default { //nothing from outside should be in scope for non-field decls
+							val dVisitor = new PermissionAnalysisVisitor {
+								override val st = this.st;
+							};
+							d.accept(dVisitor);
+							new None;
+						}
+					}
+				},new None);
+			}
+			case None { /* no op */ }
+		}
+	}
+	
+	method visitDoubleLiteral(node) {
+    }
+    
+	method visitIntLiteral(node) {
+	}
+	
+	method visitStringLiteral(node) {
+	}
+	
+	method void visitFieldDecl(node) {
+		val fieldVisitor = new PermissionAnalysisVisitor {
+				override val st = this.st; 
+			};
+		val fieldPermType = node.fieldType.binding.currentType.copy();
+		match (fieldPermType.type) {
+			case LambdaType {
+				fieldVisitor.neededPerm = fieldPermType.type.returnType.perm;
+			}
+			default {
+				fieldVisitor.neededPerm = fieldPermType.perm;
+			}
+		};
+		node.e.accept(fieldVisitor);
+	}
+	
+	method visitGroupDecl(node) {
+	}
+	
+	method visitMatch(node) {			
+		val caseVisitorOutput = node.caseList.map(fn(c) => {
+			val cVisitor = new PermissionAnalysisVisitor {
+				override var context = this.context.copy();
+				override var needsContext = this.needsContext.copy();
+				override val st = this.st;
+				override var neededPerm = this.neededPerm;
+			};
+			match (c.defaultCase) {
+				case True { /* no op */ }
+				case False {
+					val updateType = createNominalType(makeID(makeToken(),c.qi.value.toShortName()));
+					cVisitor.context.update(node.e.copy(),updateType);	
+				}
+			};
+			c.e.accept(cVisitor);
+			cVisitor;
+		});
+		val unique NeedsContext merged = 
+			caseVisitorOutput.foldl(fn (pav,ctx) => {
+				pav.needsContext.merge(ctx);
+			}, new NeedsContext);
+		this.needsContext = merged;
+	}
+	
+	method visitMethodCall(node) {
+		val immutable ID receiverID = node.receiver.copy(); //lnf guarantees ID
+		val receiverType = this.context.get(receiverID); //check that actually there
+		val mType = receiverType.declaredType(node.methodName.copy(),this.st).value; //check that there
+		
+		//update receiver type in the needs context
+		val receiverNeedIn = this.needsContext.get(receiverID);
+		val receiverNeedOut = mType.receiverType.input.perm;
+		this.needsContext.update(receiverID.copy(),makePair(receiverNeedIn.fst, receiverNeedOut));
+		
+		//update arg needs in context
+		val idTypeList = node.arguments.zip(mType.argTypes);
+		idTypeList.map(fn(idType) => {
+			val argID = idType.fst.copy();
+			val argNeedIn = this.needsContext.get(argID);
+			val argNeedOut = idType.snd.input.perm;
+			this.needsContext.update(argID.copy(),makePair(argNeedIn.fst, argNeedOut));
+		});
+		
+		//don't need to do environments in methods for now		
+	}
+	
+	method visitApplication(node) {
+		val immutable ID fnID = node.f.copy();
+		val fnType = this.context.get(fnID);
+		
+		//update arg needs in context
+		val idTypeList = node.arguments.zip(fnType.argTypes);
+		idTypeList.map(fn(idType) => {
+			val argID = idType.fst.copy();
+			val argNeedIn = this.needsContext.get(argID);
+			val argNeedOut = idType.snd.input.perm;
+			this.needsContext.update(argID.copy(),makePair(argNeedIn.fst, argNeedOut));
+		});
+		
+		//update environment needs
+		val iterator = fnType.environmentTypes.keySet().iterator();
+		while { iterator.hasNext() } {
+		  val envId = iterator.next().copy();
+		  val envNeedIn = this.needsContext.get(envId);
+		  val envChange = fnType.environmentTypes.get(envId);
+		  val envNeedOut = envChange.input.perm;
+		  this.needsContext.update(envId.copy(),makePair(envNeedIn.fst, envNeedOut));
+		};
+	}
+	
+	method void visitMethodDecl(node) {
+		val mVisitor = new PermissionAnalysisVisitor {
+			override val st = this.st; 
+			override var neededPerm = node.methodType.returnType.getPerm();
+			override var context = this.context.copy();
+		};
+		
+		val thisID = makeID(makeToken(),"this$plaid");
+		mVisitor.context.put(thisID,node.methodType.receiverType.inputBinding().getObjectType());
+		mVisitor.needsContext.put(thisID,
+			makePair(node.methodType.receiverType.strongBorrow,node.methodType.receiverType.output.perm));
+		
+		val idTypeList = node.arguments.zip(node.methodType.argTypes);
+		idTypeList.map(fn(idType) => {
+			mVisitor.context.put(idType.fst.copy(),idType.snd.input.type);
+			mVisitor.needsContext.put(idType.fst.copy(),
+									   makePair(idType.snd.strongBorrow,idType.snd.output.perm));
+		});
+		
+		//environments not yet implemented for methods (ever?)
+		
+		node.body.accept(mVisitor);
+		
+	}
+	
+	method visitLambda(node) {
+		val fnVisitor = new PermissionAnalysisVisitor { 
+				override val st = this.st; 
+				override var neededPerm = this.neededPerm;
+			};
+		
+		val immutable Boolean recursive = match (node.recursiveName) {
+			case Some { //look for recursive name in the context and add it if it exists
+				val recursiveTypeOption = this.context.getOption(node.recursiveName.value);
+				match (recursiveTypeOption) {
+					case Some {
+						fnVisitor.context.put(node.recursiveName.value.copy(), recursiveTypeOption.value);
+						//will need to add recursive need in when calculating function return type
+						fnVisitor.needsContext.put(node.recursiveName.value.copy(), makePair(false,NONEP));
+						true
+					}
+					case None { false }
+				}
+			}
+			case None { false }
+		};
+		
+		val idTypeList = node.arguments.zip(node.lambdaType.argTypes);
+		idTypeList.map(fn(idType) => {
+			fnVisitor.context.put(idType.fst.copy(),idType.snd.input.type);
+			fnVisitor.needsContext.put(idType.fst.copy(),
+									   makePair(idType.snd.strongBorrow,idType.snd.output.perm));
+		});
+		
+		val iterator = node.lambdaType.environmentTypes.keySet().iterator();
+		while { iterator.hasNext() } {
+		  val envId = iterator.next();
+		  val envChange = node.lambdaType.environmentTypes.get(envId);
+		  val envInType = envChange.input.type;
+		  fnVisitor.context.put(envId.copy(), envInType);
+		  val envOutPerm = envChange.output.perm;
+		  fnVisitor.needsContext.put(envId.copy(), makePair(envChange.strongBorrow,envOutPerm));
+		};
+		
+		node.body.accept(fnVisitor);
+		
+		//KBN - need to put return type into Lambda
+		//possibly need to do fixed point on recursive need
+		
+		//add recursive need to outgoing needsContext if needed (for let binding name to function)
+	  match (recursive) {
+			case True {
+				val recNeed = fnVisitor.needsContext.get(node.recursiveName.value);
+				match(this.needsContext.containsKey(node.recursiveName.value)) {
+					case True {
+						this.needsContext.update(node.recursiveName.value.copy(),recNeed)
+					}
+					case False {
+						this.needsContext.put(node.recursiveName.value.copy(),recNeed);
+					}
+				}
+			}
+			case False { /* no op*/ }
+		};
+		
+		match(node.lambdaType.returnType) {
+			case ObjectType { // add needed permission
+				node.lambdaType.returnType = createPermType(this.neededPerm, node.lambdaType.returnType);
+			}
+			default{/* no op */}
+		}
+	}
+	
+	method visitSplitBlock(node) {
+		newObjectError("Split Block not implemented");
+	}
+	
+
+	method visitStateDecl(node) {
+		node.stateDef.accept(this);
+	}
+	
+	method visitUnpackInnerGroups(node) {
+		java.lang.System.err.println("I don't know how to deal with you");
+	}
+	
+	method visitWith(node) {
+		node.s1.accept(this);
+		node.s2.accept(this);
+	}
+}

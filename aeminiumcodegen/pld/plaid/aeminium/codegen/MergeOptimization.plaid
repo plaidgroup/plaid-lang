@@ -1,0 +1,57 @@
+package plaid.aeminium.codegen;
+
+state MergeOptimization {
+	method mergeNodes(nodeList) {
+		// Check if we can merge node B with its predecessor A
+		nodeList.map(fn (B) => {
+			// The easy part:  Check that B has only one dependency
+			val deps = B.dependencies.value;
+			if (deps.size() == 1) {
+				val A = deps.iterator().next().to;
+								
+				// Now we have to check that no other node C != B exists that only depends on A
+				var okayToMerge = (A.num != 0);
+				nodeList.map(fn (C) => {
+					if (C.num != B.num) {
+						match (C.dependencies) {
+							case Some {
+								val depsC = C.dependencies.value;
+							
+								if (depsC.size() == 1) {
+									if (depsC.iterator().next().to.num == A.num) {
+										okayToMerge = false;
+									};
+								};
+							}
+							default {}
+						};
+					};
+				});
+				
+				if (okayToMerge) {
+					// B only depends on A and it's the only node that depends on A.  Merge them.
+					
+					B.dependencies = new None;
+					java.lang.System.out.println("Merge nodes " + A.num + " and " + B.num);
+					
+					// Correct all dependencies to B and reroute them to A.
+					nodeList.map(fn (C) => {
+						match (C.dependencies) {
+							case Some {
+								val it = C.dependencies.value.iterator();
+								
+								while { it.hasNext(); } {
+									val d = it.next();
+									if (d.to.num == B.num) {
+										d.to = A;
+									};
+								};
+							}
+							default {}
+						};
+					});
+				};
+			};
+		});
+	}
+}

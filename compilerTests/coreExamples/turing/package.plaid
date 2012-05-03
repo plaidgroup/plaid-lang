@@ -1,0 +1,291 @@
+/*
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* A Turing Machine in Plaid */
+
+package coreExamples.turing;
+
+// TODO: implement restricted update for state changes
+
+state Entry { }
+
+state Zero case of Entry {
+	
+	method writeZero() {}
+	method writeOne() {
+		this <- One;
+	}
+	method printVal() {
+		java.lang.System.out.print("0");
+	}
+}
+
+state One case of Entry {
+	
+	method writeZero() {	
+		this <- Zero;
+	}
+	
+	method writeOne() {}
+	
+	method printVal() {
+		java.lang.System.out.print("1");
+	}
+}
+
+state Cell {
+	method printVal();
+ }
+
+state InnerCell case of Cell {
+	val left;
+	val right;
+
+	method getLeft() {
+		left;
+	}
+	
+	method getRight() {
+		right;
+	}
+
+	method doPrint() {
+		// TODO: error messages should have correct line numbers
+		// if we change the line below to "printVl();" we get an error at line -1
+		printVal();
+		java.lang.System.out.print(" ");
+		val rt = getRight().doPrint();
+	}
+	
+	method printMethod() {
+		val lt = getLeft();
+		lt.printMethod();
+	}
+}
+state LeftEnd case of Cell {
+	val right;
+	
+	method getLeft() {
+		val lt = makeLeftEnd(this);
+		val rt = right;
+		
+		this <- InnerCell { left = lt; right = rt; };  //right maintained right now - maybe not always be...
+		
+		lt;
+	}
+	
+	method getRight() {
+		right;
+	}
+	
+	method doPrint() {
+		printVal();
+		java.lang.System.out.print(" ");
+		val rt = getRight().doPrint();
+	}
+	
+	method printMethod() {
+		doPrint();
+	}
+}
+
+method makeLeftEnd(myRight) {
+	new LeftEnd { right = myRight; } with Zero;
+}
+
+state RightEnd case of Cell {
+	val left;
+
+	// TODO: eventually allow static "new" function here
+	method getRight() {
+		val rt = makeRightEnd(this);
+		val lt = left;
+
+		this <- InnerCell { right = rt; left = lt; }; //left maintained right now - maybe not always be...
+
+		rt;
+	}
+
+	method getLeft() {
+		left;
+	}
+	
+	method doPrint() {
+		printVal();
+	}
+	
+	method printMethod() {
+		val lt = getLeft();
+		lt.printMethod();
+	}
+}
+
+method makeRightEnd(myLeft) {
+	new RightEnd { left = myLeft; } with Zero;
+}
+
+state Start case of Cell {
+	method getLeft() {
+		val lt = makeLeftEnd(this);
+
+		this <- RightEnd { left = lt; }; 
+
+		/* Alternate approach to above, but creates garbage!
+		val newObj = makeRightEnd(left);
+		this <- newObj;		// TODO: this should work!
+		*/
+
+		lt;
+   	}
+
+	method getRight() {
+		val rt = makeRightEnd(this);
+
+		this <- LeftEnd { right = rt; };
+		rt;
+	}
+
+	method doPrint() {
+		printVal();
+	}
+	method printMethod() {
+		doPrint();
+	}
+}
+
+state Halt {
+	val cell;
+
+	method printMethod() {
+		cell.printMethod();
+	}
+
+	method run() {
+	}
+}
+
+state Beaver1A {
+	val cell;
+
+	method update() {
+		match (cell) {
+	   		case Zero {
+				cell.writeOne();
+				val newCell = cell.getRight();
+				this <<- Halt { cell = newCell; };
+			}
+			case One { }
+		};
+	}
+
+	method run() {
+		update();
+		run();
+	}
+}
+
+state Beaver2A {
+	val cell;
+
+	method update() {
+		match (cell) {
+			case Zero {
+				cell.writeOne();
+				val newCell = cell.getRight();
+				this <<- Beaver2B { cell = newCell; };
+			} case One {
+				cell.writeOne();
+				val newCell = cell.getLeft();
+				this <<- Beaver2B { cell = newCell; };
+	 	   }
+		};
+	}
+
+	method run() {
+		update();
+		run();
+	}
+}
+
+state Beaver2B {
+	val cell;
+
+	method update() {
+		match (cell) {
+			case Zero {
+				cell.writeOne();
+				val newCell = cell.getLeft();
+				this <<- Beaver2A { cell = newCell; };
+			} case One {
+				cell.writeOne();
+				val newCell = cell.getRight();
+				this <<- Halt { cell = newCell; };
+			}
+		};
+	}
+
+	method run() {
+		update();
+		run();
+	}
+}
+
+method beaver(machine) {
+	machine.run();
+	machine.printMethod();
+}
+
+method turing() {
+	printLine("running 1 state busy beaver:");
+	beaver(new Beaver1A { cell = new Start with Zero; });
+
+	printLine();
+	printLine();
+	printLine("running 2 state busy beaver:");
+	beaver(new Beaver2A { cell = new Start with Zero; });
+}
+
+method test() {
+	var head = new Start with Zero;
+	printLine("");
+	printLine("");
+	head.printMethod();
+	printLine("");
+	var head1 = head.getLeft();
+	var head2 = head1.getLeft();
+	var head3 = head2.getRight(); // same as head1
+	var head4 = head3.getRight(); // same as head
+	var head5 = head4.getRight(); // move 1 right
+	var head6 = head5.getLeft(); // same as head
+	var head7 = head6.getLeft(); // same as head1
+	head = head7; // test assignment
+	head2.printMethod();
+	printLine("");
+	head7.writeOne();
+	head7.printMethod();
+	printLine("");
+	printLine("running a turning machine!");
+}
+
+method main() {
+	// TODO: shouldn't have to define a "main" method, should just be
+	// able to invoke turing() directly
+	turing();
+	test();
+}

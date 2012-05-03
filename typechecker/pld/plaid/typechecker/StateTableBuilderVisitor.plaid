@@ -1,0 +1,108 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+//import plaid.typechecker.ast.*;
+import plaid.ast.visitor.LeafVisitor;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.ast.types.permissions.*;
+
+state StateTableBuilderVisitor case of LeafVisitor {
+	
+	var /*List<StateType>*/ stateTable = new StateTable;
+	var /*Context*/ initialContext = new Context;
+	var /*StateType*/ currentState = new None;
+	
+	//method visitImportList(node); //TODO: override and handle imports
+	/*
+	*	save
+	*/
+	override method visitStateDecl(node) {
+		//java.lang.System.out.println("visiting: " + node.getName());
+		
+		var /*Option StateType*/ superST = NONE;
+		match (node.caseOf) {
+			case Some {
+				val /*ID*/ qID = makeID(makeToken(),node.caseOf.value.toShortName());
+				superST = stateTable.get(qID); //TODO: robust handling of QIs
+				match (superST) {
+					case None {
+						java.lang.System.out.println("State Table Build Failed: type " + qID.name + " not declared");
+					}
+					case Some {
+						//Typechecker checks that the case of relationship is valid
+					}
+				}
+			}
+			case None {
+				//do nothing
+			}
+		};
+		
+		val sType = new StateType {
+			val /*Option StateType*/ superType = superST;
+			val /*ID*/ name = node.name;
+		};
+		stateTable.put(node.name, sType);
+		currentState = new Some { val value = sType; };
+		node.stateDef.accept(this);  //Visit declarations in this state
+		currentState = new None;	//leave this state context
+	}
+	
+	/*
+	*	if in a current state, add to list of 
+	*/
+	override method visitMethodDecl(node) {
+		//java.lang.System.out.println("visiting: " + node.getName());
+		match(this.currentState) {
+			case Some {
+				val theState = currentState.value;
+				val methodType = node.methodType;
+				
+				if (!node.abstractMethod) 
+					{ theState.providedTypes.put(methodType.name, methodType) };
+				
+				theState.declaredTypes.put(methodType.name, methodType);
+			}
+			default {//add to initial Context
+				//initialContext.put(node.methodType.name, node.methodType);
+			}
+		}
+	}
+	
+	override method visitFieldDecl(node) {
+		//java.lang.System.out.println("visiting: " + node.getName());
+		match(this.currentState) {
+			case Some { //add to current state
+				val theState = currentState.value;
+				val fieldType = node.fieldType;
+				if (!node.abstractField) 
+					{ theState.providedTypes.put(fieldType.name, fieldType) };
+				theState.declaredTypes.put(fieldType.name, fieldType);
+			}
+			default { //add to initial Context
+				initialContext.put(node.fieldType.name, createTakeType(node.fieldType.binding.getPerm(), node.fieldType.binding.getObjectType()));
+			}
+		}
+	}
+}

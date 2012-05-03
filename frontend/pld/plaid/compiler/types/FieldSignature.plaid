@@ -1,0 +1,47 @@
+package plaid.compiler.types;
+
+import plaid.compiler.Type;
+import plaid.compiler.Signature;
+import plaid.compiler.permissions.splitFieldPermission;
+
+state FieldSignature case of Signature {
+
+    method immutable String getFieldName();
+
+    method immutable Type getDeclaredType();
+    
+    method immutable Type getCurrentType();
+    
+    method immutable Boolean ==(immutable Signature other)[immutable FieldSignature this];
+    
+    method immutable String toString()[immutable FieldSignature this];
+    
+    method immutable Option<immutable FieldSignature> splitPermFromField(immutable Permission neededPerm, immutable Permission fieldOwnerPerm) {
+      val immutable Type currentFieldType = this.getCurrentType();
+      val immutable Permission currentFieldPerm = currentFieldType.permission;
+      val immutable ?Permission residuePerm = splitFieldPermission(fieldOwnerPerm, currentFieldPerm, neededPerm);
+      match (residuePerm) {
+        case Permission {
+          match (residuePerm == currentFieldPerm) {
+            case True { makeSome(this) } // pull did not change permission in the field
+            case False { 
+              val immutable Type newType = makeType(residuePerm, currentFieldType.structure);
+              match(this) {
+                case PackedFieldSignature {
+                  /*unpack the field for the first time - generate new object ID */
+                  makeSome(makeUnpackedFieldSignature(this, getUniqueLocationID(), newType))
+                }
+                case UnpackedFieldSignature {
+                  /*update the existing unpacked Signature - use the same ID*/
+                  makeSome(makeUnpackedFieldSignature(this.packedSignature, this.objectID, newType))
+                }
+              }
+            }
+          }
+        }
+        default { NONE }
+      }
+    } 
+    
+    method immutable ?FieldSignature restoreType(immutable Type retType, immutable Integer restoreObjectID);
+}
