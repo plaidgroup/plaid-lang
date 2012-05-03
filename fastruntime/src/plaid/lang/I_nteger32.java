@@ -11,15 +11,20 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
+import plaid.generated.Iamp$plaid$1$plaid;
 import plaid.generated.IasInt32$0$plaid;
+import plaid.generated.Ibangeq$plaid$1$plaid;
+import plaid.generated.Icarat$plaid$1$plaid;
 import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igt$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
+import plaid.generated.Igtgt$plaid$1$plaid;
 import plaid.generated.Ilt$plaid$1$plaid;
 import plaid.generated.Ilteq$plaid$1$plaid;
 import plaid.generated.Imod$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
+import plaid.generated.Ipipe$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
 import plaid.generated.ItoS_tring$0$plaid;
@@ -37,7 +42,13 @@ public final class I_nteger32 extends AbstractPlaidDispatch
 						   			  Ilt$plaid$1$plaid,
 						   			  Ilteq$plaid$1$plaid,
 						   			  ItoS_tring$0$plaid,
-						   			  IasInt32$0$plaid{
+						   			  IasInt32$0$plaid,
+						   			  Ibangeq$plaid$1$plaid,
+						   			  Iamp$plaid$1$plaid,
+						   			  Ipipe$plaid$1$plaid,
+						   			  Igtgt$plaid$1$plaid,
+						   			  Icarat$plaid$1$plaid
+{
 
 	private final static int CACHE_LOWER_BOUND = -127;
 	private final static int CACHE_UPPER_BOUND =  128;
@@ -121,6 +132,31 @@ public final class I_nteger32 extends AbstractPlaidDispatch
 			throw new PlaidIllegalArgumentException("* failed", e.getCause());
 		}
 	}
+	
+	@Override
+	public PlaidObject gtgt$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second =  ((Integer32PlaidJavaObject) arg).integerValue;
+			return plaidInteger(first >> second);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("* failed", e.getCause());
+		}
+	}
+	
+	@Override
+	public PlaidObject carat$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second =  ((Integer32PlaidJavaObject) arg).integerValue;
+			return plaidInteger(first ^ second);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("* failed", e.getCause());
+		}
+	}
+
 
 	@Override
 	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg) {
@@ -149,12 +185,48 @@ public final class I_nteger32 extends AbstractPlaidDispatch
 	}
 	
 	@Override
+	public PlaidObject pipe$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second = ((Integer32PlaidJavaObject) arg).integerValue; 
+			return plaidInteger(first | second);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("+ failed", e.getCause());
+		}
+	}
+	
+	@Override
+	public PlaidObject amp$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second = ((Integer32PlaidJavaObject) arg).integerValue; 
+			return plaidInteger(first & second);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("+ failed", e.getCause());
+		}
+	}
+	
+	@Override
 	public PlaidObject lt$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
 			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
 			int second = ((Integer32PlaidJavaObject) arg).integerValue;
-			boolean b = first < second;
-			return Util.bool(b);
+			return Util.bool(first < second);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("<= failed", e.getCause());
+		}
+	}
+	
+
+	@Override
+	public PlaidObject bangeq$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
+			int second = ((Integer32PlaidJavaObject) arg).integerValue;
+			return Util.bool(first != second);
 			
 		} catch (ClassCastException e) {
 			throw new PlaidIllegalArgumentException("<= failed", e.getCause());
@@ -281,4 +353,5 @@ public final class I_nteger32 extends AbstractPlaidDispatch
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
 		}
 	}
+
 }
