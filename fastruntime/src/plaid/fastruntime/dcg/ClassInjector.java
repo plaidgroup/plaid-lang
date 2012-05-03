@@ -41,7 +41,7 @@ public final class ClassInjector {
     }
 	
 	public static Class<?> defineClass(String name, byte[] b, int off, int len) {
-		System.out.println(name);
+		//System.out.println(name);
 		return UNSAFE.defineClass(name, b, off, len);
 	}
 	
