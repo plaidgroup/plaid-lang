@@ -1,8 +1,6 @@
 package V8Benchmarks.deltaBlue;
 
 
-import plaid.collections.Stack;
-
 /**
  * A JavaScript implementation of the DeltaBlue constraint-solving
  * algorithm, as described in:
@@ -35,9 +33,15 @@ Object.prototype.inheritsFrom = function (shuper) {
 */
 
 state OrderedCollection {
-	var elms =  makeStack();
+    var elms;
+
+	method startStack(){
+		this.elms =  makeStack();
+	}
 
 	method add(elm) {
+		//printLine("this.elms.add in OrderedCollectionState: "+this.elms.add);
+		//printLine("this.elms: "+this.elms);
 		this.elms.add(elm);
 	}
 	
@@ -50,11 +54,16 @@ state OrderedCollection {
 	}
 	
 	method removeFirst() {
+	    //printLine("this.elms.pop "+this.elms.pop);
 		this.elms.pop()
 	}
 	
-	method remove(elm) {
-		this.elms.filterAll(fn(elem) => { elem != elm }); //debug, does this need to be stored?
+	method removeItem(elm) {
+		this.elms = this.elms.filterAll(fn(elem) => { elem != elm }); //debug, does this need to be stored?
+	}
+	
+	method map(f) {
+		this.elms.map(f);
 	}
 
 }
@@ -72,7 +81,7 @@ state OrderedCollection {
 
 //make a new Strength object with Strength{strenghtValue=<val>;name=<name>}
 state Strength {
-	var strenthValue;
+	var strengthValue;
 	var name;
 	
 	method setStrengthFields(sv,n){
@@ -107,36 +116,44 @@ state Strength {
 	}
 	
 	method nextWeaker(){
+		var returnVal=WEAKEST;
 		if (this.strengthValue==0){
-			WEAKEST;
+			//printLine("this.strengthValue=0");
+			returnVal = WEAKEST;
 		};
 		if (this.strengthValue==1){
-			WEAK_DEFAULT;
+			//printLine("this.strengthValue=1");
+			returnVal = WEAK_DEFAULT;
 		};
 		if (this.strengthValue==2){
-			NORMAL;
+			//printLine("this.strengthValue=2");
+			returnVal = NORMAL;
 		};
 		if (this.strengthValue==3){
-			STRONG_DEFAULT;
+			//printLine("this.strengthValue=3");
+			returnVal = STRONG_DEFAULT;
 		};
 		if (this.strengthValue==4){
-			PREFERRED;
+			//printLine("this.strengthValue=4");
+			returnVal = PREFERRED;
 		};
 		if (this.strengthValue==5){
-			REQUIRED
+			//printLine("this.strengthValue=5");
+			returnVal = REQUIRED;
 		};
+		returnVal;
 	}
 
 }
 
 //Strength constants
-var REQUIRED        = (new Strength).setFields(0, "required");
-var STONG_PREFERRED = (new Strength).setFields(1, "strongPreferred");
-var PREFERRED       = (new Strength).setFields(2, "preferred");
-var STRONG_DEFAULT  = (new Strength).setFields(3, "strongDefault");
-var NORMAL          = (new Strength).setFields(4, "normal");
-var WEAK_DEFAULT    = (new Strength).setFields(5, "weakDefault");
-var WEAKEST         = (new Strength).setFields(6, "weakest");
+var REQUIRED        = new Strength;
+var STRONG_PREFERRED = new Strength;
+var PREFERRED       = new Strength;
+var STRONG_DEFAULT  = new Strength;
+var NORMAL          = new Strength;
+var WEAK_DEFAULT    = new Strength;
+var WEAKEST         = new Strength;
 
 
 
@@ -156,8 +173,10 @@ var WEAKEST         = (new Strength).setFields(6, "weakest");
 state Constraint {
 	var strength;
 	
-	method setFields(s){
+	method setConstraintFields(s){
+		//printLine("setting constraint fields "+s.name);
 		this.strength=s;
+		//printLine("out of setting constraint fields");
 	}
 	
 	
@@ -165,8 +184,14 @@ state Constraint {
 	 * Activate this constraint and attempt to satisfy it.
 	 */
 	method addConstraint(){
+		//printLine("addconstraint constraint");
+		//printLine("before addtograph");
+		//printLine(this.tree);
+		//printLine(this.addToGraph);
 		this.addToGraph();
+		//printLine("after addtograph, before incrementaladd");
 		planner.incrementalAdd(this);
+		//printLine("after incrementaladd");
 	}
 	
 	 /**
@@ -177,23 +202,39 @@ state Constraint {
 	 * Assume: I am not already satisfied.
 	 */
 	 method satisfy(mark){
+	 	//printLine("in satisfy");
 	 	this.chooseMethod(mark);
-		if (!this.isSatisfied()) {
+	 	//printLine("after chooseMethod");
+	 	var returnVal=NEWNONE;
+		ifElse (!this.isSatisfied()) {
+			//printLine("not satisfied");
 		    if (this.strength == REQUIRED){
 		      printLine("Could not satisfy a required constraint!");
 		    };
-		    NEWNONE;
+		    //printLine("about to return null because strength isn't 'required'");
+		    //we want the return value to be NEWNONE, so don't change returnval
+		}
+		{
+			//printLine("about to markInputs");
+			this.markInputs(mark);
+			//printLine("past markInputs");
+			var out = this.output();
+			//printLine("this.output()");
+			var overridden = out.determinedBy;
+			//printLine("past out.determinedBy");
+		 	if (overridden != NEWNONE) {overridden.markUnsatisfied();};
+			//printLine("past overridden!=NEWNONE");
+			out.determinedBy = this;
+			//printLine("past out.determinedBy 2");
+			if (!planner.addPropogate(this, mark)){
+			  printLine("Cycle encountered");
+			};
+			//printLine("past !planner.addpropogate");
+			out.mark = mark;
+			//printLine("SATISFY MARK "+mark);
+			returnVal = overridden;
 		};
-		this.markInputs(mark);
-		var out = this.output();
-		var overridden = out.determinedBy;
-	 	if (overridden != NEWNONE) {overridden.markUnsatisfied();};
-		out.determinedBy = this;
-		if (!planner.addPropagate(this, mark)){
-		  printLine("Cycle encountered");
-		};
-		out.mark = mark;
-		overridden;
+		returnVal;
 	 }
 	 
 	 method destroyConstraint() {
@@ -225,18 +266,24 @@ state Constraint {
  
 state UnaryConstraint case of Constraint {
 	var myOutput;
-	var satisfied = new False;
+	var satisfied;
 	
-	method setFields(v, stren){
-		superConstructor.call(this, strength); //this is a likely problems spot; debug
+	method setUnaryConstraintFields(v, strength){
+		//printLine("setting unary constraint fields "+v.value+" "+strength.name);
+		this.setConstraintFields(strength); //this is a likely problems spot; debug
 		this.myOutput = v;
+		//printLine("DEBUG, this.myOutput "+this.myOutput+" this.myOutput.value "+this.myOutput.value);
+		this.satisfied=new False;
 		this.addConstraint();
+		//printLine("out of setUnaryConstraintFields");
 	}
 	
 	 /**
 	 * Adds this constraint to the constraint graph
 	 */
 	method addToGraph(){
+		//printLine("DEBUG2, this.myOutput "+this.myOutput+" this.myOutput.value "+this.myOutput.value+" this.myOutput.tree "+this.myOutput.tree);
+		//printLine("in add to graph, this "+this);
 		this.myOutput.addConstraint(this);
 		this.satisfied = new False;
 	}
@@ -313,8 +360,9 @@ state UnaryConstraint case of Constraint {
  */ 
  
 state StayConstraint case of UnaryConstraint {
-	method setFields(v,str){
-		this.superConstructor.call(this,v,str);//another debug
+	method setStayConstraintFields(v,str){
+		//printLine("setting stay constraint fields "+v.value+" "+str.name);
+		this.setUnaryConstraintFields(v,str);//another debug
 	}
 
 	method execute(){
@@ -338,8 +386,10 @@ state StayConstraint case of UnaryConstraint {
  * Edits indicate that a variable is to be changed by imperative code.
  */
  
-	method setFields(v,str){
-		this.superConstructor.call(this,v,str);//another debug
+	method setEditConstraintFields(v,str){
+		//printLine("setting edit constraint fields "+v.value+" "+str.name);
+		this.setUnaryConstraintFields(v,str);//another debug
+		//printLine("out of setting edit constraint fields");
 	}
  	
  	method isInput(){
@@ -371,8 +421,9 @@ state BinaryConstraint case of Constraint {
 	var v2;
 	var direction;
 
-	method setFields(var1, var2, strength) {
-  		this.superConstructor.call(this, strength); //debug
+	method setBinaryConstraintFields(var1, var2, strength) {
+		//printLine("setting binary constraint fields "+var1.value+" "+var2.value+" "+strength.name);
+  		this.setConstraintFields(strength); //debug
 		this.v1 = var1;
 		this.v2 = var2;
 		this.direction = Direction_NONE;
@@ -388,7 +439,7 @@ state BinaryConstraint case of Constraint {
 	method chooseMethod(mark) {
 	
 		if (this.v1.mark==mark){
-			ifElse ((this.v2.mark != mark) && (Strength.stronger(this.strength, this.v2.walkStrength))) {
+			ifElse ((this.v2.mark != mark) && (this.strength.stronger(this.strength, this.v2.walkStrength))) {
 				this.direction = Direction_FORWARD;
 			}
 			{
@@ -397,7 +448,7 @@ state BinaryConstraint case of Constraint {
 		};
 		
 		if (this.v2.mark==mark){
-			ifElse ((this.v1.mark != mark) && (Strength.stronger(this.strength, this.v1.walkStrength))) {
+			ifElse ((this.v1.mark != mark) && (this.strength.stronger(this.strength, this.v1.walkStrength))) {
 				this.direction = Direction_BACKWARD;
 			}
 			{
@@ -406,7 +457,7 @@ state BinaryConstraint case of Constraint {
 		};
 		
 		ifElse (this.strength.weaker(this.v1.walkStrength,this.v2.walkStrength)){
-			ifElse (this.strength.stronger(this.strength, this.v1,walkStrength)) {
+			ifElse (this.strength.stronger(this.strength, this.v1.walkStrength)) {
 				this.direction = Direction_BACKWARD;
 			}
 			{
@@ -414,7 +465,7 @@ state BinaryConstraint case of Constraint {
 			};
 		}
 		{
-			ifElse (this.strength.stronger(this.strength, this.v2,walkStrength)) {
+			ifElse (this.strength.stronger(this.strength, this.v2.walkStrength)) {
 				this.direction = Direction_FORWARD;
 			}
 			{
@@ -429,9 +480,11 @@ state BinaryConstraint case of Constraint {
 	 * Add this constraint to the constraint graph
 	 */
 	method addToGraph() {
+	    //printLine("in binary constraint add to graph");
 		this.v1.addConstraint(this);
 		this.v2.addConstraint(this);
 		this.direction = Direction_NONE;
+	    //printLine("out of binary constraint add to graph");
 	}
 	
 	/**
@@ -480,7 +533,7 @@ state BinaryConstraint case of Constraint {
 	method recalculate(){
 		var ihn = this.input();
 		var out = this.output();
-		out.walkStrength = this.strength.weakesOf(this.strength, ihn.walkStrength);
+		out.walkStrength = this.strength.weakestOf(this.strength, ihn.walkStrength);
 		out.stay = ihn.stay;
 		if (out.stay) {
 			this.execute();
@@ -528,25 +581,40 @@ state BinaryConstraint case of Constraint {
  	var scale;
  	var offset;
  	
- 	method setFields(src, scale, offset, dest, strength) {
+ 	method setScaleConstraintFields(src, scale, offset, dest, strength) {
+		//printLine("setting scale constraint fields "+strength.name);
  		this.direction = Direction_NONE;
+ 		//printLine("this.scale "+scale);
  		this.scale = scale;
  		this.offset = offset;
- 		this.superConstructor.call(this, src, dest, strength); //debug problem
+ 		this.setBinaryConstraintFields(src, dest, strength); //debug problem
  	}
 	 	
 	/**
 	 * Adds this constraint to the constraint graph.
 	 */
  	method addToGraph() {
- 		//ScaleConstraint.superConstructor.prototype.addToGraph.call(this);
- 		// what is this????????? debug
+ 	    //printLine("in binary constraint add to graph");
+ 	    //printLine("in scaleconstraint add to graph");
+ 	    //printLine("in binaryconstraint add to graph");
+		this.v1.addConstraint(this);
+		//printLine("added v1 constraint");
+		this.v2.addConstraint(this);
+		//printLine("added v2 constraint");
+		this.direction = Direction_NONE;
+		//printLine("set direction to NONE");
+		//printLine("out of binary constraint add to graph");
+		//printLine(this.scale.tree);
  		this.scale.addConstraint(this);
- 		this.offset.addContstraint(this);
+		//printLine("added this constraint to scale");
+		//printLine(this.offset.tree);
+ 		this.offset.addConstraint(this);
+		//printLine("added this constraint to offset");
+ 		//printLine("out of scaleconstraint add to graph");
  	}
  	
  	method removeFromGraph() {
- 		//ScaleConstraint.superConstructor.prototype.removeFromGraph.call(this);
+ 		this.removeFromGraph.call(this);
  		//debug
   		if (this.scale != NEWNONE) {this.scale.removeConstraint(this);};
   		if (this.offset != NEWNONE) {this.offset.removeConstraint(this);};
@@ -554,7 +622,8 @@ state BinaryConstraint case of Constraint {
  	}
  	
  	method markInputs(mark){
- 		//ScaleConstraint.superConstructor.prototype.markInputs.call(this, mark); debug
+		this.input().mark = mark;
+ 		//this.markInputs(mark); //debug
   		this.scale.mark = mark;
   		this.offset.mark = mark;
  	}
@@ -579,7 +648,7 @@ state BinaryConstraint case of Constraint {
 	 method recalculate(){
 	 	var ihn = this.input();
 	 	var out = this.output();
-	 	out.walkStrength = this.strenght.weakesOf(this.strength, ihn.walkStrength);
+	 	out.walkStrength = this.strength.weakestOf(this.strength, ihn.walkStrength);
   		out.stay = ihn.stay && this.scale.stay && this.offset.stay;
   		if (out.stay){ this.execute();};
 	 }
@@ -595,8 +664,9 @@ state BinaryConstraint case of Constraint {
  */
  
  state EqualityConstraint case of BinaryConstraint {
- 	method setFields(var1, var2, strength){
- 		//EqualityConstraint.superConstructor.call(this, var1, var2, strength);
+ 	method setEqualityConstraintFields(var1, var2, strength){
+		//printLine("setting equality constraint fields "+var1.value+" "+var2.value+" "+strength.name);
+ 		this.setBinaryConstraintFields(var1, var2, strength); //debug
  	}
  	
 	/**
@@ -621,16 +691,29 @@ state BinaryConstraint case of Constraint {
  
  state Variable{
  	var value;
- 	var constraints = new OrderedCollection;
- 	var determinedBy = NEWNONE;
- 	var mark = 0;
- 	var walkStrength = WEAKEST;
- 	var stay = new True;
+ 	var constraints;
+ 	var determinedBy;
+ 	var mark;
+ 	var walkStrength;
+ 	var stay;
  	var name;
  	
- 	method setFields(name, initialValue){
+ 	method setVariableFields(name, initialValue){
+ 		//printLine("I think weakest is..."+WEAKEST);
+ 		this.constraints = new OrderedCollection;
+ 		this.constraints.startStack();
+ 		this.determinedBy=NEWNONE;
+ 		this.mark=0;
+ 		this.walkStrength=WEAKEST;
+ 		this.stay = new True;
  		this.name=name;
- 		this.value = initialValue;
+ 		ifElse (initialValue==NEWNONE){
+ 			this.value = 0;
+ 		}
+ 		{
+ 			this.value=initialValue;
+ 		};
+ 		//printLine("variable..."+this.value+" "+this.walkStrength.name);
  	}
  	
  	/**
@@ -638,6 +721,7 @@ state BinaryConstraint case of Constraint {
 	 * this variable.
 	 */
  	method addConstraint(c) {
+ 		//printLine("addconstraint variable");
  		this.constraints.add(c);
  	}
  	
@@ -645,7 +729,8 @@ state BinaryConstraint case of Constraint {
 	 * Removes all traces of c from this variable.
 	 */
  	method removeConstraint(c) {
- 		this.constraints.remove(c);
+ 		//printLine(this.constraints.tree);
+ 		this.constraints.removeItem(c);
  		if (this.determinedBy==c) {
  			this.determinedBy=NEWNONE;
  		};
@@ -661,7 +746,11 @@ state BinaryConstraint case of Constraint {
  * The DeltaBlue planner
  */
  state Planner {
- 	var mark=0;
+ 	var currentMark;
+ 	
+ 	method setData(){
+ 		this.currentMark=0;
+ 	}
  	
  	/**
 	 * Attempt to satisfy the given constraint and, if successful,
@@ -679,8 +768,14 @@ state BinaryConstraint case of Constraint {
 	 */
 	 method incrementalAdd(c) {
 	 	var mark = this.newMark();
-	 	var overriden = c.satisfy(mark);
-	 	while (overridden !=NEWNONE){
+	 	//printLine("mark "+mark);
+	 	var overridden = c.satisfy(mark);
+	 	//var counter=0; //printLine
+	 	while ({overridden !=NEWNONE}){
+	 		//counter=counter+1; //printLine
+	 		//printLine("counter "+counter);
+	 		//printLine("overridden "+overridden.strength.name);
+	 		//printLine("mark "+mark);
 	 		overridden = overridden.satisfy(mark);
 	 	};
 	 }
@@ -697,19 +792,27 @@ state BinaryConstraint case of Constraint {
 	 * Assume: c is satisfied.
 	 */
 	 method incrementalRemove(c){
-	 	var output = c.output();
+	 	var out = c.output();
 	 	c.markUnsatisfied();
 	 	c.removeFromGraph();
 	 	var unsatisfied = this.removePropogateFrom(out);
 	 	var strength = REQUIRED;
 	 	//possible debug section below...might need to do this once no matter what
-	 	while (strength!=WEAKEST){
+	 	while ({strength!=WEAKEST}){
 	 		//possible debug; is map what I want? add map to collection?
 	 		unsatisfied.map(fn(elem) => {
 	 			if (elem.strength == strength){
 	 				this.incrementalAdd(elem);
 	 			};
+	 			//printLine("before strength.nextWeaker()");
+	 			//printLine(strength);
+	 			//printLine(strength.tree);
+	 			//printLine(strength.nextWeaker);
+	 			//printLine(strength.nextWeaker());
 	 			strength=strength.nextWeaker();
+	 			//printLine("after strength.nextWeaker()");
+	 			//printLine(strength);
+	 			//printLine(strength.tree);
 	 			});
 	 	};
 	 } 
@@ -718,7 +821,7 @@ state BinaryConstraint case of Constraint {
 	 * Select a previously unused mark value.
 	 */
 	 method newMark() {
-	 	this.currentMark+1;
+	 	this.currentMark=this.currentMark+1;
 	 }
 	 
 	 /**
@@ -741,16 +844,26 @@ state BinaryConstraint case of Constraint {
 	 * Assume: sources are all satisfied.
 	 */
 	 method makePlan(sources) {
+	 	//printLine("entered makePlan");
 	 	var mark = this.newMark();
 	 	var plan = new Plan;
+	 	plan.startPlan();
 	 	var todo = sources;
-	 	while (todo.size() >0){
+	 	//var counter=0;
+	 	//printLine("todo size"+todo.size());
+	 	while ({todo.size()>0}){
+	 		//printLine("todo size "+todo.size());
+    		//printLine("todo.removeFirst: "+todo.removeFirst+"<br>");
 	 		var c = todo.removeFirst();
+	 		//printLine("makePlan "+counter+" "+c.output().mark);
+	 		//printLine("makePlan "+counter+" "+c.output().mark);
 	 		if (c.output().mark != mark && c.inputsKnown(mark)){
 	 			plan.addConstraint(c);
 	 			c.output().mark = mark;
+	 			//printLine("getting here");
 	 			this.addConstraintsConsumingTo(c.output(),todo);
 	 		};
+	 		//counter=counter+1;
 	 	};
 	 	plan;
 	 }
@@ -760,13 +873,26 @@ state BinaryConstraint case of Constraint {
 	 * given constraints, usually a set of input constraints.
 	 */
 	 method extractPlanFromConstraints(constraints){
+	 	//printLine("entered extractPlan");
 	 	var sources = new OrderedCollection;
+	 	sources.startStack();
+	 	//printLine("about to try map");
+	 	//printLine(constraints.size());
+	 	//printLine("initial sources size: "+sources.size());
 	 	constraints.map(fn(c) => {
-	 				if(c.isinput() && c.isSatisfied()){
+	 				//printLine("trying another constraint to see if it's already in sources");
+	 				if(c.isInput() && c.isSatisfied()){
+	 					//printLine("! "+constraints.elms.elems);
+	 					//printLine("! "+sources.elms.elems);
+	 					//printLine("adding another source");
 	 					//not in plan already and eligible for inclusion
 	 					sources.add(c);
+	 					//printLine("sources size: "+sources.size());
+	 					//printLine("! "+constraints.elms.elems);
+	 					//printLine("! "+sources.elms.elems);
 	 				};
 	 			});
+	 	//printLine("about to call makePlan");
 	 	this.makePlan(sources);
 	 }
 	 
@@ -785,15 +911,26 @@ state BinaryConstraint case of Constraint {
 	 */
 	 method addPropogate(c, mark){
 	 	var todo = new OrderedCollection;
+	 	todo.startStack();
 	 	todo.add(c);
-	 	while (todo.size()>0){
+	 	var condition = todo.size();
+	 	while ({condition>0}){
 	 		var d = todo.removeFirst();
-	 		if (d.output().mark==mark){
+	 		ifElse (d.output().mark==mark){
+	 			//printLine("in addPropogate if");
 	 			this.incrementalRemove(c);
+	 			condition = -1;
 	 			new False;
+	 		}
+	 		{
+	 			//printLine("in addPropogate else");
+	 			//printLine(d.tree);
+	 			d.recalculate();
+	 			//printLine("past d.recalculate");
+	 			this.addConstraintsConsumingTo(d.output(),todo);
+	 			//printLine("past addconstraintsconsumingto");
+	 			condition=todo.size();
 	 		};
-	 		d.recalculate();
-	 		this.addConstraintsConsumingTo(d.output(),todo);
 	 	};
 	 	new True;
 	 }
@@ -808,17 +945,19 @@ state BinaryConstraint case of Constraint {
 	 	out.walkStrength = WEAKEST;
 	 	out.stay = new True;
 	 	var unsatisfied = new OrderedCollection;
+	 	unsatisfied.startStack();
 	 	var todo = new OrderedCollection;
+	 	todo.startStack();
 	 	todo.add(out);
-	 	while (todo.size()>0){
+	 	while ({todo.size()>0}){
 	 		var v = todo.removeFirst();
-	 		constraints.map(fn(c) => {
+	 		v.constraints.map(fn(c) => {
 	 				if (!c.isSatisfied()){
 	 					unsatisfied.add(c);
 	 				};
 	 			});
 	 		var determining = v.determinedBy;
-	 		constraints.map(fn(next) => {
+	 		v.constraints.map(fn(next) => {
 	 			if (next != determining && next.isSatisfied()) {
 	 				next.recalculate();
 	 				todo.add(next.output());
@@ -831,11 +970,16 @@ state BinaryConstraint case of Constraint {
 	 method addConstraintsConsumingTo(v, coll){
 	 	var determining = v.determinedBy;
 	 	var cc = v.constraints;
+	 	//printLine("in addconstraintsconsuming");
+	 	//printLine(cc);
+	 	//printLine(cc.tree);
 	 	cc.map(fn(c) => {
+	 		//printLine("in map");
 	 		if (c!=determining && c.isSatisfied()){
 	 			coll.add(c);
 	 		};
 	 	});
+	 	//printLine("left addConstraintsConsuming");
 	 }
  }
  	
@@ -852,9 +996,15 @@ state BinaryConstraint case of Constraint {
  */	
  
  state Plan {
- 	var v = new OrderedCollection;
+   var v;
+ 	
+ 	method startPlan(){
+ 		this.v = new OrderedCollection;
+ 		this.v.startStack();
+ 	}
  	
  	method addConstraint(c){
+ 		//printLine("addconstraint plan");
  		this.v.add(c);
  	}
  	
@@ -897,42 +1047,57 @@ state BinaryConstraint case of Constraint {
 
 method chainTest(n) {
   planner = new Planner;
+  planner.setData();
   var prev = NEWNONE;
+  //printLine("about to declare first");
   var first = NEWNONE;
+  //printLine(first);
   var last = NEWNONE;
 
   // Build chain of n equality constraints
   var counter = 0;
-  while(counter<n){
-  	counter=counter+1;
-  	var name = "v"+i;
+  while({counter<=n}){
+  	var name = "v"+counter;
   	var v = new Variable;
-  	v.setFields(name);
+  	v.setVariableFields(name);
   	if (prev!=null){
   		var ec = new EqualityConstraint;
-  		ec.setFields(prev, v, REQUIRED);
+  		ec.setEqualityConstraintFields(prev, v, REQUIRED);
   	};
+  	//printLine(first);
   	if (counter==0) {first = v;};
-  	if (counter==n) {last=v;};
+  	//printLine("past counter=0");
+  	if (counter==n) {last = v;};
   	prev=v;
+  	counter=counter+1;
+  	//printLine("counter: "+counter);
+  	//printLine("first: "+first);
+  	//printLine("last: "+last);
   };
 
   var sc = new StayConstraint;
-  sc.setFields(last, STRONG_DEFAULT);
+  sc.setStayConstraintFields(last, STRONG_DEFAULT);
+  //printLine("I seem to be finishing adding the stay constraint");
   var edit = new EditConstraint;
-  edit.setFields(first, PREFERRED);
+  //printLine("I seem to be finishing creating the edit constraint");
+  edit.setEditConstraintFields(first, PREFERRED);
+  //printLine("about to create new ordered collection");
   var edits = new OrderedCollection;
+  edits.startStack();
+  //printLine("about to add edit to edits");
   edits.add(edit);
+  //printLine("about to try to extract plan");
   var plan = planner.extractPlanFromConstraints(edits);
-  
+  //printLine("past extracting plan");
   counter=0;
-  while (counter<100){
-  	counter=counter+1;
+  while ({counter<100}){
+  	//printLine("counter "+counter);
   	first.value = counter;
   	plan.execute();
-  	if (last.value !=i) {
+  	if (last.value !=counter) {
   		printLine("Chain test failed.");
   	};
+  	counter=counter+1;
   };
 }
 
@@ -944,27 +1109,31 @@ method chainTest(n) {
  */
 method projectionTest(n) {
   planner = new Planner;
+  planner.setData();
   var scale = new Variable;
-  scale.setFields("scale", 10);
+  scale.setVariableFields("scale", 10);
   var offset = new Variable;
-  offset.setFields("offset", 1000);
+  offset.setVariableFields("offset", 1000);
   var src = NEWNONE;
   var dst = NEWNONE;
 
   var dests = new OrderedCollection;
+  dests.startStack();
   
   var counter=0;
-  while (counter<n){
-  	counter=counter+1;
+  while ({counter<n}){
   	src = new Variable;
-  	src.setFields("src"+i, i);
+  	src.setVariableFields("src"+counter, counter);
   	dst = new Variable;
-  	dst.setFields("dst"+i, i);
+  	dst.setVariableFields("dst"+counter, counter);
   	dests.add(dst);
-  	var stay = new StayConstraint;
-  	stay.setFields(src, NORMAL);
-  	var scale = new ScaleConstraint;
-  	scale.setFields(src, scale, offset, dst, REQUIRED);
+  	var stayC = new StayConstraint;
+  	stayC.setStayConstraintFields(src, NORMAL);
+  	var scaleC = new ScaleConstraint;
+  	//printLine("projection test scale "+scale);
+  	scaleC.setScaleConstraintFields(src, scale, offset, dst, REQUIRED);
+  	//printLine("projectionTest "+counter);
+  	counter=counter+1;
   };
 
   change(src, 17);
@@ -973,31 +1142,34 @@ method projectionTest(n) {
   if (src.value != 5) {printLine("Projection 2 failed");};
   change(scale, 5);
   counter=0;
-  while(counter<(n - 1)){
-  	counter=counter+1;
-  	if (dests.at(i).value != i*5+1000){
+  while({counter<(n - 1)}){
+  	//printLine(dests.at(counter).value);
+  	if (dests.at(counter).value != counter*5+1000){
   		printLine("Projection 3 failed");
   	};
+  	counter=counter+1;
   };
   
   change(offset, 2000);
-  couter=0;
-  while (counter<(n - 1)){
-  	counter=counter+1;
-  	if(dests.at(i).value != i*5+2000){
+  counter=0;
+  while ({counter<(n - 1)}){
+  	//printLine(dests.at(counter).value);
+  	if(dests.at(counter).value != counter*5+2000){
   		printLine("Projection 4 failed");
   	};
+  	counter=counter+1;
   };
 }
 
 method change(v, newValue) {
   var edit = new EditConstraint;
-  edit.setFields(v, PREFERRED);
+  edit.setEditConstraintFields(v, PREFERRED);
   var edits = new OrderedCollection;
+  edits.startStack();
   edits.add(edit);
   var plan = planner.extractPlanFromConstraints(edits);
   var counter=0;
-  while (counter<10){
+  while ({counter<10}){
   	counter=counter+1;
   	v.value = newValue;
   	plan.execute();
@@ -1013,6 +1185,18 @@ method DeltaBlue() {
   projectionTest(100);
 }
 
+
 method main(){
+	var start=new Date;
+	REQUIRED.setStrengthFields(0, "required");
+	STRONG_PREFERRED.setStrengthFields(1, "strongPreferred");
+	PREFERRED.setStrengthFields(2, "preferred");
+	STRONG_DEFAULT.setStrengthFields(3, "strongDefault");
+	NORMAL.setStrengthFields(4, "normal");
+	WEAK_DEFAULT.setStrengthFields(5, "weakDefault");
+	WEAKEST.setStrengthFields(6, "weakest");
 	DeltaBlue();
+	//printLine("done");
+	var timeOne = new Date-start;
+	print(timeOne);
 }
