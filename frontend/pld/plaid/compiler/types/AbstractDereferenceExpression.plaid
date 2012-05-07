@@ -8,6 +8,41 @@ state AbstractDereferenceExpression case of AbstractExpression {
     val shared Symbol symbol;
     val unique LinkedList drefs = makeLinkedList();
 
+    method immutable Structure getStructure() {
+        var struct = symbol.getStructure();
+        DEBUG(DEBUG_PRIO_LOW, "<AbstractDereferenceExpression> start with structure " + struct.toString());
+        
+        drefs.do( fn (right) => {
+            match ( struct ) {
+                case NominalStructure {
+                    val rightSigOpt = struct.getMember(right);
+                    match ( rightSigOpt ) {
+                        case Some {
+                            val sig = rightSigOpt.value;
+                            match (sig) {
+                                case DatagroupSignature {
+                                    struct = DATAGROUPSTRUCT
+                                }
+                                case FieldSignature {
+                                    struct = sig.getDeclaredType().structure
+                                }
+                                default { 
+                                    ABORT("<AbstractDereferenceExpression> Unsupported signature " + sig.toString() )
+                                }
+                            }
+                        }
+                        case None {
+                            ABORT("<AbstractDereferenceExpression> Cannot find '" + right + "' member in '" + struct.toString() + "'"); 
+                        }
+                    }
+                }
+                default { ABORT("<AbstractDereferenceExpression> Unsupported structure " + struct.toString() ) } 
+            }
+        });
+        
+        struct
+    }
+
     method immutable Boolean ==(immutable AbstractExpression other) {
         match (other) {
             case AbstractDereferenceExpression {
