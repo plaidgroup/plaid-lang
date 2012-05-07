@@ -1,0 +1,160 @@
+package plaid.aeminium.codegen;
+
+state GraphOutput {
+	method printDependencies(nodeList) {
+		nodeList.map(fn (node) => {
+			match (node.dependencies) {
+				case Some {
+					val it = node.dependencies.value.iterator();
+					while { it.hasNext(); } {
+						val dep = it.next();
+						java.lang.System.out.println(node.num.toString() + " -> " + dep.to.num + " with " + dep.variable.name);
+					};
+				}
+				case None {}
+			};
+		});
+	}
+	
+	method astToString(astNode) {
+		var ret = "";
+			
+		match (astNode) {
+			case Split {
+				// TODO: Fix.
+				ret = "split " + astNode.theVar.name;
+			}
+			
+			case Join {
+				// TODO: Fix.
+				ret = "join " + astNode.theVar.name;
+			}
+			
+			case UnannotatedLetBinding {
+				ret = "let " + astNode.x.name + " = ";
+			}
+			
+			case Application {
+				ret = astNode.f.name + "(";
+				var args = "";
+				
+				astNode.arguments.map(fn (argument) => {
+					args = args + astToString(argument) + ", ";
+				});
+				
+				if (!args.isEmpty()) {
+					args = args.substring(0, args.length() - 2);
+				};
+				
+				ret = ret + args + ")";
+			}
+			
+			case MethodCall {
+				ret = astNode.receiver.name + "." + astNode.methodName.name + "(";
+				var args = "";
+				
+				astNode.arguments.map(fn (argument) => {
+					args = args + astToString(argument) + ", ";
+				});
+				
+				if (!args.isEmpty()) {
+					args = args.substring(0, args.length() - 2);
+				};
+				
+				ret = ret + args + ")";
+			}
+			
+			case Lambda {
+				ret = "LAMBDA";
+			}
+			
+			case ID {
+				ret = astNode.name;
+			}
+			
+			case IntLiteral {
+				ret = astNode.integer;
+			}
+			
+			case UnitLiteral {
+				ret = "unit";
+			}
+			
+			case Match {
+				ret = "match(" + astToString(astNode.e) + ")";
+			}
+			
+			case MethodDecl {
+				ret = astNode.name + "(";
+				var args = "";
+				
+				astNode.arguments.map(fn (argument) => {
+					args = args + astToString(argument) + ", ";
+				});
+				
+				if (!args.isEmpty()) {
+					args = args.substring(0, args.length() - 2);
+				};
+
+				ret = ret + args + ")";
+			}
+			
+			default {
+				java.lang.System.out.println("Unknown node type: " + astNode.toString());
+				ret = "something";
+			}
+		};
+		
+		if (astNode.num != -1) {
+			ret = astNode.num.toString() + ": " + ret;
+		};
+		
+		ret;
+	}
+	
+	method createDependencyGraph(suffix) {
+		var methodName = "";
+		
+		match (this.nodeList.head) {
+			case Cons {
+				match (this.nodeList.head.value) {
+					case MethodDecl {
+						methodName = this.nodeList.head.value.name + suffix;
+					}
+					case Lambda {
+						methodName = "Lambda$" + suffix;
+					}
+				};
+			}
+			default {}
+		};
+	
+		val s = java.lang.StringBuilder.new();
+		s.append("digraph G {\n\trankdir=BT;\n\n");
+		
+		this.nodeList.map(fn (node) => {
+			match (node.dependencies) {
+				case Some {
+					s.append("\t" + node.num + " [label=\"" + astToString(node) + "\"];\n");
+					
+					val it = node.dependencies.value.iterator();
+					while { it.hasNext(); } {
+						val dep = it.next();
+						s.append("\t" + node.num + " -> " + dep.to.num);
+						s.append("[label=\"" + dep.variable.name + "\"];\n");
+					};
+				}
+				case None {}
+			};
+		});
+		
+		s.append("}\n");
+		
+		val fw = java.io.FileWriter.new("graphs/" + methodName + ".dot");
+		fw.write(s.toString());
+		fw.close();
+		java.lang.Runtime.getRuntime().exec("dot -Tpng -o graphs/" + methodName + ".png graphs/" + methodName + ".dot").waitFor();
+		// Delete temp file
+		java.io.File.new("graphs/" + methodName + ".dot").delete();
+	}
+}

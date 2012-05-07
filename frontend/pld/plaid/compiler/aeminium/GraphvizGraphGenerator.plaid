@@ -1,0 +1,106 @@
+package plaid.compiler.aeminium;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.*;
+import plaid.compiler.util.*;
+
+state GraphvizGraphGenerator case of DependencyInformationCollector {
+    val immutable ParsedDecl declNode;
+    val immutable Boolean texMode = COMPILER_CONFIGURATION().getBooleanProperty("plaid.compiler.aeminium.GraphvizGraphGenerator.texMode", false);
+
+    method immutable String dump() {
+        val sb = java.lang.StringBuilder.new();
+        
+        // collect nodes
+        this.declNode.accept(this);
+        
+        sb.append("digraph " + this.getName() + " {\n");
+        sb.append("    rankdir=BT;\n");
+        
+        // dump nodes
+        val itNodes = this.getNodes().iterator();
+        while { itNodes.hasNext() }{
+             val node = itNodes.next();
+             if ( (node.deps.size() + node.rdeps.size()) > 0 ) {
+                 match ( node ) {
+                    case ASTInformation {
+                        match ( node.node ) {
+                            case ParsedMethodCall {
+                                ifElse ( texMode ) {
+                                    sb.append("    n" + node.getID() + "[style=\"astCall\", label=\""+node.toHexString()+"\"];\n"); 
+                                }{
+                                    sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\", style=filled, fillcolor=gray];\n");                                 
+                                }
+                            }
+                            default { 
+                                ifElse ( texMode ) {
+                                    sb.append("    n" + node.getID() + "[style=\"ast\", label=\""+node.toHexString()+"\"];\n"); 
+                                }{
+                                    sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\", style=filled, fillcolor=gray];\n");                                 
+                                }
+                            }
+                        }
+                    }
+                    case AtomicEnterInformation {
+                        ifElse ( texMode ) {
+                            sb.append("    n" + node.getID() + "[style=\"astAtomic\", label=\""+node.toTexString()+"\"];\n"); 
+                        }{
+                            sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\", style=filled, fillcolor=red];\n"); 
+                        }
+                    }
+                    case AtomicLeaveInformation {
+                        ifElse ( texMode ) {
+                            sb.append("    n" + node.getID() + "[style=\"astAtomic\", label=\""+node.toTexString()+"\"];\n"); 
+                        }{
+                            sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\", style=filled, fillcolor=red];\n"); 
+                        }
+                    }
+                    case MatchEnterInformation {
+                        ifElse ( texMode ) {
+                            sb.append("    n" + node.getID() + "[style=\"astMatch\", label=\""+node.toTexString()+"\"];\n"); 
+                        }{
+                            sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\", style=filled, fillcolor=green];\n"); 
+                        }                    }
+                    case MatchLeaveInformation {
+                        ifElse ( texMode ) {
+                            sb.append("    n" + node.getID() + "[style=\"astMatch\", label=\""+node.toTexString()+"\"];\n"); 
+                        }{
+                            sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\", style=filled, fillcolor=green];\n"); 
+                        }                    }
+                    case SplitInformation {
+                        ifElse ( texMode ) {
+                            sb.append("    n" + node.getID() + "[style=\"permops\",label=\""+node.toString()+"\", texlbl=\""+ node.toTexString()+"\"];\n");
+                        }{
+                            sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\"];\n");
+                        }
+                    }
+                    case JoinInformation {
+                        ifElse ( texMode ) {
+                            sb.append("    n" + node.getID() + "[style=\"permops\",label=\""+node.toString()+"\", texlbl=\""+ node.toTexString()+"\"];\n");
+                        }{
+                            sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\"];\n");
+                        }
+                    }
+                    case FieldRestoreInformation {
+                        ifElse ( texMode ) {
+                            sb.append("    n" + node.getID() + "[style=\"permops\",label=\""+node.toString()+"\", texlbl=\""+ node.toTexString()+"\"];\n");
+                        }{
+                            sb.append("    n" + node.getID() + "[label=\""+node.toString()+"\"];\n");
+                        }
+                    }                    default { ABORT("<GaphizGraphGenerator> Found unsupported node type.") }
+                 };
+                
+                 val depsIt = node.deps.iterator();
+                 while {depsIt.hasNext()}{
+                     val target = depsIt.next();
+                     sb.append("    n" + node.getID() + " -> n" +target.getID() +" [style=\"-to,very thick\"];\n");
+                 };
+                 sb.append("\n");
+             }
+        };
+    
+        sb.append("}\n");
+        
+        sb.toString();
+    }
+}

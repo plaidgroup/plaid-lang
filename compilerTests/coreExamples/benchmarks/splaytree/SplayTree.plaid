@@ -1,0 +1,240 @@
+package coreExamples.benchmarks.splaytree;
+
+/* Only deals with doubles as keys for now */
+state SplayTree {
+	var unique SplayNode root = new SplayLeaf;
+
+	method immutable Boolean isEmpty() {
+		match (this.root) {
+			case SplayLeaf {
+				true;
+			}
+			case SplayInternalNode {
+				false;
+			}
+		};
+	}
+
+	method unit insert(immutable Double key, immutable Object value) {
+		ifElse (this.isEmpty()) {
+			this.root = new SplayInternalNode{ 
+				val key = key;
+				val value = value;
+				var left = new SplayLeaf;
+				var right = new SplayLeaf;
+			};
+		}{
+			this.splay_(key);
+			ifElse (this.root.key == key) {
+				unit;
+			}{
+				val node = new SplayInternalNode{ val key = key; val value = value; };
+				ifElse (key > this.root.key) {
+					node.left = this.root;
+					node.right = this.root.right;
+					this.root.right = new SplayLeaf;
+				}{
+					node.right = this.root;
+					node.left = this.root.left;
+					this.root.left = new SplayLeaf;
+				};
+				this.root = node;
+			};
+		};
+	}
+	
+	method unique Option remove(immutable Double key) {
+		ifElse (this.isEmpty()) {
+			NONE;
+		}{
+			this.splay_(key);
+			ifElse (this.root.key != key) {
+				NONE;
+			}{
+				var removed = this.root;
+				match (this.root.left) {
+					case SplayLeaf {
+						this.root = this.root.right;
+					}
+					case SplayInternalNode {
+						var right = this.root.right;
+						this.root = this.root.left;
+						// splay to make sure that the new root has an empty right child
+						this.splay_(key);
+						// insert the original right child as the right child of the new root
+						this.root.right = right;
+					}
+				};
+				makeSome(removed);
+			};
+		};
+	}
+	
+	method immutable Boolean containsKey(immutable Double key) {
+		match (this.find(key)) {
+			case Some {
+				true;
+			}
+			case None {
+				false;
+			}
+		};
+	}
+	
+	method immutable Option find(immutable Double key) {
+		ifElse (this.isEmpty()) {
+			NONE;
+		}{
+			this.splay_(key);
+			ifElse(this.root.key == key) {
+				makeSome(this.root.value);
+			}{
+				NONE;
+			};
+		};
+	}
+	
+	method unique Option findMax(immutable Option startNode) {
+		ifElse (this.isEmpty()) {
+			NONE;
+		}{
+			var current = match(startNode) {
+				case None {
+					this.root;
+				}
+				case Some {
+					startNode.getValue();
+				}
+			};
+			var notDone = true;
+			while { notDone } {
+				match(current.right) {
+					case SplayLeaf {
+						notDone = false;
+					}
+					case SplayInternalNode {
+						current = current.right;
+					}
+				};
+			};
+			makeSome(current);
+		};
+	}
+	
+	method unique Option findGreatestLessThan(immutable Double key) {
+		ifElse (this.isEmpty()) {
+			NONE;
+		}{
+			// splay on the key to move the node with the given key 
+			// or the last node on the search path to the top of the tree
+			this.splay_(key);
+			ifElse (this.root.key < key) {
+				makeSome(this.root);
+			}{
+				// now the result is either the root node or the greatest node
+				// in the left subtree
+				match(this.root.left) {
+					case SplayLeaf {
+						NONE;
+					}
+					case SplayInternalNode {
+						this.findMax(makeSome(this.root.left));
+					}
+				};
+			};
+		};
+	}
+	
+	method immutable List exportKeys(/* ArrayList */ list) {
+		this.root.exportKeys(list);
+	}
+	
+	method unit splay_(immutable Double key) {
+		ifElse (this.isEmpty()) {
+			unit;
+		}{
+			// Create a dummy node.  The use of the dummy node is a bit
+  			// counter-intuitive: The right child of the dummy node will hold
+  			// the L tree of the algorithm.  The left child of the dummy node
+  			// will hold the R tree of the algorithm.  Using a dummy node, left
+  			// and right will always be nodes and we avoid special cases.
+			var dummy = new SplayInternalNode{ var left = new SplayLeaf; var right = new SplayLeaf; };
+			var left = dummy;
+			var right = dummy;
+			var current = this.root;
+			var notDone = true;
+			while { notDone } {
+				ifElse (key < current.key) {
+					match (current.left) {
+						case SplayLeaf {
+							notDone = false;
+						}
+						case SplayInternalNode {
+							if (key < current.left.key) {
+								// rotate right
+								var tmp = current.left;
+								current.left = tmp.right;
+								tmp.right = current;
+								current = tmp;
+								match (current.left) {
+									case SplayLeaf {
+										notDone = false;
+									}
+									case SplayInternalNode {
+										// nothing, just covering our bases
+									}
+								};
+							};
+							// we need this extra if since we can't break from the middle of the loop
+							if (notDone) {
+								// link right
+								right.left = current;
+								right = current;
+								current = current.left;
+							};
+						}
+					};
+				}{
+					ifElse (key > current.key) {
+						match (current.right) {
+							case SplayLeaf {
+								notDone = false;
+							}
+							case SplayInternalNode {
+								if (key > current.right.key) {
+									// rotate left
+									var tmp = current.right;
+									current.right = tmp.left;
+									tmp.left = current;
+									current = tmp;
+									match (current.right) {
+										case SplayLeaf {
+											notDone = false;
+										}
+										case SplayInternalNode {
+											// again, just covering our bases
+										}
+									};
+								};
+								if (notDone) {
+									// link left
+									left.right = current;
+									left = current;
+									current = current.right;
+								};
+							}
+						};
+					}{
+						notDone = false;
+					};
+				};
+			};
+			// assemble
+			left.right = current.left;
+			right.left = current.right;
+			current.left = dummy.right;
+			current.right = dummy.left;
+			this.root = current;
+		};
+	}
+}

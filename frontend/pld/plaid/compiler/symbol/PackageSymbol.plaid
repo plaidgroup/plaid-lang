@@ -1,0 +1,71 @@
+package plaid.compiler.symbol;
+
+import plaid.ast.parsed.ParsedQualifiedIdentifier;
+import plaid.ast.parsed.ParsedIdentifier;
+import plaid.ast.util.EMPTY_TOKEN;
+import plaid.compiler.Symbol;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+import plaid.collections.makeLinkedList;
+import plaid.compiler.*;
+
+import plaid.compiler.types.*;
+
+state PackageSymbol case of OwningSymbol {
+    val immutable OwningSymbol owner;
+    var unique Option<immutable Structure> structureOption = NONE;
+    
+    override method immutable Boolean ==(immutable Symbol other)[immutable PackageSymbol this] {
+        match (other) {
+            case PackageSymbol { this.name.equals(other.name) && this.owner == other.owner }
+            default { false }
+        }
+    }
+    
+    method immutable String getFQN() {
+        makeStringFromQualifiedIdentifier(getQualifiedIdentifier());
+    }  
+    
+    method unique ParsedQualifiedIdentifier getQualifiedIdentifier() {
+        match ( owner ) {
+            case PackageSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<PackageSymbol> Found 'PackageSymbol' owner.");
+                val qi = owner.getQualifiedIdentifier();
+                val unique List ids = makeLinkedList();
+                
+                qi.identifiers.map(fn (id) => {
+                    ids.addLast(id);
+                });
+                ids.addLast( new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;} );
+                
+                new ParsedQualifiedIdentifier{ identifiers = ids; token = EMPTY_TOKEN;}
+            }
+            case TopSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<PackageSymbol> Found 'TopSymbol' owner.");
+                val ids = makeLinkedList();
+                ids.addLast( new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;} );
+                new ParsedQualifiedIdentifier{ identifiers = ids;  token = EMPTY_TOKEN;}
+            }
+            default {
+                ERROR("Package has invalid owner.");
+                new ParsedQualifiedIdentifier{ identifiers = makeLinkedList(); token = EMPTY_TOKEN;}
+            }
+        }
+    }
+
+    method immutable Structure getStructure() {
+        match (structureOption) {
+            case Some { this.structureOption.value; }
+            case None {
+                val ownerStructure = owner.getStructure();
+                val thisStructure = new PackageStructure {
+                    val owner = ownerStructure;
+                    val name  = this.name;
+                };
+                this.structureOption = makeSome(thisStructure);
+                thisStructure
+            }
+        }
+    }
+    
+    override method immutable String symbolType() { "Package Symbol" }
+}

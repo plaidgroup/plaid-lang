@@ -1,0 +1,568 @@
+/*
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* A Turing Machine in Plaid */
+
+package turingwin;
+
+import plaid.gui.*;
+
+// TODO: implement restricted update for state changes
+
+state Unobserved {
+}
+state Observed {
+}
+
+state Entry {
+	var observer;
+}
+
+state Zero case of Entry {
+	
+	method writeZero() {}
+	method writeOne() {
+		this <- One;
+		this.observer.refresh();
+	}
+	method printVal() {
+		java.lang.System.out.print("0");
+	}
+}
+
+state One case of Entry {
+	
+	method writeZero() {	
+		this <- Zero;
+		this.observer.refresh();
+	}
+	
+	method writeOne() {}
+	
+	method printVal() {
+		java.lang.System.out.print("1");
+	}
+}
+
+state Cell {
+	method printVal();
+	// TODO: allow default initializer that can be changed when creating object
+	// without overriding field
+	var notifyFn = fn(newCell,onLeft) => unit;
+}
+
+state InnerCell case of Cell {
+	val left;
+	val right;
+
+	method getLeft() {
+		left;
+	}
+	
+	method getRight() {
+		right;
+	}
+
+	method doPrint() {
+		// TODO: error messages should have correct line numbers
+		// if we change the line below to "printVl();" we get an error at line -1
+		printVal();
+		java.lang.System.out.print(" ");
+		val rt = getRight().doPrint();
+	}
+	
+	method print() {
+		val lt = getLeft();
+		lt.print();
+	}
+}
+state LeftEnd case of Cell {
+	val right;
+	
+	method getLeft() {
+		val lt = makeLeftEnd(this);
+		val rt = right;
+		
+		this <- InnerCell { left = lt; right = rt; };  //right maintained right now - maybe not always be...
+		
+		this.notifyFn(lt,true);
+		lt;
+	}
+	
+	method getRight() {
+		right;
+	}
+	
+	method doPrint() {
+		printVal();
+		java.lang.System.out.print(" ");
+		val rt = getRight().doPrint();
+	}
+	
+	method print() {
+		doPrint();
+	}
+}
+
+method makeLeftEnd(myRight) {
+	val lt = new LeftEnd { right = myRight; } with Zero with NotHead;
+	lt.notifyFn = myRight.notifyFn;
+	lt
+}
+
+state RightEnd case of Cell {
+	val left;
+
+	// TODO: eventually allow static "new" function here
+	method getRight() {
+		val rt = makeRightEnd(this);
+		val lt = left;
+
+		this <- InnerCell { right = rt; left = lt; }; //left maintained right now - maybe not always be...
+		this.notifyFn(rt, false);
+
+		rt;
+	}
+
+	method getLeft() {
+		left;
+	}
+	
+	method doPrint() {
+		printVal();
+	}
+	
+	method print() {
+		val lt = getLeft();
+		lt.print();
+	}
+}
+
+method makeRightEnd(myLeft) {
+	val rt = new RightEnd { left = myLeft; } with Zero with NotHead;
+	rt.notifyFn = myLeft.notifyFn;
+	rt
+}
+
+state Start case of Cell {
+	method getLeft() {
+		val lt = makeLeftEnd(this);
+
+		this <- RightEnd { left = lt; };
+
+		/* Alternate approach to above, but creates garbage!
+		val newObj = makeRightEnd(left);
+		this <- newObj;		// TODO: this should work!
+		*/
+		
+		this.notifyFn(lt, true);
+
+		lt;
+   	}
+
+	method getRight() {
+		val rt = makeRightEnd(this);
+
+		this <- LeftEnd { right = rt; };
+		this.notifyFn(rt, false);
+		rt;
+	}
+
+	method doPrint() {
+		printVal();
+	}
+	method print() {
+		doPrint();
+	}
+}
+
+state Headness {
+}
+
+state Head case of Headness {
+	val color;
+}
+
+state NotHead case of Headness {
+}
+
+state Halt {
+	val cell;
+
+	method print() {
+		cell.print();
+	}
+
+	method run() {
+	}
+}
+
+state Beaver1A {
+	val cell;
+
+	method update() {
+		match (cell) {
+	   		case Zero {
+				cell.writeOne();
+				val newCell = cell.getRight();
+				this <- Halt { cell = newCell; };
+			}
+			case One { }
+		};
+	}
+
+	method run() {
+		update();
+		run();
+	}
+}
+
+state Beaver2A {
+	val cell;
+
+	method update() {
+		match (cell) {
+			case Zero {
+				cell.writeOne();
+				val newCell = cell.getRight();
+				this <- Beaver2B { cell = newCell; };
+			} case One {
+				cell.writeOne();
+				val newCell = cell.getLeft();
+				this <- Beaver2B { cell = newCell; };
+	 	   }
+		};
+	}
+
+	method run(refreshFn) {
+		update();
+		refreshFn();
+		run(refreshFn);
+	}
+}
+
+state Beaver2B {
+	val cell;
+
+	method update() {
+		match (cell) {
+			case Zero {
+				cell.writeOne();
+				val newCell = cell.getLeft();
+				this <- Beaver2A { cell = newCell; };
+			} case One {
+				cell.writeOne();
+				val newCell = cell.getRight();
+				this <- Halt { cell = newCell; };
+			}
+		};
+	}
+
+	method run(refreshFn) {
+		update();
+		refreshFn();
+		run(refreshFn);
+	}
+}
+
+state BeaverState {
+	/*method run(refreshFn) {
+		val oldCell = this.cell;
+		
+		this.update();
+		
+		oldCell <- NotHead;
+		this.cell <- Head;
+		oldCell.observer.refresh();
+		this.cell.observer.refresh();
+		refreshFn();
+		
+		run(refreshFn);
+	}*/
+}
+
+state Beaver4A {
+	val cell;
+
+	method update() {
+		//cell <- NotHead;
+		match (cell) {
+			case Zero {
+				cell.writeOne();
+				val newCell = cell.getRight();
+				this <- Beaver4B { cell = newCell; };
+			} case One {
+				cell.writeOne();
+				val newCell = cell.getLeft();
+				this <- Beaver4B { cell = newCell; };
+	 	   }
+		};
+		//cell <- Head;
+	}
+
+	method run(refreshFn) {
+		val oldCell = this.cell;
+		
+		this.update();
+		
+		oldCell <- NotHead;
+		this.cell <- Head { color = java.awt.Color.BLACK; };
+		oldCell.observer.refresh();
+		this.cell.observer.refresh();
+		refreshFn();
+		
+		run(refreshFn);
+	}
+}
+
+state Beaver4B {
+	val cell;
+
+	method update() {
+		//cell <- NotHead;
+		match (cell) {
+			case Zero {
+				cell.writeOne();
+				val newCell = cell.getLeft();
+				this <- Beaver4A { cell = newCell; };
+			} case One {
+				cell.writeZero();
+				val newCell = cell.getLeft();
+				this <- Beaver4C { cell = newCell; };
+	 	   }
+		};
+		//cell <- Head;
+	}
+
+	method run(refreshFn) {
+		val oldCell = this.cell;
+		
+		this.update();
+		
+		oldCell <- NotHead;
+		this.cell <- Head { color = java.awt.Color.GRAY; };
+		oldCell.observer.refresh();
+		this.cell.observer.refresh();
+		refreshFn();
+		
+		run(refreshFn);
+	}
+}
+
+state Beaver4C {
+	val cell;
+
+	method update() {
+		//cell <- NotHead;
+		match (cell) {
+			case Zero {
+				cell.writeOne();
+				val newCell = cell.getRight();
+				this <- Halt { cell = newCell; };
+			} case One {
+				cell.writeOne();
+				val newCell = cell.getLeft();
+				this <- Beaver4D { cell = newCell; };
+	 	   }
+		};
+		//cell <- Head;
+	}
+
+	method run(refreshFn) {
+		val oldCell = this.cell;
+		
+		this.update();
+		
+		oldCell <- NotHead;
+		this.cell <- Head { color = java.awt.Color.GREEN; };
+		oldCell.observer.refresh();
+		this.cell.observer.refresh();
+		refreshFn();
+		
+		run(refreshFn);
+	}
+}
+
+state Beaver4D {
+	val cell;
+
+	method update() {
+		//cell <- NotHead;
+		match (cell) {
+			case Zero {
+				cell.writeOne();
+				val newCell = cell.getRight();
+				this <- Beaver4D { cell = newCell; };
+			} case One {
+				cell.writeZero();
+				val newCell = cell.getRight();
+				this <- Beaver4A { cell = newCell; };
+	 	   }
+		};
+		//cell <- Head;
+	}
+
+	// TODO: the code behaves differently if everything is a case of BeaverState
+	method run(refreshFn) {
+		val oldCell = this.cell;
+		
+		this.update();
+		
+		oldCell <- NotHead;
+		this.cell <- Head { color = java.awt.Color.ORANGE; };
+		oldCell.observer.refresh();
+		this.cell.observer.refresh();
+		refreshFn();
+		
+		run(refreshFn);
+	}
+}
+
+
+
+method beaver(machine, refreshFn) {
+	machine.run(refreshFn);
+	machine.print();
+}
+
+
+
+
+state CellPanel = UninitializedCanvas {
+	method paint(g) {
+		g.setColor(this.getColor());
+		g.fillRect(0, 0, this.width, this.height);
+		// TODO: should not have to say "this." below
+		if (this.isHighlighted()) {
+			g.setColor(this.getHighlightColor());//java.awt.Color.YELLOW);
+			// TODO: parsing bug: width-2 vs. width- 2
+			g.drawRect(0, 0, this.width- 1, this.height- 1);
+			g.drawRect(1, 1, this.width- 3, this.height- 3);
+			g.drawRect(2, 2, this.width- 5, this.height- 5);
+			g.drawRect(3, 3, this.width- 7, this.height- 7);
+			g.drawRect(4, 4, this.width- 9, this.height- 9);
+		}
+	}
+	method isHighlighted() {
+		match (this.cell) {
+			case Head { true }
+			// TODO: is default case being triggered sometimes when first part is true?
+			case NotHead { false }
+		};
+	}
+	method getHighlightColor() {
+		this.cell.color
+	}
+	method getColor() {
+		// TODO: better error msg if forget "this."
+		match (this.cell) {
+			case Zero {
+				java.awt.Color.BLUE
+			} case One {
+				java.awt.Color.RED
+			}
+		};
+	}
+	method refresh() {
+		this.peer.repaint();
+		//this.pane.refresh();
+		//this.peer.repaint();
+	}
+	val cell;
+}
+
+method makeCellPanel(cell) {
+	val cp = new CellPanel { cell = cell; };
+	cp.initialize();
+	cp
+}
+
+method turing() {
+	//java.lang.System.out.println("running 1 state busy beaver:");
+	//val beaver1a = new Beaver1A { cell = new Start with Zero; };
+	//beaver(beaver1a);
+
+	// make ; a separator
+	val beaverCell = new Start with Zero with Head { color = java.awt.Color.BLACK; };
+	val w = makeWindow("Busy Beaver Turing Machine");
+	val pane = makeRowPane();
+	val canvas = makeCellPanel(beaverCell);
+	beaverCell.observer = canvas;
+	canvas.setSize(50,100);
+	pane.addFirst(canvas);
+	w.setPane(pane);
+	w.show();
+
+	
+	
+	
+	
+	
+	java.lang.System.out.println();
+	java.lang.System.out.println();
+	java.lang.System.out.println("running 2 state busy beaver:");
+	val notifyFn = fn(newCell,onLeft) => {
+		val newCanvas = makeCellPanel(newCell);
+		newCell.observer = newCanvas;
+		newCanvas.setSize(50,100);
+		ifElse(onLeft) {
+			pane.addFirst(newCanvas);
+		} {
+			pane.addLast(newCanvas);
+		};
+	
+		java.lang.System.out.println("notified " + ifElse(onLeft) { "left" } { "right" })
+	};
+	val beaver2a = new Beaver4A { cell = beaverCell; };
+	beaverCell.notifyFn = notifyFn;
+	// TODO: pairs don't seem to work as arguments for lambdas (fixed now?)
+	beaver(beaver2a, fn() => {
+		w.refresh();
+		coreExamples.window.JavaUtils.sleep(1000);
+	} );
+}
+
+method test() {
+	var head = new Start with Zero;
+	java.lang.System.out.println();
+	java.lang.System.out.println();
+	head.print();
+	java.lang.System.out.println();
+	var head1 = head.getLeft();
+	var head2 = head1.getLeft();
+	var head3 = head2.getRight(); // same as head1
+	var head4 = head3.getRight(); // same as head
+	var head5 = head4.getRight(); // move 1 right
+	var head6 = head5.getLeft(); // same as head
+	var head7 = head6.getLeft(); // same as head1
+	head = head7; // test assignment
+	head2.print();
+	java.lang.System.out.println();
+	head7.writeOne();
+	head7.print();
+	java.lang.System.out.println();
+	java.lang.System.out.println("running a turning machine!");
+}
+
+method main() {
+	// TODO: shouldn't have to define a "main" method, should just be
+	// able to invoke turing() directly
+	turing();
+	//test();
+}

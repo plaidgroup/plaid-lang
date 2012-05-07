@@ -1,0 +1,82 @@
+package plaid.compiler.util;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+import plaid.compiler.permissions.*;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+import plaid.collections.makeLinkedList;
+
+
+method immutable Type makeTypeFromAST(immutable ParsedType typeNode) {
+  match(typeNode) {
+    case ParsedUnitType {
+        DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> UnitType -> VOID");
+        VOID
+    }
+    case ParsedEmptyType { //If we didn't get type information, put Dynamic
+      DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> EmptyType -> dynamicPermission DynamicStructure");
+      new Type {
+        val permission = DYNP;
+        val structure = new DynamicStructure; 
+      }
+    }
+    case ParsedConcreteType { //If we did construct a type
+      DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> transform ConcreteType");
+      
+      //get the structure by using the symbol to type map
+      val theStructure = match (typeNode.structure) {
+        case ParsedOptionStructure{ 
+            makeOptionStructure(makeNominalStructureFromAST(typeNode.structure.optStructure));
+        }
+        case ParsedNominalStructure {
+            makeNominalStructureFromAST(typeNode.structure);
+        }
+        case ParsedLambdaStructure {
+          DEBUG(DEBUG_PRIO_LOW, "<makeTypeFromAST> transform LambdaType");
+          val metaArgs = makeLinkedList();
+          // skip for now          
+
+          val argTypes = typeNode.structure.argTypes.map( fn (argSpec) => {
+              makeArgSpecFromAST(argSpec)
+          });        
+
+          val returnType = makeTypeFromAST(typeNode.structure.returnType);
+
+          new LambdaStructure {
+              val metaArgs    = metaArgs;
+              val argTypes    = argTypes;
+              val returnType  = returnType;
+          }
+        }
+        default {
+          ABORT("Type node has unknown structure: " + typeNode.structure.nodeName());
+        }
+      };
+      
+      val thePermission = match (typeNode.permission) {
+        case ParsedEmptyPermission {
+            match (theStructure) {
+                case NominalStructure { theStructure.symbol.defaultStatePermission() }
+                case OptionStructure { 
+                	match (theStructure.optStructure) {
+	                	case NominalStructure {theStructure.optStructure.symbol.defaultStatePermission() }
+	                	case JavaStructure { SHARED }
+	                	default { ABORT("oops - how did I get an unexpected structure") }
+	                }
+                }
+                case LambdaStructure { IMMUTABLE }
+                default { ABORT("oops - how did I get an unexpected structure") }
+            }
+        }
+        default { makePermissionFromAST(typeNode.permission) }
+      };
+      
+      //create type from the permission and structure
+      makeType(thePermission,theStructure);
+    }
+    default {
+        ABORT("Cannot create type from ASTNode. " + typeNode.nodeName());
+    }
+  }
+}

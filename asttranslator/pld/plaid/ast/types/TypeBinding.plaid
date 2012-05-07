@@ -1,0 +1,172 @@
+package plaid.ast.types;
+
+/* Type Bindings are what are used in the Internal Language to keep track of
+   the types of locations and any borrowing information associated with the
+   location. They are also used in the specification of Methods and Functions.
+   This abstract state must contain a PlaidType representing the current type.
+   The concrete substates include a TakeType, which contains no extra information,
+   and a BorrowType which includes permission tracking information.
+ */
+ 
+ state TypeBinding {
+ 	/**
+ 	 	underlying PermType for the current type of the reference
+ 	 */
+ 	var unique PermType currentType;
+ 	
+ 	//equality
+ 	method immutable Boolean ==(immutable TypeBinding other);
+ 	
+ 	/**
+		The splitBinding method takes a Binding that should be split off from
+ 		the receiving binding and returns an option with a new type binding
+ 		representing the residual binding if it succeeds.
+ 	 */
+ 	method /*unique Option<unique TypeBinding*/ splitBinding(immutable TypeBinding s, unique StateTable st)
+ 										  [immutable TypeBinding];
+ 	
+ 	/**
+ 		The joinBinding method takes a Binding that should be combined with the
+ 		receiving binding.  It also takes an original binding parameter which
+ 		allows us to regain stronger permissions such as unique in special cases.
+ 		the receiver is updated to the new binding.  it returns an option with a 
+ 		new type binding representing the final binding if it succeeds.
+ 	 */
+ 	method /*unique Option<unique TypeBinding*/ joinBinding(immutable TypeBinding j, immutable TypeBinding orig)
+ 										 [immutable TypeBinding];
+ 	
+ 	/**
+ 		The updateObjecType method is an effectful operation which changes the 
+ 		receiving object such that the Object Type of its currentType is now
+ 		the passed in ObjectType.  We take all of the unique permission for that object
+ 	 */
+ 	method void updateObjectType(unique ObjectType >> void o)[unique TypeBinding] {
+ 		val immutable Permission old = this.currentType.perm;
+ 		this.currentType = new PermType {
+ 			val unique ObjectType type = o;
+ 			val immutable Permission perm = old;
+ 		}
+ 	}
+ 	
+ 	/**
+ 	 *  Downgrading either causes us to lose all information about the object type
+ 	 *  of the currentType, or, if it has strong enough permissions, only about
+ 	 *  the individual fields of the ObjectType.
+ 	 */
+ 	method void downgrade()[unique TypeBinding] {
+ 		ifElse (!this.currentType.perm.guaranteesState()) {
+ 			this.currentType = new PermType {
+ 				val immutable Permission perm = this.currentType.perm;
+ 				val unique ObjectType type = getUnitType();
+ 			}
+ 		} {
+ 			this.currentType.type.downgrade();  //otherwise downgrade object type in case unpacked  
+ 		}
+ 	}
+ 	 
+ 	/**
+ 	 *  The least upper bound of a given binding constitutes the least upper bound on the
+ 	 *  currentType plus checking that other information is consistent
+ 	 */ 
+ 	method /*unique Option<unique TypeBinding>*/ 
+ 		leastUpperBound(immutable TypeBinding other, unique StateTable st)[immutable TakeType];
+ 	
+ 	/**
+ 	 *  The greatest lower bound of a given binding constitutes the greatest lower bound on the
+ 	 *  currentType plus checking that other information is consistent
+ 	 */ 	
+ 	method /*unique Option<unique TypeBinding>*/ 
+ 		greatestLowerBound(immutable TypeBinding other, unique StateTable st)[immutable TakeType];
+ 		 
+ 		 
+ 	/**
+ 	 *  Checking subtyping of bindings requires that both be the same binding type and then
+ 	 *  binding specifics
+ 	 *  DEPRECATED - subtyping was only used for method/lambda subtyping and was confusing
+ 	 *    so I replaced it by using change types and subtyping for those instead
+ 	 */
+ 	/* method immutable Boolean isSubTypeBindingOf(immutable TypeBinding other, stateTable)
+ 											   [immutable TakeType]; */
+ 	
+ 	/**
+ 	 *	returns the permission of this binding
+ 	 */ 
+ 	method immutable Permission getPerm()[immutable TypeBinding] {
+ 		this.currentType.perm
+ 	}
+ 	
+ 	/**
+ 	 *  returns a unique copy of this Binding's object type
+ 	 */
+ 	 method unique ObjectType getObjectType()[immutable TypeBinding] {
+ 	 	this.currentType.type.copy()
+ 	 }
+ 	 
+ 	 /**
+	 *  This method inspects the objectType of this binding
+	 *  to get the current type of a particular member.
+	 */
+	method /* unique Option<immutable DeclType> */ contains(immutable ID f, unique StateTable st)
+															   [immutable TypeBinding] 
+	{
+		this.currentType.type.contains(f,st)
+	} 
+ 	 
+	/**
+	 *  This method inspects the objectType of this binding
+	 *  to get the declared type of a particular member.
+	 */
+	method /* unique Option<immutable DeclType> */ declaredType(immutable ID f, unique StateTable st)
+															   [immutable TypeBinding] 
+	{
+		this.currentType.type.declaredType(f,st)
+	} 
+	
+	/**
+	 *  Some actions such as state change and packing cannot be done if
+	 *  Binding is tracking an alias to one of its fields.  This predicate
+	 *  checks if this is the case and returns true if not.
+	 */
+	method immutable Boolean notBorrowed()[immutable TypeBinding] {
+		this.currentType.type.notBorrowed()
+	}	
+	
+	/**
+	 *  Pack attempts to turn this the Object type of this Binding into a NominalType.  
+	 *  No action is taken if this cannot be done.
+	 */
+	method void pack(unique StateTable st)[unique TypeBinding] {
+		this.currentType.type.pack(st)
+	}
+		
+	/**
+	 *  This method updates the binding on member f in the object type of this Binding to 
+	 *  the new Binding b.  If the member is not a field or not present in the object, 
+	 *  no action will be taken.
+	 */
+	method void memberUpdate(immutable ID f, immutable Binding >> void b, unique StateTable st)
+							[unique TypeBinding]
+	{
+		this.currentType.type.memberUpdate(f,b,st)
+	}
+ 	
+ 	
+ 	 //TODO: move this to a non-object-field function
+ 	val /*( unique List<immutable TypeBinding> >> void, unique StateTable) -> Option<unique TypeBinding>*/ leastUpperBoundList = 
+ 		fn (dyn >> void list, unique StateTable st) => { //Dyn only because I don't know how to represent this type yet, but want it to go to void
+ 			ifElse (!list.isEmpty) {
+ 				//pop the first element off so can process the rest
+ 				val immutable TypeBinding bindingType = list.head.value;
+ 				val /*unique Option<immutable TypeBinding>*/ start = makeSome(bindingType);
+ 				list.head = list.head.next;
+ 				list.foldl(fn (immutable TypeBinding b, /*unique Option<immutable ObjectType>*/ res) => {
+ 					match (res) {
+ 						case Some {
+ 							res.value.leastUpperBound(b,st)
+ 						}
+ 						case None { new None }
+ 					}
+ 				}, start)
+ 			} { new None }
+ 		};
+ }

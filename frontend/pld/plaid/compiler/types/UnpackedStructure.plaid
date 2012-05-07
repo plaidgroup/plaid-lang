@@ -1,0 +1,344 @@
+package plaid.compiler.types;
+
+import java.util.Map;
+import java.util.HashMap;
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+import plaid.ast.util.Token;
+
+state UnpackedStructure case of ObjectStructure {
+  val immutable NominalStructure unpackedStructure;
+  val unique Map<immutable String,immutable UnpackedFieldSignature> unpackedFields = HashMap.new();
+  
+  method immutable String getName() { this.unpackedStructure.name }
+  
+  method immutable Boolean ==(immutable Structure other)
+                             [immutable UnpackedStructure this] 
+  {
+    match (other) {
+      case UnpackedStructure {
+        var immutable Boolean eq = 
+          this.unpackedStructure == other.unpackedStructure &&
+          this.unpackedFields.size() == other.unpackedFields.size();
+        val unique Iterator iter = this.unpackedFields.keySet().iterator();
+        while { eq && iter.hasNext() } {
+          val immutable String fieldName = iter.next();
+          match (other.unpackedFields.containsKey(fieldName)) {
+            case True {
+              eq = other.unpackedFields.get(fieldName) == 
+                         this.unpackedFields.get(fieldName)    
+            }
+            case False { eq = false; }
+          }     
+        };
+        eq
+      }
+      default { false }
+    }
+  }
+  
+  /**
+   * LUB of a unpacked structure and a nominal structure is either the unpacked structure
+   *   if the underlying structure of the unpacked structure is the same as the nominal structure, or nothing
+   * LUB of two unpacked structures is the combination of their unpacked fields as long as they have the
+   *   same underlying nominal structure and any unpacked fields they share are unpacked to the same type
+   * LUB of an unpacked structure and TOP is TOP
+   */
+  method unique Option<immutable Structure> leastUpperBound(immutable Structure other)[immutable UnpackedStructure this] {
+    match (other) {
+      case NominalStructure {
+        match (other.isSubStructureOf(this)) {
+          case True { makeSome(this) }
+          case False { new None }
+        }
+      }
+      case UnpackedStructure {
+        match (this.unpackedStructure == other.unpackedStructure) {
+          case True {
+            val newUnpackedFieldsMap = HashMap.new();
+            newUnpackedFieldsMap.putAll(this.unpackedFields);
+            val iter = other.unpackedFields.keySet().iterator();
+            var ok = true;
+            while { ok && iter.hasNext() } {
+              val fieldName = iter.next();
+              match (newUnpackedFieldsMap.containsKey(fieldName)) {
+                case True {
+                  //either they are the same in which case no adding is needed, or they are differe
+                  //in which case the lub fails
+                  ok = newUnpackedFieldsMap.get(fieldName) == other.unpackedFields.get(fieldName);
+                }
+                case False {
+                  newUnpackedFieldsMap.put(fieldName, other.unpackedFields.get(fieldName));
+                }
+              }
+            
+            };
+            match (ok) {
+              case True { makeSome(makeUnpackedStructureWithFieldMap(this.unpackedStructure, newUnpackedFieldsMap)) }
+              case False { new None }
+            }
+          }
+          case False { new None }
+        }
+      }
+      case TopStructure { makeSome(TOPSTRUCT) }
+      default { new None }
+    }
+  }
+  
+  /**
+   * unpacked structures are substructures of other unpacked structures that have the same underlying
+   * nominal type and have a superset of the collection of unpacked fields.  The types that the fields
+   * are unpacked to must be equivalent.
+   */
+  method immutable Boolean isSubStructureOf(immutable Structure other)[immutable UnpackedStructure this] {
+    match (other) {
+      case UnpackedStructure {
+        match (this.unpackedStructure == other.unpackedStructure &&
+               this.unpackedFields.size() <= other.unpackedFields.size())
+        {
+          case True {
+            val iter = this.unpackedFields.keySet().iterator();
+            var ok = true;
+            while { ok && iter.hasNext() } {
+              val fieldName = iter.next();
+              match (other.unpackedFields.containsKey(fieldName)) {
+                case True {
+                  ok = this.unpackedFields.get(fieldName) == other.unpackedFields.get(fieldName);
+                }
+                case False { ok = false; }
+              };
+              ok
+            }
+          }
+          case False { false }
+        } 
+      }
+      case TopStructure { true }
+      default { false }
+    }
+  }
+  
+  method immutable String toString()[immutable UnpackedStructure] {
+    var immutable String ret = this.unpackedStructure.toString() + " UNPACKED Fields: ";
+    val unique Iterator iter = this.unpackedFields.keySet().iterator();
+    while {iter.hasNext() } {
+       val immutable String fieldName = iter.next();
+       ret = ret + this.unpackedFields.get(fieldName).toString() + ","
+    };
+    ret
+  }
+  
+  /**
+   *  returns None if the member is not defined for this type or the current signature representing
+   *    the member if it is defined as a method or field.
+   *  Preconditions:
+   *    None
+   *  Errors:
+   *    None
+   */
+  method unique Option<immutable Signature> getMember(immutable String memberName) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure> searching for '"+memberName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
+    match (this.unpackedFields.containsKey(memberName)) {
+      case True { 
+        DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found unpacked field for '"+memberName+"'");
+        makeSome(this.unpackedFields.get(memberName)) 
+      }
+      case False {
+        val memberSymbolOpt = this.unpackedStructure.symbol.getMember(memberName);
+        match (memberSymbolOpt) {
+          case Some {
+            match (memberSymbolOpt.value) {
+              case FieldSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found FieldSymbol for '"+memberName+"'");
+                match (this.unpackedFields.containsKey(memberSymbolOpt.value)) {
+                  case True {
+                     makeSome(this.unpackedFields.get(memberName))
+                  }
+                  case False {
+                     makeSome(memberSymbolOpt.value.getSignature())
+                  }
+                }
+              }
+              case MethodSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found MethodSymbol for '"+memberName+"'");
+                makeSome(memberSymbolOpt.value.getSignature())
+              }
+              default {
+                DEBUG(DEBUG_PRIO_HIGH, "<UnpackedStructure>   found unrecognized symbol type for '"+memberName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
+                new None
+              }
+            }
+          }
+          case None {
+            DEBUG(DEBUG_PRIO_HIGH, "<UnpackedStructure>   Cannot find member '"+memberName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
+            new None
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   *  If fieldName is in the list of unpacked field, then retType is returned to it, assuming the object
+   *  IDs match. 
+   *  If the field is not in the list of unpacked fields, then we know that one of the following holds:
+   *    A) the field was reassigned, OR
+   *    B) pulling the permission being returned did not unpack the field, OR
+   *    C) the object changed to a different state which removed or packed the field
+   *  Thus, the field may or may not still be present in the object and no action is needed in this case.  
+   *  Preconditions:
+   *    None
+   *  Errors:
+   *    None
+   */
+  method immutable ?Structure restoreToField(immutable String fieldName, immutable Type retType, immutable Integer objectID) {
+    match (this.unpackedFields.containsKey(fieldName)) {
+      case True {
+        val immutable ?Signature newFieldSig = this.unpackedFields.get(fieldName).restoreType(retType,objectID);
+        match (newFieldSig) {
+          case PackedFieldSignature {
+            ifElse (this.unpackedFields.size() == 1) {
+              this.unpackedStructure
+            } {
+              val unique Map<immutable String, immutable UnpackedFieldSignature> newMap = java.util.HashMap.new();
+              newMap.putAll(this.unpackedFields);
+              newMap.remove(fieldName);
+              makeUnpackedStructureWithFieldMap(this.unpackedStructure, newMap)
+            }
+          }
+          case UnpackedFieldSignature {//TODO: fix when match local variable scoping is fixed
+            val unique Map<immutable String, immutable UnpackedFieldSignature> newMap2 = java.util.HashMap.new();
+            newMap2.putAll(this.unpackedFields);
+            newMap2.put(fieldName,newFieldSig);
+            makeUnpackedStructureWithFieldMap(this.unpackedStructure, newMap2)
+          }
+          default { unit } //error in restoreType
+        }
+      }
+      case False { this /* no op */ }
+    }
+  }
+  
+  /**
+   * unpacking assumes that the calculation of the updated permissions has already occurred and that
+   * it was legal.  An unpacked structure including the newly unpacked field is returned
+   *  Preconditions:
+   *    fieldName is a member of this type and is a field
+   *  Errors:
+   *    if precondition not met, then ABORT will be called
+   */
+  method immutable ?UnpackedStructure unpackField(immutable UnpackedFieldSignature newFieldSig, immutable Token errorToken) {
+    val immutable String fieldName = newFieldSig.packedSignature.name;
+    DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure> unpacking field '"+fieldName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
+    
+    match (this.unpackedFields.containsKey(fieldName)) {
+      case True { //previously unpacked
+        DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>  updating already unpacked field '"+fieldName+"'");
+        val newUnpackedFields = java.util.HashMap.new();
+        newUnpackedFields.putAll(this.unpackedFields);
+        newUnpackedFields.put(fieldName,newFieldSig); //replaces existing unpackedsig
+        makeUnpackedStructureWithFieldMap(this.unpackedStructure,newUnpackedFields)
+      }
+      case False { //not yet unpacked
+        val memberSymbolOption = this.unpackedStructure.symbol.getMember(fieldName);
+        match (memberSymbolOption) {
+          case Some {
+            match (memberSymbolOption.value) {
+              case FieldSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found FieldSymbol for '"+fieldName+"'");
+                val newUnpackedFields = java.util.HashMap.new();
+                newUnpackedFields.putAll(this.unpackedFields);
+                newUnpackedFields.put(fieldName,newFieldSig);
+                makeUnpackedStructureWithFieldMap(this.unpackedStructure,newUnpackedFields)
+              }
+              case MethodSymbol {
+                report_ERROR(errorToken, "S_UNPACK_METHOD", "UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")." + fieldName, "UnpackedStructure");
+            	unit;
+              }
+              default {
+                report_ERROR(errorToken, "S_UNPACK_OTHER", "UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")." + fieldName, "UnpackedStructure");
+            	unit;
+              }
+            }
+          }
+          case None {
+            report_ERROR(errorToken, "S_UNPACK_MISSING", "UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")." + fieldName, "UnpackedStructure");
+            unit;
+          }
+        }
+      }
+    }
+  }
+  
+  /**
+   *  if fieldName is packed, then assignment is a no-op
+   *  if fieldName is an unpacked field, then that field is removed from the
+   *    list of unpacked fields.  If this removes the last field from the list
+   *    then the packed structure is returned, otherwise an unpacked structure with
+   *    the remaining unpacked fields is returned
+   *  Preconditions:
+   *    fieldName is a member of this type and is a field
+   *  Errors:
+   *    if precondition not met, then ABORT will be called
+   */
+  method immutable ?ObjectStructure assignToField(immutable String fieldName,
+  												 immutable Token errorToken) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure> assigning to field '"+fieldName+"' in 'UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")'");
+    
+    match (this.unpackedFields.containsKey(fieldName)) {
+      case True {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>  assigning to unpacked field '"+fieldName+"'");
+        match (this.unpackedFields.get(fieldName).packedSignature.isVar) {
+          case True {
+            match (this.unpackedFields.size() == 1) {
+              case True { this.unpackedStructure } //PACKED!!
+              case False { //still some unpacked fields
+                 val newUnpackedFields = java.util.HashMap.new();
+                newUnpackedFields.putAll(this.unpackedFields);
+                newUnpackedFields.remove(fieldName); //remove 
+                makeUnpackedStructureWithFieldMap(this.unpackedStructure,newUnpackedFields)
+              }
+            }
+          }
+          case False {  
+          	report_ERROR(errorToken, "S_ASSIGN_VAL", "UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")." + fieldName, "UnpackedStructure");
+            unit; 
+          } 
+        }
+      }
+      case False {  //otherwise make sure that this assignment was well formed (TODO: this is potentially redundant)
+        val memberSymbolOption = this.unpackedStructure.symbol.getMember(fieldName);
+        match (memberSymbolOption) {
+          case Some {
+            match (memberSymbolOption.value) {
+              case FieldSymbol {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<UnpackedStructure>   found FieldSymbol for '"+fieldName+"'");
+                match (memberSymbolOption.value.getSignature().isVar) {
+                  case True { this }
+                  case False { 
+                    report_ERROR(errorToken, "S_ASSIGN_VAL", "UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")." + fieldName, "UnpackedStructure");
+            		unit;
+                  } 
+                }
+              }
+              case MethodSymbol {
+                report_ERROR(errorToken, "S_ASSIGN_METHOD", "UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")." + fieldName, "UnpackedStructure");
+            	unit;
+              }
+              default {
+                report_ERROR(errorToken, "S_ASSIGN_OTHER", "UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")." + fieldName, "UnpackedStructure");
+            	unit;
+              }
+            }
+          }
+          case None {
+            report_ERROR(errorToken, "S_ASSIGN_MISSING", "UNPACKED(" + this.unpackedStructure.symbol.getFQN() + ")." + fieldName, "UnpackedStructure");
+            unit;
+          }
+        }
+      }
+    }
+  }
+  
+}

@@ -1,0 +1,1524 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.ParsedLeafVisitor;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
+import plaid.compiler.report_ERROR;
+import plaid.compiler.report_WARNING;
+import plaid.ast.util.makeTokenForFile;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.Pass;
+
+import plaid.compiler.*;
+import plaid.compiler.typechecker.*;
+import plaid.compiler.aeminium.*;
+import plaid.compiler.permissions.*;
+import plaid.compiler.util.*;
+
+import plaid.ast.parsed.*;
+import plaid.ast.util.*;
+
+import plaid.lang.math.*;
+
+import plaid.collections.makeLinkedList;
+
+state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
+    var hasErrors = false;
+    var resolver;
+    val unique List matchInfoObjs = java.util.ArrayList.new();
+    val unique Map methodInfoMap = java.util.HashMap.new();
+    val checkMinimumDegression = COMPILER_CONFIGURATION().getBooleanProperty("plaid.compiler.passes.TaskBuilderPass.checkMinimumDegression", true);
+
+    
+    method immutable Boolean run(unique Job job) {
+        match (job) {
+          case UserJob {
+              match (job.ast) {
+                  case Some {
+                    DEBUG(DEBUG_PRIO_HIGH, "<TaskBuilderPass> started for file " + job.source.path);
+                
+                    this.resolver = job.resolver;
+                    job.ast.value.accept(this);
+            
+                    job.addJobData(AEMINIUM_METHOD_INFORMATION_MAP, makeAEminiumJobData(this.methodInfoMap));
+            
+                    DEBUG(DEBUG_PRIO_HIGH, "<TaskBuilderPass> finished for file " + job.source.path);
+                    !this.hasErrors;
+                  }
+                  default {
+                      report_ERROR(makeTokenForFile(job.source.path), "<TaskBuilderPass> AST invalid", "", "TaskBuilderPass");
+                      false
+                  }
+              }
+          }
+          case CompilerJob {
+              DEBUG(DEBUG_PRIO_HIGH, "<TaskBuilderPass> skip CompilerJob");
+              true
+          }
+        }
+    }
+    
+    override method void LOG(immutable String msg) {
+        //DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> " + msg);
+    }
+    
+    override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> found Method Declaration '" + node.name.name + "'");
+
+        ifElse ( typecheckingEnabled(node) ) {
+            val shared Symbol methSymbol = match (symbolForAST(node)) {
+                case Some  { symbolForAST(node).value }
+                case None  { ABORT("<TaskBuilderPass> cannot find symbol for " + node.nodeName()) }
+            };
+            val name = methSymbol.name;
+            val path = symbolToString(methSymbol);
+            
+            
+            ifElse ( typecheckingEnabled(node) ) {      
+                // reset data structures
+                this.matchInfoObjs.clear();
+               
+                // get dependency information for 
+                val unique DependencyInformationCollector dic = new DependencyInformationCollector;
+                node.accept(dic);
+                val shared Set infos = dic.getNodes();
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>     found " + infos.size() + " dependency information nodes");
+                
+                val unique LinkedList ops = makeLinkedList();
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeSplitAndJoinDependencies(depInfos);
+                     dumpGraph(node, "TASK-DEL-SPLIT-JOIN");
+                     result
+                });
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeArguments(depInfos);
+                     dumpGraph(node, "TASK-DEL-ARGS");
+                     result
+                });
+                /*
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeLiterals(depInfos);
+                     dumpGraph(node, "TASK-DEL-LITERALS");
+                     result
+                });
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeIds(depInfos);
+                     dumpGraph(node, "TASK-DEL-ID");
+                     result
+                });
+                */
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeFieldRestores(depInfos);
+                     dumpGraph(node, "TASK-DEL-FIELD-RESTORES");
+                     result
+                });
+                /*
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeDereferences(depInfos);
+                     dumpGraph(node, "TASK-DEL-DREF");
+                     result
+                });
+                */
+                ops.addLast( fn (depInfos) => {
+                     val result = this.removeTransitiveDependencies(depInfos);
+                     dumpGraph(node, "TASK-DEL-TRANS");
+                     result
+                });          
+                // execute ops
+                var unique Set nodes = infos; 
+                ops.do( fn (op) => {
+                    nodes = op(nodes);
+                });
+                
+                // dump simplified graph
+                dumpGraph(node, "TASK-SIMPLIFIER");
+                
+                // compute tasks
+                var tasks = computeTasks(path, nodes);
+                
+                // dump pre expand graph
+                dumpTaskGraph(path, "TASK-PRE-MATCH-EXPAND", tasks);
+                
+                val methodInfoObj = makeMethodInformationObject(node, tasks, this.matchInfoObjs, this.matchFixupTable);
+                this.methodInfoMap.put(node, methodInfoObj);
+                
+                if ( COMPILER_CONFIGURATION().enableCodegen == false ) {
+                    // expand matches and dump final task graph
+                    // if we generate code we do that after we generated the code
+                
+                    // expand match blocks
+                    tasks = expandMatchBlocks(path, tasks);
+                    
+                    // remove transitive edges
+                    tasks = removeTransitiveEdgesFromTasks(tasks);
+                    
+                    dumpTaskGraph(path, "TASK-FINAL", tasks);
+                };
+                     
+                node.annotations.map( fn (anno) => {
+                    if ( anno.name.name == "cheap") {
+                        DEBUG(DEBUG_PRIO_HIGH, "<TaskBuilderPass> check for 'cheap' conformance");
+                       
+                        if ( tasks.size() > 1 && tasks.iterator().next().getWeight() > 0  ) {
+                             report_WARNING(anno.name.token, "Method is not cheap.", "", "TaskBuilderPass");
+                        };
+                    }
+                });
+            }{
+                DEBUG(DEBUG_PRIO_HIGH, "<TaskBuilderPass> SKIP method " + node.name.name);
+            }
+        }{
+            DEBUG(DEBUG_PRIO_HIGH, "<TaskBuilderPass> SKIP method " + node.name.name);
+        }
+    }
+    
+    
+    method immutable Boolean hasTransitiveDependency(shared DependencyInformation depInfo, shared Set deps) {
+        val it = deps.iterator();
+        var result = false;
+        
+        while { it.hasNext() && result == false }{
+            val curInfo = it.next();
+            ifElse ( curInfo == depInfo ) {
+                result = true
+            }{
+                //printLine("check for trans dep " + curInfo.toString() );
+                if ( result == false ) {
+                    result = hasTransitiveDependency(depInfo, curInfo.deps)
+                }
+            };
+        };
+        
+        result
+    }
+    
+    method void removeTransitiveDependencies(shared Set infos) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> removeTransitiveDependencies");
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val curInfo = it.next(); 
+            val depsIt =  curInfo.deps.iterator();
+            
+            // find deps that have transitive dependencies
+            val removeSet = java.util.HashSet.new();
+            while { depsIt.hasNext() }{
+                val nextDep = depsIt.next();
+                
+                val depSet = java.util.HashSet.new();
+                depSet.addAll(curInfo.deps);
+                depSet.remove(nextDep);
+                
+                if ( hasTransitiveDependency(nextDep, depSet) ) {
+                    DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> remove dependency " + curInfo.toString() + " -> " + nextDep.toString() );
+                    removeSet.add(nextDep);
+                };
+            };
+            
+            // remove found edges
+            if ( removeSet.size() > 0 ) {
+                val removeIt = removeSet.iterator();
+                
+                while { removeIt.hasNext() }{
+                    removeDependency(curInfo, removeIt.next());
+                }
+            };
+        }; 
+        
+        infos
+    }
+    
+    method void removeSplitAndJoinDependencies(shared Set infos) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> removeSplitAndJoinDependencies");
+        val result = java.util.HashSet.new();
+        val it = infos.iterator();
+        
+        while { it.hasNext() }{
+            val nextInfo = it.next();
+            match (nextInfo) {
+                case JoinInformation  { removeDependencyInformation(nextInfo) }
+                case SplitInformation { removeDependencyInformation(nextInfo) }
+                default{ result.add(nextInfo) }
+            }
+        };
+        
+        result
+    }
+    
+    method void removeArguments(shared Set infos) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> removeArguments");
+        val result = java.util.HashSet.new();
+        val it = infos.iterator();
+        
+        while { it.hasNext() }{
+            val nextInfo = it.next();
+            match (nextInfo) {
+                case ASTInformation {
+                    match (nextInfo.node) {
+                        case ParsedArg {
+                            removeDependencyInformation(nextInfo) 
+                        }
+                        default { result.add(nextInfo) } 
+                    }
+                }
+                default{ result.add(nextInfo) }
+            }
+        };
+        
+        result
+    }
+ 
+    method void removeLiterals(shared Set infos) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> removeLiterals");
+        val result = java.util.HashSet.new();
+        val it = infos.iterator();
+        
+        while { it.hasNext() }{
+            val nextInfo = it.next();
+            match (nextInfo) {
+                case ASTInformation {
+                    match (nextInfo.node) {
+                        case ParsedLiteral {
+                            removeDependencyInformation(nextInfo) 
+                        }
+                        default { result.add(nextInfo) } 
+                    }
+                }
+                default{ result.add(nextInfo) }
+            }
+        };
+        
+        result
+    }   
+
+    method void removeIds(shared Set infos) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> removeSplitAndJoinDependencies");
+        val result = java.util.HashSet.new();
+        val it = infos.iterator();
+        
+        while { it.hasNext() }{
+            val nextInfo = it.next();
+            match (nextInfo) {
+                case ASTInformation {
+                    match (nextInfo.node) {
+                        case ParsedIdentifier {
+                            removeDependencyInformation(nextInfo) 
+                        }
+                        default { result.add(nextInfo) } 
+                    }
+                }
+                default{ result.add(nextInfo) }
+            }
+        };
+        
+        result
+    }
+    
+    method void removeFieldRestores(shared Set infos) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> removeFieldRestores");
+        val result = java.util.HashSet.new();
+        val it = infos.iterator();
+        
+        while { it.hasNext() }{
+            val nextInfo = it.next();
+            match (nextInfo) {
+                case FieldRestoreInformation {
+                    removeDependencyInformation(nextInfo) 
+                }
+                default{ result.add(nextInfo) }
+            }
+        };
+        
+        result
+    }
+    
+    method void removeDereferences(shared Set infos) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> removeDereferences");
+        val result = java.util.HashSet.new();
+        val it = infos.iterator();
+        
+        while { it.hasNext() }{
+            val nextInfo = it.next();
+            match (nextInfo) {
+                case ASTInformation {
+                    match (nextInfo.node) {
+                        case ParsedDereference {
+                            removeDependencyInformation(nextInfo) 
+                        }
+                        default { result.add(nextInfo) } 
+                    }
+                }
+                default{ result.add(nextInfo) }
+            }
+        };
+        
+        result
+    }   
+
+    /************************************************************************
+     **                           Task Builder                             ** 
+     ************************************************************************/
+    
+    // TODO: reverse direcetion 
+    method void addTaskDependency(shared Task from, shared Task to) {
+        //DEBUG(DEBUG_PRIO_LOW,"<TaskBulderPass> create connection " + from.toString() + " -> " + to.toString());
+        from.deps.add(to);
+        to.rdeps.add(from);
+    }
+    
+    method unique Set/*Task*/ createTaskGraph(shared Set infos) {
+         val infoToTask = java.util.IdentityHashMap.new();
+         
+         // create tasks
+         val createIt = infos.iterator();
+         while { createIt.hasNext() }{
+             val nextInfo = createIt.next();
+             val task = makeTask(this.resolver);
+             task.addInfos(java.util.Collections.singleton(nextInfo));
+             infoToTask.put(nextInfo, task);
+             DEBUG(DEBUG_PRIO_LOW, "<TaskBuilder> create task " + task.toString() + " for " + task.infos.iterator().next().toString());
+         };
+         
+         // setup connections 
+         val connectIt = infos.iterator();
+         while { connectIt.hasNext() }{
+             val curInfo = connectIt.next();
+             val curTask = infoToTask.get(curInfo);
+             
+             // connect dependencies
+             val depsIt = curInfo.deps.iterator();
+             while { depsIt.hasNext() }{
+                 val depInfo = depsIt.next();
+                 val depTask = infoToTask.get(depInfo);
+                 addTaskDependency(curTask, depTask);  
+             };
+             
+             // connect reverse dependencies (not necessary??)
+             val rdepsIt = curInfo.rdeps.iterator();
+             while { rdepsIt.hasNext() }{
+                 val rdepInfo = rdepsIt.next();
+                 val rdepTask = infoToTask.get(rdepInfo);
+                 addTaskDependency(rdepTask, curTask);  
+             };
+         }; 
+
+         
+         // create task set
+         val result = java.util.HashSet.new();
+         result.addAll(infoToTask.values());
+         result
+    }
+
+
+     method immutable Integer computeCriticalPathTaskWithoutEdge(shared Task task,
+                                                                 shared Task edgeFrom,
+                                                                 shared Task edgeTo) {
+        var length = match ( task.rdeps.size() == 0 ) {
+            case True {
+                // check if we are the end of the connection 
+                ifElse (task == edgeTo) {
+                    task.getWeight() + edgeFrom.getWeight()
+                }{
+                    task.getWeight()
+                }
+            }
+            case False { task.getWeight() }
+        };
+        
+        val it = task.rdeps.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            val immutable Integer curTaskLength = computeCriticalPathTaskWithoutEdge(curTask, edgeFrom, edgeTo);
+            
+            //printLine("curTaskLength = " + curTaskLength);
+            
+            ifElse ( task == edgeFrom ) {
+                ifElse ( curTask == edgeTo) {
+                    val curLength = curTaskLength;
+                    //printLine("curLength = " + curLength);
+                    length = max(length, curLength);
+                }{
+                    val curLength = task.getWeight() + edgeTo.getWeight() + 1 + curTaskLength;
+                    //printLine("curLength = " + curLength);
+                    length = max(length, curLength);
+                }
+            }{
+                ifElse ( task == edgeTo ) {
+                    val curLength = task.getWeight() + edgeFrom.getWeight() + 1 + curTaskLength;
+                    //printLine("curLength = " + curLength);
+                    length = max(length, curLength);                    
+                }{
+                    val curLength = task.getWeight() + 1 + curTaskLength;
+                    //printLine("curLength = " + curLength);
+                    length = max(length, curLength);                
+                }
+            };
+            
+        };   
+
+        //printLine("cs from task " + task.toString() + "   "+ length);
+        length
+    }
+
+    method immutable Integer computeCriticalPathGraphWithoutEdge(unique Set tasks,
+                                                                 shared Task edgeFrom,
+                                                                 shared Task edgeTo) {
+        val it = tasks.iterator();
+        var length = 0;
+        
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            // start from top nodes 
+            if ( curTask.deps.size() == 0 ) {
+                 val curLength = computeCriticalPathTaskWithoutEdge(curTask, edgeFrom, edgeTo);
+                 //DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> critical path length from " + curTask.toString() + " is " + curLength);
+                 length = max(length, curLength);
+            };
+        };
+        //DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> critical path length for graph is without " + edgeFrom.toString() + " -> " + edgeTo.toString() + " is "  + length);
+        length;
+    }
+    
+    method immutable Integer computeCriticalPathTask(shared Task task) {
+        var length = 0;
+        
+        val it = task.rdeps.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            val curLength = 1 + computeCriticalPathTask(curTask);
+            length = max(length, curLength);
+        };   
+        
+        length = length + task.getWeight();
+        length
+    }
+    
+    
+    
+    method immutable Integer computeCriticalPathGraph(unique Set tasks) {
+        val it = tasks.iterator();
+        var length = 0;
+        
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            // start from top nodes 
+            if ( curTask.deps.size() == 0 ) {
+                 val curLength = computeCriticalPathTask(curTask);
+                 //DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> critical path length from " + curTask.toString() + " is " + curLength);
+                 length = max(length, curLength);
+            };
+        };
+        //DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> critical path length for graph is " + length);
+        length;
+    }
+    
+    method unique Task mergeTasks(shared Task from, shared Task to) {
+        val unique Task task = makeTask(this.resolver);
+        
+        task.addInfos(from.infos);
+        task.addInfos(to.infos);
+        
+        task.deps.addAll(from.deps);
+        task.deps.addAll(to.deps);
+        task.deps.remove(from);
+        
+        task.rdeps.addAll(from.rdeps);
+        task.rdeps.addAll(to.rdeps);
+        task.rdeps.remove(to);
+        
+        // fix other tasks 
+        val itDeps = task.deps.iterator();
+        while {itDeps.hasNext()}{
+            val curDep = itDeps.next();
+            curDep.rdeps.remove(from);
+            curDep.rdeps.remove(to);
+            curDep.rdeps.add(task);
+        };
+        val itRDeps = task.rdeps.iterator();
+        while {itRDeps.hasNext()}{
+            val curRDep = itRDeps.next();
+            curRDep.deps.remove(from);
+            curRDep.deps.remove(to);
+            curRDep.deps.add(task);
+        };
+
+
+        from.reset();
+        to.reset();  
+        
+        // check for transitive connections        
+        val deps = java.util.HashSet.new();
+        deps.addAll(task.deps);
+        val transDepsIt = deps.iterator();
+        while { transDepsIt.hasNext() }{
+            val depTask = transDepsIt.next();
+            if ( hasTransitiveEdge(depTask, task) ) {
+                // remove transitive edge 
+                DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> remove transitive edge " + depTask.toString() + " -> " + task.toString());
+                depTask.rdeps.remove(task);
+                task.deps.remove(depTask);
+            };
+        };
+
+        val rdeps = java.util.HashSet.new();
+        rdeps.addAll(task.rdeps);        
+        val transRDepsIt = rdeps.iterator();
+        while { transRDepsIt.hasNext() }{
+            val rdepTask = transRDepsIt.next();
+            if ( hasTransitiveEdge(task, rdepTask) ) {
+                // remove transitive edge 
+                DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> remove transitive edge " + task.toString() + " -> " + rdepTask.toString());
+                rdepTask.deps.remove(task);
+                task.rdeps.remove(rdepTask);
+            };
+        };
+        
+        DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> merged Tasks (" + from.getID() + "," + to.getID() + ") into " + task.getID());
+        
+        task              
+    }
+    
+    method unique Set mergeVarDecls(unique Set tasks) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> mergeVarDecls");
+        val result = java.util.HashSet.new();
+        result.addAll(tasks);
+        
+        var counter = 0;
+        
+        val it = tasks.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+        
+            if ( result.contains(curTask) ) { // check if we already remove/merged the task
+                match (curTask.infos.iterator().next()) {
+                    case ASTInformation {
+                        match (curTask.infos.iterator().next().node) {
+                            case ParsedVarDecl {
+                                match (curTask.deps.size() == 1 ) {
+                                    case True {
+                                        val depTask = curTask.deps.iterator().next();
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> mergeVarDecls merge " + counter+ " tasks : " + depTask.toString() + " + " + curTask.toString());
+                                        result.remove(curTask);
+                                        result.remove(depTask);
+                                        result.add(mergeTasks(depTask, curTask));
+                                    }
+                                    case False {
+                                        if ( curTask.deps.size() > 1 ) {
+                                            ABORT("<TaskBuilderPass> var decl has more than one dependency " + curTask.deps.toString())
+                                        }
+                                    }
+                                }
+                            }
+                            default {}
+                        }
+                    }
+                    default {}
+                }
+            }
+        };
+        
+        result
+    }
+    
+    method immutable Integer computeMinimumPathsVisitor(shared Task curTask, unique Set visited, unique Map minPaths) {
+        match ( visited.contains(curTask) ) {
+            case True { 
+                minPaths.get(curTask);
+            }
+            case False {
+                var minPathLength =  ifElse ( curTask.rdeps.size() == 0 ) { 0 }{1000 * 1000 * 1000 };
+                val rdepsIt = curTask.rdeps.iterator();
+                while { rdepsIt.hasNext() }{
+                    val rdepTask = rdepsIt.next();                    
+                    val rdepMinPathLength =  1 + computeMinimumPathsVisitor(rdepTask, visited, minPaths);
+                    //printLine("minPath from " + rdepTask.toString() + " = " + rdepMinPathLength));
+                    minPathLength = min(minPathLength, rdepMinPathLength);
+                };
+                                
+                minPathLength = minPathLength + curTask.getWeight();
+                minPaths.put(curTask, minPathLength);
+                //printLine("set " + curTask.toString() + " " + minPathLength);
+                visited.add(curTask);
+                
+                minPathLength
+            }
+        }
+    }
+    
+    // tasks in total order
+    method unique Map computeMinimumPaths(unique Set tasks) {
+        val minPaths = java.util.HashMap.new();
+        val visited  = java.util.HashSet.new();
+        
+        val it = tasks.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            if ( visited.contains(curTask) == false ) {
+                //printLine("visit " + curTask.toString() + " visited=" + taskListToString(visited));
+                computeMinimumPathsVisitor(curTask, visited, minPaths);
+            }
+        };
+        
+        minPaths
+    }
+    
+    // tasks need to be topological ordered
+    method immutable Boolean minimumPathDegressionForGraphWithoutEdge(unique Set tasksInput,
+                                                                      shared Task edgeFrom,
+                                                                      shared Task edgeTo) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> minimumPathDegressionForGraphWithoutEdge ");
+        
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>   computeMinimumPaths for original");
+        val minPathLengthsBefore = computeMinimumPaths(tasksInput);
+
+        val tasks = java.util.ArrayList.new();
+        tasks.addAll(tasksInput);
+        
+        val merged = makeTask(this.resolver);
+        
+        merged.addInfos(edgeFrom.infos);
+        merged.addInfos(edgeTo.infos);
+        
+        merged.deps.addAll(edgeFrom.deps);
+        merged.deps.addAll(edgeTo.deps);
+        merged.rdeps.addAll(edgeFrom.rdeps);
+        merged.rdeps.addAll(edgeTo.rdeps);
+        
+        merged.deps.remove(edgeFrom);
+        merged.deps.remove(edgeTo);
+        merged.rdeps.remove(edgeFrom);
+        merged.rdeps.remove(edgeTo);
+        
+        // fix other tasks 
+        val itDeps = merged.deps.iterator();
+        while {itDeps.hasNext()}{
+            val curDep = itDeps.next();
+            curDep.rdeps.remove(edgeFrom);
+            curDep.rdeps.remove(edgeTo);
+            curDep.rdeps.add(merged);
+        };
+        val itRDeps = merged.rdeps.iterator();
+        while {itRDeps.hasNext()}{
+            val curRDep = itRDeps.next();
+            curRDep.deps.remove(edgeFrom);
+            curRDep.deps.remove(edgeTo);
+            curRDep.deps.add(merged);
+        };
+        
+        tasks.remove(edgeFrom);
+        tasks.remove(edgeTo);
+        tasks.add(merged);
+        
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>   computeMinimumPaths with merged task " + merged.toString());
+        val minPathLengthsAfter = computeMinimumPaths(tasks);
+        
+        tasks.add(edgeFrom);
+        tasks.add(edgeTo);
+        tasks.remove(merged);
+
+        val toDepsIt = edgeTo.deps.iterator();
+        while { toDepsIt.hasNext() }{
+            var depTask = toDepsIt.next();
+            depTask.rdeps.remove(merged);
+            depTask.rdeps.add(edgeTo);
+        };
+        val toRDepsIt = edgeTo.rdeps.iterator();
+        while { toRDepsIt.hasNext() }{
+            var rdepTask = toRDepsIt.next();
+            rdepTask.deps.remove(merged);
+            rdepTask.deps.add(edgeTo);
+        };
+        
+        val fromDepsIt = edgeFrom.deps.iterator();
+        while { fromDepsIt.hasNext() }{
+            var depTask = fromDepsIt.next();
+            depTask.rdeps.remove(merged);
+            depTask.rdeps.add(edgeFrom);
+        };
+        val fromRDepsIt = edgeFrom.rdeps.iterator();
+        while { fromRDepsIt.hasNext() }{
+            var rdepTask = fromRDepsIt.next();
+            rdepTask.deps.remove(merged);
+            rdepTask.deps.add(edgeFrom);
+        };
+        
+        var result = false;
+        
+        val it = minPathLengthsBefore.keySet().iterator();
+        while { result == false && it.hasNext()  }{
+            val curTask = it.next();
+            val before = minPathLengthsBefore.get(curTask);
+            if( curTask != edgeFrom && curTask != edgeTo ) {
+                val after = minPathLengthsAfter.get(curTask);
+            
+                DEBUG(DEBUG_PRIO_LOW, "        MIN path from             " + curTask.toString() + " = " +  before );
+                DEBUG(DEBUG_PRIO_LOW, "        MIN path from zeroed edge " + curTask.toString() + " = " +  after + "    " +  edgeFrom.toString() + " -> " + edgeTo.toString());    
+        
+                if ( before < after ) {
+                    result = true;
+                    DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>        LOCAL DEGRESSION");
+                };
+            };
+        };
+        
+        merged.reset();
+        
+        result
+    }
+
+    
+    
+    method unique Set removeTaskGraph(unique Set tasks, unique Task curTask) {
+        val unique Set removed = java.util.HashSet.new();
+        
+        if ( tasks.contains(curTask) ) {
+            tasks.remove(curTask);
+            removed.add(curTask);
+            
+            val depsIt = curTask.deps.iterator();
+            while { depsIt.hasNext() }{ removed.addAll(removeTaskGraph(tasks, depsIt.next())) };
+        
+            val rdepsIt = curTask.rdeps.iterator();
+            while { rdepsIt.hasNext() }{ removed.addAll(removeTaskGraph(tasks, rdepsIt.next())) };        
+        };
+        
+        removed
+    }
+    
+    
+    method unique Set computeAtomicTasks(unique Set input) {
+         DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> computeAtomicTasks");
+         val unique Set tasks = java.util.HashSet.new();
+         tasks.addAll(input);
+         
+         // compute map: depInfo -> task
+         val mapIt = tasks.iterator();
+         val map = java.util.IdentityHashMap.new();
+         while { mapIt.hasNext() }{
+             val curTask = mapIt.next();
+             val curDepInfo = curTask.infos.iterator().next();
+             map.put(curDepInfo, curTask);
+         };
+         
+         // compute atomic tasks 
+         val atomicIt = input.iterator();
+         while { atomicIt.hasNext() }{
+             val curTask = atomicIt.next();
+             if ( curTask.infos.iterator().hasNext() ) {
+                 val curDepInfo = curTask.infos.iterator().next();
+                 match ( curDepInfo ) {
+                      case AtomicLeaveInformation {
+                          DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>(computeAtomicTasks) found atomic block " + curDepInfo.toString());
+                          val atomicEnter = map.get(curDepInfo.enterInfo);
+                          val atomicLeave = curTask;
+                          val atomicTask = makeTask(this.resolver);
+                          
+                          // detach AtomicEnterTask
+                          val enterDepsIt = atomicEnter.deps.iterator();
+                          while {enterDepsIt.hasNext()}{
+                              val depTask = enterDepsIt.next();
+                              DEBUG(DEBUG_PRIO_LOW,  "<TaskBuilderPass>(computeAtomicTasks)     connect " + depTask.toString() + " -> " + atomicTask.toString());
+                              depTask.rdeps.remove(atomicEnter);
+                              depTask.rdeps.add(atomicTask);
+                              atomicTask.deps.add(depTask);
+                          };
+                          atomicEnter.deps.clear();
+                          
+                          // detach AtomicLeaveTask
+                          val leaveRDepsIt = atomicLeave.rdeps.iterator();
+                          while {leaveRDepsIt.hasNext()}{
+                              val rdepTask = leaveRDepsIt.next();
+                              DEBUG(DEBUG_PRIO_LOW,  "<TaskBuilderPass>(computeAtomicTasks)     connect " + atomicTask.toString() + " -> " + rdepTask.toString());
+                              rdepTask.deps.remove(atomicLeave);
+                              rdepTask.deps.add(atomicTask);
+                              atomicTask.rdeps.add(rdepTask);
+                          };
+                          atomicLeave.rdeps.clear();
+                                                
+                          // detach body expression
+                          val unique Set removedTasks = removeTaskGraph(tasks, atomicEnter);
+                          val removedIt = removedTasks.iterator();
+                          while { removedIt.hasNext() }{
+                               val shared Task curTask = removedIt.next();
+                               atomicTask.addInfos(curTask.infos);
+                          };
+                          
+                          // add atomic Task to tasks
+                          tasks.add(atomicTask);
+                      }
+                      default {}
+                 }
+             }
+         };
+         
+         tasks;
+    }
+    
+    method unique Set/*Task*/ computeTasks(immutable String path, shared Set infos) {
+       DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> comupte tasks");
+       
+       var unique Set/*Task*/ tasks = this.createTaskGraph(infos);
+       dumpTaskGraph(path, "TASK-STEP-0", tasks);     
+       
+       tasks = this.computeAtomicTasks(tasks);
+       dumpTaskGraph(path, "TASK-STEP-1", tasks);
+       
+       //tasks = mergeVarDecls(tasks);
+       //dumpTaskGraph(path, "TASK-STEP-2", tasks);
+    
+       val clusteredTasks = clusterTasks(path, tasks);
+       
+       clusteredTasks
+    }
+    
+    val unique Map visitedEdges = java.util.IdentityHashMap.new();
+    
+    method void setEdgeVisited(shared Task from, shared Task to) {
+        val values = match (this.visitedEdges.containsKey(from)) {
+            case True { this.visitedEdges.get(from) } 
+            case False {
+                val newValues = java.util.HashSet.new();
+                this.visitedEdges.put(from, newValues);
+                newValues
+            }
+        };
+        
+        values.add(to);
+    }
+    
+    method immutable Boolean edgeVisited(shared Task from, shared Task to) {
+        match ( this.visitedEdges.containsKey(from) ) {
+            case True { 
+                val values = this.visitedEdges.get(from);
+                values.contains(to)
+            }
+            case False { false } 
+        }
+    }
+    
+    method immutable Boolean findTransitiveEdge(shared Task target, shared Set tasks) {
+        val it = tasks.iterator();
+        
+        var found = false;
+        while { found == false && it.hasNext() }{
+            val curTask = it.next();
+            match ( curTask == target ) {
+                case True {
+                    found = true;
+                }
+                case False {
+                    found = findTransitiveEdge(target, curTask.deps);
+                }
+            }
+        };
+        
+        found
+    }
+    
+    method immutable Boolean hasTransitiveEdge(shared Task from, shared Task to) {
+         DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> hasTransitiveEdge " + from.toString() + " -> " + to.toString());
+         
+         val tasks = java.util.HashSet.new();
+         tasks.addAll(to.deps);
+         tasks.remove(from);
+         
+         findTransitiveEdge(from, tasks)
+    }
+    
+    method unique Set removeTransitiveEdgesFromTasks(unique Set input) {
+        DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> removeTransitiveEdgesFromTasks ");
+         val tasks = java.util.HashSet.new();
+         tasks.addAll(input);
+         
+         val it = tasks.iterator();
+         while { it.hasNext() } {
+             val curTask =it.next();
+             
+             val deps = java.util.HashSet.new();
+             deps.addAll(curTask.deps);
+             val depsIt = deps.iterator();
+             while { depsIt.hasNext() }{
+                  val dep = depsIt.next();
+                  if ( this.hasTransitiveEdge(dep, curTask) ) {
+                      DEBUG(DEBUG_PRIO_LOW, "<TaskBuilder> remove edge form task " + curTask.toString() + " -> " + dep.toString());
+                      curTask.deps.remove(dep);
+                      dep.rdeps.remove(curTask);
+                  }
+             }
+         };
+         
+         
+         tasks;
+    }
+    
+    method immutable String taskListToString(unique Collection tasks) {
+        val it = tasks.iterator();
+        val sb = java.lang.StringBuilder.new();
+        sb.append("[");
+        while {it.hasNext()}{sb.append( "" + it.next().getWeight() + ",")};
+        sb.deleteCharAt(sb.length() - 1);
+        sb.append("]"); 
+        sb.toString();   
+    }
+    
+    /*
+    // simple bubble sort 
+    method unique List sortTaskList(unique List inputTasks) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> sortTaskList ");        
+        
+        val unique List tasks = java.util.ArrayList.new();
+        tasks.addAll(inputTasks);
+  
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>   input: " + taskListToString(tasks));
+
+        
+        val length = tasks.size();
+        var i = 0; 
+        while { i < (length - 1) }{
+            var j = i + 1;
+            while { j < length }{
+                val swap = ifElse (tasks.get(i).getWeight() == tasks.get(j).getWeight()) {
+                     // compate ID 
+                    ifElse ( tasks.get(i).id > tasks.get(j).id ) {
+                        true
+                    }{
+                        false
+                    }                     
+                }{ 
+                    ifElse ( tasks.get(i).getWeight() > tasks.get(j).getWeight() ) {
+                        true
+                    }{
+                        false
+                    }
+                };
+                if ( swap ) {
+                    // swap elements
+                    val swap = tasks.get(i);
+                    tasks.set(i, tasks.get(j));
+                    tasks.set(j, swap);
+                };
+                j = j + 1;
+            };
+            i = i + 1;
+        };
+        
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass>   output: " + taskListToString(tasks));
+        
+        tasks
+    }
+    */
+    
+    method immutable Option findNextMatch(unique Set input) {
+        var immutable Option nextMatch = new None; 
+        
+        val it = input.iterator();
+        var found = false;
+        while { it.hasNext() && found == false } {
+            val curTask = it.next();
+            if ( curTask.infos.size() > 0 ) {
+                match (curTask.infos.iterator().next()) {
+                    case MatchLeaveInformation {
+                        nextMatch = makeSome(curTask);
+                        found = true
+                    }
+                    default {}
+                }
+            }
+        };
+        
+        nextMatch
+    }
+    
+    method unique Set findMatchBlocksAbove(shared Task task) {
+        DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> findMatchBlocksAbove " + task.toString());
+        var unique Set result = java.util.HashSet.new();
+        
+        // count current node
+        val infoIt = task.infos.iterator();
+        while { infoIt.hasNext() }{
+            val curInfo = infoIt.next();
+            match ( curInfo ) {
+                case MatchEnterInformation { result.add(curInfo) } 
+                case MatchLeaveInformation { result.add(curInfo) } 
+                default {}                
+            };
+        };
+        
+        // query tasks upwards
+        val depsIt = task.deps.iterator();
+        while { depsIt.hasNext() }{
+            val depTask = depsIt.next();
+            result.addAll(findMatchBlocksAbove(depTask));
+        };
+
+        result 
+    }
+    
+    method immutable Boolean isTopLevelMatch(shared Task task) {
+        DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> isTopLevelMatch " + task.toString());
+        var  result = false;
+        
+        val infosIt = task.infos.iterator();
+        while { infosIt.hasNext() && result == false }{
+            val nextInfo = infosIt.next();
+            result = match ( nextInfo ) {
+                case MatchLeaveInformation {
+                    var unique Set matches = findMatchBlocksAbove(task);
+                    
+                    // find leave information closed blocks
+                    val resultSet = java.util.HashSet.new();
+                    resultSet.addAll(matches);
+                    
+                    val matchesIt = matches.iterator();
+                    while { matchesIt.hasNext() }{
+                        val curInfo = matchesIt.next();
+                        match ( curInfo ) {
+                            case MatchLeaveInformation {
+                                resultSet.remove(curInfo);
+                                resultSet.remove(curInfo.enterInfo);
+                            }
+                            default {}
+                        }
+                    };
+            
+                    resultSet.size() == 0 
+                }
+                default { 
+                    false 
+                }        
+            }
+        };
+        
+        result
+    }
+    
+    method unique Set findTopLevelMatches(unique Set tasks) {
+        DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> findTopLevelMatches");
+        val topLevelMatches = java.util.HashSet.new();
+        
+        // find match leaves
+        val tasksIt = tasks.iterator();
+        while { tasksIt.hasNext() }{
+            val curTask = tasksIt.next();
+            
+            if ( isTopLevelMatch(curTask) ) {
+                DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> found top-level match " + curTask.toString());
+                topLevelMatches.add(curTask);
+            };
+        };
+        
+        topLevelMatches
+    }
+    
+    method unique Set findCaseTasks(shared Task curTask, shared Task matchEnter) {
+        val result = java.util.HashSet.new();
+        
+        if ( !(curTask == matchEnter) )  {
+            result.add(curTask);
+            val it = curTask.deps.iterator();
+            while { it.hasNext() }{
+                val depTask = it.next();
+                result.addAll(findCaseTasks(depTask, matchEnter));
+            };
+        };
+        result
+    }
+    
+    val unique Map /*<MatchLeaveInformation, Set<CaseTashGraph>>*/ matchFixupTable = java.util.IdentityHashMap.new();
+    
+    method unique Set simplifyMatches(immutable String path, unique Set input) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderpass> simplifyMatches");
+        var unique Set tasks = java.util.HashSet.new();
+        tasks.addAll(input);
+
+        val topLevelMatches = findTopLevelMatches(tasks);
+        DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> found " + topLevelMatches.size() + " top-level matches ");
+        
+        val topLevelMatchesIt = topLevelMatches.iterator();
+        var matchCounter = 0;
+        while { topLevelMatchesIt.hasNext() }{
+            var curPath = path + ".MATCH" + matchCounter;
+            DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> simplify " + curPath);
+            matchCounter = matchCounter + 1;
+        
+            // FIXME: find leave info when already been merged 
+        
+            // compute map: depInfo -> task
+            val mapIt = tasks.iterator();
+            val map = java.util.IdentityHashMap.new();
+            while { mapIt.hasNext() }{
+                 val curTask = mapIt.next();
+                 val curDepInfo = curTask.infos.iterator().next();
+                 map.put(curDepInfo, curTask);
+            };
+            
+            // make shorter aliases aliases
+            val matchLeave = topLevelMatchesIt.next();
+            val matchEnter = map.get(matchLeave.infos.iterator().next().enterInfo);
+            
+            DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> simplify match " + matchLeave.toString());
+            
+            val unique Set/*<CaseInformationObject>*/ caseInformationObjects = java.util.HashSet.new();
+            var immutable Integer totalCaseWeight = 0;
+            
+            val caseIt = matchLeave.deps.iterator();
+            while { caseIt.hasNext() }{
+                val curCase = caseIt.next();
+                
+                val caseName = match ( curCase.infos.iterator().next() ) {
+                    case ASTInformation {
+                        val node = curCase.infos.iterator().next().node;
+                        match ( node ) {
+                            case ParsedPatternCase { makeStringFromQualifiedIdentifier(node.pattern)  }
+                            case ParsedDefaultCase { "default" }
+                            default { ABORT("<TaskBuilderPass> could not find pattern information") }
+                        }
+                    }
+                    default { ABORT("<TaskBuilderPass> couldn't find pattern case") } 
+                };
+                DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass>    optimize " + caseName);
+
+                
+                // collect sub-graph nodes for case 
+                var caseTasks = findCaseTasks(curCase, matchEnter);                    
+                
+                val unique CaseInformationObject cio = makeCaseInformationObject();
+
+                val caseTasksIt = caseTasks.iterator();
+                while { caseTasksIt.hasNext() }{
+                    val curTask = caseTasksIt.next();
+                    
+                    // remove tasks from original graph
+                    tasks.remove(curTask);
+                    
+                    if ( curTask.deps.contains(matchEnter) ) {
+                        curTask.deps.remove(matchEnter);
+                        cio.infosDependingOnMatchEnter.addAll(curTask.infos);
+                    };
+
+                    if ( curTask.rdeps.contains(matchLeave) ) {
+                        curTask.rdeps.remove(matchLeave);
+                        cio.infosMatchLeaveDependsOn.addAll(curTask.infos);
+                    };
+                };
+
+                dumpTaskGraph(curPath, caseName + "CaseBEFORE", caseTasks);
+                
+                cio.allTasks.addAll(clusterTasks(curPath + "."  + caseName + "Case", caseTasks));
+
+                // update total weight of all cases 
+                DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> case " + caseName + " weight is " + cio.getWeight());
+                totalCaseWeight = totalCaseWeight + cio.getWeight();
+                                        
+                dumpTaskGraph(curPath, caseName + "CaseAfter", cio.allTasks);
+                
+                caseInformationObjects.add(cio);
+            };
+            
+            
+            // let MatchLeave depended directly depend on Match enter
+            matchLeave.deps.clear();
+            matchEnter.rdeps.clear();
+            addTaskDependency(matchLeave, matchEnter); 
+            
+            val immutable Boolean collapse = ifElse ( totalCaseWeight == 0 ) {
+                true
+            }{
+                // check if each case just consists of sequential code
+                var immutable Integer maxCaseTasks = 0;
+                
+                val it = caseInformationObjects.iterator();
+                while { it.hasNext() }{
+                    val curCTG = it.next();
+                    maxCaseTasks = max(maxCaseTasks, curCTG.allTasks.size());
+                }; 
+                
+                ifElse (maxCaseTasks == 1) {
+                   true
+                }{
+                   false 
+                };
+            };
+            
+            dumpTaskGraph(curPath, "MatchSimplifiedBefore", tasks);
+            ifElse  ( collapse ) {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> collapse match block");
+                // collapse whole match block
+                val mergedTask = mergeTasks(matchEnter, matchLeave);
+                tasks.remove(matchLeave);
+                tasks.remove(matchEnter);
+                tasks.add(mergedTask);
+                
+                // add all dependency information to merged task
+                val it = caseInformationObjects.iterator();
+                while { it.hasNext() }{
+                     val curCTG = it.next();
+                     val itTasks = curCTG.allTasks.iterator();
+                     while { itTasks.hasNext() }{
+                          val curTask = itTasks.next();
+                          mergedTask.addInfos(curTask.infos);
+                     };
+                };
+            }{
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> store fixup information for heavy match block ");
+                matchFixupTable.put(matchLeave.infos.iterator().next(), caseInformationObjects);
+                
+                val matchInfoObj = makeMatchInformationObject(matchEnter.infos.iterator().next(),
+                                                              matchLeave.infos.iterator().next(),
+                                                              caseInformationObjects);
+                                                              
+                this.matchInfoObjs.add(matchInfoObj);
+            };
+            
+            dumpTaskGraph(curPath, "MatchSimplifiedAfter", tasks);
+        };
+        
+        tasks
+    }
+    
+    method immutable Boolean isSimplifiedMatch(shared Task from, shared Task to) {
+         var immutable Boolean result = false;
+         var unique Set matchLeaves = java.util.HashSet.new();
+         
+         var toIt = to.infos.iterator();
+         while { toIt.hasNext() }{
+             val curInfo = toIt.next();
+             match (curInfo) {
+                case MatchLeaveInformation { matchLeaves.add(curInfo) }
+                default {}
+             };
+         };
+         
+         val leavesIt = matchLeaves.iterator();
+         while { leavesIt.hasNext() }{
+             val curMatchLeave = leavesIt.next();
+             if ( from.infos.contains(curMatchLeave.enterInfo) ) {
+                 DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> found simplified match connection " + from.toString() + " -> " + to.toString() );
+                 result = true;
+             };
+         };
+         
+         result;
+    }
+    
+    method unique Set/*<SimplifiedMatchBlock>*/ findSimplifiedMatches(unique Set tasks) {
+        DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> findSimplifiedMatches");
+        var unique Set result = java.util.HashSet.new();
+        
+        val it = tasks.iterator();
+        while { it.hasNext() }{
+            val curTask = it.next();
+            
+            val enterToLeaveMap = java.util.IdentityHashMap.new();
+            val matchEnters = java.util.HashSet.new();
+            val infosIt = curTask.infos.iterator();
+            while { infosIt.hasNext() }{
+                val curInfo = infosIt.next();
+                
+                match ( curInfo ) {
+                    case MatchLeaveInformation { 
+                        enterToLeaveMap.put(curInfo.enterInfo, curInfo);
+                        matchEnters.add(curInfo.enterInfo);
+                    }
+                    default {}
+                }
+            };
+            
+            if ( matchEnters.size() > 0 ) {
+                val depsIt = curTask.deps.iterator();
+                while { depsIt.hasNext() }{
+                    val depTask = depsIt.next();
+                    
+                    val depsInfoIt = depTask.infos.iterator();
+                    while { depsInfoIt.hasNext() }{
+                        val curInfo = depsInfoIt.next();
+                        if ( matchEnters.contains(curInfo) ) {
+                            DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> found simplified match " + curTask.toString());
+                            val smb = makeSimplifiedMatchBlock(depTask, curTask, enterToLeaveMap.get(curInfo));
+                            result.add(smb);
+                        }
+                    }
+                };
+            };
+        };
+  
+        result
+    }
+    
+    method unique Set intersection(unique Set A, unique Set B) {
+        val unique Set intersection = java.util.HashSet.new();
+        
+        val it = A.iterator();
+        while { it.hasNext() }{
+            val a = it.next();
+            if ( B.contains(a) ) {
+                intersection.add(a);
+            }
+        };
+        
+        intersection
+    }
+    
+    method unique Set expandMatchBlocks(immutable String path, unique Set input) {
+       DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> expandMatchBlocks");
+       val unique Set tasks = java.util.HashSet.new();
+       tasks.addAll(input);
+       
+       // find matches that need to be simplified 
+       val unique Set/*<SimplifiedMatchBlock>*/ smbs = findSimplifiedMatches(input);
+       
+       DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> Found " + smbs.size() + " simplified match blocks ");
+       
+       var matchCounter = 0;
+       val smbsIt = smbs.iterator();
+       while { smbsIt.hasNext() }{
+           val curSMB = smbsIt.next();
+           
+           var curPath = path + ".ExpandMATCH" + matchCounter;
+           matchCounter = matchCounter + 1;
+           
+           match (matchFixupTable.containsKey(curSMB.leaveInfo) ) {
+               case False {
+                   ABORT("<TaskBuilderPass> cannot find match expansion information.");
+               }
+               case True {
+                   val unique Set/*<CaseInformationObject>*/ cios = matchFixupTable.get(curSMB.leaveInfo);
+                   var caseCounter = 0;
+           
+                   // remove enter -> leave connection
+                   curSMB.enterTask.rdeps.remove(curSMB.leaveTask);
+                   curSMB.leaveTask.deps.remove(curSMB.enterTask);
+                   
+                   val ciosIt = cios.iterator();
+                   while { ciosIt.hasNext() }{
+                       val cio = ciosIt.next();
+                       
+                       val caseTasks = expandMatchBlocks(curPath, cio.allTasks);
+                       
+                       val caseTasksIt = caseTasks.iterator();
+                       while { caseTasksIt.hasNext() }{
+                           val caseTask = caseTasksIt.next();
+                           
+                           if ( intersection(caseTask.infos, cio.infosDependingOnMatchEnter).size() > 0 ) {
+                               DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> connect case with match enter" + caseTask.toString() + " -> " + curSMB.enterTask.toString());
+                               addTaskDependency(caseTask, curSMB.enterTask);
+                           };
+                           
+                           if ( intersection(caseTask.infos, cio.infosMatchLeaveDependsOn).size() > 0 ) {
+                               DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> connect match leave to case " + curSMB.leaveTask.toString() + " -> " + caseTask.toString());
+                               addTaskDependency(curSMB.leaveTask, caseTask);
+                           };
+                           
+                           tasks.add(caseTask);
+                       };
+                       
+                      dumpTaskGraph(curPath, "Case" + caseCounter, tasks);
+                      caseCounter = caseCounter + 1; 
+
+                   }
+               }
+           };
+       };  
+       
+       
+       tasks
+    }
+    
+    method unique Set/*Task*/ clusterTasks(immutable String path, shared Set tasksInput) {
+       DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> clusterTasks begin");
+       var immutable Integer step = 3;
+              
+       var unique List tasks = java.util.ArrayList.new();
+       tasks.addAll(tasksInput);
+
+       // reduce matches 
+       tasks = simplifyMatches(path, tasks);
+       dumpTaskGraph(path, "TASK-STEP-" + step, tasks);
+       step = step + 1;
+       
+       // sort tasks 
+       //tasks = sortTaskList(tasks);
+       
+       var immutable Boolean zeroed  = true;
+
+       while { zeroed == true }{
+           // iterarte through nodes 
+           // check for every edge of a task merge does not increase the critical path length 
+           DEBUG(DEBUG_PRIO_MEDIUM,"<TaskBuilderPass> ITERATION " + step );
+           
+           zeroed = false;
+           val taskIt = tasks.iterator();
+           while { zeroed == false && taskIt.hasNext() }{
+               val curTask = taskIt.next();
+               if ( curTask.rdeps.size() > 0 ){ 
+                   val edgeIt = curTask.rdeps.iterator();
+                   while { zeroed == false && edgeIt.hasNext() } {
+                       val rdepTask = edgeIt.next();
+                       
+                       ifElse (    this.edgeVisited(curTask, rdepTask)  == false 
+                                && isSimplifiedMatch(curTask, rdepTask) == false ) {
+                           val cpLength = computeCriticalPathGraph(tasks);
+                           val cpLenghtWithout = computeCriticalPathGraphWithoutEdge(tasks, curTask, rdepTask);
+                           DEBUG(DEBUG_PRIO_LOW, "    CP from             " + curTask.toString() + " = " +  cpLength );
+                           DEBUG(DEBUG_PRIO_LOW, "    CP from zeroed edge " + curTask.toString() + " = " +  cpLenghtWithout + "    " + curTask.toString() + " -> " + rdepTask.toString());    
+                
+           
+                           val merge = ifElse ( cpLenghtWithout <= cpLength ) {
+                               val immutable Boolean localDecression = ifElse ( this.checkMinimumDegression ) { 
+                                    minimumPathDegressionForGraphWithoutEdge(tasks, curTask, rdepTask);
+                               }{ false };
+                               ifElse ( localDecression == false  ) {
+                                   true
+                               }{
+                                   // with next edge continue
+                                   zeroed = true;
+                                   setEdgeVisited(curTask, rdepTask);
+                                   false 
+                               } 
+                           }{
+                               false
+                           };
+                           
+                           if ( merge ) {
+                               DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> merge " + curTask.toString() + " into " + rdepTask.toString());
+                               
+                               //merge tasks
+                               val unique Task mergedTask = mergeTasks(curTask, rdepTask);
+        
+                               // remove rdepTask from tasks list
+                               tasks.remove(rdepTask);
+                               tasks.remove(curTask);
+                               tasks.add(mergedTask);
+                               
+                               // sort task list 
+                               //tasks = sortTaskList(tasks);
+                               
+                               // abort iterations and retart 
+                               zeroed = true;
+                            
+                               // dump task graph
+                               DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass   step " + step);
+                               dumpTaskGraph(path, "TASK-STEP-" + step, tasks);
+                            
+                               // increase step counter 
+                               step = step + 1;                       
+                           };
+                       }{
+                           DEBUG(DEBUG_PRIO_LOW, "<TaskBuilderPass> edge " + curTask.toString() + " -> " + rdepTask.toString()+ " already visited" );
+                       }
+                   }
+               };
+           };
+       };
+       
+       DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> clusterTasks finished");
+       
+       topologicalTaskList(tasks)
+    }
+}
