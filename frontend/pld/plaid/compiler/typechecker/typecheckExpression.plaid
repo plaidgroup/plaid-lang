@@ -636,6 +636,9 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                 }
                               }
                             }
+                            case DatagroupSignature {
+                                makeTypecheckResult(DATAGROUPTYPE, ctx, makeLinkedList() )
+                            }
                             case MethodSignature {
                               report_ERROR(exp.token, "T_DEREF_METHOD", targetType.structure.toString() + "." + exp.right.name, "typecheckDereference");
                               unit;
@@ -1395,6 +1398,26 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                 case StateRefSymbol {
                   match (checkStateRef(stateRefSymOpt.value, "typecheckNewInstance")) { //is the state concrete
                     case True {
+                      //typecheck static args
+                      exp.stateExpr.staticArgs.do(fn (arg) => {
+                          val argCtx = ctx.copy();
+                          val unique ?TypecheckResult argResult = typecheckExpression(argCtx,
+                                                                                      NONEP,
+                                                                                      arg);
+                          match (argResult) {
+                              case TypecheckResult { 
+                                  match ( argResult.expType == DATAGROUPTYPE ) {
+                                      case True { /* nop */ }
+                                      default {
+                                          report_ERROR(arg.token, "", "Static group argument has wrong type '" + argResult.expType.toString() + "'", "typecheckNewInstance");
+                                      }
+                                  }
+                              }
+                              default { 
+                                report_ERROR(arg.token, "", "Cannot find type for static argument", "typecheckNewInstance");
+                              }
+                          }          
+                      });
                       //typecheck specializations
                       val unique ?LinearContext contextResult = exp.stateExpr.specializations.reduceLeft(ctx, fn (declContext, spec) => {
                             match (declContext) {
