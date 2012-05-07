@@ -36,14 +36,17 @@ state BorrowedPermission case of SystemPermission {
 	/**
 	 * if the underlying permission allows writing, so does the borrowed
 	 */
-	method immutable Boolean isWritable() { this.thePerm.isWritable() }	
+	method immutable Boolean isWritable()[immutable BorrowedPermission this]	
+	    { this.thePerm.isWritable() }
+	    
 
 	 /**
    * if the underlying permission guarantees the state, so does the borrowed
    */
-	method immutable Boolean guaranteesState() { this.thePerm.guaranteesState() }
+	method immutable Boolean guaranteesState()[immutable BorrowedPermission this]	
+	    { this.thePerm.guaranteesState() }
 	
-	method immutable Boolean ==(immutable Permission other) {
+	method immutable Boolean ==(immutable Permission other)[immutable BorrowedPermission this] {
 		match (other) {
 			case BorrowedPermission { 
 				this.thePerm == other.thePerm &&
@@ -54,7 +57,7 @@ state BorrowedPermission case of SystemPermission {
 		}
 	}
 	
-	method immutable String toString() {
+	method immutable String toString()[immutable BorrowedPermission this] {
 		"borrow(" + this.originalPerm.toString() + ", " + this.thePerm.toString() + ", " 
 		 + this.splitCount + ")"
 	}
@@ -65,14 +68,15 @@ state BorrowedPermission case of SystemPermission {
 	 *  If they do, then we increment the split counter in the returned
 	 *  borrowed permission
 	 */
-	method immutable ?Permission splitPerm(immutable Permission p2) {
+	method immutable ?Permission splitPerm(immutable Permission p2)[immutable BorrowedPermission this] {
 		match (p2) {
 			case LocalPermission {
-				ifElse ( p2.thePerm == this.thePerm ) 
-					{ makeBorrowedPerm(this.thePerm, 
+				match ( p2.thePerm == this.thePerm )  {
+    				case True { makeBorrowedPerm(this.thePerm, 
 									   this.originalPerm, 
 									   this.splitCount + 1) }
-					{ unit }
+					case False { unit }
+				}
 			}
 			case NonePermission { this }
 			default { unit }
@@ -84,20 +88,25 @@ state BorrowedPermission case of SystemPermission {
 	 * of this borrow, then we decrement the split counter.  If the split
 	 * counter reaches 0, then we return the original permission.
 	 */
-	method immutable ?Permission returnPerm(immutable SourcePermission p2) {
+	method immutable ?Permission returnPerm(immutable SourcePermission p2)
+	                                [immutable BorrowedPermission this]	 {
 		match (p2) {
 			case LocalPermission {
-				ifElse ( this.thePerm == p2.thePerm ) {
-					ifElse ( this.splitCount == 1 ) { 
-						this.originalPerm
-					} /*else*/ { 
-						makeBorrowedPerm(this.thePerm,
+				match ( this.thePerm == p2.thePerm ) {
+				    case True {
+					    match ( this.splitCount == 1 ) { 
+	    					case True { this.originalPerm }
+					        case False { 
+						        makeBorrowedPerm(this.thePerm,
 										 this.originalPerm,
 										 this.splitCount - 1)
+							}
+						}
 					}
-				} /*else*/ { 
+				    case False {
 						this.incompatibleReturnError(p2);
 						unit;	
+					}
 				}
 			}
 			case NonePermission { this }
