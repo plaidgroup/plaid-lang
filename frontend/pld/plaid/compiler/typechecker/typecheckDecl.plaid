@@ -161,6 +161,9 @@ method immutable ?LinearContext typecheckDecl(immutable ParsedDecl declNode, uni
                   
                   val immutable Type fieldType = fieldSig.getDeclaredType();
                   
+                  // add group permissions
+                  val gpMap = computeDatagroupPermissions(fieldSym);
+                  outsideContext.addDatagroupPermissions(gpMap);
                   
                   val unique ?TypecheckResult fieldResult = 
                       typecheckExpression(outsideContext,
@@ -195,13 +198,32 @@ method immutable ?LinearContext typecheckDecl(immutable ParsedDecl declNode, uni
 				          };
 					  };
 					  
+					  // remove added permissions
+					  fieldResult.ctxResult.removeDatagroupPermissions(gpMap);
 					  fieldResult.ctxResult;
 					}
 					default { unit } //error in typechecking initializer
 				  }
                 }
                 case ParsedAbstractFieldDecl {
-                  outsideContext
+                  val immutable MethodSymbol fieldSym = declSymOption.value;
+                  val immutable MethodSignature fieldSig = fieldSym.getSignature();
+                  val immutable Type fieldType = fieldSig.getDeclaredType();
+
+                  val gpMap = computeDatagroupPermissions(fieldSym);
+                  
+                  val ctx = outsideContext.copy();
+                  ctx.addDatagroupPermissions(gpMap);
+                  val typeOk = checkType(fieldType, ctx);
+
+                  match (typeOk) {
+                    case True { outsideContext }
+                    default {
+                      report_ERROR(declNode.token, "T_FIELD_DECL_STRUCT", 
+                        "field type is not well formed", "typecheckStateDecl");
+                      unit
+                    }
+                  };
                 }
                 default {
                   report_ERROR(declNode.token, "UNEXPECTED_AST", 
