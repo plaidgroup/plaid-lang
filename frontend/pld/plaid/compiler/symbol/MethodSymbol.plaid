@@ -9,6 +9,8 @@ import plaid.compiler.types.VOID;
 import plaid.ast.parsed.*;
 import plaid.compiler.types.*;
 
+import plaid.compiler.permissions.*;
+
 import plaid.collections.makeLinkedList;
 
 state MethodSymbol case of DeclSymbol {
@@ -110,8 +112,18 @@ state MethodSymbol case of DeclSymbol {
                 // static argspecs
                 val staticArgsSpec = this.declaration.StaticArgsSpec.map(fn (sas)  => {
                     match ( sas ) {
-                        case ParsedStaticArg {
-                            new StaticArgSpec { val name = sas.id.name; } 
+                        case ParsedGroupArg {
+                            val gp = match ( sas.gp ) {
+                                case ParsedExclusiveGroupPermission { EXCLUSIVEGP }
+                                case ParsedSharedGroupPermission    { SHAREDGP }
+                                case ParsedProtectedGroupPermission { PROTECTEDGP }
+                                default { ABORT("Unsupported group permission " + sas.gp.nodeName() ) }
+                            };
+                            val sym = match ( symbolForAST(sas.id) ) {
+                                case Some { symbolForAST(sas.id).value }
+                                default { ABORT("Cannot find symbol for static paramater.") } 
+                            };
+                            new StaticArgSpec { val name = sas.id.name; val gpermission = gp; val symbol = sym; } 
                         }
                         default { ABORT("<MethodSymbol> Unsupported static paramter " + sas.nodeName()) }
                     }

@@ -19,6 +19,8 @@
 
 package plaid.compiler.typechecker;
 
+import plaid.collections.makeLinkedList;
+
 import plaid.compiler.Symbol;
 
 /***********************************************
@@ -186,7 +188,7 @@ method unique TypecheckResult makeTypecheckResult(immutable Type expType,
  * compute data group permissions for 
  */
  
- method unique Map computeDatagroupPermissions(shared Symbol sym) {
+ method unique Map<immutable AbstractExpression, immutable DatagroupPermission> computeDatagroupPermissions(shared Symbol sym) {
     DEBUG(DEBUG_PRIO_HIGH, "<computeGroupPermissions> for " + sym.toString() );
     match (sym) {
         case StateSymbol {
@@ -196,8 +198,11 @@ method unique TypecheckResult makeTypecheckResult(immutable Type expType,
                 val cur = it.next();
                 match ( cur ) {
                     case DatagroupSymbol {
-                        DEBUG(DEBUG_PRIO_HIGH, "<computeGroupPermissions>   add this." + cur.name + " : NONEGP");
-                        map.put("this." + cur.name, NONEGP);
+                        DEBUG(DEBUG_PRIO_HIGH, "<computeGroupPermissions>   add this." + cur.name + " : none");
+                        val thisSymbol = (new SymbolFactory).makeVariableSymbol("this", sym.declaration);
+                        val exp = new AbstractDereferenceExpression{ val symbol = thisSymbol; };
+                        exp.drefs.addLast(cur.name);
+                        map.put(exp, NONEGP);
                     }
                     default { /* nop */ }
                 };
@@ -205,6 +210,19 @@ method unique TypecheckResult makeTypecheckResult(immutable Type expType,
             map
         }
         case FieldSymbol { computeDatagroupPermissions(sym.owner) }
+        case MethodSymbol {
+            val map = java.util.HashMap.new();
+            val sig = sym.getSignature();
+            
+            sig.staticArgsSpec.do( fn (arg) => {
+                DEBUG(DEBUG_PRIO_HIGH, "<computeGroupPermissions>   add " + arg.name + " : " + arg.gpermission.toString());
+                val exp = new AbstractDereferenceExpression { val symbol = arg.symbol; };
+                exp.drefs.addLast(arg.name); 
+                map.put(exp, arg.gpermission); 
+            });
+            
+            map
+        }
         default { java.util.HashMap.new() }
     }
  }
