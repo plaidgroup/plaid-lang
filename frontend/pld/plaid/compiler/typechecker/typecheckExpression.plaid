@@ -1189,6 +1189,26 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
         case MethodSignature {
           val substMap = getMethodCallMapping(methodSig, exp);
           methodSig = substituteSignature(methodSig, substMap);
+          // check static args type
+          exp.staticArgs.do( fn (staticArg) => {
+              val argCtx = ctx.copy();
+              val unique ?TypecheckResult argResult = typecheckExpression(argCtx,
+                                                                          NONEP,
+                                                                          staticArg);
+              match (argResult) {
+                  case TypecheckResult { 
+                      match ( argResult.expType == DATAGROUPTYPE ) {
+                          case True { /* nop */ }
+                          default {
+                              report_ERROR(staticArg.token, "", "Static group argument has wrong type '" + argResult.expType.toString() + "'", "typecheckNewInstance");
+                          }
+                      }
+                  }
+                  default { 
+                    report_ERROR(arg.token, "", "Cannot find type for static argument", "typecheckNewInstance");
+                  }
+              }          
+          });
           /* check that the neededPerm can be split from the return permission of the method */
           match (methodSig.returnType.permission.splitPerm(neededPerm)) {
             case Permission {
@@ -1794,6 +1814,9 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
             }
             case False {
               val immutable Type neededType = makeTypeFromAST(exp.varType);
+              if ( checkType(neededType) == false ) {
+                  report_ERROR(exp.token, "", "Declared type is not well formed.", "typecheckVarDecl");
+              };
               val unique ?TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.expr);
               match (valueResult) {
               	case TypecheckResult {
