@@ -11,6 +11,7 @@ import plaid.compiler.aeminium.*;
 import plaid.compiler.util.*;
 import plaid.compiler.symbol.*;
 
+
 import plaid.collections.makeLinkedList;
 import plaid.collections.LinkedList;
 
@@ -1209,6 +1210,34 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                   }
               }          
           });
+          // check for correct group permissions
+          printLine("methodSig = " + methodSig.toString());
+          match ( methodSig.staticArgsSpec.size()  == exp.staticArgs.size() ) {
+              case True {                  
+                  val zips = methodSig.staticArgsSpec.zip(exp.staticArgs);
+                  zips.do(fn (arg)  => {
+                       val staticArgSpec = arg.fst;
+                       val staticArg     = arg.snd;
+                       val absExpr = makeAbstractExpressionFromAST(staticArg);
+                       match ( absExpr ) {
+                           case AbstractExpression {
+                               val gp = ctx.getDataroupPermission(absExpr);
+                               match ( gp ) {
+                                   case GroupPermission { 
+                                       DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression> Found static argument permission '" + gp.toString() + "' in context.");
+                                       if ( (gp == staticArgSpec.gpermission) == false ){
+                                           ABORT("<typecheckExpression>(MethodCall) Need '" + staticArgSpec.gpermission + "' group permission for '" + absExpr.toString() + "' but found '" + gp.toString() + "'");
+                                       }
+                                   }
+                                   default { ABORT("<typecheckExpression>(MethodCall) Cannot find '" + absExpr.toString() + "' in context."); }
+                               };
+                            }
+                            default { ABORT("Cannot translate AST to AbstractExpression.") }
+                       }
+                  });
+              }
+              default { report_ERROR(exp.token, "", "Provided static arguments do not match declared paramater count.", "typecheckMethodCall");} 
+          };
           /* check that the neededPerm can be split from the return permission of the method */
           match (methodSig.returnType.permission.splitPerm(neededPerm)) {
             case Permission {
