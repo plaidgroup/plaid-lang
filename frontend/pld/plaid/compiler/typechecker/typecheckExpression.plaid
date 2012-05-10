@@ -547,19 +547,47 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                   val immutable Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.right.name);
                   
                   // check for proper synronization of shared 
-                  val immutable Boolean needsAtomic = match (targetType.permission) {
-                      case SharedPermission { true } 
+                  val immutable Boolean allowAccess = match (targetType.permission) {
+                      case SharedPermission { 
+                           match ( targetType.permission.groupExpr ) {
+                               case AbstractEmptyExpression { ctx.inAtomic } 
+                               default {
+                                    // get permission from context 
+                                    val gp = ctx.getDataroupPermission(targetType.permission.groupExpr);
+                                    match ( gp ) {
+                                        case GroupPermission {
+                                            gp == PROTECTEDGP
+                                        }
+                                        default { ABORT("Cannot find group permission for '" + targetType.permission.groupExpr.toString() + "'") }
+                                    }
+                               } 
+                           }
+                      } 
                       case LocalPermission {
                           match (targetType.permission.thePerm) {
-                              case SharedPermission { true } 
-                              default { false }
+                              case SharedPermission {
+                                   match ( targetType.permission.thePerm.groupExpr ) {
+                                       case AbstractEmptyExpression { ctx.inAtomic } 
+                                       default {
+                                            // get permission from context 
+                                            val gp = ctx.getDataroupPermission(targetType.permission.thePerm.groupExpr);
+                                            match ( gp ) {
+                                                case GroupPermission {
+                                                    gp == PROTECTEDGP
+                                                }
+                                                default { ABORT("Cannot find group permission for '" + targetType.permission.thePerm.groupExpr.toString() + "'") }
+                                            }
+                                       } 
+                                   }                              
+                              } 
+                              default { true }
                           }
                       }
-                      default { false }
+                      default { true }
                   };
-                  match ( AEMINIUM_MODE() && needsAtomic && (!ctx.inAtomic) ) {
+                  match ( AEMINIUM_MODE() && (allowAccess == false) ) {
                     case True {
-                      report_ERROR(exp.token, "A_ASSIGN_SHARED_OBJECT_FIELD", "",  "TypecheckDereference");
+                      report_ERROR(exp.token, "A_ASSIGN_SHARED_OBJECT_FIELD", "Access to field no permitted.",  "TypecheckDereference");
                       unit
                     }
                     case False {
