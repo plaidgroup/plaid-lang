@@ -1,7 +1,9 @@
 package plaid.compiler.aeminium;
 
 import plaid.compiler.*;
-
+import plaid.compiler.util.*;
+import plaid.compiler.types.*;
+import plaid.compiler.symbol.*;
 
 /*****************************************************************************
  ** global constants
@@ -41,6 +43,45 @@ method immutable Option depInfoForSymbol(immutable Symbol symbol) {
         makeSome(aeminiumSymbolToDepsMap.get(symbol));
     }{
         NONE
+    }
+}
+
+
+/*****************************************************************************
+ ** global type map AbstractExpression -> Symbol
+ ****************************************************************************/
+var shared Map aeminiumASTToStaticSymbolMap = java.util.IdentityHashMap.new();
+
+method shared ?Symbol getSymbolForStaticAST(immutable ASTNode node) {
+    match ( symbolForAST(node) ) {
+        case Some { symbolForAST(node).value }
+        default { 
+            val expr = makeAbstractExpressionFromAST(node);
+            match ( expr ) {
+                case AbstractExpression { 
+                    var shared ?Symbol result = unit;
+                    val it = aeminiumASTToStaticSymbolMap.keySet().iterator();
+                    while { it.hasNext() }{
+                        val curExpr = it.next();
+                        if ( curExpr == expr ) {
+                            result = aeminiumASTToStaticSymbolMap.get(curExpr);
+                        }
+                    };
+                    
+                    match ( result ) {
+                        case Symbol { result } 
+                        default { 
+                            val exprSymbol = (new SymbolFactory).makeAbstractExpressionSymbol(expr.toString(), expr);
+                            aeminiumASTToStaticSymbolMap.put(expr, exprSymbol);
+                            exprSymbol
+                        }
+                    }
+                }
+                default {
+                    ABORT("Cannot create abstract expression from AST.");
+                }
+            };
+        }
     }
 }
 

@@ -248,14 +248,81 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
     case ParsedAtomicBlock {
         DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedAtomicBlock");
         
-        match (ctx.inAtomic) {
+        // create group expressions
+        val groupExprs = exp.datagroups.map( fn (grp) => {
+            val exp = makeAbstractExpressionFromAST(grp);
+            match ( exp ) {
+                case AbstractExpression { exp }
+                default { ABORT("Cannot convert AtomicBlock argument to abstract exression.") }
+            }
+        });
+        
+        // check correct type
+        groupExprs.do(fn (exp) => {
+            match (exp.getStructure()  == DATAGROUPSTRUCT ) {
+                case True { /* nop */ }
+                default { ABORT("Atomic block argument '" + exp.toString() + "' has wrong type : "  + exp.getStructure() ) }
+            }
+        });
+        
+        // check if have a nested block
+        val nested = match ( ctx.inAtomic ) {
+            case True {
+                ifElse (exp.datagroups.size() == 0 ) {
+                    true
+                }{
+                    var result = false;
+                    groupExprs.do(fn (exp) =>{
+                        val gp = ctx.getDatagroupPermission(exp);
+                        match (gp) {
+                            case GroupPermission {
+                                gp == PROTECTEDGP
+                            }
+                            default { ABORT("Cannot find group permission for " + exp.toString()) } 
+                        }
+                    });
+                    result;
+                }
+            }
+            case False {
+                var result = false;
+                groupExprs.do(fn (exp) =>{
+                    val gp = ctx.getDatagroupPermission(exp);
+                    match (gp) {
+                        case GroupPermission {
+                            gp == PROTECTEDGP
+                        }
+                        default { ABORT("Cannot find group permission for " + exp.toString()) } 
+                    }
+                });
+                result;            
+            }
+        };
+        
+        match (nested) {
             case True {
                 report_ERROR(exp.target.token, "A_NESTED_ATOMIC", "", "typecheckAtomicBlock");
                 unit;
             }
             case False { 
             
-                ctx.inAtomic = true;
+                // fix linear context
+                ifElse  ( exp.datagroups.size() == 0 ) { 
+                    ctx.inAtomic = true; 
+                }{
+                    groupExprs.do( fn (grp) => {
+                        val gp = ctx.getDatagroupPermission(grp);
+                        match (gp) {
+                            case SharedGroupPermission { 
+                                // update 
+                                ctx.updateDatagroupPermission(grp, PROTECTEDGP);
+                            }
+                            default { 
+                                ABORT("Cannot split '" + gp.toString() + "' to 'protected'");
+                            }
+                        }
+                    });
+                };
             
                 val shared DependencyInformation atomicEnter = makeAtomicEnterInformation(exp);
                 val symbols = new SymbolCollector;
@@ -264,6 +331,25 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                 var immutable Boolean dependencyOk = true;    
                      
                 if ( AEMINIUM_MODE() ) {
+                    // attach to static expressions
+                    exp.datagroups.do(fn (grp) =>{
+                        val symbol = getSymbolForStaticAST(grp);
+                        match (symbol) {
+                            case Symbol {
+                                DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> make atomic block depend on " + symbol.name);
+                                val depInfo = match ( depInfoForSymbol(symbol) ) {
+                                    case Some { depInfoForSymbol(symbol).value }
+                                    default { ABORT("Cannot find dependency information for symbol " + symbol.name) }
+                                };
+                                addDependency(atomicEnter, depInfo);
+                                setDepInfoForSymbol(symbol, atomicEnter);
+                            }
+                            default {
+                                report_ERROR(grp.token, "", "Cannot find symbol for static argument.", "typecheckAtomicBlock");
+                            }
+                        }
+                    });
+                    // attached to used symbols
                     val it = symbols.externalSymbols.iterator();
                     while { it.hasNext() }{
                         val shared Symbol nextSym = it.next();
@@ -311,11 +397,33 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                              match (bodyInfo) { case DependencyInformation { addDependency(atomicLeave, bodyInfo); } default { /* no op */ } };
                              addDependency(atomicLeave, atomicEnter);
                              addDepInfoForAST(exp, atomicLeave);
+                             
+                             exp.datagroups.do(fn (grp) =>{
+                                val symbol = getSymbolForStaticAST(grp);
+                                match (symbol) {
+                                    case Symbol {
+                                        DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> make atomic block depend on " + symbol.name);
+                                        val depInfo = match ( depInfoForSymbol(symbol) ) {
+                                            case Some { depInfoForSymbol(symbol).value }
+                                            default { ABORT("Cannot find dependency information for symbol " + symbol.name) }
+                                        };
+                                        addDependency(atomicLeave, depInfo);
+                                        setDepInfoForSymbol(symbol, atomicLeave);
+                                    }
+                                    default {
+                                        report_ERROR(grp.token, "", "Cannot find symbol for static argument.", "typecheckAtomicBlock");
+                                    }
+                                }
+                            });
                         };
                         
                         match (dependencyOk) {
                             case True {
-                                typecheckResult.ctxResult.inAtomic = false;
+                                ifElse ( exp.datagroups.size() == 0 ) { 
+                                    typecheckResult.ctxResult.inAtomic = false 
+                                }{
+                                    groupExprs.do( fn (grp) => { ctx.updateDatagroupPermission(grp, SHAREDGP) });                                
+                                };
                                 typecheckResult
                             }
                             case False { unit }
@@ -493,6 +601,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
 			  val itSymbols = symbols.externalSymbols.iterator();
 			  while { itSymbols.hasNext() }{
 				  val nextSymbol = itSymbols.next();
+				  printLine("looking for depInfo for " + nextSymbol.name);
 				  val shared ?DependencyInformation symInfo = match (depInfoForSymbol(nextSymbol)) {
 					  case Some { depInfoForSymbol(nextSymbol).value }
 					  case None { 
@@ -553,7 +662,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                case AbstractEmptyExpression { ctx.inAtomic } 
                                default {
                                     // get permission from context 
-                                    val gp = ctx.getDataroupPermission(targetType.permission.groupExpr);
+                                    val gp = ctx.getDatagroupPermission(targetType.permission.groupExpr);
                                     match ( gp ) {
                                         case GroupPermission {
                                             gp == PROTECTEDGP
@@ -570,7 +679,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                        case AbstractEmptyExpression { ctx.inAtomic } 
                                        default {
                                             // get permission from context 
-                                            val gp = ctx.getDataroupPermission(targetType.permission.thePerm.groupExpr);
+                                            val gp = ctx.getDatagroupPermission(targetType.permission.thePerm.groupExpr);
                                             match ( gp ) {
                                                 case GroupPermission {
                                                     gp == PROTECTEDGP
@@ -1249,7 +1358,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                        val absExpr = makeAbstractExpressionFromAST(staticArg);
                        match ( absExpr ) {
                            case AbstractExpression {
-                               val gp = ctx.getDataroupPermission(absExpr);
+                               val gp = ctx.getDatagroupPermission(absExpr);
                                match ( gp ) {
                                    case GroupPermission { 
                                        DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression> Found static argument permission '" + gp.toString() + "' in context.");
