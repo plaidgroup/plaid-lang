@@ -101,28 +101,26 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                       val immutable Type targetType = ctx.get(targetVarSymbolOption.value);
                       match (targetType.permission.isSubPermOf(LOCALSHARED)) { //need at least local shared to assign to a field
                         case True {
-                          // check for proper synronization of shared 
-                          val immutable Boolean needsAtomic = match (targetType.permission) {
-                              case SharedPermission { true } 
+                          // check for proper synronization of shared permission
+                          val checkFn = fn (expr) => {
+                               val gp = ctx.getDatagroupPermission(expr);
+                               match ( gp ) {
+                                   case ProtectedGroupPermission { true }
+                                   case ExclusiveGroupPermission { true }
+                                   case SharedGroupPermission { ABORT("Cannot use shared group permission to access field") } 
+                                   default { ABORT("Cannot find group permission for '" + expr.toString() + "'") }
+                               };
+                          };
+                          val immutable Boolean assignOk = match (targetType.permission) {
+                              case SharedPermission { checkFn( targetType.permission.groupExpr ) } 
                               case LocalPermission {
                                   match (targetType.permission.thePerm) {
-                                      case SharedPermission { true } 
-                                      default { false }
+                                      case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
+                                      default { true }
                                   }
                               }
+                              case UniquePermission { true } 
                               default { false }
-                          };
-                          val immutable Boolean assignOk = match ( AEMINIUM_MODE() && needsAtomic ) {
-                              case True {
-                                  match (ctx.inAtomic) {
-                                       case True { true }
-                                       case False {
-                                           report_ERROR(exp.target.token, "A_ASSIGN_SHARED_OBJECT_FIELD", "", "typecheckAssignment");
-                                           false
-                                       }
-                                  }
-                              }
-                              case False { true } 
                           };
                           
                           match (assignOk) {
@@ -257,6 +255,14 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
             }
         });
         
+        if ( groupExprs.size() == 0 ) {
+            val absExpr = makeAbstractExpressionFromAST(new ParsedEmptyExpr{ val token = EMPTY_TOKEN; });
+            match (absExpr) {
+                case AbstractExpression { groupExprs.add(absExpr) }
+                default { ABORT("Cannot create empty expression for global data group.") } 
+            };
+        };
+        
         // check correct type
         groupExprs.do(fn (exp) => {
             match (exp.getStructure()  == DATAGROUPSTRUCT ) {
@@ -266,38 +272,16 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
         });
         
         // check if have a nested block
-        val nested = match ( ctx.inAtomic ) {
-            case True {
-                ifElse (exp.datagroups.size() == 0 ) {
-                    true
-                }{
-                    var result = false;
-                    groupExprs.do(fn (exp) =>{
-                        val gp = ctx.getDatagroupPermission(exp);
-                        match (gp) {
-                            case GroupPermission {
-                                gp == PROTECTEDGP
-                            }
-                            default { ABORT("Cannot find group permission for " + exp.toString()) } 
-                        }
-                    });
-                    result;
-                }
+        var nested = false;
+        groupExprs.do(fn (exp) =>{
+            val gp = ctx.getDatagroupPermission(exp);
+            match (gp) {
+                case ProtectedGroupPermission { nested = true }
+                case GroupPermission { /* noop */ }
+                default { ABORT("Cannot find group permission for '" + exp.toString() + "'") } 
             }
-            case False {
-                var result = false;
-                groupExprs.do(fn (exp) =>{
-                    val gp = ctx.getDatagroupPermission(exp);
-                    match (gp) {
-                        case GroupPermission {
-                            gp == PROTECTEDGP
-                        }
-                        default { ABORT("Cannot find group permission for " + exp.toString()) } 
-                    }
-                });
-                result;            
-            }
-        };
+        });
+
         
         match (nested) {
             case True {
@@ -307,22 +291,18 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
             case False { 
             
                 // fix linear context
-                ifElse  ( exp.datagroups.size() == 0 ) { 
-                    ctx.inAtomic = true; 
-                }{
-                    groupExprs.do( fn (grp) => {
-                        val gp = ctx.getDatagroupPermission(grp);
-                        match (gp) {
-                            case SharedGroupPermission { 
-                                // update 
-                                ctx.updateDatagroupPermission(grp, PROTECTEDGP);
-                            }
-                            default { 
-                                ABORT("Cannot split '" + gp.toString() + "' to 'protected'");
-                            }
+                groupExprs.do( fn (grp) => {
+                    val gp = ctx.getDatagroupPermission(grp);
+                    match (gp) {
+                        case SharedGroupPermission { 
+                            // update 
+                            ctx.updateDatagroupPermission(grp, PROTECTEDGP);
                         }
-                    });
-                };
+                        default { 
+                            ABORT("Cannot split '" + gp.toString() + "' to 'protected'");
+                        }
+                    }
+                });
             
                 val shared DependencyInformation atomicEnter = makeAtomicEnterInformation(exp);
                 val symbols = new SymbolCollector;
@@ -366,6 +346,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                     };
                 };
         
+                ctx.incInAtomic();
                 val unique ?TypecheckResult typecheckResult = typecheckExpression(ctx, neededPerm, exp.body);
                 
                 match (typecheckResult) {
@@ -419,11 +400,8 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                         
                         match (dependencyOk) {
                             case True {
-                                ifElse ( exp.datagroups.size() == 0 ) { 
-                                    typecheckResult.ctxResult.inAtomic = false 
-                                }{
-                                    groupExprs.do( fn (grp) => { ctx.updateDatagroupPermission(grp, SHAREDGP) });                                
-                                };
+                                typecheckResult.ctxResult.decInAtomic();
+                                groupExprs.do( fn (grp) => { ctx.updateDatagroupPermission(grp, SHAREDGP) });   
                                 typecheckResult
                             }
                             case False { unit }
@@ -656,30 +634,26 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                   val immutable Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.right.name);
                   
                   // check for proper synronization of shared 
-                  val checkFn = fn (perm) => {
-                       match ( targetType.permission.groupExpr ) {
-                           case AbstractEmptyExpression { ctx.inAtomic } 
-                           default {
-                                // get permission from context 
-                                val gp = ctx.getDatagroupPermission(targetType.permission.groupExpr);
-                                match ( gp ) {
-                                    case GroupPermission {
-                                        gp == PROTECTEDGP
-                                    }
-                                    default { ABORT("Cannot find group permission for '" + targetType.permission.groupExpr.toString() + "'") }
-                                }
-                           } 
-                       }                  
+                  val checkFn = fn (expr) => {
+                       val gp = ctx.getDatagroupPermission(expr);
+                       match ( gp ) {
+                           case ProtectedGroupPermission { true }
+                           case ExclusiveGroupPermission { true }
+                           case SharedGroupPermission { ABORT("Cannot use shared group permission to access field") } 
+                           default { ABORT("Cannot find group permission for '" + expr.toString() + "'") }
+                       };
                   };
                   val immutable Boolean allowAccess = match (targetType.permission) {
                       case SharedPermission { checkFn( targetType.permission.groupExpr ) } 
                       case LocalPermission {
                           match (targetType.permission.thePerm) {
                               case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
-                              default { true }
+                              case UniquePermission { true } 
+                              default { false }
                           }
                       }
-                      default { true }
+                      case UniquePermission { true }
+                      default { false }
                   };
                   match ( AEMINIUM_MODE() && (allowAccess == false) ) {
                     case True {
@@ -852,7 +826,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
 						  // create split node
 						  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(Identifier) split permission of '" + exp.name + "' from " + currentType.permission + "=>" + neededPerm);
 						  val shared DependencyInformation splitInfo = makeSplitInformation(idSymbol, currentType.permission, neededPerm);
-						  splitInfo.inAtomic = ctx.inAtomic;
+						  splitInfo.inAtomic = ctx.isInAtomic();
 						  val shared DependencyInformation oldDepInfo = depInfoForSymbol(idSymbol).value;
 						  addDependency(splitInfo, oldDepInfo);
 						  setDepInfoForSymbol(idSymbol, splitInfo);
