@@ -28,7 +28,7 @@ import plaid.compiler.*;
 
 state LinearContext {
   val unique Map<immutable VariableSymbol,immutable Type> contextMap = HashMap.new();
-  var immutable Boolean inAtomic = false;
+  var immutable Boolean inAtomic = 0;
   var immutable Boolean methodBlock = false;
   val unique Map<immutable AbstractExpression, immutable GroupPermission>  gpMap = HashMap.new();
   
@@ -60,6 +60,13 @@ state LinearContext {
     };
     eq
   }
+  
+  /** 
+   * in atomic counter maniputaltion
+   */
+   method immutable Boolean isInAtomic() { this.inAtomic > 0 }
+   method void incInAtomic() { this.inAtomic = this.inAtomic + 1 }   
+   method void decInAtomic() { this.inAtomic = this.inAtomic - 1 }
   
   /**
    * Add group permissions
@@ -232,6 +239,12 @@ state LinearContext {
             mergedConext.gpMap.put(name, other.gpMap.get(name));
         }
     };
+    
+    match ( this.inAtomic == other.inAtomic ) {
+        case True { mergedContext.inAtomic = this.inAtomic  }
+        default { ABORT("Cannot merge linear contexts with different atomic count levels.") }
+    };
+    
     match (ok) {
       case True { makeSome(mergedContext) }
       case False { new None }
