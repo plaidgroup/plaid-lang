@@ -656,39 +656,26 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                   val immutable Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.right.name);
                   
                   // check for proper synronization of shared 
-                  val immutable Boolean allowAccess = match (targetType.permission) {
-                      case SharedPermission { 
-                           match ( targetType.permission.groupExpr ) {
-                               case AbstractEmptyExpression { ctx.inAtomic } 
-                               default {
-                                    // get permission from context 
-                                    val gp = ctx.getDatagroupPermission(targetType.permission.groupExpr);
-                                    match ( gp ) {
-                                        case GroupPermission {
-                                            gp == PROTECTEDGP
-                                        }
-                                        default { ABORT("Cannot find group permission for '" + targetType.permission.groupExpr.toString() + "'") }
+                  val checkFn = fn (perm) => {
+                       match ( targetType.permission.groupExpr ) {
+                           case AbstractEmptyExpression { ctx.inAtomic } 
+                           default {
+                                // get permission from context 
+                                val gp = ctx.getDatagroupPermission(targetType.permission.groupExpr);
+                                match ( gp ) {
+                                    case GroupPermission {
+                                        gp == PROTECTEDGP
                                     }
-                               } 
-                           }
-                      } 
+                                    default { ABORT("Cannot find group permission for '" + targetType.permission.groupExpr.toString() + "'") }
+                                }
+                           } 
+                       }                  
+                  };
+                  val immutable Boolean allowAccess = match (targetType.permission) {
+                      case SharedPermission { checkFn( targetType.permission.groupExpr ) } 
                       case LocalPermission {
                           match (targetType.permission.thePerm) {
-                              case SharedPermission {
-                                   match ( targetType.permission.thePerm.groupExpr ) {
-                                       case AbstractEmptyExpression { ctx.inAtomic } 
-                                       default {
-                                            // get permission from context 
-                                            val gp = ctx.getDatagroupPermission(targetType.permission.thePerm.groupExpr);
-                                            match ( gp ) {
-                                                case GroupPermission {
-                                                    gp == PROTECTEDGP
-                                                }
-                                                default { ABORT("Cannot find group permission for '" + targetType.permission.thePerm.groupExpr.toString() + "'") }
-                                            }
-                                       } 
-                                   }                              
-                              } 
+                              case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
                               default { true }
                           }
                       }
