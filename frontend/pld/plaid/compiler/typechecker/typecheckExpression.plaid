@@ -643,17 +643,22 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                            default { ABORT("Cannot find group permission for '" + expr.toString() + "'") }
                        };
                   };
-                  val immutable Boolean allowAccess = match (targetType.permission) {
-                      case SharedPermission { checkFn( targetType.permission.groupExpr ) } 
-                      case LocalPermission {
-                          match (targetType.permission.thePerm) {
-                              case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
-                              case UniquePermission { true } 
+                  val immutable Boolean allowAccess = match (neededPerm) {
+                      case NonePermission { true } 
+                      default { 
+                          match (targetType.permission) {
+                              case SharedPermission { checkFn( targetType.permission.groupExpr ) } 
+                              case LocalPermission {
+                                  match (targetType.permission.thePerm) {
+                                      case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
+                                      case UniquePermission { true } 
+                                      default { false }
+                                  }
+                              }
+                              case UniquePermission { true }
                               default { false }
-                          }
+                          };
                       }
-                      case UniquePermission { true }
-                      default { false }
                   };
                   match ( AEMINIUM_MODE() && (allowAccess == false) ) {
                     case True {
@@ -1927,6 +1932,75 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
         addDepInfoForAST(exp, depInfo);
       };
       makeTypecheckResult(makeType(neededPerm, UNITSTRUCT),ctx,makeLinkedList())
+    }
+    case ParsedUnpackInnerGroups {
+        DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedUnpackInnerGroups");
+        
+        val thisSym = ctx.getThis();
+        match ( thisSym ) {
+            case Symbol {
+
+                // compute permissions for this.* and fix input context
+                val thisType = ctx.get(thisSym);
+                val innerGroupPerms = computeDatagroupPermissions(thisType.structure.symbol);
+                val innerGroupPermissions = match (thisType.permission) { 
+                    case UniquePermission {
+                        val map = java.util.HashMap.new();
+                        val it = innerGroupPerms.keySet().iterator();
+                        while { it.hasNext() }{
+                            val curExpr = it.next();
+                            map.put(curExpr, EXCLUSIVEGP);
+                            DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>      set " + curExpr.toString() + " : exclusive");
+                        };
+                        map;
+                    }
+                    case SharedPermission {
+                        val map = java.util.HashMap.new();
+                        val it = innerGroupPerms.keySet().iterator();
+                        while { it.hasNext() }{
+                            val curExpr = it.next();
+                            map.put(curExpr, SHAREDGP);
+                            DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>      set " + curExpr.toString() + " : shared");
+                        };
+                        map;                    
+                    }
+                    case ImmutablePermission {
+                        val map = java.util.HashMap.new();
+                        val it = innerGroupPerms.keySet().iterator();
+                        while { it.hasNext() }{
+                            val curExpr = it.next();
+                            map.put(curExpr, SHAREDGP);
+                            DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>      set " + curExpr.toString() + " : shared");
+                        };
+                        map;                     
+                    }
+                    case LocalPermission {
+                        val map = java.util.HashMap.new();
+                        val it = innerGroupPerms.keySet().iterator();
+                        while { it.hasNext() }{
+                            val curExpr = it.next();
+                            map.put(curExpr, SHAREDGP);
+                            DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>      set " + curExpr.toString() + " : shared");
+                        };
+                        map;                     
+                    }
+                    default { ABORT("Found unsupported permission " + thisType.permission.toString()) }  
+                };
+                ctx.addDatagroupPermissions(innerGroupPermissions);
+                
+                // type check body expression 
+                val unique ?TypecheckResult valueResult = typecheckExpression(ctx, neededPerm, exp.body);
+                
+                // cleanup output context
+                match (valueResult) {
+                    case TypecheckResult {
+                        valueResult.ctxResult.removeDatagroupPermissions(innerGroupPermissions);
+                    }
+                    default { unit }
+                }
+            }
+            default { ABORT("Cannot find 'this' symbol. UnpackInnerGroups needs 'this' reference.") }
+        };
     }
     case ParsedVarDecl { 
       DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>(ParsedVarDecl) check ParsedVarDecl");
