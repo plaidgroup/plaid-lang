@@ -1876,6 +1876,116 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
         }
       }
     }
+    case ParsedSplitBlock {
+        DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedSplitBlock");
+        
+        // kinding of group args
+        val splitGroupPermissions = java.util.HashMap.new();
+        exp.datagroups.do( fn (grp) => {
+            val absExpr = makeAbstractExpressionFromAST(grp);
+            match ( absExpr ) {
+                case AbstractExpression {
+                    DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>   add " + absExpr.toString() + " : shared" );
+                    splitGroupPermissions.put(absExpr, SHAREDGP);
+                    match ( absExpr.getStructure() == DATAGROUPSTRUCT ) {
+                        case True { /* nop */ }
+                        default { ABORT("Split-block argument '" + absExpr.toString() + "' has wrong type " + absExpr.getStructure().toString()) }
+                    }
+                }
+                default { ABORT("Cannot create abstract expression form AST.") }
+            };
+        });
+        
+        
+        ifElse ( exp.body.statements.size() > 1 ) {
+            if ( splitGroupPermissions.size() == 0 ) { ABORT("<typecheckExpression> ") };
+        
+            // compute symbols used in more than one statement
+            val unique Set nonUnique = java.util.HashSet.new();
+            val unique LinkedList usedVars = exp.body.statements.map( fn (stmt) => {
+                val symCol = new SymbolCollector;
+                stmt.accept(symCol);
+                symCol.externalSymbols
+            });
+            
+            var start = 0; 
+            while { start < usedVars.size() }{
+                val s1 = usedVars.get(start).value;
+                var end = start + 1;
+                while { end < usedVars.size() }{
+                    DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>      compute intersection of statements (" + start + "," + end + ")");
+                    val s2 = usedVars.get(end).value;
+                    val it = s2.iterator();
+                    while { it.hasNext() }{
+                        val curSym = it.next();
+                        match ( s1.contains(curSym) ) {
+                            case True { 
+                                DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>         shared symbol : " + curSym.name );
+                                nonUnique.add(curSym) 
+                            }
+                            default { /* nop */ }
+                        }
+                    };
+                    end = end + 1;
+                };
+                start = start + 1;
+            };
+            
+            val nonUniqueIt = nonUnique.iterator();
+            while { nonUniqueIt.hasNext() }{
+                val curSym = nonUniqueIt.next();
+                val curTypeOpt  = ctx.getOption(curSym);
+                match (  curTypeOpt ) {
+                    case Some { 
+                        match (curTypeOpt.value.permission) {
+                            case UniquePermission { ABORT("<typecheckExpression> The variable '" + curSym.name + "' is used by more than one statememnt but has a unique permission. Automatic splitting is currently not supported, please split the unique permission manually.") }
+                            default { /* nop */ }
+                        }
+                    }
+                    default { ABORT("<typecheckExpression> cannot find type information for " + curSym.name) }
+                };
+            };
+            
+            // typecheck each statement
+            val typecheckResults = exp.body.statements.map(fn (stmt) => {
+                DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> statement");
+                val stmtCtx = ctx.copy();
+                stmtCtx.updateDatagroupPermissions(splitGroupPermissions);
+                
+                val unique ?TypecheckResult stmtResult = typecheckExpression(stmtCtx,NONEP,stmt);
+                match ( stmtResult ) {
+                    case TypecheckResult { stmtResult }
+                    default { ABORT("Cannot typecheck statement.") }
+                };
+            });
+            
+            //merge type check results
+            var mergedTypecheckResult = typecheckResults.get(0).value;
+            var index = 1;
+            while { index < typecheckResults.size() }{
+                DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> merge statement " + index + " context");
+                val curResult  = typecheckResults.get(index).value;
+                val mergedCtxOpt  = mergedTypecheckResult.ctxResult.merge(curResult.ctxResult);
+                match ( mergedCtxOpt ) {
+                    case Some { /* nop */ }
+                    default { ABORT("<typecheckExpression> Merging of contexts failed.") }
+                };
+                val mergedSLOC = makeLinkedList();
+                curResult.sourceLocList.do( fn (sloc) => { mergedSLOC.addLast(sloc) }); 
+                mergedTypecheckResult.sourceLocList.do( fn (sloc) => { mergedSLOC.addLast(sloc) }); 
+                mergedTypecheckResult = makeTypecheckResult(VOID, mergedCtxOpt.value, mergedSLOC);
+                index = index + 1;
+            };
+            
+            // update datagroup permissions
+            mergedTypecheckResult.ctxResult.updateDatagroupPermissions(ctx.gpMap);
+            printLine(mergedTypecheckResult.ctxResult.toString());
+            mergedTypecheckResult
+        }{
+            report_ERROR(exp.body.token, "","A split block with less than 2 statements makes no sense.", "");
+            unit 
+        }        
+    }
     case ParsedStateChange { 
       DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedStateChange");
       match ( AEMINIUM_MODE() ) {

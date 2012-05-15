@@ -69,11 +69,18 @@ state LinearContext {
    method void decInAtomic() { this.inAtomic = this.inAtomic - 1 }
   
   /**
-   * Add group permissions
+   * Add group permissions (assume they do not exists already)
    */
    method void addDatagroupPermissions(unique Map map) {
        DEBUG(DEBUG_PRIO_LOW, "<LinearConetxt> addDatagroupPermissions");
-       this.gpMap.putAll(map);
+       val it = map.keySet().iterator();
+       while { it.hasNext() }{
+           val cur = it.next();
+           match ( containsDatagroupPermission(cur) ) {
+               case True { ABORT("<LinearContext> Cannot add " + cur.toString() + " because there exists already a mapping") }
+               case False { this.gpMap.put(cur, map.get(cur)) }
+           }
+       };
    }
   
    /**
@@ -84,6 +91,7 @@ state LinearContext {
         val it = map.keySet().iterator();
         while { it.hasNext() } {
             val cur = it.next();
+            DEBUG(DEBUG_PRIO_LOW, "<LinearContext>     remove " + cur.toString() + " from linear context ");
             this.gpMap.remove(cur);
         };
    }
@@ -104,7 +112,31 @@ state LinearContext {
       result
   }
   
-  method void updateDatagroupPermission(immutable AbstractExpression expr, immutable GroupPermission gp) {
+  method immutable Boolean containsDatagroupPermission(immutable AbstractExpression expr) {
+      var result = false;
+      val it = this.gpMap.keySet().iterator();
+      while { it.hasNext() }{
+          val cur = it.next();
+          if ( cur == expr )  {
+            result = true;
+          };
+      };
+      result
+  }
+  
+   method void updateDatagroupPermissions(unique Map map) {
+       DEBUG(DEBUG_PRIO_LOW, "<LinearConetxt> update group permissions");
+       val it = map.keySet().iterator();
+       while { it.hasNext() }{
+           val cur = it.next();
+           match ( containsDatagroupPermission(cur) ) {
+               case True { updateDatagroupPermission(cur, map.get(cur) ) }
+               default { ABORT("<LinearContext> Cannot update " + cur.toString() + " because there is no existing mapping") }
+           }           
+       }; 
+   }
+   
+   method void updateDatagroupPermission(immutable AbstractExpression expr, immutable GroupPermission gp) {
       DEBUG(DEBUG_PRIO_LOW, "<LinearConetxt> update group permission for " + expr.toString() + " to " + gp.toString());
 
       // find key
@@ -257,8 +289,8 @@ state LinearContext {
     val gpMapIt = other.gpMap.keySet().iterator();
     while { ok && gpMapIt.hasNext() }{
         val name = gpMapIt.next();
-        ifElse ( mergedContex.gpMap.contains(name) ) {
-            ok == ok && mergedContex.gpMap.get(name) == other.gpMap.get(name)
+        ifElse ( mergedContext.gpMap.containsKey(name) ) {
+            ok = ok && mergedContext.gpMap.get(name) == other.gpMap.get(name)
         }{
             mergedConext.gpMap.put(name, other.gpMap.get(name));
         }
@@ -299,8 +331,8 @@ state LinearContext {
         // add gp mapping
         val gpMapIt = this.gpMap.keySet().iterator();
         while { gpMapIt.hasNext(); }{
-            val name = gpMapIt.next();
-            ret = ret + name + " : " + this.gpMapIt.get(name).toString() + "\n";
+            val expr = gpMapIt.next();
+            ret = ret + expr.toString() + " : " + this.gpMap.get(expr).toString() + "\n";
         };
         
         ret
