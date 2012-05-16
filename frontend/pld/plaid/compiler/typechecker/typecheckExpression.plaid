@@ -445,34 +445,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
 			match (stmtResult) {
 			  case TypecheckResult {
 				
-				if ( AEMINIUM_MODE() ) {
-					match (count == (blockSize+1)) {
-						case True {
-							val shared ?DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
-								case Some { depInfoForAST(stmt).value }
-								case None { 
-                                    dependencyOk = false;
-                                    report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for statement " + count + " in block", "typecheckBlockExpr");
-                                    unit
-                                }
-							};
-							match (stmtInfo) { case DependencyInformation { addDependency(blockInfo, stmtInfo); } default { /* no op */ } };
-						}
-						case False {
-							if ( methodBlock == false ) {
-								val shared DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
-									case Some { depInfoForAST(stmt).value }
-									case None { 
-                                        dependencyOk = false;
-                                        report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for last statement in block", "typecheckBlockExpr");
-                                        unit
-                                    }
-								};
-								match (stmtInfo) { case DependencyInformation { addDependency(blockInfo, stmtInfo); } default { /* no op */ } };                  
-							}
-						}
-					};
-				};
+
 				
 				match (dependencyOk) {
 				  case True {  
@@ -573,6 +546,37 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
 		  });
 		  
 		  if ( AEMINIUM_MODE() ) {
+		      count = 1;
+		      exp.statements.do ( fn (stmt) => {
+		            count = count + 1;
+					match (count == (blockSize+1)) {
+						case True {
+							val shared ?DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
+								case Some { depInfoForAST(stmt).value }
+								case None { 
+                                    dependencyOk = false;
+                                    report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for statement " + count + " in block", "typecheckBlockExpr");
+                                    unit
+                                }
+							};
+							match (stmtInfo) { case DependencyInformation { addDependency(blockInfo, stmtInfo); } default { /* no op */ } };
+						}
+						case False {
+							if ( methodBlock == false ) {
+								val shared DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
+									case Some { depInfoForAST(stmt).value }
+									case None { 
+                                        dependencyOk = false;
+                                        report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for last statement in block", "typecheckBlockExpr");
+                                        unit
+                                    }
+								};
+								match (stmtInfo) { case DependencyInformation { addDependency(blockInfo, stmtInfo); } default { /* no op */ } };                  
+							}
+						}
+					};      
+		      });
+
 			  val symbols = new SymbolCollector;
 			  exp.accept(symbols);
 			  
@@ -2099,13 +2103,22 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                 };
                 ctx.addDatagroupPermissions(innerGroupPermissions);
                 
+                // update this type
+                val noneThisType = makeType(NONEP, thisType.structure);
+                ctx.update(thisSym, noneThisType);
+                
                 // type check body expression 
                 val unique ?TypecheckResult valueResult = typecheckExpression(ctx, neededPerm, exp.body);
                 
                 // cleanup output context
                 match (valueResult) {
                     case TypecheckResult {
+                        // remove data groups
                         valueResult.ctxResult.removeDatagroupPermissions(innerGroupPermissions);
+                        // reset this 
+                        valueResult.ctxResult.update(thisSym, thisType);
+                        // return void type 
+                        makeTypecheckResult(VOID, valueResult.ctxResult, valueResult.sourceLocList);
                     }
                     default { unit }
                 }
