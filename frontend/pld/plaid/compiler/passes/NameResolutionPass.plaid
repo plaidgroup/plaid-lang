@@ -335,7 +335,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 		this.stack.pop(); // remove static parameters context
 	}
     
-
 	override method void visitParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAbstractMethodDecl");
         val curStateOpt = this.currentState.peek();
@@ -412,17 +411,28 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             }
         };
 
-		node.StaticArgsSpec.map(fn (item) => {
-		    item.accept(this); item 
+        val staticParamsCtx = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(staticParamsCtx);
+
+		node.StaticArgsSpec.do(fn (item) => {
+		    DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     add static paramater '" + item.id.name + "' to state symbol");
+            val shared StaticParameterSymbol mySymbol = this.sf.makeStaticParameterSymbol(item.id.name, item);
+            addSymbolForAST(item, mySymbol);   
+            addSymbolForAST(item.id, mySymbol);
+            // add to state symbol
+            this.currentState.peek().value.addStaticParameter(mySymbol);
+            // add to static parameter context
+            staticParamsCtx.put(item.id.name, mySymbol);		    
 		});
 		node.caseOf.accept(this);
 		node.metaCaseOfArgs.map(fn (item) => { item.accept(this); item });
+		this.stack.pop(); // remove static arg
+		
 		node.name.accept(this);
 		node.modifiers.map(fn (item) => { item.accept(this); item });
 
         this.currentState.pop();
 	}
-
 
 	override method void visitParsedAssignment(immutable ParsedAssignment node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAssignment");
@@ -447,7 +457,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 
         this.stack.pop();
 	}
-
 
 	override method void visitParsedCompilationUnit(immutable ParsedCompilationUnit node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> visit CompilationUnit");
@@ -508,7 +517,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         this.stack.pop();
 	}
 
-
 	override method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedConcreteFieldDecl");
         
@@ -563,7 +571,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 		// remove static parameter context
 		this.stack.pop();
 	}
-
 
     override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> visit ConcreteMethodDecl");
@@ -653,7 +660,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         this.stack.pop();
     }
 
-
   	override method void visitParsedConcreteStateDecl(immutable ParsedConcreteStateDecl node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedConcreteStateDecl");
         match (this.currentState.peek() ) {
@@ -691,7 +697,8 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         //val shared ThisSymbol thisSymbol = this.currentState.peek().value.getThisSymbol();
         //stateCtx.put("this", thisSymbol);
 
-
+        val staticParamsCtx = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(staticParamsCtx);
 		node.StaticArgsSpec.map(fn (item) => {
 		    DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     add static paramater '" + item.id.name + "' to state symbol");
             val shared StaticParameterSymbol mySymbol = this.sf.makeStaticParameterSymbol(item.id.name, item);
@@ -699,10 +706,14 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             addSymbolForAST(item.id, mySymbol);
             // add to state symbol
             this.currentState.peek().value.addStaticParameter(mySymbol);
+            // add to static parameter context
+            staticParamsCtx.put(item.id.name, mySymbol);
 		});
 		
 		node.caseOf.accept(this);
 		node.metaCaseOfArgs.map(fn (item) => { item.accept(this); item });
+		this.stack.pop(); // remove static arg
+		
 		node.name.accept(this);
 		node.modifiers.map(fn (item) => { item.accept(this); item });
 		node.stateBinding.accept(this);
@@ -710,7 +721,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         this.currentState.pop();
         this.stack.pop();
 	}
-
 
     override method void visitParsedConcreteStateValDecl(immutable ParsedConcreteStateValDecl node) {
         val shared StateValSymbol mySymbol = this.sf.makeStateValSymbol(node.name.name, node);
@@ -782,7 +792,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         }
     }
     
-
 	override method void visitParsedDereference(immutable ParsedDereference node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedDereference");
         val qiOpt = this.getQualifiedIdentifierFromDereference(node);
@@ -855,7 +864,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         };
 	}
 
-
 	override method void visitParsedDestructiveDereference(immutable ParsedDereference node) {
 		node.left.accept(this);
 		//node.right.accept(this);
@@ -917,7 +925,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         this.stack.pop();
 	}
 
-
 	override method void visitParsedLambdaType(immutable ParsedLambdaType node) {
 		node.metaTypes.map(fn (item) => { item.accept(this); item });
 		node.argTypes.map(fn (item) => { item.accept(this); item });
@@ -938,7 +945,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             };
         }; //otherwise resolveQualifiedIdentifier already through an error
 	}
-
 
 	override method void visitParsedStateRef(immutable ParsedStateRef node) {
         node.stateExpr.accept(this);
