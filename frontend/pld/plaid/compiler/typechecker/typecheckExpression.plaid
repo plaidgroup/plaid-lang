@@ -102,7 +102,27 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                       match (targetType.permission.isSubPermOf(LOCALSHARED)) { //need at least local shared to assign to a field
                         case True {
                           // check for proper synronization of shared permission
+                          var datagroupDepInfo = unit;
+                          var datagroupSymbol = unit;
                           val checkFn = fn (expr) => {
+                               if ( AEMINIUM_MODE() ) {
+                                   match ( expr ) {
+                                       case AbstractExmptyExpression { DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> Do not compute dependencies for global data group.") }
+                                       default {
+                                           datagroupSymbol = getSymbolForAbstractExpression(expr);
+                                           match ( datagroupSymbol ) {
+                                               case Symbol {
+                                                   val depInfoOpt = depInfoForSymbol(datagroupSymbol);
+                                                   match ( depInfoOpt ) {
+                                                       case Some { datagroupDepInfo = depInfoOpt.value  }
+                                                       default { ABORT("<typecheckExpression> Cannot find dependency information for " + expr.toString()) } 
+                                                   }
+                                               }
+                                               default { ABORT("Cannot find symbol for abstract expression.") }
+                                            };
+                                       } 
+                                   }
+                               };
                                val gp = ctx.getDatagroupPermission(expr);
                                match ( gp ) {
                                    case ProtectedGroupPermission { true }
@@ -166,6 +186,10 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                                           };
                                                           match (valueInfo) { case DependencyInformation { addDependency(assignInfo, valueInfo); } default { /*no op*/ } };
                                                           match (targetInfo) { case DependencyInformation { addDependency(assignInfo, targetInfo); } default { /*no op*/ } };
+                                                          match (datagroupDepInfo) { case DependencyInformation { 
+                                                            addDependency(assignInfo, datagroupDepInfo);
+                                                            setDepInfoForSymbol(datagroupSymbol, assignInfo);
+                                                          } default { /* nop */ }};
                                                           setDepInfoForSymbol(targetVarSymbolOption.value, assignInfo);
                                                           addDepInfoForAST(exp, assignInfo);
                                                       };
@@ -245,6 +269,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
     }
     case ParsedAtomicBlock {
         DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedAtomicBlock");
+        val shared DependencyInformation atomicEnter = makeAtomicEnterInformation(exp);
         
         // create group expressions
         val groupExprs = exp.datagroups.map( fn (grp) => {
@@ -304,7 +329,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                     }
                 });
             
-                val shared DependencyInformation atomicEnter = makeAtomicEnterInformation(exp);
+                
                 val symbols = new SymbolCollector;
                 exp.body.accept(symbols); 
                      
@@ -313,7 +338,10 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                 if ( AEMINIUM_MODE() ) {
                     // attach to static expressions
                     exp.datagroups.do(fn (grp) =>{
-                        val symbol = getSymbolForStaticAST(grp);
+                        val symbol = match ( makeAbstractExpressionFromAST(grp) ) {
+                            case AbstractExpression { getSymbolForAbstractExpression(makeAbstractExpressionFromAST(grp)); }
+                            default { ABORT("Cannot get symbol for abstract expression.") }
+                        };
                         match (symbol) {
                             case Symbol {
                                 DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> make atomic block depend on " + symbol.name);
@@ -380,7 +408,10 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                              addDepInfoForAST(exp, atomicLeave);
                              
                              exp.datagroups.do(fn (grp) =>{
-                                val symbol = getSymbolForStaticAST(grp);
+                                val symbol = match ( makeAbstractExpressionFromAST(grp) ) {
+                                    case AbstractExpression { getSymbolForAbstractExpression(makeAbstractExpressionFromAST(grp)); }
+                                    default { ABORT("Cannot get symbol for abstract expression.") }
+                                };
                                 match (symbol) {
                                     case Symbol {
                                         DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> make atomic block depend on " + symbol.name);
@@ -551,15 +582,29 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
 		            count = count + 1;
 					match (count == (blockSize+1)) {
 						case True {
-							val shared ?DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
-								case Some { depInfoForAST(stmt).value }
-								case None { 
-                                    dependencyOk = false;
-                                    report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for statement " + count + " in block", "typecheckBlockExpr");
-                                    unit
-                                }
-							};
-							match (stmtInfo) { case DependencyInformation { addDependency(blockInfo, stmtInfo); } default { /* no op */ } };
+						    val dependOnLastStmt = match (methodBlock) {
+						        case True {
+						            match (neededPerm) {
+						                case NonePermission {
+						                    DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> do not depend on last statement of method because we do not require its return value.");
+						                    false;
+						                }
+						                default { true } 
+						            }
+						        }
+						        default { true } 
+						    };
+						    if ( dependOnLastStmt ) {
+                                val shared ?DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
+                                    case Some { depInfoForAST(stmt).value }
+                                    case None { 
+                                        dependencyOk = false;
+                                        report_ERROR(stmt.token, "A_DEPENDENCY_MISSING", " for statement " + count + " in block " + stmt.nodeName() , "typecheckBlockExpr");
+                                        unit
+                                    }
+                                };
+                                match (stmtInfo) { case DependencyInformation { addDependency(blockInfo, stmtInfo); } default { /* no op */ } };
+						    };
 						}
 						case False {
 							if ( methodBlock == false ) {
@@ -583,7 +628,6 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
 			  val itSymbols = symbols.externalSymbols.iterator();
 			  while { itSymbols.hasNext() }{
 				  val nextSymbol = itSymbols.next();
-				  printLine("looking for depInfo for " + nextSymbol.name);
 				  val shared ?DependencyInformation symInfo = match (depInfoForSymbol(nextSymbol)) {
 					  case Some { depInfoForSymbol(nextSymbol).value }
 					  case None { 
@@ -638,7 +682,26 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                   val immutable Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.right.name);
                   
                   // check for proper synronization of shared 
+                  var datagroupDepInfo = unit;
+                  var datagroupSymbol = unit;
                   val checkFn = fn (expr) => {
+                       match ( expr ) {
+                           case AbstractEmptyExpression { DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> skip global data group dependency") }
+                           default {
+                                datagroupSymbol = getSymbolForAbstractExpression(datagroupSymbol);
+                                match ( datagroupSymbol ) {
+                                    case Symbol {
+                                        val depInfoOpt = depInfoForSymbol(datagroupSymbol);
+                                        match ( depInfoOpt ) {
+                                            case Some { datagroupDepInfo = depInfoOpt.value }
+                                            default { ABORT("<typecheckExpression> Cannnot find dependency information for " + expr.toString()) }
+                                        };
+                                    }
+                                    default { ABORT("Cannot find symbol for abstract expression.") }
+                                }
+                           }
+                       };
+                       val depInfo = depInfoForAbstractExpression();
                        val gp = ctx.getDatagroupPermission(expr);
                        match ( gp ) {
                            case ProtectedGroupPermission { true }
@@ -719,6 +782,10 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                       val shared DependencyInformation joinInfo = makeJoinInformation(targetSymbol, targetType.permission, targetType.permission);
                                       
                                       match (targetInfo) { case DependencyInformation { addDependency(splitInfo, targetInfo); } default { /* no op */ } };
+                                      match (datagroupDepInfo) { case DependencyInformation { 
+                                          addDependency(drefInfo, datagroupDepInfo); 
+                                          setDepInfoForSymbol(datagroupSymbol, derfInfo);
+                                      } default { /* no op */ } };
                                       addDependency(drefInfo, splitInfo);
                                       addDependency(joinInfo, drefInfo);
                                       addDependency(joinInfo, splitInfo);
@@ -1319,7 +1386,6 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
               }          
           });
           // check for correct group permissions
-          printLine("methodSig = " + methodSig.toString());
           match ( methodSig.staticArgsSpec.size()  == exp.staticArgs.size() ) {
               case True {                  
                   val zips = methodSig.staticArgsSpec.zip(exp.staticArgs);
@@ -1454,6 +1520,27 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                    ABORT("<typecheckExpression>(MethodCall) cannot handle non ArgExpressions yet ");
                                }
                            };
+                           
+                           DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(MethodCall) let method call dependend on its static parameters ");
+                           exp.staticArgs.do( fn (staticArg) => {
+                               val absExpr = makeAbstractExpressionFromAST(staticArg);
+                               match ( absExpr ) {
+                                   case AbstractEmptyExpression { /* nop */ }
+                                   case AbstractExpression {
+                                        val symbol = getSymbolForAbstractExpression(absExpr);
+                                        val depInfoOpt = depInfoForSymbol(symbol);
+                                        match ( depInfoOpt ) {
+                                            case Some {
+                                                DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>(MethodCall)     connect method call to static arg " + absExpr.toString());
+                                                addDependency(mcallInfo, depInfoOpt.value);
+                                                setDepInfoForSymbol(symbol, mcallInfo);
+                                            }
+                                            default { ABORT("<typecheckExpression>(MethodCall) Cannot find dependency information for abstract expression " + absExpr.toString()) }
+                                        };
+                                   }
+                                   default { ABORT("<typecheckExpression>(MethodCall) Cannot convert AST to abstract expression.") }
+                               };
+                           });
                       };
                       
                       if ( AEMINIUM_MODE() == false ) {
@@ -1883,6 +1970,9 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
     }
     case ParsedSplitBlock {
         DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedSplitBlock");
+        val splitEnter = makeSplitEnterInformation(exp);
+        val splitLeave = makeSplitLeaveInformation(splitEnter);
+        val usedSymbols = java.util.HashSet.new();
         
         // kinding of group args
         val splitGroupPermissions = java.util.HashMap.new();
@@ -1895,7 +1985,20 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                     match ( absExpr.getStructure() == DATAGROUPSTRUCT ) {
                         case True { /* nop */ }
                         default { ABORT("Split-block argument '" + absExpr.toString() + "' has wrong type " + absExpr.getStructure().toString()) }
-                    }
+                    };
+                    // remember symbol and start symbol
+                    val sym = getSymbolForAbstractExpression(absExpr);
+                    match (sym) {
+                        case Symbol { 
+                            val depInfo = match ( depInfoForSymbol(sym) ) {
+                                case Some { depInfoForSymbol(sym).value } 
+                                default { ABORT("Cannot find symbol for group expression " + absExpr) }
+                            };
+                            addDependency(splitEnter, depInfo);
+                            usedSymbols.add(sym);
+                        }
+                        default { ABORT("Cannot find symbol for abstract expression " + absExpr.toString()) } 
+                    };
                 }
                 default { ABORT("Cannot create abstract expression form AST.") }
             };
@@ -1910,6 +2013,22 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
             val unique LinkedList usedVars = exp.body.statements.map( fn (stmt) => {
                 val symCol = new SymbolCollector;
                 stmt.accept(symCol);
+                
+                // remember symbol and start symbol
+                val it = symCol.externalSymbols.iterator();
+                if ( AEMINIUM_MODE() ) {
+                    while { it.hasNext() } {
+                        val curSym = it.next();
+                        if ( usedSymbols.contains(curSym) == false ) {
+                            usedSymbols.add(curSym);
+                            val depInfo = match ( depInfoForSymbol(curSym) ) {
+                                case Some { depInfoForSymbol(curSym).value } 
+                                default { ABORT("Cannot find dependency information for symbol  " + curSym.name) }
+                            };  
+                            addDependency(splitEnter, depInfo);                 
+                        };
+                    };
+                };                
                 symCol.externalSymbols
             });
             
@@ -1958,20 +2077,53 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
             val typecheckResults = exp.body.statements.map(fn (stmt) => {
                 DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> statement");
                 
+                // reset dependency information 
+                val enterIt = usedSymbols.iterator();
+                while { enterIt.hasNext() }{
+                    val sym = enterIt.next();
+                    setDepInfoForSymbol(sym, splitEnter);
+                };
+                
                 val unique ?TypecheckResult stmtResult = typecheckExpression(checkContext,NONEP,stmt);
                 match ( stmtResult ) {
                     case TypecheckResult { 
                         checkContext = stmtResult.ctxResult;
                         slocs.append(stmtResult.sourceLocList);
+                        
+                        if ( AEMINIUM_MODE() ) {
+                            // make splitLeave depend on last symbols users and stmts
+                            val leaveDepsIt = usedSymbols.iterator();
+                            while { leaveDepsIt.hasNext() }{
+                                val sym = leaveDepsIt.next();
+                                val depInfo = match ( depInfoForSymbol(sym) ) {
+                                    case Some { depInfoForSymbol(sym).value }
+                                    default { ABORT("Cannot find dep info for symbol.") }
+                                };
+                                addDependency(splitLeave, depInfo);
+                            };
+                            val stmtInfo = match (depInfoForAST(stmt) ) {
+                                case Some { depInfoForAST(stmt).value }
+                                default { ABORT("Cannot find dep info for stmt") }
+                            };
+                            addDependency(splitLeave, stmtInfo);
+                        };                        
                         stmtResult 
                     }
                     default { ABORT("Cannot typecheck statement.") }
                 };
             });
+
+            // set splitLeave for all datagroup symbols
+            val leaveDepsIt = usedSymbols.iterator();
+            while { leaveDepsIt.hasNext() }{
+                val sym = leaveDepsIt.next();
+                setDepInfoForSymbol(sym, splitLeave);
+            };
+            removeDependency(splitLeave, splitEnter);
+            addDepInfoForAST(exp, splitLeave);
             
             // update datagroup permissions
             checkContext.updateDatagroupPermissions(ctx.gpMap);
-            printLine(checkContext.toString());
             makeTypecheckResult(VOID, checkContext, slocs);
         }{
             report_ERROR(exp.body.token, "","A split block with less than 2 statements makes no sense.", "");
@@ -2037,11 +2189,23 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
     }
     case ParsedUnpackInnerGroups {
         DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedUnpackInnerGroups");
-        
+        val enterInfo = makeUnpackEnterInformation(exp);
+        val leaveInfo = makeUnpackLeaveInformation(enterInfo);
+        addDepInfoForAST(exp, leaveInfo);
+                
         val thisSym = ctx.getThis();
         match ( thisSym ) {
             case Symbol {
-
+                // add dependency for 
+                if ( AEMINIUM_MODE() ) {
+                    val thisInfo = match ( depInfoForSymbol(thisSym) ) {
+                        case Some { depInfoForSymbol(thisSym).value }
+                        default { ABORT("Cannot find dep info for this symbol ") }
+                    };
+                    addDependency(enterInfo, thisInfo);
+                    setDepInfoForSymbol(thisSym, enterInfo);
+                };
+                     
                 // compute permissions for this.* and fix input context
                 val thisType = ctx.get(thisSym);
                 val innerGroupPerms = computeDatagroupPermissions(thisType.structure.symbol);
@@ -2090,6 +2254,21 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                 };
                 ctx.addDatagroupPermissions(innerGroupPermissions);
                 
+                // set start marker for inner data group symbols
+                if ( AEMINIUM_MODE() ) {
+                    val it = innerGroupPerms.keySet().iterator();
+                    while { it.hasNext() }{
+                        val curExpr = it.next();
+                        val expSym = getSymbolForAbstractExpression(curExpr);
+                        match ( expSym ) {
+                            case Symbol {
+                                setDepInfoForSymbol(expSym, enterInfo);
+                            }
+                            default { ABORT("Cannot find symbol for abstract expression " + curExpr.toString()) }
+                        };
+                    };
+                };
+                
                 // update this type
                 val noneThisType = makeType(NONEP, thisType.structure);
                 ctx.update(thisSym, noneThisType);
@@ -2104,6 +2283,40 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                         valueResult.ctxResult.removeDatagroupPermissions(innerGroupPermissions);
                         // reset this 
                         valueResult.ctxResult.update(thisSym, thisType);
+                        // add dependencies for leaveinfo
+                        if ( AEMINIUM_MODE() ) {
+                            // connect to inner group symbols 
+                            val it = innerGroupPerms.keySet().iterator();
+                            while { it.hasNext() }{
+                                val curExpr = it.next();
+                                val expSym = getSymbolForAbstractExpression(curExpr);
+                                match ( expSym ) {
+                                    case Symbol {
+                                        val expInfo = match ( depInfoForSymbol(expSym) ) {
+                                            case Some { depInfoForSymbol(expSym).value }
+                                            default { ABORT("Cannot find dep info for symbol ") }
+                                        };
+                                        addDependency(leaveInfo, expInfo);
+                                    }
+                                    default { ABORT("Cannot find symbol for abstract expression " + curExpr.toString()) }
+                                };
+                            };
+                            
+                            // connect to this
+                            val thisInfo = match ( depInfoForSymbol(thisSym) ) {
+                                case Some { depInfoForSymbol(thisSym).value }
+                                default { ABORT("Cannot find dep info for this symbol.") }
+                            };
+                            addDependency(leaveInfo, thisInfo);
+                            setDepInfoForSymbol(thisSym, leaveInfo);
+                            
+                            // connect to body 
+                            val bodyInfo = match ( depInfoForAST(exp.body) ) {
+                                case Some { depInfoForAST(exp.body).value }
+                                default  { ABORT("Cannot find dep info for body") }
+                            };
+                            addDependency(leaveInfo, bodyInfo);
+                        };
                         // return void type 
                         makeTypecheckResult(VOID, valueResult.ctxResult, valueResult.sourceLocList);
                     }

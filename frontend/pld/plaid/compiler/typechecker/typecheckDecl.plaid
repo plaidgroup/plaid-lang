@@ -299,11 +299,26 @@ method immutable ?LinearContext typecheckDecl(immutable ParsedDecl declNode, uni
                           };
                           setDepInfoForSymbol(symbol, depInfo);
                       };
+                      
+                      if ( AEMINIUM_MODE() ) {
+                          val depInfo = makeASTInformation(argSpec);
+                          val symbol = match ( makeAbstractExpressionFromAST(argSpec.id) ) {
+                               case AbstractExpression {  getSymbolForAbstractExpression(makeAbstractExpressionFromAST(argSpec.id)); }
+                               default { ABORT("Cannot create symbol for static paramater") }
+                          };
+                          match ( symbol ) {
+                              case Symbol { 
+                                  DEBUG(DEBUG_PRIO_LOW, "<typecheckDecl> create start info for static parameter " + argSpec.id.name);
+                                  setDepInfoForSymbol(symbol, depInfo) 
+                               }
+                              default { ABORT("Cannot create abstract expression for static parameter.") }
+                          };
+                      };
                   });
                   // add default datagroup for shared permissions
-                  val globalGroup     = new ParsedEmptyExpr{ val token = EMPTY_TOKEN; } ;
+                  val globalGroup   = new ParsedEmptyExpr{ val token = EMPTY_TOKEN; } ;
                   val globalDepInfo = makeASTInformation(globalGroup);
-                  val sym = getSymbolForStaticAST(globalGroup);
+                  val sym = getSymbolForAbstractExpression(makeAbstractExpressionFromAST(globalGroup));
                   match (sym) {
                       case Symbol { 
                           setDepInfoForSymbol(sym, globalDepInfo);
@@ -510,6 +525,30 @@ method immutable ?LinearContext typecheckDecl(immutable ParsedDecl declNode, uni
                           };
                           
                           if ( AEMINIUM_MODE() ) {
+                              // connect to 
+                              declNode.StaticArgsSpec.do( fn (argSpec) => {     
+                                  val depInfo = makeASTInformation(argSpec);
+                                  val symbol = match ( makeAbstractExpressionFromAST(argSpec.id) ) {
+                                       case AbstractExpression {  getSymbolForAbstractExpression(makeAbstractExpressionFromAST(argSpec.id)); }
+                                       default { ABORT("Cannot create symbol for static paramater") }
+                                  };
+                                  match ( symbol ) {
+                                        case Symbol { 
+                                          val depInfoOpt = depInfoForSymbol(symbol); 
+                                          match  (depInfoOpt) {
+                                               case Some { 
+                                                    val bodyInfo = match ( depInfoForAST(declNode.body) ) {
+                                                        case Some { depInfoForAST(declNode.body).value } 
+                                                        default { ABORT("Cannot find dependency information for method body ") }
+                                                    };
+                                                    addDependency(bodyInfo, depInfoOpt.value);
+                                               }
+                                               default { ABORT("Cannot find dependency information for " + absExpr.toString()) }
+                                          };
+                                       }
+                                      default { ABORT("Cannot create abstract expression for static parameter.") }
+                                  };
+                              });
                               dumpGraph(declNode, "RAW");
                           };
                           /* checks out - give back updated outside context */
