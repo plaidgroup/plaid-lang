@@ -686,10 +686,18 @@ public class CodeGen {
 			} catch (IOException e) {
 				output.append(rt + ".updateLocation("+ "\""+ ">>UNKNOWN<<" + "\"" + "," + t.beginLine +","+ t.beginColumn + ");" );
 			}
+		} else {
+			// add comments 			
+			try {
+				String filename = cc.getCurrentCompilationUnit().getSourceFile().getCanonicalPath();
+				filename = filename.replaceAll("\\\\","\\\\\\\\");
+				output.append("//" + filename + " (" + t.beginLine +","+ t.beginColumn + ");" );
+			} catch (Exception e) {}
 		}
 	}
 	
 	public final void setLocation(String filename, int beginLine, int beginColumn) {
+		output.append("// "+ filename + " (" + beginLine +","+ beginColumn + "\n" );
 		if (cc.isDebugMode()) {
 			output.append(rt + ".updateLocation("+ "\""+ filename + "\"" + "," + beginLine +","+ beginColumn + ");" );
 		}
