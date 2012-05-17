@@ -52,26 +52,16 @@ method immutable Option depInfoForSymbol(immutable Symbol symbol) {
  ****************************************************************************/
 var shared Map aeminiumASTToStaticSymbolMap = java.util.IdentityHashMap.new();
 
-method shared ?Symbol getSymbolForStaticAST(immutable ASTNode node) {
-    match ( symbolForAST(node) ) {
-        case Some { symbolForAST(node).value }
-        default { 
-            val expr = makeAbstractExpressionFromAST(node);
-            match ( expr ) {
-                case AbstractExpression { getSymbolForAbstractExpression(expr) }
-                default { ABORT("Cannot create abstract expression from AST.") }
-            };
-        }
-    }
-}
-
 method shared ?Symbol getSymbolForAbstractExpression(immutable AbstractExpression expr) {
+    DEBUG(DEBUG_PRIO_LOW, "<getSymbolForAbstractExpression> " + expr.toString() );
     match ( expr ) {
         case AbstractExpression { 
             var shared ?Symbol result = unit;
+            
             val it = aeminiumASTToStaticSymbolMap.keySet().iterator();
             while { it.hasNext() }{
                 val curExpr = it.next();
+                DEBUG(DEBUG_PRIO_LOW, "<getSymbolForAbstractExpression>     check " + curExpr.toString() + " == " + expr.toString() );
                 if ( curExpr == expr ) {
                     result = aeminiumASTToStaticSymbolMap.get(curExpr);
                 }
@@ -80,6 +70,7 @@ method shared ?Symbol getSymbolForAbstractExpression(immutable AbstractExpressio
             match ( result ) {
                 case Symbol { result } 
                 default { 
+                    DEBUG(DEBUG_PRIO_LOW, "<getSymbolForAbstractExpression>     create new abstract symbol ");
                     val exprSymbol = (new SymbolFactory).makeAbstractExpressionSymbol(expr.toString(), expr);
                     aeminiumASTToStaticSymbolMap.put(expr, exprSymbol);
                     exprSymbol
@@ -91,6 +82,7 @@ method shared ?Symbol getSymbolForAbstractExpression(immutable AbstractExpressio
         }
     };
 }
+
 
 /*****************************************************************************
  ** global type map ASTNode -> DependecyInformation
@@ -144,6 +136,13 @@ method unique Set findLastDependentsForSymbol(shared DependencyInformation depIn
         case JoinInformation  { depInfo.symbol == symbol }
         case SplitInformation { depInfo.symbol == symbol }
         case FieldRestoreInformation { depInfo.symbol == symbol } 
+        case SplitEnterInformation { true }
+        case SplitLeaveInformation { true }
+        case UnpackEnterInformation { true }
+        case UnpackLeaveInformation { true }
+        case AtomicEnterInformation { true }
+        case AtomicLeaveInformation { true }
+        default { ABORT("Unsupported DeoInfo node " + depInfo.toString()) }
     };
     
     if ( valid ) {
@@ -175,7 +174,7 @@ method unique Set findLastDependentsForSymbol(shared DependencyInformation depIn
 
 method void addDependency(shared DependencyInformation from,
                           shared DependencyInformation to) {
-    //DEBUG(DEBUG_PRIO_LOW, "<addDependency> " + from.toString() + " -> " + to.toString() );
+    DEBUG(DEBUG_PRIO_LOW, "<addDependency> " + from.toString() + " -> " + to.toString() );
     from.deps.add(to);
     to.rdeps.add(from);
 }
@@ -369,14 +368,42 @@ method unique AtomicEnterInformation makeAtomicEnterInformation(immutable ASTNod
         val id    = nextDepInfoId();
         val node  = node;
     }
- }
+}
  
- method unique AtomicLeaveInformation makeAtomicLeaveInformation(immutable AtomicEnterInformation enterInfo) {
+method unique AtomicLeaveInformation makeAtomicLeaveInformation(immutable AtomicEnterInformation enterInfo) {
     new AtomicLeaveInformation {
         val id    = nextDepInfoId();
         val enterInfo  = enterInfo;
     }
- } 
+} 
+
+method unique SplitEnterInformation makeSplitEnterInformation(immutable ASTNode node) {
+    new SplitEnterInformation {
+        val id    = nextDepInfoId();
+        val node  = node;
+    }
+}
+ 
+method unique SplitLeaveInformation makeSplitLeaveInformation(immutable SplitEnterInformation enterInfo) {
+    new SplitLeaveInformation {
+        val id        = nextDepInfoId();
+        val enterInfo = enterInfo;
+    }
+}
+
+method unique UnpackEnterInformation makeUnpackEnterInformation(immutable ASTNode node) {
+    new UnpackEnterInformation {
+        val id    = nextDepInfoId();
+        val node  = node;
+    }
+}
+ 
+method unique UnpackLeaveInformation makeUnpackLeaveInformation(immutable UnpackEnterInformation enterInfo) {
+    new UnpackLeaveInformation {
+        val id        = nextDepInfoId();
+        val enterInfo = enterInfo;
+    }
+}
  
 method unique MatchEnterInformation makeMatchEnterInformation(immutable ASTNode node) {
     new MatchEnterInformation {
