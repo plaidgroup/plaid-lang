@@ -1,5 +1,6 @@
 package plaid.compiler.util;
 
+import plaid.compiler.aeminium.*;
 import plaid.compiler.*;
 import plaid.ast.parsed.*;
 
@@ -25,6 +26,24 @@ state SymbolCollector = ParsedLeafVisitor with  {
         node.value.accept(this);
     }
 
+	override method void visitParsedAtomicBlock(immutable ParsedAtomicBlock node) {
+		LOG("visit AtomicBlock");
+		node.datagroups.do(fn (arg) =>{
+		    val absExpr = makeAbstractExpressionFromAST(arg);
+		    match ( absExpr ) {
+		        case AbstractExpression {
+		            val sym = getSymbolForAbstractExpression(absExpr);
+		            match (sym) {
+		                case Symbol { this.externalSymbols.add(sym) }
+		                default { ABORT("Cannot find symbol for abstract expression.") }
+		            };
+		        }
+		        default { ABORT("Cannot convert static arg to abstract expression.") }
+		    };
+		});
+		node.body.accept(this);
+	}
+	
     override method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
         node.expression.accept(this);
     }
@@ -58,6 +77,24 @@ state SymbolCollector = ParsedLeafVisitor with  {
 		LOG("visit MethodCall");
 		node.receiver.accept(this);
 		node.argument.accept(this);
+	}
+	
+	override method void visitParsedSplitBlock(immutable ParsedAtomicBlock node) {
+		LOG("visit SplitBlock");
+		node.datagroups.do(fn (arg) =>{
+		    val absExpr = makeAbstractExpressionFromAST(arg);
+		    match ( absExpr ) {
+		        case AbstractExpression {
+		            val sym = getSymbolForAbstractExpression(absExpr);
+		            match (sym) {
+		                case Symbol { this.externalSymbols.add(sym) }
+		                default { ABORT("Cannot find symbol for abstract expression.") }
+		            };
+		        }
+		        default { ABORT("Cannot convert static arg to abstract expression.") }
+		    };
+		});
+		node.body.accept(this);
 	}
 	
 	override method void visitParsedStateRef(immutable ParsedStateRef node) {
