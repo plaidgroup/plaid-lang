@@ -259,114 +259,122 @@ state AEminiumCodeGenOps case of CodeGenOps {
     
     method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
         LOG("codegenStmt '" + node.nodeName() + "'");
-        match ( this.curMethodInfo.taskForAST(node) ) {
-            case Some { 
-                val task = this.curMethodInfo.taskForAST(node).value;
-                LOG("Found task '" + task.toString() + "'");
-                val taskSB = task.getBodyStringBuilder();
-                match (node) {
-                    case ParsedAtomicBlock {
-                        taskSB.append("atomic: {\n");                
-                        taskSB.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.enterAtomic();\n");
-                        ops.codegenStmtBlock(this.seqOps, node.body, taskSB, idgen, y);
-                        sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.leaveAtomic();\n");
-                        taskSB.append("}\n");
-                    }
-                    case ParsedMatch {
-                        LOG("AEminium match code generation");
-                        // check if the match has been inlined 
-                        match ( this.curMethodInfo.matchInfoForAST(node) ) {
-                            case Some { 
-                                val matchInfo = this.curMethodInfo.matchInfoForAST(node).value;
-                                
-                                // do some voodoo to make match working
-                                val exprVarName = idgen.getId();
-                                ops.createLocalVariable(exprVarName, sb, false);
-                                ops.codegenStmt(this.seqOps, node.expression, taskSB, idgen, exprVarName);
-                                
-                                val caseStringList = makeLinkedList();
-                                node.caseList.do(fn (caseItem) => {
-                                
-                                    val caseSB = java.lang.StringBuilder.new();
-                                    
-                                    // generate condition
-                                    match ( caseItem ) {
-                                        case ParsedPatternCase {
-                                            val patternSymbolOption = symbolForAST(caseItem.pattern);
-                                            match(patternSymbolOption) {
-                                                case Some {                                                
-                                                    val patternSymbol = patternSymbolOption.getValue();
-                                                    match (patternSymbol) {
-                                                        case StateSymbol {
-                                                            caseSB.append("if(" + ops.getLocalVariable(exprVarName) + ".getDispatch().matches(");
-                                                            caseSB.append(patternSymbol.getFQN() + "." + NamingConventions.GENERATED_STATE_NAME + ".getTopTag())) {\n");
+        match ( node )  {
+            case ParsedSplitBlock {
+                LOG("create code for split bock ");
+                ops.codegenStmtBlock(this, node.body, sb, idgen, y);
+            }
+            default { 
+                match ( this.curMethodInfo.taskForAST(node) ) {
+                    case Some { 
+                        val task = this.curMethodInfo.taskForAST(node).value;
+                        LOG("Found task '" + task.toString() + "'");
+                        val taskSB = task.getBodyStringBuilder();
+                        match (node) {
+                            case ParsedAtomicBlock {
+                                taskSB.append("atomic: {\n");                
+                                taskSB.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.enterAtomic();\n");
+                                ops.codegenStmtBlock(this.seqOps, node.body, taskSB, idgen, y);
+                                sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.leaveAtomic();\n");
+                                taskSB.append("}\n");
+                            }
+                            case ParsedMatch {
+                                LOG("AEminium match code generation");
+                                // check if the match has been inlined 
+                                match ( this.curMethodInfo.matchInfoForAST(node) ) {
+                                    case Some { 
+                                        val matchInfo = this.curMethodInfo.matchInfoForAST(node).value;
+                                        
+                                        // do some voodoo to make match working
+                                        val exprVarName = idgen.getId();
+                                        ops.createLocalVariable(exprVarName, sb, false);
+                                        ops.codegenStmt(this.seqOps, node.expression, taskSB, idgen, exprVarName);
+                                        
+                                        val caseStringList = makeLinkedList();
+                                        node.caseList.do(fn (caseItem) => {
+                                        
+                                            val caseSB = java.lang.StringBuilder.new();
+                                            
+                                            // generate condition
+                                            match ( caseItem ) {
+                                                case ParsedPatternCase {
+                                                    val patternSymbolOption = symbolForAST(caseItem.pattern);
+                                                    match(patternSymbolOption) {
+                                                        case Some {                                                
+                                                            val patternSymbol = patternSymbolOption.getValue();
+                                                            match (patternSymbol) {
+                                                                case StateSymbol {
+                                                                    caseSB.append("if(" + ops.getLocalVariable(exprVarName) + ".getDispatch().matches(");
+                                                                    caseSB.append(patternSymbol.getFQN() + "." + NamingConventions.GENERATED_STATE_NAME + ".getTopTag())) {\n");
+                                                                }
+                                                                default { ABORT("Wrong symbol") }
+                                                            };
                                                         }
-                                                        default { ABORT("Wrong symbol") }
+                                                        case None { ABORT("Cannot fing pattern symbol") }
                                                     };
                                                 }
-                                                case None { ABORT("Cannot fing pattern symbol") }
+                                                case ParsedDefaultCase { 
+                                                    caseSB.append("{\n");
+                                                }
                                             };
-                                        }
-                                        case ParsedDefaultCase { 
-                                            caseSB.append("{\n");
-                                        }
-                                    };
-
-                                    val bodyVarName = idgen.getId();
-                                    ops.createLocalVariable(bodyVarName, sb, false);
-                                    ops.codegenStmtBlock(this, caseItem.body, caseSB, idgen, bodyVarName);
-
-                                    // assign to block variable to last task 
-                                    val caseTask = match ( this.curMethodInfo.taskForAST(caseItem) ) {
-                                        case Some { this.curMethodInfo.taskForAST(caseItem).value }
-                                        case None { ABORT("Cannot find task for case.") }
-                                    };
-                                    ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseTask.getBodyStringBuilder());                                                            
-
-                                    
-                                    // generate code of tasks
-                                    DEBUG(DEBUG_PRIO_LOW, "<AEminiumCodeGenOps> look for case information ");
-                                    val caseInfo = match ( matchInfo.caseInfoForAST(caseItem) ) {
-                                        case Some { matchInfo.caseInfoForAST(caseItem).value } 
-                                        case None { ABORT("Cannot find case information for case.") } 
-                                    };
-
-                                    ifElse (caseInfo.allTasks.size() == 1) {
-                                        caseSB.append(caseInfo.allTasks.iterator().next().getBodyStringBuilder());   
-                                    }{
-                                        this.createTasksAndScheduling(caseInfo.allTasks, caseItem.body, caseSB);
-                                    };
-                                                                                                                                                                
-                                    caseSB.append("}\n");
-                                    caseStringList.addLast(caseSB.toString());
-                                });
-                                // concatenate cases 
-                                val caseString = makeSeperatedString(caseStringList, "else ");
-                                taskSB.append(caseString);
-                                val lastCase = node.caseList.get(node.caseList.size() - 1).getValue();
-                                match (lastCase) {
-                                    case ParsedPatternCase {
-                                        taskSB.append("else {\n");
-                                        taskSB.append("throw new plaid.fastruntime.errors.PlaidIllegalOperationException(\"Pattern match exausted.\");\n");
-                                        taskSB.append("}\n");
+        
+                                            val bodyVarName = idgen.getId();
+                                            ops.createLocalVariable(bodyVarName, sb, false);
+                                            ops.codegenStmtBlock(this, caseItem.body, caseSB, idgen, bodyVarName);
+        
+                                            // assign to block variable to last task 
+                                            val caseTask = match ( this.curMethodInfo.taskForAST(caseItem) ) {
+                                                case Some { this.curMethodInfo.taskForAST(caseItem).value }
+                                                case None { ABORT("Cannot find task for case.") }
+                                            };
+                                            ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseTask.getBodyStringBuilder());                                                            
+        
+                                            
+                                            // generate code of tasks
+                                            DEBUG(DEBUG_PRIO_LOW, "<AEminiumCodeGenOps> look for case information ");
+                                            val caseInfo = match ( matchInfo.caseInfoForAST(caseItem) ) {
+                                                case Some { matchInfo.caseInfoForAST(caseItem).value } 
+                                                case None { ABORT("Cannot find case information for case.") } 
+                                            };
+        
+                                            ifElse (caseInfo.allTasks.size() == 1) {
+                                                caseSB.append(caseInfo.allTasks.iterator().next().getBodyStringBuilder());   
+                                            }{
+                                                this.createTasksAndScheduling(caseInfo.allTasks, caseItem.body, caseSB);
+                                            };
+                                                                                                                                                                        
+                                            caseSB.append("}\n");
+                                            caseStringList.addLast(caseSB.toString());
+                                        });
+                                        // concatenate cases 
+                                        val caseString = makeSeperatedString(caseStringList, "else ");
+                                        taskSB.append(caseString);
+                                        val lastCase = node.caseList.get(node.caseList.size() - 1).getValue();
+                                        match (lastCase) {
+                                            case ParsedPatternCase {
+                                                taskSB.append("else {\n");
+                                                taskSB.append("throw new plaid.fastruntime.errors.PlaidIllegalOperationException(\"Pattern match exausted.\");\n");
+                                                taskSB.append("}\n");
+                                            }
+                                            case ParsedDefaultCase {
+                                                //no-op
+                                            }
+                                        };
                                     }
-                                    case ParsedDefaultCase {
-                                        //no-op
+                                    case None {                                                    
+                                        // add code to current task 
+                                        this.seqOps.codegenStmt(this.seqOps, node, taskSB, idgen, y)  
                                     }
                                 };
                             }
-                            case None {                                                    
-                                // add code to current task 
-                                this.seqOps.codegenStmt(this.seqOps, node, taskSB, idgen, y)  
-                            }
+                            default { this.seqOps.codegenStmt(this, node, taskSB, idgen, y) }
                         };
                     }
-                    default { this.seqOps.codegenStmt(this, node, taskSB, idgen, y) }
+                    case None {
+                        LOG("Using default SB");
+                        this.seqOps.codegenStmt(this, node, sb, idgen, y)
+                    }
                 };
-            }
-            case None {
-                LOG("Using default SB");
-                this.seqOps.codegenStmt(this, node, sb, idgen, y)
             }
         };
     }
