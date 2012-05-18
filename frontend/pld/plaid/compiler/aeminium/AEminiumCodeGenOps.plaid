@@ -276,11 +276,35 @@ state AEminiumCodeGenOps case of CodeGenOps {
                         val taskSB = task.getBodyStringBuilder();
                         match (node) {
                             case ParsedAtomicBlock {
-                                taskSB.append("atomic: {\n");                
-                                taskSB.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.enterAtomic();\n");
-                                ops.codegenStmtBlock(this.seqOps, node.body, taskSB, idgen, y);
-                                sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.leaveAtomic();\n");
-                                taskSB.append("}\n");
+                                sb.append("atomic: { /* AEminiumCodeGenOps */ \n");
+                                match ( node.datagroups.size() == 0 ) {
+                                    case True {
+                                        sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.enterAtomic();\n");
+                                        this.seqOps.codegenStmtBlock(this, node.body, sb, idgen, y);
+                                        sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.leaveAtomic();\n");
+                                    }
+                                    case False {
+                                        // create local variables
+                                        val ids = node.datagroups.map( fn (grp) => {
+                                            match ( grp ) {
+                                                case ParsedIdentifier { grp.name } 
+                                                default {
+                                                    val grpId = idgen.getId();
+                                                    ops.createLocalVariable(grpId, sb, true);
+                                                    this.seqOps.codegenStmt(this.seqOps, grp, sb, idgen, grpId); 
+                                                    grpId
+                                                }
+                                            };
+                                        });
+                                        // lock datagroups
+                                        ids.do( fn (id) => { sb.append("((plaid.fastruntime.aeminium.Datagroup)" + id + ").enterAtomic();\n")});
+                                        // execute body
+                                        this.seqOps.codegenStmtBlock(this.seqOps, node.body, sb, idgen, y);
+                                        // unlock datagroups
+                                        ids.do( fn (id) => { sb.append("((plaid.fastruntime.aeminium.Datagroup)" + id + ").leaveAtomic();\n")});
+                                    }
+                                };
+                                sb.append("}\n");
                             }
                             case ParsedMatch {
                                 LOG("AEminium match code generation");

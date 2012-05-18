@@ -36,9 +36,33 @@ state AEminiumCodeGenOpsSeqCodeGen case of SequentialCodeGenOps {
         match(node) {
             case ParsedAtomicBlock {
                 sb.append("atomic: { /* AEminiumCodeGenOpsSeqCodeGen */ \n");
-                sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.enterAtomic();\n");
-                this.seqOps.codegenStmtBlock(this, node.body, sb, idgen, y);
-                sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.leaveAtomic();\n");
+                match ( node.datagroups.size() == 0 ) {
+                    case True {
+                        sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.enterAtomic();\n");
+                        this.seqOps.codegenStmtBlock(this, node.body, sb, idgen, y);
+                        sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.leaveAtomic();\n");
+                    }
+                    case False {
+                        // create local variables
+                        val ids = node.datagroups.map( fn (grp) => {
+                            match ( grp ) {
+                                case ParsedIdentifier { grp.name } 
+                                default {
+                                    val grpId = idgen.getId();
+                                    ops.createLocalVariable(grpId, sb, true);
+                                    this.seqOps.codegenStmt(this.seqOps, grp, sb, idgen, grpId); 
+                                    grpId
+                                }
+                            };
+                        });
+                        // lock datagroups
+                        ids.do( fn (id) => { sb.append("((plaid.fastruntime.aeminium.Datagroup)" + id + ").enterAtomic();\n")});
+                        // execute body
+                        this.seqOps.codegenStmtBlock(this, node.body, sb, idgen, y);
+                        // unlock datagroups
+                        ids.do( fn (id) => { sb.append("((plaid.fastruntime.aeminium.Datagroup)" + id + ").leaveAtomic();\n")});
+                    }
+                };
                 sb.append("}\n");
             }
             case ParsedSplitBlock { 
