@@ -29,7 +29,7 @@ public class ForkJoinWorkerThread extends Thread {
 
     public final ForkJoinPool.WorkQueue workQueue; // Work-stealing mechanics
     final ForkJoinPool pool;                // the pool this thread works in
-    
+    public int atomicLevel = 0;
     
     /**
      * Creates a ForkJoinWorkerThread operating in the given pool.

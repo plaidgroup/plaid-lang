@@ -7,15 +7,20 @@ import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 
-public final class Datagroup implements PlaidObject {
-	private ReentrantLock lock;
+public class Datagroup implements PlaidObject {
+	private ReentrantLock lock = new ReentrantLock();
 	
-	public final void enterAtomic() {
+	public void enterAtomic() {
 		this.lock.lock();
 	}
 	
-	public final void leaveAtomic() {
+	public void leaveAtomic() {
 		this.lock.unlock();
+	}
+	
+	public final boolean inAtomic() {
+		return this.lock.getHoldCount() > 0;
+		
 	}
 
 	@Override
