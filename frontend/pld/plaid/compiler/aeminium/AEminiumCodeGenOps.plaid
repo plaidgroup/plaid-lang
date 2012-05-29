@@ -24,7 +24,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
     var shared MethodInformationMap curMethodInfo = "<UNINITIALIZED>";
     val unique Map syncVarForTaskMap = java.util.HashMap.new();
     var shared IdGen idgen;
-    val immutable Boolean TRACE = COMPILER_CONFIGURATION().getBooleanProperty("plaid.compiler.aeminium.AEminiumCodeGenOps.TRACE", false);
+    val immutable Boolean TRACE_TASKS = COMPILER_CONFIGURATION().getBooleanProperty("plaid.compiler.aeminium.AEminiumCodeGenOps.TRACE_TASKS", false);
 
     var immutable Integer localVariableCounter = -1;
     val unique Set localVariableMap = java.util.HashMap.new(); // maps original var names to index 
@@ -636,10 +636,16 @@ state AEminiumCodeGenOps case of CodeGenOps {
         
         sb.append(this.getTaskArrayElement(task) +" =  new plaid.fastruntime.aeminium.Task(" + task.deps.size() + ") {\n");
         sb.append("@Override public void compute() {\n");
+        if ( this.TRACE_TASKS ) {
+            sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"execute " + this.getTaskArrayElement(task).toString() + " (" + task.toString() + ")\");\n");
+        };
         sb.append(this.codegenTaskOpenLeaves(task));
         sb.append(prefix);
         sb.append(task.getBodyStringBuilder());
         sb.append(suffix);
+        if ( this.TRACE_TASKS ) {
+            sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"finished " + this.getTaskArrayElement(task).toString() + " (" + task.toString() + ")\");\n");
+        };
         val singleDirect = ifElse ( task.rdeps.size() == 1 ) {
             ifElse ( task.rdeps.iterator().next().deps.size() == 1 ) {
                 true
@@ -656,16 +662,18 @@ state AEminiumCodeGenOps case of CodeGenOps {
                 ifElse ( task.rdeps.size() == 1 ) {
                     val curTask = task.rdeps.iterator().next();
                     ifElse ( this.curMethodInfo.forkTask(curTask) ) {
-                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { " + this.getTaskArrayElement(curTask) + ".fork();");
-                        if ( this.TRACE )  {
-                            sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forkes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
+                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { ");
+                        if ( this.TRACE_TASKS )  {
+                            sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " invokes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
                         };
+                        sb.append("" + this.getTaskArrayElement(curTask) + ".fork();");
                         sb.append(" }\n");
                     }{
-                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(" + this.getTaskArrayElement(curTask) + "); ");
-                        if ( this.TRACE )  {
-                            sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forkes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
+                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { ");
+                        if ( this.TRACE_TASKS )  {
+                            sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " invokes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
                         };
+                        sb.append("plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(" + this.getTaskArrayElement(curTask) + "); ");
                         sb.append("}\n");
                     };
                 }{
@@ -674,16 +682,18 @@ state AEminiumCodeGenOps case of CodeGenOps {
                     while { it.hasNext() }{
                         val rdepTask = it.next();
                         ifElse ( this.curMethodInfo.forkTask(rdepTask) ) {
-                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { " + this.getTaskArrayElement(rdepTask) + ".fork(); ");
-                            if ( this.TRACE )  {
-                                sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forkes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
+                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { ");
+                            if ( this.TRACE_TASKS )  {
+                                sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forks " + this.getTaskArrayElement(rdepTask).toString() + "(" + rdepTask.toString() + ")" + "\");");
                             };
+                            sb.append( ""+ this.getTaskArrayElement(rdepTask) + ".fork(); ");
                             sb.append("}" );                                      
                         }{
-                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { invokeTa$k$.add(" + this.getTaskArrayElement(rdepTask) + "); ");
-                            if ( this.TRACE )  {
-                                sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forkes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
+                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { ");
+                            if ( this.TRACE_TASKS )  {
+                                sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forks " + this.getTaskArrayElement(rdepTask).toString() + "(" + rdepTask.toString() + ")" + "\");");
                             };
+                            sb.append("invokeTa$k$.add(" + this.getTaskArrayElement(rdepTask) + "); ");
                             sb.append("}\n" );          
                         };
                     };
