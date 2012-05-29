@@ -11,11 +11,11 @@ public abstract class Task extends RecursiveAction {
 		this.depsCount = depsCount;
 	}
 
-	public int getDepCount() { 
+	final public int getDepCount() { 
 		return depsCount;
 	}
 	
-	public int decDepCount() {
+	final public int decDepCount() {
 		if ( depsCount == 1 ) {
 			depsCount = 0;
 			return 0;
