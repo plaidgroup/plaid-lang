@@ -9,6 +9,7 @@ import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.logging.StreamHandler;
 
 import plaid.fastruntime.aeminium.runtime.ForkJoinPool;
 import plaid.fastruntime.aeminium.runtime.ForkJoinWorkerThread;
@@ -20,8 +21,7 @@ public final class Util {
 	public static final Logger LOG = Logger.getLogger(Util.class.toString());
 	static {
 		try {
-			ConsoleHandler ch = new ConsoleHandler();
-			ch.setFormatter(new Formatter() {
+			StreamHandler sh = new StreamHandler(System.out, new Formatter() {
 			    private final DateFormat df = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
 			    
 			    public String format(LogRecord record) {
@@ -44,7 +44,7 @@ public final class Util {
 			    }
 			});
 			LOG.setUseParentHandlers(false);
-			LOG.addHandler(ch);
+			LOG.addHandler(sh);
 		} catch (SecurityException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
