@@ -24,6 +24,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
     var shared MethodInformationMap curMethodInfo = "<UNINITIALIZED>";
     val unique Map syncVarForTaskMap = java.util.HashMap.new();
     var shared IdGen idgen;
+    val immutable Boolean TRACE = COMPILER_CONFIGURATION().getBooleanProperty("plaid.compiler.aeminium.AEminiumCodeGenOps.TRACE", false);
 
     var immutable Integer localVariableCounter = -1;
     val unique Set localVariableMap = java.util.HashMap.new(); // maps original var names to index 
@@ -206,7 +207,7 @@ state AEminiumCodeGenOps case of CodeGenOps {
         val tmpSB = java.lang.StringBuilder.new();
         this.seqOps.codegenMethodBody(this, node, tmpSB, idgen);
 
-        sb.append("if ( plaid.fastruntime.aeminium.Util.parallelize <= 0 ) {\n");
+        sb.append("if ( plaid.fastruntime.aeminium.Util.parallelize <= 0 || plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.inAtomic() ) {\n");
         // create sequential code for this method 
         sb.append("/* sequential code for the case that we have enough parallelism */\n");
         val seqSB = java.lang.StringBuilder.new();
@@ -655,9 +656,17 @@ state AEminiumCodeGenOps case of CodeGenOps {
                 ifElse ( task.rdeps.size() == 1 ) {
                     val curTask = task.rdeps.iterator().next();
                     ifElse ( this.curMethodInfo.forkTask(curTask) ) {
-                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { " + this.getTaskArrayElement(curTask) + ".fork(); }\n");
+                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { " + this.getTaskArrayElement(curTask) + ".fork();");
+                        if ( this.TRACE )  {
+                            sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forkes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
+                        };
+                        sb.append(" }\n");
                     }{
-                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(" + this.getTaskArrayElement(curTask) + "); }\n");
+                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(" + this.getTaskArrayElement(curTask) + "); ");
+                        if ( this.TRACE )  {
+                            sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forkes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
+                        };
+                        sb.append("}\n");
                     };
                 }{
                     sb.append("final java.util.Collection invokeTa$k$ = new java.util.ArrayList(" + task.rdeps.size() + ");\n");
@@ -665,9 +674,17 @@ state AEminiumCodeGenOps case of CodeGenOps {
                     while { it.hasNext() }{
                         val rdepTask = it.next();
                         ifElse ( this.curMethodInfo.forkTask(rdepTask) ) {
-                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { invokeTa$k$.add(" + this.getTaskArrayElement(rdepTask) + ".fork(); }\n" );                                      
+                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { " + this.getTaskArrayElement(rdepTask) + ".fork(); ");
+                            if ( this.TRACE )  {
+                                sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forkes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
+                            };
+                            sb.append("}" );                                      
                         }{
-                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { invokeTa$k$.add(" + this.getTaskArrayElement(rdepTask) + "); }\n" );          
+                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { invokeTa$k$.add(" + this.getTaskArrayElement(rdepTask) + "); ");
+                            if ( this.TRACE )  {
+                                sb.append("plaid.fastruntime.aeminium.Util.LOG.info(\"" + this.getTaskArrayElement(task).toString() + "(" + task.toString() + ")" + " forkes " + this.getTaskArrayElement(curTask).toString() + "(" + curTask.toString() + ")" + "\");");
+                            };
+                            sb.append("}\n" );          
                         };
                     };
                     sb.append("if ( invokeTa$k$.size() > 0 ) { plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(invokeTa$k$); }\n");
