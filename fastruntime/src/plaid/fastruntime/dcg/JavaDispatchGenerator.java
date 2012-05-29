@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -20,9 +21,9 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.util.CheckClassAdapter;
 
 import plaid.fastruntime.NamingConventions;
+import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
-import plaid.fastruntime.PlaidDispatch;
 import plaid.fastruntime.Util;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
@@ -31,7 +32,7 @@ import plaid.fastruntime.reference.SimplePlaidJavaObject;
 public class JavaDispatchGenerator implements Opcodes {
 	private int classCounter = 0;
 	
-	private final Map<Class<?>, PlaidDispatch> javaStateCache = new HashMap<Class<?>,PlaidDispatch>();
+	private final Map<Class<?>, PlaidDispatch> javaStateCache = new ConcurrentHashMap<Class<?>,PlaidDispatch>();
 	
 	/**
 	 * Add PlaidState to cache. Used for preloading state cache with frequently used states.

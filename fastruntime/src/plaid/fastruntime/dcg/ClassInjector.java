@@ -40,8 +40,26 @@ public final class ClassInjector {
         }
     }
 	
-	public static Class<?> defineClass(String name, byte[] b, int off, int len) {
-		return UNSAFE.defineClass(name, b, off, len);
+	public static synchronized Class<?> defineClass(String name, byte[] b, int off, int len) {
+		name = name.replace("/", ".");
+		Class klazz = isClassDefined(name);
+		if ( klazz == null ) {
+			//System.out.println(Thread.currentThread().toString() + " defines class " + name);
+			klazz = UNSAFE.defineClass(name, b, off, len);
+			UNSAFE.ensureClassInitialized(klazz);
+			return klazz;
+		} else {
+			//System.out.println(Thread.currentThread().toString() + " defines class " + name);
+			return klazz;
+		}
+	}
+	
+	public static Class<?> isClassDefined(String klazzName) {
+		try {
+			return ClassInjector.class.getClassLoader().loadClass(klazzName);
+		} catch (ClassNotFoundException e) {
+			return null;
+		}	
 	}
 	
 	//For debugging purposes
