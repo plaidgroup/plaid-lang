@@ -54,7 +54,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 		};
 	}
 	
-	public static PlaidObject plaidInteger(int i) {
+	public static final PlaidObject plaidInteger(int i) {
 		if ( CACHE_LOWER_BOUND < i  && i < CACHE_UPPER_BOUND) {
 			return INTEGER32_CACHE[i - CACHE_LOWER_BOUND];
 		} else {
