@@ -44,7 +44,7 @@ public final class DispatchGenerator implements Opcodes {
 			}
 		}
 		cw.visit(50,
-			     ACC_PUBLIC,
+			     ACC_PUBLIC+ACC_FINAL,
 			     name,
 			     null,
 			     "plaid/fastruntime/reference/AbstractPlaidDispatch",
@@ -55,7 +55,7 @@ public final class DispatchGenerator implements Opcodes {
 			//System.out.println("add method: " + m.getName());
 			MethodVisitor mv;
 			if(m.isStaticallyDefined()) {
-				mv = cw.visitMethod(ACC_PUBLIC, 
+				mv = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
 						m.getName(), 
 						m.getMethodDescriptor(),
 						null,
@@ -80,7 +80,7 @@ public final class DispatchGenerator implements Opcodes {
 						
 				//first define getter
 				MethodVisitor mvHelper;
-				mvHelper = cw.visitMethod(ACC_PUBLIC, 
+				mvHelper = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
 						helperName,
 						helperDescriptor,
 						null,
@@ -96,7 +96,7 @@ public final class DispatchGenerator implements Opcodes {
 				mvHelper.visitMaxs(2,2);
 				mvHelper.visitEnd();
 				
-				mv = cw.visitMethod(ACC_PUBLIC, 
+				mv = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
 						m.getName(),
 						m.getMethodDescriptor(), null, null);
 				mv.visitVarInsn(ALOAD, 0);
@@ -119,7 +119,7 @@ public final class DispatchGenerator implements Opcodes {
 		for ( FieldInfo f : ov.getFields() ) {
 			//System.out.println("add method: " + m.getName());
 			MethodVisitor mv;
-			mv = cw.visitMethod(ACC_PUBLIC, 
+			mv = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
 					NamingConventions.getGetterName(f.getName()),
 					NamingConventions.getMethodDescriptor(1),
 					null,
@@ -136,7 +136,7 @@ public final class DispatchGenerator implements Opcodes {
 			mv.visitEnd();
 			
 			if(f.isSettable()){
-				mv = cw.visitMethod(ACC_PUBLIC, 
+				mv = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
 						NamingConventions.getSetterName(f.getName()),
 						NamingConventions.getMethodDescriptor(2), null, null);
 				mv.visitCode();
@@ -173,7 +173,7 @@ public final class DispatchGenerator implements Opcodes {
 		try {
 			byte[] b = cw.toByteArray();
 			Class<?> plaidStateClass = ClassInjector.defineClass(name, cw.toByteArray(), 0, b.length);
-			//ClassInjector.writeClass(cw.toByteArray(), "exampleoutput/" + name  + ".class");
+			ClassInjector.writeClass(cw.toByteArray(), "exampleoutput/" + name  + ".class");
 			Constructor<?> cstr =  plaidStateClass.getConstructor(ObjectValue.class);
 			result = (PlaidDispatch)cstr.newInstance(ov);
 		} catch(NoSuchMethodException e) {

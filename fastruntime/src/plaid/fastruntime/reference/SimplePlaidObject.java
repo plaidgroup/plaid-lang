@@ -17,12 +17,12 @@ public class SimplePlaidObject implements PlaidObject {
 	}
 	
 	@Override
-	public PlaidDispatch getDispatch() {
+	public final PlaidDispatch getDispatch() {
 		return dispatch;
 	}
 
 	@Override
-	public PlaidObject[] getStorage() {
+	public final PlaidObject[] getStorage() {
 		return storage;
 	}
 
