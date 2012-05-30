@@ -44,12 +44,10 @@ public final class ClassInjector {
 		name = name.replace("/", ".");
 		Class klazz = isClassDefined(name);
 		if ( klazz == null ) {
-			//System.out.println(Thread.currentThread().toString() + " defines class " + name);
 			klazz = UNSAFE.defineClass(name, b, off, len);
 			UNSAFE.ensureClassInitialized(klazz);
 			return klazz;
 		} else {
-			//System.out.println(Thread.currentThread().toString() + " defines class " + name);
 			return klazz;
 		}
 	}
@@ -67,6 +65,7 @@ public final class ClassInjector {
 	public static void writeClass(byte[] bytes, String fileName) {
 		try {
 			File outputFile = new File(fileName);
+			outputFile.getParentFile().mkdirs();
 			outputFile.createNewFile();
 			FileOutputStream out = new FileOutputStream(outputFile);
 			out.write(bytes);
