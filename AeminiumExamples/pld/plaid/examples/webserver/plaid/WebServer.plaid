@@ -2,9 +2,9 @@ package plaid.examples.webserver.plaid;
 
 state WebServer {
 	
-	
+	@sequential
 	method immutable String getRoot() [immutable WebServer this] {
-    	"/Users/sven/Research/homepage/"
+    	java.lang.System.getProperty("user.dir") +"/www/";
 	}
 	
 	method void run() [immutable WebServer this]  {
@@ -44,8 +44,26 @@ state WebServer {
 				  // compute path
 				  val immutable Integer requestLength = request.length();
 				  val immutable String reqSuffix = request.substring(4, requestLength);
-				  val immutable Integer index = reqSuffix.indexOf(" ");
-				  val immutable Boolean possitiveIndex = index >= 0;
+				  val immutable Integer indexSpace = reqSuffix.indexOf(" ");
+				  val immutable Integer indexParam = reqSuffix.indexOf("?");		        
+                  val immutable Boolean possitiveIndexSpace = indexSpace >= 0;        
+                  val immutable Boolean possitiveIndexParam = indexParam >= 0;
+                  val immutable Integer index = match (possitiveIndexSpace) {
+                      case True {
+                          match (possitiveIndexParam) {
+                              case True {
+                                  val immutable Boolean spaceSmallerThanParam = indexParam >= indexSpace;
+                                  match ( spaceSmallerThanParam ) {
+                                      case True { indexSpace }
+                                      default { indexParam } 
+                                  }
+                              }
+                              default {  indexSpace }
+                          };
+                      }
+                      default { indexParam } 
+                  };
+                  val immutable Boolean possitiveIndex = index >= 0;
 				  match ( possitiveIndex ) {
 					  case True { 
 						  val immutable String path = reqSuffix.substring(0, index);
@@ -64,11 +82,12 @@ state WebServer {
 
 	@sequential
 	method void transferData(unique Socket client, immutable String path)  [immutable WebServer this]  {
+	    this.LOG("transfer data for : " + path);
 	    val immutable Boolean fileExists = this.fileExists(path);
 		match ( fileExists ) {
 			case True {
 				val file = java.io.File.new(this.getRoot() + path );
-				this.LOG("transfer file '" + file.getAbsolutePath() +"'");
+				this.LOG("load data from file system '" + file.getAbsolutePath() +"'");
 			   
 				val cb     = java.nio.CharBuffer.allocate(file.length().asInt32());
 				val reader = java.io.BufferedReader.new(java.io.FileReader.new(file));
@@ -76,12 +95,14 @@ state WebServer {
 				client.writer.write(cb.array());
 			}
 			case False {
+			    this.LOG("Cannot find file : " + this.getRoot() + path );
 				client.writeLine("<html><body><h1>404 File not found</h1></body></html>");
 			}
 		}
 	}
 
 	method void transferFile(unique Socket client, immutable String path)  [immutable WebServer this]  {
+	    this.LOG("tansfer file " + path);
 	    val immutable Boolean isIndex = path == "/";
 		match ( isIndex ) {
 			case True {
@@ -97,6 +118,7 @@ state WebServer {
 	}
 
 	method void transferHeader(unique Socket client, immutable String path)  [immutable WebServer this]  {
+	    this.LOG("transfer header for : " + path);
 	    val immutable Boolean fileExists = this.fileExists(path);
 		match ( fileExists ) {
 			case True {
