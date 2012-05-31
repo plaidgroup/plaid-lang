@@ -50,8 +50,7 @@ public final class Util {
 			e.printStackTrace();
 		} 
 	}
-	
-	
+		
 	static {
 		Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
 			@Override
@@ -64,13 +63,23 @@ public final class Util {
 	
 	public static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
 	
-	public static int parallelize = CPU_COUNT;
+	public static volatile int parallelize = CPU_COUNT;
 
 	public static final void triggerParallelism() {
-		parallelize = (CPU_COUNT - POOL.getActiveThreadCount()) >> 1; 
+		//parallelize = (CPU_COUNT - POOL.getActiveThreadCount()) >> 1;
+		parallelize = 1;
 	}
-
-	public static final Datagroup GLOBAL_DATAGROUP = new Datagroup() {
+	
+	public static boolean parallelize() {
+		if ( parallelize <= 0 ) {
+			ForkJoinWorkerThread t = (ForkJoinWorkerThread)Thread.currentThread();
+			return t.workQueue.queueSize() <= 0 ;	
+		} else {
+			return true;
+		}
+	}
+	
+ 	public static final Datagroup GLOBAL_DATAGROUP = new Datagroup() {
 		public final void enterAtomic() {
 			super.enterAtomic();
 			Thread t = Thread.currentThread();
