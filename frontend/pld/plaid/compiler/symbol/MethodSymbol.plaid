@@ -1,0 +1,153 @@
+package plaid.compiler.symbol;
+
+import plaid.compiler.Symbol;
+import plaid.ast.parsed.ASTNode;
+import plaid.compiler.util.*;
+import plaid.compiler.types.makeArgSpec;
+import plaid.compiler.types.VOID;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.types.*;
+
+import plaid.compiler.permissions.*;
+
+import plaid.collections.makeLinkedList;
+
+state MethodSymbol case of DeclSymbol {
+    var immutable Option<immutable MethodSignature> methodSigOption = NONE;
+    var immutable Symbol thisSymOpt = NONE; 
+
+    /**
+     *  returns the symbol mapped to occurrences of this in the body
+     *  of the declaration
+     *  TODO : update implementation
+     */ 
+    method immutable Symbol getThisSymbol() { 
+        match (this.thisSymOpt) {
+            case Some {
+                this.thisSymOpt.value
+            }
+            case None {
+                // use dummy symbol for 
+                this.thisSymOpt = makeSome(new VariableSymbol { //**** DUMMY this symbol **** Change 
+                    val name = "this";
+                });
+                // try to find this reference in environment
+                this.declaration.environment.do(fn (arg) => {
+                    val immutable Boolean isThis = arg.name.name.equals("this");
+                    match (isThis)  {
+                      case True  { 
+                          DEBUG(DEBUG_PRIO_MEDIUM, "<MethodSymbol> create 'this' symbol from environment");
+                          this.thisSymOpt = symbolForAST(arg);
+                      }
+                      case False { }
+                    }
+                });
+                
+                this.thisSymOpt.value
+            }
+        } 
+    }
+
+    override method immutable Boolean ==(immutable Symbol other)[immutable MethodSymbol this] {
+        match (other) {
+            case MethodSymbol { this.name.equals(other.name) && this.owner == other.owner }
+            default { false }
+        }
+    }
+
+    method unique LinkedList getAnnotations() {
+        this.declaration.annotations
+    }
+
+    method immutable MethodSignature getSignature() {
+        match (this.methodSigOption)  {
+            case Some {
+                this.methodSigOption.value
+            }
+            case None {
+                val name = this.name;
+                val returnType     = makeTypeFromAST(this.declaration.returnType);
+                //val staticArgsSpec = makeLinkedList(); //TODO - don't know how these work yet
+                val environment    = java.util.HashMap.new();
+                
+                // translate environment into a map
+                // pick out this if it is there
+                var receiverSpecOption = new None;
+                this.declaration.environment.do(fn (arg) => {
+                    val immutable ArgSpec spec = makeArgSpecFromAST(arg.argSpec);
+                    val immutable Boolean isThis = arg.name.name.equals("this");
+                    val unique Option<immutable Symbol> varSymbolOption = symbolForAST(arg.name);
+                    val immutable Symbol varSymbol = match (varSymbolOption) {
+                      case Some { varSymbolOption.value }
+                      case None { 
+                        ABORT("<MethodSymbol> Don't have a symbol for argument " + arg.name.name); 
+                      }
+                    };
+                    ifElse (isThis) 
+                      { receiverSpecOption = makeSome(spec) }
+                      { environment.put(varSymbol, spec) }
+                 });
+                                     
+                //receiver ArgSpec
+                val receiverSpec = match (receiverSpecOption) {
+                  case Some { receiverSpecOption.value }
+                  case None {
+                    match (this.owner) {
+                      case PackageSymbol { makeArgSpec(VOID,VOID) } //TODO: receiver type for package methods...
+                      case TopSymbol { makeArgSpec(VOID,VOID) }
+                      case StateSymbol { 
+                        val defaultType = this.owner.defaultStateType();
+                        makeArgSpec(defaultType,defaultType);
+                      }
+                      case StateRefSymbol {            
+                        val dt = this.owner.referencedState.defaultStateType();
+                        makeArgSpec(dt,dt);
+                      }
+                      default { ABORT("<MethodSymbol> Unexpected Symbol type for owner of method Symbol " + this.toString())}
+                    }
+                  }
+                };
+                
+                // static argspecs
+                val staticArgsSpec = this.declaration.StaticArgsSpec.map(fn (sas)  => {
+                    match ( sas ) {
+                        case ParsedGroupArg {
+                            val gp = match ( sas.gp ) {
+                                case ParsedExclusiveGroupPermission { EXCLUSIVEGP }
+                                case ParsedSharedGroupPermission    { SHAREDGP }
+                                case ParsedProtectedGroupPermission { PROTECTEDGP }
+                                default { ABORT("Unsupported group permission " + sas.gp.nodeName() ) }
+                            };
+                            val sym = match ( symbolForAST(sas.id) ) {
+                                case Some { symbolForAST(sas.id).value }
+                                default { ABORT("Cannot find symbol for static paramater.") } 
+                            };
+                            new StaticArgSpec { val name = sas.id.name; val gpermission = gp; val symbol = sym; } 
+                        }
+                        default { ABORT("<MethodSymbol> Unsupported static paramter " + sas.nodeName()) }
+                    }
+                });
+                
+                //get arguments
+                val arguments      = this.declaration.arguments.map(fn (arg) => {
+                    val immutable ArgSpec argSpec = makeArgSpecFromAST(arg.argSpec);
+                    val unique Option<immutable Symbol> varSymbolOption = symbolForAST(arg.name);
+                    val immutable Symbol varSymbol = match (varSymbolOption) {
+                      case Some { varSymbolOption.value }
+                      case None { 
+                        ABORT("<MethodSymbol> Don't have a symbol for argument " + arg.name.name);
+                      }
+                    };
+                    makePair(varSymbol,argSpec);
+                });
+                val immutable MethodSignature newMethodSig = 
+                  makeMethodSignature(returnType, name, arguments, receiverSpec, environment, staticArgsSpec);
+                this.methodSigOption = makeSome(newMethodSig);
+                newMethodSig 
+            }
+        }
+    }
+    
+    override method immutable String symbolType() { "Method Symbol" }
+}

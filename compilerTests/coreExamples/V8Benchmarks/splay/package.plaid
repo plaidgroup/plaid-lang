@@ -1,0 +1,474 @@
+package V8Benchmarks.splay;
+
+//import V8Benchmarks.splay.helper;
+
+method runSplayCompiled(){
+   SplaySetupCompiled();
+   SplayRunCompiled();
+   SplayTearDownCompiled();
+}
+
+var NEWNONE = new None;
+var FALSE = new False;
+var TRUE = new True;
+
+// Configuration.
+var kSplayTreeSize = 8000;
+var kSplayTreeModifications = 80;
+var kSplayTreePayloadDepth = 5;
+
+var splayTree = NEWNONE;
+
+state ArrayString{
+	var array;
+	var string;
+}
+
+state LeftRight{
+	var left;
+	var right;
+}
+
+method GeneratePayloadTreeCompiled(depth, tag) {
+  ifElse (depth == 0) {
+  	var a = new Array;
+  	a.push(0);
+  	a.push(1);
+  	a.push(2);
+  	a.push(3);
+  	a.push(4);
+  	a.push(5);
+  	a.push(6);
+  	a.push(7);
+  	a.push(8);
+  	a.push(9);
+  	var s = "String for key " + tag + " in leaf node";
+  	new ArrayString with {var array=a; var string=s;};
+  };
+  {
+  	var l = GeneratePayloadTreeCompiled(depth - 1, tag);
+  	var r = GeneratePayloadTreeCompiled(depth - 1, tag);
+    new LeftRight with {var left=l; var right=r;};
+  };
+}
+
+
+method GenerateKeyCompiled() {
+  // The benchmark framework guarantees that Math.random is
+  // deterministic; see base.js.
+  random2();
+}
+
+
+method InsertNewNodeCompiled() {
+  // Insert new node with a unique key.
+  var key=NEWNONE;
+  key = GenerateKeyCompiled();
+  while({splayTree.find(key) != null}){
+  	key = GenerateKeyCompiled();
+  };
+  var payload = GeneratePayloadTreeCompiled(kSplayTreePayloadDepth, String(key));
+  splayTree.insert(key, payload);
+  key;
+}
+
+
+
+method SplaySetupCompiled() {
+  splayTree = new SplayTree;
+  var i=0;
+  while({i<kSplayTreeSize}){
+  	InsertNewNodeCompiled();
+  	i=i+1;
+  };
+}
+
+
+method SplayTearDownCompiled() {
+  // Allow the garbage collector to reclaim the memory
+  // used by the splay tree no matter how we exit the
+  // tear down function.
+  var keys = splayTree.exportKeys();
+  splayTree = NEWNONE;
+
+  // Verify that the splay tree has the right size.
+  var length = keys.length;
+  if (length != kSplayTreeSize) {
+    printLine("Splay tree has wrong size");
+  };
+
+  // Verify that the splay tree has sorted, unique keys.
+  var i = 0;
+  while({i < length;}) {
+    if (keys.get(i) >= keys.get(i + 1)) {
+      printLine("Splay tree not sorted");
+    };
+  	i = i + 1;
+  };
+}
+
+
+method SplayRunCompiled() {
+  // Replace a few nodes in the splay tree.
+  var i=0;
+  while({i<kSplayTreeModifications}){
+    var key = InsertNewNodeCompiled();
+    var greatest = splayTree.findGreatestLessThan(key);
+    ifElse(greatest == NEWNONE) {
+    	splayTree.remove2(key);
+    }
+    {
+    	splayTree.remove2(greatest.key);
+    };
+  	i=i+1;
+  };
+}
+
+
+/**
+ * Constructs a Splay tree.  A splay tree is a self-balancing binary
+ * search tree with the additional property that recently accessed
+ * elements are quick to access again. It performs basic operations
+ * such as insertion, look-up and removal in O(log(n)) amortized time.
+ *
+ * @constructor
+ */
+state SplayTree {
+
+	/**
+	 * Pointer to the root node of the tree.
+	 *
+	 * @type {SplayTree.Node}
+	 * @private
+	 */
+	var root_ = NEWNONE;
+	
+	
+	/**
+	 * @return {boolean} Whether the tree is empty.
+	 */
+	method isEmpty() {
+	  this.root_==NEWNONE;
+	}
+	
+	
+	/**
+	 * Inserts a node into the tree with the specified key and value if
+	 * the tree does not already contain a node with the specified key. If
+	 * the value is inserted, it becomes the root of the tree.
+	 *
+	 * @param {number} key Key to insert into the tree.
+	 * @param {*} value Value to insert into the tree.
+	 */
+	method insert(key, value) {
+	  ifElse ( this.isEmpty() ) {
+	    this.root_ = new Node;
+	    this.root_.setData(key,value);
+	  }
+	  {
+		  // Splay on the key to move the last node on the search path for
+		  // the key to the root of the tree.
+		  this.splay_(key);
+		  ifElse (this.root_.key == key) {
+		    //this might make a problem error later!
+		  	NEWNONE;
+		  }
+		  {
+			  var node = new Node;
+			  node.setData(key, value);
+			  ifElse (key > this.root_.key) {
+			    node.left = this.root_;
+			    node.right = this.root_.right;
+			    this.root_.right = NEWNONE;
+			  }
+			  {
+			    node.right = this.root_;
+			    node.left = this.root_.left;
+			    this.root_.left = NEWNONE;
+			  };
+			  this.root_ = node;
+		   };
+	   };
+	}
+	
+	
+	/**
+	 * Removes a node with the specified key from the tree if the tree
+	 * contains a node with this key. The removed node is returned. If the
+	 * key is not found, an exception is thrown.
+	 *
+	 * @param {number} key Key to find and remove from the tree.
+	 * @return {SplayTree.Node} The removed node.
+	 */
+	method remove2(key) {
+	  if (this.isEmpty()) {
+	    printLine("Key not found: " + key);
+	  };
+	  this.splay_(key);
+	  if (this.root_.key != key) {
+	    printLine("Key not found: " + key);
+	  };
+	  var removed = this.root_;
+	  ifElse (this.root_.left==NEWNONE) {
+	    this.root_ = this.root_.right;
+	  }
+	  {
+	    var right = this.root_.right;
+	    this.root_ = this.root_.left;
+	    // Splay to make sure that the new root has an empty right child.
+	    this.splay_(key);
+	    // Insert the original right child as the right child of the new
+	    // root.
+	    this.root_.right = right;
+	  };
+	  removed;
+	}
+	
+	
+	/**
+	 * Returns the node having the specified key or null if the tree doesn't contain
+	 * a node with the specified key.
+	 *
+	 * @param {number} key Key to find in the tree.
+	 * @return {SplayTree.Node} Node having the specified key.
+	 */
+	method find(key) {
+	  ifElse (this.isEmpty()) {
+	    NEWNONE;
+	  }
+	  {
+	  	this.splay_(key);
+	  	ifElse(this.root_.key == key){
+	  		this.root_;
+	  	}
+	  	{
+	  		NEWNONE;
+	  	};
+	  };
+	}
+	
+	
+	/**
+	 * @return {SplayTree.Node} Node having the maximum key value.
+	 */
+	method findMax(opt_startNode) {
+	  ifElse (this.isEmpty()) {
+	    NEWNONE;
+	  }
+	  {
+		  var current = opt_startNode || this.root_;
+		  while ({current.right!=NEWNONE;}) {
+		    current = current.right;
+		  };
+		  current;
+	  };
+	}
+	
+	
+	/**
+	 * @return {SplayTree.Node} Node having the maximum key value that
+	 *     is less than the specified key value.
+	 */
+	method findGreatestLessThan(key) {
+	  ifElse (this.isEmpty()) {
+	    NEWNONE;
+	  }
+	  {
+		  // Splay on the key to move the node with the given key or the last
+		  // node on the search path to the top of the tree.
+		  this.splay_(key);
+		  // Now the result is either the root node or the greatest node in
+		  // the left subtree.
+		  ifElse(this.root_.key < key) {
+		    this.root_;
+		  }
+		  {
+			  ifElse (this.root_.left!=NEWNONE) {
+			    this.findMax(this.root_.left);
+			  }
+			  {
+			    NEWNONE;
+			  };
+		  };
+	  };
+	}
+	
+	
+	/**
+	 * @return {Array<*>} An array containing all the keys of tree's nodes.
+	 */
+	method exportKeys() {
+	  var result = new Array;
+	  if (!this.isEmpty()) {
+	    this.root_.traverse_(fn (node) => { result.push(node.key); });
+	  };
+	  result;
+	}
+	
+	
+	/**
+	 * Perform the splay operation for the given key. Moves the node with
+	 * the given key to the top of the tree.  If no node has the given
+	 * key, the last node on the search path is moved to the top of the
+	 * tree. This is the simplified top-down splaying algorithm from:
+	 * "Self-adjusting Binary Search Trees" by Sleator and Tarjan
+	 *
+	 * @param {number} key Key to splay the tree on.
+	 * @private
+	 */
+	method splay_(key) {
+	  ifElse ( this.isEmpty() ) {
+	  	//this may make an error problem later!
+	  	NEWNONE;
+	  }
+	  {
+		  // Create a dummy node.  The use of the dummy node is a bit
+		  // counter-intuitive: The right child of the dummy node will hold
+		  // the L tree of the algorithm.  The left child of the dummy node
+		  // will hold the R tree of the algorithm.  Using a dummy node, left
+		  // and right will always be nodes and we avoid special cases.
+		  var dummy = new Node;
+		  dummy.setData(NEWNONE, NEWNONE);
+		  var left = dummy;
+		  var right = dummy;
+		  //look above for problem?
+		  var current = this.root_;
+		  var loopControl=TRUE;
+		  while ({loopControl;}) {
+		    ifElse (key < current.key) {
+		      //printLine("key less than current.key");
+		      //printLine(key+" "+current.key);
+		      ifElse (current.left==NEWNONE) {
+		        //printLine("!current.left 1");
+		        //printLine(key);
+		        loopControl=FALSE;
+		      }
+		      {
+			      if (key < current.left.key) {
+		            //printLine("key less than current.left.key");
+		        	//printLine(key+" "+current.left.key);
+			        // Rotate right.
+			        var tmp = current.left;
+			        current.left = tmp.right;
+			        tmp.right = current;
+			        current = tmp;
+			        if (current.left==NEWNONE) {
+		              //printLine("!current.left 2");
+		        	  //printLine(key);
+			          loopControl=FALSE;
+			        }
+			      }
+				};
+				var test = loopControl==TRUE;
+				if( test ){
+					// Link right.
+					//printLine("1");
+					right.left = current;
+					right = current;
+					current = current.left;
+				};
+		    }
+		    {
+			    ifElse(key > current.key) {
+		          //printLine("key>current.key");
+		          //printLine(key+" "+current.key);
+			      ifElse (current.right==NEWNONE) {
+		            //printLine("!current.right 1");
+		        	//printLine(key);
+			        loopControl=FALSE;
+			      }
+			      {
+			      	  var ifCondition=FALSE;
+				      if (key > current.right.key) {
+				        ifCondition=TRUE;
+		                //printLine("key>current.right.key");
+		        		//printLine(key+" "+current.right.key);
+				        // Rotate left.
+				        var tmp = current.right;
+				        current.right = tmp.left;
+				        tmp.left = current;
+				        current = tmp;
+				      };
+				      var test = (ifCondition) && (!current.right);
+				      if( test ){
+		                  //printLine("!current.right 2");
+		        		  //printLine(key);
+				      	  loopControl=FALSE;
+				      };
+				  };   
+				  //var test = loopControl==TRUE; 
+				  if( loopControl==TRUE ){ 
+					  //printLine("2");
+				      // Link left.
+				      left.right = current;
+				      left = current;
+				      current = current.right;
+			      };
+			    }
+			    {
+				  //printLine("else");
+		          //printLine(key); 
+			      loopControl=FALSE;
+			    };
+			 };
+		  };
+		  // Assemble.
+		  //printLine("3");
+		  left.right = current.left;
+		  right.left = current.right;
+		  current.left = dummy.right;
+		  current.right = dummy.left;
+  		  //printLine(left.right+" "+right.left+" "+current.left+" "+current.right);
+		  this.root_ = current;
+	   };
+	}
+	
+	
+	/**
+	 * Constructs a Splay tree node.
+	 *
+	 * @param {number} key Key.
+	 * @param {*} value Value.
+	 */
+	state Node {
+	  var key;
+	  var value;
+	  var left;
+	  var right;
+	  
+	  method setData(key,value){
+	  	this.key=key;
+	  	this.value=value;
+	  	this.left=NEWNONE;
+	  	this.right=NEWNONE;
+	  }
+	
+	
+		/**
+		 * Performs an ordered traversal of the subtree starting at
+		 * this SplayTree.Node.
+		 *
+		 * @param {function(SplayTree.Node)} f Visitor function.
+		 * @private
+		 */
+		method traverse_(f) {
+		  var current = this;
+		  while ({current!=NEWNONE;}) {
+		    var left = current.left;
+		    if (left!=NEWNONE) {
+		    	left.traverse_(f);
+		    };
+		    f(current);
+		    current = current.right;
+		  };
+		}
+	//end Node
+	}
+//end SplayTree
+}
+
+method main(){
+    var start = new Date;
+	runSplayCompiled();
+	printLine(new Date-start);
+}

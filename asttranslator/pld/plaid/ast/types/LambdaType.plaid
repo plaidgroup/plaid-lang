@@ -1,0 +1,340 @@
+package plaid.ast.types;
+
+/**
+ *	represents a lambda type as an object type
+ *	this could also be represented as a PlaidType, but instead for
+ *	consistency and flexibility it is an ObjectType.  Currently,
+ *	all LambdaType objects are considered to have an Immutable 
+ *	permission, but later we could allow other permissions under
+ *	this structure.
+ */
+state LambdaType case of ObjectType {
+
+	var immutable PermType returnType; //TODO: change back to val when have restricted update state change working for PermType <- PermType
+	val /*unique List<immutable ChangeType>*/ argTypes;
+	val /*unique Map<immutable ID,immutable ChangeType>*/ environmentTypes;
+	
+	/**
+	 * Lambda types have no members 
+	 */
+	method /* unique Option<immutable DeclType>*/ 
+		contains(immutable ID f, unique StateTable st)[immutable LambdaType] 
+	{
+		new None
+	}
+	
+	/**
+	 * lambda types have no member
+	 */
+	method /* unique Option<immutable DeclType> */ 
+		declaredType(immutable ID f, unique StateTable st)[immutable LambdaType]
+	{
+		new None
+	}
+	
+	/**
+	 *  lambda types have no members, so updates mean nothing
+	 */
+	method void memberUpdate(immutable ID f, immutable Binding >> void b, unique StateTable st)
+							[unique LambdaType]
+	{ /*no op*/ }
+	
+	/**
+	 *  lambdas are not borrowed
+	 */
+	method immutable Boolean notBorrowed()[immutable LambdaType] {
+		true
+	}
+	
+	/**
+	 *  packing does nothing
+	 */
+	method void pack(unique StateTable st)[unique LambdaType] {
+		/* no op */
+	}
+	
+	/**
+	 *  constructs the least upper Bound of this lambdaType and another objectType.  To find a least
+	 *  upper bound, other must be a lambdaType.  If it is, we find the most general type such that
+	 *  both this and other are subtypes of that type.  This corresponds to finding the most specific
+	 *  type for the input of each of the arguments (covariance = least upper bound) and the least 
+	 * 	specific type for the outputs (contravariance = greatest lower bound)
+	 */
+	method /* unique Option<unique ObjectType>*/ 
+		leastUpperBound(immutable ObjectType other, unique StateTable st)[immutable LambdaType]
+	{
+		match (other) {
+			case LambdaType {
+				ifElse (this.argTypes.length() == other.argTypes.length()) {
+					ifElse (this.environmentTypes.size() == other.environmentTypes.size()) {
+						val /*List<Pair<ChangeType,ChangeType>>*/ argZip = this.argTypes.zip(other.argTypes);
+						var immutable Boolean argsOk = true;
+						val /*List<ChangeType>*/ joinedArgs = argZip.map(fn (p) => {
+							if (argsOk) {
+								val /*unique Option<unique ChangeType>*/ newChange = 
+									p.fst.leastUpperBound(p.snd,st);
+								match (newChange) {
+									case Some {
+										newChange.value
+									}
+									case None {
+										argsOk = false
+									}
+								}
+							}
+						});
+						var /*boolean*/ envOk = argsOk;
+						val /*Map<ID,ChangeType>*/ joinedEnv = java.util.HashMap.new();
+						val envIter = this.environmentTypes.keySet().iterator();
+						while { envOk && envIter.hasNext() } {
+							val /*ID*/ envID = envIter.next();
+							ifElse (other.environmentTypes.containsKey(envID)) {
+								val /*ChangeType*/ thisEnvCT = this.environmentTypes.get(envID);
+								val /*ChangeType*/ otherEnvCT = other.environmentTypes.get(envID);
+								val /*unique Option<unique ChangeType>*/ newChange = 
+									thisEnvCT.leastUpperBound(otherEnvCT,st);
+								match (newChange) {
+									case Some {
+										joinedEnv.put(envID, newChange.value)
+									}
+									case None {
+										envOk = false
+									}
+								}
+							} {
+								//java.lang.System.out.println("JOIN FAILED: both lambdas do not specify environment variable " + envID.name);
+								envOk = false;
+							}
+						};
+						ifElse (envOk) {
+							//success!
+							val /*unique Option<unique PermType>*/ joinedReturnType = this.returnType.leastUpperBound(other.returnType, st);
+							match (joinedReturnType) {
+								case Some {
+									makeSome(new LambdaType {
+										var returnType = joinedReturnType.value;
+										val argTypes = joinedArgs;
+										val environmentTypes = joinedEnv;
+									})
+								}
+								case None { new None }
+							}
+						} {
+							//error elsewhere,
+							new None
+						}
+					} {
+						//java.lang.System.out.println("JOIN FAILED: lambdas do not have the same number of environment variables");
+						new None
+					}
+				} {
+					//java.lang.System.out.println("JOIN FAILED: lambdas do not have the same number of arguments");
+					new None
+				}
+			}
+			default {
+				//java.lang.System.out.println("JOIN FAILED: lambda can only join with another lambda");
+				new None
+			}
+		}
+	}
+	
+	/**
+	 *  constructs the greatest Lower Bound of this LambdaType and another ObjectType.  Other must be another
+	 *  lambdaType.  If it is, then we find the most general type that is a subtype of each of the lambda types.
+	 *  This corresponds to finding the most general type (leastUpperBound) for the inputs of the function and the most
+	 *  specific type (greatestLowerBound) for the outputs.
+	 */
+	method /* unique Option<unique ObjectType>*/ 
+		greatestLowerBound(immutable ObjectType other, unique StateTable st)[immutable LambdaType]
+	{
+		match (other) {
+			case LambdaType {
+				ifElse (this.argTypes.length() == other.argTypes.length()) {
+					ifElse (this.environmentTypes.size() == other.environmentTypes.size()) {
+						val /*List<Pair<ChangeType,ChangeType>>*/ argZip = this.argTypes.zip(other.argTypes);
+						var immutable Boolean argsOk = true;
+						val /*List<ChangeType>*/ joinedArgs = argZip.map(fn (p) => {
+							if (argsOk) {
+								val /*unique Option<unique ChangeType>*/ newChange = 
+									p.fst.greatestLowerBound(p.snd,st);
+								match (newChange) {
+									case Some {
+										newChange.value
+									}
+									case None {
+										argsOk = false
+									}
+								}
+							}
+						});
+						var /*boolean*/ envOk = argsOk;
+						val /*Map<ID,ChangeType>*/ joinedEnv = java.util.HashMap.new();
+						val envIter = this.environmentTypes.keySet().iterator();
+						while { envOk && envIter.hasNext() } {
+							val /*ID*/ envID = envIter.next();
+							ifElse (other.environmentTypes.containsKey(envID)) {
+								val /*ChangeType*/ thisEnvCT = this.environmentTypes.get(envID);
+								val /*ChangeType*/ otherEnvCT = other.environmentTypes.get(envID);
+								val /*unique Option<unique ChangeType>*/ newChange = 
+									thisEnvCT.greatestLowerBound(otherEnvCT,st);
+								match (newChange) {
+									case Some {
+										joinedEnv.put(envID, newChange.value)
+									}
+									case None {
+										envOk = false
+									}
+								}	
+							} {
+								//java.lang.System.out.println("JOIN FAILED: both lambdas do not specify environment variable " + envID.name);
+								envOk = false;
+							}
+						};
+						ifElse (envOk) {
+							//success!
+							val /*unique Option<unique PermType>*/ joinedReturnType = this.returnType.greatestLowerBound(other.returnType, st);
+							match (joinedReturnType) {
+								case Some {
+									makeSome(new LambdaType {
+										var returnType = joinedReturnType.value;
+										val argTypes = joinedArgs;
+										val environmentTypes = joinedEnv;
+									})
+								}
+								case None { new None }
+							}
+						} {
+							//error elsewhere,
+							new None
+						}
+					} {
+						//java.lang.System.out.println("JOIN FAILED: lambdas do not have the same number of environment variables");
+						new None
+					}
+				} {
+					//java.lang.System.out.println("JOIN FAILED: lambdas do not have the same number of arguments");
+					new None
+				}
+			}
+			default {
+				//java.lang.System.out.println("JOIN FAILED: lambda can only join with another lambda");
+				new None
+			}
+		}
+	}
+	
+	/**
+	 *  Lambda Subtyping.  Other must be another Lambda Type.  We follow the standard rules for subtyping of method/functions:
+	 *  inputs, including the starting types of parameters and environment variables, are co-variant, while outputs, including
+	 *  the return type and ending types for parameters and environment variables, are contra-variant 
+	 */
+	method immutable Boolean isSubObjectTypeOf(immutable ObjectType other, unique StateTable st)
+											  [immutable NominalType]
+	{
+		match (other) {
+			case LambdaType {
+				//requirements:
+				
+				//1) this.returnType <: other.returnType
+				val /*Boolean*/ retTypeOk = this.returnType.isSubPermTypeOf(other.returnType, st); //error message elsewhere
+				
+				//2) same number and compatible arg types
+				var /*Boolean*/ argsOk = this.argTypes.length() == other.argTypes.length();
+				ifElse (argsOk) {
+					val /*List<Pair<ChangeType,ChangeType>>*/ pairedArgs = this.argTypes.zip(other.argTypes);
+					argsOk = pairedArgs.foldr(fn (p,z) => p.fst.isSubChangeTypeOf(p.snd,st) && z, true);
+				} {
+					//java.lang.System.out.println("SUBTYPING FAILED : mismatched number of args");
+				};
+				
+				//4) same environment bindings (names) and compatible types
+				
+				//environments must be the same size (for now)
+				var /*boolean*/ envOk = this.environmentTypes.size() == other.environmentTypes.size();
+				//
+				val /*Map<ID,ChangeType>*/ joinedEnv = java.util.HashMap.new();
+				val envIter = this.environmentTypes.keySet().iterator();
+				while { envOk && envIter.hasNext() } {
+					val /*ID*/ envID = envIter.next();
+					ifElse (other.environmentTypes.containsKey(envID)) {
+						val /*ChangeType*/ thisEnvCT = this.environmentTypes.get(envID);
+						val /*ChangeType*/ otherEnvCT = other.environmentTypes.get(envID);
+						envOk = thisEnvCT.isSubChangeTypeOf(otherEnvCT,st)
+					} {
+						//java.lang.System.out.println("JOIN FAILED: both lambdas do not specify environment variable " + envID.name);
+						envOk = false;
+					}
+				};
+				
+				retTypeOk && argsOk && envOk;
+			}
+			default { 
+				//java.lang.System.out.println("TYPECHECK FAILED: lambda must subtype another lambda");
+				false 
+			}
+		}
+	}											 
+	
+	/**
+	 *  Lambda Types are already downgraded
+	 */
+	method void downgrade()[unique LambdaType] { /* noop */ }
+	
+	method immutable Boolean ==(immutable ObjectType other)[immutable LambdaType] {
+		match (other) {
+			case LambdaType {
+				this.returnType == other.returnType
+				&& this.argTypes.zip(other.argTypes)
+				                   .map(fn (p) => { p.first() == p.second(); })
+				                   .foldr(fn (x, y) => { x && y; }, true);
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	method immutable Boolean hasArg()[immutable LambdaType] {
+		match (argTypes.head) {
+			case Nil { false }
+			case Cons { true }
+		}
+	}
+	
+	method immutable String toString()[immutable LambdaType] {
+		var /*String*/ envTypeString = "";
+		val envIter = environmentTypes.keySet().iterator();
+		while { envIter.hasNext() } {
+			val /*ID*/ envVar = envIter.next();
+			val /*ChangeType*/ envVarType = environmentTypes.get(envVar);
+			envTypeString = envTypeString + ", " + envVarType.toString() + " " + envVar.name;
+		};
+		if (envTypeString.length() > 0) {
+			envTypeString = "[" + envTypeString.substring(2) + "]";
+		};
+		
+		var /*String*/ args = "";
+		ifElse (this.hasArg()) {
+			args = this.argTypes.foldr(fn (a,r) => ", " + a.toString() + r, "");
+			args = "(" + args.substring(2) + ")";
+		} {
+			args = "()";
+		};
+		
+		args + envTypeString + " -> " + returnType.toString();
+	}
+	
+	method unique LambdaType copy()[immutable LambdaType] {
+		val /*unique List<immutable ChangeType>*/ newArgTypes = makeEmptyList();
+		newArgTypes.append(this.argTypes); //this should be ok because the elements of the list are immutable
+		val /*unique Map<immutable ID,immutable ChangeType>*/ newEnvironmentTypes = java.util.HashMap.new();
+		newEnvironmentTypes.putAll(this.environmentTypes);
+		
+		new LambdaType {
+			var immutable PermType returnType = this.returnType; //immutable so can be duplicated
+			val /*unique List<immutable ChangeType>*/ argTypes = newArgTypes;
+			val /*unique Map<immutable ID,immutable ChangeType>*/ environmentTypes = newEnvironmentTypes;
+		}
+	}
+}

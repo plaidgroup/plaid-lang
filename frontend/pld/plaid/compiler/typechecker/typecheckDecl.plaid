@@ -1,0 +1,595 @@
+package plaid.compiler.typechecker;
+
+
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+import plaid.compiler.types.*;
+import plaid.compiler.permissions.*;
+import plaid.ast.parsed.*;
+import plaid.compiler.aeminium.*;
+import plaid.compiler.util.*;
+
+/**
+ * input outsideContext is the linear context in which the declaration should be typechecked
+ * there were errors if returns unit
+ * otherwise, the output context reflects any changes due to variable capture
+ * (TODO - how this works with global fields - not sure yet)
+ */
+method immutable ?LinearContext typecheckDecl(immutable ParsedDecl declNode, unique LinearContext >> void outsideContext) {
+
+  ifElse ( typecheckingEnabled(declNode) ) {
+      val unique Option<immutable Symbol> declSymOption = symbolForAST(declNode);
+      match (declSymOption) {
+        case Some {
+          match (declSymOption.value) {
+            case StateSymbol {
+              match (declNode) {
+                case ParsedConcreteStateDecl {
+                  val immutable StateSymbol stateSym = declSymOption.value;
+                  //Check the binding
+                  val unique ?LinearContext outputContext = match (declNode.stateBinding) {
+                    case ParsedDeclList {
+                      declNode.stateBinding.decls.reduceLeft(outsideContext,
+                        fn (ctx,decl) => typecheckDecl(decl, ctx) 
+                      );
+                    }
+                    default {
+                      report_ERROR(declNode.stateBinding, "UNIMPLEMENTED_FEATURE",                    
+                        "only decl lists supported for state bindings", "typecheckStateDecl");
+                      unit;
+                    }
+                  };
+
+                  match (outputContext) { 
+                    case LinearContext { 
+                      //check case of
+                      match (declNode.caseOf) {
+                        case ParsedEmptyQualifiedIdentifier { /* no superstate - no checks needed */ }
+                        case ParsedQualifiedIdentifier {
+                          val immutable Option<immutable Symbol> caseOfSymOption = 
+                            symbolForAST(declNode.caseOf);
+                          match (caseOfSymOption) {
+                            case Some {
+                              val immutable Symbol caseOfSym = caseOfSymOption.value;
+                              match (caseOfSym) {
+                                case StateSymbol {
+                                  /* - for a state to be a valid 'case of' if there are
+                                       any members that are declared in this state and
+                                       the super state, then either they must be abstract
+                                       in the super state or overridden in the substate
+                                     - If an abstract member is defined or a member is overridden
+                                       then the declared signature must be a subsignature
+                                       of the original declaration
+                                  */
+                                  
+                                  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckDecl> check static parameters match sub-typing");
+                                  val staticZip = declNode.StaticArgsSpec.zip(declNode.metaCaseOfArgs);
+                                  ifElse ( staticZip.size() ==  declNode.metaCaseOfArgs.size() ) {
+                                      staticZip.do( fn (p) =>{
+                                          val s1 = match ( symbolForAST(p.fst) ) {
+                                              case Some { symbolForAST(p.fst).value } 
+                                              default { ABORT("Cannot find symbol for static parameter.") }
+                                          }; 
+                                          val s2 = match ( symbolForAST(p.snd) ) {
+                                              case Some { symbolForAST(p.snd).value } 
+                                              default { ABORT("Cannot find symbol for static argument.") }
+                                          }; 
+                                          if ( (s1 == s2) == false ) {
+                                              report_ERROR(p.snd.token, "Static argument in wrong order.", "", "typecheckStateDecl");
+                                              ABORT("ABORTED");
+                                          };
+                                      });
+                                  }{
+                                      ABORT("Static parameter do not follow sub-typing rule");
+                                  };
+                                  
+                                  val memberIterator = stateSym.declaredMembersIterator();
+                                  var immutable Boolean membersOk = true;
+                                  while { memberIterator.hasNext() } {
+                                    val currentMember = memberIterator.next();
+                                    val superMemberOption = caseOfSym.getMember(currentMember.name);
+
+                                    match (superMemberOption) {
+                                      case Some {
+                                        val immutable DeclSymbol superMember = superMemberOption.value;
+                                        if (!(superMember.isAbstract()) && !(currentMember.isOverride())) {
+                                          report_ERROR(declNode.token, "state '" + stateSym.name + "' declares non-overridden member '" +
+                                                currentMember.name + "' which is not abstract in its super state '" +
+                                                caseOfSym.name + "'", "", "typecheckStateDecl");
+                                          membersOk = false;
+                                        };
+                                        
+                                        val superMemberSig = superMember.getSignature();
+                                        val currentMemberSig = currentMember.getSignature();
+                                        if (!(currentMemberSig.isSubSignatureOf(superMemberSig))) {
+                                          report_ERROR(declNode.token, "state '" + stateSym.name + "' declares member '" +
+                                                currentMember.name + "' with signature '" + currentMemberSig.toString() +
+                                                "' which is not a sub signature of the declared signature '" +
+                                                superMemberSig.toString() + "' in super state '" +
+                                                caseOfSym.name + "'", "", "typecheckStateDecl");
+                                          membersOk = false;
+                                        };
+                                      }
+                                      case None { /* nothing to check - new member */ }
+                                    };
+                                  };
+                                  match (membersOk) {
+                                    case True { outputContext } //success
+                                    case False { unit } //were errors
+                                  }
+                                }
+                                default {
+                                  report_ERROR(declNode.caseOf.token, "UNEXPECTED_SYM", 
+                                    "expected StateSymbol, got" + caseOfSymOption.value.symbolType(), "typecheckStateDecl");
+                                  unit
+                                }
+                              }
+                            }
+                            case None {
+                              report_ERROR(declNode.caseOf.token, "SYM_NOT_FOUND", "", "typecheckStateDecl");
+                              unit
+                            }
+                          }
+                        }
+                      };
+                    }
+                    default { unit } //error in typechecking state
+                  };                  
+                }
+                case ParsedAbstractStateDecl {
+                  outsideContext 
+                }
+                default {
+                  report_ERROR(declNode.token, "UNEXPECTED_AST", 
+                    "expected state AST, got " + declNode.nodeName(), "typecheckStateDecl");
+                  unit
+                }
+              } 
+            }
+            case StateValSymbol {
+              report_ERROR(declNode.token, "UNIMPLEMENTED_FEATURE", 
+                    "stateVals", "typecheckStateDecl");
+              unit
+            }
+            case FieldSymbol {
+              match (declNode) {
+                case ParsedConcreteFieldDecl {
+                  val immutable MethodSymbol fieldSym = declSymOption.value;
+                  val immutable MethodSignature fieldSig = fieldSym.getSignature();
+                  
+                  //TODO: deal with top level fields and methods
+                  
+                  val immutable Type fieldType = fieldSig.getDeclaredType();
+                  
+                  // add group permissions
+                  val gpMap = computeDatagroupPermissions(fieldSym);
+                  outsideContext.addDatagroupPermissions(gpMap);
+                  
+                  // add this to linear context
+                  val thisSymbol = fieldSym.getThisSymbol();
+                  val thisType = thisSymbol.getDeclaredType();
+                  outsideContext.put(thisSymbol, thisType);
+                  
+                  val unique ?TypecheckResult fieldResult = 
+                      typecheckExpression(outsideContext,
+                                          fieldType.permission,
+                                          declNode.expression);            
+
+				  match (fieldResult) {
+				  	case TypecheckResult {
+					  if (!(fieldResult.expType.isSubTypeOf(fieldType))) {
+						report_ERROR(declNode.token, "T_FIELD_DECL_STRUCT", "got " +
+							  fieldResult.expType.structure.toString() + 
+							  ", needed " +
+							  fieldType.structure.toString(), "typecheckFieldDecl");      
+					  };
+					  
+					  
+					  //TODO: check we didn't change any used fields to a state
+					  // not a subtype of their declared type 
+					  
+					  if ( AEMINIUM_MODE() ) {
+				          match ( depInfoForAST(declNode.expression) ) { 
+				              case Some {
+				                  val depInfo = depInfoForAST(declNode.expression).value;
+				                  addDepInfoForAST(declNode, depInfo);
+				              }
+				              case None {
+						      report_ERROR(declNode.token, 
+						                   "T_FIELD_DECL_STRUCT", 
+						                   "cannot find dependency information ", 
+						                   "typecheckFieldDecl");				              
+				              }  
+				          };
+					  };
+					  
+					  // remove added permissions
+					  fieldResult.ctxResult.removeDatagroupPermissions(gpMap);
+					  fieldResult.ctxResult;
+					}
+					default { unit } //error in typechecking initializer
+				  }
+                }
+                case ParsedAbstractFieldDecl {
+                  val immutable MethodSymbol fieldSym = declSymOption.value;
+                  val immutable MethodSignature fieldSig = fieldSym.getSignature();
+                  val immutable Type fieldType = fieldSig.getDeclaredType();
+
+                                    
+                  val typeOk = checkType(fieldType);
+
+                  match (typeOk) {
+                    case True { 
+                        outsideContext 
+                    }
+                    default {
+                      report_ERROR(declNode.token, "", "Field type is not well formed", "typecheckStateDecl");
+                      unit
+                    }
+                  };
+                }
+                default {
+                  report_ERROR(declNode.token, "UNEXPECTED_AST", 
+                    "expected Field AST, got " + declNode.nodeName(), "typecheckStateDecl");
+                  unit
+                }
+              }
+            }
+            case MethodSymbol {
+              match (declNode) {
+                case ParsedConcreteMethodDecl {
+                  val immutable MethodSymbol methodSym = declSymOption.value;
+                  val immutable MethodSignature methodSig = methodSym.getSignature();
+                  
+                  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckerDecl> start checking '" + methodSym.name +"' method '" + methodSig.toString() + "'");
+                  
+                  /* check that the input structure of the receiver is guaranteed by the
+                     state the method is declared in.   This is needed because based on
+                     dynamic dispatch, that's the type of reciever we'll have 
+                     This will have to change to something more complicated once we have
+                     composition
+                  */
+                  val immutable Structure receiverInputStructure = methodSig.receiverSpec.inputType.structure;
+                  val immutable Structure ownerStructure = substituteStaticArgs(methodSym.owner.getStructure(), getStaticArgs(receiverInputStructure));
+                  val immutable Boolean receiverOk = match (ownerStructure) {
+                    case PackageStructure {
+                        //must be VOID >> VOID for receiver of top-level method
+                      match (methodSig.receiverSpec.inputType == VOID && methodSig.receiverSpec.outputType == VOID) {
+                        case True { true }
+                        case False {
+                            report_ERROR(declNode.token, "T_METHOD_DECL_TOP_RCVR", "", "typecheckMethodDecl");
+                            false
+                        }
+                      };
+                    }
+                    case NominalStructure {
+                      match (ownerStructure.isSubStructureOf(receiverInputStructure)) {
+                        case True { true }
+                        case False {
+                            report_ERROR(declNode.token, "T_METHOD_DECL_RCVR_STRUCT_IN", "need " + receiverInputStructure.toString() + 
+                              ", guaranteed " + ownerStructure.toString(), "typecheckMethodDecl");
+                            false
+                        }
+                      };
+                    }
+                    default { ABORT("(implementation error) bad owner structure for method decl") }
+                  
+                  };
+                  
+                  
+                  
+                  /* create starting context for method body */
+                  val unique LinearContext methodContext = new LinearContext;
+                  methodContext.methodBlock = true;
+                  
+                  // computer data groups permissions and types
+                  val dgMap = computeDatagroupPermissions(methodSym);
+                  methodContext.addDatagroupPermissions(dgMap);
+                  declNode.StaticArgsSpec.do( fn (argSpec) => {
+                      val sym = match ( symbolForAST(argSpec.id) ) {
+                          case Some { symbolForAST(argSpec.id).value }
+                          default { ABORT("Cannot find symbol for static parameter") }
+                      };
+                      methodContext.put(sym, DATAGROUPTYPE);
+                      /*
+                      if ( AEMINIUM_MODE() ) {
+                          val unique DependencyInformation depInfo = makeASTInformation(argSpec);
+                          val shared Symbol symbol = match( symbolForAST(argSpec) ) {
+                               case Some { symbolForAST(argSpec).value }
+                               default { ABORT("Cannot find symbol for static parameter.") } 
+                          };
+                          setDepInfoForSymbol(symbol, depInfo);
+                      };
+                      */
+                      if ( AEMINIUM_MODE() ) {
+                          val depInfo = makeASTInformation(argSpec);
+                          val symbol = match ( makeAbstractExpressionFromAST(argSpec.id) ) {
+                               case AbstractExpression {  getSymbolForAbstractExpression(makeAbstractExpressionFromAST(argSpec.id)); }
+                               default { ABORT("Cannot create symbol for static paramater") }
+                          };
+                          match ( symbol ) {
+                              case Symbol { 
+                                  DEBUG(DEBUG_PRIO_LOW, "<typecheckDecl> create start info for static parameter " + argSpec.id.name);
+                                  setDepInfoForSymbol(symbol, depInfo) 
+                               }
+                              default { ABORT("Cannot create abstract expression for static parameter.") }
+                          };
+                      };
+                  });
+                  // add default datagroup for shared permissions
+                  val globalGroup   = new ParsedEmptyExpr{ val token = EMPTY_TOKEN; } ;
+                  val globalDepInfo = makeASTInformation(globalGroup);
+                  val sym = getSymbolForAbstractExpression(makeAbstractExpressionFromAST(globalGroup));
+                  match (sym) {
+                      case Symbol { 
+                          setDepInfoForSymbol(sym, globalDepInfo);
+                          methodContext.put(sym, DATAGROUPTYPE);
+                          val gpMap = java.util.HashMap.new();
+                          val globalExpr = makeAbstractExpressionFromAST(globalGroup);
+                          match  ( globalExpr ) {
+                              case AbstractExpression { gpMap.put(globalExpr, SHAREDGP) } 
+                              default { ABORT("Cannot create abstract expression for global data group.") }
+                          };
+                          methodContext.addDatagroupPermissions(gpMap);
+                      }
+                      default { ABORT("Cannot get symbol for empty expression") }
+                  }; 
+                  
+                  val immutable VariableSymbol thisSymbol = methodSym.getThisSymbol();
+                  methodContext.put(thisSymbol, methodSig.receiverSpec.inputType);
+                  
+                  match  ( AEMINIUM_MODE() ) {
+                      case True {
+                          DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckMethodDecl> add '" + thisSymbol.name +"' as start marker");
+                          val unique DependencyInformation depInfo = makeASTInformation(thisSymbol.declaration);
+                          setDepInfoForSymbol(thisSymbol, depInfo);
+                          // annotate AST 
+                          declNode.environment.do(fn (arg) => {
+                              match (arg.name.name == "this" ) {
+                                  case True { addDepInfoForAST(arg, depInfo) }
+                                  case False {}
+                              }
+                          });
+                      }
+                      case False {}
+                  };
+                  
+                  //args
+                  var immutable Boolean inputsOk = methodSig.arguments.reduceLeft(true, fn (ok, symSpecPair) => {
+                    match (ok) {
+                      case True {
+                        val immutable VariableSymbol argSym = symSpecPair.fst;
+                        val immutable ArgSpec argSpec = symSpecPair.snd;
+                        match (methodContext.containsSymbol(argSym)) {
+                          case False {
+                            methodContext.put(argSym, argSpec.inputType);
+                            match  ( AEMINIUM_MODE() ) {
+                                case True {
+                                    DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckMethodDecl> add '" + argSym.name +"' as start marker");
+                                    val unique DependencyInformation depInfo = makeASTInformation(argSym.declaration);
+                                    setDepInfoForSymbol(argSym, depInfo);
+                                    declNode.arguments.do(fn (arg) => {
+                                        match (arg.name.name == argSym.name  ) {
+                                            case True { addDepInfoForAST(arg, depInfo) }
+                                            case False { }
+                                        }
+                                    });
+                                }
+                                case False {}
+                            };
+                            true
+                          }
+                          case True {
+                            report_ERROR(declNode.token, "T_METHOD_DECL_MULTIPLE_INPUTS", argSym.name, "typecheckMethodDecl");
+                            false
+                          }
+                        }
+                      }
+                      case False { false }
+                    }
+                  });
+                  
+                  val iter = methodSig.environment.keySet().iterator();
+                  while { iter.hasNext() && inputsOk } {
+                    val immutable VariableSymbol envSym = iter.next();
+                    val immutable ArgSpec envSpec = methodSig.environment.get(envSym);
+                    match (methodContext.containsSymbol(envSym)) {
+                      case False {
+                        //put in env and do dependencies
+                        methodContext.put(envSym, envSpec.inputType);
+                        match  ( AEMINIUM_MODE() ) {
+                            case True {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckMethodDecl> add '" + envSym.name +"' as start marker");
+                                val unique DependencyInformation depInfo = makeASTInformation(envSym.declaration);
+                                setDepInfoForSymbol(envSym, depInfo);
+                                declNode.environment.do(fn (arg) => {
+                                    match (arg.name.name == envSym.name ) {
+                                        case True { addDepInfoForAST(arg, depInfo) }
+                                        case False {}
+                                    }
+                                });
+                            }
+                            case False {}
+                        };
+                        
+                        //environment members cannot consume permission on each call or change to a non-substate
+                        match (envSpec.inputType.permission == envSpec.outputType.permission &&
+                                envSpec.outputType.structure.isSubStructureOf(envSpec.inputType.structure)) {
+                            case True {
+                                //capture environment member from outside context
+                                match (outsideContext.containsSymbol(envSym)) {
+                                    case True {
+                                        val immutable Type capturedType = outsideContext.get(envSym);
+                                        val immutable Type neededType = envSpec.inputType;
+                                        match (capturedType.structure.isSubStructureOf(neededType.structure)) {
+                                            case True {
+                                                val immutable ?Permission residue = 
+                                                        capturedType.permission.splitPerm(neededType.permission);
+                                                match (residue) {
+                                                    case Permission { //success
+                                                        outsideContext.update(envSym, makeType(residue, capturedType.structure));
+                                                    }
+                                                    default { // permission split error
+                                                        report_ERROR(declNode.token, "P_SPLIT_FAIL",
+                                                            capturedType.permission.toString() + " +> " + neededType.structure.toString() + " x ???" , 
+                                                            "typecheckMethodDecl");
+                                                        inputsOk = false; 
+                                                    } 
+                                                }
+                                            }
+                                            case False {
+                                                report_ERROR(declNode.token, "T_METHOD_DECL_ENV_STRUCT",
+                                                    "needed " + neededType.structure.toString() + ", got " + capturedType.structure.toString(), 
+                                                     "typecheckMethodDecl");
+                                                inputsOk = false;
+                                            }
+                                        }
+                                    }
+                                    case False {
+                                        report_ERROR(declNode.token, "T_METHOD_DECL_ENV_SCOPE", envSym.name, "typecheckMethodDecl");
+                                        inputsOk = false;
+                                    }
+                                }
+                            }
+                            case False {
+                                report_ERROR(declNode.token, "T_METHOD_DECL_ENV_CHANGE", envSpec.toString() + " " + envSym.name, "typecheckMethodDecl");
+                                inputsOk = false;
+                            }
+                        }
+                        
+                      }
+                      case True {
+                        report_ERROR(declNode.token, "T_METHOD_DECL_MULTIPLE_INPUTS", envSym.name, "typecheckMethodDecl");
+                        inputsOk = false;
+                      }
+                    }
+                  };
+                  
+                  match (inputsOk) {
+                    case True {
+                      /* typecheck method body in context asking for permission of return type */
+                      val unique ?TypecheckResult methodResult = 
+                        typecheckExpression(methodContext, 
+                                            methodSig.returnType.permission,
+                                            declNode.body);
+                      match (methodResult) {
+                        case TypecheckResult {
+                          var outputsOk = true;
+                          
+                          /* check that return structure is consistent with return type */                     
+                          if (!(methodResult.expType.isSubTypeOf(methodSig.returnType))) {
+                            report_ERROR(declNode.token, "T_METHOD_DECL_RET_STRUCT", "got " + 
+                                  methodResult.expType.permission.toString() + " " +
+                                  methodResult.expType.structure.toString() + 
+                                  ", needed " +  methodSig.returnType.permission.toString() + " " + methodSig.returnType.structure.toString(), "typecheckMethodDecl");
+                            outputsOk = false;
+                          };
+                          
+                          /* check that the context contains the required ending permissions */
+                          val unique LinearContext resultContext = methodResult.ctxResult;
+                          
+                          //receiver
+                          val immutable Type endTypeThis = resultContext.get(thisSymbol);
+                          if (!(endTypeThis.isSubTypeOf(methodSig.receiverSpec.outputType))) {
+                            report_ERROR(declNode.token, "T_METHOD_DECL_RCVR_TYPE_OUT", "got " + 
+                                  endTypeThis.toString() + 
+                                  ", needed " +
+                                  methodSig.receiverSpec.outputType.toString(), "typecheckMethodDecl");
+                            outputsOk = false;
+                          };
+                          //args
+                          methodSig.arguments.do(fn (symSpecPair) => {
+                            val immutable VariableSymbol argSym = symSpecPair.fst;
+                            val immutable ArgSpec argSpec = symSpecPair.snd;
+                            val immutable Type endTypeArg = resultContext.get(argSym);
+                            if (!(endTypeArg.isSubTypeOf(argSpec.outputType))) {
+                              report_ERROR(declNode.token, "T_METHOD_DECL_ARG_TYPE_OUT", "for " + argSym.name +
+                                    " got " + endTypeArg.toString() + 
+                                    ", needed " + argSpec.outputType.toString(), "typecheckMethodDecl");
+                              outputsOk = false;
+                            };
+                          });
+                          
+                          //environment
+                          val iter2 = methodSig.environment.keySet().iterator();
+                          while { iter2.hasNext() } {
+                            val immutable VariableSymbol envSym = iter2.next();
+                            val immutable ArgSpec envSpec = methodSig.environment.get(envSym);
+                            val immutable Type endTypeEnv = resultContext.get(envSym);
+                            if (!(endTypeEnv.isSubTypeOf(envSpec.outputType))) {
+                              report_ERROR(declNode.token, "T_METHOD_DECL_ENV_TYPE_OUT", 
+                                    "for environment variable '" + envSym.name +
+                                    " got " + endTypeEnv.toString() + 
+                                    ", needed " + envSpec.outputType.toString(), "typecheckMethodDecl");
+                              outputsOk = false;
+                            };
+                          };
+                          
+                          if ( AEMINIUM_MODE() ) {
+                              // connect to 
+                              declNode.StaticArgsSpec.do( fn (argSpec) => {     
+                                  val depInfo = makeASTInformation(argSpec);
+                                  val symbol = match ( makeAbstractExpressionFromAST(argSpec.id) ) {
+                                       case AbstractExpression {  getSymbolForAbstractExpression(makeAbstractExpressionFromAST(argSpec.id)); }
+                                       default { ABORT("Cannot create symbol for static paramater") }
+                                  };
+                                  match ( symbol ) {
+                                        case Symbol { 
+                                          val depInfoOpt = depInfoForSymbol(symbol); 
+                                          match  (depInfoOpt) {
+                                               case Some { 
+                                                    val bodyInfo = match ( depInfoForAST(declNode.body) ) {
+                                                        case Some { depInfoForAST(declNode.body).value } 
+                                                        default { ABORT("Cannot find dependency information for method body ") }
+                                                    };
+                                                    addDependency(bodyInfo, depInfoOpt.value);
+                                               }
+                                               default { ABORT("Cannot find dependency information for " + absExpr.toString()) }
+                                          };
+                                       }
+                                      default { ABORT("Cannot create abstract expression for static parameter.") }
+                                  };
+                              });
+                              dumpGraph(declNode, "RAW");
+                          };
+                          /* checks out - give back updated outside context */
+                          match (outputsOk) {
+                            case True { outsideContext }
+                            case False { unit }
+                          };
+                        }
+                        default { unit }
+                      }
+                    }
+                    case False { unit } //input error
+                  }
+                }
+                case ParsedAbstractMethodDecl { outsideContext }
+                default {
+                  report_ERROR(declNode.token, "UNEXPECTED_AST", 
+                    "expected method AST, got " + declNode.nodeName(), "typecheckStateDecl");
+                  unit
+                }
+              }
+              
+            }
+            case DatagroupSymbol {
+                val immutable DatagroupSymbol groupSym = declSymOption.value;                
+                DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckerDecl> start checking '" + groupSym.name +"' datagroup");
+                outsideContext
+            }
+            default { 
+                report_ERROR(declNode.token, "UNEXPECTED_SYM", "", "typecheckDecl");
+                unit
+            }
+          }
+        }
+        case None { 
+            report_ERROR(declNode.token, "SYM_NOT_FOUND", "typecheckDecl");
+            unit    
+        }
+      }
+    }{
+        outsideContext //nothing to do if not typechecking
+    }
+}

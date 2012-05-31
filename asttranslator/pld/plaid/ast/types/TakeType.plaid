@@ -1,0 +1,174 @@
+package plaid.ast.types;
+
+/* A TakeType is a case of TypeBinding used for tracking the types of
+   locations in a Plaid program.  It has no additional information other
+   than the current PlaidType (currentType field) inherited from TypeBinding.
+ */
+ 
+ state TakeType case of TypeBinding {
+ 
+ 	/**
+		TB +> BB / BB and TB +> TB / TB
+ 	 */
+ 	method /*unique Option<unique TypeBinding*/ splitBinding(immutable TypeBinding other, unique StateTable st)
+ 										  [immutable TakeType]
+	{
+		
+		this.currentType.type.pack(st);	//don't need to pack other because requested types are always packed... (do we actually believe this?)
+		val unique ObjectType residualOtype = this.getObjectType();
+		match(residualOtype) {
+			case UnpackedType { new None } /* pack failed */
+			default {
+				match (residualOtype.isSubObjectTypeOf(other.currentType.type,st)) {
+					case True {
+						val immutable Permission residualPerm = 
+							this.getPerm().splitPerm(other.getPerm());
+						match (residualPerm) {
+							case Some {
+								match (other) {
+									case TakeType { //no more information needed
+										makeSome(createTakeType(residualPerm.value,residualOtype))
+									}
+									case BorrowType { //borrowing and lower bound
+										match(other.stronglyBorrowed) {
+											case True {
+												makeSome(
+													createBorrowType(residualPerm.value,
+																		residualOtype,
+																		residualPerm.value,
+																		true)
+												)
+											}
+											case False {
+												makeSome(
+													createBorrowType(residualPerm.value,
+																		residualOtype,
+																		NONEP,
+																		false)
+												)
+											}
+										}
+									}
+								}
+							}
+							case None { new None } //permission splitting failed
+						}
+					}
+					case False { new None }  //object subtyping failed
+				}	
+			}
+		}
+	}
+ 		
+ 	method /*unique Option<unique TypeBinding*/ joinBinding(immutable TypeBinding other, immutable TypeBinding orig)
+ 										 [immutable TakeType]
+ 	{
+ 		match (orig) {
+ 			case TakeType {
+ 				match (other) {
+ 					case TakeType {
+ 						val /*unique Option<immutable Permission>*/ joinedPerm = other.getPerm().join(orig.getPerm());
+ 						match (joinedPerm) {
+ 							case Some {
+ 								val /* unique Option<unique ObjectType>*/ joinedOT = 
+ 									joinPlaidTypes(this.currentType, other.currentType);
+ 								match (joinedOT) {
+ 									case Some {
+ 										makeSome(createTakeType(joinedPerm.value, joinedOT.value))
+ 									}
+ 									case None { new None }
+ 								}
+ 							}
+ 							case None { new None }
+ 						}
+ 					}
+ 					case BorrowType { new None }
+ 				}
+ 			}
+ 			case BorrowType {
+ 				new None
+ 			}
+ 		}
+ 	}
+
+ 	method /*unique Option<unique TypeBinding>*/ 
+ 		leastUpperBound(immutable TypeBinding other, unique StateTable st)[immutable TakeType]
+ 	{
+ 		match (other) {
+ 			case TakeType {
+ 				val /*unique Option<unique PermType>*/ newPermType = 
+ 					other.currentType.leastUpperBound(this.currentType,st);
+ 				match(newPermType) {
+ 					case Some {
+ 						makeSome(
+ 							new TakeType { 
+ 								var unique PermType currentType = newPermType.value;
+ 							}
+ 						)
+ 					}
+ 					case None { new None }
+ 				}
+ 			}
+ 			case BorrowType { new None }
+ 		}
+ 	}
+ 	 
+ 	 method /*unique Option<unique TypeBinding>*/ 
+ 		greatestLowerBound(immutable TypeBinding other, unique StateTable st)[immutable TakeType]
+ 	{
+ 		match (other) {
+ 			case TakeType {
+ 				val /*unique Option<unique PermType>*/ newPermType = 
+ 					other.currentType.greatestLowerBound(this.currentType,st);
+ 				match(newPermType) {
+ 					case Some {
+ 						makeSome(
+ 							new TakeType { 
+ 								var unique PermType currentType = newPermType.value;
+ 							}
+ 						)
+ 					}
+ 					case None { new None }
+ 				}
+ 			}
+ 			case BorrowType { new None }
+ 		}
+ 	}
+ 
+ 	method immutable Boolean ==(immutable TypeBinding other) {
+ 		match (other) {
+ 			case TakeType {
+ 				this.currentType == other.currentType
+ 			}
+ 			default { false }
+ 		}
+ 	}
+ 	
+ 	method immutable String toString()[immutable TakeType] {
+ 		currentType.toString();
+ 	}
+ 	
+ 	method unique TakeType copy()[immutable TakeType] {
+ 		new TakeType {
+ 			var unique PermType currentType = this.currentType.copy();
+ 		}
+ 	}
+ 	
+ 	/**
+ 	 *	the current type of this must be a subtype of the currentType of other
+ 	 *  as long as other is also a take binding
+ 	 *  DEPRECATED - subtyping was only used for method/lambda subtyping and was confusing
+ 	 *    so I replaced it by using change types and subtyping for those instead
+ 	 */
+ 	/*method immutable Boolean isSubTypeBindingOf(immutable TypeBinding other, stateTable)
+ 											   [immutable TakeType] 
+	{
+ 		match (other) {
+ 			case TakeType {
+ 				this.currentType.isSubPermTypeOf(other.currentType, stateTable)
+ 			}
+ 			default { false }
+ 		}
+ 	}*/
+ 
+ }

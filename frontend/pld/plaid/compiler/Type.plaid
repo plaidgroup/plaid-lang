@@ -1,0 +1,76 @@
+package plaid.compiler;
+
+import plaid.compiler.types.*;
+
+state Type {
+    val immutable Permission permission;
+    val immutable Structure structure;
+    
+    method immutable Boolean ==(immutable Type other)[immutable Type this] {
+      this.permission == other.permission && this.structure == other.structure
+    }
+    
+    method immutable String toString()[immutable Type this] {
+      this.permission.toString() + " " + this.structure.toString()
+    }
+    
+    /**
+     * If the permission does not guarantee the state, then any structural
+     * type information is thrown out and replaced by TOP
+     */
+    method immutable Type downgrade()[immutable Type this] {
+      match (this.permission.guaranteesState()) {
+        case False {
+          match (this.structure) {
+            case DynamicStructure { this }
+            case TopStructure { this }
+            default { makeType(this.permission, TOPSTRUCT) }
+          }
+        }
+        case True { this }
+      }
+    }
+    
+    method unique Option<immutable Type> splitType(immutable Type other)[immutable Type this] {
+      match (this.structure.isSubStructureOf(other.structure)) {
+        case True {
+          val splitPerm = this.permission.splitPerm(other.permission);
+          match (splitPerm) {
+            case Permission { makeSome(makeType(splitPerm,this.structure)) }
+            default { new None }
+          }
+        }
+        case False { new None }
+      }
+    }
+    
+    /**
+     *  subtyping requires the corresponding permissions and structures to be in a subtyping relationship
+     */
+    method immutable boolean isSubTypeOf(immutable Type other) {
+      this.permission.isSubPermOf(other.permission) && this.structure.isSubStructureOf(other.structure)
+    }
+    
+    /**
+     * We get the leastUpperBound of a type by getting the weakest permission (least upper bound)
+     *    and the most general type (least upper bound) between the two given types, if these two
+     *    values exist.  Otherwise, none is returned.
+     */
+    method unique Option<immutable Type> leastUpperBound(immutable Type other)[immutable Type this] {
+      DEBUG(DEBUG_PRIO_LOW, "<Type>(leastUpperBound) of " + this.toString() + " and " + other.toString());
+      val structureLUBOption = this.structure.leastUpperBound(other.structure);
+      match (structureLUBOption) {
+        case Some { 
+          val immutable ?Permission permissionLUB = this.permission.leastUpperBound(other.permission);
+          match (permissionLUB) {
+            case Permission { 
+                DEBUG(DEBUG_PRIO_LOW, "<Type>(leastUpperBound)     => " + permissionLUB.toString() + " " + structureLUBOption.value.toString());
+                makeSome(makeType(permissionLUB,structureLUBOption.value)) 
+            }
+            case None { new None }
+          }
+        }
+        case None { new None }
+      }
+    } 
+}

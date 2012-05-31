@@ -1,0 +1,119 @@
+package plaid.compiler.util;
+
+import plaid.compiler.aeminium.*;
+import plaid.compiler.*;
+import plaid.ast.parsed.*;
+
+import plaid.collections.makeLinkedList;
+
+state SymbolCollector = ParsedLeafVisitor with  {
+    val externalSymbols = java.util.HashSet.new();
+    val localSymbols    = java.util.HashSet.new();
+
+	override method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_LOW, "<SymbolCollector> " + msg);
+    }
+
+    override method void visitParsedAssignment(immutable ParsedAssignment node) {
+        match (node.target) {
+            case ParsedEmptyExpr {
+                node.field.accept(this);
+            }
+            default {
+                node.target.accept(this);
+            }
+        };
+        node.value.accept(this);
+    }
+
+	override method void visitParsedAtomicBlock(immutable ParsedAtomicBlock node) {
+		LOG("visit AtomicBlock");
+		node.datagroups.do(fn (arg) =>{
+		    val absExpr = makeAbstractExpressionFromAST(arg);
+		    match ( absExpr ) {
+		        case AbstractExpression {
+		            val sym = getSymbolForAbstractExpression(absExpr);
+		            match (sym) {
+		                case Symbol { this.externalSymbols.add(sym) }
+		                default { ABORT("Cannot find symbol for abstract expression.") }
+		            };
+		        }
+		        default { ABORT("Cannot convert static arg to abstract expression.") }
+		    };
+		});
+		node.body.accept(this);
+	}
+	
+    override method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
+        node.expression.accept(this);
+    }
+
+    override method void visitParsedPatternCase(immutable ParsedPatternCase node) {
+        node.body.accept(this)    
+    }
+
+	override method void visitParsedIdentifier(immutable ParsedIdentifier node) {
+		LOG("visit ParsedIdentifier");
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {
+                match (this.localSymbols.contains(symbol.value)) {
+                    case False { this.externalSymbols.add(symbol.value); }
+                    case True  { /* skip local symbols */ }
+                }
+            }
+            case None {
+                ABORT("<SymbolCollector> Cannot find symbol for " + node.name);
+            }
+        }
+	}
+
+    override method void visitParsedDereference(immutable ParsedDereference node) {
+		LOG("visit ParsedDereference");
+		node.left.accept(this);
+	}
+	
+	override method void visitParsedMethodCall(immutable MethodCall node) {
+		LOG("visit MethodCall");
+		node.receiver.accept(this);
+		node.argument.accept(this);
+	}
+	
+	override method void visitParsedSplitBlock(immutable ParsedAtomicBlock node) {
+		LOG("visit SplitBlock");
+		node.datagroups.do(fn (arg) =>{
+		    val absExpr = makeAbstractExpressionFromAST(arg);
+		    match ( absExpr ) {
+		        case AbstractExpression {
+		            val sym = getSymbolForAbstractExpression(absExpr);
+		            match (sym) {
+		                case Symbol { this.externalSymbols.add(sym) }
+		                default { ABORT("Cannot find symbol for abstract expression.") }
+		            };
+		        }
+		        default { ABORT("Cannot convert static arg to abstract expression.") }
+		    };
+		});
+		node.body.accept(this);
+	}
+	
+	override method void visitParsedStateRef(immutable ParsedStateRef node) {
+		LOG("visit ParsedStateRef");
+		//node.stateExpr.accept(this);
+		node.specializations.map(fn (item) => { item.accept(this); item });
+	}
+	
+	override method void visitParsedVarDecl(immutable ParsedVarDecl node) {
+		LOG("visit ParsedVarDecl");
+		match (symbolForAST(node)) {
+		    case Some {
+		        LOG("add '"+ node.id.name + "' to local symbols");
+		        this.localSymbols.add(symbolForAST(node).value);
+		        node.expr.accept(this);
+		    }
+		    case None {
+		        ABORT("<SymbolCollector> Cannot find symbol for " + node.nodeName());
+		    }
+		};
+	}
+}

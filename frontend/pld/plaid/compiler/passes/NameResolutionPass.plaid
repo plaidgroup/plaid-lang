@@ -1,0 +1,1053 @@
+package plaid.compiler.passes;
+
+import plaid.lang.math.min;
+import plaid.lang.math.max;
+
+import plaid.collections.makeLinkedList;
+
+import plaid.ast.parsed.*;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+import plaid.ast.util.EMPTY_TOKEN;
+import plaid.ast.util.Token;
+
+import plaid.compiler.ABORT;
+import plaid.ast.util.makeTokenForFile;
+import plaid.ast.util.makeTokenForFqn;
+import plaid.compiler.report_ERROR;
+import plaid.compiler.WARNING;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_HIGH;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.Pass;
+import plaid.compiler.Reporter;
+import plaid.compiler.Context;
+import plaid.compiler.symbolForAST;
+import plaid.compiler.haveSymbolForAST;
+import plaid.compiler.addSymbolForAST;
+
+import plaid.compiler.context.TopLevelContext;
+import plaid.compiler.context.LocalContext;
+import plaid.compiler.context.ImportContext;
+import plaid.compiler.context.StdLibContext;
+import plaid.compiler.context.PackageContext;
+import plaid.compiler.context.GlobalContext;
+
+import plaid.compiler.resolver.ClasspathResolver;
+
+import plaid.compiler.Symbol;
+import plaid.compiler.symbol.VariableSymbol;
+import plaid.compiler.symbol.SymbolFactory;
+import plaid.compiler.symbol.TopSymbol;
+import plaid.compiler.symbol.ThisSymbol;
+import plaid.compiler.symbol.StateSymbol;
+import plaid.compiler.symbol.PackageSymbol;
+import plaid.compiler.symbol.StateValSymbol;
+import plaid.compiler.symbol.StateRefSymbol;
+import plaid.compiler.symbol.DynamicSymbol;
+import plaid.compiler.symbol.JavaClassSymbol;
+
+import java.util.Arrays;
+import java.lang.reflect.Modifier;
+
+import plaid.compiler.typechecker.*;
+
+import plaid.compiler.types.*;
+
+import java.util.Map;
+import java.util.IdentityHashMap;
+
+/*
+ * expands the left most case of a dot
+ */
+state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
+
+    val unique Stack stack = new Stack;  //Stack of scoping contexts
+    val immutable SymbolFactory sf = new SymbolFactory;
+    var immutable String sourceFile = "";
+    var shared ClasspathResolver resolver;
+    val unique Stack currentState = new Stack;
+    var shared Symbol packageSymbol = new TopSymbol;
+    var hasErrors = false;
+    var immutable String packageName = "";
+        
+
+    method immutable Boolean run(unique Job job) {
+        this.resolver = job.resolver;
+        match (job.ast) {
+            case Some {
+                DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass> started for '" + job.source.path + "'");
+                this.sourceFile = job.source.path;
+                this.stack.push(new TopLevelContext);
+
+                // add global stack 
+                val globalCtx = new GlobalContext {
+                     parent = this.stack.peek().value; 
+                     resolver = this.resolver;
+                };
+                this.stack.push(globalCtx);
+
+                job.ast.value.accept(this);
+
+                DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass> finished for '" + job.source.path + "'");
+                !this.hasErrors
+            }
+            default { 
+                ERROR(makeTokenForFile(job.source.path), "AST invalid", "NameResolutionPass");
+                false 
+            }
+        }
+    }
+
+    override method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> " + msg);
+    }
+    
+    method void ERROR(immutable Token token, immutable String errCode, immutable String data) {
+        this.hasErrors = true;
+        report_ERROR(token, errCode, data, "NameResolutionPass");
+    }
+
+    method immutable Option getQualifiedIdentifierFromDereference(immutable Dereference dref) {
+        match (dref.left) {
+            case ParsedIdentifier {
+                val ids = makeLinkedList();
+                ids.addLast(dref.left);
+                ids.addLast(dref.right);
+                makeSome(new ParsedQualifiedIdentifier {
+                    token = EMPTY_TOKEN;
+                    identifiers = ids;
+                })
+            }
+            case ParsedDereference {
+                val leftQIOpt = this.getQualifiedIdentifierFromDereference(dref.left);
+                match (leftQIOpt) {
+                    case Some {
+                        val ids = makeLinkedList();
+                        leftQIOpt.value.identifiers.map( fn (id) => ids.addLast(id) );
+                        ids.addLast(dref.right);
+                        makeSome(new ParsedQualifiedIdentifier {
+                            token = EMPTY_TOKEN;
+                            identifiers = ids;
+                        })
+                    }
+                    case None { NONE }
+                }                
+            }
+            default {
+                NONE
+            }
+        }
+    }
+    
+    /*
+     *  Takes symbol for the right hand side and maps it to the whole dereference
+     *  as well, all the way down the dereference chain.
+     *  returns the top-most symbol
+     */
+    method shared Symbol fixSymbolsForDereference(immutable Dereference dref) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> fix symbols for dereference " + makeStringFromQualifiedIdentifier(getQualifiedIdentifierFromDereference(dref).value));
+        val leftSymOpt = match ( dref.left ) {
+            case ParsedDereference {  fixSymbolsForDereference(dref.left) }
+            default { new None;/* base - we are done */ }
+         };
+        
+        val rightSymOpt = match ( symbolForAST(dref.right) ) {
+            case Some {
+                DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     remap right symbol");
+                val rightSymbol = symbolForAST(dref.right).value;
+                addSymbolForAST(dref, rightSymbol);
+                makeSome(rightSymbol);
+            }
+            case None { 
+                DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     no right symbol"); 
+                new None;            
+            }
+         };
+         
+         match (rightSymOpt) {
+            case Some { rightSymOpt }
+            case None { leftSymOpt }
+         };
+    }
+    
+    method immutable Integer resolveQualifiedIdentifier(shared Context ctx,
+                                                        immutable QualifiedIdentifier qi,
+                                                        immutable Boolean reportErrors) {        
+        var stop = false;
+        var count = qi.identifiers.size();
+
+        if ( count == 1 ) {
+            val id = qi.identifiers.get(0).value;
+            val symbol = ctx.find(id.name);
+            match (symbol) {
+                case Some { 
+                     addSymbolForAST(id, symbol.value);
+                     addSymbolForAST(qi, symbol.value);
+                     count = 1
+                }
+                case None { 
+                    count = 0;
+                    this.ERROR(id.token, "N_QI_NOT_FOUND", id.name); 
+                }
+            };
+            stop = true;
+        };
+
+        while { count > 0 && !stop }{
+             var fqn = qi.identifiers.get(0).value.name;
+             var i = 1;
+             var isBase = true;
+             while {i < count}{
+                 fqn = fqn + "." + qi.identifiers.get(i).value.name; 
+                 i = i + 1;
+                 isBase = false;
+             };
+              
+             val symbolOpt = match (isBase) {
+                case True { ctx.find(fqn); } 
+                case False { this.resolver.lookup(fqn); }
+             };
+             match ( symbolOpt ) {
+                 case Some {
+                     stop = true;
+                     var resolvedFqn = qi.identifiers.get(0).value.name;
+                     var symbol = ctx.find(resolvedFqn);
+                     addSymbolForAST(qi.identifiers.get(0).value, symbol.value);
+                     var x = 1;
+                     while {x < count }{
+                         resolvedFqn = resolvedFqn + "." + qi.identifiers.get(x).value.name;
+                         symbol = this.resolver.lookup(resolvedFqn);
+                         addSymbolForAST(qi.identifiers.get(x).value, symbol.value);                 
+                         x = x + 1;
+                     };
+                     // check for class we should have found
+                     // or static members of java classes
+                     ifElse ( count < qi.identifiers.size()  ) {
+                         match (symbol.value) {
+                             case PackageSymbol { //lookup stopped at a package
+                                ERROR(makeTokenForFqn(qi.identifiers.get(0).value.token,
+                                                      qi.identifiers.get(count).value.token),
+                                      "N_QI_NOT_FOUND", resolvedFqn + "." + 
+                                      qi.identifiers.get(count).value.name
+                                ); 
+                             }
+                             case JavaClassSymbol { //might be static members that we should resolve
+                                DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found Java Class " + fqn + ", looking for static member");
+								val unresolved = qi.identifiers.get(count).value;
+								//val unresolvedFullName = resolvedFqn + "." + unresolved.name;
+								match (symbol.value.checkStaticField(unresolved.name)) {
+									case True {
+										val fieldSymbol = (new SymbolFactory).makeJavaStaticFieldSymbol(unresolved.name, symbol.value);
+										addSymbolForAST(unresolved, fieldSymbol);
+										DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found static field " + unresolved.name);
+									}
+									case False { /* no op */ }
+								
+								};
+								
+								match (symbol.value.checkStaticMethod(unresolved.name)) {
+									case True {
+										val methodSymbol = (new SymbolFactory).makeJavaStaticMethodSymbol(unresolved.name, symbol.value);
+										addSymbolForAST(unresolved, methodSymbol);
+										DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found static method " + unresolved.name);
+									}
+									case False { /* no op */ }
+								
+								};
+								match (unresolved.name == "new") {
+								    case True {
+								        val constructorSymbol = (new SymbolFactory).makeJavaConstructorSymbol(plaid.fastruntime.NamingConventions.GENERATED_CONSTRUCTOR, symbol.value);
+										addSymbolForAST(unresolved, constructorSymbol);
+										DEBUG(DEBUG_PRIO_LOW,"<NameResolutionPass> found java constructor");
+								    }
+								    case False { /* no op */ }
+								}
+								
+							
+                             }
+                             default {}
+                         }
+                     }{
+                         addSymbolForAST(qi, symbol.value);
+                     };
+                 } 
+                 case None {}
+             };
+
+             if (!stop) {
+                count = count - 1;
+             }
+        };
+
+        count;
+    }
+
+
+	override method void visitParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAbstractFieldDecl");
+        
+        // add static parameter context
+        val staticCtx = new LocalContext { 
+            val parent = this.stack.peek().value;
+        };        
+        this.stack.push(staticCtx);
+        val thisCtx = new LocalContext { 
+            val parent = this.stack.peek().value;
+        };        
+        this.stack.push(thisCtx);
+
+        val curStateOpt = this.currentState.peek();
+        match (curStateOpt ) {
+            case Some {
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, curStateOpt.value);
+                addSymbolForAST(node, fieldSymbol);
+                match (curStateOpt.value) {
+                    case StateSymbol { 
+                        // populate static paramaters
+                        this.currentState.peek().value.getStaticParameters().do(fn (p) => {
+                            staticCtx.put(p.name, p);
+                        });
+                        curStateOpt.value.addAbstractMember(fieldSymbol); 
+
+                        // add this symbol for depenent tupes
+                        //val shared VariableSymbol thisSymbol = this.sf.makeVariableSymbol("this", this.currentState.peek().value.declaration);
+                        thisCtx.put("this", fieldSymbol.getThisSymbol());
+                    }
+                    case StateRefSymbol { /* no op - adding abstract member to state ref has no impact in current system*/ }
+                }
+            }
+            case None {
+                // top level
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.packageSymbol);
+                addSymbolForAST(node, fieldSymbol);
+            }
+        };
+
+		node.fieldType.accept(this);
+        
+		
+		node.specifier.accept(this);
+		//node.name.accept(this);
+		node.modifiers.map(fn (item) => { item.accept(this); item });
+		
+		this.stack.pop(); // remove this context  
+		this.stack.pop(); // remove static parameters context
+	}
+    
+	override method void visitParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAbstractMethodDecl");
+        val curStateOpt = this.currentState.peek();
+        match (curStateOpt ) {
+            case Some {
+            
+                val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, curStateOpt.value);
+                addSymbolForAST(node, methodSymbol);
+                match (curStateOpt.value) {
+                    case StateSymbol {  curStateOpt.value.addAbstractMember(methodSymbol); }
+                    case StateRefSymbol { /* no op - adding abstract member to state ref has no impact in current system*/ }
+                }
+            }
+            case None {
+                // top level
+                val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.packageSymbol);
+                addSymbolForAST(node, methodSymbol);
+            }
+        };
+
+		node.StaticArgsSpec.do(fn (item) => { 
+		    val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.id.name, item);
+            addSymbolForAST(item, mySymbol);
+            addSymbolForAST(item.id, mySymbol);
+            // TODO: add symbols to context      
+		});
+		node.returnType.accept(this);
+		node.arguments.do(fn (item) => { 
+		    //item.argSpec.accept(this) 
+		    val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.name.name, item);
+            addSymbolForAST(item, mySymbol);
+            addSymbolForAST(item.name, mySymbol);        
+            item.argSpec.accept(this);
+		});
+		node.environment.do(fn (item) => { 
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.name.name, item);
+            addSymbolForAST(item, mySymbol);
+            addSymbolForAST(item.name, mySymbol);        
+            item.argSpec.accept(this);
+        });
+		//node.name.accept(this);
+		node.modifiers.map(fn (item) => { item.accept(this); item });
+	}
+
+	override method void visitParsedAbstractStateDecl(immutable ParsedAbstractStateDecl node) {
+		LOG("visit ParsedAbstractStateDecl");
+
+        match (this.currentState.peek() ) {
+            case Some {
+                 // inner state
+                 val stateSymbol = this.sf.makeStateSybmbol(node.name.name, node, this.currentState.peek().value);
+                 this.currentState.push(stateSymbol);
+                 addSymbolForAST(node.name, stateSymbol);
+                 addSymbolForAST(node, stateSymbol);
+         
+                 val ctx = this.stack.peek().value;
+                 ctx.put(node.name.name, stateSymbol);
+                 this.currentState.peek().value.addMember(stateSymbol);
+            }
+            case None {
+                // top-level  state
+                //val unique Option stateSymbol = this.stack.peek().value.find(node.name.name);
+                val unique Option stateSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
+                match (stateSymbol) {
+                    case None { //if resolver doesn't find this declaration, there is an implementation issue
+                        ABORT("(implementation Error) Cannot find symbol for state '" + node.name.name + "'");                        
+                    }
+                    case Some {
+                        this.currentState.push(stateSymbol.value);
+                        addSymbolForAST(node.name, stateSymbol.value);
+                        addSymbolForAST(node, stateSymbol.value);
+                    }
+                };
+            }
+        };
+
+        val staticParamsCtx = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(staticParamsCtx);
+
+		node.StaticArgsSpec.do(fn (item) => {
+		    DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     add static paramater '" + item.id.name + "' to state symbol");
+            val shared StaticParameterSymbol mySymbol = this.sf.makeStaticParameterSymbol(item.id.name, item);
+            addSymbolForAST(item, mySymbol);   
+            addSymbolForAST(item.id, mySymbol);
+            // add to state symbol
+            this.currentState.peek().value.addStaticParameter(mySymbol);
+            // add to static parameter context
+            staticParamsCtx.put(item.id.name, mySymbol);		    
+		});
+		node.caseOf.accept(this);
+		node.metaCaseOfArgs.map(fn (item) => { item.accept(this); item });
+		this.stack.pop(); // remove static arg
+		
+		node.name.accept(this);
+		node.modifiers.map(fn (item) => { item.accept(this); item });
+
+        this.currentState.pop();
+	}
+
+	override method void visitParsedAssignment(immutable ParsedAssignment node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedAssignment");
+		//node.target.accept(this);
+		//node.field.accept(this);
+        match ( node.target ) {
+            case ParsedEmptyExpr {
+                node.field.accept(this);
+            }
+            default {
+                node.target.accept(this);
+            }
+        };
+		node.value.accept(this);
+	}
+
+	override method void visitParsedBlockExpr(immutable ParsedBlockExpr node) {
+        val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(ctxt);
+
+		node.statements.map(fn (item) => { item.accept(this); item });
+
+        this.stack.pop();
+	}
+
+	override method void visitParsedCompilationUnit(immutable ParsedCompilationUnit node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> visit CompilationUnit");
+
+        this.packageName = makeStringFromQualifiedIdentifier(node.packageName);
+        
+        var currentSymbol = this.sf.makeTopSymbol();
+        /*
+        node.packageName.identifiers.map( fn (id) => {
+            val currentSymbolOpt = this.stack.peek().value.findInSymbol(currentSymbol, id.name);
+            match (currentSymbolOpt) {
+                case Some {
+                    currentSymbol = currentSymbolOpt.value;                    
+                }
+                case None {
+                    currentSymbol = this.sf.makePackageSymbol(id.name, this.sf.makeTopSymbol());
+                    val fqn = makeStringFromQualifiedIdentifier(currentSymbol.getQualifiedIdentifier());
+                    this.resolver.define(fqn, currentSymbol);
+                }
+            };
+            addSymbolForAST(id, currentSymbol);
+        });
+        addSymbolForAST(node.packageName, currentSymbol);
+        this.packageSymbol = currentSymbol;
+        */
+        val resolved = resolveQualifiedIdentifier(this.stack.peek().value,
+                                                  node.packageName,
+                                                  true);
+
+        val stdCtx = new StdLibContext {
+           parent = this.stack.peek().value; 
+           resolver = this.resolver;
+        };
+        this.stack.push(stdCtx);
+        
+        val packageString = makeStringFromQualifiedIdentifier(node.packageName);
+        val shared PackageContext pkgCtx = new PackageContext {
+           parent = this.stack.peek().value; 
+           packageName = packageString;
+           resolver = this.resolver;
+        };
+        this.stack.push(pkgCtx);
+        
+        val shared ImportContext impCtx = new ImportContext{ 
+            parent = this.stack.peek().value; 
+            imports = node.imports;
+            resolver = this.resolver;
+        };
+        this.stack.push(impCtx);
+        
+
+		//node.packageName.accept(this);
+		//node.imports.map(fn (item) => { item.accept(this); item });
+		node.decls.map(fn (item) => { item.accept(this); item });
+        
+        impCtx.reportUnusedImports(this.sourceFile);
+
+        this.stack.pop();
+	}
+
+	override method void visitParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedConcreteFieldDecl");
+        
+        
+        // add static parameter context
+        val staticCtx = new LocalContext { 
+            val parent = this.stack.peek().value;
+        };        
+        this.stack.push(staticCtx);
+        val thisCtx = new LocalContext { 
+            val parent = this.stack.peek().value;
+        };        
+        this.stack.push(thisCtx);
+        
+        match (this.currentState.peek() ) {
+            case Some {
+                // member
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
+                addSymbolForAST(node, fieldSymbol);
+                this.currentState.peek().value.addMember(fieldSymbol);
+                // populate static paramaters
+                this.currentState.peek().value.getStaticParameters().do(fn (p) => {
+                    staticCtx.put(p.name, p);
+                });
+                
+                // add this symbol for depenent tupes
+               // val shared VariableSymbol thisSymbol = this.sf.makeVariableSymbol("this", this.currentState.peek().value.declaration);
+                thisCtx.put("this", fieldSymbol.getThisSymbol());
+            }
+            case None {
+                // top level
+                val fieldSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
+                match (fieldSymbol) {
+                    case Some {
+                        addSymbolForAST(node, fieldSymbol.value);
+                    }
+                    case None { //if resolver doesn't find this declaration, there is an implementation issue
+                        ABORT("Top-level method '" + this.packageName + "." + node.name.name + "' not found.");
+                    }
+                }
+            }
+        };
+        
+		node.fieldType.accept(this);
+        
+		//node.name.accept(this);
+        node.expression.accept(this);
+		node.specifier.accept(this);
+		//node.modifiers.map(fn (item) => { item.accept(this); item });
+		
+        this.stack.pop(); // remove this context        
+		// remove static parameter context
+		this.stack.pop();
+	}
+
+    override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> visit ConcreteMethodDecl");
+		var immutable Boolean needsThisSymbol = true;
+
+        match (this.currentState.peek() ) {
+            case Some {
+                // member
+                val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.currentState.peek().value);
+                addSymbolForAST(node, methodSymbol);
+                addSymbolForAST(node.name, methodSymbol);
+                this.currentState.peek().value.addMember(methodSymbol);
+            }
+            case None {
+                // top level
+                //val methodSymbol = this.sf.makeMethodSymbol(node.name.name, node, this.packageSymbol);
+                val methodSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
+                needsThisSymbol = false; //top level methods do not have this bound
+                match (methodSymbol) {
+                    case Some {
+                        addSymbolForAST(node, methodSymbol.value);
+                    }
+                    case None { //if resolver doesn't find this declaration, there is an implementation issue
+                        ABORT("Top-level method '" + this.packageName + "." + node.name.name + "' not found.");
+                    }
+                }
+            }
+        };
+
+
+        val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value; };
+        this.stack.push(ctxt);
+
+        // add static args first
+        node.StaticArgsSpec.do(fn (item) => { 
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.id.name, item);
+            addSymbolForAST(item, mySymbol);   
+            addSymbolForAST(item.id, mySymbol);
+            val ctx = this.stack.peek().value;
+            ctx.put(item.id.name, mySymbol);
+            DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     add static paramaters '" + item.id.name + "'");
+        });
+
+
+        // add arguments to context
+        node.arguments.do( fn (arg) => {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>     add parameter entry '" + arg.name.name +"'");
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(arg.name.name, arg);
+            addSymbolForAST(arg, mySymbol);
+            addSymbolForAST(arg.name, mySymbol);
+            val ctx = this.stack.peek().value;
+            ctx.put(arg.name.name, mySymbol);
+            arg.argSpec.accept(this);
+        });
+
+        node.modifiers.do(fn (item) => { item.accept(this)  });
+        node.returnType.accept(this);
+        node.environment.do(fn (item) => { 
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>     add environment entry '" + item.name.name +"'");
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.name.name, item);
+            addSymbolForAST(item, mySymbol);   
+            addSymbolForAST(item.name, mySymbol);
+            item.argSpec.accept(this);
+
+            val ctx = this.stack.peek().value;
+            ctx.put(item.name.name, mySymbol);  
+            match (item.name.name == "this") {
+                case True {  needsThisSymbol = false; } //already mapped
+                case False {/* no op */ }
+            };
+        });
+        match (needsThisSymbol) {
+        	case True { //this symbol not declared in method, default one to add to the context
+        		val shared VariableSymbol thisSymbol = this.sf.makeVariableSymbol("this", node); //TODO: is the method decl the right node?
+        		val ctx = this.stack.peek().value;
+        		ctx.put("this", thisSymbol);
+        	}
+        	case False { /*no op*/ }
+        }; 
+        
+        //node.name.accept(this);
+
+        node.body.accept(this);
+        //if (typecheckingEnabled(node) ) {
+        //    node.body.statements.do( fn (stmt) => { stmt.accept(this) });
+        //};
+        this.stack.pop();
+    }
+
+  	override method void visitParsedConcreteStateDecl(immutable ParsedConcreteStateDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedConcreteStateDecl");
+        match (this.currentState.peek() ) {
+            case Some {
+                 // inner state
+                 val stateSymbol = this.sf.makeStateSybmbol(node.name.name, node, this.currentState.peek().value);
+                 this.currentState.push(stateSymbol);
+                 addSymbolForAST(node.name, stateSymbol);
+                 addSymbolForAST(node, stateSymbol);
+         
+                 val ctx = this.stack.peek().value;
+                 ctx.put(node.name.name, stateSymbol);
+                 this.currentState.peek().value.addMember(stateSymbol);
+            }
+            case None {
+                // top-level  state
+                //val unique Option stateSymbol = this.stack.peek().value.find(node.name.name);
+                val unique Option stateSymbol = this.resolver.lookup(this.packageName + "." + node.name.name);
+                match (stateSymbol) {
+                    case None {//if resolver doesn't find this declaration, there is an implementation issue
+                        ABORT("State '" + node.name.name + "' not found.");
+                    }
+                    case Some {
+                        this.currentState.push(stateSymbol.value);
+                        addSymbolForAST(node.name, stateSymbol.value);
+                        addSymbolForAST(node, stateSymbol.value);
+                    }
+                };
+            }
+        };
+
+        // create this and add new context
+        val stateCtx = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(stateCtx);
+        //val shared ThisSymbol thisSymbol = this.currentState.peek().value.getThisSymbol();
+        //stateCtx.put("this", thisSymbol);
+
+        val staticParamsCtx = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(staticParamsCtx);
+		node.StaticArgsSpec.map(fn (item) => {
+		    DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     add static paramater '" + item.id.name + "' to state symbol");
+            val shared StaticParameterSymbol mySymbol = this.sf.makeStaticParameterSymbol(item.id.name, item);
+            addSymbolForAST(item, mySymbol);   
+            addSymbolForAST(item.id, mySymbol);
+            // add to state symbol
+            this.currentState.peek().value.addStaticParameter(mySymbol);
+            // add to static parameter context
+            staticParamsCtx.put(item.id.name, mySymbol);
+		});
+		
+		node.caseOf.accept(this);
+		node.metaCaseOfArgs.map(fn (item) => { item.accept(this); item });
+		this.stack.pop(); // remove static arg
+		
+		node.name.accept(this);
+		node.modifiers.map(fn (item) => { item.accept(this); item });
+		node.stateBinding.accept(this);
+
+        this.currentState.pop();
+        this.stack.pop();
+	}
+
+    override method void visitParsedConcreteStateValDecl(immutable ParsedConcreteStateValDecl node) {
+        val shared StateValSymbol mySymbol = this.sf.makeStateValSymbol(node.name.name, node);
+        addSymbolForAST(node.name, mySymbol);
+        val ctx = this.stack.peek().value;
+        ctx.put(node.name.name, mySymbol);
+
+        // create this and add new context
+        val stateCtx = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(stateCtx);
+        val shared ThisSymbol thisSymbol = this.sf.makeThisSymbol(mySymbol);
+        stateCtx.put("this", thisSymbol);
+
+        node.StaticArgsSpec.map(fn (item) => { 
+            item.accept(this); item 
+        });
+        //node.name.accept(this);
+        node.modifiers.map(fn (item) => { item.accept(this); item });
+        node.stateBinding.accept(this);
+
+        this.stack.pop();        
+    }  
+
+	override method void visitParsedDoubleLiteral(immutable ParsedDoubleLiteral node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedDoubleLiteral");
+        val immutable Option<immutable Symbol> doubleSymOption = 
+          this.resolver.lookup("plaid.lang.Float64");
+          
+        match (doubleSymOption) {
+          case Some {
+            addSymbolForAST(node, doubleSymOption.value);
+          }
+          case None {
+            ABORT("(implementation error) cannot find Double Literal state");
+          }
+        }
+  }
+
+	override method void visitParsedIdentifier(immutable ParsedIdentifier node) {
+        val symbol = this.stack.peek().value.find(node.name);
+        match (symbol) {
+            case Some {
+                DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> Found symbol for '" + node.name + "'");
+                match(symbol.value) {
+                    case JavaClassSymbol {
+                        ERROR(node.token, "N_JAVA_CLASS", node.name);
+                    }
+                    default { addSymbolForAST(node, symbol.value); } 
+                }
+           }
+           case None {
+               ERROR(node.token, "N_ID_NOT_FOUND",node.name);
+           }
+       }
+	}
+	
+	override method void visitParsedIntLiteral(immutable ParsedIntLiteral node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedIntLiteral");
+        val immutable Option<immutable Symbol> intSymOption = 
+          this.resolver.lookup("plaid.lang.Integer");
+          
+        match (intSymOption) {
+          case Some {
+            addSymbolForAST(node, intSymOption.value);
+          }
+          case None {
+            ABORT("(implementation error) cannot find Integer Literal state");
+          }
+        }
+    }
+    
+	override method void visitParsedDereference(immutable ParsedDereference node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedDereference");
+        val qiOpt = this.getQualifiedIdentifierFromDereference(node);
+        match (qiOpt) {
+            case Some {
+                DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass> Found potential QI: " + makeStringFromQualifiedIdentifier(qiOpt.value));
+                // check if left most has already been resolved
+                DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   check if left most identifier '"+qiOpt.value.identifiers.get(0).value.name+"' has been resolved");
+                val symbol = this.stack.peek().value.find(qiOpt.value.identifiers.get(0).value.name);
+                val immutable Boolean mustResolve = match (symbol) { //need to resolve if package or JavaClassSymbol or NONE
+                    case None { 
+                    	DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   left most identifier not yet resolved, try to resolve whole QualifiedIdentifier");
+                    	true 
+                    }
+                    case Some {
+                    	match (symbol.value) {
+                    		case PackageSymbol { 
+                    			DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   left most identifier resolves to a package, try to resolve whole QualifiedIdentifier");
+                    			true 
+                    		}
+                    		case JavaClassSymbol { 
+                    			DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass>   left most identifier resolves to a Java class, try to resolve whole QualifiedIdentifier");
+                    			true 
+                    		}
+                    		default { false }
+                    	}
+                    }
+                };
+                match (mustResolve) {
+                	case True {
+                        val immutable Integer resolvedCount = this.resolveQualifiedIdentifier(this.stack.peek().value, qiOpt.value, true);
+                        DEBUG(DEBUG_PRIO_HIGH, "<NameResolutionPass>   resolved  " + resolvedCount + " parts");
+                        ifElse ( resolvedCount == 0 ) {
+                            //val mostLeftId = qiOpt.value.identifiers.get(0);
+                            //ERROR(mostLeftId.token, "Cannot resolve '" + mostLeftId.name + "'");
+                        	node.left.accept(this);
+                        }{
+                            
+                            val qiSymOpt = fixSymbolsForDereference(node);
+                            //check that we resolved to a symbol that makes sense
+                            if ( resolvedCount == qiOpt.value.identifiers.size()) { 
+                                match (qiSymOpt) {
+                                    case Some {
+                                        match (qiSymOpt.value) {
+                                            case PackageSymbol {
+                                                ERROR(node.token, "N_PACKAGE", makeStringFromQualifiedIdentifier(qiOpt.value));
+                                            }
+                                            case JavaClassSymbol {
+                                                ERROR(node.token, "N_JAVA_CLASS", makeStringFromQualifiedIdentifier(qiOpt.value));
+                                            }
+                                            default { /* no op */ }
+                                        }
+                                    }
+                                    case None {
+                                        ABORT("(implementation error) no symbol found for successful QI resolution");
+                                    }
+                                }
+                            };
+                            
+                        };
+                	}
+                	case False {
+                		node.left.accept(this); //this is needed - understand why
+                	}
+                }
+            }
+            case None { //Not a QI, recurse to find non-ID further back in the deref
+                node.left.accept(this);
+            }
+        };
+	}
+
+	override method void visitParsedDestructiveDereference(immutable ParsedDereference node) {
+		node.left.accept(this);
+		//node.right.accept(this);
+	}
+
+	override method void visitParsedGroupDecl(immutable ParsedGroupDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit visitParsedGroupDecl");
+        val curStateOpt = this.currentState.peek();
+        match (curStateOpt ) {
+            case Some {
+                val groupSymbol = this.sf.makeDatagroupSymbol(node.name.name, node, curStateOpt.value);
+                addSymbolForAST(node, groupSymbol);
+                match (curStateOpt.value) {
+                    case StateSymbol { curStateOpt.value.addMember(groupSymbol); }
+                    case StateRefSymbol { curStateOpt.value.addMember(groupSymbol);  }
+                }
+            }
+            case None {
+                ABORT("<NameResolutionPass> Cannot have top-level group declarations (yet)");
+            }
+        };
+    }
+    
+	override method void visitParsedInfixOperatorExpr(immutable ParsedInfixOperatorExpr node) {
+		node.left.accept(this);
+		node.right.accept(this);
+		//node.operator.accept(this);
+	}
+
+	override method void visitParsedLambda(immutable ParsedLambda node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedLambda");
+        val shared Context ctxt = new LocalContext{ parent = this.stack.peek().value;};
+        this.stack.push(ctxt);
+
+        // add arguments to context
+        node.arguments.map( fn (arg) => {
+            val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(arg.name.name, arg);
+            addSymbolForAST(arg.name, mySymbol);
+            val ctx = this.stack.peek().value;
+            ctx.put(arg.name.name, mySymbol);
+            arg
+        });
+
+        //node.arguments.map(fn (item) => { item.accept(this); item });
+        node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
+        node.environment.map(fn (item) => { item.accept(this); item });
+
+        // if we have a block expression as body we have to bypass it to 
+        // avoid that we create an extra context
+        match (node.body) {
+            case ParsedBlockExpr {
+                node.body.statements.map( fn (stmt) => { stmt.accept(this); stmt } );
+            }
+            default {
+                node.body.accept(this);
+            }
+        };
+        
+        this.stack.pop();
+	}
+
+	override method void visitParsedLambdaType(immutable ParsedLambdaType node) {
+		node.metaTypes.map(fn (item) => { item.accept(this); item });
+		node.argTypes.map(fn (item) => { item.accept(this); item });
+		node.env.map(fn (item) => { item.accept(this); item });
+		node.returnType.accept(this);
+
+        val lambdaTypeSymbol = sf.makeLambdaTypeSymbol(node);
+        addSymbolForAST(node, lambdaTypeSymbol);
+	}
+
+	override method void visitParsedQualifiedIdentifier(immutable ParsedQualifiedIdentifier node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedQualifiedIdentifier");
+        val resolveCount = this.resolveQualifiedIdentifier(this.stack.peek().value, node, false);
+        if ( resolveCount == node.identifiers.size() ) {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NameResolutionPass> Resolved '" + makeStringFromQualifiedIdentifier(node) +"'");
+            if ( !haveSymbolForAST(node) ) {
+                ABORT("QI not in cache !!!!!");
+            };
+        }; //otherwise resolveQualifiedIdentifier already through an error
+	}
+
+	override method void visitParsedStateRef(immutable ParsedStateRef node) {
+        node.stateExpr.accept(this);
+        
+        val refStateOpt = symbolForAST(node.stateExpr); 
+        match (refStateOpt){
+            case Some {
+                match (refStateOpt.value) {
+                  case StateSymbol {
+                    val shared StateRefSymbol stateRefSymbol = this.sf.makeStateRefSymbol(node, refStateOpt.value);
+                    this.currentState.push(stateRefSymbol);
+    
+                    if ( refStateOpt.value.getStaticParameterCount() != node.staticArgs.size() ) {
+                        ABORT("<NameResolverPass> State '" + refStateOpt.value.getFQN() + "' requires " + refStateOpt.value.getStaticParameterCount()  + " static arguments and not " + node.staticArgs.size() + " (" + node.token.toString() + ")");
+                    };
+                    node.staticArgs.map(fn (item) => { item.accept(this); item });
+                    // todo: set static parameters ?!?
+                    node.specializations.map(fn (item) => { item.accept(this); item });
+            
+                    this.currentState.pop();
+    
+                    addSymbolForAST(node, stateRefSymbol);
+                  }
+                  default {
+                    ABORT("state ref does not reference a state");
+                  }
+                }
+            }
+            case None { /* no op - previous error*/  }
+        }
+	}
+	
+	override method void visitParsedStringLiteral(immutable ParsedStringLiteral node) {
+	  DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedStringLiteral");
+	  val immutable Option<immutable Symbol> stringSymOption = 
+	    this.resolver.lookup("plaid.lang.String");
+	    
+	  match (stringSymOption) {
+	    case Some {
+	      addSymbolForAST(node, stringSymOption.value);
+	    }
+	    case None {
+	      ABORT("(implementation error) cannot find String Literal state");
+	    }
+	  }
+	}
+	
+	override method void visitParsedNominalStructure(immutable ParsedNominalStructure node) {
+		LOG("visit ParsedNominalStructure");
+		node.stateQi.accept(this);
+		node.staticArgs.map(fn (item) => { item.accept(this); item });
+		
+		match ( symbolForAST(node.stateQi) ) {
+		    case Some {
+		        val sym = symbolForAST(node.stateQi).value;
+		        match ( sym ) {
+		            case StateSymbol {
+                        if ( sym.getStaticParameterCount() != node.staticArgs.size() ) {
+                            ABORT("<NameResolverPass> State '" + sym.getFQN() + "' requires " + sym.getStaticParameterCount()  + " static arguments and not " + node.staticArgs.size());
+                        };
+                    }
+                    default { /* nop */ }
+                };
+		    }
+		    default { ABORT("<NameResolutionPass> Cannot find symbol for state qualifier.") }
+		};
+	}
+
+	override method void visitParsedUnaryOperatorExpr(immutable ParsedUnaryOperatorExpr node) {
+		node.expression.accept(this);
+		//node.operator.accept(this);
+	}
+
+    override method void visitParsedVarDecl(immutable ParsedVarDecl node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedVarDecl");
+
+        node.specifier.accept(this);
+        node.varType.accept(this);
+        //node.id.accept(this);
+        node.expr.accept(this);
+        
+        val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(node.id.name, node);
+        val ctx = this.stack.peek().value;
+        val result = ctx.put(node.id.name, mySymbol);
+        ifElse ( result ) {
+            addSymbolForAST(node.id, mySymbol);
+            addSymbolForAST(node, mySymbol);
+        }{
+            val otherSymbol = ctx.find(node.id.name);
+            match (otherSymbol) {
+                case Some {
+                   val otherDecl = otherSymbol.value.declaration;
+                   ERROR(node.id.token, "N_DUPLICATE_VAR", node.id.name + " on line " + otherDecl.token.beginLine);
+                }
+                case None {
+                   ERROR(node.id.token, "N_DUPLICATE_VAR", node.id.name);
+                }
+            };
+        }
+    }
+    
+    override method void visitParsedUnitLiteral(immutable ParsedUnitLiteral node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedUnitLiteral");
+        addSymbolForAST(node, this.sf.makeTopSymbol());
+    }
+}

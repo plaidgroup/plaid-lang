@@ -1,0 +1,114 @@
+package plaid.typechecker.tests;
+
+import plaid.testing.*;
+import java.lang.System;
+import plaid.ast.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.context.*;
+import plaid.ast.types.*;
+import plaid.typechecker.typeCheckDecl;
+import plaid.typechecker.typeCheckExpression;
+import plaid.ast.types.permissions.*;
+
+val fieldTests = fn (unique Tester tester) => {
+
+	System.out.println("---------------------------");
+	System.out.println("|       field TESTS       |");
+	System.out.println("---------------------------");
+
+	
+	val st = new StateTable;
+	var toCheck = unit;
+	var goalDecl = unit;
+	var result = unit;
+	
+	System.out.println("Testing fields");
+	testName("unit field");
+	toCheck = makeFieldDecl(makeToken(),makeID(makeToken(),"testField"), new UnitLiteral,
+													false, true, 
+													makeFieldType(makeID(makeToken(),"testField"), createTakeTypeFromPT(getVoidType()), true));
+	result = typeCheckDecl(toCheck, st);
+	goalDecl= makeFieldType(makeID(makeToken(), "testField"), createTakeTypeFromPT(getVoidType()), true);
+	
+	match (result.first()) {
+		case Some {
+			match (result.first().value == goalDecl ) {
+				case True { tester.testPassed(true); }
+				case False { 
+					
+					tester.testPassedMsg(false, "unexpected declType returned");
+					result.first().value.printContext();
+				}
+			}
+		}
+		case None {
+			tester.testPassedMsg(false,result.second().value.message);
+		}
+	};
+	
+	testName("unit Field with bad type");
+	toCheck = makeFieldDecl(makeToken(),makeID(makeToken(),"testField"), new UnitLiteral,
+													false, true, 
+													makeFieldType(makeID(makeToken(),"testField"), 
+																 createTakeType(IMM, getUnitType()), 
+																 true));
+	result = typeCheckDecl(toCheck, st);
+	match (result.second()) {
+		case Some {
+			tester.testPassed(true);
+		}
+		case None {
+			tester.testPassedMsg(false, "Unit literals should have void type");
+		}
+	};
+	
+	//TODO: move this elsewhere
+	var context = new Context;
+	
+	testName("borrow binding succeeds");
+	val y = makeID(makeToken,"y");
+	context.put(y.copy(), createBorrowType(UNIQUE, getUnitType(), UNIQUE, true));
+	toCheck = makeBorrow(
+							makeToken(), 
+							makeID(makeToken,"x"), 
+							y, 
+							makeUnitLiteral(makeToken),
+							false);
+	toCheck.addPermType(createBorrowType(UNIQUE, getUnitType(), UNIQUE, true));
+	result = typeCheckExpression(context, st, toCheck, getVoidType());
+	match (result.second()) {
+		case Some {
+			tester.testPassedMsg(false, "Unique unit can be borrowed from unique unit.");
+		}
+		case None {
+			val expectedContext = new Context;
+			expectedContext.put(y.copy(), createBorrowType(UNIQUE, getUnitType(), UNIQUE, true));
+			match(expectedContext == result.first().value) {
+				case True { tester.testPassed(true); }
+				case False { tester.testPassedMsg(false, "Unexpected outgoing context."); }
+			};
+		}
+	};
+	
+	context = new Context;
+	testName("borrow binding, split fails");
+	context.put(y.copy(), createBorrowType(IMM, getUnitType(), UNIQUE, true));
+	toCheck = makeBorrow(
+							makeToken(), 
+							makeID(makeToken,"x"), 
+							y.copy(), 
+							makeUnitLiteral(makeToken),
+							false);
+	toCheck.addPermType(createBorrowType(UNIQUE, getUnitType(), UNIQUE, true));
+	result = typeCheckExpression(context, st, toCheck, getVoidType());
+	match (result.second()) {
+		case Some {
+			tester.testPassed(true);
+		}
+		case None {
+			tester.testPassedMsg(false, "Should not be able to split a unique permission from an immutable permission");
+		}
+	};
+	
+
+};

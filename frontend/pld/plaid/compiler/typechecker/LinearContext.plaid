@@ -1,0 +1,344 @@
+/**
+ * Copyright (c) 2011 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.typechecker;
+
+import java.util.Map;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+
+import plaid.compiler.*;
+
+state LinearContext {
+  val unique Map<immutable VariableSymbol,immutable Type> contextMap = HashMap.new();
+  var immutable Boolean inAtomic = 0;
+  var immutable Boolean methodBlock = false;
+  val unique Map<immutable AbstractExpression, immutable GroupPermission>  gpMap = HashMap.new();
+  
+  
+  /**
+   * two linear contexts are equal if they contain the same symbols and map
+   * them to the same types.
+   */
+  method immutable Boolean ==(unique LinearContext other)[unique LinearContext this] {
+    // check type context
+    var immutable Boolean eq = this.contextMap.size() == other.contextMap.size();
+    val unique Iterator iter = this.contextMap.keySet().iterator();
+    while { eq && iter.hasNext() } {
+      val immutable Symbol sym = iter.next();
+      ifElse (other.containsSymbol(sym))
+        { eq = this.get(sym) == other.get(sym) } 
+        { eq = false }
+    };
+    // check group permission context
+    eq = eq && this.gpMap.size() == other.gpMap.size();
+    val unique Iterator gpMapIt = this.gpMap.keySet().iterator();
+    while { eq && gpMapIt.hasNext() }{
+        val immutable String name = gpMapIt.next();
+        ifElse ( other.gpMap.contains(name) ) {
+            eq = eq && ( this.gpMap.get(name) == other.gpMap.get(name) )
+        }{
+            eq = false
+        };
+    };
+    eq
+  }
+  
+  /** 
+   * in atomic counter manipulation
+   */
+   method immutable Boolean isInAtomic() { this.inAtomic > 0 }
+   method void incInAtomic() { this.inAtomic = this.inAtomic + 1 }   
+   method void decInAtomic() { this.inAtomic = this.inAtomic - 1 }
+  
+  /**
+   * Add group permissions (assume they do not exists already)
+   */
+   method void addDatagroupPermissions(unique Map map) {
+       DEBUG(DEBUG_PRIO_LOW, "<LinearConetxt> addDatagroupPermissions");
+       val it = map.keySet().iterator();
+       while { it.hasNext() }{
+           val cur = it.next();
+           match ( containsDatagroupPermission(cur) ) {
+               case True { ABORT("<LinearContext> Cannot add " + cur.toString() + " because there exists already a mapping") }
+               case False { this.gpMap.put(cur, map.get(cur)) }
+           }
+       };
+   }
+  
+   /**
+    * remove group permissions 
+    */
+   method void removeDatagroupPermissions(unique Map map) {
+        DEBUG(DEBUG_PRIO_LOW, "<LinearConetxt> removeDatagroupPermissions");
+        val it = map.keySet().iterator();
+        while { it.hasNext() } {
+            val cur = it.next();
+            DEBUG(DEBUG_PRIO_LOW, "<LinearContext>     remove " + cur.toString() + " from linear context ");
+            this.gpMap.remove(cur);
+        };
+   }
+  
+  method immutable ?DatagroupPermission getDatagroupPermission(immutable AbstractExpression expr) {
+      DEBUG(DEBUG_PRIO_LOW, "<LinearConetxt> get group permission for " + expr.toString());
+      var result = unit;
+      val it = this.gpMap.keySet().iterator();
+      
+      while { it.hasNext() }{
+          val curKey = it.next();
+          if  ( curKey == expr ) {
+               result = this.gpMap.get(curKey);
+               DEBUG(DEBUG_PRIO_MEDIUM , "<LinearContext> found " + result.toString() + " permission for " + expr.toString());
+          }
+      };
+      
+      result
+  }
+  
+  method immutable Boolean containsDatagroupPermission(immutable AbstractExpression expr) {
+      var result = false;
+      val it = this.gpMap.keySet().iterator();
+      while { it.hasNext() }{
+          val cur = it.next();
+          if ( cur == expr )  {
+            result = true;
+          };
+      };
+      result
+  }
+  
+   method void updateDatagroupPermissions(unique Map map) {
+       DEBUG(DEBUG_PRIO_LOW, "<LinearConetxt> update group permissions");
+       val it = map.keySet().iterator();
+       while { it.hasNext() }{
+           val cur = it.next();
+           match ( containsDatagroupPermission(cur) ) {
+               case True { updateDatagroupPermission(cur, map.get(cur) ) }
+               default { ABORT("<LinearContext> Cannot update " + cur.toString() + " because there is no existing mapping") }
+           }           
+       }; 
+   }
+   
+   method void updateDatagroupPermission(immutable AbstractExpression expr, immutable GroupPermission gp) {
+      DEBUG(DEBUG_PRIO_LOW, "<LinearConetxt> update group permission for " + expr.toString() + " to " + gp.toString());
+
+      // find key
+      var found = false;
+      val it = this.gpMap.keySet().iterator();
+      while { found == false && it.hasNext() }{
+          val curKey = it.next();
+          if  ( curKey == expr ) {
+               found = true;
+               this.gpMap.put(curKey, gp);
+          }
+      };   
+      
+      if ( found == false ) { ABORT("Cannot update non-existing mapping.") };
+  }
+  
+  /**
+   * returns the type of the 'this' variables
+   */
+   method shared ?Symbol getThis() {
+       var sym = unit;
+       
+       val it = this.contextMap.keySet().iterator();
+       while { it.hasNext() }{
+           val curSym = it.next();
+           match (curSym) {
+               case VariableSymbol {
+                   if ( curSym.name == "this" ) {
+                       sym = curSym;
+                   }
+               }
+               default { /* nop */ }
+           }
+       };
+       
+       sym      
+   } 
+  
+  /**
+   *  get assumes that we know that sym is mapped to a type in this context
+   */
+  method immutable Type get(immutable VariableSymbol sym)[immutable LinearContext this]{
+    this.contextMap.get(sym);
+  }
+  /**
+   *  remove assumes that we know that sym is mapped to a type in this context
+   */
+  method immutable Type remove(immutable VariableSymbol sym)[unique LinearContext this]{
+    this.contextMap.remove(sym);
+  }
+
+  /**
+   *  if sym is mapped to a type in this context, Some is returned wrapping
+   *  the type.  Otherwise, None is returned.
+   */
+  method unique Option<immutable Type> getOption(immutable VariableSymbol sym)
+                                                [immutable LinearContext this] {
+    match ( this.contextMap.containsKey(sym)) {
+      case True { makeSome(this.contextMap.get(sym)) }
+      case False { new None }
+    }
+  }
+  
+  /**
+   *  returns true if sym is mapped in this context, false otherwise.
+   */
+  method immutable Boolean containsSymbol(immutable VariableSymbol sym)
+                                      [immutable LinearContext this] {
+    this.contextMap.containsKey(sym);
+  }
+  
+  /**
+   *  if sym is not mapped in this context, then adds the mapping sym->type
+   *  otherwise, an error is thrown
+   */
+  method void put(immutable VariableSymbol sym, immutable Type type)
+                 [unique LinearContext this] 
+  {
+    DEBUG(DEBUG_PRIO_LOW, "<LinearContext> set " + sym.name + " : " + type.toString());
+    match (this.contextMap.containsKey(sym)) {
+      case True { ERROR("error while adding " + sym.name + " : " + type.toString() +
+                        " to linear context: " + sym.name + " already mapped to " +
+                        this.contextMap.get(sym).toString() + "."); }
+      case False { this.contextMap.put(sym, type); }
+    };
+    unit
+  }
+  
+  /**
+   *  if sym is mapped in this context, then its mapping is updated to type
+   *  otherwise, an error is thrown
+   */
+  method void update(immutable VariableSymbol sym, immutable Type type)
+                    [unique LinearContext this]
+  {
+    DEBUG(DEBUG_PRIO_LOW, "<LinearContext> update '" + sym.name +"' -> " + type.toString());
+    match (this.contextMap.containsKey(sym)) {
+      case True { this.contextMap.put(sym, type); }
+      case False { ERROR("error while adding " + sym.name + " : " + type.toString() +
+                        " to linear context: " + sym.name + " not in the context."); }
+    };
+    unit
+  }
+  
+  /**
+   *  All types with permissions that do not guarantee state have all type information
+   *  removed
+   */
+  method void downgrade()[unique LinearContext this] {
+    val unique Iterator iter = this.contextMap.keySet().iterator();
+    while { iter.hasNext() } {
+      val immutable Symbol toUpdate = iter.next();
+      this.update(toUpdate,this.contextMap.get(toUpdate).downgrade())
+    };
+    unit
+  }
+  
+  /**
+   *  If the two linear contexts cannot be merged, returns None
+   *  If the two linear contexts contain the same variable mapping
+   *    and each pair of types has a least upper bound, then returns
+   *    Some wrapping the linear context resulting from the least
+   *    upper bounds of each pair
+   */
+  method unique Option<unique LinearContext> merge(immutable LinearContext other) 
+                                                  [immutable LinearContext this]
+  { 
+    
+    var immutable Boolean ok = this.contextMap.size() == other.contextMap.size();
+    val unique LinearContext mergedContext = new LinearContext;
+    mergedContext.methodBlock = this.methodBlock && other.methodBlock;
+    val unique Iterator iter = this.contextMap.keySet().iterator();
+    while { ok && iter.hasNext() } {
+      val immutable Symbol mergingSym = iter.next();
+      match (other.contextMap.containsKey(mergingSym)) {
+        case True {
+          val immutable Type thisType = this.contextMap.get(mergingSym);
+          val immutable Type otherType = other.contextMap.get(mergingSym);
+          val unique Option mergedTypeOption = thisType.leastUpperBound(otherType);
+          match(mergedTypeOption) {
+            case Some { mergedContext.put(mergingSym, mergedTypeOption.value) }
+            case None { ok = false; }
+          }
+        }
+        case False { ok = false; }
+      }
+    };
+    
+    // check group permissions
+    mergedContext.gpMap.putAll(this.gpMap);
+    val gpMapIt = other.gpMap.keySet().iterator();
+    while { ok && gpMapIt.hasNext() }{
+        val name = gpMapIt.next();
+        ifElse ( mergedContext.gpMap.containsKey(name) ) {
+            ok = ok && mergedContext.gpMap.get(name) == other.gpMap.get(name)
+        }{
+            mergedConext.gpMap.put(name, other.gpMap.get(name));
+        }
+    };
+    
+    match ( this.inAtomic == other.inAtomic ) {
+        case True { mergedContext.inAtomic = this.inAtomic  }
+        default { ABORT("Cannot merge linear contexts with different atomic count levels.") }
+    };
+    
+    match (ok) {
+      case True { makeSome(mergedContext) }
+      case False { new None }
+    }
+  }
+  
+  /**
+   *  makes a copy of this linear context
+   */
+  method unique LinearContext copy()[immutable LinearContext this] {
+    val unique LinearContext copyContext = new LinearContext;
+    copyContext.contextMap.putAll(this.contextMap); //all values in map are immutable, no need to copy
+    copyContext.gpMap.putAll(this.gpMap);
+    copyContext;
+  } 
+  
+  method immutable String toString()[immutable LinearContext this] {
+    match (this.contextMap.size() == 0) {
+      case True { "[ ]" }
+      case False {
+        val unique Iterator iter = this.contextMap.keySet().iterator();
+        var immutable String ret = "";
+        while {iter.hasNext()} {
+          val immutable Symbol sym = iter.next();
+          ret = ret + sym.name + " : " + this.get(sym).toString() + "\n";
+        };
+        
+        // add gp mapping
+        val gpMapIt = this.gpMap.keySet().iterator();
+        while { gpMapIt.hasNext(); }{
+            val expr = gpMapIt.next();
+            ret = ret + expr.toString() + " : " + this.gpMap.get(expr).toString() + "\n";
+        };
+        
+        ret
+      } 
+    }
+  }
+  
+}

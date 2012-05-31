@@ -1,0 +1,1950 @@
+ /**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/* *** global configuration options *** */
+options
+{
+	STATIC=false;
+}
+
+/* *** Specification of the parser class *** */
+PARSER_BEGIN(PlaidCoreParser)
+package plaid.compilerjava.coreparser;
+import java.util.*;
+import java.io.File;
+import plaid.compilerjava.util.*;
+import plaid.compilerjava.AST.*;
+import plaid.compilerjava.types.*;
+import plaid.runtime.PlaidConstants;
+
+public class PlaidCoreParser
+{
+		private CompilationUnit cu;
+		private boolean aeminiumMode = true;
+
+		public void init(File sourceFile)
+		{
+				cu = new CompilationUnit();
+				if(sourceFile!=null) {
+				    cu.setSourceFile(sourceFile);
+				}
+		}
+
+		private Expression foldExpListSemi(ArrayList<Expression> expList)
+		// relies on the specification of ArrayList 
+		// add method must shift elements to the right
+		{
+				for (int i = expList.size() - 2; i >= 0; i--) { //ignore last
+						Expression exp = expList.get(i);
+						if (exp instanceof LetBinding)
+						{
+								((LetBinding) exp).setBody(expList.get(i + 1));
+						}
+						else
+						{
+								Expression newExp = new LetBinding(exp.getToken(), IdGen.getId(), exp, expList.get(i + 1), false);
+								expList.remove(i);
+								expList.add(i, newExp);
+						}
+				}
+				return expList.get(0);
+		}
+
+		private Expression foldCurriedArgs(Expression fn, List < Expression > curriedArgs)
+		{
+				Expression application = fn;
+				for (Expression arg : curriedArgs)
+				{
+						application = new Application(application.getToken(), application, arg);
+				}
+				return application;
+		}
+
+		private Expression foldToDeref(Expression target, List < Token > dotName) throws ParseException
+		{
+				Expression deref = target;
+				for (Token id : dotName) deref = new Dereference(id, deref, new ID(id.image));
+				return deref;
+		}
+
+		private List < String > tokenToStringList(List < Token > tokenList)
+		{
+				List < String > stringList = new ArrayList < String > ();
+				for (Token t : tokenList) stringList.add(t.image);
+				return stringList;
+		}
+		
+		public static Expression foldToPairs(List<Expression> expList) {
+			if (expList.size() == 1) return expList.get(0);
+			else { 	//translate to pairs:  (a,b,...,n) => (a,(b,(...(n,unit)...)))
+				int size = expList.size();
+				Expression second = new UnitLiteral();
+				//QI pair = new QI("plaid.lang.Pair");
+				List < Decl > pairFields;
+				FieldDecl fst, snd;
+				QI pairWith;
+				
+				for (int i = size - 1; i >= 0; i--){
+					fst = new FieldDecl(expList.get(i).getToken(), new ID("fst"), expList.get(i), false, true, new FieldType(new ID("fst"), PermType.getDynPT(), true), false);
+					snd = new FieldDecl(new ID("snd"), second);  //TODO : token for something not in source?
+					pairFields = new ArrayList < Decl > ();
+					pairFields.add(fst);
+					pairFields.add(snd);
+					pairWith = new QI("plaid.lang.Pair", new DeclList(pairFields));
+					second = new NewInstance(expList.get(i).getToken(), pairWith);
+				}
+				
+				return second; //TODO: write utility function for this like for ExpListSemi
+			}
+		}
+
+		//private Expression opMethodCall(Token t, Expression e, Expression arg)
+		//{
+		//		return new Application(t, new Dereference(t, e, new ID(t, t.image)), arg);
+		//}
+}
+
+PARSER_END(PlaidCoreParser)
+
+/* *** Token specification *** */
+/* Skip whitespace */
+SKIP :
+{
+		" "
+|		"\t"
+|		"\n"
+|		"\r"
+}
+
+SKIP :
+{
+		"/*" : WithinComment
+|		"/**" : WithinComment
+}
+
+< WithinComment >
+SKIP :
+{
+		"*/" : DEFAULT
+}
+
+< WithinComment >
+MORE :
+{
+		< ~[ ] >
+}
+
+// Single-line comments
+SPECIAL_TOKEN :
+{
+		< SINGLE_LINE_COMMENT :
+				"//" (~[ "\n", "\r" ])*
+				(
+						"\n"
+				|		"\r"
+				|		"\r\n"
+				) >
+}
+
+/* Reserved Words */
+TOKEN /*[IGNORE_CASE]*/:
+{
+	< CASE : "case">
+|	< DEF : "default" >
+|	< IMPORT : "import" > 
+|	< FN : "fn" >
+|	< MATCH : "match" >
+|	< METHOD : "method" >
+|	< NEW : "new">
+|	< OF : "of" >
+|	< PACKAGE : "package" >
+|	< STATE : "state" >
+| 	< TYPEDEF : "typedef" >
+|	< THIS : "this" >
+|	< VAL : "val" >
+|	< VAR : "var" >	
+|	< WITH : "with" >
+| 	< AS : "as" >
+|	< REQUIRES : "requires" >
+|	< OVERRIDE : "override" >
+| 	< UNIT : "unit" >
+|	< VOID : "void" >
+|   < TYPE : "type" >
+|   < GROUP : "group" >
+|   < ATOMIC : "atomic" >
+|   < SPLIT : "split" >
+|   < UNPACKINNERGROUPS : "unpackInnerGroups" >
+|	< TAKE : "take" >
+|   < FREEZE : "freeze" >
+
+/* Permission kinds */
+|	< DYN : "dyn">
+|	< DYNAMIC : "dynamic" >
+|	< IMMUTABLE : "immutable" >
+| 	< SHARED : "shared" >
+|	< UNIQUE : "unique" >
+| 	< FULL : "full" >
+| 	< PURE : "pure" >
+|	< NONE : "none" >
+
+/* group permissions */
+|   < EXCLUSIVE : "exclusive" >
+|   < PROTECTED : "protected" >
+|   < MUTABLE : "mutable" >
+|   < READONLY : "readonly" >
+}
+
+/* Literals */
+TOKEN :
+{
+		< STRING_LITERAL :
+				"\""
+				(
+						(~[ "\"", "\\", "\n", "\r" ])
+				|
+						(
+								"\\"
+								(
+										[ "n", "t", "b", "r", "f", "\\", "'", "\"" ]
+								|		[ "0"-"7" ] ([ "0"-"7" ])?
+								|		[ "0"-"3" ] [ "0"-"7" ] [ "0"-"7" ]
+								)
+						)
+				)*
+				"\"" >
+|		< CHARACTER_LITERAL :
+			"'"
+			(	(~["'","\\","\n","\r"])
+				| ("\\"
+					( ["n","t","b","r","f","\\","'","\""]
+					| ["0"-"7"] ( ["0"-"7"] )?
+					| ["0"-"3"] ["0"-"7"] ["0"-"7"]
+					)
+				  )
+				| ("\\u"
+					["0"-"9","A"-"F","a"-"f"]
+					["0"-"9","A"-"F","a"-"f"]
+					["0"-"9","A"-"F","a"-"f"]
+					["0"-"9","A"-"F","a"-"f"]
+				  )
+			)
+			"'"
+		>
+|       < INTEGER:
+            <DECIMAL_LITERAL> 
+          | <HEX_LITERAL> 
+          | <OCTAL_LITERAL> 
+        >
+|
+        < #DECIMAL_LITERAL: ("-")? ["1"-"9"] (["0"-"9"])* >
+|
+        < #HEX_LITERAL: "0" ["x","X"] (["0"-"9","a"-"f","A"-"F"])+ >
+|
+        < #OCTAL_LITERAL: "0" (["0"-"7"])* >
+
+|       < FLOATING_POINT_LITERAL:
+          ("-")? (["0"-"9"])+ "." (["0"-"9"])* (<EXPONENT>)? 
+          | "." (["0"-"9"])+ (<EXPONENT>)? 
+          | ("-")? (["0"-"9"])+ <EXPONENT> 
+          | ("-")? (["0"-"9"])+ (<EXPONENT>)? 
+        >
+|
+        < #EXPONENT: ["e","E"] (["+","-"])? (["0"-"9"])+ >
+
+}
+
+/* Language Operators and Separators */
+TOKEN :
+{
+		< LPAREN : "(" >
+|		< RPAREN : ")" >
+|		< LBRACE : "{" >
+|		< RBRACE : "}" >
+|		< LBRACK : "[" >
+|		< RBRACK : "]" >
+|		< EQUALS : "=" >
+|		< RARROW : "->" >
+|		< LARROW : "<-" >
+| 		< DLARROW : "<<-" >
+|		< DARROW : "=>" >
+|		< MARROW : ">>" >
+|		< AT : "@" >
+|       < DOT : "." > 
+|		< SEMICOLON : ";">
+| 		< COMMA : "," >
+}
+
+/* Operators with Java Precedence */
+TOKEN : 
+{
+		< QST : "?" >
+| 		< COLON : ":" >
+|		< OR : "||" >
+|		< AND : "&&">
+|		< IOR : "|" >
+|		< XOR : "^" >
+|		< BITAND : "&" >
+|		< EQ : "==" >
+|		< NEQ : "!=" >
+|       < GT : ">" >
+|		< LT : "<" >
+|		< GEQ : ">=" >
+|		< LEQ : "<=" >
+|		< LSHIFT : "<<" >
+// | 	< RSHIFT : ">>" > duplicate of MARROW
+|		< RUNSIGNEDSHIFT : ">>>"> 
+|		< PLUS : "+" >
+| 		< MINUS : "-">
+|		< STAR : "*" >
+| 		< SLASH : "/" >
+|		< PERCENT : "%" >
+|		< BANG : "!" >
+|		< TILDE : "~" >
+}
+
+/* User operators */
+/* Do not allow comment-like things (// or /*) as user operators */
+/* Does not need to account for single character operators */
+TOKEN :
+{
+	< OP : 
+	(
+		( "/" [ "=", "<", ">", "!", "~", "?", ":", "&", "|", "+", "-", "^", "%" ]) |
+		( [ "=", "<", ">", "!", "~", "?", ":", "&", "|", "+", "-", "*", "^", "%" ] )
+	)+
+	("/")?>
+}
+
+/* Identifiers */
+TOKEN :
+{
+		< ID : ([ "A"-"Z", "a"-"z", "_" ]) ([ "A"-"Z", "a"-"z", "0"-"9", "_" ])* >
+}
+
+CompilationUnit DeclsStart() :
+{
+		Decl d;
+		List < Token > p;
+		ImportList i = new ImportList();
+}
+{
+		p = Package()
+		{
+				cu.setPackageName(tokenToStringList(p));
+		}
+		(
+				i = Imports()
+		)?
+		{
+				cu.setImports(i);
+		}
+		(
+				d = Decl()
+				{
+						cu.addDecl(d);
+				}
+		)+
+		< EOF >
+		{
+				return cu;
+		}
+}
+
+List < Token > Package() :
+{
+		List < Token > dn;
+}
+{
+		< PACKAGE > dn = DotName() < SEMICOLON >
+		{
+				return dn;
+		}
+}
+
+/*****************************************************************************/
+/*								TYPING RULES	 							 */
+/*****************************************************************************/
+
+PermType PermType() :
+{
+	Type type = null;
+	Permission perm = null;
+	LambdaType l = null;
+	Token group = null;
+}
+{
+	(
+	<DYN>
+	{
+	  	return PermType.getDynPT();
+	}
+| 	<UNIT>
+	{
+	  	return PermType.getUnitPT();
+	}
+|	<VOID>
+	{
+		return PermType.getVoidPT();
+	}
+	//TODO: should this be moved up higher so you cannot write fn >> fn?
+|	l = LambdaType()
+	{
+		return new PermType(Permission.IMMUTABLE, l);
+	}
+	// TODO: Default permission?
+	// KBN - 2010-11-4 permission no longer optional - currently causes parser conflict
+| 	perm = Permission() [ <LT> group = <ID> <GT> ] type = StructuralType()
+	{
+	    if ( group != null ) {
+            if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode.");
+	        if ( perm != Permission.SHARED ) {
+	            throw new ParseException("Only shared permissions are allowed to have data groups.");
+	        }
+	        return new PermType(perm, new ID(group.image), type);
+	        
+	    }
+		return new PermType(perm, type);
+	}
+	)
+}
+
+Permission Permission() :
+{
+	Permission perm;
+}
+{
+	(
+	<FULL>
+	{
+	  	return Permission.FULL;
+	}
+| 	<IMMUTABLE>
+	{
+	  	return Permission.IMMUTABLE;
+	}
+| 	<PURE>
+	{
+	  	return Permission.PURE;
+	}
+| 	<SHARED>
+	{
+		return Permission.SHARED;
+	}
+| 	<UNIQUE>
+	{
+	  	return Permission.UNIQUE;
+	}  
+|	<NONE>
+	{
+		return Permission.NONE;
+	}
+	)
+}
+
+List<ChangeType> ChangeTypeList() :
+{
+	List<ChangeType> cl = new ArrayList<ChangeType>();
+	ChangeType c;
+
+}
+{
+	c = ChangeType() { cl.add(c); }
+	( <COMMA> c = ChangeType() { cl.add(c); } )*
+	{
+	return cl;
+	}
+}
+
+ChangeType ChangeType() :
+{
+	PermType input;
+	PermType output = null;
+	boolean borrow = false;
+}
+{
+	input = PermType() [ <MARROW> output = PermType() ] //TODO: add more flexibility in what can enter as outgoing type (permType/permission/Objectype)
+	{
+		if (output == null) {  //if no output specified, then everything stays the same at it is strongly borrowed
+			output = input;
+			borrow = true;
+		} else if (input.getPermission() == output.getPermission()) { //if the permission stays the same, then it is strongly borrowed
+																	// change this once we have p O >> O ??
+			borrow = true;
+		}
+		
+		return new ChangeType(input,output, borrow);
+	}
+}
+
+ObjectType StructuralType() :
+{
+  	Token typeAbbrevTok;
+	ObjectType right = null;
+	List<TypeDecl> typeDecls;
+	List<MetaArgument> metaArgs = new ArrayList<MetaArgument>();
+}
+{
+  	(
+  	// type abbreviation
+	[<QST>] typeAbbrevTok = <ID> [ LOOKAHEAD(MetaArguments()) metaArgs = MetaArguments() ][<WITH> right = StructuralType()]
+	{
+		return (new ObjectType(new ID(typeAbbrevTok.image), metaArgs)).compose(right);
+	}
+	// type declarations
+| 	typeDecls = TypeDecls() [<WITH> right = StructuralType()]
+	{
+	  	return (new ObjectType(typeDecls)).compose(right);
+	}
+	)
+}
+
+Map<ID,ChangeType> Environment() :
+{
+	Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
+	ChangeType c = null;
+	Token var = null;
+}
+{
+// T x [, T x]* where E = pT or pT >> pT
+ ( c = ChangeType() var = <ID> 
+ 	{ 		
+ 		env.put(new ID(var, var.image),c);
+ 	}
+ )
+
+ ( <COMMA> c = ChangeType() var = <ID> 
+ 	{
+ 		env.put(new ID(var, var.image),c);
+ 	}
+ 
+ )*
+
+{
+	return env;
+}
+
+}
+
+LambdaType LambdaType() :
+{
+	Token t;
+	Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
+	PermType returnType;
+	List<ChangeType> argTypes = new ArrayList<ChangeType>();
+	List<MetaType> metaTypes = new ArrayList<MetaType>();
+}
+{
+	// <meta>( c )[E] -> pT
+	[metaTypes = MetaTypes(true)]
+	t = <LPAREN> [ argTypes = ChangeTypeList() ] <RPAREN> [ <LBRACK> [ env = Environment() ] <RBRACK> ]
+		<RARROW> returnType = PermType()
+	{
+		//if (argTypes.size() == 0) argTypes.add(ChangeType.DEFAULTPARAMTYPE); //do we need this default - I think so
+		return new LambdaType(t, argTypes, env, metaTypes, returnType); 
+	
+	}
+
+}
+
+List<TypeDecl> TypeDecls() :
+{
+	List<TypeDecl> decls = new ArrayList<TypeDecl>();
+	TypeDecl currDecl;
+}
+{
+  	<LBRACE> (currDecl = TypeDecl() { decls.add(currDecl); })+ <RBRACE>
+  	{
+		return decls;
+  	}
+}
+
+TypeDecl TypeDecl() :
+{
+	TypeDecl decl;
+}
+{
+  	decl = MethodType() <SEMICOLON> { return decl; }
+| 	decl = FieldType() { return decl; }
+|   decl = MetaType(false) <SEMICOLON> { return decl; }
+}
+
+MethodType MethodType() :
+{
+		Token m;
+		ID methodName;
+		PermType returnType = PermType.getDynPT(); //default return is dyn
+		List<ChangeType> argTypes = new ArrayList<ChangeType>();
+		ChangeType receiverType = ChangeType.DYN; //default receiver types are Dyn >> Dyn
+		Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
+		ChangeType envType;
+		Token envVar;
+		List<MetaType> metaTypes = new ArrayList<MetaType>();
+}
+{
+		//method [T] m[<g>]([T>>T])[T >> T, E ]
+			m = <METHOD>
+			( LOOKAHEAD(PermType() IdOrOperator())    
+				returnType = PermType() methodName = IdOrOperator() [metaTypes = MetaTypes(true) { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type
+				| methodName = IdOrOperator()  //only method name
+			)
+			<LPAREN> [ argTypes = ChangeTypeList() ] <RPAREN>	//optional arguments with optional types
+			[ //optional environment - if you put brakets you have to have at least one entry
+				<LBRACK>
+				(LOOKAHEAD(ChangeType() [<THIS>] (<COMMA> | <RBRACK> )) //'this' must be first, either w/o var or with <this>
+					receiverType = ChangeType() [<THIS>]
+					| envType = ChangeType() envVar = <ID>
+						{
+					 		env.put(new ID(envVar,envVar.image), envType);
+					 	}
+				)
+				( //some number of environments
+					<COMMA> envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
+				)*
+				<RBRACK>
+			]
+		{	
+			//if (argTypes.size() == 0) {
+			//	argTypes.add(ChangeType.DEFAULTPARAMTYPE); //fake argument (NEED?)
+			//}
+			
+			return new MethodType(methodName, returnType, metaTypes, argTypes, receiverType, env);
+		}
+
+}
+
+
+
+FieldType FieldType() :
+{
+  	// there could be no type annotation
+  	PermType fieldPermType = PermType.getDynPT(); //default is dyn
+  	Token fieldNameToken;
+  	boolean immutable = true;
+}
+{
+  	// val T f;
+  	( <VAL> | <VAR> { immutable = false; } )  
+  	(LOOKAHEAD(PermType()) fieldPermType = PermType() fieldNameToken = <ID> | fieldNameToken = <ID> )
+  	<SEMICOLON>
+  	{
+  	  	return new FieldType(new ID(fieldNameToken, fieldNameToken.image), fieldPermType, immutable);
+  	}
+}
+
+
+MetaType MetaType(boolean isMethod) : {
+    Token id;
+    boolean isAbstract = true;
+    ObjectType type = ObjectType.UNIT;
+    GroupPermission gp = GroupPermission.UNDEFINED;
+}{
+    (
+        <GROUP> [gp = GroupPermission()] id = <ID> [ <EQUALS> <NEW> <GROUP> { isAbstract = false; } ]
+        {
+            if ( !isMethod && gp != GroupPermission.UNDEFINED ) {
+                throw new ParseException("Cannot specify group permissions in states.");
+            } else if ( isMethod && gp == null ) {
+                throw new ParseException("Need to specify group permission.");
+            }
+            return new GroupType(gp, new ID(id.image), isAbstract);
+        }
+    |   <TYPE> id = <ID> [ <CASE> <OF> type = StructuralType() ] 
+        {
+            return new TypeParameterType(new ID(id.image), type);
+        }
+    )
+}
+
+
+List<MetaType> MetaTypes(boolean isMethod) :
+{
+  MetaType type;
+  List<MetaType> types = new ArrayList<MetaType>();
+}{
+    < LT >
+        type =  MetaType(isMethod) {  types.add(type); }
+        (
+            < COMMA > type =  MetaType(isMethod) {  types.add(type); }
+        )* 
+    < GT >
+    {
+        return types;
+    }
+}
+
+/*****************************************************************************/
+/*							END OF TYPING RULES								 */
+/*****************************************************************************/
+
+
+Token ID() : {
+    Token t;
+}{
+    (
+        t = <ID>
+      | t = <TYPE>
+      | t = <MUTABLE>
+      | t = <EXCLUSIVE>
+      | t = <SHARED>
+      | t = <READONLY>
+    )
+    { return t; }  
+}
+
+ImportList Imports() :
+{
+		Token t;
+		List < Token > qi;
+		List < QualifiedID > imports = new ArrayList < QualifiedID > ();
+}
+{
+		(
+				< IMPORT > qi = DotName() [<DOT> t = <STAR> { qi.add(t); }]
+				{
+						imports.add(new QualifiedID(tokenToStringList(qi)));
+				}
+				< SEMICOLON >
+		)+
+		{
+				return new ImportList(imports);
+		}
+}
+
+Decl Decl() :
+{
+		Decl d;
+}
+{
+        (<AT> ID())*  // fake anntations 
+(
+		LOOKAHEAD([Permission()] [<TYPEDEF>] <STATE>) d = DeclState()
+		{
+				return d;
+		}
+|       d = DeclGroup()
+        {
+                return d;
+        }
+| 		(LOOKAHEAD(2) //Because of 'overrides val ...' vs 'overrides method ...' 
+		d = DeclField()
+		{
+				return d;
+		}
+|		d = DeclMethod()
+		{
+				return d;
+		}
+		)
+)
+}
+
+Decl DeclState() :
+{
+	Token t, s, c = null;
+	boolean typedef = false;
+	State stateDef;
+	List<Token> qi = null;
+	Permission defaultPerm = Permission.DYN;
+	List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
+	List<MetaArgument> metaCaseOfArgs = new ArrayList<MetaArgument>();
+}
+{
+	[defaultPerm = Permission()] [ < TYPEDEF > { typedef = true; } ]
+		s = <STATE> t = <ID>
+			[ metaParams = MetaParameters(false) ]
+			[ c = <CASE> <OF> qi = DotName() [ metaCaseOfArgs = MetaArguments() ] ]
+	(
+		<EQUALS> stateDef = State()
+	|	stateDef = DeclList()
+	)
+	{
+	  	if (typedef && qi != null ) throw new ParseException("case of states cannot be typedefs");
+		if (qi == null) {
+			return new StateDecl(s, new ID(t.image), metaParams, metaCaseOfArgs, stateDef, defaultPerm, typedef);
+		}
+		else {
+			return new StateDecl(s, new ID(t.image), metaParams, metaCaseOfArgs, stateDef, new QI(tokenToStringList(qi)), defaultPerm, typedef);
+		}
+	}
+}
+
+Decl DeclField() :
+{
+		Token idToken;
+		PermType permType = PermType.getDynPT();
+		Expression e;
+		FieldDecl d;
+		ID name;
+		boolean immutable = true;
+		boolean overrides = false;
+		FieldType type;
+}
+{
+		[
+			< OVERRIDE > { overrides = true; }
+		]
+		[
+				<VAR> { immutable = false; }
+		|		<VAL>
+		]
+		(LOOKAHEAD(PermType() ID()) permType = PermType() idToken = ID() | idToken = ID())
+		{
+		  	// TODO: Add inference (probably not here, but maybe add an indicator that inference should be done later)
+			name = new ID(idToken, idToken.image);
+			type = new FieldType(name, permType, immutable);
+		}
+		(
+			<EQUALS> e = Exp() <SEMICOLON>
+			{
+				d = new FieldDecl(idToken, name, e, false, immutable, type, overrides);
+				if (e instanceof Lambda) { // set recursive name TODO: should this only be at the top level?
+					Lambda l = (Lambda) e;
+					l.setRecursiveName(name);
+				}
+			}
+		|	<SEMICOLON>
+			{
+				d = new FieldDecl(idToken, name, new UnitLiteral(), true, immutable, type, overrides);
+			}
+		)
+		{
+			return d;
+		}
+}
+
+
+MetaArgument MetaArgument() :
+{
+    Token var;
+    Token selector = null;
+    PermType permType;
+}{
+    (LOOKAHEAD(2)
+        (var = ID() | var = <THIS>) [<DOT> selector=ID()]
+        {
+            if ( selector == null ) {
+                return new MetaVariable(new ID(var.image));
+            } else {
+                return new MetaDereference(new ID(var.image), new ID(selector.image));
+            }
+        }
+    |   permType = PermType() 
+        {
+            return new MetaTypeArgument(permType);
+        }
+    )
+}
+
+
+List<MetaArgument> MetaArguments() :
+{
+  MetaArgument arg;
+  List<MetaArgument> args = new ArrayList<MetaArgument>();
+}{
+  < LT >
+    arg =  MetaArgument() {  args.add(arg); }
+    (
+      < COMMA > arg =  MetaArgument() {  args.add(arg); }
+    )* 
+  < GT >
+  {
+    return args;
+  }
+}
+
+
+
+
+
+Decl DeclGroup() :
+{
+  Token id;
+  boolean isAbstract = true;
+}{
+    < GROUP > id = < ID > [ < EQUALS > < NEW >  < GROUP > { isAbstract = false; } ] < SEMICOLON > 
+    {
+        return new GroupDecl(id, new ID(id.image), isAbstract);
+    }
+}
+
+GroupPermission GroupPermission() :
+{
+}
+{
+   < EXCLUSIVE >
+   {
+     return GroupPermission.EXCLUSIVE;
+   }
+ | < SHARED >
+   {
+     return GroupPermission.SHARED;
+   }
+ | < PROTECTED >
+   {
+     return GroupPermission.PROTECTED;
+   }
+ | < MUTABLE >
+   {
+     return GroupPermission.MUTABLE;
+   }   
+ | < READONLY >
+   {
+     return GroupPermission.READONLY;
+   }   
+}
+
+
+
+MetaParameter MetaParameter(boolean isMethod) :
+{
+  Token id;
+  GroupPermission gp = GroupPermission.UNDEFINED;
+  ObjectType type = ObjectType.UNIT;
+}{
+  (
+    [<GROUP>] [gp = GroupPermission()] id = <ID>
+    {
+        if ( isMethod && gp == GroupPermission.UNDEFINED ) {
+            throw new ParseException("Need to specify group permission");
+        } else if ( !isMethod && gp != GroupPermission.UNDEFINED ) {
+            throw new ParseException("Group permissions are not allowed at statet level");
+        }
+        return new GroupParameter(gp, new ID(id.image));
+    }
+  | <TYPE> id = <ID> [ <CASE> <OF> type = StructuralType() ] 
+    {
+        return new TypeParameter(new ID(id.image), type);
+    }
+  )
+}
+
+
+List<MetaParameter> MetaParameters(boolean isMethod) :
+{
+    List<MetaParameter> params = new ArrayList<MetaParameter>();
+    MetaParameter param; 
+}
+{
+    < LT >
+        param = MetaParameter(isMethod) { params.add(param); }
+        (
+          < COMMA > param = MetaParameter(isMethod) { params.add(param); }          
+        )*
+    < GT >
+    {
+        return params;
+    }
+}
+
+
+Decl DeclMethod() :
+{
+		Token m;
+		boolean override = false;
+		ID methodName;
+		PermType returnType = PermType.getDynPT(); //default return is dyn
+		List<Arg> argList = new ArrayList<Arg>();
+		List<ChangeType> argTypes = new ArrayList<ChangeType>();
+		List<ID> argNames = new ArrayList<ID>();
+		ChangeType receiverType = ChangeType.DYN; //default receiver types are Dyn >> Dyn
+		Map<ID,ChangeType> env = new HashMap<ID,ChangeType>();
+		ChangeType envType;
+		Token envVar;
+		MethodType mType;
+		ID argID = null;
+		ID envID = null;
+		Expression e = null;
+		MethodDecl d;
+		List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
+}
+{
+		//[override] method [T] m([T>>T x])[T >> T, E ] ( {e} | ; )
+		[<OVERRIDE>{ override = true; }] /*methodType = MethodTypeDecl()*/
+			m = <METHOD>
+			( LOOKAHEAD(PermType() IdOrOperator())    
+				returnType = PermType() methodName = IdOrOperator() [metaParams = MetaParameters(true) { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] // optional Return type
+				| methodName = IdOrOperator() [metaParams = MetaParameters(true) { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); } ] //only method name
+			)
+			<LPAREN> [ argList = DeclArgs() ] <RPAREN>	//optional arguments with optional types
+			[ //optional environment - if you put brakets you have to have at least one entry
+				<LBRACK>
+				(LOOKAHEAD(ChangeType() [<THIS>] (<COMMA> | <RBRACK> )) //'this' must be first, either w/o var or with <this>
+					receiverType = ChangeType() [<THIS>]
+					| envType = ChangeType() envVar = <ID>
+						{ 
+							envID = new ID(envVar, envVar.image);
+							if (env.containsKey(envID)) {
+								throw new ParseException("duplicate environment variable " + envID.getName());
+							} else {
+								env.put(envID, envType);
+							} 
+						}
+				)
+				( //some number of environments
+					<COMMA> envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
+				)*
+				<RBRACK>
+			]
+		 	(e = BlockExpression(false) | <SEMICOLON>)
+		{	
+			if (argList.size() > 0) {
+				//transform ArgList into a list of ChangeTypes and a list of Names
+				for (Arg a : argList) {
+					argTypes.add(a.getChangeType());
+					
+					argID = a.getArg();
+					if (argNames.contains(argID)) {
+						throw new ParseException("duplicate arg name " + argID.getName() + " in method " + methodName.getName());
+					} else if (env.containsKey(argID)) {
+						throw new ParseException("arg and environment variable share the name " + argID.getName() + " in method " + methodName.getName());
+					} else {
+						argNames.add(a.getArg());
+					}
+				}
+			}
+			List<MetaType> metaTypes = new ArrayList<MetaType>();
+			if ( metaParams.size() > 0 ) {
+			    for (MetaParameter mp : metaParams ) {
+			        if ( mp instanceof GroupParameter ) {
+			            GroupParameter groupParam = (GroupParameter) mp;
+			            metaTypes.add(new GroupType(groupParam.getPermission(), groupParam.getId(), true));
+			        } else if ( mp instanceof TypeParameter ) {
+			            TypeParameter typeParam = (TypeParameter)mp;
+			            metaTypes.add(new TypeParameterType(typeParam.getId(), typeParam.getCaseOf()));
+			        } else {
+			            throw new ParseException("Unsupported meta paramter " + mp);
+			        }
+			    }
+			}
+			mType = new MethodType(methodName, returnType, metaTypes, argTypes, receiverType, env);
+			
+			if (e == null) {
+				//default method body is unit
+				d = new MethodDecl(m, methodName.getName(), new UnitLiteral(), argNames, true, mType, override);
+			} else {
+				d = new MethodDecl(m, methodName.getName(), e, argNames, false, mType, override);
+			}
+		}
+		{
+			return d;
+		}
+
+}
+
+List<Arg> DeclArgs() :
+{
+		Arg arg;
+		List<Arg> args = new ArrayList<Arg>();
+}
+{
+		  arg = Arg()
+		  {
+			args.add(arg);
+		  }
+		  (
+			<COMMA> arg = Arg()
+			{
+				args.add(arg);
+			}
+		  )*
+		{
+			return args;
+		}
+}
+
+Arg Arg() :
+{
+	ChangeType c = null;
+	Token argToken = null;
+}
+{
+  	(LOOKAHEAD(ChangeType() ID()) c = ChangeType() argToken = ID() | argToken = ID()) 
+	{
+	  	// TODO: Should dyn be the default? - for now yes (Actually Dyn >> Dyn)
+	  	if (c == null) {
+			c = ChangeType.DYN;
+	  	}
+		return new Arg(c, new ID(argToken, argToken.image));
+	}
+}
+
+State State() :
+{
+		State s, with;
+		DeclList init = null;
+		List<Token> dotName;
+		List<MetaArgument> metaArgs = null;
+		Token toFreeze = null;
+		Token t = null;
+}
+{
+		(
+				s = DeclList()
+		|		dotName = DotName() [ LOOKAHEAD(2) metaArgs = MetaArguments() ] [init = DeclList() ]
+				{
+						if (init == null ) {
+							s = new QI(tokenToStringList(dotName), metaArgs);
+						} else {
+							s = new QI(tokenToStringList(dotName), metaArgs, init);
+						}
+				}
+		|       t = <FREEZE> <LPAREN> toFreeze = <ID> <RPAREN> 
+				{
+					s = new Freeze(t, new ID(toFreeze, toFreeze.image));
+				}		
+		)
+		[
+				<WITH> with = State()
+				{
+						s = new With(s, with);
+				}
+		]
+		{
+				return s;
+		}
+}
+
+DeclList DeclList() :
+{
+		List<Decl> declList = new ArrayList<Decl>();
+		Decl d;
+}
+{
+		<LBRACE>
+		(
+				d = Decl()
+				{
+						declList.add(d);
+				}
+		)*
+		<RBRACE>
+		{
+				return new DeclList(declList);
+		}
+}
+
+List<Token> DotName() :
+{
+		Token t;
+		List < Token > dn = new ArrayList < Token > ();
+}
+{
+		t = < ID >
+		{
+				dn.add(t);
+		}
+		(
+				LOOKAHEAD(2)
+				< DOT > (t = < ID >)
+				{
+						dn.add(t);
+				}
+		)*
+		{
+				return dn;
+		}
+}
+
+Expression BlockExpression(boolean isExp) :
+{
+	Expression e = new UnitLiteral();
+}
+{
+		<LBRACE> [ e = StmtListFolded() ] <RBRACE>
+		{
+				if (isExp) {
+					List<PermType> permTypes = new ArrayList<PermType>();
+					permTypes.add(PermType.getUnitPT());
+					ID varID = IdGen.getId();
+					List<ID> argNames = new ArrayList<ID>();
+					argNames.add(varID);
+					// TODO: better signal of inference needed
+					return new Lambda(e.getToken(), varID, e, LambdaType.DEFAULTLAMBDATYPE); 
+				}
+				else {
+					return e;
+				}
+		}
+}
+
+ArrayList<Expression> StmtList() :
+{
+    ArrayList < Expression > expList = new ArrayList < Expression > ();
+	Expression e;	
+}
+{
+		
+		e = Stmt() { expList.add(e); }
+		(LOOKAHEAD(2)	< SEMICOLON > e = Stmt() { expList.add(e); }
+				
+		)*
+		[<SEMICOLON>]
+		{
+            return expList;
+		}
+}
+
+Expression StmtListFolded() :
+{
+    ArrayList<Expression> stmtList;
+}
+{
+    stmtList = StmtList() 
+    {
+        return foldExpListSemi(stmtList);
+    }
+}
+
+Expression Stmt() :
+{
+		Expression e;
+}
+{
+		e = Exp()
+		{
+				return e;
+		}
+|		e = LocalVarDecl()
+		{
+				return e;
+		} //var/val required for local variable declaration
+}
+
+
+
+Expression Exp() :
+{
+		Expression e;
+		List < Case > cl;
+		Token t;
+		PermType pt;
+		Token id;
+		List<Expression> stmtList = new ArrayList<Expression>();
+		List<MetaArgument> metaArgs = new ArrayList<MetaArgument>();
+}
+{
+		LOOKAHEAD(3) t = <LPAREN> pt = PermType() <RPAREN> e = Exp()
+		{
+				return new Cast(t, pt, e);
+		}
+| 		e = Function()
+		{
+				return e;
+		}
+|		t = < MATCH > < LPAREN > e = Exp() < RPAREN > < LBRACE > cl = CaseList() < RBRACE >
+		{
+				return new Match(t, e, cl);
+		}
+|       t = <ATOMIC> <LT> id = <ID> <GT> e = BlockExpression(false) 
+        {   
+            if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); 
+            return new AtomicBlock(t, new ID(id.image), e);
+        }
+|       t = <SPLIT> metaArgs = MetaArguments() <LBRACE> [ stmtList = StmtList() ] <RBRACE>
+        {   
+            if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); 
+            return new SplitBlock(t, metaArgs, stmtList);
+        }
+|       t = <UNPACKINNERGROUPS> e = BlockExpression(false) 
+        {
+            if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); 
+            return new UnpackInnerGroups(t, e);
+        }
+|		e = ConditionalExpression() [ e = ExpSuffix(e) ]
+		{
+				return e;
+		}
+}
+
+Expression InfixExp() :
+{
+		Expression e, arg;
+		Token t;
+}
+{
+		e = SimpleExp() 
+		(
+				(t = < ID > | t = < OP >)
+				arg = SimpleExp()
+				{
+						e = new MethodCall(t,e, new ID(t,t.image), arg); //TODO: what if multiple arguments infix method?
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression ConditionalExpression() : 
+{
+		Expression e;
+		Expression arg;
+		Expression arg2;
+		Token t;
+		Token t2;
+}
+{
+		e = ConditionalOrExpression()
+		(
+				t = "?" arg = Exp() t2 =  ":" arg2 = ConditionalExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+						e = new MethodCall(t2, e, new ID(t,t.image), arg2);
+				}
+		)?
+		{
+				return e;
+		}
+}
+
+Expression ConditionalOrExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = ConditionalAndExpression()
+		(
+				t = "||" arg = ConditionalAndExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression ConditionalAndExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = InclusiveOrExpression()
+		(
+				t = "&&" arg = InclusiveOrExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression InclusiveOrExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = ExclusiveOrExpression()
+		(
+				t = "|" arg = ExclusiveOrExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression ExclusiveOrExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = AndExpression()
+		(
+				t = "^" arg = AndExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression AndExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = EqualityExpression()
+		(
+				t = "&" arg = EqualityExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+
+Expression EqualityExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = RelationalExpression()
+		(
+				(
+						t = "=="
+				|		t = "!="
+				)
+				arg = RelationalExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression RelationalExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+		List<ID> groupParams     = new ArrayList<ID>();
+		List<Expression> argList = new ArrayList<Expression>();
+}
+{
+		e = ShiftExpression() 
+		(   
+				(
+						t = "<"
+				|		t = ">"
+				|		t = "<="
+				|		t = ">="
+				)
+				arg = ShiftExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		  )*
+		{
+				return e;
+		}
+}
+
+Expression ShiftExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = AdditiveExpression()
+		(
+				(
+						t = "<<"
+				|		t = ">>"
+				|		t = ">>>"
+				)
+				arg = AdditiveExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression AdditiveExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = MultiplicativeExpression()
+		(
+				(
+						t = "+"
+				|		t = "-"
+				)
+				arg = MultiplicativeExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression MultiplicativeExpression() :
+{
+		Expression e;
+		Expression arg;
+		Token t;
+}
+{
+		e = UnaryExpression()
+		(
+				(
+						t = "*"
+				|		t = "/"
+				|		t = "%"
+				)
+				arg = UnaryExpression()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), arg);
+				}
+		)*
+		{
+				return e;
+		}
+}
+
+Expression UnaryExpression() :
+{
+		Expression e;
+		Token t;
+}
+{
+		(
+				(
+						t = "~"
+				|		t = "+"		
+				|		t = "-"
+				|		t = "!"
+				)
+				e = InfixExp()
+				{
+						e = new MethodCall(t, e, new ID(t,t.image), new UnitLiteral());
+				}
+		|		e = InfixExp()
+		)
+		{
+				return e;
+		}
+}
+
+
+Expression LocalVarDecl() :
+{
+		Token t = null;
+		Token id;
+		Arg var;
+		boolean mutable = false; //TODO - this should be the same as for fields, or mutable turned into objects with fields, actually
+		boolean taken = false;
+		Expression e;
+		PermType permType = PermType.getDynPT(); //declarations are always implicitly annotated with DYN
+}
+{
+		(
+				t = <VAR> {mutable = true;}
+		|		t = <VAL>
+		|		t = <TAKE> {taken = true;}
+		)
+		( LOOKAHEAD( PermType() ) permType = PermType() id = ID() | id = ID() ) 
+		<EQUALS> e = Exp() //local var declarations must be initialized
+		{
+			if (taken && !(e instanceof ID))
+				throw new ParseException("Only local variables can be bound as a take binding");
+			
+			// Why is the body set to unit here? - KBN: we don't know the body yet, that will be the next expression in the expression list.
+			// The expresion list handles stringing the let's togethers
+			return new LetBinding(t, new ID(id, id.image), e, new UnitLiteral(), mutable, permType, taken);
+		}
+}
+
+List <Case> CaseList() :
+{
+		Token t,caseToken;
+		ID x = null;
+		QI qi;
+		Expression body;
+		List < Case > cl = new ArrayList < Case > ();
+		List < Token > dotName;
+}
+{
+		(
+				LOOKAHEAD(2)
+				caseToken = < CASE > dotName = DotName()
+				{
+						qi = new QI(tokenToStringList(dotName));
+				}
+				[
+						t = < ID >
+						{
+								x = new ID(t, t.image);
+						}
+				]
+				body = BlockExpression(false)
+				{
+						if (x != null) cl.add(new Case(caseToken, qi, x, body)); //bound variable
+						else cl.add(new Case(caseToken, qi, body)); // no bound variable
+						
+				}
+		)*
+		[
+				caseToken = < DEF > body = BlockExpression(false)
+				{
+						cl.add(new Case(caseToken, body));
+				}
+		]
+		{
+				return cl;
+		}
+}
+
+ID IdOrOperator() :
+{
+		Token t;
+		ID operator;
+}
+{
+		t = ID()
+		{
+				return new ID(t, t.image);
+		}
+|		operator = Operator()
+		{
+				return operator;
+		}
+}
+
+Expression SimpleExp() :
+{
+		Token t;
+		Token dotToken;
+		Expression e, arg;
+		State s;
+		List < Token > dotName;
+		List < Expression > curriedArgs = new ArrayList < Expression > ();
+		List<Expression> eList = null;
+		List<Expression> argList = null;
+		//Expression methodArg = new UnitLiteral();
+		List<MetaArgument> metaArgs = new ArrayList<MetaArgument>();
+}
+{
+		e = BlockExpression(true)
+		{
+				return e;
+		}
+|		t = < NEW > s = State()
+		{
+				return new NewInstance(t, s);
+		}
+|
+		(
+				(t = ID() | t = <THIS>)
+				{      
+						e = new ID(t, t.image);
+				}
+		|		t = < LPAREN > eList = ExpList() < RPAREN > { e = foldToPairs(eList); }
+		|		e = Literal()
+		)
+		(LOOKAHEAD(5) 
+				(
+					arg = BlockExpression(true) { e = new Application(arg.getToken(), e, arg); }
+				|   LOOKAHEAD([MetaArguments()] <LPAREN>)
+				    [ metaArgs = MetaArguments()  { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); }  ]
+					t = <LPAREN> [ eList = ExpList() ] <RPAREN> 
+					{ 
+						if (eList == null) { e = new Application(t, e, metaArgs, new UnitLiteral()); }
+						else { 
+							e = new Application(t, e, metaArgs, eList);
+							eList = null; 
+						} 
+					}
+				)
+		)*
+		( 
+		    (dotToken = <DOT> | dotToken = <BANG> ) (t = ID() | t = <NEW> )
+		    {
+		    	if (dotToken.image.equals(".")) {
+		    		e = new Dereference(t, e, new ID(t,t.image));
+		    	} else {
+		    		e = new DestructiveDereference(t, e, new ID(t,t.image));
+		    	}
+		    }
+			(
+			  LOOKAHEAD( [ metaArgs = MetaArguments()] <LPAREN> ) //If we have an expr list in parens next, assume method call
+			  [ metaArgs = MetaArguments()  { if (!aeminiumMode) throw new ParseException("To use data groups you need to enable the AEminium mode."); }  ]
+				<LPAREN>
+		  			[ argList = ExpList() ]
+		  		<RPAREN> 
+		  			{ 
+		  				if (argList == null ) { 
+		  					argList = new ArrayList<Expression>();
+		  				}
+		  				e = new MethodCall(dotToken, ((Dereference)e).getLeft(), ((Dereference)e).getRight(), metaArgs, argList); 
+		  				argList = null;
+		  			}
+		  			
+		  		//followed with arbitrary applications			
+				( 
+					(
+						arg = BlockExpression(true) { e = new Application(arg.getToken(), e, arg); }
+					|
+						t = <LPAREN> [ eList = ExpList() ] <RPAREN> 
+						{ 
+							if (eList == null) { e = new Application(t, e, new UnitLiteral()); }
+							else { 
+								e = new Application(t, e, eList);
+								eList = null; 
+							} 
+						}
+					)
+				)*
+				
+				| //otherwise, just arbitrary applications
+				
+				(
+					(
+						arg = BlockExpression(true) { e = new Application(arg.getToken(), e, arg); }
+					|
+						t = <LPAREN> [ eList = ExpList() ] <RPAREN> 
+						{ 
+							if (eList == null) { e = new Application(t, e, new UnitLiteral()); }
+							else { 
+								e = new Application(t, e, eList);
+								eList = null; 
+							} 
+						}
+					)
+				)*
+			)
+		)*
+		{
+			return e;
+		} // will return e if no arguments in curriedArgs
+}
+
+
+List<Expression> ExpList() :
+{
+		Expression e, nextExp;
+		List < Expression > expList = new ArrayList < Expression > ();
+}
+{
+	e = Exp()
+	{
+		expList.add(e);
+	}
+	(
+		< COMMA > nextExp = Exp()
+		{
+			expList.add(nextExp);
+		}
+	)*
+	{
+		return expList; //foldToPairs(expList);
+	}
+}
+
+Expression ExpSuffix(Expression prefix) :
+{
+		Token t;
+		Expression assignTo, target = null;
+		State s;
+		ID field = null;
+		Dereference location;
+		boolean wipe;
+}
+{
+		( t = < LARROW > { wipe = false; } | t = < DLARROW > { wipe = true; })  
+		s = State()
+		{
+				return new ChangeState(t, prefix, s, wipe);
+		}
+|		t = < EQUALS > assignTo = Exp()
+		{
+				if (prefix instanceof ID)
+				{
+						target = null; //field/local variable in this scope
+						field = (ID) prefix;
+				}
+				else if (prefix instanceof Dereference)
+				{
+						location = (Dereference) prefix;
+						target = location.getLeft();
+						field = location.getRight();
+				}
+				else throw new ParseException("Cannot assign to something other than ID or Dereference:" + prefix.toString() ); //TODO - better way to handle this?
+				return new Assignment(t, target, field, assignTo);
+		}
+}
+
+ID Operator() :
+{
+		Token op;
+}
+{
+		(
+				op = < QST >
+		|		op = < COLON >
+		|		op = < OR >
+		|		op = < AND >
+		|		op = < IOR >
+		|		op = < XOR >
+		|		op = < BITAND >
+		|		op = < EQ >
+		|		op = < NEQ >
+		|		op = < GT >
+		|		op = < LT >
+		|		op = < GEQ >
+		|		op = < LEQ >
+		|		op = < LSHIFT >
+		|		op = < MARROW >
+		|		op = < RUNSIGNEDSHIFT >
+		|		op = < PLUS >
+		|		op = < MINUS >
+		|		op = < STAR >
+		|		op = < SLASH >
+		|		op = < PERCENT >
+		|		op = < BANG >
+		|		op = < TILDE >
+		
+		|		op = < OP > /* User defined operator */
+		)
+		{
+				return new ID(op, op.image);
+		}
+}
+
+Expression Function() :
+{
+		Token t;
+		List<Arg> argList = new ArrayList<Arg>();
+		List<ChangeType> argTypes = new ArrayList<ChangeType>();
+		List<ID> argNames = new ArrayList<ID>();
+		Token envVar;
+		ChangeType envType;
+		Expression body;
+		// might not have any args, so unit would be the arg
+		ID argID = null;
+		ID envID = null;
+
+		Map<ID, ChangeType> env = new HashMap<ID, ChangeType>();
+		LambdaType lType;
+		List<MetaParameter> metaParams = new ArrayList<MetaParameter>();
+}
+{
+		// Lookahead problem because Exp() could be a blockExpression, but 
+		// always want it to match BlockExpression() here because it shouldn't 
+		// be treated as a lambda
+		t = <FN> [metaParams = MetaParameters(true)] <LPAREN> [argList = DeclArgs()] <RPAREN>
+		[<LBRACK> 
+			envType = ChangeType() envVar = <ID> { env.put(new ID(envVar, envVar.image), envType); }
+			( //some number of environments
+			<COMMA> envType = ChangeType() envVar = <ID> 
+				{ 
+					envID = new ID(envVar, envVar.image);
+					if (env.containsKey(envID)) {
+						throw new ParseException("duplicate environment variable " + envID.getName());
+					} else {
+						env.put(envID, envType);
+					} 
+				}
+			)*
+		<RBRACK>]
+		<DARROW>
+		(
+				LOOKAHEAD("{")
+				body = BlockExpression(false)
+		|		body = Exp()
+		)
+		{
+			if (argList.size() > 0) {
+				//transform ArgList into a list of ChangeTypes and a list of Names
+				for (Arg a : argList) {
+					argTypes.add(a.getChangeType());
+					
+					argID = a.getArg();
+					if (argNames.contains(argID)) {
+						throw new ParseException("duplicate arg name " + argID.getName() + " in function");
+					} else if (env.containsKey(argID)) {
+						throw new ParseException("arg and environment variable share the name " + argID.getName() + " in function");
+					} else {
+						argNames.add(a.getArg());
+					}
+				}
+			}
+			
+			lType = new LambdaType(t, argTypes, env, PermType.getDynPT()); //Default to Dyn as return TODO: better inference handling
+			
+			
+//			if (argNames.size() == 1) {
+//				argID = argNames.get(0);
+//			}
+//			else if (argNames.size() > 1) {
+//				argID = new ID("pA1R"+ PlaidConstants.ID_SUFFIX);
+//				body = getBodyWithPairExtractions(argNames, argID, 1, body);
+//			}
+
+			// TODO: where should the return type annotation go?
+			return new Lambda(t, argNames, body, metaParams, lType);
+		}
+}
+
+Expression Literal() :
+{
+		Token t;
+}
+{
+		t = < STRING_LITERAL >
+		{
+				return new StringLiteral(t, t.image.substring(1, t.image.length() - 1));
+		}
+|		t = < INTEGER >
+		{
+		    if ( t.image.startsWith("0x") ) {
+		        // hex
+		        return new IntLiteral(t, new java.math.BigInteger(t.image.substring(2, t.image.length()), 16));
+		    } else if (t.image.startsWith("0") && t.image.length() > 1  ) {
+		        // octal 
+		        return new IntLiteral(t, new java.math.BigInteger(t.image.substring(1, t.image.length()), 8));
+		    } else {
+		        return new IntLiteral(t, new java.math.BigInteger(t.image));
+		    }     
+		}
+|       t = <  FLOATING_POINT_LITERAL >
+        {
+                return new DoubleLiteral(t, Double.valueOf(t.image));
+        }
+|		t = <  CHARACTER_LITERAL >
+		{
+				return new CharacterLiteral(t, t.image);
+		}
+|		t = < UNIT >
+		{
+				return new UnitLiteral(t);
+		}
+}

@@ -1,0 +1,187 @@
+package plaid.compiler.symbol;
+
+import plaid.compiler.Symbol;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_HIGH;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.types.*;
+import plaid.compiler.util.makeTypeFromAST;
+
+import plaid.ast.parsed.*;
+
+import plaid.collections.makeLinkedList;
+
+
+state VariableSymbol case of Symbol {
+    var immutable ASTNode declaration;
+    var immutable Option<immutable Type> typeOpt = NONE;
+    var immutable Option<immutable Boolean> isVarOption = new None;
+
+    method updateDeclaration(immutable ASTNode declaration) {
+        delSymbolForAST(this.declaration);
+        this.declaration = declaration;
+        addSymbolForAST(this.declaration, this);
+    }
+
+    override method immutable Boolean ==(immutable Symbol other)[immutable VariableSymbol this] {
+        match (other) {
+          case VariableSymbol { this.name.equals(other.name) }
+          default { false }
+        }
+    }
+    
+    method immutable Boolean isVar() {
+      match (this.isVarOption) {
+        case Some { this.isVarOption.value }
+        case None {
+          val immutable Boolean isVar = match (this.declaration) {
+            case ParsedVarDecl {  //local variable
+              match (this.declaration.specifier) {
+                case ParsedVarSpecifier { true }
+                case ParsedValSpecifier { false }
+                default { ABORT("Variable Symbol has malformed specifier: " + this.declaration.specifier.nodeName()) }
+              }
+            }
+            case ParsedArg {  // parameter
+              false
+            }
+            case ParsedFieldDecl { //top level field
+              match (this.declaration.specifier) {
+                case ParsedVarSpecifier { true }
+                case ParsedValSpecifier { false }
+                default { ABORT("Variable Symbol has malformed specifier: " + this.declaration.specifier.nodeName()) }
+              }
+            }
+            default { ABORT("Variable Symbol tied to unrecognized declaration type: " + this.declaration.nodeName()) }
+          };
+          this.isVarOption = makeSome(isVar);
+          isVar
+        }
+      }
+    }
+
+    method immutable Type getDeclaredType() {
+        match (this.typeOpt) {
+            case None {
+                val immutable Type vt = computeType();
+                this.typeOpt = makeSome(vt);
+                vt
+            }
+            case Some {
+                this.typeOpt.value
+            }
+        }
+    }
+
+    method immutable Structure getStructure() {
+        match (this.typeOpt) {
+            case None {
+                val immutable Type vt = computeType();
+                this.typeOpt = makeSome(vt);
+                vt.structure
+            }
+            case Some {
+                this.typeOpt.value.structure
+            }
+        }
+    }
+
+    method immutable Type computeType(){
+      DEBUG(DEBUG_PRIO_MEDIUM, "<VariableSymbol> computeType");
+      val immutable ParsedType declaredType = match (this.declaration) {
+        case ParsedVarDecl { //local variable
+          this.declaration.varType
+        }
+        case ParsedArg { // parameter
+          this.declaration.argSpec.inputType
+        }
+        case ParsedFieldDecl { // top level field
+          this.declaration.fieldType
+        }
+        case ParsedConcreteStateDecl {
+          // make ParsedNominalType
+          val ids = makeLinkedList();
+          val name = new ParsedIdentifier {
+              val name = this.name;
+              val token = EMPTY_TOKEN;
+          };
+          ids.add(name);
+          val stateSymbol = match (symbolForAST(this.declaration) ) {
+              case Some { symbolForAST(this.declaration).value } 
+              default { ABORT("Cannot find symbol for state declaration") }
+          };
+          addSymbolForAST(name, stateSymbol);
+          addSymbolForAST(ids, stateSymbol);
+          val newType = new ParsedConcreteType {
+              val permission = new ParsedImmutablePermission {
+                  val token = EMPTY_TOKEN;
+              };
+              val structure = new ParsedNominalStructure {
+                  val stateQi = new ParsedQualifiedIdentifier {
+                      val identifiers = ids;
+                      val token = EMPTY_TOKEN;
+                  };
+                  val staticArgs = this.declaration.StaticArgsSpec.map(fn (spec) => {
+                      val specSym = match ( symbolForAST(spec) ) {
+                          case Some { symbolForAST(spec).value }
+                          default { ABORT("Cannot find symbol for group arg.") }
+                      };
+                      match ( spec ) {
+                          case ParsedGroupArg {
+                              val id = new ParsedIdentifier{ val name = spec.id.name; };
+                              addSymbolForAST(id, specSym);
+                              id
+                          }
+                          default { ABORT("Unsupported static parameter type " + spec.nodeName()) }
+                      };
+                  });
+                  val token = EMPTY_TOKEN;
+              };              
+              val token = EMPTY_TOKEN;
+          };
+          addSymbolForAST(newType.structure.stateQi, stateSymbol);
+          
+          newType
+        }
+        case ParsedGroupArg {
+            this.declaration
+        }
+        case ParsedStateRef {
+            val symbol = match (symbolForAST(this.declaration.stateExpr) ) {
+                case Some { symbolForAST(this.declaration.stateExpr).value }
+                default { ABORT("Cannot find symbol for state ref state expression.") } 
+            };
+            match (symbol) {
+                case StateSymbol { symbol.defaultStateType() }
+                default { ABORT("Found unsupported symbol " + symbol.symbolType()) } 
+            };
+        }
+        default {
+            report_ERROR(this.declaration.token, "declaration of " + this.name + " is a " + this.declaration.nodeName(), "", "");
+            globalReporter.report();
+            ABORT("");
+        }
+      };
+
+      match (declaredType) {
+        case ParsedEmptyType {
+          DEBUG(DEBUG_PRIO_LOW, "<VariableSymbol> variable declaration has no type information.");
+          DYNAMICTYPE;
+        }
+        case ParsedType {
+          DEBUG(DEBUG_PRIO_LOW, "<VariableSymbol> variable declaration has type information.");
+          makeTypeFromAST(declaredType);
+        }
+        case ParsedGroupArg {
+            DEBUG(DEBUG_PRIO_LOW, "<VariableSymbol> variable declaration has group information.");
+            DATAGROUPTYPE
+        }
+        default  {
+          DYNAMICTYPE;
+        }
+      }
+    }
+    
+    override method immutable String symbolType() { "Var Symbol" }
+}

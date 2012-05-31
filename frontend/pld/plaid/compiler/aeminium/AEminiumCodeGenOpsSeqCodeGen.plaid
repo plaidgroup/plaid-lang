@@ -1,0 +1,81 @@
+package plaid.compiler.aeminium;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.codegen.SequentialCodeGenOps;
+
+state AEminiumCodeGenOpsSeqCodeGen case of SequentialCodeGenOps {
+    val immutable SequentialCodeGenOps seqOps = makeSequentialCodeGenOps();
+    val immutable String LOCAL_AEMINIUM_RUNTIME = "AE$RT";
+    val shared MethodInformationMap curMethodInfo;
+    
+   method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOpsSeqCodeGen> " + msg);
+    }
+    
+    override method void codegenMain(immutable String methodName, unique StringBuilder sb) {
+        LOG("codegenMain");
+        sb.append("public static void main(String[] args) {\n");
+        sb.append("final plaid.fastruntime.aeminium.Task ta$k = new plaid.fastruntime.aeminium.Task(0) {\n");
+        sb.append("@Override protected void compute() {\n");
+        sb.append("invoke$plaid();\n");
+        sb.append("}\n");
+        sb.append("};\n");
+        sb.append("plaid.fastruntime.aeminium.Util.POOL.submit(ta$k);\n");
+        sb.append("while ( plaid.fastruntime.aeminium.Util.POOL.getActiveThreadCount() > 0 ) {\n");
+        sb.append("try {\n");
+		sb.append("Thread.sleep(100);\n");
+		sb.append("} catch (InterruptedException e) {\n");
+		sb.append("e.printStackTrace();\n");
+		sb.append("}\n");
+        sb.append("}\n");
+        sb.append("}\n"); // end main method
+    }
+    
+    override method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
+        LOG("generating code for statement '" + node.nodeName() + "'");
+        match(node) {
+            case ParsedAtomicBlock {
+                sb.append("atomic: { /* AEminiumCodeGenOpsSeqCodeGen */ \n");
+                match ( node.datagroups.size() == 0 ) {
+                    case True {
+                        sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.enterAtomic();\n");
+                        this.seqOps.codegenStmtBlock(this, node.body, sb, idgen, y);
+                        sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.leaveAtomic();\n");
+                    }
+                    case False {
+                        // create local variables
+                        val ids = node.datagroups.map( fn (grp) => {
+                            match ( grp ) {
+                                case ParsedIdentifier { grp.name } 
+                                default {
+                                    val grpId = idgen.getId();
+                                    ops.createLocalVariable(grpId, sb, true);
+                                    this.seqOps.codegenStmt(this.seqOps, grp, sb, idgen, grpId); 
+                                    grpId
+                                }
+                            };
+                        });
+                        // lock datagroups
+                        ids.do( fn (id) => { sb.append("((plaid.fastruntime.aeminium.Datagroup)" + id + ").enterAtomic();\n")});
+                        // execute body
+                        this.seqOps.codegenStmtBlock(this, node.body, sb, idgen, y);
+                        // unlock datagroups
+                        ids.do( fn (id) => { sb.append("((plaid.fastruntime.aeminium.Datagroup)" + id + ").leaveAtomic();\n")});
+                    }
+                };
+                sb.append("}\n");
+            }
+            case ParsedSplitBlock { 
+                LOG("create code for split bock ");
+                ops.codegenStmtBlock(this, node.body, sb, idgen, y);
+            }
+            case ParsedUnpackInnerGroups { 
+                LOG("create code for unpack inner groups");
+                ops.codegenStmtBlock(this, node.body, sb, idgen, y);
+            }
+            default { 
+                this.seqOps.codegenStmt(this, node, sb, idgen, y);
+            }
+        };
+    }
+}

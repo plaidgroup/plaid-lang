@@ -1,0 +1,92 @@
+package plaid.compiler.permissions;
+
+import plaid.compiler.Permission;
+import plaid.compiler.util.*;
+
+import plaid.collections.makeLinkedList;
+import plaid.compiler.types.*;
+
+/**
+ *	Shared Permission
+ */
+state SharedPermission case of SymmetricPermission{
+	val shared AbstractExpression groupExpr = new AbstractEmptyExpression;
+	
+	/**
+	 * shared references can write to fields
+	 */
+	method immutable Boolean isWritable() { true }
+
+	/**
+	 * shared references do not guarantee their state
+	 */
+	method immutable Boolean guaranteesState() { false }
+
+	method immutable Boolean ==(immutable Permission p2) {
+		match(p2) {
+			case SharedPermission { this.groupExpr == p2.groupExpr }
+			default { false }
+		};
+	}
+	
+	method immutable String toString() {
+	    match (this.groupExpr ) {
+	        case AbstractEmptyExpression { "shared" }
+	        default {
+	            "shared<" + this.groupExpr + ">"
+	        }
+		};
+	}
+
+	/**
+	 * A shared permission, or a local shared, or none can be split from SHARED
+	 */
+	method immutable ?Permission splitPerm(immutable Permission p2) {
+		match(p2) {
+			case SharedPermission { 
+			    ifElse ( p2 == this ) {
+			        p2
+			    }{
+			        unit
+			    }
+			}	// shared => shared/shared
+			case LocalPermission {
+				ifElse(p2.thePerm == this )
+					{ this }
+					{ unit }
+			}
+			case NonePermission { this }		// shared => none/shared
+			default { unit }
+		};
+	}
+	
+	/**
+	 * Only shared, locals and none permissions should ever be returned
+	 * to a shared, otherwise, there is an error
+	 */
+	method immutable ?Permission returnPerm(immutable Permission p2) {
+		match (p2) {
+			case SharedPermission { 
+			    ifElse ( this == p2 ) {
+			        this
+			    }{
+			    	this.incompatibleReturnError(p2) ;
+			    	unit			    
+			    }
+			}
+			case LocalPermission {
+			  ifElse(p2.thePerm == this)
+			    { this }
+			    { 
+			    	this.incompatibleReturnError(p2) ;
+			    	unit
+			    }
+			}
+			case NonePermission { this }
+			default { 
+				this.incompatibleReturnError(p2);
+				unit
+			}
+		}	
+	}
+}

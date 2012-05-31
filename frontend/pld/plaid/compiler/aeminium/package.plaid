@@ -1,0 +1,521 @@
+package plaid.compiler.aeminium;
+
+import plaid.compiler.*;
+import plaid.compiler.util.*;
+import plaid.compiler.types.*;
+import plaid.compiler.symbol.*;
+
+/*****************************************************************************
+ ** global constants
+ ****************************************************************************/
+val immutable String AEMINIUM_METHOD_INFORMATION_MAP = "plaid.compiler.aeminium.AEMINIUM_METHOD_INFORMATION_MAP";
+val immutable String AEMINIUM_CODEGEN_SUFFIX = "$AEMINIUM";
+
+
+/*****************************************************************************
+ ** global type map Symbol -> DependecyInformation
+ ****************************************************************************/
+var shared Map aeminiumMethodInfoMap = java.util.IdentityHashMap.new();
+
+method void setMethodInfoObjForAST(immutable ParsedConcreteMethodDecl symbol, unique MethodInformationObject mio) {
+     aeminiumMethodInfoMap.put(node, mio);
+}
+
+method immutable Option methodInfoObjForAST(immutable ParsedConcreteMethodDecl node) {
+    ifElse (aeminiumMethodInfoMap.containsKey(node) ) {
+        makeSome(aeminiumMethodInfoMap.get(node));
+    }{
+        new None
+    }
+}
+
+/*****************************************************************************
+ ** global type map Symbol -> DependecyInformation
+ ****************************************************************************/
+var shared Map aeminiumSymbolToDepsMap = java.util.IdentityHashMap.new();
+
+method void setDepInfoForSymbol(immutable Symbol symbol, unique DependencyInformation info) {
+     aeminiumSymbolToDepsMap.put(symbol, info);
+}
+
+method immutable Option depInfoForSymbol(immutable Symbol symbol) {
+    ifElse (aeminiumSymbolToDepsMap.containsKey(symbol) ) {
+        makeSome(aeminiumSymbolToDepsMap.get(symbol));
+    }{
+        NONE
+    }
+}
+
+
+/*****************************************************************************
+ ** global type map AbstractExpression -> Symbol
+ ****************************************************************************/
+var shared Map aeminiumASTToStaticSymbolMap = java.util.IdentityHashMap.new();
+
+method shared ?Symbol getSymbolForAbstractExpression(immutable AbstractExpression expr) {
+    DEBUG(DEBUG_PRIO_LOW, "<getSymbolForAbstractExpression> " + expr.toString() );
+    match ( expr ) {
+        case AbstractExpression { 
+            var shared ?Symbol result = unit;
+            
+            val it = aeminiumASTToStaticSymbolMap.keySet().iterator();
+            while { it.hasNext() }{
+                val curExpr = it.next();
+                DEBUG(DEBUG_PRIO_LOW, "<getSymbolForAbstractExpression>     check " + curExpr.toString() + " == " + expr.toString() );
+                if ( curExpr == expr ) {
+                    result = aeminiumASTToStaticSymbolMap.get(curExpr);
+                }
+            };
+            
+            match ( result ) {
+                case Symbol { result } 
+                default { 
+                    DEBUG(DEBUG_PRIO_LOW, "<getSymbolForAbstractExpression>     create new abstract symbol ");
+                    val exprSymbol = (new SymbolFactory).makeAbstractExpressionSymbol(expr.toString(), expr);
+                    aeminiumASTToStaticSymbolMap.put(expr, exprSymbol);
+                    exprSymbol
+                }
+            }
+        }
+        default {
+            ABORT("Cannot create abstract expression from AST.");
+        }
+    };
+}
+
+
+/*****************************************************************************
+ ** global type map ASTNode -> DependecyInformation
+ ****************************************************************************/
+var shared Map aeminiumASTToDepsMap = java.util.IdentityHashMap.new();
+
+method void addDepInfoForAST(immutable ASTNode node, unique DependencyInformation info) {
+     aeminiumASTToDepsMap.put(node, info);
+}
+
+method immutable Option depInfoForAST(immutable ASTNode node) {
+    ifElse (aeminiumASTToDepsMap.containsKey(node) ) {
+        makeSome(aeminiumASTToDepsMap.get(node));
+    }{
+        NONE
+    }
+}
+
+
+/*****************************************************************************
+ ** global type map SourceLocation -> DependecyInformation
+ ****************************************************************************/
+var shared Map aeminiumSLocToDepInfo = java.util.IdentityHashMap.new();
+
+method void addDepInfoForSLoc(immutable SourceLocaction sloc, unique DependencyInformation info) {
+     aeminiumSLocToDepInfo.put(sloc, info);
+}
+
+method immutable Option depInfoForSLoc(immutable SourceLocation sloc) {
+    ifElse (aeminiumSLocToDepInfo.containsKey(sloc) ) {
+        makeSome(aeminiumSLocToDepInfo.get(sloc));
+    }{
+        NONE
+    }
+}
+
+
+/*****************************************************************************
+ ** helper functions
+ ****************************************************************************/
+
+method unique Set findLastDependentsForSymbol(shared DependencyInformation depInfo,
+                                              shared Symbol symbol,
+                                              immutable Boolean onlyAST) {
+                                              
+    //DEBUG(DEBUG_PRIO_LOW, "<findLastDependents> for " + depInfo.toString() + " astOnly="+onlyAST);
+    val set = java.util.HashSet.new();
+    
+    val immutable Boolean valid = match (depInfo) {
+        case ASTInformation   { true }
+        case JoinInformation  { depInfo.symbol == symbol }
+        case SplitInformation { depInfo.symbol == symbol }
+        case FieldRestoreInformation { depInfo.symbol == symbol } 
+        case SplitEnterInformation { true }
+        case SplitLeaveInformation { true }
+        case UnpackEnterInformation { true }
+        case UnpackLeaveInformation { true }
+        case AtomicEnterInformation { true }
+        case AtomicLeaveInformation { true }
+        default { ABORT("Unsupported DeoInfo node " + depInfo.toString()) }
+    };
+    
+    if ( valid ) {
+        // try to find recursively find last dependent
+        val it = depInfo.rdeps.iterator();
+        while {it.hasNext()}{
+            val recursiveSet = findLastDependentsForSymbol(it.next(), symbol, onlyAST);
+            set.addAll(recursiveSet)
+        };
+        // add current node if recursive serach failed 
+        if ( set.size() == 0 ) {
+            match (onlyAST) {
+                case True {
+                    match (depInfo) {
+                        case ASTInformation { set.add(depInfo) } 
+                        default { }
+                    }
+                }
+                case False {
+                    set.add(depInfo);
+                }
+            }
+            
+        };
+    };
+     
+    set
+}
+
+method void addDependency(shared DependencyInformation from,
+                          shared DependencyInformation to) {
+    DEBUG(DEBUG_PRIO_LOW, "<addDependency> " + from.toString() + " -> " + to.toString() );
+    from.deps.add(to);
+    to.rdeps.add(from);
+}
+
+method void removeDependency(shared DependencyInformation from,
+                             shared DependencyInformation to) {
+    //DEBUG(DEBUG_PRIO_LOW, "<addDependency> " + from.toString() + " -> " + to.toString() );
+    from.deps.remove(to);
+    to.rdeps.remove(from);
+}
+
+
+method void removeDependencyInformation(shared DependencyInformation depInfo)  {
+    DEBUG(DEBUG_PRIO_HIGH, "REMOVE " + depInfo.toString() );
+    
+    // remove node from dependents 
+    val rdepsIt = depInfo.rdeps.iterator();
+    while { rdepsIt.hasNext() }{
+        val shared DepenendencyInformation rdep = rdepsIt.next();
+
+        // connect to deps of DepInfo
+        val depsIt = depInfo.deps.iterator();
+        while { depsIt.hasNext() }{
+            val shared DependencyInformation dep = depsIt.next();
+            
+            // add connection between rdep -> dep
+            addDependency(rdep, dep);
+        }
+    };
+
+    // remove connections
+    val removeTo = java.util.HashSet.new();
+    removeTo.addAll(depInfo.deps);
+    val removeToIt  = removeTo.iterator();
+    while { removeToIt.hasNext() }{ removeDependency(depInfo, removeToIt.next()) };
+
+    val removeFrom = java.util.HashSet.new();
+    removeFrom.addAll(depInfo.rdeps);
+    val removeFromIt  = removeFrom.iterator();
+    while { removeFromIt.hasNext() }{ removeDependency(removeFromIt.next(), depInfo) };
+
+}
+
+method void dumpGraph(immutable ParsedDecl declNode, immutable String suffix) {
+    DEBUG_DO(DEBUG_PRIO_MEDIUM, fn ()  => {
+        val ggg = new GraphvizGraphGenerator { val declNode = declNode; };
+        
+        val immutable String dump = ggg.dump();
+    
+        // dump file 
+        val file = java.io.File.new(ggg.getPath() + "." + suffix +".dot");
+        val fw = java.io.FileWriter.new(file);
+        fw.write(dump);
+        fw.flush();
+        fw.close();
+    });
+}
+
+
+method unique Set getSplitInformation(shared Set infos) {
+  val unique Set result = java.util.HashSet.new();
+  
+  val it = infos.iterator();
+  while { it.hasNext() }{
+      val next = it.next();
+      match ( next ) {
+          case SplitInformation { result.add(next) }
+          default {}
+      }
+  };
+  
+  result;
+}
+
+method unique Set getJoinInformation(shared Set infos) {
+  val unique Set result = java.util.HashSet.new();
+  
+  val it = infos.iterator();
+  while { it.hasNext() }{
+      val next = it.next();
+      match ( next ) {
+          case JoinInformation { result.add(next) }
+          default {}
+      }
+  };
+  
+  result;
+}
+
+
+method void dumpTaskGraph(immutable String name, immutable String suffix,  unique Set tasks) {
+    DEBUG_DO(DEBUG_PRIO_MEDIUM, fn () => {
+        val sb = java.lang.StringBuilder.new();
+        
+        val graphName = name.substring(name.lastIndexOf(".")+1);
+        sb.append("digraph " + graphName + " {\n");
+        sb.append("    rankdir=BT;\n");
+            
+        // dump nodes
+        val tasksIt = tasks.iterator();
+        while { tasksIt.hasNext() }{
+            val task = tasksIt.next();
+                        
+            sb.append("    n" + task.getID() + "[style=task, shape=box, label=\""+ task.toString() +"\", texlbl=\""+task.toTexString()+"\"];\n");
+    
+            val depsIt = task.deps.iterator();
+            while {depsIt.hasNext()}{
+                val target = depsIt.next();
+                sb.append("    n" + task.getID() + " -> n" +target.getID() +" [style=\"-to,very thick\"];\n");
+            };
+            sb.append("\n");
+        };
+        
+        sb.append("}\n");
+    
+    
+        // dump file 
+        val file = java.io.File.new(name+ "." + suffix + ".dot");
+        val fw = java.io.FileWriter.new(file);
+        fw.write(sb.toString());
+        fw.flush();
+        fw.close();
+    });
+}
+
+
+method unique List topologicalTaskList(unique Set tasks) {
+    val unique List sorted = java.util.ArrayList.new();
+    val unique Set visited = java.util.HashSet.new();
+    
+    val tasksIt = tasks.iterator();
+    while { tasksIt.hasNext() }{
+        val curTask = tasksIt.next();
+        topologicalTaskListVisitor(curTask, visited, sorted);
+    };
+    
+    sorted    
+}
+
+method void topologicalTaskListVisitor(shared Task task, 
+                                       unique Set visited,
+                                       unique List sorted) {
+    if ( visited.contains(task) == false ) {
+        visited.add(task);
+        val depsIt = task.deps.iterator();
+        while { depsIt.hasNext() }{
+            val depTask = depsIt.next();
+            topologicalTaskListVisitor(depTask, visited, sorted);
+        };
+        sorted.add(task);
+    };        
+}
+
+
+/*****************************************************************************
+ ** fast method cache  cache 
+ ****************************************************************************/
+
+val cheapMethodCache = java.util.HashSet.new();
+
+method void cheapMethodCacheAdd(immutable String fqn) {
+    DEBUG(DEBUG_PRIO_LOW, "<cheapMethodCacheAdd>  cheapMethodCacheAdd '" + fqn + "'" );
+    cheapMethodCache.add(fqn);
+}
+
+method immutable Boolean cheapMethodCacheContains(immutable String fqn) {
+    cheapMethodCache.contains(fqn);
+}
+
+/*****************************************************************************
+ ** factory methods
+ ****************************************************************************/
+ 
+ var immutable Integer depInfoIdCounter = 0;
+ 
+ method immutable Integer nextDepInfoId() {
+     depInfoIdCounter = depInfoIdCounter + 1;
+     depInfoIdCounter
+ }
+ 
+ method unique ASTInformation makeASTInformation(immutable ASTNode node) {
+    new ASTInformation {
+        val id    = nextDepInfoId();
+        val node  = node;
+    }
+ }
+ 
+ 
+method unique AtomicEnterInformation makeAtomicEnterInformation(immutable ASTNode node) {
+    new AtomicEnterInformation {
+        val id    = nextDepInfoId();
+        val node  = node;
+    }
+}
+ 
+method unique AtomicLeaveInformation makeAtomicLeaveInformation(immutable AtomicEnterInformation enterInfo) {
+    new AtomicLeaveInformation {
+        val id    = nextDepInfoId();
+        val enterInfo  = enterInfo;
+    }
+} 
+
+method unique SplitEnterInformation makeSplitEnterInformation(immutable ASTNode node) {
+    new SplitEnterInformation {
+        val id    = nextDepInfoId();
+        val node  = node;
+    }
+}
+ 
+method unique SplitLeaveInformation makeSplitLeaveInformation(immutable SplitEnterInformation enterInfo) {
+    new SplitLeaveInformation {
+        val id        = nextDepInfoId();
+        val enterInfo = enterInfo;
+    }
+}
+
+method unique UnpackEnterInformation makeUnpackEnterInformation(immutable ASTNode node) {
+    new UnpackEnterInformation {
+        val id    = nextDepInfoId();
+        val node  = node;
+    }
+}
+ 
+method unique UnpackLeaveInformation makeUnpackLeaveInformation(immutable UnpackEnterInformation enterInfo) {
+    new UnpackLeaveInformation {
+        val id        = nextDepInfoId();
+        val enterInfo = enterInfo;
+    }
+}
+ 
+method unique MatchEnterInformation makeMatchEnterInformation(immutable ASTNode node) {
+    new MatchEnterInformation {
+        val id    = nextDepInfoId();
+        val node  = node;
+    }
+ }
+ 
+ method unique MatchLeaveInformation makeMatchLeaveInformation(immutable MatchEnterInformation enterInfo) {
+    new MatchLeaveInformation {
+        val id    = nextDepInfoId();
+        val enterInfo  = enterInfo;
+    }
+ }
+ 
+ method unique SpitInformation makeSplitInformation(shared Symbol symbol,
+                                                    immutable Permission permIn,
+                                                    immutable Permission permOut) {
+    new SplitInformation {
+        val id      = nextDepInfoId();
+        val symbol  = symbol;
+        val permIn  = permIn;
+        val permOut = permOut;
+    }
+}
+
+method unique JoinInformation makeJoinInformation(shared Symbol symbol,
+                                                  immutable Permission permIn,
+                                                  immutable Permission permOut) {
+    new JoinInformation {
+        val id      = nextDepInfoId();
+        val symbol  = symbol;
+        val permIn  = permIn;
+        val permOut = permOut;
+    }
+}
+
+method unique FieldRestoreInformation makeFieldRestoreInformation(shared Symbol symbol,
+                                                                  immutable String fieldName,
+                                                                  immutable Permission permIn,
+                                                                  immutable Permission permOut) {
+    new FieldRestoreInformation {
+        val id      = nextDepInfoId();
+        val symbol  = symbol;
+        val fieldName= fieldName;
+        val permIn  = permIn;
+        val permOut = permOut;
+    }
+}
+
+
+method unique AEminiumMethodCodeGen makeAEminiumMethodCodeGen(shared IdGen idgen, shared ClassNameCounter classNameCounter) {
+    new AEminiumMethodCodeGen {
+        val idgen = idgen;
+        val classNameCounter = classNameCounter;
+    }
+}
+
+var immutable Integer taskCounter = 0;
+
+method unique Task makeTask(shared Resolver resolver) {
+    taskCounter = taskCounter + 1;
+    
+    new Task {
+        val id = taskCounter;
+        val resolver = resolver;
+    };
+}
+
+
+method unique CaseInformationObject makeCaseInformationObject() {
+    new CaseInformationObject;
+}
+
+method unique MatchInformationObject makeMatchInformationObject(shared MatchEnterInformation enterInfo,
+                                                                shared MatchLeaveInformation leaveInfo,
+                                                                unique Set caseInfos) {
+    new MatchInformationObject {
+        val enterInfo = enterInfo;
+        val leaveInfo = leaveInfo;
+        val caseInfos = java.util.ArrayList.new(caseInfos);
+    }                                                                
+}
+
+method unique MethodInformationObject makeMethodInformationObject(immutable ASTNode node, 
+                                                                  shared Collection tasks, 
+                                                                  unique Set matchInfos,
+                                                                  unique Map matchFixupTable) {
+    new MethodInformationObject {
+        val node = node;
+        val tasks = java.util.ArrayList.new(tasks);
+        val matchInfos = java.util.HashSet.new(matchInfos);
+        val matchFixupTable = java.util.IdentityHashMap.new(matchFixupTable);
+    }                                                                  
+}
+
+method unique SimplifiedMatchBlock makeSimplifiedMatchBlock(shared Task enterTask,
+                                                            shared Task leaveTask,
+                                                            shared MatchLeaveInformation leaveInfo) { 
+    new SimplifiedMatchBlock {
+        val enterTask = enterTask;
+        val leaveTask = leaveTask;
+        val leaveInfo = leaveInfo;
+    }
+}
+
+method unique AEminiumJobData makeAEminiumJobData(unique Map methodInfoMap) {
+    new AEminiumJobData {
+        val methodInfoMap = java.util.HashMap.new(methodInfoMap);
+    }
+}
+
+method unique AEminiumCodeGenOps makeAEminiumCodeGenOps() {
+    new AEminiumCodeGenOps;
+}

@@ -1,0 +1,56 @@
+package plaid.compiler.symbol;
+
+import plaid.compiler.*;
+import plaid.ast.parsed.*;
+import plaid.compiler.util.makeTypeFromAST;
+import plaid.compiler.types.*;
+
+state FieldSymbol case of DeclSymbol {
+    var unique Option<immutable FieldSignature> signatureOption = new None;
+    var shared ?VariableSymbol thisSymbol = unit; 
+
+    override method immutable Boolean ==(immutable Symbol other)[immutable FieldSymbol this] {
+        match (other) {
+            case FieldSymbol { this.name.equals(other.name) && this.owner == other.owner }
+            default { false }
+        }
+    } 
+    
+    method immutable Symbol getThisSymbol() { 
+        match ( this.thisSymbol ) {
+            case Some { this.thisSymbol.value }
+            default {
+                val sf = new SymbolFactory;
+                this.thisSymbol = makeSome(sf.makeVariableSymbol("this", this.owner.declaration));
+                this.thisSymbol.value
+            }
+        }
+    }
+    
+    
+    method immutable FieldSignature getSignature() {
+      match (this.signatureOption) {
+        case None {
+          DEBUG(DEBUG_PRIO_LOW, "<FieldSymbol> compute type for field");
+          val fieldType = makeTypeFromAST(this.declaration.fieldType);
+          val isVar = match (this.declaration.specifier) {
+            case ParsedVarSpecifier { true }
+            default { false }
+          };
+
+          val newSignature = new PackedFieldSignature  {
+            val isVar    = isVar;
+            val fieldType = fieldType;
+            val name     = this.declaration.name.name;
+          };
+          this.signatureOption = makeSome(newSignature);
+          newSignature
+        }
+        case Some {
+          this.signatureOption.value      
+        }
+      }
+    }
+    
+    override method immutable String symbolType() { "Field Symbol" }
+}

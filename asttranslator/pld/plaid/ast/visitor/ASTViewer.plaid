@@ -1,0 +1,517 @@
+package plaid.ast.visitor;
+
+import plaid.ast.visitor.ASTVisitor;
+import plaid.ast.*;
+import plaid.ast.types.*;
+
+import java.lang.Thread;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import javax.swing.JFrame;
+import javax.swing.JTree;
+import javax.swing.JScrollPane;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.WindowConstants;
+
+
+
+state ASTViewer case of ASTVisitor {
+    var /* (private) DefaultMutableTreeNode */ parent;
+    
+    val /* Boolean */ showTokens = false;
+    val /* String */ title = "ASTViewer";
+    
+
+    method draw(root) {
+        var jtree  = JTree.new(root);
+        jtree.setRootVisible(true);
+        var scroll = JScrollPane.new(jtree);
+        var jframe = JFrame.new(this.title);
+        jframe.add(scroll); 
+        jframe.setMinimumSize(Dimension.new(500,500));
+        jframe.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        jframe.setVisible(true);
+    }
+    
+    method createNode(name) {
+        DefaultMutableTreeNode.new(name);
+    }
+
+    method addToken(jtreeNode, nodeAST) {
+        match (nodeAST.token) {
+            case Some {
+                if ( showTokens ) {
+                   var token = createNode("Token");
+                   token.add(createNode("beginLine("+nodeAST.token.value.beginLine+")"));
+                   token.add(createNode("beginColumn("+nodeAST.token.value.beginColumn+")"));
+                   token.add(createNode("endLine("+nodeAST.token.value.endLine+")"));
+                   token.add(createNode("endColumn("+nodeAST.token.value.endColumn+")"));
+                   token.add(createNode("image("+nodeAST.token.value.image+")"));
+                   jtreeNode.add(token);
+                   token
+                }
+            }
+            default {}
+        };
+    }
+  
+    method visitAtomicBlock(node) {
+        var atomicBlockNode = createNode("AtomicBlock");
+        parent.add(atomicBlockNode);
+        
+        parent = atomicBlockNode;
+        node.id.accept(this);
+
+        parent = atomicBlockNode;
+        node.body.accept(this);
+    }
+   
+    method visitCompilationUnit(node) {
+        java.lang.System.out.println("Starting ASTViewer ... [" + title+"]");
+        var cu = createNode("CompilationUnit");
+        // source file
+        cu.add(createNode("Source File(" + node.sourceFile + ")"));
+        // packageName
+        var packageName = "";
+        node.packageName.map(fn (s) => {
+            packageName = packageName + "." + s;
+        });
+        packageName = packageName.substring(1, packageName.length());
+        cu.add(createNode("Package(" +packageName+")"));
+        // get imports
+        var imports = createNode("Imports");
+        parent = imports;
+        node.imports.accept(this);
+        cu.add(imports);
+        // get decls
+        var fields = createNode("Top-Level Fields");
+        cu.add(fields);
+        var methods = createNode("Top-Level Methods");
+        cu.add(methods);
+        var states = createNode("Top-Level States");
+        cu.add(states);
+        node.decls.map( fn (decl) => {
+            match (decl) {
+                case FieldDecl {
+                    parent = fields;
+                    decl.accept(this);
+                }
+                case MethodDecl {
+                    parent = methods;
+                    decl.accept(this);
+                }
+                case StateDecl {
+                    parent = states;
+                    decl.accept(this);
+                }
+                default {
+                    java.lang.System.out.println("Unsupported top level declaration.");
+                }
+            }
+        });
+        draw(cu);
+    }
+
+    method visitImportList(node) {
+        node.imports.map( fn (x) => {
+			x.accept(this);
+        });
+    }
+    
+    method visitFieldDecl(node) {
+        var fd = createNode(node.getName() + node.eTypeString());
+        addToken(fd, node);        
+        parent.add(fd);
+        ifElse ( node.abstractField ) {
+            fd.add(createNode("Abstract: True"));
+        } {
+            fd.add(createNode("Abstract: False"));
+            var init = createNode("Initializer");
+            fd.add(init);
+            parent = init;
+            node.e.accept(this);      
+        };
+        ifElse ( node.immutableField ) {
+            fd.add(createNode("Immutable: True"));
+        } {
+            fd.add(createNode("Immutable: False"));
+        };
+       	
+       	fd.add(createNode("Type: " + node.fieldType.toString()));
+    }
+    
+    method visitMethodCall(node) {
+    	var call = createNode("Method Call" + node.eTypeString());
+    	parent.add(call);
+    	
+    	parent = createNode("Receiver");
+    	call.add(parent);
+    	node.receiver.accept(this);
+    	
+    	parent = createNode("Method");
+    	call.add(parent);
+    	node.methodName.accept(this);
+    	
+    	parent = createNode("Arguments");
+    	call.add(parent);
+    	node.arguments.map(fn (a) => a.accept(this));
+    	
+    	//typeNode(node,call);
+    
+    }
+    
+    method visitMethodDecl(node) {
+    	val oldParent = parent;
+    	
+        var md = createNode(node.getName() + node.eTypeString());
+        addToken(md, node);
+
+		// display parameter types and return type
+		parent = md;
+		md.add(createNode("Type: " + node.methodType.toString()));
+		//node.methodType.accept(this); //TODO: types
+
+		//get args if exists
+		var args = createNode("Args");
+		md.add(args);
+		parent = args;
+		node.arguments.map(fn (a) => a.accept(this));
+
+        // get body
+        var body = createNode("Body");
+        oldParent.add(md);
+        md.add(body);
+        parent = body;
+        
+        
+        ifElse ( node.abstractMethod ) {
+            md.add(createNode("Abstract: True"));
+        } {
+            md.add(createNode("Abstract: False"));
+        };
+        node.body.accept(this);
+    }
+    
+   
+    method visitStateDecl(node) {
+        var sd = createNode("StateDecl("+node.getName()+")" + node.eTypeString());
+        addToken(sd, node);
+        parent.add(sd); 
+        if ( node.isCaseOf ) {
+            sd.add(createNode("CaseOf(" + node.caseOf.value.toString()+")"));
+        };
+        parent = sd;
+        node.stateDef.accept(this);
+        // TODO: add types, params  and body
+   
+    }
+         
+    method visitLetBinding(node) {
+        var let = createNode("let" + node.eTypeString());
+		bindingNode(let,node); 
+    }
+    
+    method visitTakeBinding(node) {
+        var takeN = createNode("take" + node.eTypeString());
+        bindingNode(takeN,node);
+    }
+    
+    method visitBorrowBinding(node) {
+    	var borrowN = createNode("borrow(" + node.lowerBoundString() + ")" + node.eTypeString());
+    	bindingNode(borrowN,node);
+    }
+    
+    method bindingNode(addToNode, node) {
+    	addToken(addToNode, node);
+        parent.add(addToNode);
+        addToNode.add(createNode("Type " + node.annotationString()));
+        addToNode.add(createNode("ID(" + node.x.name +")"));
+        parent = createNode("e");
+        addToNode.add(parent);
+        node.exp.accept(this);
+        parent = createNode("in");
+        addToNode.add(parent);
+        node.body.accept(this);   
+    }
+    
+    method visitID(node) {
+    	var id = createNode("ID(" + node.name + ")" + node.eTypeString());
+    	parent.add(id);
+    }
+    
+    method visitApplication(node){
+        var app = createNode("Application" + node.eTypeString());
+        addToken(app, node);
+        parent.add(app);
+        parent = app;
+        node.f.accept(this);
+        val args = createNode("Arguments");
+       	app.add(args);
+        parent = args;
+  		node.arguments.map(fn (a) => a.accept(this));
+    }
+    
+    method visitAssignment(node){
+        var assign = createNode("Assignment" + node.eTypeString());
+        addToken(assign, node);
+        parent.add(assign);
+        parent = assign;
+        match (node.target) {
+            case Some {
+                node.target.value.accept(this);
+            }
+            default { }
+        };
+        parent = assign;
+        node.field.accept(this);
+        parent = assign;
+        node.value.accept(this);
+    }
+    
+    method visitCase(node){
+        var c = createNode("Case" + node.eTypeString());
+        addToken(c, node);
+        parent.add(c);
+        ifElse ( node.defaultCase ) {
+            c.add(createNode("DEFAULT"));
+        }{
+            parent = c;
+            node.qi.value.accept(this);
+        };
+        parent = c;
+        match (node.x) {
+        	case Some {
+        		node.x.value.accept(this);
+        	}
+        	default {}
+        };
+        parent = c;
+        node.e.accept(this);
+    }
+    
+    method visitChangeState(node){
+        var cs = createNode("ChangeState" + node.eTypeString());
+        parent.add(cs);
+        parent = cs;
+        node.s.accept(this);
+        parent = cs;
+        node.e.accept(this);
+    }
+    
+    method visitDeclList(node){
+        var dl = createNode("DeclList");
+        parent.add(dl);
+        var groups = createNode("Groups");
+        dl.add(groups);
+        var fields = createNode("Fields");
+        dl.add(fields);
+        var methods = createNode("Methods");
+        dl.add(methods);
+        var states = createNode("States");
+        dl.add(states);
+        node.decls.map( fn (decl) => {
+            match (decl) {
+                case FieldDecl {
+                    parent = fields;
+                    decl.accept(this);
+                }
+                case MethodDecl {
+                    parent = methods;
+                    decl.accept(this);
+                }
+                case StateDecl {
+                    parent = states;
+                    decl.accept(this);
+                }
+                case GroupDecl {
+                    parent = groups;
+                    decl.accept(this); 
+                }
+                default {
+                    java.lang.System.out.println("Unsupported top level declaration.");
+                }
+            }
+        });
+    }
+    
+    method visitDereference(node){
+        var deref = createNode("Dereference" + node.eTypeString());
+        addToken(deref, node);
+        parent.add(deref);
+        parent = deref;
+        node.left.accept(this);
+        parent = deref;
+        node.right.accept(this);
+    }
+    
+    method visitDestructiveDereference(node){
+        val deref = createNode("DestructiveDereference" + node.eTypeString());
+        addToken(deref, node);
+        parent.add(deref);
+        parent = deref;
+        node.left.accept(this);
+        parent = deref;
+        node.right.accept(this);
+    }
+    
+    method visitDoubleLiteral(node){
+        val lit = createNode("DoubleLiteral(" + node.double + ")" + node.eTypeString());
+        parent.add(lit);
+    }
+    
+    method visitGroupDecl(node) {
+        val gnode = createNode(node.id.name);
+        parent.add(gnode);
+        
+        // token
+        addToken(gnode, node);
+        
+        // abstract group
+        val isAbstract = createNode("abstract : " + node.isAbstract.toString());
+        gnode.add(isAbstract);
+    }
+    
+    method visitIntLiteral(node){
+        var lit = createNode("IntLiteral(" + node.integer + ")" + node.eTypeString());
+        parent.add(lit);
+    }
+    
+    method visitLambda(node){
+        var lambda = createNode("Lambda" + node.eTypeString());
+        addToken(lambda, node);
+        parent.add(lambda);
+        
+        //get arg if exists
+		var args = createNode("Args");
+		lambda.add(args);
+		parent = args;
+		node.arguments.map(fn (a) => a.accept(this));
+		
+        // get body
+        var body = createNode("Body");
+        lambda.add(body);
+        parent = body;
+        node.body.accept(this);
+        
+       // lambda.add(createNode("Type: " + node.lambdaType.toString()));
+    }
+    
+    method visitMatch(node){
+        var m = createNode("Match" + node.eTypeString());
+        addToken(m, node);
+        parent.add(m);
+        parent = m;
+        node.e.accept(this);
+        node.caseList.map(fn (c) => {
+        	parent = m;
+        	c.accept(this);
+        });
+    }
+    
+    
+    method visitMetaDereference(node) {
+        val argNode = createNode("MetaDereference(" + node.variable.name + "." + node.selector.name +")");
+        parent.add(argNode);
+    }
+    
+    
+    method visitMetaVariable(node) {
+        val argNode = createNode("MetaVariable(" + node.id.name +")");
+        parent.add(argNode);
+    }
+
+    method visitMetaTypeArgument(node) {
+        val argNode = createNode("MetaTypeArgument(" + node.permType.toString() +")");
+        parent.add(argNode);
+    }
+    
+    
+    method visitNewInstance(node){
+        var newi = createNode("NewInstance" + node.eTypeString());
+        addToken(newi, node);
+        parent.add(newi);
+        parent = newi;
+        node.s.accept(this);
+    }
+        
+    method visitQI(node){
+        val qiNode = createNode("QI("+node.toString()+")");
+        parent.add(qiNode);
+        match (node.initState) {
+        	case Some {
+        		parent = qiNode;
+        		node.initState.value.accept(this);
+        	}
+        	case None { }
+        }
+    }
+    
+    method visitSplitBlock(node) {
+        var splitBlockNode = createNode("SplitBlock");
+        parent.add(splitBlockNode);
+        
+        var groups = createNode("DataGroups");
+        splitBlockNode.add(groups);
+        parent = groups;
+        node.metaArgs.map(fn (arg) => arg.accept(this)); 
+        
+        var bodyNode = createNode("Bodies");
+        splitBlockNode.add(bodyNode);
+        node.body.map(fn (e) => { parent = bodyNode; e.accept(this)});
+    }    
+    
+    method visitStringLiteral(node){
+        var lit = createNode("StringLiteral(" + node.string + ")" + node.eTypeString());
+        parent.add(lit);
+    }
+    
+    method visitUnitLiteral(node){
+       	var lit = createNode("UnitLiteral" + node.eTypeString());
+        parent.add(lit);
+    }
+
+    method visitUnpackInnerGroups(node) {
+        val unpackNode = createNode("unpackInnerGroups");
+        parent.add(unpackNode);
+        parent = unpackNode;    
+        node.body.accept(this);
+    }
+        
+    method visitWith(node){
+        var w = createNode("With");
+        addToken(w, node);
+        parent.add(w);
+        parent = w;
+        node.s1.accept(this);
+        parent = w;
+        node.s2.accept(this);
+    }
+    
+    method visitJoin(node) {
+    	var j = createNode("Join");
+    	this.parent.add(j);
+    	this.parent = j;
+		node.theVar.accept(this);
+		j.add(createNode("Join Type: " + node.toJoin1.toString()));
+		j.add(createNode("With Type: " + node.toJoin2.toString()));
+		j.add(createNode("Result Type: " + node.result.toString()));
+		var b = createNode("Body");
+		j.add(b);
+		this.parent = b;
+		node.body.accept(this);
+    }
+    
+    method visitsplitPerm(node) {
+    	var s = createNode("Split");
+    	this.parent.add(s);
+    	this.parent = s;
+		node.theVar.accept(this);
+		s.add(createNode("Initial Type: " + node.initialType.toString()));
+		s.add(createNode("Needed Type: " + node.neededType.toString()));
+		s.add(createNode("Residue Type: " + node.residue.toString()));
+		var b = createNode("Body");
+		s.add(b);
+		this.parent = b;
+		node.body.accept(this);
+    }
+}

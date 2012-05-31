@@ -1,0 +1,556 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.ParsedLeafVisitor;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
+import plaid.compiler.report_ERROR;
+import plaid.ast.util.makeTokenForFile;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_HIGH;
+import plaid.compiler.Pass;
+
+import plaid.compiler.*;
+import plaid.compiler.typechecker.*;
+import plaid.compiler.aeminium.*;
+import plaid.compiler.permissions.*;
+
+import plaid.collections.makeLinkedList;
+
+state AEminiumPass case of Pass = ParsedLeafVisitor with {
+    var hasErrors = false;
+    
+    method immutable Boolean run(unique Job job) {
+        match (job) {
+          case UserJob {
+              match (job.ast) {
+                  case Some {
+                    DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> started");
+                
+                    job.ast.value.accept(this);
+            
+                    DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> finished");
+                    !this.hasErrors;
+                  }
+                  default {
+                      report_ERROR(makeTokenForFile(job.source.path), "AST invalid", "", "AEminiumPass");
+                      false
+                  }
+              }
+          }
+          case CompilerJob {
+              DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> skip CompilerJob");
+              true
+          }
+        }
+    }
+    
+    override method void LOG(immutable String msg) {
+        //DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> " + msg);
+    }
+    
+    override method void visitParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> found Method Declaration '" + node.name.name + "'");
+        
+        ifElse ( typecheckingEnabled(node) ) {         
+            // get dependency information for 
+            val unique DependencyInformationCollector dic = new DependencyInformationCollector;
+            node.accept(dic);
+            var unique Set infos = dic.getNodes();
+            DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass>     found " + infos.size() + " dependency information nodes");
+            
+            //remove return depdendencies if unecessary 
+            //infos = optimizeReturnDependencies(node, infos);
+            
+            val unique LinkedList ops = makeLinkedList();
+            ops.addLast( fn (depInfos) => {
+                 val result = removeNoneFieldRestore(depInfos);
+                 dumpGraph(node, "AEMINIUM-NONE-FIELD-RESTORE");
+                 result
+            });
+            ops.addLast( fn (depInfos) => {
+                 val result = removeJoinJoin(depInfos);
+                 dumpGraph(node, "AEMINIUM-PRE-JOIN-JOIN");
+                 result
+            });
+            ops.addLast( fn (depInfos) => {
+                 val result = removeSplitSplit(depInfos);
+                 dumpGraph(node, "AEMINIUM-PRE-SPLIT-SPLIT");
+                 result
+            });
+            ops.addLast( fn (depInfos) => {
+                 val result = removeNonsenseUniqueJoinSplit(depInfos);
+                 dumpGraph(node, "AEMINIUM-UNIQUE-JOIN-SPLIT");
+                 result
+            });  
+            ops.addLast( fn (depInfos) => {
+                 val result = removeNonsenseSymetricJoinSplit(depInfos);
+                 dumpGraph(node, "AEMINIUM-SYMETRIC-JOIN-SPLIT");
+                 result
+            });  
+            ops.addLast( fn (depInfos) => {
+                 val result = removeJoinJoin(depInfos);
+                 dumpGraph(node, "AEMINIUM-POST-JOIN-JOIN");
+                 result
+            });
+            ops.addLast( fn (depInfos) => {
+                 val result = removeSplitSplit(depInfos);
+                 dumpGraph(node, "AEMINIUM-POST-SPLIT-SPLIT");
+                 result
+            });        
+            
+            // execute ops
+            var unique Set nodes = infos; 
+            ops.do( fn (op) => {
+                nodes = op(nodes);
+            });
+            
+            // dump final graph
+            dumpGraph(node, "AEMINIUM-FINAL");
+        }{
+            DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> SKIP method " + node.name.name);
+        }
+    }
+    
+    /***********************************************************************
+     **                   optimization functions                          **
+     ***********************************************************************/
+    
+    method unique Set optimizeReturnDependencies(immutable ParsedConcreteMethodDecl node,
+                                                 unique Set infos) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> optimizeReturnDependencies");
+        val unique Set result = java.util.HashSet.new();
+        result.addAll(infos);
+        
+        val shared DependencyInformation blockInfo = match ( depInfoForAST(node.body) ) {
+            case Some { depInfoForAST(node.body).value }
+            case None { ABORT("<AEminiumPass> Cannot find dependency information for method body block") }
+        };
+        
+        // check for dependencies joins resulting on symmetric permissions
+        val depsToRemove = java.util.HashSet.new();
+        val depsIt = blockInfo.deps.iterator();
+        while { depsIt.hasNext() }{
+            val curDep = depsIt.next();
+            match (curDep) {
+                case JoinInformation {
+                    match (curDep.permOut) {
+                        case SymmetricPermission {
+                            // TODO: check that we do this only when the starting permission was not unique at the beginning
+                            var immutable Boolean remove = true;
+                            
+                            node.arguments.do(fn (arg) => {
+                                DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass>     check arg '"+ arg.name.name +"' == '" + curDep.symbol.name +"'");
+                                if ( arg.name.name == curDep.symbol.name ) {
+                                    DEBUG(DEBUG_PRIO_MEDIUM,"<AEminiumPass> found paramater argument ");
+                                    match (arg.argSpec.inputType) {
+                                        case ParsedConcreteType {
+                                            match ( arg.argSpec.inputType.permission ) {
+                                                case ParsedUniquePermission { 
+                                                    DEBUG(DEBUG_PRIO_MEDIUM,"<AEminiumPass> don't remove return dependency for '" + curDep.symbol.name + "' because it came in as an unique permission.");
+                                                    remove = false;
+                                                }
+                                                default { /* noop */ }
+                                            }
+                                        }
+                                        default { /* noop */ }
+                                    }
+                                }
+                            });
+                            
+                            node.environment.do(fn (arg) => {
+                                DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass>     check arg '"+ arg.name.name +"' == '" + curDep.symbol.name +"'");
+                                if ( arg.name.name == curDep.symbol.name ) {
+                                    DEBUG(DEBUG_PRIO_MEDIUM,"<AEminiumPass> found paramater argument ");
+                                    match (arg.argSpec.inputType) {
+                                        case ParsedConcreteType {
+                                            match ( arg.argSpec.inputType.permission ) {
+                                                case ParsedUniquePermission { 
+                                                    DEBUG(DEBUG_PRIO_MEDIUM,"<AEminiumPass> don't remove return dependency for '" + curDep.symbol.name + "' because it came in as an unique permission.");
+                                                    remove = false;
+                                                }
+                                                default { /* noop */ }
+                                            }
+                                        }
+                                        default { /* noop */ }
+                                    }
+                                }
+                            });
+                            
+                            if ( remove ) {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> remove return dependency for '" + curDep.symbol.name +"'");
+                                depsToRemove.add(curDep);
+                            }
+                        }
+                        default {} 
+                    }
+                }
+                default {}
+            }
+        };
+        val depsToRemoveIt = depsToRemove.iterator();
+        while { depsToRemoveIt.hasNext() }{
+            val curDep = depsToRemoveIt.next();
+            DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> remove dependency to symmetric permission " + curDep.toString());
+            curDep.rdeps.remove(blockInfo);
+            blockInfo.deps.remove(curDep);
+        };
+        
+        // detach from last statement in the case of unit return type
+        val shared Symbol methodSymbol = match ( symbolForAST(node) ) {
+            case Some { symbolForAST(node).value } 
+            case None { ABORT("<AEminiumPass> Cannot find symbol for method ") }
+        };
+        match (methodSymbol) {
+            case MethodSymbol {
+                val immutable MethodSignature methodSignature = methodSymbol.getSignature();
+                if ( methodSignature.returnType == VOID ) {
+                    DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> Return type is void -> remove dependency to last statement");
+                    if ( node.body.statements.size() > 0 ) {
+                        val stmtOpt = node.body.statements.get(node.body.statements.size() - 1);
+                        match ( stmtOpt ) {
+                             case Some { 
+                                  val immutable ParsedASTNode lastStmt = stmtOpt.value;
+                                  val shared DependencyInformation lastStmtInfo = match ( depInfoForAST(lastStmt) ) {
+                                      case Some { depInfoForAST(lastStmt).value }
+                                      case None { ABORT("<AEminiumPass> Cannot find symbol for last statement") }
+                                  };
+                                  
+                                  blockInfo.deps.remove(lastStmtInfo);
+                                  lastStmtInfo.rdeps.remove(blockInfo);
+                             }
+                             case None { ABORT("<AEminiumPass> Cannot find last statement") }
+                        }
+                    }
+                }
+            }
+            default { ABORT("<AEminiumPass> Found wrong symbol for method ") }
+        };
+        
+        dumpGraph(node, "AEMINIUM-RETURN-OPT");
+        
+        result
+    }
+
+ 
+    method immutable Option/*<JoinInformation>*/ findNextJoin(shared SplitInformation splitInfo) {
+        val joins = getJoinInformation(splitInfo.rdeps);
+        ifElse ( joins.size() > 0 ) {
+            if ( joins.size() != 1 ) { ABORT("<AEminiumPass> found too many joins.") };
+            makeSome(joins.iterator().next())
+        }{
+            val splits = getSplitInformation(splitInfo.rdeps);
+            ifElse ( splits.size() > 0 ) {
+                if ( splits.size() != 1 ) { ABORT("<AEminiumPass> found too many splits.") };
+                findNextJoin(splits.iterator().next());
+            }{
+                new None;
+            }
+        }
+    }
+ 
+ 
+    method shared SplitInformation findPreviousSplit(shared DependencyInformation depInfo, shared Symbol symbol) {
+        val splits = getSplitInformation(depInfo.deps);
+        ifElse ( splits.size() > 0 ) {
+            if ( splits.size() != 1 ) { ABORT("<AEminiumPass> found too many splits.") };
+            val previousSplit = splits.iterator().next();
+            if ( !(previousSplit.symbol == symbol) ) { ABORT("<AEminiumPass> split does not match") };
+            previousSplit
+        }{
+            val it = depInfo.deps.iterator();
+            var result = new None;
+            while { it.hasNext() }{
+                val next = it.next();
+                match (next) {
+                    case SplitInformation {
+                        if ( next.symbol == symbol ) {
+                            result = makeSome(depinfo);
+                        }
+                    }
+                    default {
+                        result = makeSome(findPreviousSplit(next, symbol));
+                    }
+                }
+            };
+            match (result) {
+                case Some { result.value }
+                case None { ABORT("<AEminiumPass> cannot find previous split ")}
+            }
+        }
+    } 
+ 
+    method void fixNonsenseSymetricJoinSplitWithoutLowerJoin(shared JoinInformation upperJoin,
+                                                             shared SplitInformation splitInfo) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> fixNonsenseSymetricJoinSplitWithoutLowerJoin");
+        DEBUG(DEBUG_PRIO_MEDIUM, "               upperJoin = "+ upperJoin.toString());
+        DEBUG(DEBUG_PRIO_MEDIUM, "               splitInfo = "+ splitInfo.toString());
+        
+        val upperJoinDepsIt = upperJoin.deps.iterator();
+        while { upperJoinDepsIt.hasNext() }{
+            val shared DependencyInformation upperJoinDep = upperJoinDepsIt.next();
+    
+            // remove join from upper dependencies 
+            upperJoinDep.rdeps.remove(upperJoin);
+        };
+            
+        // make make items that dependend on split depend on next higher split 
+        val previousSplit = findPreviousSplit(upperJoin, upperJoin.symbol);
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPasss> found previous split " + previousSplit );
+        val splitRDepsIt = splitInfo.rdeps.iterator();
+        while { splitRDepsIt.hasNext() }{
+             val shared DependencyInformation splitRDep = splitRDepsIt.next();
+             
+             // remove split from reverse dependencies
+             splitRDep.deps.remove(splitInfo);
+             
+             // connect splits dependents dependent on joins
+             addDependency(splitRDep, previousSplit);
+        };
+    } 
+ 
+    method void fixNonsenseSymetricJoinSplit(shared JoinInformation upperJoin,
+                                             shared SplitInformation splitInfo,
+                                             shared JoinInformation lowerJoin) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPass> fixNonsenseSymetricJoinSplit");
+        DEBUG(DEBUG_PRIO_MEDIUM, "               upperJoin = "+ upperJoin.toString());
+        DEBUG(DEBUG_PRIO_MEDIUM, "               splitInfo = "+ splitInfo.toString());
+        DEBUG(DEBUG_PRIO_MEDIUM, "               lowerJoin = "+ lowerJoin.toString());
+
+        // make dependencie of upper join dependencies of lower join 
+        val depsIt = upperJoin.deps.iterator();
+        while { depsIt.hasNext() }{
+            val depNext = depsIt.next();
+            depNext.rdeps.remove(upperJoin);
+            addDependency(lowerJoin, depNext);
+        };
+        
+        // make make items that dependend on split depend on next higher split 
+        val previousSplit = findPreviousSplit(upperJoin, upperJoin.symbol);
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumPasss> found previous split " + previousSplit );
+        val splitsIt = splitInfo.rdeps.iterator();
+        while {splitsIt.hasNext()}{
+            val splitNext = splitsIt.next();
+            splitNext.deps.remove(splitInfo);
+            
+            addDependency(splitNext, previousSplit);
+        }
+    }
+                                     
+ 
+    method unique Set removeNonsenseSymetricJoinSplit(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeNonsenseSymetricJoinSplit");
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case SplitInformation {                    
+                    ifElse ( depInfo.deps.size() == 1 ) {
+                        val shared DependencyInformation upperJoin = depInfo.deps.iterator().next();
+                        match (upperJoin) {
+                            case JoinInformation {
+                                if ( depInfo.permOut == upperJoin.permIn && depInfo.inAtomic == false ) {
+                                    match (depInfo) { case UniquePermission { ABORT("<AEminium found unqiue nonsense join/split in symetric pass -> run after removeNonsenseUniqueJoinSplit") } default {} };
+                                    DEBUG(DEBUG_PRIO_HIGH, "<AEminiumMode> Found symetric nonsense join/split");
+                                    val splitInfo = depInfo;
+                                    val lowerJoinOpt = findNextJoin(splitInfo);
+                                    match ( lowerJoinOpt ) {
+                                        case Some { fixNonsenseSymetricJoinSplit(upperJoin, splitInfo, lowerJoinOpt.value) } 
+                                        case None { fixNonsenseSymetricJoinSplitWithoutLowerJoin(upperJoin, splitInfo) } 
+                                    }
+                               }
+                            }
+                            default { result.add(depInfo) }
+                        }
+                    }{
+                        result.add(depInfo);
+                    }                
+                }
+                default { result.add(depInfo) }
+            }
+        };
+        
+        result
+    }
+    
+
+    method unique Set removeNonsenseUniqueJoinSplit(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeNonsenseUniqueJoinSplit");
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case SplitInformation {
+                    val splitInfo = depInfo;
+                    ifElse ( depInfo.permOut == depInfo.permIn && depInfo.inAtomic == false ) {
+                        match (depInfo.permOut) {
+                            case UniquePermission {
+                                DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> found unique nonsense join/split ");
+                                
+                                val joins = getJoinInformation(depInfo.rdeps);
+                                if ( joins.size() == 1 ) {
+                                    val joinInfo = joins.iterator().next();
+                                    
+                                    // remove 'none' connection
+                                    splitInfo.rdeps.remove(joinInfo);
+                                    joinInfo.deps.remove(splitInfo);
+                                    
+                                    // remove join node
+                                    removeDependencyInformation(joinInfo);
+                                };
+                                
+                                // remove split node
+                                removeDependencyInformation(splitInfo);
+                            }
+                            default {
+                                // ignore symmetic cases are handled later 
+                                result.add(depInfo);
+                            }
+                        }
+                    }{
+                        result.add(depInfo);
+                    }
+                }
+                default {
+                    result.add(depInfo);
+                }
+            }
+        };
+        
+        result
+    }
+    
+    method void fixSplitSplit(shared DependencyInformation splitInfo) {
+        removeDependencyInformation(splitInfo);
+    }
+
+    method void fixJoinJoin(shared DependencyInformation splitInfo) {
+        removeDependencyInformation(splitInfo);
+    }
+    
+    method immutable Permission simplePermission(immutable Permission perm) {
+        match (perm){
+            case ImmutablePermission { perm }
+            case SharedPermission    { perm }
+            case UniquePermission    { perm }
+            case NonePermission      { perm }
+            case LocalPermission     { perm.thePerm }
+            case BorrowedPermission  { perm.thePerm }
+            default                  { ABORT("<AEminiumPass> found not supported permission: " + perm.toString()) }
+        }        
+    }
+
+    method unique Set removeSplitSplit(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeSplitSplit");
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case SplitInformation {                    
+                    ifElse ( simplePermission(depInfo.permIn) == simplePermission(depInfo.permOut)  && depInfo.inAtomic == false ) {
+                        val upperSplits = getSplitInformation(depInfo.deps);
+                        ifElse ( upperSplits.size() > 0) {
+                            DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> found split hierarchy ");
+                            if ( upperSplits.size() != 1 ) { ABORT("<AEminiumPass> cannot have more than one split") };
+                            fixSplitSplit(depInfo);                            
+                        }{
+                            result.add(depInfo)
+                        }
+                    }{
+                        result.add(depInfo);
+                    }
+                }
+                default { result.add(depInfo) }
+            }
+        };
+        
+        result      
+    }
+    
+    method unique Set removeJoinJoin(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeJoinJoin");
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case JoinInformation {                    
+                    ifElse ( simplePermission(depInfo.permIn) == simplePermission(depInfo.permOut) && depInfo.inAtomic == false ) {
+                        val lowerJoins = getJoinInformation(depInfo.rdeps);
+                        ifElse ( lowerJoins.size() > 0) {
+                            DEBUG(DEBUG_PRIO_HIGH, "<AEminiumPass> found join hierarchy ");
+                            if ( lowerJoins.size() != 1 ) { ABORT("<AEminiumPass> cannot have more than one split") };
+                            fixJoinJoin(depInfo);                            
+                        }{
+                            result.add(depInfo)
+                        }
+                    }{
+                        result.add(depInfo);
+                    }
+                }
+                default { result.add(depInfo) }
+            }
+        };
+        
+        result      
+    }
+    
+    method unique Set removeNoneFieldRestore(unique Set infos) {
+        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> removeNoneFieldRestore");
+        val unique Set result = java.util.HashSet.new();
+        
+        val it = infos.iterator();
+        while { it.hasNext() }{
+            val shared DependencyInformation depInfo = it.next();
+            
+            match (depInfo) {
+                case FieldRestoreInformation {                    
+                    ifElse ( simplePermission(depInfo.permIn) == NONEP ) {
+                        DEBUG(DEBUG_PRIO_LOW, "<AEminiumPass> found none field restore " + depInfo.toString());
+                        ifElse ( depInfo.rdeps.size() == 1  ) {
+                            //connect lowersplit to upp join 
+                            val shared DependencyInformation rdepInfo = depInfo.rdeps.iterator().next();
+                            rdepInfo.deps.remove(depInfo);
+                            
+                            val itDeps = depInfo.deps.iterator();
+                            while { itDeps.hasNext() }{
+                                val curDep = itDeps.next();
+                                
+                                curDep.rdeps.remove(depInfo);
+                                match (curDep) {
+                                   case JoinInformation {
+                                       curDep.rdeps.add(rdepInfo);
+                                       rdepInfo.deps.add(curDep);   
+                                   }
+                                   default {}
+                                }
+                            };
+                            
+                            depInfo.deps.clear();
+                            depInfo.rdeps.clear();
+                        }{
+                            ABORT("AEminiumPass> Found badly connected field restore information");
+                        }   
+                    }{
+                        result.add(depInfo);
+                    }
+                }
+                default { result.add(depInfo) }
+            }
+        };
+        
+        result      
+    }
+}
