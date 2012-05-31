@@ -199,7 +199,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}
 	}
 	
-	private final static class Integer32PlaidJavaObject implements PlaidJavaObject {
+	private final static class Integer32PlaidJavaObject implements PlaidJavaObject, ItoString$0$plaid {
 		public final int integerValue;
 		private Integer javaObject;
 		
@@ -214,7 +214,6 @@ public final class Integer32 extends AbstractPlaidDispatch
 			}
 			return this.javaObject;
 		}
-
 		
 		@Override
 		public boolean canBePrimitive(JavaPrimitive p) {
@@ -249,6 +248,19 @@ public final class Integer32 extends AbstractPlaidDispatch
 		@Override
 		public PlaidObject[] getStorage() {
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
+		}
+
+		public java.lang.String toString() {
+			return "" + this.integerValue;			
+		}
+		
+		@Override
+		public PlaidObject toString(PlaidObject pthis) {
+			if ( pthis instanceof Integer32PlaidJavaObject) {
+			return Util.string(pthis.toString());
+			} else {
+				throw new PlaidIllegalArgumentException("Invalid receiver type : " + pthis.getClass().toString());
+			}
 		}
 	}
 

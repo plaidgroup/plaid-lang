@@ -158,7 +158,7 @@ public final class Float64 extends AbstractPlaidDispatch
 		return plaid.fastruntime.Util.string(((PlaidJavaObject)x).getJavaObject().toString());
 	}
 	
-	private static final class Float64PlaidJavaObject implements PlaidJavaObject {
+	private static final class Float64PlaidJavaObject implements PlaidJavaObject, ItoString$0$plaid {
 		
 		public Float64PlaidJavaObject(double float64) {
 			this.doubleValue = float64;
@@ -206,6 +206,18 @@ public final class Float64 extends AbstractPlaidDispatch
 			throw new PlaidIllegalOperationException("No storage object for a Java Object.");
 		}
 
+		public java.lang.String toString() {
+			return "" + this.javaObject;			
+		}
+		
+		@Override
+		public PlaidObject toString(PlaidObject pthis) {
+			if ( pthis instanceof Float64PlaidJavaObject) {
+			return Util.string(pthis.toString());
+			} else {
+				throw new PlaidIllegalArgumentException("Invalid receiver type : " + pthis.getClass().toString());
+			}
+		}
 	}
 
 

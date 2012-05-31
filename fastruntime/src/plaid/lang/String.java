@@ -204,6 +204,4 @@ public class String extends AbstractPlaidDispatch
 	public PlaidObject toString(PlaidObject x) {
 		return x;
 	}
-
-
 }
