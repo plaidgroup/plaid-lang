@@ -1,5 +1,7 @@
 package plaid.ForkJoinBenchmark.java;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import plaid.fastruntime.aeminium.runtime.ForkJoinPool;
 import plaid.fastruntime.aeminium.runtime.ForkJoinTask;
 import plaid.fastruntime.aeminium.runtime.RecursiveAction;
@@ -9,31 +11,36 @@ public class RunFJ {
 	public static int START = 32;
 	public static ForkJoinPool pool = plaid.fastruntime.aeminium.Util.POOL;
 	public static int CPU_COUNT = Runtime.getRuntime().availableProcessors();
+	public static AtomicInteger taskCounter = new AtomicInteger();
 	
 	public static void forkJoin(int level) {
 		final int curLevel = level - 1;
-		
-		if ( plaid.fastruntime.aeminium.Util.parallelize <= 0 ) {
+
+		//System.out.println(oracle(curLevel));
+		if ( plaid.fastruntime.aeminium.Util.parallelize() == false ) {
 			if ( curLevel > 0 ) {
 				forkJoin(curLevel);
 				forkJoin(curLevel);
 			} 
 		} else {
-			plaid.fastruntime.aeminium.Util.parallelize--;
-			RecursiveAction t1 = new RecursiveAction() {				
-				@Override
-				protected void compute() {
-					forkJoin(curLevel);
-				}
-			};
-			RecursiveAction t2 = new RecursiveAction() {				
-				@Override
-				protected void compute() {
-					forkJoin(curLevel);
-				}
-			};
-			
-			ForkJoinTask.invokeAll(t1, t2);
+			if ( curLevel > 0 ) {
+				plaid.fastruntime.aeminium.Util.parallelize--;
+				RecursiveAction t1 = new RecursiveAction() {				
+					@Override
+					protected void compute() {
+						taskCounter.incrementAndGet();
+						forkJoin(curLevel);
+					}
+				};
+				RecursiveAction t2 = new RecursiveAction() {				
+					@Override
+					protected void compute() {
+						taskCounter.incrementAndGet();
+						forkJoin(curLevel);
+					}
+				};
+				ForkJoinTask.invokeAll(t1, t2);
+			}
 		}
 	}
 	
@@ -53,7 +60,7 @@ public class RunFJ {
 		
 		while ( pool.getActiveThreadCount() > 0 ) {
 			try {
-				Thread.sleep(10);
+				Thread.sleep(100);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -62,6 +69,7 @@ public class RunFJ {
 
 		long stop = System.nanoTime();
 		System.out.println("execution time : " + (stop-start)/(1000*1000*1000.0));
+		System.out.println("created Tasks " + taskCounter.get());
 		
 	}
 }
