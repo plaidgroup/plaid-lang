@@ -137,15 +137,21 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 // compute tasks
                 var tasks = computeTasks(path, nodes);
                 
-                // dump pre expand graph
-                dumpTaskGraph(path, "TASK-PRE-MATCH-EXPAND", tasks);
-                
+                // simplify floating tasks 
+                tasks = simplifyFloatingTasks(tasks, node);
+                                
+                // dump graph 
+                dumpTaskGraph(path, "TASK-SIMPLIFY-FLOATING-TASKS", tasks);
+
                 val methodInfoObj = makeMethodInformationObject(node, tasks, this.matchInfoObjs, this.matchFixupTable);
                 this.methodInfoMap.put(node, methodInfoObj);
                 
                 if ( COMPILER_CONFIGURATION().enableCodegen == false ) {
                     // expand matches and dump final task graph
                     // if we generate code we do that after we generated the code
+
+                    // dump pre expand graph
+                    dumpTaskGraph(path, "TASK-PRE-MATCH-EXPAND", tasks);
                 
                     // expand match blocks
                     tasks = expandMatchBlocks(path, tasks);
@@ -173,6 +179,55 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
         }
     }
     
+    
+    method unique Set simplifyFloatingTasks(unique Set tasks, immutable ParsedConcreteMethodDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilder> simplifyFloatingTasks");
+        match ( tasks.size() > 1 ) {
+            case True {
+                val bodyInfo = match ( depInfoForAST(node.body) ) {
+                    case Some { depInfoForAST(node.body).value } 
+                    default { ABORT("Cannot find dependency information for method body") }
+                };
+
+                var bodyTask = unit;
+                val floatingZeroTasks = java.util.HashSet.new();
+                val findIt = tasks.iterator();
+                while { findIt.hasNext() }{
+                    val curTask = findIt.next();
+                    ifElse  ( curTask.infos.contains(bodyInfo) ) {
+                        bodyTask = curTask;
+                    }{
+                        if ( curTask.getWeight() == 0 && curTask.deps.size() == 0 && curTask.rdeps.size() == 0 ) {
+                            floatingZeroTasks.add(curTask);
+                        }
+                    }
+                };
+                
+                ifElse  ( floatingZeroTasks.size() > 0 ) {
+                    match ( bodyTask ) {
+                        case Task {
+                            val resultSet = java.util.HashSet.new(tasks);
+                            // remove tasks we are going to merge
+                            resultSet.removeAll(floatingZeroTasks);
+                            
+                            val mergeIt = floatingZeroTasks.iterator();
+                            while { mergeIt.hasNext() } {
+                                val curTask = mergeIt.next();
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilderPass> merge flaoting task " + curTask.toString() + " into body task");
+                                bodyTask.infos.addAll(curTask.infos);
+                            };
+                            
+                            resultSet
+                        }
+                        default { ABORT("Cannot find body task") } 
+                    }
+                }{
+                    tasks
+                }
+            }
+            case False { tasks }
+        } 
+    }
     
     method immutable Boolean hasTransitiveDependency(shared DependencyInformation depInfo, shared Set deps) {
         val it = deps.iterator();
