@@ -55,6 +55,9 @@ public class Webserver {
 			if ( items[0].toLowerCase().equals("get")) {
 				if ( items[1].equals("/") ) {
 					items[1] = "/index.html";
+				} else if ( items[1].contains("?") ) {
+					String[] params = items[1].split("\\?");
+					items[1] = params[0];
 				}
 				File file = new File(ROOT + items[1]);
 				LOG("serving file '%s'", file.getAbsoluteFile());
