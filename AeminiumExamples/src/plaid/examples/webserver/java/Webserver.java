@@ -61,42 +61,47 @@ public class Webserver {
 				}
 				File file = new File(ROOT + items[1]);
 				LOG("serving file '%s'", file.getAbsoluteFile());
-				if ( file.exists() && file.isFile() ) {
-					transfer(clientSocket.getOutputStream(), file);
-				}
+				transfer(clientSocket.getOutputStream(), file);
 			}
 		}
 		clientSocket.close();
 	}
 	
-	public static void transfer(OutputStream outStream, File file) throws IOException {
-		InputStream fileStream = new BufferedInputStream(new FileInputStream(file));
+	public static void transfer(OutputStream outStream, File file) throws IOException {	
 
 		transferHeader(outStream, file);
-		transferData(outStream, fileStream);
+		if ( file.exists() && file.isFile() ) {			
+			InputStream fileStream = new BufferedInputStream(new FileInputStream(file));
+			transferData(outStream, fileStream);
+		}
 	}
 	
 	public static void transferHeader(OutputStream os, File file) throws IOException {
 		StringBuilder sb = new StringBuilder();
-		sb.append("HTTP/1.1 200 Script output follows\n");
-		if ( file.getAbsolutePath().toLowerCase().endsWith(".html") || file.getAbsolutePath().toLowerCase().endsWith(".htm")) {
-			sb.append("Content-Type: text/html; charset=UTF-8\n");
-		} else if ( file.getAbsolutePath().toLowerCase().endsWith(".css")) {
-			sb.append("Content-Type: text/css; charset=UTF-8\n");
-		}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".png")) {
-			sb.append("Content-Type: image/png\n");
-		}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".gif")) {
-			sb.append("Content-Type: image/gif\n");
-		}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".jpeg") || file.getAbsolutePath().toLowerCase().endsWith(".jpg")) {
-			sb.append("Content-Type: image/jpeg\n");
-		} else if ( file.getAbsolutePath().toLowerCase().endsWith(".js")) {
-			sb.append("Content-Type: text/javascript; charset=UTF-8\n");
+		if ( file.exists() && file.isFile() ) {
+			sb.append("HTTP/1.1 200 Script output follows\n");
+			if ( file.getAbsolutePath().toLowerCase().endsWith(".html") || file.getAbsolutePath().toLowerCase().endsWith(".htm")) {
+				sb.append("Content-Type: text/html; charset=UTF-8\n");
+			} else if ( file.getAbsolutePath().toLowerCase().endsWith(".css")) {
+				sb.append("Content-Type: text/css; charset=UTF-8\n");
+			}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".png")) {
+				sb.append("Content-Type: image/png\n");
+			}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".gif")) {
+				sb.append("Content-Type: image/gif\n");
+			}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".jpeg") || file.getAbsolutePath().toLowerCase().endsWith(".jpg")) {
+				sb.append("Content-Type: image/jpeg\n");
+			} else if ( file.getAbsolutePath().toLowerCase().endsWith(".js")) {
+				sb.append("Content-Type: text/javascript; charset=UTF-8\n");
+			} else {
+				LOG("unknown file type '%s'", file.getAbsoluteFile());
+				sb.append("Content-Type: text/text; charset=UTF-8\n");
+			}
+			sb.append("Connection: close\n");
+			sb.append("\n");
 		} else {
-			LOG("unknown file type '%s'", file.getAbsoluteFile());
-			sb.append("Content-Type: text/text; charset=UTF-8\n");
+			sb.append("HTTP/1.1 404 File not found\n");
 		}
-		sb.append("Connection: close\n");
-		sb.append("\n");
+
 		os.write(sb.toString().getBytes());
 	}
 	
