@@ -1,9 +1,13 @@
 package plaid.examples.webserver.java;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
@@ -63,51 +67,58 @@ public class Webserver {
 	}
 	
 	public static void transfer(OutputStream outStream, File file) throws IOException {
-		BufferedReader fileReader = new BufferedReader(new FileReader(file));
-		Writer writer = new OutputStreamWriter(outStream);
+		InputStream fileStream = new BufferedInputStream(new FileInputStream(file));
 
-		transferHeader(writer, file);
-		transferData(writer, fileReader, file.length());
+		transferHeader(outStream, file);
+		transferData(outStream, fileStream);
 	}
 	
-	public static void transferHeader(Writer writer, File file) throws IOException {
-		writer.append("HTTP/1.1 200 Script output follows\n");
+	public static void transferHeader(OutputStream os, File file) throws IOException {
+		StringBuilder sb = new StringBuilder();
+		sb.append("HTTP/1.1 200 Script output follows\n");
 		if ( file.getAbsolutePath().toLowerCase().endsWith(".html") || file.getAbsolutePath().toLowerCase().endsWith(".htm")) {
-			writer.append("Content-Type: text/html; charset=UTF-8\n");
+			sb.append("Content-Type: text/html; charset=UTF-8\n");
 		} else if ( file.getAbsolutePath().toLowerCase().endsWith(".css")) {
-			writer.append("Content-Type: text/css; charset=UTF-8\n");
+			sb.append("Content-Type: text/css; charset=UTF-8\n");
 		}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".png")) {
-			writer.append("Content-Type: image/png\n");
+			sb.append("Content-Type: image/png\n");
 		}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".gif")) {
-			writer.append("Content-Type: image/gif\n");
+			sb.append("Content-Type: image/gif\n");
 		}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".jpeg") || file.getAbsolutePath().toLowerCase().endsWith(".jpg")) {
-			writer.append("Content-Type: image/jpeg\n");
+			sb.append("Content-Type: image/jpeg\n");
 		} else if ( file.getAbsolutePath().toLowerCase().endsWith(".js")) {
-			writer.append("Content-Type: text/javascript; charset=UTF-8\n");
+			sb.append("Content-Type: text/javascript; charset=UTF-8\n");
 		} else {
 			LOG("unknown file type '%s'", file.getAbsoluteFile());
-			writer.append("Content-Type: text/text; charset=UTF-8\n");
+			sb.append("Content-Type: text/text; charset=UTF-8\n");
 		}
-		writer.append("Connection: close\n");
-		writer.append("\n");
+		sb.append("Connection: close\n");
+		sb.append("\n");
+		os.write(sb.toString().getBytes());
 	}
 	
-	public static void transferData(Writer outWriter, Reader inReader, long count) throws IOException {
-		if ( count > 0 ) {
-			CharBuffer cb = CharBuffer.allocate((int)Math.max(4096, count));
-
-			int result = inReader.read(cb); 
-			if ( result >= 0 ) {
-				outWriter.write(cb.array());
-				count -= result;
-				transferData(outWriter, inReader, count);
-			}			
-		} else {
-			outWriter.flush();
-		}
+	public static void transferData(OutputStream os, InputStream is) throws IOException {
+		copyFileToSocket(os, is);
 	}
 	
 	public static void LOG(String msg, Object ... args) {
 		System.out.println(String.format("LOG: " + msg, args));
+	}
+	
+	public static void copyFileToSocket(OutputStream os, InputStream is) {
+		try {
+			final int BUFFER_SIZE = 4096;
+			byte[] data = new byte[BUFFER_SIZE];
+
+			while ( true ) {
+				int read = is.read(data, 0, BUFFER_SIZE);
+				
+				if ( read == -1 ) break;
+				
+				os.write(data, 0, read);
+			}
+		} catch (Exception e) {
+
+		}
 	}
 }
