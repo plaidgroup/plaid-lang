@@ -126,10 +126,11 @@ public final class Util {
 	public static Object[] getArgumentArray(Class<?>[] paramTypes, PlaidJavaObject[] runtimeArgs) {
 		Object[] javaParams = new Object[runtimeArgs.length];
 		for (int i = 0; i < runtimeArgs.length; i++) {
-			if (paramTypes[i].isPrimitive())
+			if (paramTypes[i].isPrimitive()) {
 				javaParams[i] = runtimeArgs[i].asPrimitive(PlaidJavaObject.JavaPrimitive.fromClass(paramTypes[i]));
-			else
+			} else {
 				javaParams[i] = runtimeArgs[i].getJavaObject();
+			}
 		}
 		return javaParams;
 	}
@@ -206,6 +207,7 @@ public final class Util {
 		Object[] javaParams = getArgumentArray(theMethod.getParameterTypes(), params);
 		
 		try {
+			theMethod.setAccessible(true);
 			return theMethod.invoke(receiver, javaParams);
 		} catch (IllegalArgumentException e) {
 			throw new PlaidIllegalOperationException("Java method " + mName + " not available for provided arguments in class " + receiverClass.getName() ,e.getCause());
