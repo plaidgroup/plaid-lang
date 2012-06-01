@@ -35,50 +35,71 @@ state WebServer {
 	method void serveClient(unique Socket >> void client)  [immutable WebServer this]  {
 		
 		// get request string 
-		val immutable String request = client.readLine();
-		this.LOG("serve request '" + request + "'");
-	
-	    val immutable Boolean isGet = request.toLowerCase().startsWith("get ");
-		match ( isGet ) {
-			 case True {
-				  // compute path
-				  val immutable Integer requestLength = request.length();
-				  val immutable String reqSuffix = request.substring(4, requestLength);
-				  val immutable Integer indexSpace = reqSuffix.indexOf(" ");
-				  val immutable Integer indexParam = reqSuffix.indexOf("?");		        
-                  val immutable Boolean possitiveIndexSpace = indexSpace >= 0;        
-                  val immutable Boolean possitiveIndexParam = indexParam >= 0;
-                  val immutable Integer index = match (possitiveIndexSpace) {
-                      case True {
-                          match (possitiveIndexParam) {
+		val immutable ?String request = client.readLine();
+		match (request) {
+		    case String {
+        		this.LOG("serve request '" + request + "'");
+        	
+        	    val immutable Boolean isGet = request.toLowerCase().startsWith("get ");
+        		match ( isGet ) {
+        			 case True {
+        				  // compute path
+        				  val immutable Integer requestLength = request.length();
+        				  val immutable String reqSuffix = request.substring(4, requestLength);
+        				  val immutable Integer indexSpace = reqSuffix.indexOf(" ");
+        				  val immutable Integer indexParam = reqSuffix.indexOf("?");		        
+                          val immutable Boolean possitiveIndexSpace = indexSpace >= 0;        
+                          val immutable Boolean possitiveIndexParam = indexParam >= 0;
+                          val immutable Integer index = match (possitiveIndexSpace) {
                               case True {
-                                  val immutable Boolean spaceSmallerThanParam = indexParam >= indexSpace;
-                                  match ( spaceSmallerThanParam ) {
-                                      case True { indexSpace }
-                                      default { indexParam } 
-                                  }
+                                  match (possitiveIndexParam) {
+                                      case True {
+                                          val immutable Boolean spaceSmallerThanParam = indexParam >= indexSpace;
+                                          match ( spaceSmallerThanParam ) {
+                                              case True { indexSpace }
+                                              default { indexParam } 
+                                          }
+                                      }
+                                      default {  indexSpace }
+                                  };
                               }
-                              default {  indexSpace }
+                              default { indexParam } 
                           };
-                      }
-                      default { indexParam } 
-                  };
-                  val immutable Boolean possitiveIndex = index >= 0;
-				  match ( possitiveIndex ) {
-					  case True { 
-						  val immutable String path = reqSuffix.substring(0, index);
-						  this.transferFile(client, path);
-					  }
-					  case False {
-						  this.transferFile(client, reqSuffix);
-					  }
-				  } 
-			 }
-			 case False { } 
-		};
+                          val immutable Boolean possitiveIndex = index >= 0;
+        				  match ( possitiveIndex ) {
+        					  case True { 
+        						  val immutable String path = reqSuffix.substring(0, index);
+        						  this.transferFile(client, path);
+        					  }
+        					  case False {
+        						  this.transferFile(client, reqSuffix);
+        					  }
+        				  } 
+        			 }
+        			 case False { } 
+        		};
+        	}
+        	default { /* connection closed */ }
+        };
 		
 		client.close();
 	}
+
+    @sequential
+    method void readAndWrite(writer, reader, count) [immutable WebServer this]  {
+        this.LOG("readAndWrite " + count.toString() + " bytes remaining");
+        val bSize = java.lang.Math.min(4096, count);
+        val cb     = java.nio.CharBuffer.allocate(bSize);
+        val curCount =  reader.read(cb);
+        this.LOG("read " + curCount.toString() + " bytes");
+        match ( curCount < 1 ) {
+            case True { /* EOF */ }
+            default {
+                writer.write(cb.array(), 0, curCount);
+                this.readAndWrite(writer, reader, count - curCount); 
+            }
+        };
+    }
 
 	@sequential
 	method void transferData(unique Socket client, immutable String path)  [immutable WebServer this]  {
@@ -86,13 +107,9 @@ state WebServer {
 	    val immutable Boolean fileExists = this.fileExists(path);
 		match ( fileExists ) {
 			case True {
-				val file = java.io.File.new(this.getRoot() + path );
-				this.LOG("load data from file system '" + file.getAbsolutePath() +"'");
-			   
-				val cb     = java.nio.CharBuffer.allocate(file.length().asInt32());
-				val reader = java.io.BufferedReader.new(java.io.FileReader.new(file));
-				val count  = reader.read(cb);
-				client.writer.write(cb.array());
+                val file = java.io.File.new(this.getRoot() + path);
+                
+                client.copyFileToSocket(file);
 			}
 			case False {
 			    this.LOG("Cannot find file : " + this.getRoot() + path );
@@ -102,7 +119,7 @@ state WebServer {
 	}
 
 	method void transferFile(unique Socket client, immutable String path)  [immutable WebServer this]  {
-	    this.LOG("tansfer file " + path);
+	    this.LOG("transfer file " + path);
 	    val immutable Boolean isIndex = path == "/";
 		match ( isIndex ) {
 			case True {
