@@ -15,7 +15,7 @@ import java.nio.CharBuffer;
 
 public class Webserver {
 	public static int PORT = 8000;
-	public static String ROOT = "/Users/sven/Research/homepage/";
+	public static String ROOT = System.getProperty("user.dir") + "/www/";
 	
 	/**
 	 * @param args
@@ -43,24 +43,23 @@ public class Webserver {
 		
 		// get first line 
 		String request = inReader.readLine();
-		
-		// get path version [GET / HTTP/1.1]
-		LOG("request '%s'",request);
-		String[] items = request.split(" ");
-		if ( items[0].toLowerCase().equals("get")) {
-			if ( items[1].equals("/") ) {
-				items[1] = "/index.html";
+
+		if ( request != null ) {
+			// get path version [GET / HTTP/1.1]
+			LOG("request '%s'",request);
+			String[] items = request.split(" ");
+			if ( items[0].toLowerCase().equals("get")) {
+				if ( items[1].equals("/") ) {
+					items[1] = "/index.html";
+				}
+				File file = new File(ROOT + items[1]);
+				LOG("serving file '%s'", file.getAbsoluteFile());
+				if ( file.exists() && file.isFile() ) {
+					transfer(clientSocket.getOutputStream(), file);
+				}
 			}
-			File file = new File(ROOT + items[1]);
-			LOG("serving file '%s'", file.getAbsoluteFile());
-			if ( file.exists() && file.isFile() ) {
-				transfer(clientSocket.getOutputStream(), file);
-			}
-			clientSocket.close();
-		} else {
-			
-			clientSocket.close();
 		}
+		clientSocket.close();
 	}
 	
 	public static void transfer(OutputStream outStream, File file) throws IOException {
@@ -77,6 +76,12 @@ public class Webserver {
 			writer.append("Content-Type: text/html; charset=UTF-8\n");
 		} else if ( file.getAbsolutePath().toLowerCase().endsWith(".css")) {
 			writer.append("Content-Type: text/css; charset=UTF-8\n");
+		}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".png")) {
+			writer.append("Content-Type: image/png\n");
+		}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".gif")) {
+			writer.append("Content-Type: image/gif\n");
+		}  else if ( file.getAbsolutePath().toLowerCase().endsWith(".jpeg") || file.getAbsolutePath().toLowerCase().endsWith(".jpg")) {
+			writer.append("Content-Type: image/jpeg\n");
 		} else if ( file.getAbsolutePath().toLowerCase().endsWith(".js")) {
 			writer.append("Content-Type: text/javascript; charset=UTF-8\n");
 		} else {
