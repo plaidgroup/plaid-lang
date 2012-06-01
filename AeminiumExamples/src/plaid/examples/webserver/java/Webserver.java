@@ -70,6 +70,7 @@ public class Webserver {
 	public static void transfer(OutputStream outStream, File file) throws IOException {	
 
 		transferHeader(outStream, file);
+		
 		if ( file.exists() && file.isFile() ) {			
 			InputStream fileStream = new BufferedInputStream(new FileInputStream(file));
 			transferData(outStream, fileStream);
