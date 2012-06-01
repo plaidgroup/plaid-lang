@@ -182,13 +182,14 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
     
     method unique Set simplifyFloatingTasks(unique Set tasks, immutable ParsedConcreteMethodDecl node) {
         DEBUG(DEBUG_PRIO_MEDIUM, "<TaskBuilder> simplifyFloatingTasks");
-        match ( tasks.size() > 1 ) {
-            case True {
-                val bodyInfo = match ( depInfoForAST(node.body) ) {
-                    case Some { depInfoForAST(node.body).value } 
-                    default { ABORT("Cannot find dependency information for method body") }
-                };
 
+        val bodyInfo = match ( depInfoForAST(node.body) ) {
+            case Some { depInfoForAST(node.body).value } 
+            default { ABORT("Cannot find dependency information for method body") }
+        };
+
+        val zeroTasks = match ( tasks.size() > 1 ) {
+            case True {
                 var bodyTask = unit;
                 val floatingZeroTasks = java.util.HashSet.new();
                 val findIt = tasks.iterator();
@@ -226,7 +227,35 @@ state TaskBuilderPass case of Pass = ParsedLeafVisitor with {
                 }
             }
             case False { tasks }
-        } 
+        };
+        match ( zeroTasks.size() == 2 ) {
+            case True {
+                var bodyTask2 = unit;
+                val findIt2 = zeroTasks.iterator();
+                while { findIt2.hasNext() }{
+                    val curTask = findIt2.next();
+                    if ( curTask.infos.contains(bodyInfo) ) {
+                        bodyTask2 = curTask;
+                    };
+                };
+                match ( bodyTask2 ) {
+                    case Task { 
+                        ifElse ( bodyTask2.infos.size() == 1 ) {
+                            DEBUG("<TaskBuilderPass> inline single floating task into body task");
+                            zeroTasks.remove(bodyTask2);
+                            val newBodyTask = zeroTasks.iterator().next();
+                            newBodyTask.infos.addAll(bodyTask2.infos);
+                            zeroTasks
+                        }{
+                            zeroTasks
+                        }
+                    }
+                    default { zeroTasks }
+                };
+                   
+            }
+            default { zeroTasks } 
+        }
     }
     
     method immutable Boolean hasTransitiveDependency(shared DependencyInformation depInfo, shared Set deps) {
