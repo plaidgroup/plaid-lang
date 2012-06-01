@@ -1,5 +1,7 @@
 package plaid.lang;
 
+import java.io.BufferedReader;
+
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidObject;
@@ -13,6 +15,7 @@ import plaid.fastruntime.reference.SimplePlaidJavaObject;
 import plaid.generated.IcharAt$1$plaid;
 import plaid.generated.IendsWith$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
+import plaid.generated.IgetBytes$0$plaid;
 import plaid.generated.IindexOf$1$plaid;
 import plaid.generated.IlastIndexOf$1$plaid;
 import plaid.generated.Ilength$0$plaid;
@@ -35,7 +38,8 @@ public class String extends AbstractPlaidDispatch
 						  			 IindexOf$1$plaid,
 						  			 IlastIndexOf$1$plaid,
 						  			 Ireplace$2$plaid,
-						  			 ItoString$0$plaid
+						  			 ItoString$0$plaid,
+						  			 IgetBytes$0$plaid
 {
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
@@ -64,6 +68,7 @@ public class String extends AbstractPlaidDispatch
 			java.lang.String concat = first + second;
 			return plaidString(concat);			
 		} catch (Exception e) {
+			BufferedReader br;
 			throw new PlaidIllegalArgumentException("String concatenation failed", e.getCause());
 		}
 	}
@@ -107,6 +112,18 @@ public class String extends AbstractPlaidDispatch
 		}
 	}
 
+	@Override
+	public PlaidObject getBytes(PlaidObject receiver) {
+		try {
+			java.lang.String first = ((java.lang.String) ((PlaidJavaObject) receiver).getJavaObject());
+			byte[] bytes = first.getBytes();
+			return Util.javaToPlaid(bytes);
+			
+		} catch (Exception e) {
+			throw new PlaidIllegalArgumentException("toLowerCase failed", e.getCause());
+		}
+	}
+	
 	@Override
 	public PlaidObject endsWith(PlaidObject receiver, PlaidObject arg) {
 		try {

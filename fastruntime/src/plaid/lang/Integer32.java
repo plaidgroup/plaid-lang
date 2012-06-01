@@ -11,16 +11,18 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
+import plaid.generated.IasInt32$0$plaid;
+import plaid.generated.Ibangeq$plaid$1$plaid;
 import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
+import plaid.generated.Ilt$plaid$1$plaid;
 import plaid.generated.Ilteq$plaid$1$plaid;
 import plaid.generated.Imod$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
 import plaid.generated.Isub$plaid$1$plaid;
 import plaid.generated.ItoString$0$plaid;
-import plaid.generated.IasInt32$0$plaid;
 
 public final class Integer32 extends AbstractPlaidDispatch
 						   implements Iplus$plaid$1$plaid,
@@ -33,7 +35,9 @@ public final class Integer32 extends AbstractPlaidDispatch
 						   			  Igteq$plaid$1$plaid,
 						   			  Ilteq$plaid$1$plaid,
 						   			  ItoString$0$plaid,
-						   			  IasInt32$0$plaid{
+						   			  IasInt32$0$plaid,
+						   			  Ibangeq$plaid$1$plaid,
+						   			  Ilt$plaid$1$plaid {
 
 	private final static int CACHE_LOWER_BOUND = -127;
 	private final static int CACHE_UPPER_BOUND =  128;
@@ -199,7 +203,36 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}
 	}
 	
-	private final static class Integer32PlaidJavaObject implements PlaidJavaObject, ItoString$0$plaid {
+
+
+	@Override
+	public PlaidObject bangeq$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second = ((Integer32PlaidJavaObject) arg).integerValue; 
+			boolean result = first != second;
+			return Util.bool(result);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("/ failed", e.getCause());
+		}		
+	}
+	
+	@Override
+	public PlaidObject lt$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue; 
+			int second = ((Integer32PlaidJavaObject) arg).integerValue; 
+			boolean result = first < second;
+			return Util.bool(result);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException("/ failed", e.getCause());
+		}		
+	}
+	
+	private final static class Integer32PlaidJavaObject implements PlaidJavaObject, 
+																   ItoString$0$plaid {
 		public final int integerValue;
 		private Integer javaObject;
 		
@@ -263,7 +296,4 @@ public final class Integer32 extends AbstractPlaidDispatch
 			}
 		}
 	}
-
-
-
 }
