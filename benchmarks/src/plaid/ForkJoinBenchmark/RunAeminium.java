@@ -5,10 +5,8 @@ import plaid.fastruntime.aeminium.Task;
 
 public class RunAeminium {
 	
-	public static int START_LEVEL = 27;
-	
 	public static void main(String[] args) {
-		int startLevel = START_LEVEL;
+		int startLevel = RunSequential.START_LEVEL;
 		if( args.length > 0 ) {
 			startLevel = Integer.valueOf(args[0]);
 		}
