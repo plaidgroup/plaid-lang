@@ -66,28 +66,6 @@ Isubsubgt$plaid$1$plaid {
 		return  tag == TRUE_TAG || tag == BOOLEAN_TAG || tag.equals(TRUE_TAG) || tag.equals(BOOLEAN_TAG);
 	}
 	
-	private final class TruePlaidJavaObject extends SimplePlaidJavaObject {
-		protected TruePlaidJavaObject(PlaidDispatch dispatch) {
-			super(dispatch,null,java.lang.Boolean.TRUE);
-		}
-		
-		@Override
-		public boolean canBePrimitive(JavaPrimitive p) {
-			switch (p) {
-			case BOOLEAN: return true;
-			default: return false;
-			}
-		}
-		
-		@Override
-		public Object asPrimitive(JavaPrimitive p) {
-			switch (p) {
-			case BOOLEAN: return java.lang.Boolean.TRUE;
-			default: throw new PlaidIllegalOperationException("True cannot be used as a " + p.name + "primitive.");
-			}
-		}
-	}
-	
 	@Override
 	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg) {
 		return Util.bool(arg.getDispatch() instanceof True);
@@ -111,5 +89,27 @@ Isubsubgt$plaid$1$plaid {
 	@Override
 	public PlaidObject bang$plaid(PlaidObject receiver) {
 		return Util.bool(false);
+	}
+
+	private final class TruePlaidJavaObject extends SimplePlaidJavaObject {
+		protected TruePlaidJavaObject(PlaidDispatch dispatch) {
+			super(dispatch,null,java.lang.Boolean.TRUE);
+		}
+		
+		@Override
+		public boolean canBePrimitive(JavaPrimitive p) {
+			switch (p) {
+			case BOOLEAN: return true;
+			default: return false;
+			}
+		}
+		
+		@Override
+		public Object asPrimitive(JavaPrimitive p) {
+			switch (p) {
+			case BOOLEAN: return java.lang.Boolean.TRUE;
+			default: throw new PlaidIllegalOperationException("True cannot be used as a " + p.name + "primitive.");
+			}
+		}
 	}
 }
