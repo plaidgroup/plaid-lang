@@ -24,6 +24,7 @@ state StateSymbol case of OwningSymbol {
     var unique Option<immutable Permission> defaultPermOption = new None;
     var immutable Option fqnOpt = new None;
     var unique LinkedList staticParams = makeLinkedList();
+    var computedDatagroupMembersOption = new None;
     
     method void addStaticParameter(shared StaticParameterSymbol paramSym) {
         this.staticParams.addLast(paramSym);
@@ -142,6 +143,36 @@ state StateSymbol case of OwningSymbol {
     
     method unique Iterator<immutable DeclSymbol> declaredMembersIterator() {
       this.declaredMembers.values().iterator()
+    }
+    
+    
+    method immutable LinkedList getDatagroupMembers() {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<StateSymbol> getDatagroupMembers for " + this.getFQN());
+        match ( this.computedDatagroupMembersOption ) {
+            case Some { this.computedDatagroupMembersOption.value } 
+            default {
+                //get the abstract members from the super state
+                val superStateSymbol = this.getSuperStateSymbol();
+                val datagroupMembers = match (superStateSymbol) {
+                    case TopSymbol { makeLinkedList() }
+                    case StateSymbol { superStateSymbol.getDatagroupMembers() }
+                };
+                
+                // add locally declared data groups
+                val it = this.declaredMembersIterator();
+                while { it.hasNext() }{
+                    val curMember = it.next();
+                    match ( curMember ) {
+                        case DatagroupSymbol { datagroupMembers.add(curMember) }
+                        default { /* nop */ } 
+                    }
+                };
+                
+                this.computedDatagroupMembersOption = makeSome(datagroupMembers);
+                
+                datagroupMembers
+            }
+        }
     }
     
     /**
