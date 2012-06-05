@@ -30,7 +30,7 @@ public final class Float64 extends AbstractPlaidDispatch
 					ItoString$0$plaid,
 					Imod$plaid$1$plaid,
 					plaid.generated.InativeLessThan$1$plaid{
-
+	private static final PlaidDispatch FLOAT64_DISPATCH;
 	public static final PlaidState theState$plaid;
 	static {
 		theState$plaid = new AbstractPlaidState(new Float64(new DimensionValue("plaid/lang/Float64", null, null))) {
@@ -39,6 +39,7 @@ public final class Float64 extends AbstractPlaidDispatch
 				throw new PlaidIllegalOperationException("Cannot instantiate Float64 state");
 			}
 		};
+		FLOAT64_DISPATCH = theState$plaid.getDispatch();
 	}
 	
 	public static PlaidObject plaidFloat64(double d) { 
@@ -193,7 +194,7 @@ public final class Float64 extends AbstractPlaidDispatch
 
 		@Override
 		public final PlaidDispatch getDispatch() {
-			return Float64.theState$plaid.getDispatch();
+			return FLOAT64_DISPATCH;
 		}
 		
 		@Override
