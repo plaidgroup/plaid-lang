@@ -66,28 +66,6 @@ implements Iampamp$plaid$1$plaid,
 		return tag == FALSE_TAG || tag == BOOLEAN_TAG || tag.equals(FALSE_TAG) || tag.equals(BOOLEAN_TAG);
 	}
 
-	private final class FalsePlaidJavaObject extends SimplePlaidJavaObject {
-		protected FalsePlaidJavaObject(PlaidDispatch dispatch) {
-			super(dispatch,null,java.lang.Boolean.FALSE);
-		}
-		
-		@Override
-		public boolean canBePrimitive(JavaPrimitive p) {
-			switch (p) {
-			case BOOLEAN: return true;
-			default: return false;
-			}
-		}
-		
-		@Override
-		public Object asPrimitive(JavaPrimitive p) {
-			switch (p) {
-			case BOOLEAN: return java.lang.Boolean.FALSE;
-			default: throw new PlaidIllegalOperationException("False cannot be used as a " + p.name + "primitive.");
-			}
-		}
-	}
-
 	@Override
 	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg) {
 		return Util.bool(arg.getDispatch() instanceof False);
@@ -113,4 +91,25 @@ implements Iampamp$plaid$1$plaid,
 		return Util.bool(true);
 	}
 	
+	private final class FalsePlaidJavaObject extends SimplePlaidJavaObject {
+		protected FalsePlaidJavaObject(PlaidDispatch dispatch) {
+			super(dispatch,null,java.lang.Boolean.FALSE);
+		}
+		
+		@Override
+		public boolean canBePrimitive(JavaPrimitive p) {
+			switch (p) {
+			case BOOLEAN: return true;
+			default: return false;
+			}
+		}
+		
+		@Override
+		public Object asPrimitive(JavaPrimitive p) {
+			switch (p) {
+			case BOOLEAN: return java.lang.Boolean.FALSE;
+			default: throw new PlaidIllegalOperationException("False cannot be used as a " + p.name + "primitive.");
+			}
+		}
+	}
 }
