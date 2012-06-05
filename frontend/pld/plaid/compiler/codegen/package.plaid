@@ -413,8 +413,34 @@ state SequentialCodeGenOps {
                             case JavaStaticMethodSymbol {
                                 codegenJavaStaticMethod(ops, node.receiver, methodSymbol, yList, sb, y);
                             }
+                            case MethodSymbol {
+                                match ( node.receiver ) {
+                                    case ParsedEmptyExpr { /* nop */ }
+                                    default { ERROR(node.token, "Found non-empty receiver expression for global method call.") }
+                                };
+                                val methodName = NamingConventions.getGeneratedIdentifier(methodId.name);
+                            
+                                yList.map( fn(yItem) => { ops.createLocalVariable(yItem, sb, true) });
+                                val argsList = argumentExpr.args.map(fn (item) => item );
+                                val staticArgsExpressions = node.staticArgs.map(fn (item) => item );
+                                argsList.append(staticArgsExpressions);
+                                val argsYs = argsList.zip(yList);
+                                argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second()); } );
+
+                                                                            
+                                // absolute path 
+                                val ysb = java.lang.StringBuilder.new();
+                                val fqn = methodSymbolOpt.value.getOwnerFQN();
+                                //.<METHOD_NAME>(<RECEIVER>,<ARGS>)
+                                ysb.append(fqn + "." + methodName + ".invoke$plaid(");
+                                ysb.append(makeSeperatedString(yList.map(fn (yItem) => { ops.getLocalVariable(yItem)}), ",")); //normal arguments
+                                ysb.append(")");
+                                
+                                // assign result to y
+                                ops.setLocalVariable(y, ysb.toString(), sb);
+                            }
                             default {
-                                ERROR(functionExpr.token, "method id unexpectedly has a symbol " + methodSymbol.symbolType());
+                                ERROR(node.methodId.token, "method id unexpectedly has a symbol " + methodSymbol.symbolType());
                             }
                         }
                     }
