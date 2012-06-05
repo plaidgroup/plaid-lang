@@ -64,6 +64,29 @@ state Task {
         leaves
     }
     
+    method immutable Boolean cheapMethodSymbol(shared MethodSymbol symbol) {
+        val fqn = symbol.getOwnerFQN() + "." + symbol.name;
+        DEBUG(DEBUG_PRIO_MEDIUM, "<Task> checking for cheap method symbol of '" + fqn + "'" );
+        
+        match ( cheapMethodCacheContains(fqn) ) {
+            case True  { true }
+            default { 
+                var cheap = false;
+                val immutable LinkedList annotations = symbol.getAnnotations();
+                
+                annotations.do( fn (id) => {
+                    if ( id.name.name == "cheap" ) {
+                        DEBUG(DEBUG_PRIO_MEDIUM, "<Task>     found cheap method  '" + fqn + "'" );
+                        cheapMethodCacheAdd(fqn);
+                        result = true
+                    }
+                }); 
+                
+                cheap   
+            }
+        };
+    }
+    
     method immutable Boolean cheapMethod(immutable Structure struct, immutable String name) {
         val fqn = struct.symbol.getFQN() + "."+name;
         DEBUG(DEBUG_PRIO_MEDIUM, "<Task> checking for cheap method call of '" + fqn + "'" );
@@ -72,25 +95,12 @@ state Task {
         match ( cheapMethodCacheContains(fqn) ) {
             case True  { true }
             case False {
-                var result = false;
-                
                 // check for annotations 
                 val immutable Option methodSymbolOpt = struct.symbol.getMember(name);
                 match (methodSymbolOpt) {
-                    case Some {
-                        val immutable LinkedList annotations = methodSymbolOpt.value.getAnnotations();
-                        annotations.do( fn (id) => {
-                            if ( id.name.name == "cheap" ) {
-                                DEBUG(DEBUG_PRIO_MEDIUM, "<Task>     found cheap method  '" + fqn + "'" );
-                                cheapMethodCacheAdd(fqn);
-                                result = true
-                            }
-                        });
-                    }
-                    case None {}
+                    case Some { this.cheapMethodSymbol(methodSymbolOpt.value) }
+                    case None { false }
                 };
-
-                result
             }
         }
     }
@@ -112,7 +122,15 @@ state Task {
                                     ifElse ( this.cheapCalls ) {
                                         match ( nextInfo.node.receiver ) {
                                             case ParsedEmptyExpr {
-                                                0 // TODO: implement cheap method calls for global methods
+                                                val methodSymbol = match ( symbolForAST(nextInfo.node.methodId) ) {
+                                                    case Some { symbolForAST(nextInfo.node.methodId).value }
+                                                    default { ABORT("Cannot find symbol for global method call.") } 
+                                                }; 
+                                                
+                                                match ( this.cheapMethodSymbol(methodSymbol) ) {
+                                                    case True { 0 } 
+                                                    default { 10 }
+                                                }                                               
                                             }
                                             default {
                                                 val receiverStructure = match ( structureForAST(nextInfo.node.receiver) ) {
