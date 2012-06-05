@@ -355,11 +355,17 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
             }
         };
 
+        val shared Context staticCtx = new LocalContext{ parent = this.stack.peek().value; };
+        this.stack.push(staticCtx);
+        
 		node.StaticArgsSpec.do(fn (item) => { 
 		    val shared VariableSymbol mySymbol = this.sf.makeVariableSymbol(item.id.name, item);
             addSymbolForAST(item, mySymbol);
             addSymbolForAST(item.id, mySymbol);
-            // TODO: add symbols to context      
+            // add symbols to context
+            val ctx = this.stack.peek().value;
+            ctx.put(item.id.name, mySymbol);
+            DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass>     add static paramaters '" + item.id.name + "'");     
 		});
 		node.returnType.accept(this);
 		node.arguments.do(fn (item) => { 
@@ -377,6 +383,8 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         });
 		//node.name.accept(this);
 		node.modifiers.map(fn (item) => { item.accept(this); item });
+		
+		this.stack.pop();
 	}
 
 	override method void visitParsedAbstractStateDecl(immutable ParsedAbstractStateDecl node) {
