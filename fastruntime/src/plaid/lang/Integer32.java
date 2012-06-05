@@ -38,7 +38,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 						   			  IasInt32$0$plaid,
 						   			  Ibangeq$plaid$1$plaid,
 						   			  Ilt$plaid$1$plaid {
-
+	private final static PlaidDispatch INTEGER32_DISPATCH;
 	private final static int CACHE_LOWER_BOUND = -127;
 	private final static int CACHE_UPPER_BOUND =  128;
 	private final static Integer32PlaidJavaObject[] INTEGER32_CACHE = new Integer32PlaidJavaObject[CACHE_UPPER_BOUND - CACHE_LOWER_BOUND];
@@ -56,6 +56,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 				throw new PlaidIllegalOperationException("Cannot instantiate Integer32 state");
 			}
 		};
+		INTEGER32_DISPATCH = theState$plaid.getDispatch();
 	}
 	
 	public static final PlaidObject plaidInteger(int i) {
@@ -241,7 +242,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}
 		
 		@Override
-		public Object getJavaObject() {
+		public final Object getJavaObject() {
 			if (this.javaObject == null) {
 				this.javaObject =  Integer.valueOf(integerValue);
 			}
@@ -249,7 +250,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}
 		
 		@Override
-		public boolean canBePrimitive(JavaPrimitive p) {
+		public final boolean canBePrimitive(JavaPrimitive p) {
 			switch (p) {
 			case INT: 
 			case DOUBLE:
@@ -259,7 +260,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}
 		
 		@Override
-		public Object asPrimitive(JavaPrimitive p) {
+		public final Object asPrimitive(JavaPrimitive p) {
 			switch (p) {
 			case INT: return integerValue;
 			case DOUBLE: return (double) integerValue;
@@ -269,8 +270,8 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}
 		
 		@Override
-		public PlaidDispatch getDispatch() {
-			return Integer32.theState$plaid.getDispatch();
+		public final PlaidDispatch getDispatch() {
+			return INTEGER32_DISPATCH;
 		}
 		
 		@Override
