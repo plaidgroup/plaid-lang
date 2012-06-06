@@ -127,7 +127,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                match ( gp ) {
                                    case ProtectedGroupPermission { true }
                                    case ExclusiveGroupPermission { true }
-                                   case SharedGroupPermission { ABORT("Cannot use shared group permission to access field") } 
+                                   case SharedGroupPermission { ABORT("Cannot use shared group permission to write field") } 
                                    default { ABORT("Cannot find group permission for '" + expr.toString() + "'") }
                                };
                           };
@@ -663,7 +663,15 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                 case True {
                   val immutable Type targetType = ctx.get(targetSymbol);
                   val immutable Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.right.name);
+                  match ( fieldSigOption ) {
+                      case Some { /* nop */ } 
+                      default { ABORT("Cannot find field signature.") }
+                  };
                   
+                  
+                  // check for constant access with symmetric permission
+                  val accessSymConstant = fieldSigOption.value.getIsVar() == false && fieldSigOption.value.hasSymmetricPermission();
+
                   // check for proper synronization of shared 
                   var datagroupDepInfo = unit;
                   var datagroupSymbol = unit;
@@ -690,27 +698,33 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                        match ( gp ) {
                            case ProtectedGroupPermission { true }
                            case ExclusiveGroupPermission { true }
-                           case SharedGroupPermission { ABORT("Cannot use shared group permission to access field") } 
+                           case SharedGroupPermission { ABORT("Cannot use shared group permission to read field") } 
                            default { ABORT("Cannot find group permission for '" + expr.toString() + "'") }
                        };
                   };
-                  val immutable Boolean allowAccess = match (neededPerm) {
-                      case NonePermission { true } 
-                      default { 
-                          match (targetType.permission) {
-                              case SharedPermission { checkFn( targetType.permission.groupExpr ) } 
-                              case LocalPermission {
-                                  match (targetType.permission.thePerm) {
-                                      case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
-                                      case UniquePermission { true } 
-                                      default { false }
+                  
+                  val immutable Boolean allowAccess = ifElse ( accessSymConstant == false  ) {
+                      match (neededPerm) {
+                          case NonePermission { true } 
+                          default { 
+                              match (targetType.permission) {
+                                  case SharedPermission { checkFn( targetType.permission.groupExpr ) } 
+                                  case LocalPermission {
+                                      match (targetType.permission.thePerm) {
+                                          case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
+                                          case UniquePermission { true } 
+                                          default { false }
+                                      }
                                   }
-                              }
-                              case UniquePermission { true }
-                              default { false }
-                          };
-                      }
-                  };
+                                  case UniquePermission { true }
+                                  default { false }
+                              };
+                          }
+                      };
+                  }{
+                      true
+                  };                  
+                  
                   match ( AEMINIUM_MODE() && (allowAccess == false) ) {
                     case True {
                       report_ERROR(exp.token, "A_ASSIGN_SHARED_OBJECT_FIELD", "Access to field no permitted.",  "TypecheckDereference");
