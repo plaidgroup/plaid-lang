@@ -16,6 +16,7 @@ import plaid.generated.Ibangeq$plaid$1$plaid;
 import plaid.generated.Idiv$plaid$1$plaid;
 import plaid.generated.Ieqeq$plaid$1$plaid;
 import plaid.generated.Igteq$plaid$1$plaid;
+import plaid.generated.Igtgtgt$plaid$1$plaid;
 import plaid.generated.Ilt$plaid$1$plaid;
 import plaid.generated.Ilteq$plaid$1$plaid;
 import plaid.generated.Imod$plaid$1$plaid;
@@ -27,6 +28,7 @@ import plaid.generated.ItoString$0$plaid;
 public final class Integer32 extends AbstractPlaidDispatch
 						   implements Iplus$plaid$1$plaid,
 						   			  Ieqeq$plaid$1$plaid,
+						   			  Igtgtgt$plaid$1$plaid,
 						   			  Imult$plaid$1$plaid,
 						   			  Isub$plaid$1$plaid,
 						   			  Idiv$plaid$1$plaid,
@@ -204,6 +206,18 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}
 	}
 	
+	@Override
+	public PlaidObject gtgtgt$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
+			int second = ((Integer32PlaidJavaObject) arg).integerValue;
+			int b = first >>> second;
+			return Util.integer(b);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException(">>> failed", e.getCause());
+		}
+	}
 
 
 	@Override
