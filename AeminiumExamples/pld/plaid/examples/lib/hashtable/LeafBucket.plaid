@@ -1,8 +1,46 @@
 package plaid.examples.lib.hashtable;
 
 state LeafBucket case of Bucket {
+    // group for bucket list objects
+    group bl = new group;
+    // bucket list 
+    var shared<this.bl> ?BucketList<this.bl> bucketList = unit;
+
+
     // TODO: add list 
+    /*
     override method void addShared<group shared owner>(immutable Hashable obj, immutable Integer index) [ shared<owner> LeafBucket this] {
+        atomic <owner> {
+            this.addProtected<owner>(obj, index);
+        }
+    }
+    */
     
+    override method void addProtected<group protected owner>(immutable Hashable obj, immutable Integer index) [ shared<owner> LeafBucket this] {
+        val shared<this.bl> ?BucketList<this.bl> head = this.bucketList;
+
+        match ( head ) {
+            case BucketList<this.bl> {
+                // check for existing entry
+                unpackInnerGroups {
+                    atomic <this.bl> {
+                        val immutable Boolean found = head.containsProtected<this.bl>(obj.hash());
+                        match ( found ) { 
+                            case False {
+                                val shared<this.bl> ?BucketList<this.bl> headNext = head.next;
+                                val shared<this.bl> BucketList<this.bl> newEntry = new BucketList<this.bl> { val immutable Hashable data = obj; };
+                                newEntry.next = headNext;
+                                head.next = newEntry;
+                            }
+                            default { unit }
+                        }
+                    }
+                }                
+            }
+            default {
+                // add first element 
+                this.bucketList = new BucketList<this.bl> { val immutable Hashable data = obj; }
+            }
+        }
     }
 }
