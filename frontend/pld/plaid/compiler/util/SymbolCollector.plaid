@@ -4,6 +4,9 @@ import plaid.compiler.aeminium.*;
 import plaid.compiler.*;
 import plaid.ast.parsed.*;
 
+import plaid.compiler.symbol.*;
+import plaid.compiler.types.*;
+
 import plaid.collections.makeLinkedList;
 
 state SymbolCollector = ParsedLeafVisitor with  {
@@ -34,7 +37,11 @@ state SymbolCollector = ParsedLeafVisitor with  {
 		        case AbstractExpression {
 		            val sym = getSymbolForAbstractExpression(absExpr);
 		            match (sym) {
-		                case Symbol { this.externalSymbols.add(sym) }
+		                case Symbol { 
+		                    if ( this.localSymbols.contains(sym) == false ) {
+		                        this.externalSymbols.add(sym);
+		                    } 
+		                }
 		                default { ABORT("Cannot find symbol for abstract expression.") }
 		            };
 		        }
@@ -87,7 +94,11 @@ state SymbolCollector = ParsedLeafVisitor with  {
 		        case AbstractExpression {
 		            val sym = getSymbolForAbstractExpression(absExpr);
 		            match (sym) {
-		                case Symbol { this.externalSymbols.add(sym) }
+		                case Symbol { 
+		                    if ( this.localSymbols.contains(sym) == false ) {
+		                        this.externalSymbols.add(sym);
+		                    } 
+		                }
 		                default { ABORT("Cannot find symbol for abstract expression.") }
 		            };
 		        }
@@ -115,5 +126,49 @@ state SymbolCollector = ParsedLeafVisitor with  {
 		        ABORT("<SymbolCollector> Cannot find symbol for " + node.nodeName());
 		    }
 		};
+	}
+	
+	override method void visitParsedUnpackInnerGroups(immutable ParsedUnpackInnerGroups node) {
+		LOG("visit ParsedUnpackInnerGroups");
+
+        // create abstract symbols for data groups
+        val thisSymbol = match ( symbolForAST(node) ) {
+            case Some { symbolForAST(node).value }
+            default { ABORT("<SymbolCollector> Cannot find 'this' symbol.") }
+        };
+           
+        val groupSymbols = java.util.HashSet.new();
+        match ( thisSymbol ) {
+            case VariableSymbol {
+                // add 'this' to accessed symbols
+                this.externalSymbols.add(thisSymbol);
+                // add datagroup symbols
+                val thisType = thisSymbol.getDeclaredType();
+                match ( thisType.structure ) {
+                    case NominalStructure {
+                        val stateSymbol = thisType.structure.symbol;
+                        stateSymbol.getDatagroupMembers().do( fn (grp) => {
+                            val absExpr = new AbstractDereferenceExpression { val shared Symbol symbol = thisSymbol; };
+                            absExpr.drefs.add(grp.name);
+                            val absExprSym = getSymbolForAbstractExpression(absExpr); 
+                            match ( absExprSym ) {
+                                case AbstractExpressionSymbol { 
+                                    DEBUG(DEBUG_PRIO_LOW, "<SymbolCollector>     add symbol for " + absExpr.toString());
+                                    groupSymbols.add(absExprSym); 
+                                    this.localSymbols.add(absExprSym);
+                                }
+                                default { ABORT("<SymbolCollector> Cannot find symbol for datagroup  '" + absExpr.toString() + "'") }
+                            };
+                        });
+                    }
+                    default { ABORT("<SymbolCollector> 'this' has non-nominal type.") }
+                };
+            }
+            default { ABORT("<SymbolCollector> 'this' symbol of wrong type.") }
+        };
+
+        node.body.accept(this);
+        
+        this.localSymbols.removeAll(groupSymbols);
 	}
 }
