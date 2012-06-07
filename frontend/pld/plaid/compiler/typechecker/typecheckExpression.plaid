@@ -99,7 +99,13 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                   match (ctx.containsSymbol(targetVarSymbolOption.value)) {
                     case True {
                       val immutable Type targetType = ctx.get(targetVarSymbolOption.value);
-                      match (targetType.permission.isSubPermOf(LOCALSHARED)) { //need at least local shared to assign to a field
+                      val immutable Boolean assignablePermission = match ( targetType.permission ) {
+                          case SharedPermission { true }
+                          case UniquePermission { true }
+                          default { false }
+                      };
+                      //match (targetType.permission.isSubPermOf(LOCALSHARED)) { //need at least local shared to assign to a field
+                      match ( assignablePermission ) {  
                         case True {
                           // check for proper synronization of shared permission
                           var datagroupDepInfo = unit;
@@ -107,7 +113,7 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                           val checkFn = fn (expr) => {
                                if ( AEMINIUM_MODE() ) {
                                    match ( expr ) {
-                                       case AbstractExmptyExpression { DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> Do not compute dependencies for global data group.") }
+                                       case AbstractEmptyExpression { DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> Do not compute dependencies for global data group.") }
                                        default {
                                            datagroupSymbol = getSymbolForAbstractExpression(expr);
                                            match ( datagroupSymbol ) {
@@ -150,9 +156,11 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                   val unique Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.field.name);
                                   match (fieldSigOption) {
                                     case Some {
-                                      match (fieldSigOption.value) {
+                                      val substMap = targetType.structure.getSubstitutionMap();
+                                      val substFieldSig = substituteSignature(fieldSigOption.value, substMap);
+                                      match (substFieldSig) {
                                         case FieldSignature {
-                                          val immutable Type neededType = fieldSigOption.value.getDeclaredType();
+                                          val immutable Type neededType = substFieldSig.getDeclaredType();
                                           val unique ?TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
                                           match (valueResult) {
                                             case TypecheckResult {
@@ -1055,7 +1063,15 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                             val immutable Symbol patternSym = patternSymOption.value;
                             match (patternSym) {
                               case StateSymbol {
-                                val patternStruct = patternSym.getStructure();
+                                printLine("check pattern case " + theCase.shortString());
+                                val patternStruct = match ( theCase.staticArgs.size() == 0 ) {
+                                    case True { patternSym.getStructure() }
+                                    default {
+                                        val struct = patternSym.getStructure();
+                                        val staticArgs = theCase.staticArgs.map( fn (arg) => makeAbstractExpressionFromAST(arg) );
+                                        substituteStaticArgs(struct, staticArgs); 
+                                    }
+                                };
                                 match (patternStruct.isSubStructureOf(targetType.structure)) {
                                   case True {
                                     /* copy and update linear context with info from case */
