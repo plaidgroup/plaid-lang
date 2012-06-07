@@ -296,7 +296,7 @@ public class ASTFactory {
 	}
 	
 	public static Case PatternCase(QualifiedIdentifier qi, BlockExpr e) {
-		return new PatternCase(ASTNode.DEFAULT_TOKEN, qi, e);
+		return new PatternCase(ASTNode.DEFAULT_TOKEN, qi, new ArrayList(), e);
 	}
 	
 	public static GroupPermission Protected() {

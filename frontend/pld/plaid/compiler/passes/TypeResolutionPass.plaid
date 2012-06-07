@@ -791,7 +791,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 
 		val new_node = new ParsedDereference{
 			val left = node.left.rewrite(this);
-			val right = node.right.rewrite(this);
+			val right = node.right;
 			val token = node.token;
 		};
 
@@ -1068,7 +1068,14 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                             
                                             val immutable ?Structure patternStructure = match ( patternSymbol ) {
                                                  case StateSymbol {
-                                                     patternSymbol.getStructure();
+                                                     val struct = patternSymbol.getStructure();
+                                                     match ( item.staticArgs.size() == 0 ) {
+                                                        case True { struct }
+                                                        default { 
+                                                            val staticArgs = item.staticArgs.map( fn (arg) => makeAbstractExpressionFromAST(arg) );
+                                                            substituteStaticArgs(struct, staticArgs)
+                                                        }
+                                                     };
                                                  }
                                                  case JavaClassSymbol {
                                                      patternSymbol.getStructure();
@@ -1084,7 +1091,11 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                                                     val oldStructureOpt = getStructureForSymbol(expressionSymbol);
                                                     setStructureForSymbol(expressionSymbol, patternStructure);
                                                     
+                                                    //DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     set '" + expressionSymbol.name + "' to " + patternStructure.toString());
+                                                    
                                                     val new_item = item.rewrite(this);
+
+                                                    //DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     set '" + expressionSymbol.name + "' to " + oldStructureOpt.value.toString());
                                                     
                                                     match ( oldStructureOpt) {
                                                         case Some { setStructureForSymbol(expressionSymbol, oldStructureOpt.value) }
@@ -1187,6 +1198,7 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
 		// create new object
 		val new_node = new ParsedPatternCase{
 			val pattern = node.pattern.rewrite(this);
+			val staticArgs = node.staticArgs.map(fn (arg) => arg.rewrite(this) );
 			val body = node.body.rewrite(this);
 			val token = node.token;
 		};
@@ -1461,9 +1473,14 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
             val body  = node.body.rewrite(this);
         };
         
+		match ( symbolForAST(node) ) {
+		    case Some { addSymbolForAST(newNode, symbolForAST(node).value) }
+		    default { ABORT("<TypeResolutionPass> Cannot find symbol for unpackInnerGroups.") }
+		};
+		
         match ( structureForAST(newNode.body) ) {
             case Some { addStructureForAST(newNode, structureForAST(newNode.body).value) }
-            default { ABORT("Cannot find structure for body expression of unpackInnerGroups block.") }
+            default { ABORT("<TypeResolutionPass> Cannot find structure for body expression of unpackInnerGroups block.") }
         };
         
         newNode
@@ -1493,6 +1510,10 @@ state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
                 //delSymbolForAST(node.id);
                 addSymbolForAST(new_node.id, symbol.value);
                 addStructureForAST(new_node, VOID.structure);
+                
+                // add structure gor symbol
+                val varType = symbol.value.getDeclaredType();
+                setStructureForSymbol(symbol.value, varType.structure);
             }
             case None {
                 ABORT("Cannot find symbol for variable declaration.");

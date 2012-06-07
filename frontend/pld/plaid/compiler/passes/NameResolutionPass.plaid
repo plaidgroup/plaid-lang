@@ -1019,6 +1019,25 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
 		    }
 		    default { ABORT("<NameResolutionPass> Cannot find symbol for state qualifier.") }
 		};
+	}	
+	
+	override method void visitParsedPatternCase(immutable ParsedPatternCase node) {
+		LOG("visit ParsedPatternCase");
+		node.pattern.accept(this);
+		val symbol = match ( symbolForAST(node.pattern) ) {
+		    case Some { symbolForAST(node.pattern).value }
+		    default { ABORT("<NameResolutionPass> Cannot find symbol for case pattern.") }
+		};
+		match ( symbol ) {
+		    case StateSymbol {
+		        if ( symbol.getStaticParameterCount() != node.staticArgs.size() ) {
+		            ABORT("<NameResolverPass> State '" + symbol.getFQN() + "' requires " + symbol.getStaticParameterCount()  + " static arguments and not " + node.staticArgs.size());
+		        };
+		    }
+		    default { /* nop */ }
+		};
+		node.staticArgs.do(fn (item) => item.accept(this) );
+		node.body.accept(this);
 	}
 
 	override method void visitParsedUnaryOperatorExpr(immutable ParsedUnaryOperatorExpr node) {
@@ -1057,5 +1076,18 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
     override method void visitParsedUnitLiteral(immutable ParsedUnitLiteral node) {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedUnitLiteral");
         addSymbolForAST(node, this.sf.makeTopSymbol());
+    }
+    
+    override method void visitParsedUnpackInnerGroups(immutable ParsedUnpackInnerGroups node) {
+        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedUnitLiteral");
+        node.body.accept(this);
+        val ctx = this.stack.peek().value;
+        val thisSymbolOpt = ctx.find("this");
+        match ( thisSymbolOpt ) {
+            case Some {
+                addSymbolForAST(node, thisSymbolOpt.value);
+            }
+            default { ABORT("<NameResolutionPass> Cannot find 'this' symbol.") }
+        };
     }
 }
