@@ -102,6 +102,13 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                       val immutable Boolean assignablePermission = match ( targetType.permission ) {
                           case SharedPermission { true }
                           case UniquePermission { true }
+                          case UnsplitablePermission { 
+                              match ( targetType.permission.thePerm ) {
+                                  case SharedPermission { true }
+                                  case UniquePermission { true }
+                                  default { false }
+                              }
+                          }
                           default { false }
                       };
                       //match (targetType.permission.isSubPermOf(LOCALSHARED)) { //need at least local shared to assign to a field
@@ -140,6 +147,12 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                           val immutable Boolean assignOk = match (targetType.permission) {
                               case SharedPermission { checkFn( targetType.permission.groupExpr ) } 
                               case LocalPermission {
+                                  match (targetType.permission.thePerm) {
+                                      case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
+                                      default { true }
+                                  }
+                              }
+                              case UnsplitablePermission {
                                   match (targetType.permission.thePerm) {
                                       case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
                                       default { true }
@@ -676,7 +689,6 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                       default { ABORT("Cannot find field signature.") }
                   };
                   
-                  
                   // check for constant access with symmetric permission
                   val accessSymConstant = fieldSigOption.value.getIsVar() == false && fieldSigOption.value.hasSymmetricPermission();
 
@@ -725,6 +737,20 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                       }
                                   }
                                   case UniquePermission { true }
+                                  case UnsplitablePermission {
+                                      match ( targetType.permission ) {
+                                          case SharedPermission { checkFn( targetType.permission.groupExpr ) } 
+                                          case LocalPermission {
+                                              match (targetType.permission.thePerm) {
+                                                  case SharedPermission { checkFn( targetType.permission.thePerm.groupExpr ) } 
+                                                  case UniquePermission { true } 
+                                                  default { false }
+                                              }
+                                          }
+                                          case UniquePermission { true }
+                                          default{ false } 
+                                      }
+                                  }
                                   default { false }
                               };
                           }
