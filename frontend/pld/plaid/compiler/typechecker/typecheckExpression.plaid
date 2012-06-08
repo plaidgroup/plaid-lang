@@ -1017,10 +1017,31 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                   val shared DependencyInformation leaveInfo = makeMatchLeaveInformation(enterInfo);
                   val unique SymbolCollector symbols = new SymbolCollector;
                   val unique Map symbolsToSplit = java.util.IdentityHashMap.new();
+                  val unique Map oldAbsExprDepInfo = java.util.IdentityHashMap.new();
+                  val unique Map usedAbsExprs = java.util.HashSet.new();
                   
                   if ( AEMINIUM_MODE() ) {
-                       exp.accept(symbols);
-                       
+                       val absExpIt = ctx.gpMap.keySet().iterator();
+                       while { absExpIt.hasNext() }{
+                           val absExp = absExpIt.next();
+                           val absExpSym = getSymbolForAbstractExpression(absExp);
+                           match ( absExpSym ) {
+                               case Symbol {
+                                   val depInfoOpt = depInfoForSymbol(absExpSym);
+                                   match ( depInfoOpt ) {
+                                       case Some { 
+                                            printLine("Found dep info for " + absExp.toString() + "  " + depInfoOpt.value.toString());
+                                            oldAbsExprDepInfo.put(absExpSym, depInfoOpt.value);
+                                       }
+                                       default { ABORT("<typecheckExpression> Cannot find dependency information for " + absExp.toString()) } 
+                                   }
+                               }
+                               default { ABORT("Cannot find symbol for abstract expression.") }
+                            };
+                       };
+                  
+                  
+                       exp.accept(symbols);                       
                        val it = symbols.externalSymbols.iterator();
                        while { it.hasNext() }{
                            val next = it.next();
@@ -1046,6 +1067,17 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                          val itSymbols = symbols.externalSymbols.iterator();
                          while { itSymbols.hasNext() }{
                              val nextSym = itSymbols.next();
+                             // attach match_enter info for all used symbols
+                             val shared DependencyInformation symInfo = match (depInfoForSymbol(nextSym)) {
+                                  case Some { depInfoForSymbol(nextSym).value }
+                                  case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
+                             };
+                             setDepInfoForSymbol(nextSym, enterInfo);
+                         };
+                         
+                         val absExpIt = oldAbsExprDepInfo.keySet().iterator();
+                         while { absExpIt.hasNext() }{
+                             val nextSym = absExpIt.next();
                              // attach match_enter info for all used symbols
                              val shared DependencyInformation symInfo = match (depInfoForSymbol(nextSym)) {
                                   case Some { depInfoForSymbol(nextSym).value }
@@ -1093,6 +1125,24 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                                         addDependency(caseInfo, bodyInfo);
                                         addDependency(leaveInfo, caseInfo);
                                         addDependency(bodyInfo, enterInfo);
+                                        
+                                        // compute used datagroups
+                                        val usedIt = oldAbsExprDepInfo.keySet().iterator();
+                                        while { usedIt.hasNext() }{
+                                            val curSym = usedIt.next();
+                                            val depInfo = match ( depInfoForSymbol(curSym) ) {
+                                                case Some { depInfoForSymbol(curSym).value }
+                                                default   { ABORT("Cannot find dep info for symbol " + curSym.toString()) }
+                                            };
+                                            
+                                            match ( depInfo == enterInfo ) {
+                                                case False {
+                                                    DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>    case used data group " + curSym.toString());
+                                                    usedAbsExprs.add(curSym)
+                                                }
+                                                default { /* nop */ }
+                                            };
+                                        }; 
                                     };
                                     
                                     result 
@@ -1173,6 +1223,24 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                             addDependency(caseInfo, bodyInfo);
                             addDependency(leaveInfo, caseInfo);
                             addDependency(bodyInfo, enterInfo);
+                            
+                            // compute used datagroups
+                            val usedIt = oldAbsExprDepInfo.keySet().iterator();
+                            while { usedIt.hasNext() }{
+                                val curSym = usedIt.next();
+                                val depInfo = match ( depInfoForSymbol(curSym) ) {
+                                    case Some { depInfoForSymbol(curSym).value }
+                                    default   { ABORT("Cannot find dep info for symbol " + curSym.toString()) }
+                                };
+                                
+                                match ( depInfo == enterInfo ) {
+                                    case False {
+                                        DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>    case used data group " + curSym.toString());
+                                        usedAbsExprs.add(curSym)
+                                    }
+                                    default { /* nop */ }
+                                };
+                            }; 
                         };
                         
                         result
@@ -1211,7 +1279,31 @@ method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx,
                              addDependency(joinInfo, splitInfo);
                              addDependency(joinInfo, leaveInfo);
                              setDepInfoForSymbol(nextSym, joinInfo);
-                         };                                     
+                         };   
+                         
+                         // connect match enter to used data group symbols and reset others
+                         val fixupIt = oldAbsExprDepInfo.keySet().iterator();
+                         while { fixupIt.hasNext() }{
+                            val curSym = fixupIt.next();
+                            val curDepInfo = match ( depInfoForSymbol(curSym) ) {
+                                case Some { depInfoForSymbol(curSym).value }
+                                default { ABORT("Cannot find dep info for symbol " + curSym.name) }
+                            };
+                            val originalDepInfo = oldAbsExprDepInfo.get(curSym);
+                            match ( usedAbsExprs.contains(curSym) ) {
+                                case True {
+                                    // connect enter to orignal info and set leave to new value 
+                                    DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>     fixup dependencies for " + curSym.name);
+                                    addDependency(enterInfo, originalDepInfo);
+                                    setDepInfoForSymbol(curSym, leaveInfo);
+                                }
+                                case False {
+                                    // restore original            
+                                    DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>     reset dependencies for " + curSym.name);
+                                    setDepInfoForSymbol(curSym, originalDepInfo);
+                                }
+                            }
+                         };                                  
                       };
                       
                       /* reduce rest of list starting with first element as seed */
