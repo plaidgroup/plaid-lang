@@ -7,31 +7,30 @@ import plaid.collections.makeArray;
 /**
  * The task is running and is currently scheduled.
  */
-var STATE_RUNNING = 0;
+val STATE_RUNNING = 0;
 
 /**
  * The task has packets left to process.
  */
-var STATE_RUNNABLE = 1;
+val STATE_RUNNABLE = 1;
 
 /**
  * The task is not currently running.  The task is not blocked as such and may
 * be started by the scheduler.
  */
-var STATE_SUSPENDED = 2;
+val STATE_SUSPENDED = 2;
 
 /**
  * The task is blocked and cannot be run until it is explicitly released.
  */
-var STATE_HELD = 4;
+val STATE_HELD = 4;
 
-var STATE_SUSPENDED_RUNNABLE = STATE_SUSPENDED || STATE_RUNNABLE;
-var STATE_NOT_HELD = ~STATE_HELD;
+val STATE_SUSPENDED_RUNNABLE = 6; // STATE_SUSPENDED | STATE_RUNNABLE
+val STATE_NOT_HELD = -5; //STATE_HELD
 
-var NEWNONE = new None;
+val NEWNONE = new None;
 
-
-var COUNT = 1000;
+val COUNT = 1000;
 
 /**
  * These two constants specify how many times a packet is queued and
@@ -40,20 +39,20 @@ var COUNT = 1000;
  * correct run so if the actual queue or hold count is different from
  * the expected there must be a bug in the implementation.
  **/
-var EXPECTED_QUEUE_COUNT = 2322;
-var EXPECTED_HOLD_COUNT = 928;
+val EXPECTED_QUEUE_COUNT = 2322;
+val EXPECTED_HOLD_COUNT = 928;
 
 
-var ID_IDLE       = 0;
-var ID_WORKER     = 1;
-var ID_HANDLER_A  = 2;
-var ID_HANDLER_B  = 3;
-var ID_DEVICE_A   = 4;
-var ID_DEVICE_B   = 5;
-var NUMBER_OF_IDS = 6;
+val ID_IDLE       = 0;
+val ID_WORKER     = 1;
+val ID_HANDLER_A  = 2;
+val ID_HANDLER_B  = 3;
+val ID_DEVICE_A   = 4;
+val ID_DEVICE_B   = 5;
+val NUMBER_OF_IDS = 6;
 
-var KIND_DEVICE   = 0;
-var KIND_WORK     = 1;
+val KIND_DEVICE   = 0;
+val KIND_WORK     = 1;
 
 
 /**
@@ -62,28 +61,28 @@ var KIND_WORK     = 1;
  **/
 method runRichardsCompiled() {
   
-  var scheduler = new Scheduler;
+  val scheduler = new Scheduler;
   scheduler.addIdleTask(ID_IDLE, 0, NEWNONE, COUNT);
 
-  var queue = new Packet;
+  val queue = new Packet;
   queue.setData(NEWNONE, ID_WORKER, KIND_WORK);
-  var queue2 = new Packet;
+  val queue2 = new Packet;
   queue2.setData(queue,  ID_WORKER, KIND_WORK);
   scheduler.addWorkerTask(ID_WORKER, 1000, queue2);
 
-  var queue3 = new Packet;
+  val queue3 = new Packet;
   queue3.setData(NEWNONE, ID_DEVICE_A, KIND_DEVICE);
-  var queue4 = new Packet;
+  val queue4 = new Packet;
   queue4.setData(queue3,  ID_DEVICE_A, KIND_DEVICE);
-  var queue5 = new Packet;
+  val queue5 = new Packet;
   queue5.setData(queue4,  ID_DEVICE_A, KIND_DEVICE);
   scheduler.addHandlerTask(ID_HANDLER_A, 2000, queue5);
 
-  var queue6 = new Packet;
+  val queue6 = new Packet;
   queue6.setData(NEWNONE, ID_DEVICE_B, KIND_DEVICE);
-  var queue7 = new Packet;
+  val queue7 = new Packet;
   queue7.setData(queue6,  ID_DEVICE_B, KIND_DEVICE);
-  var queue8 = new Packet;
+  val queue8 = new Packet;
   queue8.setData(queue7,  ID_DEVICE_B, KIND_DEVICE);
   scheduler.addHandlerTask(ID_HANDLER_B, 3000, queue8);
 
@@ -95,9 +94,9 @@ method runRichardsCompiled() {
 
   if (scheduler.queueCount != EXPECTED_QUEUE_COUNT ||
       scheduler.holdCount != EXPECTED_HOLD_COUNT) {
-    var msg =
-        "Error during execution: queueCount = " + scheduler.queueCount +
-        ", holdCount = " + scheduler.holdCount + ".";
+    val msg =
+        "Error during execution: queueCount = " + scheduler.queueCount.toString() +
+        ", holdCount = " + scheduler.holdCount.toString() + ".";
     printLine(msg);
   }
 }
@@ -196,7 +195,7 @@ method addTask(id, priority, queue, task) {
  */
 method schedule() {
   this.currentTcb = this.list;
-  while ({this.currentTcb != NEWNONE}) {
+  nativeWhile ({!isNone(this.currentTcb)}) {
     ifElse (this.currentTcb.isHeldOrSuspended()) {
       this.currentTcb = this.currentTcb.link;
     }
@@ -212,8 +211,9 @@ method schedule() {
  * @param {int} id the id of the task to suspend
  */
 method release(id) {
+  printLine("Scheduler.release");
   var tcb = this.blocks.get(id);
-  ifElse (tcb == NEWNONE) {
+  ifElse (isNone(tcb)) {
     tcb;
   }
   {
@@ -233,6 +233,7 @@ method release(id) {
  * released, even if new work is added to it.
  */
 method holdCurrent() {
+  printLine("Scheduler.holdCurrent");
   this.holdCount=this.holdCount+1;
   this.currentTcb.markAsHeld();
   this.currentTcb.link;
@@ -254,8 +255,9 @@ method suspendCurrent() {
  * @param {Packet} packet the packet to add
  */
 method queue(packet) {
+  printLine("Scheduler.queue");
   var t = this.blocks.get(packet.id);
-  ifElse (t == NEWNONE) {
+  ifElse (isNone(t)) {
     t;
   }
   {
@@ -285,11 +287,11 @@ method queue(packet) {
  */
 state TaskControlBlock {
   var link = unit;
-  var id = unit;
-  var priority = unit;
+  var id = 0;
+  var priority = 0;
   var queue = unit;
   var task = unit;
-  var currState = unit;
+  var currState = 0;
 
 method setData(link, id, priority, queue, task){
   this.link = link;
@@ -297,7 +299,7 @@ method setData(link, id, priority, queue, task){
   this.priority = priority;
   this.queue = queue;
   this.task = task;
-  ifElse (queue == NEWNONE) {
+  ifElse (isNone(queue)) {
     this.currState = STATE_SUSPENDED;
   }
   {
@@ -318,7 +320,7 @@ method markAsHeld() {
 }
 
 method isHeldOrSuspended() {
-  (this.currState != 0 && STATE_HELD != 0)  || (this.currState == STATE_SUSPENDED);
+  (this.currState & STATE_HELD) != 0  || (this.currState == STATE_SUSPENDED);
 }
 
 method markAsSuspended() {
@@ -333,12 +335,12 @@ method markAsRunnable() {
  * Runs this task, if it is ready to be run, and returns the next task to run.
  */
 method run() {
-  //error might be here???  returning wrong link?
+  printLine("tcb.run()");
   var packet = "";
   ifElse (this.currState == STATE_SUSPENDED_RUNNABLE) {
     packet = this.queue;
     this.queue = packet.link;
-    ifElse (this.queue == NEWNONE) {
+    ifElse (isNone(this.queue)) {
       this.currState = STATE_RUNNING;
     }
     {
@@ -358,7 +360,7 @@ method run() {
  */
 method checkPriorityAdd(task, packet) {
   var toReturn=task;
-  ifElse (this.queue == NEWNONE) {
+  ifElse (isNone(this.queue)) {
     this.queue = packet;
     this.markAsRunnable();
     if (this.priority > task.priority){
@@ -388,8 +390,8 @@ method toString() {
  */
 state IdleTask {
   var scheduler = unit;
-  var v1 = unit;
-  var count = unit;
+  var v1 = 0;
+  var count = 0;
 
 method setData(scheduler, v1, count) {
   this.scheduler = scheduler;
@@ -398,6 +400,7 @@ method setData(scheduler, v1, count) {
 }
 
 method run(packet) {
+  printLine("IdleTask.run");
   this.count=this.count - 1;
   var toReturn = "";
   ifElse (this.count == 0) {
@@ -438,8 +441,8 @@ method setData(scheduler) {
 
 method run (packet) {
   var toReturn="";
-  ifElse (packet == NEWNONE) {
-    ifElse (this.v1 == NEWNONE) {
+  ifElse (isNone(packet)) {
+    ifElse (isNone(this.v1)) {
       toReturn = this.scheduler.suspendCurrent();
     }
     {
@@ -469,8 +472,8 @@ method toString() {
  */
 state WorkerTask {
   var scheduler = unit;
-  var v1 = unit;
-  var v2 = unit;
+  var v1 = 0;
+  var v2 = 0;
 
 method setData(scheduler, v1, v2) {
   this.scheduler = scheduler;
@@ -479,8 +482,9 @@ method setData(scheduler, v1, v2) {
 }
 
 method run(packet) {
+  printLine("WorkerTask.run()");
   var toReturn="";
-  ifElse (packet == NEWNONE) {
+  ifElse (isNone(packet)) {
     toReturn = this.scheduler.suspendCurrent();
   }
   {
@@ -493,7 +497,7 @@ method run(packet) {
     packet.id = this.v1;
     packet.a1 = 0;
     var i=0;
-    while ({i < DATA_SIZE;}) {
+    nativeWhile ({i < DATA_SIZE;}) {
       this.v2=this.v2+1;
       if (this.v2 > 26) {
         this.v2 = 1;
@@ -519,8 +523,8 @@ method toString() {
  */
 state HandlerTask{
   var scheduler = unit;
-  var v1 = unit;
-  var v2 = unit;
+  var v1 = 0;
+  var v2 = 0;
 
 	method setData(scheduler) {
 	  this.scheduler = scheduler;
@@ -530,7 +534,7 @@ state HandlerTask{
 	
 	method run(packet) {
 	  //this might be where problem is.  returning wrong item?
-	  if (packet != NEWNONE) {
+	  if (!isNone(packet)) {
 		ifElse (packet.kind == KIND_WORK) {
 		  this.v1 = packet.addTo(this.v1);
 		}
@@ -539,11 +543,11 @@ state HandlerTask{
 		};
 	  };
 	  var toReturn="";
-	  if (this.v1 != NEWNONE) {
+	  if (!isNone(this.v1)) {
 		var count = this.v1.a1;
 		var v="";
 		ifElse (count < DATA_SIZE) {
-		  if (this.v2 != NEWNONE) {
+		  if (!isNone(this.v2)) {
 			v = this.v2;
 			this.v2 = this.v2.link;
 			v.a1 = this.v1.a2.get(count);
@@ -589,8 +593,8 @@ var DATA_SIZE = 4;
  */
 state Packet {
   var link = unit;
-  var id = unit;
-  var kind = unit;
+  var id = 0;
+  var kind = 0;
   var a1 = unit;
   var a2 = unit;
 
@@ -608,13 +612,13 @@ method setData(link, id, kind) {
  */
 method addTo(queue) {
   this.link = NEWNONE;
-  ifElse (queue == NEWNONE) {
+  ifElse (isNone(queue)) {
     this;
   }
   {
   var peek = queue;
   var next = queue;
-  while ({peek != NEWNONE}) {
+  nativeWhile ({!isNone(peek)}) {
     next = peek;
     peek=next.link;
   };
@@ -630,12 +634,23 @@ method toString() {
 //end Packet
 
 
+method isNone(value) {
+    match(value) {
+        case None {
+            true;
+        }
+        default {
+            false;
+        }
+    }
+}
+
 method main() {
 	printLine("Plaid");
 	var time=0;
 	var i=0;
 	printLine("Start: " + java.util.Date.new().toString());
-	while({i<10}){
+	nativeWhile({i<10}){
 		runRichardsCompiled();
 		printLine(java.util.Date.new().toString());
 		i=i+1;
