@@ -1,0 +1,311 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.typechecker.context;
+
+import java.util.HashMap;
+import plaid.ast.types.*;
+import plaid.ast.stateTable.StateTable;
+
+/* I'm not sure that the permissions are right on this*/
+/* I replace ID to ID.copy(), for longer term, ID should not be used as key*/
+state Context{
+	
+	val /*unique Map<immutable ID,unique TypeBinding>*/ contextMap = java.util.HashMap.new();
+	
+	method immutable Boolean ==(unique Context other)[unique Context] {
+		var immutable Boolean eq = this.contextMap.size() == other.contextMap.size();
+		val /*unique Collection<immutable ID>*/ valSet = java.util.HashSet.new();
+		valSet.addAll(this.contextMap.keySet());
+		val /*unique Iterator*/ iter = valSet.iterator();
+		while {eq && iter.hasNext()} {
+			val immutable ID x = iter.next();
+			ifElse (other.containsKey(x)) {
+				val unique TypeBinding thisBinding = this.remove(x);
+				val unique TypeBinding otherBinding = other.remove(x);
+				ifElse ( thisBinding == otherBinding) { 
+					eq = true;
+				} {
+					eq = false;
+					//java.lang.System.out.println(thisBinding.toString() + " != " + otherBinding.toString());
+				};
+				other.put(x,otherBinding);
+				this.put(x,thisBinding);
+			} {
+				eq = false;
+			}
+		};
+		eq;
+	}
+
+	/**
+	 * Returns associated list of PermTypes associated with this variable.
+	 */
+	method immutable TypeBinding get(immutable ID x)[unique Context]{
+		this.contextMap.get(x.copy());
+	}
+	
+	method unique TypeBinding remove(immutable ID x)[unique Context]{
+		this.contextMap.remove(x.copy());
+	}
+	
+	method /*unique Option<immutable TypeBinding>*/ getOption(immutable ID x)[unique Context] {
+		match ( contextMap.containsKey(x.copy())) {
+			case True { makeSome(contextMap.get(x.copy())) }
+			case False { new None }
+		}
+	}
+	
+	method immutable Boolean containsKey(immutable ID x)[immutable Context] {
+		contextMap.containsKey(x.copy());
+	}
+	
+	/**
+	 * Puts a PermType in context
+	 * Adds to existing list or creates a new one
+	 */
+	method void put(immutable ID x, unique TypeBinding permType)[unique Context]{
+		match (contextMap.containsKey(x.copy())) {
+			case True { java.lang.System.out.println("Duplicate permType for " + x.name); }
+			case False { contextMap.put(x.copy(), permType); }
+		};
+		//match(permType) {
+		//	case BorrowType { /* no op */}
+		//	case TakeType { /* no op */ }
+		//	default { java.lang.System.out.println("inserting non-binding for var " + x.name); }
+		//};
+		unit
+	//use for multi set if end up needing - for now go back to single set - handle duplicates in typechecking
+	//	ifElse( contextMap.containsKey(x)) 
+	//		{ contextMap.get(x).append(permType) }
+	//		{ contextMap.put(x,new List { var head  = new Cons { var value = permType; var next = new Nil;}; }); }
+	}
+	
+	method void update(immutable ID x, unique TypeBinding permType)[unique Context]{
+		match (contextMap.containsKey(x.copy())) {
+			case True { contextMap.remove(x.copy()); }
+		};
+		contextMap.put(x.copy(), permType);
+		unit
+	}
+	
+	/**
+	 * Removes the type information from all NONE references.
+	 */
+	method void downgrade()[unique Context]{ //eventually I think we will need the state table for this
+		val /*unique Collection<immutable ID>*/ valSet = java.util.HashSet.new();
+		valSet.addAll(this.contextMap.keySet());
+		val /*unique Iterator*/ iter = valSet.iterator();
+		while{iter.hasNext()}{
+			var immutable ID x = iter.next();
+			var unique TypeBinding permType = this.remove(x);
+			permType.downgrade();
+			this.put(x,permType);
+		};
+		unit
+	}
+	
+	method /*unique Option<unique Context>*/ merge(unique Context other, unique StateTable st)
+												  [unique Context]
+	{
+		var immutable Boolean ok = this.contextMap.size() == other.contextMap.size();
+		val /*unique Collection<immutable ID>*/ valSet = java.util.HashSet.new();
+		valSet.addAll(this.contextMap.keySet());
+		val /*unique Iterator*/ iter = valSet.iterator();
+		val unique Context merged = new Context;
+		while {ok && iter.hasNext()} {
+			val immutable ID x = iter.next();
+			ifElse (other.containsKey(x)) {
+				val unique TypeBinding thisBinding = this.remove(x);
+				val unique TypeBinding otherBinding = other.remove(x);
+				val /*unique Option<unique TypeBinding>*/ lub = thisBinding.leastUpperBound(otherBinding, st);
+				match (lub) {
+					case Some {
+						merged.put(x,lub.value);
+					}
+					case None { ok = false }
+				};
+				other.put(x,otherBinding);
+				this.put(x,thisBinding);
+			} {
+				ok = false;
+			}
+		};
+		match (ok) {
+			case True { makeSome(merged) }
+			case False { new None }
+		}
+	}
+	
+	
+	/**
+	 * Creates a copy of the context.
+	 */
+	method unique Context copy()[unique Context]{
+		var copyContext = new Context;
+		val /*unique Collection<immutable ID>*/ valSet = java.util.HashSet.new();
+		valSet.addAll(this.contextMap.keySet());
+		val /*unique Iterator*/ iter = valSet.iterator();
+		while { iter.hasNext() } {
+			var immutable ID x = iter.next();
+			var unique TypeBinding permType = this.remove(x);
+			copyContext.put(x, permType.copy());
+			this.put(x,permType);
+			//for multiset
+			//copyContext.put(x.copy(), permTypeList.map(fn (value) => value.copy()));
+		};
+		copyContext;
+	}
+	
+	method void reset()[unique Context] {
+		contextMap.clear();
+	}
+	
+	method void addAll(unique Context other)[unique Context] {
+		val /*unique Collection<immutable ID>*/ valSet = java.util.HashSet.new();
+		valSet.addAll(other.contextMap.keySet());
+		val /*unique Iterator*/ iter = valSet.iterator();
+		while{iter.hasNext()}{
+			var immutable ID x = iter.next();
+			var unique TypeBinding toCopy = other.remove(x);
+			this.put(x,toCopy.copy());
+			other.put(x,toCopy);
+		}
+	}
+	
+	method /*void*/ printContext() {
+		val iter = contextMap.keySet().iterator();
+		while{iter.hasNext()}{
+			var x = iter.next();
+			java.lang.System.out.println(x.name + " : " + this.contextMap.get(x).toString());
+		}
+	}
+	
+	method immutable String toString()[immutable Context] {
+		var immutable String s = "";
+		val iter = contextMap.keySet().iterator();
+		if (iter.hasNext()) {
+			var x = iter.next();
+			s = x.name + " : " + this.contextMap.get(x).toString(); 
+		};		
+		while{iter.hasNext()}{
+			var x = iter.next();
+			s = s +", " + x.name + " : " + this.contextMap.get(x).toString();
+		};
+		s
+	}
+	// method /*Boolean*/ leastUpperBound(/*Context*/ other, /*Context*/ newContext, /*StateTable*/ stateTable) {
+// 		var /*Boolean*/ contextOk = true;
+// 		
+// 		val iter = this.contextMap.keySet().iterator();
+// 		
+// 		while { contextOk && iter.hasNext() } {
+// 			val /*ID*/ aVar = iter.next();
+// 			if (other.contextMap.containsKey(aVar)) {
+// 				val /*PermType*/ thisPT = this.contextMap.get(aVar);
+// 				val /*PermType*/ otherPT = other.contextMap.get(aVar);
+// 				
+// 				//merge permissions
+// 				val /*Permission*/ newPerm = thisPT.perm.merge(otherPT.perm);
+// 				
+// 				//merge types
+// 				var /*Option Type*/ newTypeOpt = NONE;
+// 				match( thisPT.type) {
+// 					case NominalType {
+// 						match (otherPT.type) {
+// 							case NominalType {
+// 								val /*Option StateType*/ thisSTopt = stateTable.get(thisPT.type.typeName);
+// 								val /*Option StateType*/ otherSTopt = stateTable.get(otherPT.type.typeName);
+// 								match (thisSTopt) {
+// 									case Some {
+// 										match (otherSTopt) {
+// 											case Some {
+// 												val /*Option StateType*/ newSTopt = thisSTopt.value.leastUpperBound(otherSTopt.value);
+// 												match (newSTopt) {
+// 													case Some {
+// 														newTypeOpt = makeSome(new NominalType {
+// 															val /*ID*/ typeName = newSTopt.value.name.copy();
+// 														});
+// 													}
+// 													case None {
+// 														java.lang.System.out.println("least upper bound of states " + otherPT.type.typeName.name + " and " + thisPT.type.typeName.name + " not defined");
+// 													}
+// 												}
+// 											}
+// 											case None {
+// 												java.lang.System.out.println("state " + otherPT.type.typeName.name + " not defined");
+// 											}
+// 										}	
+// 									}
+// 									case None {
+// 										java.lang.System.out.println("state " + thisPT.type.typeName.name + " not defined");
+// 									}
+// 								}
+// 							}
+// 							default {
+// 								java.lang.System.out.println("if one merging type is nominal, both must be");
+// 							}
+// 						}
+// 					}
+// 					case LambdaType {
+// 						match (otherPT.type) {
+// 							case LambdaType {
+// 								//TODO: least upper bound for lambdas - for now one has to be a subtype of the other and we take the more general one
+// 								ifElse (thisPT.type.subtypeOf(otherPT.type, stateTable)) {
+// 									newTypeOpt = makeSome(otherPT.type);
+// 								} {
+// 									if (otherPT.type.subtypeOf(thisPT.type, stateTable)) {
+// 										newTypeOpt = makeSome(thisPT.type);
+// 									}
+// 								}
+// 							}
+// 							default {
+// 								java.lang.System.out.println("both merged types must be lambdas if one is");
+// 							}
+// 						}
+// 					}
+// 					default {
+// 						java.lang.System.out.println("only nominal and lambda object types supported");
+// 					}
+// 				};
+// 				
+// 				var /*Boolean*/ newBorrowed = false;
+// 				if(thisPT.borrowed || otherPT.borrowed) {
+// 					newBorrowed = true;
+// 				};
+// 				
+// 				match(newTypeOpt) {
+// 					case Some {
+// 						val /*PermType*/ toPut = new PermType {
+// 							val /*Permission*/ perm = newPerm;
+// 							val /*Type*/ type = newTypeOpt.value;
+// 							val /*Boolean*/ borrowed = newBorrowed;
+// 						};
+// 						newContext.put(aVar,toPut);
+// 					}
+// 					case None {
+// 						contextOk = false;
+// 					}
+// 				}
+// 			}
+// 		};
+// 		contextOk;
+// 	}
+	
+}

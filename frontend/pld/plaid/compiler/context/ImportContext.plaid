@@ -1,0 +1,106 @@
+package plaid.compiler.context;
+
+import plaid.ast.util.*;
+
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.report_WARNING;
+
+import plaid.compiler.Symbol;
+import plaid.compiler.symbol.SymbolFactory;
+import plaid.compiler.Context;
+import plaid.compiler.resolver.ClassPathResolver;
+import plaid.compiler.Resolver;
+import plaid.compiler.Reporter;
+
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
+state ImportContext case of Context {
+    
+    val unique Map cache = HashMap.new();
+    val shared Context parent;
+    val shared List imports;    
+    val shared ClasspathResolver resolver;
+    val shared Set used = HashSet.new();
+    
+    method put(name, symbol) {
+        false
+    }
+
+    method find(name) {        
+        var unique Option symbol = NONE;
+        DEBUG(DEBUG_PRIO_MEDIUM, "<ImportContext> looking for '" + name + "'");        
+
+        ifElse ( cache.containsKey(name) ) {
+            DEBUG(DEBUG_PRIO_LOW, "<ImportContext> found '" + name + "' in cache.");
+            symbol = cache.get(name);
+        }{
+            DEBUG(DEBUG_PRIO_LOW, "<ImportContext> searching in imports");
+            imports.map( fn (imp) =>  {            
+                DEBUG(DEBUG_PRIO_LOW, "<ImportContext>     searching in '" + makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier) +"'");
+                match (symbol) {
+                    case None {
+                        match (imp.star) {                
+                            case False {                            
+                                val size   = imp.qualifiedIdentifier.identifiers.size();
+                                val lastId = imp.qualifiedIdentifier.identifiers.get(size - 1).value;
+
+                                if ( lastId.name == name ) {
+                                    var fqn = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+                                    symbol = resolver.lookup(fqn);
+                                };
+
+                                match (symbol) {
+                                    case Some {  used.add(makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier)); }
+                                    case None {}
+                                }
+                            }
+                            case True { 
+                                val packageName = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+                                val fqn = packageName + "." + name;
+                                symbol = resolver.lookup(fqn);
+
+                                match (symbol) {
+                                    case Some { used.add(fqn); }
+                                    case None {}
+                                }
+                            }
+                        }
+                    }
+                    case Some {}
+                };
+                imp
+            });
+
+           cache.put(name, symbol);
+        };
+   
+        match (symbol) {
+            case Some { symbol }
+            case None { parent.find(name) }
+        }
+    }
+
+    method shared Option findInSymbol(symbol, name) {
+        parent.findInSymbol(symbol, name);
+    }
+
+
+    method void reportUnusedImports(immutable String sourceFile) {
+        imports.map(fn (imp) => {
+            val fqn = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+            if ( !used.contains(fqn) ) {
+               report_WARNING(makeTokenForQualifiedIdentifier(imp.qualifiedIdentifier),
+                              "Unused import '" + fqn + "'", "",
+                              "ImportCheckPass");
+            };
+            imp
+        });
+    }
+}

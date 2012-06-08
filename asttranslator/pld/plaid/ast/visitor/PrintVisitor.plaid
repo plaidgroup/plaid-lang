@@ -1,0 +1,321 @@
+package plaid.ast.visitor;
+
+import plaid.lang.*;
+import plaid.ast.*;
+
+state PrintVisitor case of ASTVisitor {
+	var indent = 0;
+	
+	method output(s) {
+		var i = 0;
+		while { i < this.indent; } {
+			java.lang.System.out.print("    ");
+			i = i + 1
+		};
+		java.lang.System.out.println(s);
+	}
+	
+	method inc() {
+		this.indent = this.indent + 1
+	}
+	
+	method dec() {
+		this.indent = this.indent - 1
+	}
+	
+	method visitLetBinding(node) {
+		this.output("LetBinding" + node.annotationString() );
+		this.printBinding(node);
+	}
+	
+	method visitTakeBinding(node) {
+		this.output("TakeBinding" + node.annotationString() );
+		this.printBinding(node);
+	}
+	
+	method visitBorrowBinding(node) {
+		this.output("BorrowBinding(" + node.lowerBoundString() + ")" + node.annotationString() );
+		this.printBinding(node);
+	}
+	
+	method printBinding(node) {
+		this.inc();
+		node.x.accept(this);
+		node.exp.accept(this);
+		node.body.accept(this);
+		this.dec();
+	}
+	
+	method visitApplication(node) {
+		this.output("Application");
+		this.inc();
+		node.f.accept(this);
+		node.arguments.map(fn (a) => a.accept(this));
+		this.dec();
+	}
+	
+	method visitAssignment(node) {
+		this.output("Assignment");
+		this.inc();
+        match (node.target) {
+            case plaid.lang.Some {
+			    node.target.value.accept(this);
+            }
+            default {}
+		};
+		node.field.accept(this);
+		node.value.accept(this);
+		this.dec();		
+	}
+	
+	method visitAtomicBlock(node) {
+		this.output("AtomicBlock");
+		this.inc();
+		node.id.accept(this);
+		node.body.accept(this);
+		this.dec();
+	}
+	
+	method visitCase(node) {
+		this.output("Case");
+		this.inc();
+		
+		match (node.qi) {
+			case Some {
+				node.qi.value.accept(this);
+			}
+			
+			case None {
+			}
+		};
+		
+		match (node.x) {
+			case Some {
+				node.x.value.accept(this);
+			}
+			
+			case None {
+			}
+		};
+		
+		node.e.accept(this);
+		this.dec();
+	}
+	
+	method visitChangeState(node) {
+		this.output("ChangeState");
+		this.inc();
+		node.e.accept(this);
+		node.s.accept(this);
+		this.dec();
+	}
+	
+	method visitCompilationUnit(node) {
+		this.output("CompilationUnit");
+		this.inc();
+		node.decls.map(fn (decl) => {
+			decl.accept(this)
+		});
+		node.imports.accept(this);
+		this.dec();
+	}
+	
+	method visitDeclList(node) {
+		this.output("DeclList");
+		this.inc();
+		node.decls.map(fn (decl) => {
+			decl.accept(this)
+		});
+		this.dec();
+	}
+	
+	method visitDereference(node) {
+		this.output("Dereference");
+		this.inc();
+		node.left.accept(this);
+		node.right.accept(this);
+		this.dec();
+	}
+
+	method visitDestructiveDereference(node) {
+		this.output("DestructiveDereference");
+		this.inc();
+		node.left.accept(this);
+		node.right.accept(this);
+		this.dec();
+	}
+	
+	method visitDoubleLiteral(node) {
+        this.output("DoubleLiteral(" + node.double + ")");
+    }
+    
+	method visitFieldDecl(node) {
+		this.output("FieldDecl : " + node.fieldType.toString());
+		this.inc();
+		node.f.accept(this);
+		node.e.accept(this);
+		this.dec();
+	}
+	
+	method visitGroupDecl(node) {
+		this.output("GroupDecl" + (ifElse (node.isAbstract) { " (abstract)" } { "" }));
+		this.inc();
+		node.id.accept(this);
+		this.dec();
+	}
+
+    method visitGroupParameter(node) {
+        match (node.permission) {
+            case plaid.ast.types.groupPermissions.UndefinedGroupPermission {
+                this.output("GroupParameter(" + node.id.toString() + ")");
+            }
+            default {
+                this.output("GroupParameter(" + node.permission.toString() + " " + node.id.toString() + ")");
+            }
+        };
+    }
+    	
+	method visitID(node) {
+		this.output("ID(" + node.name + ")");
+	}
+	
+	method visitImportList(node) {
+		this.output("ImportList");
+	}
+	
+	method visitIntLiteral(node) {
+		this.output("IntLiteral(" + node.integer + ")");
+	}
+	
+	method visitLambda(node) {
+		this.output("Lambda");
+		this.inc();
+		node.arguments.map(fn (a) => a.accept(this));
+		node.body.accept(this);
+		this.dec();
+	}
+	
+	method visitMatch(node) {
+		this.output("Match");
+		this.inc();
+		node.e.accept(this);
+		node.caseList.map(fn (c) => {
+			c.accept(this)
+		});
+		this.dec();
+	}
+	
+	   method visitMetaDereference(node) {
+        this.output("MetaDereference(" + node.variable.toString() + "." + node.selector.toString() +")");
+    }
+	
+	method visitMetaVariable(node) {
+	    this.output("MetaVariable(" + node.id.toString() +")");
+	}
+	
+	method visitMetaTypeArgument(node) {
+	    this.output("MetaTypeArgument("+ node.permType.toString() +")");
+	}
+	
+	method visitMethodCall(node) {
+		this.output("MethodCall");
+		this.inc();
+		node.receiver.accept(this);
+		node.methodName.accept(this);
+		node.arguments.map(fn (arg) => arg.accept(this));
+		this.dec();
+	}
+	
+	method visitMethodDecl(node) {
+		this.output("MethodDecl(" + node.name + ") : " + node.methodType.toString() );
+		this.inc();
+		node.arguments.map(fn (a) => a.accept(this));
+		node.body.accept(this);
+		this.dec();
+	}
+	
+	method visitNewInstance(node) {
+		this.output("NewInstance");
+		this.inc();
+		node.s.accept(this);
+		this.dec();
+	}
+	
+	method visitPermType(node) {
+		this.output("PermType");
+	}
+	
+	method visitQI(node) {
+		this.output("QI(" + node.toString() + ")");
+		this.inc();
+		match (node.initState) {
+			case Some {
+				node.initState.value.accept(this);
+			}
+			
+			case None {
+			}
+		};
+		this.dec();
+	}
+	
+	method visitSplitBlock(node) {
+		this.output("SplitBlock");
+		this.inc();
+		node.metaArgs.map(fn (arg) => arg.accept(this));
+		this.output("Bodies (" + node.body.length()+")");
+		this.inc();
+		node.body.map(fn (e) => e.accept(this));
+		this.dec();
+		this.dec();
+	}
+	
+	method visitStateDecl(node) {
+		this.output("StateDecl");
+		this.inc();
+		node.name.accept(this);
+		this.output("MetaParameters");
+        this.inc();
+        node.metaParams.map(fn (p) => p.accept(this));
+        this.dec();
+		match (node.caseOf) {
+            case plaid.lang.Some {
+                this.output("CaseOf");
+                this.inc();
+			    node.caseOf.value.accept(this);
+			    node.metaCaseOfArgs.map(fn (p) => p.accept(this));
+			    this.dec();
+            }
+            default {}
+		};
+        node.stateDef.accept(this);
+        this.dec();
+	}
+	
+	method visitStringLiteral(node) {
+		this.output("StringLiteral('" + node.string + "')");
+	}
+	
+	method visitTypeParameter(node) {
+	   this.output("TypeParameter(" + node.id.toString() + ")");
+	}
+	
+	method visitUnitLiteral(node) {
+		this.output("UnitLiteral");
+	}
+	
+	method visitUnpackInnerGroups(node) {
+		this.output("UnpackInnerGroups");
+		this.inc();
+		node.body.accept(this);
+		this.dec();
+	}
+	
+	method visitWith(node) {
+		this.output("With");
+		this.inc();
+		node.s1.accept(this);
+		node.s2.accept(this);
+		this.dec();
+	}
+}

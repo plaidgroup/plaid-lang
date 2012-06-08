@@ -1,0 +1,100 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.collections;
+
+state AANode {
+	/* type T; */
+	var /* Option<AANode<T>> */ left = new None;
+	var /* Option<AANode<T>> */ right = new None;
+	var /* Int */ level;
+	var /* T */ data;
+
+	method /* AANode */ skewOp() {
+		val top = this;
+		left.map(fn(lNode) => {
+			ifElse (level == lNode.level) {
+				val newRoot = lNode;
+				top.left = newRoot.right;
+				newRoot.right = makeSome(top);
+				newRoot
+			} {
+				top
+			}
+		}).getOrElse(top)
+	}
+
+	method /* AANode */ splitOp() {
+		val top = this;
+		right.map(fn(rNode) => { 
+			rNode.right.map(fn(rrNode) => {
+				ifElse (level == rrNode.level) {
+					val newRoot = rNode;
+					top.right = newRoot.left;
+					newRoot.left = makeSome(top);
+					newRoot.level = newRoot.level + 1;
+					newRoot
+				} {
+					top
+				}
+			}).getOrElse(top)
+		}).getOrElse(top)
+	}
+
+	method /*AANode*/ fixLevel() {
+		val leftLevel = left.map(fn(n) => { n.level }).getOrElse(0);
+		val rightLevel = right.map(fn(n) => { n.level }).getOrElse(0);
+		val maxLevel = min(leftLevel, rightLevel) + 1;
+
+		if(maxLevel < level) {
+			level = maxLevel;
+			if(maxLevel < rightLevel) {
+				node.right = node.right.map(fn(n) => { n.level = maxLevel; });
+			}
+		};
+
+		this
+	}
+
+	method /*AANode*/ fixAfterRemove() {
+		var r = fixLevel().skewOp();
+		r.right = r.right.map(fn(r) => { 
+			val newRight = r.skewOp();
+			newRight.right = newRight.right.map(fn(rr) => {
+				rr.skewOp()
+			});
+			newRight
+		});
+
+		r = r.splitOp();
+		r.right = r.right.map(fn(r) => {
+			r.splitOp()
+		});
+
+		r
+	}
+
+	method immutable boolean isLeaf() {
+		!(left.hasValue() || right.hasValue())
+	}
+
+	method immutable String toString() {
+		"AANode{level=" + level + ", left=" + left.toString() + ", right=" + right.toString() + ", value=" + data.toString() + "}"
+	}
+}

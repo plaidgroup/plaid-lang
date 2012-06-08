@@ -1,0 +1,211 @@
+package plaid.typechecker.rewriting.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.rewriting.*;
+import plaid.ast.types.permissions.*;
+
+val () -> void fieldReadTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	
+	System.out.println("Testing Dereference transformation");	
+	
+	testName("lnf-fieldRead-bare");
+	oldAst = makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f"));//x.f
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeBorrow(makeToken(),makeTempID(makeToken(),"t1"),	//let t1 = x.f in t1
+						 makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f")),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-fieldRead-complex");	//x.f.g
+	oldAst = makeDereference(makeToken(),
+							 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"f")),
+							 makeID(makeToken(),"g"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeBorrow(makeToken(),
+						 makeTempID(makeToken(),"t1"),
+						 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"f")),
+						 makeBorrow(makeToken(),
+						 			makeTempID(makeToken(),"t2"),
+						 			makeDereference(makeToken(), makeTempID(makeToken(),"t1"), makeID(makeToken(),"g")),
+					     			makeTempID(makeToken(),"t2"), 
+					     			false),
+					     false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	
+	testName("lnf-fieldReadD-bare");	//x.f
+	oldAst = makeDestructiveDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"),
+						 makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f")),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	
+	testName("lnf-fieldReadD-complex"); //x.f.g
+	oldAst = makeDestructiveDereference(makeToken(),
+							 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"f")),
+							 makeID(makeToken(),"g"));
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalAst = makeTake(makeToken(),
+						 makeTempID(makeToken(),"t1"),
+						 makeBorrow(makeToken(),
+						 			makeTempID(makeToken(),"t2"),
+						 			makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"f")),
+					     			makeDereference(makeToken(), makeTempID(makeToken(),"t2"), makeID(makeToken(),"g")), 
+					     			false),
+						 makeTempID(makeToken(),"t1"),
+					     false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};		
+	System.out.println("");
+	
+	var typefetcher = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
+	
+	System.out.println("Testing fieldRead ObjectType Inference");
+	testName("obj-fieldRead succeed");
+	
+	st = new StateTable;
+	val aID = makeID(makeToken(),"A");
+	val aType = new StateType { val name = aID; val superType = new None; };
+	val fID = makeID(makeToken(),"f");
+	val fType = makeFieldType(fID.copy(), createTakeType(IMM,getIntegerType()), true);
+	aType.providedTypes.put(fID.copy(), fType);
+	aType.declaredTypes.put(fID.copy(), fType);
+	st.put(aID, aType);
+	
+	oldAst = makeDereference(makeToken(), makeID(makeToken(),"a"), makeID(makeToken(), "f"));
+	cIn = new Context;
+	cIn.put(makeID(makeToken(), "a"), createNominalType(makeID(makeToken(), "A")));
+	cOut = cIn.copy();
+	newAst = oldAst.copy();
+	
+	typefetcher = new TypeFetchVisitor { val context = cIn; val st = st; };
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false, "type inference failed :" + result.errorMsg)
+		}
+		default {
+			match (result == getIntegerType()) {
+				case True {
+					match (oldAst == newAst) {
+						case True {
+							match (cIn == cOut) {
+								case True {
+									tester.testPassed(true)
+								}
+								case False {
+									tester.testPassed(false, "context should not be updated");
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false,"AST should not change")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "wrong type returned (not Integer)")
+				}
+			}
+		}
+	};
+	
+	oldAst = makeDereference(makeToken(), makeID(makeToken(),"a"), makeID(makeToken(), "g"));
+	testName("obj-fieldRead - field does not exist");
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.toString())
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	oldAst = makeDereference(makeToken(), makeID(makeToken(),"i"), makeID(makeToken(), "+"));
+	cIn.put(makeID(makeToken(),"i"),getIntegerType());
+	testName("obj-fieldRead - not a field");
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.toString())
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	oldAst = makeDereference(makeToken(), makeID(makeToken(),"b"), makeID(makeToken(), "f"));
+	testName("obj-fieldRead - target not in context");
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.toString())
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	oldAst = makeDereference(makeToken(), 
+							 makeDereference(makeToken(),makeID(makeToken(),"b"),makeID(makeToken(),"f")), 
+							 makeID(makeToken(), "f"));
+	testName("obj-fieldRead - not in LNF");
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.toString())
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	
+	
+	
+	
+	
+};
