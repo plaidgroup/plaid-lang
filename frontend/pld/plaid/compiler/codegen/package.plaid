@@ -42,8 +42,12 @@ state CodeGenOps {
     method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y);
     method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y);
     method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y);
-    method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functionExpr, immutable List args, 
-	    					  shared StringBuilder sb, shared IdGen idgen, 
+    method codegenApplication(immutable CodeGenOps ops, 
+                              immutable ParsedExpr functionExpr, 
+                              immutable List args, 
+                              immutable List staticArgs,
+	    					  shared StringBuilder sb, 
+	    					  shared IdGen idgen, 
 		    				  immutable String y);
 	method void codegenMain(immutable String methodName, unique StringBuilder sb);
 	method void createLocalVariable(immutable String name, unique StringBuilder sb, immutable Boolean isFinal);
@@ -582,12 +586,12 @@ state SequentialCodeGenOps {
                 val argumentExpr = node.argument;
                 match(argumentExpr) {
                     case ParsedArgumentExpr {
-                        ops.codegenApplication(ops, node.function, argumentExpr.args, sb, idgen, y);
+                        ops.codegenApplication(ops, node.function, argumentExpr.args, node.staticArgs, sb, idgen, y);
                     }
                     default { 
                         val argList = makeLinkedList();
                         argList.add(argumentExpr);
-                        ops.codegenApplication(ops, node.function, argList, sb, idgen, y);
+                        ops.codegenApplication(ops, node.function, argList, node.staticArgs, sb, idgen, y);
                     }
                 };
             }
@@ -996,11 +1000,14 @@ state SequentialCodeGenOps {
     
     
     method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functionExpr, immutable List args, 
-                              shared StringBuilder sb, shared IdGen idgen, 
+                              immutable List staticArgs, shared StringBuilder sb, shared IdGen idgen, 
                               immutable String y) {
     
         val yList = args.map( fn(item) => { idgen.getId(); } );
+        val staticYList = staticArgs.map(fn(item) => { idgen.getId(); } );
+        yList.append(staticYList);
         yList.map( fn(yItem) => { ops.createLocalVariable(yItem, sb, true) });
+        args.append(staticArgs);
         val argsYs = args.zip(yList);
         argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second()); } );
         match(functionExpr) {
