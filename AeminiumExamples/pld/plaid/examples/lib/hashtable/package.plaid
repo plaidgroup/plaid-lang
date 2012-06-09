@@ -16,16 +16,18 @@ method void main() {
  *******************************************************************************/
 
 @cheap
-method unique Bucket createBuckets(immutable Integer order) {
+@sequential
+method unique Bucket<owner> createBuckets<group exclusive owner>(immutable Integer order) {
     val immutable Boolean isZero = (order == 0);
     match ( isZero ) {
-        case True { makeLeafBucket() }
+        case True { new LeafBucket<owner> }
         default { 
             val immutable Integer nextOrder = order - 1;
-            val unique Bucket leftBucket = createBuckets(nextOrder);
-            val unique Bucket rightBucket = createBuckets(nextOrder);
-            
-            makeNodeBucket(nextOrder, leftBucket, rightBucket);
+            new NodeBucket<owner> {
+                val immutable Integer decissionBit = nextOrder;
+                val shared<this.smaller> Bucket<this.smaller> smallerBuckets = unpackInnerGroups{ createBuckets<owner>(nextOrder) };
+                val shared<this.bigger> Bucket<this.smaller>  biggerBuckets = unpackInnerGroups{ createBuckets<owner>(nextOrder)  };
+            }
         }
     }
 }
@@ -35,21 +37,7 @@ method unique Bucket createBuckets(immutable Integer order) {
  ** factory methods 
  *******************************************************************************/
 
-method unique NodeBucket makeNodeBucket(immutable Integer decissionBit, 
-                                        unique Bucket >> void left, unique Bucket >> void right) {
-    new NodeBucket  { 
-        val immutable Integer decissionBit = decissionBit;
-        val unique Bucket smallerBuckets   = left; 
-        val unique Bucket biggerBuckets    = right; 
-    }
-}
- 
-method unique LeafBucket makeLeafBucket() {
-    new LeafBucket   
-}
-
+@sequential
 method unique Hashtable makeHashtable(immutable Integer order) {
-    val unique Bucket buckets = createBuckets(order);
-    
-    new Hashtable { val unique Bucket buckets = buckets; } 
+    new Hashtable { val unique Bucket<this.bg> buckets = unpackInnerGroups { createBuckets<this.bg>(order) }; } 
 }
