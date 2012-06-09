@@ -6,13 +6,36 @@ state LeafBucket<group Owner> case of Bucket<Owner> {
     // bucket list 
     var shared<Owner> ?BucketList<Owner> bucketList = unit;
 
+    override method void addExclusive<group exclusive owner>(immutable Hashable obj, immutable Integer index) [ shared<owner> LeafBucket<owner> this] {
+        val shared<owner> ?BucketList<owner> head = this.bucketList;
 
-    // TODO: add list 
+        match ( head ) {
+            case BucketList<owner> {
+                // check for existing entry
+                val immutable Boolean found = head.containsExclusive<owner>(obj.hash());
+                match ( found ) { 
+                    case False {
+                        printLine("[LeafBucket] add additional element element");
+                        val shared<owner> BucketList<owner> newEntry = new BucketList<owner> { val immutable Hashable data = obj; };
+                        newEntry.next = head;
+                        this.bucketList = newEntry;
+                    }
+                    default { unit }
+                }          
+            }
+            default {
+                // add first element 
+                printLine("[LeafBucket] add first element");
+                this.bucketList = new BucketList<owner> { val immutable Hashable data = obj; }
+            }
+        }
+    }
+
     override method void addShared<group shared owner>(immutable Hashable obj, immutable Integer index) [ shared<owner> LeafBucket<owner> this] {
         atomic <owner> {
             this.addProtected<owner>(obj, index);
         }
-    }
+    }    
     
     override method void addProtected<group protected owner>(immutable Hashable obj, immutable Integer index) [ shared<owner> LeafBucket<owner> this] {
         val shared<owner> ?BucketList<owner> head = this.bucketList;
@@ -23,6 +46,7 @@ state LeafBucket<group Owner> case of Bucket<Owner> {
                 val immutable Boolean found = head.containsProtected<owner>(obj.hash());
                 match ( found ) { 
                     case False {
+                        printLine("[LeafBucket] add additional element element");
                         val shared<owner> BucketList<owner> newEntry = new BucketList<owner> { val immutable Hashable data = obj; };
                         newEntry.next = head;
                         this.bucketList = newEntry;
@@ -32,8 +56,33 @@ state LeafBucket<group Owner> case of Bucket<Owner> {
             }
             default {
                 // add first element 
+                printLine("[LeafBucket] add first element");
                 this.bucketList = new BucketList<owner> { val immutable Hashable data = obj; }
             }
+        }
+    }
+
+    override method immutable Boolean containsExclusive<group exclusive owner>(immutable Hashable obj, immutable Integer index) [ shared<owner> LeafBucket<owner> this] {
+        val shared<owner> ?BucketList<owner> head = this.bucketList;
+
+        match ( head ) {
+            case BucketList<owner> { head.containsExclusive<owner>(obj.hash())  }
+            default { new False }
+        }
+    }
+
+    override method immutable Boolean containsShared<group shared owner>(immutable Hashable obj, immutable Integer index) [ shared<owner> LeafBucket<owner> this] {
+        atomic <owner> {
+            this.containsProtected<owner>(obj, index);
+        }
+    }
+
+    override method immutable Boolean containsProtected<group protected owner>(immutable Hashable obj, immutable Integer index) [ shared<owner> LeafBucket<owner> this] {
+        val shared<owner> ?BucketList<owner> head = this.bucketList;
+
+        match ( head ) {
+            case BucketList<owner> { head.containsProtected<owner>(obj.hash())  }
+            default { new False }
         }
     }
 }
