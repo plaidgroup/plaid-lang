@@ -18,6 +18,8 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 public final class Util {
 	private Util() {}
 	
+	public static final int PARALLELISM = Runtime.getRuntime().availableProcessors();
+	
 	public static final Logger LOG = Logger.getLogger(Util.class.toString());
 	static {
 		try {
@@ -51,15 +53,13 @@ public final class Util {
 		} 
 	}
 		
-	static {
-		Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
-			@Override
-			public void uncaughtException(Thread t, Throwable e) {
-				LOG.info("Thread " + t.toString() + " caught exception " + e.toString());
-			}
-		});
-	}
-	public static final ForkJoinPool POOL = new ForkJoinPool();
+	public static final UncaughtExceptionHandler UEH = new UncaughtExceptionHandler() {
+		@Override
+		public void uncaughtException(Thread t, Throwable e) {
+			LOG.info("Thread " + t.toString() + " caught exception " + e.toString());
+		}
+	};
+	public static final ForkJoinPool POOL = new ForkJoinPool(PARALLELISM, ForkJoinPool.defaultForkJoinWorkerThreadFactory, UEH, false);
 	
 	public static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
 	
