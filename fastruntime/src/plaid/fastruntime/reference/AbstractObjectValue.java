@@ -296,7 +296,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		for (MethodInfo method : methods) {
 			boolean isOld = false;
 			for(MethodInfo oldMethod : oldObjectValue.getMethods()) {
-				if (oldMethod.getName().equals(method.getName())) {
+				if (oldMethod.getName().equals(method.getName()) && !method.isStaticallyDefined()) {
 					storage[this.getStorageIndex(method.getName())] = oldStorage[oldObjectValue.getStorageIndex(method.getName())];
 					isOld = true;
 					break;
