@@ -42,10 +42,20 @@
 	<property name="FRONTEND.BIN" value="../frontend/bin"/>
 	<property name="RUNTIME.BIN" value="../runtime/bin"/>
 	<property name="STDLIB.BIN" value="../stdlib/bin"/>
+	<property name="FASTSTDLIB.BIN" value="../faststdlib/bin"/>
 	
-	<property name="PLAID_COMPILER_CLASSPATH" value = "${FRONTEND.BIN};${RUNTIME.BIN};${STDLIB.BIN};${PARSER.BIN};${AST.BIN};${FASTRUNTIME.BIN};${ASM.JAR};${FUNCTIONALJAVA.JAR}"/>
-	<property name="JAVA_COMPILER_CLASSPATH" value="${FASTRUNTIME.BIN};${GENERATED.BIN};${ASM.JAR};${FUNCTIONALJAVA.JAR}"/>
+	<property name="FASTSTDLIB.PLD" value="../faststdlib/pld"/>
+	
+	<property name="BENCHMARKLIB.JAR" value="./PlaidJavaBench.jar"/>
+	
+	<property name="PLAID_COMPILER_CLASSPATH" value = "${BENCHMARKLIB.JAR};${FRONTEND.BIN};${RUNTIME.BIN};${STDLIB.BIN};${PARSER.BIN};${AST.BIN};${FASTRUNTIME.BIN};${ASM.JAR};${FUNCTIONALJAVA.JAR}"/>
+	<property name="JAVA_COMPILER_CLASSPATH" value="${FASTSTDLIB.BIN};${BENCHMARKLIB.JAR};${FASTRUNTIME.BIN};${GENERATED.BIN};${ASM.JAR};${FUNCTIONALJAVA.JAR}"/>
 	<property name="JAR.NAME" value="plaidfaststdlib.jar"/>
+	
+	<property name="REFDIR.SRC" value="./reference"/>
+	<property name="REF.BIN" value="./bin"/>
+	
+	<property name="JUNIT.JAR" value="../tests/lib/junit-4.10.jar"/>
 
     
 	<import file="../build-common.xml" />
@@ -55,6 +65,27 @@
     	<mkdir dir="${COMPILE.BIN}"/>
     	<javac srcdir="${JAVA.SRC}" destdir="${COMPILE.BIN}" classpath="${JAVA_COMPILER_CLASSPATH}"/>
     </target>
+	
+	<target name="compile-benchmarks" depends="compile-plaid-benchmarks"> 
+    	<mkdir dir="${COMPILE.BIN}"/>
+    	<javac srcdir="${JAVA.SRC}" destdir="${COMPILE.BIN}" classpath="${JAVA_COMPILER_CLASSPATH}"/>
+		<javac debug="on" srcdir="${REFDIR.SRC}" destdir="${REF.BIN}" classpath="${JAVA_COMPILER_CLASSPATH};${JUNIT.JAR}"/>
+    </target>
+	
+	<target name="test-reference-benchmarks" depends="compile-benchmarks">
+		<junit>
+			<classpath>
+				<pathelement path="${JUNIT.JAR}"/>
+				<pathelement path="./bin/"/>
+			</classpath>
+			<batchtest>
+				<formatter type="plain" usefile="false"/>
+				<fileset dir="${REFDIR.SRC}">
+				  <include name="**/*Test*.java"/>
+				</fileset>
+			</batchtest>
+		</junit>
+	</target>
 
     
 	<target name="compile-plaid-forkjoin">
@@ -73,6 +104,26 @@
 	        <arg value="${basedir}/${JAVA.SRC}" />
 	        <arg value="-i" />
 	        <arg value="${basedir}/${PLAID.SRC}/plaid/ForkJoinBenchmark" />
+	    </java>
+	</target>
+	
+	<target name="compile-plaid-benchmarks">
+		<echo message="${ant.project.name} - Compiling Plaid code..." />
+	    <java classname="plaid.compiler.main" failonerror="true" fork="true">
+	    	<classpath>
+	    		<pathelement path="${PLAID_COMPILER_CLASSPATH}"/>
+	    	</classpath>
+		    <jvmarg value="-Xmx1024m"/>
+	    	<arg value="-n"/> 
+            <arg value="-d"/>
+	    	<arg value="0"/> <!-- turn off debug messages -->
+	    	<arg value="-b"/> <!-- no compilation -->
+			<arg value="-p"/>
+			<arg value="${FASTSTDLIB.PLD};../frontend/pld/"/>
+	        <arg value="-t" />
+	        <arg value="${basedir}/${JAVA.SRC}" />
+	        <arg value="-i" />
+	        <arg value="${basedir}/${PLAID.SRC}/plaid/benchmarks" />
 	    </java>
 	</target>
 
