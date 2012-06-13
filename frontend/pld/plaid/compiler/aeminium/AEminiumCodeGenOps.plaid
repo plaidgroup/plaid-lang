@@ -1,0 +1,620 @@
+package plaid.compiler.aeminium;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+import plaid.compiler.codegen.codegenMethodBody;
+import plaid.compiler.codegen.makeSeperatedString;
+import plaid.compiler.codegen.CodeGenOps;
+import plaid.compiler.codegen.makeSequentialCodeGenOps;
+import plaid.compiler.util.*;
+import plaid.compiler.passes.TaskBuilderPass;
+
+import plaid.collections.LinkedList;
+import plaid.collections.makeLinkedList;
+
+import plaid.fastruntime.NamingConventions;
+
+state AEminiumCodeGenOps case of CodeGenOps {
+    val immutable String LOCAL_VARIABLE_ARRAY = "_";
+    val immutable String TASK_ARRAY = "TA$K$";
+    val immutable String LOCAL_AEMINIUM_RUNTIME = "AE$RT";
+    val immutable SequentialCodeGenOps seqOps = makeSequentialCodeGenOps();
+    var shared Map methodInfoObjMap;
+    var shared MethodInformationMap curMethodInfo = "<UNINITIALIZED>";
+    val unique Map syncVarForTaskMap = java.util.HashMap.new();
+    var shared IdGen idgen;
+
+    var immutable Integer localVariableCounter = -1;
+    val unique Set localVariableMap = java.util.HashMap.new(); // maps original var names to index 
+    
+    method void reset() {
+        this.localVariableCounter = -1;
+        this.localVariableMap.clear();
+        this.syncVarForTaskMap.clear();
+        this.curMethodInfo = "<UNINITIALIZED>";
+    }
+
+    method immutable String indexToString(immutable Integer index) {
+        this.LOCAL_VARIABLE_ARRAY + "[" + index.toString() + "]"
+    }
+
+    method immutable Integer nextLocalVariableIndex() {
+        this.localVariableCounter = this.localVariableCounter + 1;        
+        this.localVariableCounter
+    }
+    
+    method immutable String getSyncVarForTask(shared Task task) {
+        match ( this.syncVarForTaskMap.containsKey(task) ) {
+            case True { /* nop */ }
+            case False {
+                val syncVar = idgen.getId();
+                this.syncVarForTaskMap.put(task, syncVar);
+                this.createLocalVariable(syncVar, java.lang.StringBuilder.new(), false);
+            }
+        };
+        
+        this.syncVarForTaskMap.get(task);
+    }
+
+    method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> " + msg);
+    }
+
+    method codegenCU(immutable CodeGenOps ops, unique Job job, immutable ParsedCompilationUnit node) {
+        LOG("codegenCU");
+        var immutable Boolean haveAEminiumData = false; 
+        match ( job.getJobData(AEMINIUM_METHOD_INFORMATION_MAP) ) {
+            case Some { 
+                DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found AEminium method information map.");
+                this.methodInfoObjMap = job.getJobData(AEMINIUM_METHOD_INFORMATION_MAP).value.methodInfoMap;
+                haveAEminiumData = true;
+            }
+            case None { /*noop*/ }
+        };
+        
+        match ( haveAEminiumData ) {
+            case True  { this.seqOps.codegenCU(this, job, node) }
+            case False { this.seqOps.codegenCU(this.seqOps, job, node) }
+        };
+    }
+    
+    method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen) {
+        LOG("codegenTopLevelDecl");
+        this.idgen = idgen;
+        match ( node ) {
+            case ParsedConcreteStateDecl { this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen) }
+            case ParsedConcreteMethodDecl { 
+                match ( isMethodParallel(node)  ) {
+                    case True { 
+                        this.seqOps.codegenTopLevelDecl(this, node, packageName, sb, idgen);
+                        this.codegenMethodPostlude(node);
+                    }
+                    case False {
+                        val AEMINIUM_SEQ_CODE_GEN = new AEminiumCodeGenOpsSeqCodeGen { val curMethodInfo = this.curMethodInfo; } ;
+                        this.seqOps.codegenTopLevelDecl(AEMINIUM_SEQ_CODE_GEN, node, packageName, sb, idgen);
+                    }
+                };
+            }
+            default { this.seqOps.codegenTopLevelDecl(this.seqOps, node, packageName, sb, idgen) }
+        };
+    }
+    
+    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node, shared StringBuilder sb, shared IdGen idgen, isAnonymous) {
+        LOG("codegenInnerDecl");
+        match ( node ) {
+            case ParsedConcreteMethodDecl { 
+                match ( isMethodParallel(node)  ) {
+                    case True { 
+                        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> generate parallel method");
+                        this.seqOps.codegenInnerDecl(this, node, sb, idgen, isAnonymous);
+                        this.codegenMethodPostlude(node);
+                    }
+                    case False { 
+                        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> generate sequential method");
+                        val AEMINIUM_SEQ_CODE_GEN = new AEminiumCodeGenOpsSeqCodeGen { val curMethodInfo = this.curMethodInfo; } ;
+                        this.seqOps.codegenInnerDecl(AEMINIUM_SEQ_CODE_GEN, node, sb, idgen, isAnonymous);
+                    }
+                };
+            }
+            default { this.seqOps.codegenInnerDecl(this.seqOps, node, sb, idgen, isAnonymous) }
+        };
+    }
+    
+    method void codegenMethodPostlude(immutable ParsedConcreteMethodDecl node) {
+        val shared Symbol methSymbol = match (symbolForAST(node)) {
+            case Some  { symbolForAST(node).value }
+            case None  { ABORT("<AEminiumCodeGenOps> cannot find symbol for " + node.nodeName()) }
+        };
+        val name = methSymbol.name;
+        val path = symbolToString(methSymbol);
+
+        // dump final graph 
+        this.curMethodInfo.dumpFinalTaskGraph(path);
+        
+        //reset internal data structures
+        this.reset();
+
+    }
+    
+    method void isMethodParallel(immutable ParsedConcreteMethodDecl node) {
+        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> isMethodParallel for '" + node.name.name + "'");
+        val shared Symbol methSymbol = match (symbolForAST(node)) {
+            case Some  { symbolForAST(node).value }
+            case None  { ABORT("<AEminiumCodeGenOps> cannot find symbol for " + node.nodeName()) }
+        };
+        val name = methSymbol.name;
+        val path = symbolToString(methSymbol);
+        
+        var immutable Boolean generateSequentialCode = true;
+
+        match ( this.methodInfoObjMap.containsKey(node) ) {
+            case True {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<AEminiumCodeGenOps> found method information for method '" + path + "." + node.name.name + "'");
+                this.curMethodInfo = this.methodInfoObjMap.get(node);
+                
+                match ( this.curMethodInfo.isSingleTask() ) {
+                    case True  { 
+                        DEBUG(DEBUG_PRIO_HIGH, "<AEminiumCodeGenOps> method '" +  path + "." + node.name.name + "' consists of only one task => SEQUENTIALIZE" );
+                        generateSequentialCode = true;
+                    }
+                    case False { generateSequentialCode = false } 
+                };
+            }
+            case False { /* nop */ }
+        };
+
+        generateSequentialCode == false    
+    }
+    
+    method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen) {
+        LOG("codegenMethodBody");
+        val tmpSB = java.lang.StringBuilder.new();
+        this.seqOps.codegenMethodBody(this, node, tmpSB, idgen);
+
+        sb.append("if ( plaid.fastruntime.aeminium.Util.parallelize <= 0 ) {\n");
+        // create sequential code for this method 
+        sb.append("/* sequential code for the case that we have enough parallelism */\n");
+        val seqSB = java.lang.StringBuilder.new();
+        val AEMINIUM_SEQ_CODE_GEN = new AEminiumCodeGenOpsSeqCodeGen { val curMethodInfo = this.curMethodInfo; } ;
+        this.seqOps.codegenMethodBody(AEMINIUM_SEQ_CODE_GEN, node, seqSB, idgen);
+        sb.append(seqSB);
+        sb.append("} else {\n");
+        sb.append("plaid.fastruntime.aeminium.Util.parallelize--; \n");
+        
+        // create parallel code  
+        sb.append("/* array for local variables */\n");
+        sb.append("final plaid.fastruntime.PlaidObject[] " + this.LOCAL_VARIABLE_ARRAY + " = new plaid.fastruntime.PlaidObject[" + (this.localVariableCounter + 1) + "];\n" );
+        //sb.append("final java.util.concurrent.atomic.AtomicReferenceArray<plaid.fastruntime.PlaidObject> " + this.LOCAL_VARIABLE_ARRAY + " = new java.util.concurrent.atomic.AtomicReferenceArray<plaid.fastruntime.PlaidObject>(" + (this.localVariableCounter + 1) + ");\n" );
+
+        sb.append("\n/* array for tasks */\n");
+        sb.append("/*\n");
+        val tasksMappingIt = this.curMethodInfo.getAllTasks().iterator();
+        while { tasksMappingIt.hasNext() }{
+            val curTask = tasksMappingIt.next();
+            sb.append(" * " + this.getTaskArrayElement(curTask) + " = " + curTask.toString()  + "\n");
+        };
+        sb.append("*/\n");
+        sb.append("final plaid.fastruntime.aeminium.Task[] " + this.TASK_ARRAY + " = new plaid.fastruntime.aeminium.Task[" + (this.curMethodInfo.getAllTasks().size()) + "];\n" );
+        
+        sb.append("\n/* initialize sync objects */\n");
+        val initSyncObjsIt = this.syncVarForTaskMap.entrySet().iterator();
+        while { initSyncObjsIt.hasNext() }{
+            val curEntry = initSyncObjsIt.next();
+            val curTask = curEntry.getKey();
+            val curSyncVar = curEntry.getValue();
+            sb.append("" + this.getLocalVariable(curSyncVar) + " = new plaid.fastruntime.aeminium.AEminiumMatchSyncPlaidObject(" + curTask.getOpenMatchLeaves().size() + ");\n") ;
+            //this.setLocalVariable(curSyncVar, "new plaid.fastruntime.aeminium.AEminiumMatchSyncPlaidObject(" + curTask.getOpenMatchLeaves().size() + ")",  sb);
+        };
+        
+        // create tasks
+        this.createTasksAndScheduling(this.curMethodInfo.tasks, node, sb);
+  
+        //append method return code
+        sb.append("\n/* non task code */\n"); 
+        sb.append(tmpSB.toString());  
+        
+        sb.append("}\n");   
+    }
+    
+    
+    method codegenStmtBlock(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
+        LOG("codegenStmtBlock");
+        this.seqOps.codegenStmtBlock(this, node, sb, idgen, y);
+    }
+    
+    method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
+        LOG("codegenStmt '" + node.nodeName() + "'");
+        match ( this.curMethodInfo.taskForAST(node) ) {
+            case Some { 
+                val task = this.curMethodInfo.taskForAST(node).value;
+                LOG("Found task '" + task.toString() + "'");
+                val taskSB = task.getBodyStringBuilder();
+                match (node) {
+                    case ParsedAtomicBlock {
+                        taskSB.append("atomic: {\n");                
+                        taskSB.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.enterAtomic();\n");
+                        ops.codegenStmtBlock(this.seqOps, node.body, taskSB, idgen, y);
+                        sb.append("plaid.fastruntime.aeminium.Util.GLOBAL_DATAGROUP.leaveAtomic();\n");
+                        taskSB.append("}\n");
+                    }
+                    case ParsedMatch {
+                        LOG("AEminium match code generation");
+                        // check if the match has been inlined 
+                        match ( this.curMethodInfo.matchInfoForAST(node) ) {
+                            case Some { 
+                                val matchInfo = this.curMethodInfo.matchInfoForAST(node).value;
+                                
+                                // do some voodoo to make match working
+                                val exprVarName = idgen.getId();
+                                ops.createLocalVariable(exprVarName, sb, false);
+                                ops.codegenStmt(this.seqOps, node.expression, taskSB, idgen, exprVarName);
+                                
+                                val caseStringList = makeLinkedList();
+                                node.caseList.do(fn (caseItem) => {
+                                
+                                    val caseSB = java.lang.StringBuilder.new();
+                                    
+                                    // generate condition
+                                    match ( caseItem ) {
+                                        case ParsedPatternCase {
+                                            val patternSymbolOption = symbolForAST(caseItem.pattern);
+                                            match(patternSymbolOption) {
+                                                case Some {                                                
+                                                    val patternSymbol = patternSymbolOption.getValue();
+                                                    match (patternSymbol) {
+                                                        case StateSymbol {
+                                                            caseSB.append("if(" + ops.getLocalVariable(exprVarName) + ".getDispatch().matches(");
+                                                            caseSB.append(patternSymbol.getFQN() + "." + NamingConventions.GENERATED_STATE_NAME + ".getTopTag())) {\n");
+                                                        }
+                                                        default { ABORT("Wrong symbol") }
+                                                    };
+                                                }
+                                                case None { ABORT("Cannot fing pattern symbol") }
+                                            };
+                                        }
+                                        case ParsedDefaultCase { 
+                                            caseSB.append("{\n");
+                                        }
+                                    };
+
+                                    val bodyVarName = idgen.getId();
+                                    ops.createLocalVariable(bodyVarName, sb, false);
+                                    ops.codegenStmtBlock(this, caseItem.body, caseSB, idgen, bodyVarName);
+
+                                    // assign to block variable to last task 
+                                    val caseTask = match ( this.curMethodInfo.taskForAST(caseItem) ) {
+                                        case Some { this.curMethodInfo.taskForAST(caseItem).value }
+                                        case None { ABORT("Cannot find task for case.") }
+                                    };
+                                    ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseTask.getBodyStringBuilder());                                                            
+
+                                    
+                                    // generate code of tasks
+                                    DEBUG(DEBUG_PRIO_LOW, "<AEminiumCodeGenOps> look for case information ");
+                                    val caseInfo = match ( matchInfo.caseInfoForAST(caseItem) ) {
+                                        case Some { matchInfo.caseInfoForAST(caseItem).value } 
+                                        case None { ABORT("Cannot find case information for case.") } 
+                                    };
+
+                                    ifElse (caseInfo.allTasks.size() == 1) {
+                                        caseSB.append(caseInfo.allTasks.iterator().next().getBodyStringBuilder());   
+                                    }{
+                                        this.createTasksAndScheduling(caseInfo.allTasks, caseItem.body, caseSB);
+                                    };
+                                                                                                                                                                
+                                    caseSB.append("}\n");
+                                    caseStringList.addLast(caseSB.toString());
+                                });
+                                // concatenate cases 
+                                val caseString = makeSeperatedString(caseStringList, "else ");
+                                taskSB.append(caseString);
+                                val lastCase = node.caseList.get(node.caseList.size() - 1).getValue();
+                                match (lastCase) {
+                                    case ParsedPatternCase {
+                                        taskSB.append("else {\n");
+                                        taskSB.append("throw new plaid.fastruntime.errors.PlaidIllegalOperationException(\"Pattern match exausted.\");\n");
+                                        taskSB.append("}\n");
+                                    }
+                                    case ParsedDefaultCase {
+                                        //no-op
+                                    }
+                                };
+                            }
+                            case None {                                                    
+                                // add code to current task 
+                                this.seqOps.codegenStmt(this.seqOps, node, taskSB, idgen, y)  
+                            }
+                        };
+                    }
+                    default { this.seqOps.codegenStmt(this, node, taskSB, idgen, y) }
+                };
+            }
+            case None {
+                LOG("Using default SB");
+                this.seqOps.codegenStmt(this, node, sb, idgen, y)
+            }
+        };
+    }
+    
+    method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y)  {
+        LOG("codegenLambda");
+        this.seqOps.codegenLambda(this, args, body, sb, idgen, y);
+    }
+    
+    method codegenStateExpr(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, immutable String y)  {
+        LOG("codegenStateExpr");
+        this.seqOps.codegenStateExpr(this, node, sb, idgen, y);
+    }
+    
+    method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functionExpr, immutable List args, 
+	    					  shared StringBuilder sb, shared IdGen idgen, 
+		    				  immutable String y) {
+        LOG("codegenApplication");
+        this.seqOps.codegenApplication(this, functionExpr, args, sb, idgen, y);
+    }
+    
+    method void codegenMain(immutable String methodName, unique StringBuilder sb) {
+        sb.append("public static void main(String[] args) {\n");
+        sb.append("final plaid.fastruntime.aeminium.Task ta$k = new plaid.fastruntime.aeminium.Task(0) {\n");
+        sb.append("@Override protected void compute() {\n");
+        sb.append("invoke$plaid();\n");
+        sb.append("}\n");
+        sb.append("};\n");
+        sb.append("plaid.fastruntime.aeminium.Util.POOL.submit(ta$k);\n");
+        sb.append("while ( plaid.fastruntime.aeminium.Util.POOL.getActiveThreadCount() > 0 ) {\n");
+        sb.append("try {\n");
+		sb.append("Thread.sleep(100);\n");
+		sb.append("} catch (InterruptedException e) {\n");
+		sb.append("e.printStackTrace();\n");
+		sb.append("}\n");
+        sb.append("}\n");
+        sb.append("}\n"); // end main method
+    }
+    
+    method void createLocalVariable(immutable String name, unique StringBuilder sb, immutable Boolean isFinal) {
+        LOG("createLocalVariable '" + name + "'");
+        val index = this.nextLocalVariableIndex();
+        this.localVariableMap.put(name, index);
+        //sb.append("/*AE*/");
+        //this.seqOps.createLocalVariable(name, sb, isFinal);
+    }
+    
+    method void setLocalVariable(immutable String varName, immutable String value, unique StringBuilder sb) {
+        LOG("setLocalVariable '" + varName + "'");   
+        //sb.append("/*AE*/");
+        //this.seqOps.setLocalVariable(varName, value, sb); 
+        val newName = match ( this.localVariableMap.containsKey(varName)  ) {
+	        case True {
+                val index = this.localVariableMap.get(varName);
+                this.varNameComment(varName) + this.indexToString(index) ;            
+                //sb.append(this.LOCAL_VARIABLE_ARRAY + ".set(" + index + "," + value + ");\n");
+            }
+            case False {
+                varName //this.seqOps.setLocalVariable(varName, value, sb);
+            }
+        };
+        this.seqOps.setLocalVariable(newName, value, sb);
+    }
+    
+	method immutable String getLocalVariable(immutable String varName) {
+	    LOG("getLocalVariable '" + varName + "'");
+	    //"/*AE*/" + this.seqOps.getLocalVariable(varName);
+	    match ( this.localVariableMap.containsKey(varName)  ) {
+	        case True {
+                val index = this.localVariableMap.get(varName);
+                this.varNameComment(varName) + this.indexToString(index);
+                //this.LOCAL_VARIABLE_ARRAY + ".get(" + index + ")"
+            }
+            case False {
+                // parameter 
+                this.seqOps.getLocalVariable(varName);
+            }
+        };
+	}
+
+    method immutable String getTaskArrayElement(shared Task task) {
+        this.TASK_ARRAY + "[" + this.curMethodInfo.getTaskIndex(task) + "]"
+    }
+    
+    method void createTasksAndScheduling(shared Set tasksInput, immutable ParsedBlockExpr node, unique StringBuilder sb) {
+        
+        // sort tasks topologial
+        val tasks = topologicalTaskList(tasksInput);
+
+        var unique Set startTasks = java.util.HashSet.new();
+        var shared Task bodyTask = "<UNINITIALIZED>";
+        var preludeIt = tasks.iterator();
+        while { preludeIt.hasNext() }{
+            val curTask = preludeIt.next();
+            
+            val isBodyTask = if ( true )  {
+                val astNodes = java.util.HashSet.new();
+                val infosIt = curTask.infos.iterator();
+                while{ infosIt.hasNext() }{
+                    val curInfo = infosIt.next();
+                    match ( curInfo ) {
+                        case ASTInformation {
+                            astNodes.add(curInfo.node);
+                        }
+                        default { /*nop*/ } 
+                    };
+                };
+                // return matching 
+                astNodes.contains(node)
+            };
+            
+            if ( curTask.deps.size() == 0 ) {
+                LOG("Found start task '" + curTask + "'");
+                startTasks.add(curTask);
+            };
+            if ( isBodyTask == true ) {
+                LOG("Found body task '" + curTask + "'");
+                bodyTask = curTask;
+            }
+        };
+
+        
+        // create tasks
+        sb.append("/* create tasks */\n");
+        val tasksIt = tasks.iterator();
+        while { tasksIt.hasNext() }{
+            val curTask = tasksIt.next();
+            ifElse ( startTasks.size() == 1 && startTasks.contains(curTask) || bodyTask == curTask ) {
+                /* inline  */
+            }{
+                sb.append(createTaskString("", curTask, ""));
+            }
+        };
+        
+        // add scheduling
+        ifElse ( startTasks.size() == 1 )  {
+            sb.append("\n/* inline start task " + this.getTaskArrayElement(startTasks.iterator().next()) + " = " + startTasks.iterator().next().toString() + " */\n");
+            sb.append(startTasks.iterator().next().getBodyStringBuilder());
+            // add dependencies 
+            sb.append("\n\n/* schedule 'new' start tasks after inlining */\n");
+            val starterTasks = makeLinkedList();
+            val scheduleIt = startTasks.iterator().next().rdeps.iterator();
+            while { scheduleIt.hasNext() }{
+                val curTask = scheduleIt.next();
+                if ( curTask != bodyTask ) {
+                    ifElse ( this.curMethodInfo.forkTask(curTask) ) {
+                        sb.append("" + this.getTaskArrayElement(curTask) + ".fork();\n");
+                    }{
+                        starterTasks.add(this.getTaskArrayElement(curTask));
+                    };
+                }
+            };
+            if ( starterTasks.size() > 0 ) {
+                sb.append("plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(" + makeSeperatedString(starterTasks, ",") + ");\n");
+            };           
+        }{
+            sb.append("\n/* schedule task */\n");
+            val starterTasks = makeLinkedList();
+            val scheduleIt = startTasks.iterator();
+            while { scheduleIt.hasNext() }{
+                val curTask = scheduleIt.next();
+                if ( curTask != bodyTask ) {
+                    ifElse ( this.curMethodInfo.forkTask(curTask) ) {
+                       sb.append(""+ this.getTaskArrayElement(curTask) + ".fork();\n"); 
+                    }{
+                        starterTasks.add(this.getTaskArrayElement(curTask));
+                    };
+                }
+            };
+            if ( starterTasks.size() > 0 ) {
+                sb.append("plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(" + makeSeperatedString(starterTasks, ",") + ");\n");
+            };
+        };
+        
+        
+        //sb.append("\n/* execute body task if it was not executed */\n");
+        //sb.append("if ( " + this.getTaskArrayElement(bodyTask) + " != null && " + this.getTaskArrayElement(bodyTask) + ".isDone() == false ) { plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(" + this.getTaskArrayElement(bodyTask) + "); }\n" );
+        
+        sb.append("\n/* inlined body task " + this.getTaskArrayElement(bodyTask) + " = " +  bodyTask.toString() + " */\n");
+        sb.append(bodyTask.getBodyStringBuilder());
+
+    }
+    
+    method immutable Boolean isSimplifiedMatch(shared Task from, shared Task to) {
+         var immutable Boolean result = false;
+         var unique Set matchLeaves = java.util.HashSet.new();
+         
+         var toIt = to.infos.iterator();
+         while { toIt.hasNext() }{
+             val curInfo = toIt.next();
+             match (curInfo) {
+                case MatchLeaveInformation { matchLeaves.add(curInfo) }
+                default {}
+             };
+         };
+         
+         val leavesIt = matchLeaves.iterator();
+         while { leavesIt.hasNext() }{
+             val curMatchLeave = leavesIt.next();
+             if ( from.infos.contains(curMatchLeave.enterInfo) ) {
+                 DEBUG(DEBUG_PRIO_LOW, "<AEminiumCodeGenOps> found simplified match connection " + from.toString() + " -> " + to.toString() );
+                 result = true;
+             };
+         };
+         
+         result;
+    }
+    
+    method immutable String codegenTaskOpenLeaves(shared Task task) {
+        val sb = java.lang.StringBuilder.new();
+        
+        if ( this.syncVarForTaskMap.containsKey(task) ) {
+            val leaveSyncVar = this.syncVarForTaskMap.get(task);
+            sb.append("@SuppressWarnings(\"unchecked\")\njava.util.Collection<plaid.fastruntime.aeminium.Task> leaveDep$ = (java.util.Collection<plaid.fastruntime.aeminium.Task>)((plaid.fastruntime.aeminium.AEminiumMatchSyncPlaidObject)"+ this.getLocalVariable(leaveSyncVar) + ").waitForMatches();\n"); 
+            sb.append("while ( leaveDep$ == null ) {\n");
+            sb.append("leaveDep$ = (java.util.Collection<plaid.fastruntime.aeminium.Task>)((plaid.fastruntime.aeminium.AEminiumMatchSyncPlaidObject)"+ this.getLocalVariable(leaveSyncVar) + ").waitForMatches();\n"); 
+            sb.append("}\n"); 
+            sb.append("if ( " + this.getTaskArrayElement(task) + " == null && 0 < leaveDep$.size() ) { \n");
+            sb.append("for  ( plaid.fastruntime.aeminium.Task ta$k : leaveDep$ ) { \n");
+            sb.append("ta$k.join();\n");
+            sb.append("}\n");
+            sb.append("}\n");
+        };    
+        
+        sb.toString();
+    }
+    
+    method immutable String createTaskString(immutable String prefix, shared Task task, immutable String suffix) {
+        val sb = java.lang.StringBuilder.new();
+        
+        sb.append(this.getTaskArrayElement(task) +" =  new plaid.fastruntime.aeminium.Task(" + task.deps.size() + ") {\n");
+        sb.append("@Override public void compute() {\n");
+        sb.append(this.codegenTaskOpenLeaves(task));
+        sb.append(prefix);
+        sb.append(task.getBodyStringBuilder());
+        sb.append(suffix);
+        val singleDirect = ifElse ( task.rdeps.size() == 1 ) {
+            ifElse ( task.rdeps.iterator().next().deps.size() == 1 ) {
+                true
+            }{
+                false
+            }
+        }{
+            false;
+        };
+        if ( task.rdeps.size() > 0 ) {
+            ifElse  ( singleDirect ) {
+                sb.append("if ( "+ this.getTaskArrayElement(task.rdeps.iterator().next()) +" != null ) plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(" + this.getTaskArrayElement(task.rdeps.iterator().next()) + ");\n");
+            }{
+                ifElse ( task.rdeps.size() == 1 ) {
+                    val curTask = task.rdeps.iterator().next();
+                    ifElse ( this.curMethodInfo.forkTask(curTask) ) {
+                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { " + this.getTaskArrayElement(curTask) + "fork(); }\n");
+                    }{
+                        sb.append("if ( " + this.getTaskArrayElement(curTask) + " != null && " + this.getTaskArrayElement(curTask) + ".decDepCount() == 0 ) { plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(" + this.getTaskArrayElement(curTask) + "); }\n");
+                    };
+                }{
+                    sb.append("final java.util.Collection invokeTa$k$ = new java.util.ArrayList(" + task.rdeps.size() + ");\n");
+                    val it = task.rdeps.iterator();
+                    while { it.hasNext() }{
+                        val rdepTask = it.next();
+                        ifElse ( this.curMethodInfo.forkTask(rdepTask) ) {
+                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { invokeTa$k$.add(" + this.getTaskArrayElement(rdepTask) + ".fork(); }\n" );                                      
+                        }{
+                            sb.append("if ( " + this.getTaskArrayElement(rdepTask) + " != null && "+ this.getTaskArrayElement(rdepTask) + ".decDepCount() == 0 )  { invokeTa$k$.add(" + this.getTaskArrayElement(rdepTask) + "); }\n" );          
+                        };
+                    };
+                    sb.append("if ( invokeTa$k$.size() > 0 ) { plaid.fastruntime.aeminium.runtime.ForkJoinTask.invokeAll(invokeTa$k$); }\n");
+                };
+            };
+        };
+        sb.append("}\n");
+        sb.append("@SuppressWarnings(\"unused\") public String toSting() { return \"" + task.toString() + "\"; }\n");
+        sb.append("};\n");
+        
+        sb.toString();
+    }
+
+    method immutable String varNameComment(immutable String varName) {
+        match ( varName.endsWith("$plaid") ) {
+            case True { "" }
+            case False { "/*" + varName + "*/" }
+        };
+    }
+}

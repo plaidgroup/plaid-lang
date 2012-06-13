@@ -1,0 +1,160 @@
+package plaid.ast.types.tests;
+
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import java.lang.System;
+
+val () -> void joinPTtests = fn () => {
+	System.out.println("---------------------------");
+	System.out.println("|   JOINPLAIDTYPE TESTS   |");
+	System.out.println("---------------------------");
+
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = makeID(makeToken(),"unit");
+	temp.put(u, new StateType { val name = u; val superType = new None; });
+	
+	//Top
+	val top = makeID(makeToken(),"Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = makeID(makeToken(),"A");
+	val aType = new StateType { val name = a; val superType = makeSome(topType);};
+	temp.put(a,aType);
+	
+	//B
+	val b = makeID(makeToken(),"B");
+	val bType = new StateType { val name = b; val superType = makeSome(topType);};
+	temp.put(b,bType);
+	
+	//B
+	val c = makeID(makeToken(),"C");
+	val cType = new StateType { val name = c; val superType = makeSome(aType);};
+	temp.put(c,cType);
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	System.out.println("Testing state configuration:");
+	st.printTable();
+	System.out.println("");
+	var res = unit;
+	var PT1 = unit;
+	var PT2 = unit;
+	
+	PT1 = createPermType(UNIQUE,createNominalType(a));
+	PT2 = createPermType(UNIQUE,createNominalType(b));
+	testName("join unique and unique - fail");
+	testCall("joinPlaidTypes(" + PT1.toString() + ", " + PT2.toString() + ")");
+	res = joinPlaidTypes(PT1,PT2);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	PT2 = createPermType(IMMUTABLE,createNominalType(b));
+	testName("join unique and immutable - fail");
+	testCall("joinPlaidTypes(" + PT1.toString() + ", " + PT2.toString() + ")");
+	res = joinPlaidTypes(PT1,PT2);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("join immutable and unique - fail");
+	testCall("joinPlaidTypes(" + PT2.toString() + ", " + PT1.toString() + ")");
+	res = joinPlaidTypes(PT2,PT1);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	PT2 = createPermType(NONEP,createNominalType(b));
+	testName("join unique and none - succeed");
+	testCall("joinPlaidTypes(" + PT1.toString() + ", " + PT2.toString() + ")");
+	res = joinPlaidTypes(PT1,PT2);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createNominalType(a)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"returned wrong type") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	testName("join none and unique - succeed");
+	testCall("joinPlaidTypes(" + PT2.toString() + ", " + PT1.toString() + ")");
+	res = joinPlaidTypes(PT2,PT1);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createNominalType(a)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"returned wrong type") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	PT1 = createPermType(IMMUTABLE,createNominalType(a));
+	testName("join immutable and none - succeed");
+	testCall("joinPlaidTypes(" + PT1.toString() + ", " + PT2.toString() + ")");
+	res = joinPlaidTypes(PT1,PT2);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createNominalType(a)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"returned wrong type") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	testName("join none and immutable - succeed");
+	testCall("joinPlaidTypes(" + PT1.toString() + ", " + PT2.toString() + ")");
+	res = joinPlaidTypes(PT1,PT2);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createNominalType(a)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"returned wrong type") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	PT2 = createPermType(IMMUTABLE,createNominalType(b));
+	testName("join immutable and immutable - succeed"); //note we could have an error if types between uniques don't match
+	testCall("joinPlaidTypes(" + PT1.toString() + ", " + PT2.toString() + ")");
+	res = joinPlaidTypes(PT1,PT2);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createNominalType(a)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"returned wrong type") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	PT1 = createPermType(NONEP,createNominalType(a));
+	PT2 = createPermType(NONEP,createNominalType(b));
+	testName("join none and none - succeed"); //note we could have an error if types between uniques don't match
+	testCall("joinPlaidTypes(" + PT1.toString() + ", " + PT2.toString() + ")");
+	res = joinPlaidTypes(PT1,PT2);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createNominalType(b)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"returned wrong type") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+};

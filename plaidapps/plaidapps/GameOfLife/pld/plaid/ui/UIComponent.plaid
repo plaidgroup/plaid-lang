@@ -1,0 +1,192 @@
+package plaid.ui;
+
+//UIComponent.plaid
+state UIComponent {
+  var id;
+	var node = fn(id) => { document.getElementById(id); };
+	var jqnode = fn(id) => { jQuery("#" + id); };
+}
+
+//Box.plaid
+state Box case of UIComponent{}
+
+//Accordion.plaid
+state Accordion case of UIComponent {
+  method init() {
+	  this.jqnode(this.id).accordion();
+	}
+}
+
+//TextBox.plaid
+state TextBox case of UIComponent{
+  var text;
+	var min;
+	var max;
+
+	// initialize method. use constructor if possible
+  method init() {
+	  this <- EmptyTextBox;
+		this.onEmpty();
+  	var f = fn() => { this.update(this.node(this.id).value); };
+
+  	this.jqnode(this.id).bind("keyup", f);
+		this.jqnode(this.id).bind("focusout", f);
+		window.setInterval(f, 100);
+	}
+
+	method update(text) {
+	  ifElse (text.length > 0) {
+		  ifElse (this.min <= text.length && text.length <= this.max){
+			  this <- ValidTextBox;
+			}{
+			  this <- InvalidTextBox;
+			};
+		}{
+		  this <- EmptyTextBox;
+		};
+	}
+}
+
+state EmptyTextBox case of TextBox {
+  method onEmpty() {}
+	method offEmpty() {}
+}
+
+state InvalidTextBox case of TextBox {
+  method validate(){ returnFalse(); }
+	method onInvalid(){}
+	method offInvalid(){}
+}
+
+state ValidTextBox case of TextBox {
+  method validate(){ returnTrue(); }
+	method onValid(){}
+	method offValid(){}
+}
+
+
+//Button.plaid
+state Button case of UIComponent {
+  var click;
+
+  method init() {
+	  this.jqnode(this.id).bind("mousedown", fn() => {this.mousedown()});
+	  this.jqnode(this.id).bind("mouseup", fn() => {this.mouseup()});
+	  this.jqnode(this.id).bind("mouseout", fn() => {this.mouseout()});
+	}
+
+	method mousedown() {
+	  this <- PressedButton;
+	}
+
+	method mouseup() {
+	  match(this) {
+		  case PressedButton {
+			  this.click();
+				this <- UnpressedButton;
+			}
+		}
+	}
+
+  method mouseout() {
+	  this <- UnpressedButton;
+	}
+}
+
+state PressedButton case of Button {
+  method onPressedButton() {}
+	method offPressedButton() {}
+}
+
+state UnpressedButton case of Button {
+  method onUnpressedButton() {}
+	method offUnpressedButton() {}
+}
+
+//DropDownList.plaid
+state DropDownList case of UIComponent {
+  var options = returnArray();
+  var beforeChange = fn() => {};
+	var afterChange = fn() => {};
+  method init() {
+	  this.jqnode(this.id).bind("change", fn(evt)=>{
+		  this.beforeChange();
+
+      var v = evt.target.value;
+			this.options.each(fn(o) =>{
+			  match(o) {
+				  case SelectedOption {
+					  o <- UnselectedOption;
+					}
+				};
+				if(o.value == v){
+				  o <- SelectedOption;
+				};
+			});
+
+			this.afterChange();			
+		});
+	}
+
+	method addOption(option){
+	  this.options.push(option);
+	}
+}
+
+state Option case of UIComponent {
+  var name;
+  var value;
+
+	method init(parent) {
+		parent.addOption(this);
+	}
+}
+
+state SelectedOption case of Option {
+  method onSelectedOption(){}
+  method offSelectedOption(){}
+}
+
+state UnselectedOption case of Option {
+  method onUnselectedOption(){}
+	method offUnselectedOption(){}
+}
+
+//DatePicker.plaid
+state DatePicker case of UIComponent{
+	method init() {
+	  this.jqnode(this.id).datepicker();
+	}
+}
+
+//Availability.plaid
+state Availability{}
+state Enabled case of Availability {
+	method onEnabled() {
+		this.jqnode(this.id).removeAttr("disabled");
+	}
+	method offEnabled(){}
+}
+
+state Disabled case of Availability {
+  method onDisabled() {
+    this.jqnode(this.id).attr("disabled", "disabled");
+	}
+	method offDisabled() {}
+}
+
+//Visibility.plaid
+state Visibility {}
+
+state Visible case of Visibility {
+  method onVisible() {
+		this.jqnode(this.id).show();
+	}
+	method offVisible() {}
+}
+state Invisible case of Visibility {
+  method onInvisible() {
+		this.jqnode(this.id).hide();
+	}
+	method offVisible() {}
+}

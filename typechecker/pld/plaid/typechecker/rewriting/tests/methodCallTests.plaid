@@ -1,0 +1,375 @@
+package plaid.typechecker.rewriting.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.context.*;
+import plaid.typechecker.rewriting.*;
+
+val () -> void methodCallTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	var oldArgs = unit;
+	var goalArgs = unit;
+	
+	System.out.println("Testing Method Call transformation");
+	testName("lnf-call-bare");	
+	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"y"));	//x.m(y)
+	oldAst = makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalArgs = makeEmptyList(); goalArgs.add(makeID(makeToken(),"y"));
+	goalAst = makeTake(makeToken(),makeTempID(makeToken(),"t1"), //let t1 = x.m(y) in t1
+						 makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), goalArgs),
+					     makeTempID(makeToken(),"t1"), false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-call1");	//x.z.m(y);
+	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"y"));
+	oldAst = makeMethodCall(makeToken(), 
+							makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")), 
+							makeID(makeToken(),"m"), 
+							oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalArgs = makeEmptyList(); goalArgs.add(makeID(makeToken(),"y"));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"z")),
+					   			  makeMethodCall(makeToken(), makeTempID(makeToken(),"t2"), makeID(makeToken(),"m"), goalArgs),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	
+			
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-call2");	//x.m(y.z)
+	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	oldAst = makeMethodCall(makeToken(), 
+							makeID(makeToken(),"x"), 
+							makeID(makeToken(),"m"), 
+							oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalArgs = makeEmptyList(); goalArgs.add(makeTempID(makeToken(),"t2"));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), goalArgs),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-call2 (multiple args)");	//x.m(y.z, a.b)
+	oldArgs = makeEmptyList(); 
+	oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")));
+	oldAst = makeMethodCall(makeToken(), 
+							makeID(makeToken(),"x"), 
+							makeID(makeToken(),"m"), 
+							oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalArgs = makeEmptyList(); goalArgs.add(makeTempID(makeToken(),"t2")); goalArgs.add(makeTempID(makeToken(),"t3"));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t3"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
+					   			  			 makeMethodCall(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(),"m"), goalArgs),
+					   			  			 false),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-call3");		//x.w.m(y.z)
+	oldArgs = makeEmptyList(); oldArgs.add(makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")));
+	oldAst = makeMethodCall(makeToken(), 
+							makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w")), 
+							makeID(makeToken(),"m"), 
+							oldArgs);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalArgs = makeEmptyList(); goalArgs.add(makeTempID(makeToken(),"t3"));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+					   			  makeTempID(makeToken(),"t2"),
+					   			  makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"w")),
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t3"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"z")),
+					   			  			 makeMethodCall(makeToken(), makeTempID(makeToken(),"t2"), makeID(makeToken(),"m"), goalArgs),
+					   			  			 false),
+					   			  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	System.out.println("");
+	
+	var typefetcher = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
+	var argList = unit;
+	
+	System.out.println("Testing method Call ObjectType Inference");
+	testName("obj-methodCall succeed");
+	
+	st = new StateTable;
+	cIn = new Context;
+	cIn.put(makeID(makeToken(),"o"), getIntegerType());
+	cIn.put(makeID(makeToken(),"t"), getIntegerType());
+	
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"t"));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"o"),
+							makeID(makeToken(),"+"),
+							argList);
+	newAst = oldAst.copy();
+	cOut = cIn.copy();
+	typefetcher = new TypeFetchVisitor { val context = cIn; val st = st; };
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false, result.toString());
+		}
+		default {
+			match (result == getIntegerType()) {
+				case True {
+					match (oldAst == newAst) {
+						case True {
+							match (cIn == cOut) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "context should not be updated" );
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "ast should not be updated");
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "wrong return type (not Integer)");
+				}
+			}	
+		}
+	};
+	
+	testName("obj-methodCall arg not in scope");
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"x"));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"o"),
+							makeID(makeToken(),"+"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall arg not in LNF");
+	argList = makeEmptyList(); argList.add(makeDereference(makeToken(),
+										   makeID(makeToken(),"x"),
+										   makeID(makeToken(),"f")));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"o"),
+							makeID(makeToken(),"+"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall method not found");
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"t"));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"o"),
+							makeID(makeToken(),"*"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall field not a method");
+	
+	val aID = makeID(makeToken(),"A");
+	val aType = new StateType { val name = aID; val superType = new None; };
+	val fID = makeID(makeToken(),"f");
+	val fType = makeFieldType(fID.copy(), createTakeType(IMM,getIntegerType()), true);
+	aType.providedTypes.put(fID.copy(), fType);
+	aType.declaredTypes.put(fID.copy(), fType);
+	st.put(aID, aType);
+	
+	cIn.put(makeID(makeToken(), "a"), createNominalType(makeID(makeToken(), "A")));
+	oldAst = oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"a"),
+							makeID(makeToken(),"f"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall receiver not in scope");
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"t"));
+	oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"y"),
+							makeID(makeToken(),"*"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall receiver not in LNF");
+	argList = makeEmptyList(); argList.add(makeID(makeToken(),"t"));
+	oldAst = makeMethodCall(makeToken(),
+							makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"f")),
+							makeID(makeToken(),"*"),
+							argList);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true, result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-methodCall succeed (update types)");
+	
+	val mArgTypes = makeEmptyList();
+	mArgTypes.add(createChangeType(createPermType(IMM,getIntegerType()),
+								   getVoidType(),
+								   false));
+	val mID = makeID(makeToken(),"m");
+	val mType = makeMethodType(mID.copy(), 
+							   createTakeType(IMM,getIntegerType()),
+							   mArgTypes,
+							   createChangeType(createPermType(IMM,getIntegerType()),
+								   getVoidType(),
+								   false),
+							   java.util.HashMap.new());
+	aType.providedTypes.put(mID.copy(), mType);
+	aType.declaredTypes.put(mID.copy(), mType);
+	
+	oldAst = oldAst = makeMethodCall(makeToken(),
+							makeID(makeToken(),"a"),
+							makeID(makeToken(),"m"),
+							argList);
+	newAst = oldAst.copy();
+	cOut = cIn.copy();
+	cOut.update(makeID(makeToken(), "a"), getUnitType());
+	cOut.update(makeID(makeToken(), "t"), getUnitType());
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false, result.toString());
+		}
+		default {
+			match (result == getIntegerType()) {
+				case True {
+					match (oldAst == newAst) {
+						case True {
+							match (cIn == cOut) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "context should be updated" );
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "ast should not be updated");
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "wrong return type (not Integer)");
+				}
+			}	
+		}
+	};
+	
+};

@@ -1,0 +1,362 @@
+package plaid.compiler.types;
+
+import plaid.compiler.*;
+import plaid.compiler.symbol.*;
+import plaid.ast.util.Token;
+       
+import plaid.compiler.permissions.*;
+
+import plaid.collections.makeLinkedList;
+
+import plaid.compiler.util.*;
+
+state NominalStructure case of ObjectStructure {
+  val shared StateSymbol symbol;
+  val immutable Structure owner;
+  val immutable String name;
+  val unique LinkedList staticArgs = makeLinkedList();
+
+  method immutable String getName() { this.name }
+
+  method immutable Boolean ==(immutable Structure other)
+                             [immutable NominalStructure this] 
+  {
+    match (other) {
+      case NominalStructure { 
+        ifElse ( this.symbol == other.symbol && this.staticArgs.size() == other.staticArgs.size() ) {
+            var immutable Boolean result = true;
+            var immutable Integer i = 0;
+            
+            while { i < this.staticArgs.size() }{
+                val e1 = this.staticArgs.get(i).value;
+                val e2 = other.staticArgs.get(i).value;
+                
+                result = result && (e1 == e2);
+                
+                i = i + 1;
+            };
+            
+            result
+        }{
+            false
+        };
+      } //TODO: symbol seems like it would be unique, is this correct?
+      default { false }
+    } 
+  }
+  
+  method immutable String toString()[immutable NominalStructure this] {
+    val args = match ( this.staticArgs.size() > 0 ) {
+        case True { 
+            val stringArgs = this.staticArgs.map( fn (arg) => { 
+                match (arg) {
+                    case AbstractExpression { arg.toString() }
+                    default { ABORT("<NominalStructure> Found invalid abstract expression.") } 
+                } 
+            });
+            "<" + makeStringFromLinkedList(stringArgs, ",") + ">"
+        }
+        case False {
+            match ( this.symbol.getStaticParameters().size() > 0 ) {
+                case True {
+            val stringArgs = this.symbol.getStaticParameters().map( fn (sym) => { 
+                match (sym) {
+                    case StaticParameterSymbol { "group " + sym.name }
+                    default { ABORT("<NominalStructure> Found invalid abstract expression.") } 
+                } 
+            });
+            "<" + makeStringFromLinkedList(stringArgs, ",") + ">"                }
+                default { "" } 
+            }
+        }
+    };
+    "STRUCT(" + this.symbol.getFQN() + args + ")";
+  }
+
+  method unique Map getSubstitutionMap() {
+      DEBUG(DEBUG_PRIO_LOW, "<NominalStructure> getSubstitutionMap");
+      val unique Map substMap = java.util.HashMap.new();
+      
+      val zipped = this.symbol.getStaticParameters().zip(this.staticArgs);
+      zipped.do( fn (pair) => {
+          DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>     add subst mapping '" + pair.fst.name + "' -> '" + pair.snd.toString() + "'");
+          substMap.put(pair.fst.name, pair.snd);
+      });
+      
+      // todo: add map local data groups identity
+      
+      substMap
+  }
+  
+  /**
+   * unpacked structures cannot be used in place of any other structures
+   * might want to relax this in the future
+   * packed structures are subtypes of unpacked structures if the unpacked structure's
+   *   underlying type is the same as this type
+   * packed structures are substructure of option structures provided the underlying
+   * structure is a super structure of this.
+   */
+  method immutable Boolean isSubStructureOf(immutable Structure other)[immutable NominalStructure this] {
+    DEBUG(DEBUG_PRIO_LOW, "<NominalStructure> isSubstructureOf : " + this.toString() + " <: " + other.toString() );
+    match (other) {
+      case TopStructure { true }
+      case NominalStructure {
+        val immutable StateSymbol otherSymbol = other.symbol;
+        var immutable Symbol thisSuperStateSymbol = this.symbol;
+        var immutable Boolean found = false;
+        while { !found && !(thisSuperStateSymbol == TOPSYM) } {
+          ifElse (thisSuperStateSymbol == otherSymbol) 
+            {
+                found = true;
+                
+                DEBUG(DEBUG_PRIO_LOW, "<NominalStructure>     check abstract expressions");
+                val staticParamCount = match ( thisSuperStateSymbol ) {
+                    case StateSymbol { thisSuperStateSymbol.getStaticParameterCount() }
+                    default { 0 }
+                };
+                
+                var i = 0;
+                while { i < staticParamCount }{
+                    val e1 = this.staticArgs.get(i).value;
+                    val e2 = other.staticArgs.get(i).value;
+                    
+                    found = found && (e1 == e2);
+                    
+                    i = i + 1;
+                };
+                
+                ifElse ( found ) {
+                    found
+                }{ 
+                    thisSuperStateSymbol = thisSuperStateSymbol.getSuperStateSymbol() 
+                };
+            }
+            { thisSuperStateSymbol = thisSuperStateSymbol.getSuperStateSymbol() }
+        };
+        found
+      }
+      case UnpackedStructure { other.unpackedStructure == this }
+      case OptionStructure { this.isSubStructureOf(other.optStructure) }
+      default { false }
+    }
+  }
+  
+  /**
+   * For two nominal types, If the two nominal types are on different
+   * arms of the same dimension, then the least common supertype will be returned.  If one of the nominal
+   * types is a supertype of the other, the supertype is returned.
+   * When comparing to an unpacked type, the upacked is returned if this nominal type is a subtype of it. 
+   */
+  method unique Option<immutable Structure> leastUpperBound(immutable Structure other)[immutable NominalStructure this] {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> leastUpperBound of " + this.toString() + " & " + other.toString() );
+    match (other) {
+      case TopStructure { makeSome(TOPSTRUCT) }
+      case NominalStructure {
+        var thisDimension = this.symbol.getDimension();
+        var otherDimension = other.symbol.getDimension();
+        
+        //reduce to same size by trimming from front (lub cannot be lower than last element in smaller list)
+        val sizeCmp = thisDimension.size() - otherDimension.size();
+        if (sizeCmp > 0) { //reduce thisDimension
+          thisDimension = thisDimension.reduceRight(fn (elem, acc) => {
+            if (acc.snd > sizeCmp) { acc.fst.addFirst(elem) };
+            makePair(acc.fst,acc.snd - 1)
+          },makePair(makeLinkedList(),thisDimension.size())).fst
+        };
+        if (sizeCmp < 0) { //reduce otherDimension
+          otherDimension = otherDimension.reduceRight(fn (elem, acc) => {
+            if (acc.snd > (0 - sizeCmp) ) { acc.fst.addFirst(elem) }; //Fix negation once unary ops work
+            makePair(acc.fst,acc.snd - 1)
+          },makePair(makeLinkedList(),otherDimension.size())).fst
+        };
+        
+        val dimCmp = thisDimension.zipReverse(otherDimension);
+        val lub = dimCmp.reduce(TOPSYM,fn (acc,pair) => {
+          match (pair.fst == pair.snd) {
+            case True { pair.fst }
+            case False { acc }
+          }
+        });
+        
+        // check static arguments 
+        // TODO: at the moment we find only the first possible LUB. If the static parameters
+        //        do not match we need to check the upper possibilities [FIXME]
+        val staticParameterCount = match ( lub.getStructure() ) {
+            case NominalStructure { lub.getStructure().symbol.getStaticParameterCount() }
+            default { 0 }
+        };
+        DEBUG(DEBUG_PRIO_LOW, "<NominalStructure> check that the first " + staticParameterCount + " abstract expressions match");
+        ifElse (this.staticArgs.size() >= staticParameterCount && other.staticArgs.size() >= staticParameterCount ) {
+            val lubArgs = makeLinkedList();
+            var i = 0;
+            while { i < staticParameterCount }{
+                val e1 = this.staticArgs.get(i).value;
+                val e2 = other.staticArgs.get(i).value; 
+                
+                if ( e1 == e2 ) {
+                    lubArgs.addLast(e1);
+                };
+                
+                i = i + 1;
+            };
+            
+            ifElse ( lubArgs.size() == staticParameterCount ) {
+                val substLUB = substituteStaticArgs(lub.getStructure(), lubArgs);
+                makeSome(substLUB);
+            }{
+                makeSome(TOPSYM.getStructure())
+            }
+        }{
+            makeSome(TOPSYM.getStructure())
+        }
+        //makeSome(lub.getStructure());
+      }
+      case UnpackedStructure { 
+        match ( this.isSubStructureOf(other)) {
+          case True { makeSome(other) }
+          case False { new None }
+        }
+      }
+      case OptionStructure { other.leastUpperBound(this) }// delegate to OptionStructure
+      case UnitStructure { makeSome(makeOptionStructure(this)) }
+      default { new None }
+    }
+  }
+
+  /**
+   *  returns None if the member is not defined for this type or the current signature representing
+   *  the member if it is defined as a method or field.
+   *  Preconditions:
+   *    None
+   *  Errors:
+   *    None
+   */
+  method unique Option<immutable Signature> getMember(immutable String memberName) {
+      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> searching for '"+memberName+"' in '" + this.toString() + "'");
+      val memberSymbolOption = this.symbol.getMember(memberName);
+      match (memberSymbolOption) {
+          case Some {
+              match (memberSymbolOption.value) {
+                  case FieldSymbol {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+memberName+"'");
+                      makeSome(memberSymbolOption.value.getSignature())
+                  }
+                  case MethodSymbol {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found MethodSymbol for '"+memberName+"'");
+                      makeSome(memberSymbolOption.value.getSignature())
+                  }
+                  case DatagroupSymbol { 
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found DatagroupSymbol for '"+memberName+"'");
+                      makeSome(memberSymbolOption.value.getSignature())                  
+                  }
+                  default {
+                      DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   found unrecognized symbol type for '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+                      new None
+                  }
+              }
+          }
+          case None {
+              DEBUG(DEBUG_PRIO_HIGH, "<NominalStructure>   Cannot find member '"+memberName+"' in '" + this.symbol.getFQN() + "'");
+              new None
+          }
+      }
+  }
+  
+  /**
+   *  returning to a field of a packed nominal type is a no op.  Since the structure is packed, then we know
+   *  one of several things about the field
+   *    A) the field was packed when reassigned, OR
+   *    B) pulling the permission did not unpack the field, OR
+   *    C) the object changed to a different state which removes or packs the field
+   *  Thus, the field may or may not still be present in the object and no action is needed.
+   *  Preconditions:
+   *    None
+   *  Errors:
+   *    None
+   */
+  method immutable ?Structure restoreToField(immutable String fieldName, immutable Type retType, immutable Integer objectID) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> restoring field '"+fieldName+"' in '" + this.symbol.getFQN() + "'");
+    this
+  }
+  
+  /**
+   * unpacking assumes that the calculation of the updated permissions has already occurred and that
+   * it was legal.  An unpacked structure including the newly unpacked field is returned
+   *  Preconditions:
+   *    fieldName is a member of this type and is a field
+   *  Errors:
+   *    if precondition not met, then ABORT will be called
+   */
+  method immutable ?UnpackedStructure unpackField(immutable UnpackedFieldSignature newFieldSig, immutable Token errorToken) {
+    val immutable String fieldName = newFieldSig.packedSignature.name;
+    DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> unpacking field '"+fieldName+"' in '" + this.symbol.getFQN() + "'");
+    val memberSymbolOption = this.symbol.getMember(fieldName);
+    match (memberSymbolOption) {
+      case Some {
+        match (memberSymbolOption.value) {
+          case FieldSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+fieldName+"'");
+            val unpackedFields = java.util.HashMap.new();
+            unpackedFields.put(fieldName,newFieldSig);
+            makeUnpackedStructureWithFieldMap(this,unpackedFields)
+          }
+          case MethodSymbol {
+            report_ERROR(errorToken, "S_UNPACK_METHOD", this.symbol.getFQN() + "." + fieldName, "NominalStructure");
+            unit;
+          }
+          default {
+            report_ERROR(errorToken, "S_UNPACK_OTHER", this.symbol.getFQN() + "." + fieldName, "NominalStructure");
+            unit
+          }
+        }
+      }
+      case None {
+        report_ERROR(errorToken, "S_UNPACK_MISSING", this.symbol.getFQN() + "." + fieldName, "NominalStructure");
+        unit;
+      }
+    }
+  }
+  
+  /**
+   *  assignment to a field is a no-op for nominal structures
+   *  Preconditions:
+   *    fieldName is a member of this type and is a field
+   *  Errors:
+   *    if precondition not met, then ABORT will be called
+   */
+  method immutable ?NominalStructure assignToField(immutable String fieldName,
+  												  immutable Token errorToken) {
+    DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure> assigning to field '"+fieldName+"' in '" + this.symbol.getFQN() + "'");
+
+    //verify that this assignment was well-formed (TODO - may be redundant)
+    val memberSymbolOption = this.symbol.getMember(fieldName);
+    match (memberSymbolOption) {
+      case Some {
+        match (memberSymbolOption.value) {
+          case FieldSymbol {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<NominalStructure>   found FieldSymbol for '"+fieldName+"'");
+            match (memberSymbolOption.value.getSignature().isVar) {
+              case True { this }
+              case False { 
+				report_ERROR(errorToken, "S_ASSIGN_VAL", this.symbol.getFQN() + "." + fieldName, "NominalStructure");
+				unit;
+              } 
+            }
+          }
+          case MethodSymbol {
+            report_ERROR(errorToken, "S_ASSIGN_METHOD", this.symbol.getFQN() + "." + fieldName, "NominalStructure");
+            unit;
+          }
+          default {
+            report_ERROR(errorToken, "S_ASSIGN_OTHER", this.symbol.getFQN() + "." + fieldName, "NominalStructure");
+            unit
+          }
+        }
+      }
+      case None {
+        report_ERROR(errorToken, "S_ASSIGN_MISSING", this.symbol.getFQN() + "." + fieldName, "NominalStructure");
+        unit;
+      }
+    }
+  }
+}

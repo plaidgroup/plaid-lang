@@ -1,0 +1,100 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package coreExamples.MASPEGHIstream;
+
+import plaid.lang.*;
+import java.util.Random;
+
+//Stream examples from the MASPEGHI workshop
+// you can read as long as you're not at the end of the file, or you haven't closed
+// you can only close once at any time
+state Stream  { }
+
+state ClosedStream case of Stream { }
+
+state OpenStream case of Stream { 
+ method close() {
+    this <- ClosedStream;
+  }
+}
+
+state Within case of OpenStream {
+  var data;
+  method read() {
+    val ret = this.data.pop().value; //remove the first element
+    if (this.data.peek().value == -1) { this <- EOF }; //change state if now empty
+    ret; //always return popped value
+  }
+}
+
+state EOF case of OpenStream {
+ 
+}
+
+method initStack(entries) {
+	val stack = new Stack;
+	stack.push(-1);  //EOF character
+	while { entries > 0 } {
+		stack.push(entries);
+		entries = entries - 1;
+	};
+	stack
+}
+
+method testReadAll() {
+  print("This Should be '12345:Closed': ");
+  var stack = initStack(5);
+
+  var stream = new Within { var data = stack; };
+
+  while { 
+  	match(stream) { 
+  	  case EOF { false; }
+  	  case Within { true; }
+  	};
+  }
+  { print(stream.read()); };
+  
+  stream.close(); //finish protocol
+  printLine(":Closed");
+}
+
+method testRandom() {
+  printLine("This should print 0 or some numbers on the next line: ");
+  var stack = initStack(10);
+  var stream = new Within { var data = stack; };
+  var random = java.util.Random.new();
+  var count = 0;
+  while { (count < 10) && (random.nextInt() % 2 != 0) } {
+    print(stream.read());
+    count = count + 1;
+  };
+  
+  stream.close();
+  printLine("");
+  print("This should be an error: ");
+  stream.read();
+}
+
+
+method main() {
+	testReadAll();
+	testRandom();
+}

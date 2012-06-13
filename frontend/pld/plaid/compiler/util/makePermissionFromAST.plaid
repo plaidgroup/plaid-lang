@@ -1,0 +1,45 @@
+package plaid.compiler.util;
+
+import plaid.compiler.*;
+import plaid.compiler.permissions.*;
+
+import plaid.compiler.util.makeQILinkedListFromExpr;
+
+method immutable Permission makePermissionFromAST(immutable ParsedPermission node) {
+  match (node) {
+    case ParsedUniquePermission { UNIQUE }
+    case ParsedImmutablePermission { IMMUTABLE }
+    case ParsedSharedPermission { 
+        match ( node.datagroup ) {
+            case ParsedEmptyExpr { SHARED }
+            default { 
+                val unique ?AbstractExpression groupExpr = makeAbstractExpressionFromAST(node.datagroup);
+                match ( groupExpr ) {
+                    case AbstractExpression {
+                        makeShared(groupExpr)
+                    }
+                    default {
+                        ABORT("<makePermissionFromAST> Unknown expression.");
+                    }
+                }
+            }
+        }
+    }
+    case ParsedLocalPermission {
+      match (node.symmetricPermission) {
+        case ParsedImmutablePermission { LOCALIMMUTABLE }
+        case ParsedSharedPermission { LOCALSHARED } //TODO: datagroups
+        default { 
+          ABORT("<makePermissionFromAST> Unknown Permission node inside Local permission: "
+                  + node.symmetricPermission.nodeName()) 
+        }
+      }
+    }
+    case ParsedNonePermission { NONEP }
+    case ParsedEmptyPermission { UNIQUE }
+    default { 
+      ABORT("<makePermissionFromAST> Unknown Permission node: "
+                  + node.symmetricPermission.nodeName()) 
+    }
+  }
+}
