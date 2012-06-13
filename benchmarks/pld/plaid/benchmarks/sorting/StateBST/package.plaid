@@ -1,0 +1,375 @@
+package plaid.benchmatks.sorting.StateBST;
+
+state Node = {
+	var value;
+} with TreePart with RootType
+
+state TreePart {
+	method add(elem);
+	method find(elem);
+	method delete(elem);
+}
+
+state Leaf case of TreePart {
+	method add(elem) {
+		match ( elem > this.value) {
+			case True {
+				this <- RightBranch;
+				this.right = new Node { var value = elem; } with Leaf with NotRoot { var parent = this; };
+			}
+			case False {
+				this <- LeftBranch; 
+				this.left = new Node { var value = elem; } with Leaf with NotRoot { var parent = this; };
+			}
+		};
+	}
+	
+	method find(elem) {
+		match(this.value == elem) {
+			case True {
+				True;
+			}
+			case False {
+				False;
+			}
+		}
+	}
+	
+	method delete(elem) {
+		match(this.value == elem) {
+			case True {
+				this.deleteSelf();
+			}
+			case False {
+			}
+		}
+	}
+	
+	method deleteSelf() {
+		match (this) {
+			case Root {
+				this.tree <- BST;
+			}
+			case NotRoot {
+				this.parent.deleteChild(this);
+			}
+		}
+	}
+}
+
+state LeftBranch case of TreePart {
+	var left = new Leaf { var value = 0; };
+	
+	method add(elem) {
+		match (elem > this.value) {
+			case True {
+				val left = this.left;
+				this <- Branch;
+				this.right = new Node { var value = elem; } with Leaf with NotRoot { var parent = this; };
+				this.left = left;
+			}
+			case False {
+				this.left.add(elem);
+			}
+		};
+	}
+	
+	method find(elem) {
+		match(this.value == elem) {
+			case True {
+				True;
+			}
+			case False {
+				this.left.find(elem);
+			}
+		}
+	}
+	
+	method delete(elem) {
+		match(this.value == elem) {
+			case True {
+				this.deleteSelf();
+			}
+			case False {
+				match (elem > this.value) {
+					case False {
+						this.left.delete(elem);
+					}
+				}
+			}
+		}
+	}
+	
+	method deleteChild(child) {
+		match (child == this.left) {
+			case True {
+				this <- Leaf with NotRoot;
+			}
+			case False {
+			}
+		}
+	}
+	
+	method deleteChildReplace(child, replacement) {
+		match (child == this.left) {
+			case True {
+				this.left = replacement;
+			}
+			case False {
+			}
+		}
+	}
+	
+	method deleteSelf() {
+		match (this) {
+			case Root {
+				this.tree.root = this.left;
+				this.left <- Root;
+				this.left.tree = this.tree;
+			}
+			case NotRoot {
+				this.parent.deleteChildReplace(this, this.left);
+			}
+		}
+	}
+}
+
+state RightBranch case of TreePart {
+	var right = new Leaf{ var value = 0;} ;
+	
+	method add(elem) {
+		match (elem > this.value) {
+			case True {
+				this.right.add(elem);
+			}
+			case False {
+				val right = this.right;
+				this <- Branch;
+				this.left = new Node { var value = elem; } with Leaf with NotRoot { var parent = this; };
+				this.right = right;
+			}
+		};
+	}
+	
+	method delete(elem) {
+		match(this.value == elem) {
+			case True {
+				this.deleteSelf();
+			}
+			case False {
+				match (elem > this.value) {
+					case True {
+						this.right.delete(elem);
+					}
+				}
+			}
+		}
+	}
+	
+	method find(elem) {
+		match(this.value == elem) {
+			case True {
+				True;
+			}
+			case False {
+				this.right.find(elem);
+			}
+		}
+	}
+	
+	method deleteChild(child) {
+		match (child == this.right) {
+			case True {
+				this <- Leaf with NotRoot;
+			}
+			case False {
+			}
+		}
+	}
+	
+	method deleteChildReplace(child, replacement) {
+		match (child == this.right) {
+			case True {
+				this.right = replacement;
+			}
+			case False {
+			}
+		}
+	}
+	
+	method deleteSelf() {
+		match (this) {
+			case Root {
+				this.tree.root = this.right;
+				this.right <- Root { var tree = this.tree; }
+			}
+			case NotRoot {
+				this.parent.deleteChildReplace(this, this.right);
+			}
+		}
+	}
+}
+
+state Branch case of TreePart {
+	var left = new Leaf{ var value = 0;} ;
+	var right = new Leaf{ var value = 0;} ;
+	
+	method add(elem) {
+		match (elem > this.value) {
+			case True {
+				this.right.add(elem);
+			}
+			case False {
+				this.left.add(elem);
+			}
+		};
+	}
+	
+	method find(elem) {
+		match(this.value == elem) {
+			case True {
+				True;
+			}
+			case False {
+				match (this.right.find(elem)) {
+					case True {
+						True;
+					}
+					case False {
+						this.left.find(elem);
+					}
+				}
+			}
+		}
+	}
+	
+	method deleteChild(child) {
+		match (child.value > this.value) {
+			case True {
+				match (this.right == child) {
+					case True {
+						this <- LeftBranch;
+					}
+					case False {
+					}
+				}
+			}
+			case False {
+				match (this.left == child) {
+					case True {
+						this <- RightBranch;
+					}
+					case False {
+					}
+				}
+			}
+		}
+	}
+	
+	method deleteChildReplace(child, replacement) {
+		match (child.value > this.value) {
+			case True {
+				match (this.right == child) {
+					case True {
+						this.right = replacement;
+					}
+					case False {
+					}
+				}
+			}
+			case False {
+				match (this.left == child) {
+					case True {
+						this.left = replacement;
+					}
+					case False {
+					}
+				}
+			}
+		}
+	}
+	
+	method delete(elem) {
+		match(this.value == elem) {
+			case True {
+				this.deleteSelf();
+			}
+			case False {
+				match (elem > this.value) {
+					case True {
+						this.right.delete(elem);
+					}
+					case False {
+						this.left.delete(elem);
+					}
+				}
+			}
+		}
+	}
+	
+	method deleteSelf() {
+		this.value = this.findDeleteSmallest(this.right, this).value;
+	}
+	
+	method findDeleteSmallest(element, parent) {
+		match (element) {
+			case LeftBranch {
+				this.findDeleteSmallest(element.left, element);
+			}
+			case Branch {
+				this.findDeleteSmallest(element.right, element);
+			}
+			default {
+				element.deleteSelf();
+				element;
+			}
+		}
+	}
+}
+
+state RootType = {}
+
+state Root case of RootType {
+	var tree;
+}
+
+state NotRoot case of RootType {
+	var parent;
+}
+
+state BST {
+	method add(elem);
+}
+
+state EmptyBST case of BST {
+	method add(elem) {
+		this <- InitBST;
+		this.root = new Root { var tree = this; } with Leaf { var value = elem; };
+	}
+}
+
+state InitBST case of BST {
+	var root = new Leaf { var value = 0; };
+	
+	method add(elem) {
+		this.root.add(elem);
+	}
+	
+	method find(elem) {
+		this.root.find(elem);
+	}
+	
+	method delete(elem) {
+		this.root.delete(elem);
+	}
+}
+
+method main() {
+	val tstBST = new EmptyBST;
+	tstBST.add(10);
+	tstBST.add(15);
+	tstBST.add(14);
+	tstBST.add(5);
+	tstBST.add(6);
+	tstBST.add(4);
+}
