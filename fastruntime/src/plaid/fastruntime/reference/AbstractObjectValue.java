@@ -166,16 +166,18 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			//SU-MatchDim
 			else if(this instanceof ListValue) {
 				ListValue thisLV = (ListValue) this;
-				AbstractObjectValue firstOV = thisLV.getFirst();
+				SingleValue firstOV = thisLV.getFirst();
 				if (firstOV instanceof DimensionValue) {
 					DimensionValue thisDV = (DimensionValue)firstOV;
 					if (!thisDV.getTags().intersect(otherDV.getOuterTags()).isEmpty() &&
-							otherDV.getTags().intersect(thisLV.getRest().getTags()).isEmpty())
-					// JSS: This clause is different than the last premise in the SU-MatchDim
-						// This operates only on inputs, while the premise operates on the results, which seems unnecessary {
-						return thisDV.changeState(otherDV);
-				}	
-				return thisLV.getRest().changeState(otherDV);
+							otherDV.getTags().intersect(thisLV.getRest().getTags()).isEmpty()) {
+						// JSS: This clause is different than the last premise in the SU-MatchDim
+						// This operates only on inputs, while the premise operates on the results, which seems unnecessary 
+						return thisLV.getRest().addValue((SingleValue)firstOV.changeState(otherDV));
+					}
+				} 
+				return thisLV.getRest().changeState(otherDV).addValue(firstOV);
+				
 			} else if (this instanceof DimensionValue) {
 				DimensionValue thisDV = (DimensionValue) this;	
 				// SU-MatchInner
@@ -243,6 +245,70 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			return new DimensionValue(currentValue.getTag(), 
 					currentValue.getInnerValue(), childrenOfTag(tag, currentValue.getParent(), newParent));
 		}
+	}
+	
+	@Override
+	public PlaidObject[] getPostChangeStorage(ObjectValue oldObjectValue, PlaidObject[] oldStorage) {
+		PlaidObject[] storage = new PlaidObject[this.getStorageLength()];
+		ClassLoader cl = this.getClass().getClassLoader();
+		for(FieldInfo field : fields) {
+			boolean isOld = false;
+			for(FieldInfo oldField : oldObjectValue.getFields()) {
+				if (oldField.getName().equals(field.getName())) {
+					storage[this.getStorageIndex(field.getName())] = oldStorage[oldObjectValue.getStorageIndex(field.getName())];
+					isOld = true;
+					break;
+				}
+			}
+			if (!isOld) {
+				if(field.isStaticallyDefined()) {
+					String className = NamingConventions.getGeneratedFQN(
+							field.getStaticClassInternalName().replace('/', '.')
+							);
+					try {
+						Class<?> fieldClass = cl.loadClass(className);
+						Field myField = fieldClass.getField(field.getName());
+						Object value = myField.get(null); // static field so object can be null, see JavaDoc
+						PlaidFieldInitializer init = (PlaidFieldInitializer) value;
+						storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
+					} catch (ClassNotFoundException e) {
+						throw new PlaidInternalException("Could not load field class " + className, e);
+					} catch (SecurityException e) {
+						throw new PlaidInternalException("Could not load field", e);
+					} catch (NoSuchFieldException e) {
+						throw new PlaidInternalException("Could not load field", e);
+					} catch (IllegalArgumentException e) {
+						throw new PlaidInternalException("Could not load field", e);
+					} catch (IllegalAccessException e) {
+						throw new PlaidInternalException("Could not load field", e);
+					}
+				} else { //dynamically defined
+	//				try {
+	//					PlaidLambda$0 init = (PlaidLambda$0)dynamicDefinitions.get(field.getName());
+	//					storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
+	//				} catch (ClassCastException e) {
+	//					throw new plaid.fastruntime.errors.PlaidInternalException("Field initializer must be a 0 argument Lambda.", e);
+	//				}
+					throw new PlaidInternalException("Post state change storage cannot have any dynamic definitions");
+	 			}
+			}
+		}
+		for (MethodInfo method : methods) {
+			boolean isOld = false;
+			for(MethodInfo oldMethod : oldObjectValue.getMethods()) {
+				if (oldMethod.getName().equals(method.getName())) {
+					storage[this.getStorageIndex(method.getName())] = oldStorage[oldObjectValue.getStorageIndex(method.getName())];
+					isOld = true;
+					break;
+				}
+			}
+			if (!isOld && !method.isStaticallyDefined()) {
+//				String name = method.getName();
+//				storage[this.getStorageIndex(name)] = dynamicDefinitions.get(name);
+				throw new PlaidInternalException("Post state change storage cannot have any dynamic definitions");
+			}
+		}
+		return storage;
 	}
 	
 	@Override

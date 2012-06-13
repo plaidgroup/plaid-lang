@@ -51,6 +51,9 @@ public interface ObjectValue {
 	public ObjectValue rename(String currentName, String newName);
 	
 	public ObjectValue with(ObjectValue other);
+
+	public PlaidObject[] getPostChangeStorage(ObjectValue oldObjectValue,
+			PlaidObject[] oldStorage);
 	
 	
 

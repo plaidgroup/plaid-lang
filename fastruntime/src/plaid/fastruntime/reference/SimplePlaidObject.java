@@ -2,6 +2,7 @@ package plaid.fastruntime.reference;
 
 import java.util.HashMap;
 
+import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidJavaObject;
 import plaid.fastruntime.PlaidLambda;
 import plaid.fastruntime.PlaidObject;
@@ -32,8 +33,10 @@ public class SimplePlaidObject implements PlaidObject {
 	@Override
 	public void changeState(PlaidState s) {
 		PlaidState newState = dispatch.change(s);
+		ObjectValue oldObjectValue = this.dispatch.getObjectValue();
+		PlaidObject[] oldStorage = this.storage;
 		this.dispatch = newState.getDispatch();
-		storage = newState.getObjectValue().getDefaultStorage(new HashMap<String,PlaidLambda>());
+		storage = newState.getObjectValue().getPostChangeStorage(oldObjectValue, oldStorage);
 	}
 
 	@Override

@@ -122,7 +122,7 @@ public final class ListValue extends AbstractObjectValue {
 		} else if (toReturn.length() == 1) {
 			return toReturn.index(0);
 		} else {
-			throw new plaid.fastruntime.errors.PlaidInternalException("Trying to revove an object from ListValue with only one object.");
+			return new EmptySingleValue();//throw new plaid.fastruntime.errors.PlaidInternalException("Trying to revove an object from ListValue with only one object.");
 		}
 	}
 
