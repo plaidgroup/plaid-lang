@@ -124,7 +124,7 @@ public class JavaDispatchGenerator implements Opcodes {
 				     ACC_PUBLIC,
 				     name,
 				     null,
-				     "plaid/fastruntime/reference/AbstractPlaidDispatch",
+				     "plaid/fastruntime/reference/AbstractPlaidJavaDispatch",
 				     ifaces.toArray(new String[0]));
 			
 			// add methods 
@@ -149,7 +149,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
 			mv.visitCode();
 			mv.visitVarInsn(Opcodes.ALOAD, 0);
-			mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object","<init>", "()V");
+			mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "plaid/fastruntime/reference/AbstractPlaidJavaDispatch","<init>", "()V");
 			mv.visitInsn(Opcodes.RETURN);
 			mv.visitMaxs(0,0);
 			mv.visitEnd();
