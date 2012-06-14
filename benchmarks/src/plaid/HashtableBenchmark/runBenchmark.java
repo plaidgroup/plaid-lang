@@ -102,7 +102,7 @@ public abstract class runBenchmark {
 		plaid.fastruntime.aeminium.Util.POOL.invoke(initTask);
 		long end = System.nanoTime();
 		double initTime = (end - begin) / (1000*1000*1000.0);
-		System.out.println("initialization : " + formatter.format(initTime));
+		//System.out.println("initialization : " + formatter.format(initTime));
 		
 		// create check task
 		Task checkTask = new Task(0) {
@@ -117,7 +117,10 @@ public abstract class runBenchmark {
 		plaid.fastruntime.aeminium.Util.POOL.invoke(checkTask);
 		end = System.nanoTime();
 		double checkTime = (end - begin) / (1000*1000*1000.0);
-		System.out.println("check          : " + formatter.format(checkTime));
+		//System.out.println("check          : " + formatter.format(checkTime));
+		
+
+		System.out.println(String.format("%.3f	%.3f", initTime, checkTime));
 	}
 	
 	public static void runSharedBenchmark(final PlaidObject ht, int totalNumber, int threadCount) {
@@ -144,7 +147,7 @@ public abstract class runBenchmark {
 		plaid.fastruntime.aeminium.Util.POOL.invoke(initTasksStarter);
 		long end = System.nanoTime();
 		double initTime = (end - begin) / (1000*1000*1000.0);
-		System.out.println("initialization : " + formatter.format(initTime));
+		//System.out.println("initialization : " + formatter.format(initTime));
 		
 		// create checking tasks
 		final Collection<Task> checkTasks = new ArrayList<Task>();
@@ -167,7 +170,8 @@ public abstract class runBenchmark {
 		plaid.fastruntime.aeminium.Util.POOL.invoke(checkTasksStarter);
 		end = System.nanoTime();
 		double checkTime = (end - begin) / (1000*1000*1000.0);
-		System.out.println("check          : " + formatter.format(checkTime));
+		//System.out.println("check          : " + formatter.format(checkTime));
+		System.out.println(String.format("%.3f	%.3f", initTime, checkTime));
 
 	}
 	
