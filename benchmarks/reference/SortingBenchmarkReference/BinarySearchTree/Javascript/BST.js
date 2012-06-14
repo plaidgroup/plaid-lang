@@ -99,7 +99,7 @@ function BST() {
 
 function benchmark(runner) {
 	var bst = new BST();
-	var n = 10000;
+	var n = 5000;
 	var elems = new Array();
 	for (var i = 0; i < n; i++) {
 		var elem = Math.floor(Math.random() * (10000000 + 1));

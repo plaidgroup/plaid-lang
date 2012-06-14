@@ -6,7 +6,7 @@ import edu.cmu.isri.plaid.benchmarks.Components.Runner;
 
 public class Benchmark {
 	public static void benchmark(Runner benchmarkRunner) {
-		int n = 10000;
+		int n = 5000;
 		Random randGen = new Random();
 		BST tree = new BST();
 		int[] elems = new int[n];
