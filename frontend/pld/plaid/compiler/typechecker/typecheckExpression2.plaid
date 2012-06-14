@@ -598,15 +598,7 @@ method unique ?TypecheckResult typecheckExpression2(unique LinearContext ctx,
         val thisSym = ctx.getThis();
         match ( thisSym ) {
             case Symbol {
-                // add dependency for 
-                if ( AEMINIUM_MODE() ) {
-                    val thisInfo = match ( depInfoForSymbol(thisSym) ) {
-                        case Some { depInfoForSymbol(thisSym).value }
-                        default { ABORT("Cannot find dep info for this symbol ") }
-                    };
-                    addDependency(enterInfo, thisInfo);
-                    setDepInfoForSymbol(thisSym, enterInfo);
-                };
+            
                      
                 // compute permissions for this.* and fix input context
                 val thisType = ctx.get(thisSym);
@@ -667,9 +659,41 @@ method unique ?TypecheckResult typecheckExpression2(unique LinearContext ctx,
                     default { ABORT("Found unsupported permission " + thisType.permission.toString()) }  
                 };
                 ctx.addDatagroupPermissions(innerGroupPermissions);
+                val shared ?Symbol thisGroupExprSym = match ( thisType.permission ) {
+                    case SharedPermission {
+                        match ( thisType.permission.groupExpr ) {
+                            case AbstractEmptyExpression { unit }
+                            default {
+                                getSymbolForAbstractExpression(thisType.permission.groupExpr);
+                            }
+                        }
+                    }
+                    default { unit }
+                };
                 
-                // set start marker for inner data group symbols
                 if ( AEMINIUM_MODE() ) {
+                    // depend on this 
+                    val thisInfo = match ( depInfoForSymbol(thisSym) ) {
+                        case Some { depInfoForSymbol(thisSym).value }
+                        default { ABORT("Cannot find dep info for this symbol ") }
+                    };
+                    addDependency(enterInfo, thisInfo);
+                    setDepInfoForSymbol(thisSym, enterInfo);
+                    
+                    // add this group dependency 
+                    match ( thisGroupExprSym ) {
+                        case Symbol { 
+                            val depInfo = match ( depInfoForSymbol(thisGroupExprSym) ) {
+                                case Some { depInfoForSymbol(thisGroupExprSym).value }
+                                default { ABORT("Cannot find dep info for group symbol " + thisGroupExprSym.name) } 
+                            };
+                            addDependency(enterInfo, depInfo);
+                            setDepInfoForSymbol(thisGroupExprSym, enterInfo);
+                        }
+                        default { /* nop */ }
+                    };
+                    
+                    // set start marker for inner data group symbols
                     val it = innerGroupPerms.keySet().iterator();
                     while { it.hasNext() }{
                         val curExpr = it.next();
@@ -731,6 +755,19 @@ method unique ?TypecheckResult typecheckExpression2(unique LinearContext ctx,
                                 default  { ABORT("Cannot find dep info for body") }
                             };
                             addDependency(leaveInfo, bodyInfo);
+                            
+                            // add this group dependency 
+                            match ( thisGroupExprSym ) {
+                                case Symbol { 
+                                    val depInfo = match ( depInfoForSymbol(thisGroupExprSym) ) {
+                                        case Some { depInfoForSymbol(thisGroupExprSym).value }
+                                        default { ABORT("Cannot find dep info for group symbol " + thisGroupExprSym.name) } 
+                                    };
+                                    addDependency(leaveInfo, depInfo);
+                                    setDepInfoForSymbol(thisGroupExprSym, leaveInfo);
+                                }
+                                default { /* nop */ }
+                            }
                         };
 
                         // return void type 
