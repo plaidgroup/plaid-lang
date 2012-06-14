@@ -44,12 +44,14 @@ public final class Util {
 		return SimplePlaidState.makeDynamicallyDefinedState(dispatch, memberDefinitions);
 	}
 	
-	public static PlaidObject unit() {
+	public static final PlaidObject unit() {
 		return Unit.UNIT_VALUE;
 	}
+
 	public static PlaidObject string(java.lang.String javaString) {
 		return String.plaidString(javaString);
 	}
+
 	public static final PlaidObject bool(boolean javaBool) {
 		if (javaBool) {
 			return True.TRUE_VALUE;
