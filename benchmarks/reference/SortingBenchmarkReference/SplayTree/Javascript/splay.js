@@ -36,7 +36,7 @@
 
 function benchmark(handle) {
   var splayTree = new SplayTree();
-  var n = 10000;
+  var n = 5000;
   var keys = new Array();
   handle.startTimer();
   for (var i = 0; i < n; i++) {
@@ -46,7 +46,7 @@ function benchmark(handle) {
   }
   for (var j = 0; j < 10; j++)
     for (var k = 0; k < n; k++) {
-	  splayTree.find(keys[0]);
+	  splayTree.find(keys[k]);
     }
   for (var l = 0; l < n; l++) {
 	splayTree.remove(keys[l]);
@@ -54,6 +54,21 @@ function benchmark(handle) {
   handle.stopTimer();
 }
 
+function test() {
+  var splayTree = new SplayTree();
+  splayTree.insert(10,0);
+  splayTree.printTree();
+  splayTree.insert(11,0);
+  splayTree.printTree();
+  splayTree.insert(12,0);
+  splayTree.printTree();
+  splayTree.insert(13,0);
+  splayTree.printTree();
+  splayTree.insert(14,0);
+  splayTree.printTree();
+  splayTree.insert(15,0);
+  splayTree.printTree();
+}
 
 /**
  * Constructs a Splay tree.  A splay tree is a self-balancing binary
@@ -327,3 +342,17 @@ SplayTree.Node.prototype.traverse_ = function(f) {
     current = current.right;
   }
 };
+
+SplayTree.prototype.printTree = function () {
+	this.print(this.root_);
+}
+
+SplayTree.prototype.print = function(n) {
+	if (n == null)
+		return;
+	document.write("{");
+	this.print(n.right);
+	document.write(","+n.key+",");
+	this.print(n.left);
+	document.write("}");
+}

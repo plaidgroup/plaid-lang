@@ -1,3 +1,5 @@
+package SortingBenchmarkReference.SplayTree.Java;
+
 import org.junit.Test;
 
 import java.util.*;
@@ -21,7 +23,7 @@ public class SplayTreeTest {
     public void testAdd() throws Exception {
         for (int i = 0; i < n; i++) {
             inserted[i] = rand.nextInt();
-            tree.add(inserted[i]);
+            tree.add(inserted[i], null);
             assertTrue(tree.find(inserted[i]));
         }
     }
