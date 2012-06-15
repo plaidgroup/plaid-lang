@@ -1,0 +1,112 @@
+package plaid.compiler.types;
+
+import plaid.compiler.Type;
+import plaid.compiler.Signature;
+
+state MethodSignature case of Signature {
+    val immutable Type returnType;
+    val immutable String name;
+    val /*immutable LinkedList<immutable Pair<immutable VariableSymbol,immutable ArgSpec>>*/ arguments;
+    val immutable ArgSpec receiverSpec;
+    val immutable Map<immutable VariableSymbol,immutable ArgSpec> environment;
+    val immutable LinkedList staticArgsSpec;
+    
+    method immutable Boolean ==(immutable Signature other) {
+      match (other) {
+        case MethodSignature {
+          match (this.returnType == other.returnType &&
+                 this.name == other.name &&
+                 this.receiverSpec == other.receiverSpec &&
+                 this.arguments.size() == other.arguments.size() &&
+                 this.environment.size() == other.environment.size() &&
+                 this.staticArgsSpec.size() == other.staticArgsSpec.size()) 
+          {
+            case True {
+              val iter = this.environment.keySet().iterator();
+              var immutable Boolean envOk = true;
+              while { envOk && iter.hasNext() } {
+                  val immutable Symbol sym = iter.next();
+                  match (other.environment.containsKey(sym)) {
+                    case True { envOk = this.environment.get(sym) == other.environment.get(sym) }
+                    case False { envOk = false }
+                  }
+              };
+              //when comparing arguments, we don't care about the names
+              envOk && this.arguments.zipReverse(other.arguments).reduce(true, fn (acc, argPair) => acc && (argPair.fst.snd == argPair.snd.snd)) &&
+                this.staticArgsSpec.zipReverse(other.staticArgsSpec).reduce(true, fn (acc, staticArgPair) => acc && (staticArgPair.fst == staticArgPair.snd))
+               
+            }       
+            case False { false }    
+          }
+        }
+        default { false }
+      }
+    }
+    
+    /**
+     * contravariant in the inputs, covariant in the outputs
+     * EXCEPT receiver input STRUCTURE
+     *   because of dynamic dispatch, we can disregard the structure of the input type of the
+     *   receiver.  If this method is executed, then we know the receiver
+     *   must have the type of the state it is declared in.  Therefore, we just have to guarantee
+     *   as a part of method declaration that the receiver input is a supertype of the type
+     *   represented by the declaring state.  However, this does not extend to the permission
+     *   nor does it extend to states outside the dimension along which the method is
+     *   overridden once we get composition.  Therefore, it will need to be modified at
+     *   that time. 
+     * same number of arguments, names don't matter
+     * don't worry about environment right now (ever - I don't think)
+     */
+    method immutable Boolean isSubSignatureOf(immutable Signature other) {
+      match (other) {
+        case MethodSignature {
+          match (this.returnType.isSubTypeOf(other.returnType) &&
+                 other.receiverSpec.inputType.permission.isSubPermOf(this.receiverSpec.inputType.permission) &&
+                 this.receiverSpec.outputType.isSubTypeOf(other.receiverSpec.outputType) &&
+                 this.name.equals(other.name) &&
+                 this.arguments.size() == other.arguments.size()) 
+          {
+            case True {
+              this.arguments.zipReverse(other.arguments).reduce(true, 
+                fn (acc, argPair) => acc && (argPair.snd.snd.inputType.isSubTypeOf(argPair.fst.snd.inputType))
+                                         && (argPair.fst.snd.outputType.isSubTypeOf(argPair.snd.snd.outputType))
+              )
+            }
+            case False { false }
+          }  
+        }
+        default { false }
+      }
+    }
+    
+    //TODO - ignoring static Args for now
+    method immutable String toString() {
+      val immutable String argString = 
+        match (this.arguments.size() == 0) {
+          case True { "()" }
+          case False { 
+            "(" + 
+                this.arguments.reduce("",
+                  fn (acc,arg) => acc + ", " + arg.snd.toString() + " " + arg.fst.name
+                ).substring(2) + ")"; 
+          }
+        };
+      val immutable String envString = 
+        match (this.environment.size() == 0) {
+          case True { "" }
+          case False {
+            val iter = this.environment.keySet().iterator();
+            var s = "";
+            while { iter.hasNext() } {
+              val immutable Symbol sym = iter.next();
+              s = s + ", " + this.environment.get(sym).toString() + " " + sym.name;
+            };
+            s
+          }
+        };
+      
+      "method " + this.returnType.toString() + " " + this.name +
+        argString + "[" + this.receiverSpec.toString() + envString + "];"
+    }
+    
+}

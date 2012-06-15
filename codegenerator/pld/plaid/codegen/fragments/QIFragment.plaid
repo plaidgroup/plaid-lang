@@ -1,0 +1,66 @@
+package plaid.codegen.fragments;
+
+state QIFragment {
+	method visitQI(node) {
+		// public void codegenState(CodeGen out, ID y, IDList localVars, Set<ID> stateVars, String stateContext) {
+		
+		this.setLocation(node.token);
+		val /*ID*/ y = this.y;
+		val /*String*/ sc = this.stateContext;
+		
+		var scope = this.jCodeGen.globalScope;
+		var /*ID*/ fresh = 0;
+		
+		node.qid.map(fn (s) => {
+			fresh = this.idgen.getId();
+			this.out.declareFinalVar(this.jCodeGen.plaidObjectType, fresh.name);
+			this.out.assignToLookup(fresh.name, s, scope);
+			scope = fresh.name;
+		});
+		match (node.initState) {
+			case Some {
+				val /*ID*/ initialization = this.idgen.getId();
+				val /*ID*/ toInit = this.idgen.getId();
+				
+				// make sure we got a state out of the lookup
+				this.out.declareFinalVar(this.jCodeGen.plaidStateType, toInit.name);
+				this.out.assignCastedtoState(toInit.name, fresh.name); //toInit = (PlaidState)fresh
+				
+				//generate code for the initialization state
+				this.out.declareFinalVar(this.jCodeGen.plaidStateType, initialization.name);
+				
+				// TODO: This needs to be tested.
+				this.stateContext = this.jCodeGen.anonymousDeclaration;
+				this.y = initialization;
+				node.initState.value.accept(this);
+				this.stateContext = sc;
+				this.y = y;
+				//initialize the state
+				this.out.assignToStateInitialization(y.name, toInit.name, initialization.name);	
+			}
+			
+			case DeclList{
+				val /*ID*/ initialization = this.idgen.getId();
+				val /*ID*/ toInit = this.idgen.getId();
+				// make sure we got a state out of the lookup
+				this.out.declareFinalVar(this.jCodeGen.plaidStateType, toInit.name);
+				this.out.assignCastedtoState(toInit.name, fresh.name); //toInit = (PlaidState)fresh
+				//generate code for the initialization state
+				this.out.declareFinalVar(this.jCodeGen.plaidStateType, initialization.name);
+				this.y = initialization;
+				// TODO: This needs to be tested.
+				this.stateContext = this.jCodeGen.anonymousDeclaration;
+				node.initState.accept(this);
+				this.stateContext = sc;
+				this.y = y;
+			
+				//initialize the state
+				this.out.assignToStateInitialization(y.name, toInit.name, initialization.name);	
+			}
+			case None {
+				
+				this.out.assignCastedtoState(y.name, fresh.name); //y = (PlaidState)fresh
+			}
+		};
+	}
+}

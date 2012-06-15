@@ -1,0 +1,622 @@
+package plaid.typechecker.rewriting;
+
+import plaid.lang.*;
+import plaid.ast.visitor.*;
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.typechecker.context.*;
+
+state TypeFetchVisitor case of ASTVisitor {
+	val unique StateTable st;
+	val unique Context context;
+	
+	method visitBinding(node) {
+		val immutable ObjectType expType = node.exp.accept(this);
+		match (expType) {
+			case ErrObjectType {
+				//bound exp Failed
+				newObjectError("let exp failure: " + expType.errorMsg)
+			}
+			default {
+				val immutable ObjectType xType = match (node) {
+					case NoTypeAnnotation { expType }
+					case ObjectTypeAnnotation { node.oType.copy(); }
+					case PermTypeAnnotation { node.pType.type.copy() } 
+				};
+				this.context.put(node.x.copy(), xType);
+				val immutable ObjectType bodyType = node.body.accept(this);
+				match (bodyType) {
+					case ErrObjectType {
+						//body failed
+						newObjectError("let body failure: " + bodyType.errorMsg);
+					}
+					default {
+						//success
+						match (node) {
+							case NoTypeAnnotation { node.addObjectType(expType) }
+							default { /* no op */ }
+						};
+						this.context.remove(node.x);
+						bodyType;
+					}
+				}
+			}
+		}
+	}
+	
+	method visitBorrowBinding(node) {
+		visitBinding(node)
+	}
+	
+	method visitTakeBinding(node) {
+		visitBinding(node)
+	}	
+			
+	method visitAtomicBlock(node) {
+		newObjectError("Atomic Block not implemented");
+	}
+
+	method visitCase(node) {				
+		node.e.accept(this);
+	}
+	
+	method visitChangeState(node) {		
+		match (node.e) {
+			case ID {
+				match (this.context.containsKey(node.e)) {
+					case True {
+						match (node.s) {
+							case QI {
+								val /*unique Option<immutable ObjectType>*/ stateType = node.s.accept(this);
+								match (stateType) {
+									case ErrObjectType {
+										newObjectError("Error in Initializer: " + stateType.errorMsg);
+									}
+									default {
+										this.context.update(node.e,stateType);
+										getUnitType();
+									}
+								}
+							}
+							default {
+								newObjectError("Only QIs supported as states right now");
+							}
+						}
+					}
+					case False {
+						//ID not in the context
+						newObjectError("Target " + node.e.name + " not found in context");
+					}
+				}				
+			}
+			default {
+				//not in let normal form
+				newObjectError("Not in let normal form - target of state change not an ID");
+			}
+		}
+	}
+	
+	method visitCompilationUnit(node) {
+		declListHelper(node.decls);
+	}
+	
+	method visitDeclList(node) {
+		declListHelper(node.decls);
+		//newObjectError("non Nominal States not implemented");
+	}
+	
+	method declListHelper(/* immutable List<Decl>*/ decls) {
+		decls.foldl(fn (decl,pastResult) => {
+			val result = decl.accept(this);
+			match (result) {
+				case ErrObjectType {
+					val errString = "error in decl " + decl.getName() + ": " + result.errorMsg;
+					match (pastResult) {
+						case ErrObjectType {
+							newObjectError(pastResult.errorMsg + ", " + errString);
+						}
+						default {
+							newObjectError(errString); 
+						}
+					}
+				}
+				default {
+					pastResult
+				}
+			}
+		},getUnitType());
+	}
+	
+	method visitDereference(node) {
+		match (node.left) {
+			case ID {
+				val /*unique Option<immutable ObjectType>*/ leftTypeOption = this.context.getOption(node.left);
+				match (leftTypeOption) {
+					case Some {
+						val /*unique Option<immutable DeclType>*/ fieldTypeOption 
+							= leftTypeOption.value.declaredType(node.right,this.st);
+						match( fieldTypeOption) {
+							case Some {
+								match (fieldTypeOption.value) {
+									case FieldType {
+										fieldTypeOption.value.getBinding().getObjectType()
+									}
+									default {
+										//not a field
+										newObjectError("Member " + node.toString() + " is not a field");
+									}
+								}
+							}
+							case None {
+								newObjectError("Member " + node.toString() + " does not exist");
+							}
+						}
+					}
+					case None {
+						//ID not found in context
+						newObjectError("Target " + node.left.name + " not found in context");
+					}
+				}
+			}
+			default {
+				//not in let normal form
+				newObjectError("Not in let normal form - target of dereference not an ID");
+			}
+		}
+	}
+	
+	method visitDestructiveDereference(node) {
+		//visitDereference(node);
+		newObjectError("Destructive Dereferences not allowed in Internal LNF");
+	}
+	
+	method visitAssignment(node) {
+		getUnitType()
+	}
+	
+	method visitQI(node) {
+		match (node.initState) {
+			case Some { //use this visitor (context) on the initializers 
+				val initTypes = node.initState.value.decls.map(fn (decl) => decl.accept(this));
+				val errString = initTypes.foldr(fn (t,z) => {
+					match (t) {
+						case ErrObjectType {
+							z + ", " + t.errorMsg
+						}
+						default {
+							z
+						}
+					}
+				}, "");
+				match (errString == "") {
+					case True {
+						val stateTypeOption = this.st.get(makeID(makeToken(),node.toShortName()));
+						match(stateTypeOption) {
+							case Some {
+								//stateTypeOption.value.createUnpackedType();
+								createNominalType(stateTypeOption.value.name.copy());
+							}
+							case None {
+								//this.st.printTable();
+								newObjectError("State " + node.toShortName() + " not declared");
+							}
+						}
+					}
+					case False {
+						newObjectError(errString.substring(2, errString.length()));
+					}
+				}
+			}			
+			case None {
+				createNominalType(makeID(node.token, node.toShortName()))
+			}
+		};
+	}
+	
+	method visitDoubleLiteral(node) {
+		getDoubleType()
+    }
+    
+	method visitIntLiteral(node) {
+		getIntegerType()	
+	}
+	
+	method visitStringLiteral(node) {
+		getStringType()
+	}
+	
+	method visitUnitLiteral(node) {
+		getUnitType()
+	}
+	
+	method void visitFieldDecl(node) {
+		node.e.accept(this);	
+	}
+	
+	method visitGroupDecl(node) {
+		newObjectError("Group Decls not implemented");
+	}
+	
+	method visitID(node) {		
+		match (this.context.containsKey(node)) {
+			case True {
+				this.context.get(node);
+			}
+			case False {
+				//ID not in scope
+				newObjectError("ID " + node.name + " not in scope");
+			}
+		}
+	}
+
+	method visitMatch(node) {			
+		match (node.e) {
+			case ID {
+				val /*unique Option<immutable ObjectType>*/ matchExpOption = this.context.getOption(node.e);
+				match (matchExpOption) {
+					case Some {
+						val /*List<unique Option<unique Pair<ObjectType,Context>>>*/ casesList = node.caseList.map(fn (c) => {
+							val caseContext = this.context.copy();
+							
+							//update type of matched ID in context
+							match (c.qi) {
+								case Some {
+									//new context so if somehow there are initializers that don't get run, they don't mess up the context
+									val /*unique Option<immutable ObjectType>*/ updateType =
+										c.qi.value.accept(new TypeFetchVisitor { val st = this.st; val context = new Context; }); 
+									match (updateType) {
+										case ErrObjectType {
+											//do nothing ... doesn't impact execution
+										}
+										default {
+											caseContext.update(node.e.copy(),updateType)
+										}
+									}
+								}
+								case None {
+									/* default case - no op */
+								}
+							};
+							
+							val /*unique Option<immutable ObjectType>*/ expType = 
+								c.e.accept(new TypeFetchVisitor { val st = this.st; val context = caseContext; });
+							makePair(expType, caseContext)
+						});
+						
+						val seed = casesList.car();
+						val casesListCDR = casesList.cdr();
+						val outgoingTypeAndContext = casesListCDR.foldl(fn (o,z) => {
+							match (z.fst) {
+								case ErrObjectType {
+									match (o.fst) {
+										case ErrObjectType { //add to error string
+											makePair(newObjectError("" + o.fst.errorMsg + ", " + z.fst.errorMsg),z.snd)
+										}
+										default { //don't add anything - context won't be used
+											o
+										}
+									}
+								}
+								default {
+									val unique ObjectType lub = z.fst.leastUpperBound(o.fst,this.st);
+									match(lub) { 
+										case Some {
+											val /*unique Option<unique Context>*/ mergedContextOption = 
+												z.snd.merge(o.snd,this.st);
+											match (mergedContextOption) {
+												case Some {
+													makePair(lub.value,mergedContextOption.value)
+												}
+												case None { makePair(newObjectError("contexts could not be merged"),z.snd) }
+											}	
+										}
+										case None { makePair(newObjectError("types returned from different cases not from same hierarchy"),z.snd); }
+									}
+								}
+							}
+						}, seed);
+						
+						
+						match(outgoingTypeAndContext.fst)  {
+							case ErrObjectType {
+								outgoingTypeAndContext.fst
+							}
+							default {
+								//set context to the merged version from the cases
+								this.context.reset();
+								this.context.addAll(outgoingTypeAndContext.snd);
+								outgoingTypeAndContext.fst // return
+							}
+						}
+		
+					}
+					case None { 
+						//ID not in scope
+						newObjectError("match target not in scope");
+					}
+				}
+			}
+			default {
+				//target not in LNF
+				newObjectError("match target not in LNF");
+			}
+		}
+	}
+	
+	method visitMethodCall(node) {
+		match( node.receiver) {
+			case ID {
+				val /* unique Option<immutable ObjectType> */ receiverTypeOption = this.context.getOption(node.receiver);
+				match (receiverTypeOption) {
+					case Some {
+						val /*unique Option<immutable DeclType> */ methodTypeOption =
+							receiverTypeOption.value.declaredType(node.methodName,this.st);
+						match (methodTypeOption) {
+							case Some {
+								val immutable DeclType methodType = methodTypeOption.value; 
+								match (methodType) {
+									case MethodType {
+										match (node.arguments.length() == methodType.argTypes.length() ) { //redundant?
+											case True {
+												//TODO: add environment
+												val argsAndReceiver = node.arguments.zip(methodType.argTypes);
+												argsAndReceiver.prepend(makePair(node.receiver.copy(), methodType.receiverType));
+												var immutable Boolean argsOk = true;
+												argsAndReceiver.map( fn (p) => {
+													match (this.context.containsKey(p.fst)) {
+														case True {
+															this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
+														}
+														case False {
+															//Error - argument not in scope
+															argsOk = false;
+														}
+													}
+												});
+												match (argsOk) {
+													case True {
+														//return the return object type
+														methodType.returnType.currentType.type.copy()
+													}
+													case False {
+														// arg not in scope
+														newObjectError("not all args in LNF and in scope");
+													}
+												}
+											}
+											case False {
+												//number of args mismatched
+												newObjectError("incorrect number of arguments supplied to method " + node.methodName.name);
+											}
+										}
+									}
+									default {
+										//not a method
+										newObjectError("member " + node.methodName.name + " is a field not a method");
+									}
+								}
+								
+							}
+							case None {
+								//method not found
+								newObjectError("method " + node.methodName.name + " not found");
+							}
+						}
+					}
+					case None {
+						//receiver not in context
+						newObjectError("receiver not in scope");
+					}
+				}
+			}
+			default {
+				//receiver not in LNF
+				newObjectError("receiver not in LNF");
+			}	
+		}
+	}
+	
+	method visitApplication(node) {
+		match(node.f) {
+			case ID {
+				val /* unique Option<immutable ObjectType> */ functionTypeOption = this.context.getOption(node.f);
+				match (functionTypeOption) {
+					case Some {
+						val immutable ObjectType functionType = functionTypeOption.value;
+						match (functionType) {
+							case LambdaType {
+								match (node.arguments.length() == functionType.argTypes.length() ) { //redundant?
+									case True {
+										//TODO: add environment
+										val args = node.arguments.zip(functionType.argTypes);
+										var immutable Boolean argsOk = true;
+										args.map( fn (p) => {
+											match (this.context.containsKey(p.fst)) {
+												case True {
+													this.context.update(p.fst.copy(), p.snd.outputBinding().getObjectType())
+												}
+												case False {
+													//Error - argument not in scope
+													argsOk = false;
+												}
+											}
+										});
+										match (argsOk) {
+											case True {
+												//return the return object type
+												match (functionType.returnType) {
+													case ObjectType { //TODO : this is hacky
+														functionType.returnType.copy() //return type should probably be a Binding
+													}
+													case PermType {
+														functionType.returnType.type.copy() //return type should probably be a Binding
+													}
+													default {
+														newObjectError("bad function return type");
+													}
+												};
+											}
+											case False {
+												// arg not in scope
+												newObjectError("not all args in LNF and in scope");
+											}
+										}
+									}
+									case False {
+										//number of args mismatched
+										newObjectError("incorrect number of arguments supplied");
+									}
+								}
+							}
+							default {
+								//not a lambda type
+								newObjectError("ID " + node.f.name + " not a lambda: " + functionType.toString());
+							}
+						}
+					}
+					case None {
+						//lambda not in context
+						newObjectError("ID " + node.f.name + " not in the context");
+					}
+				}
+			}
+			default {
+				//lambda not in lnf
+				newObjectError("Not in LNF");
+			}
+		}
+	}
+	
+	method void visitMethodDecl(node) {
+		match (node.arguments.length() == node.methodType.argTypes.length() ) { //redundantly checked? 
+			case True {
+				val methodContext = new Context;
+				//CLUDGE!!!!  TODO: handle top level better
+				match (node.getName() == "main") {
+					case True { //main functions are special and should include the top level declarations
+						methodContext.addAll(this.context);
+					}
+					case False { /* Do Nothing */ }
+				};
+				node.arguments.zip(node.methodType.argTypes).map(fn (p) => {
+					methodContext.put(p.fst.copy(), p.snd.inputBinding().getObjectType())
+				});
+				methodContext.put(makeID(makeToken(),"this$plaid"),node.methodType.receiverType.inputBinding().getObjectType());
+				//TODO: add environment
+				node.body.accept(new TypeFetchVisitor { val st = this.st; val context = methodContext; })
+			}
+			case False {
+				newObjectError("arg number mismatch");
+			}
+		};
+	}
+	
+	method visitLambda(node) {
+		match (node.arguments.length() == node.lambdaType.argTypes.length() ) { //redundantly checked? 
+			case True {
+				val lambdaContext = new Context;
+				match (node.recursiveName) {
+					case Some { //look for recursive name in the context and add it if it exists
+						val recursiveTypeOption = this.context.getOption(node.recursiveName.value);
+						match (recursiveTypeOption) {
+							case Some {
+								lambdaContext.put(node.recursiveName.value.copy(), recursiveTypeOption.value)
+							}
+							case None { /* Do Nothing */ }
+						}
+					}
+					case None { /* do nothing */ }
+				};
+				node.arguments.zip(node.lambdaType.argTypes).map(fn (p) => {
+					lambdaContext.put(p.fst.copy(), p.snd.inputBinding().getObjectType())
+				});
+				val iterator = node.lambdaType.environmentTypes.keySet().iterator();
+				while { iterator.hasNext() } {
+					val envId = iterator.next();
+					val envType = node.lambdaType.environmentTypes.get(envId).inputBinding().getObjectType();
+					lambdaContext.put(envId.copy(), envType);
+				};
+				val /*unique Option<immutable ObjectType>*/ returnType = 
+					node.body.accept(new TypeFetchVisitor { val st = this.st; val context = lambdaContext; });
+				match (returnType) {
+					case ErrObjectType {
+						newObjectError("Lambda return type could not be determined: " + returnType.errorMsg);
+					}
+					default {
+						val unique LambdaType newLambdaType = node.lambdaType.copy();
+						match (newLambdaType.returnType) {
+							case PermType {
+								match( newLambdaType.returnType == getDynPermType()) {
+									case True {
+										returnType.pack(st);
+										match (returnType) {
+											case UnpackedType {
+												newObjectError("Lambda Cannot return an unpacked type");
+											}
+											default {
+												newLambdaType.returnType = returnType; //make this more elegant in terms of how updated	
+											}
+										}
+									}
+									case False {
+										/* else do nothing - return type already filled in */
+									}
+								}
+							}
+							default { 
+								newLambdaType.returnType = returnType; //make this more elegant in terms of how updated
+							}
+						};
+						val immutable Token newToken = node.token;
+						val /*unique List<unique ID>*/ newArgs = node.arguments;
+						val unique Expression newBody = node.body;
+						val /*unique Option<unique ID>*/ newRecName = match(node.recursiveName) {
+								case Some {
+									makeSome(node.recursiveName.value.copy())
+								}
+								case None {
+									new None
+								}
+							};
+						node <<- Lambda { //udpate the lambda type for future use - more elegant way?
+							val /*Token*/ token = newToken;
+							val /*List<ID>*/ arguments = newArgs;
+							val /*Expression*/ body = newBody;
+							val /*LambdaType*/ lambdaType = newLambdaType.copy();
+							var /*Option ID*/ recursiveName = newRecName;
+						};
+						newLambdaType;
+					}
+				}
+			}
+			case False {
+				newObjectError("mismatched number of arguments in lambda");
+			}
+		};
+	}
+	
+	method visitNewInstance(node) {
+		node.s.accept(this) //whatever we get back from the state
+	}
+	
+	method visitSplitBlock(node) {
+		newObjectError("Split Block not implemented");
+	}
+	
+
+	method visitStateDecl(node) {
+		node.stateDef.accept(this);
+	}
+	
+	method visitUnpackInnerGroups(node) {
+		java.lang.System.err.println("I don't know how to deal with you");
+	}
+	
+	method visitWith(node) {
+		node.s1.accept(this);
+		node.s2.accept(this);
+		//TODO: add composition
+		newObjectError("non Nominal States not implemented");
+	}
+}

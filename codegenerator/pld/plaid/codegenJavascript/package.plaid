@@ -1,0 +1,126 @@
+package plaid.codegenJavascript;
+
+import plaid.ast.visitor.ASTViewer;
+import plaid.ast.visitor.PrintVisitor;
+import plaid.ast.visitor.ASTViewerNodeFields;
+import plaid.ast.*;
+import plaid.ast.stateTable.*;
+import plaid.scope.*;
+import plaid.typechecker.*;
+import plaid.optimizer.*;
+
+method plaidASTFromFile(fl) {
+	val fileObject = java.io.File.new(fl);
+    val input = java.io.FileInputStream.new(fileObject);
+   	val javaAST = plaid.compilerjava.ParserCore.parse(input, fileObject);
+    val translator = new ASTTranslator;
+	val plaidAST = translator.translateAST(javaAST);
+	plaidAST;
+}
+
+method jsonASTFromFile(fl) {
+	val plaidAST = plaidASTFromFile(fl);
+	val jsonOpt = plaid.lang.Serialization.toJSON(plaidAST);
+	match(jsonOpt) {
+		case Some { jsonOpt.value; }
+		case None { "JSON conversion failed. Blame Sven";}
+	}
+}
+
+method viewASTFromFile(fl) {
+	val plaidAST = plaidASTFromFile(fl);
+	plaidAST.accept(new plaid.ast.visitor.ASTViewer);
+}
+
+method viewASTNodeFieldsFromFile(fl) {
+	val plaidAST = plaidASTFromFile(fl);
+	plaidAST.accept(new plaid.ast.visitor.ASTViewerNodeFields);
+}
+
+method printASTFromFile(fl) {
+	val plaidAST = plaidASTFromFile(fl);
+	plaidAST.accept(new plaid.ast.visitor.PrintVisitor);
+}
+    
+method visitASTFromFile(visitor, visitorNew, fl) {
+    val plaidASTNew = plaidASTFromFile(fl);
+    var statesToInstantiate = plaidASTNew.accept(visitorNew);
+    visitor.setStates(statesToInstantiate);
+    val plaidAST = plaidASTFromFile(fl);
+    plaidAST.accept(visitor);
+}
+
+state PlaidCompiler{
+	var /*CompilerConfigure*/ cc;
+	
+	method compile() {
+		var compiler = plaid.compilerjava.CompilerCore.new(cc);
+		compiler.convertInputDirToInputFiles(java.io.File.new(cc.getInputDir()));
+		var javaList = java.util.ArrayList.new();
+		var plaidList = new List{var head = new plaid.lang.Nil;};
+		var iter = cc.getInputFiles().iterator();
+		while { iter.hasNext(); } {
+			var file = iter.next();
+			var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(file));
+			javaAST.setSourceFile(file);
+			javaList.add(javaAST);
+		};
+		
+		//translate phase
+		var packrep = compiler.buildPlaidPath(javaList); // javaAST in javaList has changed
+		iter = javaList.iterator();
+
+
+		var translator = new ASTTranslator;
+		while { iter.hasNext(); } {
+			var javaAST = iter.next();
+			var plaidAST = translator.translateAST(javaAST);
+			plaidList.add(plaidAST);
+		};
+		
+		//state table building phase
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		val tr = new PackageRepTranslator {
+			val stateTable = stateTable;
+		};
+		tr.translate(packrep);
+		//stateTable.printTable();
+		
+		//scope build phase		
+		var /*ScopeBuildingVisitor*/ scopebuilder = new ScopeBuildingVisitor{val stateTable = stateTable; val rep = packrep;};
+		scopebuilder.build(plaidList); //TODO fix bugs
+		
+		//typechecking phase
+		//TODO: add type checking here
+		plaidList.map(fn(x) => {
+			//x.accept(something);
+		});
+		
+		//optimization phase
+		var /*OptimizationVisitor*/ optVisitor = new OptimizationVisitor;
+		//TODO need double check if something should be modify for the new version of the ASTNodes
+		plaidList.map(fn(x) => {
+			x.accept(optVisitor);
+		});
+						
+		//code genearation phase
+		val codeGenVisitor = new CodeGenVisitor {val stateTable = stateTable; var cc = cc; };		
+		plaidList.map(fn(x) => {
+			x.accept(codeGenVisitor);
+		});
+	}	
+}
+
+method main(args) {
+	var javaargs = java.util.ArrayList.new();
+	
+	args.map(fn(x) => {
+		javaargs.add(x);
+	});
+	
+	var cc =  plaid.compilerjava.CompilerCore.parseParameters(javaargs);
+	var /*PlaidCompiler*/ plaidCompiler = new PlaidCompiler {var cc = cc; };
+	plaidCompiler.compile();
+}

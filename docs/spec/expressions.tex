@@ -1,0 +1,587 @@
+\section{Statements and Expressions}
+
+\subsection{Exceptions}
+
+Several locations in this document refer to an exception being thrown.
+The semantics of an exception being thrown is that the application
+halts with a run-time error.  Future versions of this document will
+define facilities for propagating and catching exceptions.
+
+\subsection{Statements}
+
+
+\begin{quote}
+\ntermdef{Stmt}
+
+\defspace \nterm{Expr}
+
+\defspace \nterm{VarDecl}
+
+\defspace \nterm{StateValDecl}
+
+
+\ntermdef{VarDecl}
+
+\defspace \nterm{Specifier} \opt{\nterm{Type}} \nterm{Identifier} = \nterm{Expr}
+
+\ntermdef{StateValDecl}
+
+\defspace \keyw{stateval} \nterm{Identifier} \nterm{StateBinding}
+
+
+\ntermdef{Specifier}
+
+\defspace \keyw{val}
+
+\defspace \keyw{var}
+
+\end{quote}
+
+Statements are either expressions, or variable declarations.  A
+variable declaration must include an initial value.  Object variables are
+declared with the \keyw{val} or \keyw{var} keyword; the former
+indicates a final let binding, whereas the latter indicates a
+assignable variable that can be updated.
+State variables are declared with the \keyw{stateval} keyword. 
+
+An optional type may be given for variable declarations.  If the type
+is omitted for a \keyw{val} declaration, then it has the
+structure of the initializing expression and the default permission
+ for that structure. If no type is given for a \keyw{var} 
+declaration, the variable is has type \keyw{dynamic}.
+
+Statements evaluate to values, based on the expression in the
+statement or the value of the initializer for the variable.  The last
+statement in a sequence is used for the return value of a method or
+the result of a block.
+
+\subsection{Expressions}
+
+\begin{quote}
+
+\ntermdef{Expr}
+
+
+\defspace \keyw{fn}   \opt{\nterm{MetaArgsSpec}}(\opt{\nterm{Args}})
+              \opt{[\nterm{Args}]} \opt{ : \nterm{Type}}
+              => \nterm{Expr}
+
+\defspace \nterm{Expr1}
+
+\end{quote}
+
+A first-class function includes standard polymorphic and parameter
+argument declarations and an optional return type annotation. The optional arguments surrounded by [] specify
+environment variables that are captured by the lambda at its declaration.
+The syntax of polymorphic parameters are described on
+Section \ref{sec:polymorphic}. Polymorphic parameters specify which
+data group permission a functions requires and allow the function to
+be generic on which data groups it operates (similar to generic
+methods on Java).
+  
+\begin{quote}
+
+\ntermdef{Expr1}
+
+\defspace \opt{\nterm{SimpleExpr} .} \nterm{Identifier} = \nterm{Expr}
+
+\defspace \nterm{SimpleExpr} \texttt{<- }\nterm{State}
+
+\defspace \nterm{SimpleExpr} \texttt{<{}<-} \nterm{State}
+
+\defspace \keyw{atomic} \nterm{MetaArgs}  BlockExpr
+
+\defspace \keyw{split} \nterm{MetaArgs}  BlockExpr
+
+\defspace \keyw{unpack} BlockExpr
+
+\defspace \keyw{match} ( \nterm{InfixExpr} ) \{ \seq{CaseClause} \}
+
+\defspace \nterm{InfixExpr}
+
+\end{quote}
+
+The assignment form is for fields or for already-declared local
+variables, which must have been declared using \keyw{var}. 
+
+The state change operator \texttt{<-} modifies the object to the left of the
+arrow as follows:
+
+\begin{itemize}
+
+\item
+All tags on the right are added to the object.  Old tags are kept
+unless they are inconsistent with the new tags, i.e. the old tag and
+new tag are (transitively) different cases of the same state.
+
+\item
+All members that were declared in tags being removed, are removed from
+the object.
+
+\item
+All members on the right are added to the object.  All old members on
+the left that are not explicitly removed according to the bullet
+above are retained.  
+
+\item 
+Futher details on the semantics of state change can be found in \citet{sunshine2011}.
+
+\end{itemize}
+
+The replacement operator \texttt{<{}<-} removes all tags and members from the object on the left and adds all tags and members of the state on the right.   
+
+The type of either state change operations is \keyw{void}.
+
+This paragraph provides a short overview of the \AE{}minium-specific
+expressions. For a full definition of the semantics refer to
+\cite{stork09:concurrency_by_default, stork10:uaeminium_spec}.  The
+\keyw{atomic} expression provides a safe access environment to all
+shared objects which belong to the data groups mentioned by the
+\keyw{atomic} block. The \emph{MetaArgs} describes which data groups
+the atomic block guarantees mutual exclusive access. Each
+\emph{MetaArg} must refer to a valid data group (i.e., a concrete
+declared data group or a group parameter).  The \keyw{split} executes
+all statements of its body concurrently. To allow parallel access to
+shared data the \keyw{split} block will split the declared data group
+permissions into shared permissions, one for each statement.  
+\keyw{unpack} is used to trade the group/access permission to the
+specified object to gain access to the inner/nested groups declared
+inside the object.
+
+The \keyw{match} expression matches an input expression to one of
+several cases using the \nterm{CaseClause} construct defined below.
+The overall match expression evaluates to whatever value the
+chosen case body evaluates to.
+
+\begin{quote}
+
+\ntermdef{CaseClause}
+
+\defspace \keyw{case} \nterm{Pattern} \nterm{BlockExpr}
+
+\defspace \keyw{default} \nterm{BlockExpr}
+
+\ntermdef{Pattern}
+
+\defspace \nterm{QualifiedIdentifier}
+
+
+%\defspace \keyw{default}
+
+
+\ntermdef{QualifiedIdentifier}
+
+\defspace \nterm{Identifier} \seq{ . \nterm{Identifier}}
+
+\end{quote}
+
+The value is matched against each of the cases in order.  For the
+first case that matches, the corresponding expression list is
+evaluated.  If no pattern matches, an exception is
+thrown.
+
+A \keyw{case} tests the value's tags against
+the \nterm{QualifiedIdentifier} given by the specified pattern.  The match succeeds if
+one of the tags of the matched value is equal to the tag
+\nterm{QualifiedIdentifier}, or if one of the tags of the matched value
+was declared in a state that is a transitive \keyw{case of} the
+\nterm{QualifiedIdentifier} specified.
+
+The \nterm{QualifiedIdentifier}
+must resolve to a state declared with the \keyw{state}
+keyword; otherwise, an exception is
+thrown. 
+
+For the \keyw{default} case, the match always succeeds.  If
+there is a \keyw{default} case, it must be the last one in the match
+expression.
+
+
+
+\begin{quote}
+
+\ntermdef{InfixExpr}
+
+\defspace \nterm{SimpleExpr}
+
+\defspace \nterm{CastExpr}
+
+\defspace \nterm{InfixExpr} \nterm{IdentifierOrOperator} \nterm{InfixExpr}
+
+
+\ntermdef{IdentifierOrOperator}
+
+\defspace \nterm{Identifier} \alt \nterm{Operator}
+
+
+\ntermdef{CastExpr}
+
+\defspace \nterm{SimpleExpr} \opt{\keyw{as} \nterm{Type}}
+
+\end{quote}
+
+The operators defined in Java have the same precedence in Plaid as
+they do in Java, except the ternary operator and right shift operators, 
+which are unsupported.  Identifiers as well as symbolic operators can be
+used as infix operators; both are treated as method calls on the
+object on the left of the operator.  Non-Java operators and
+identifiers used as infix operators have a precedence above assignment
+and state change, and below all other operators.
+
+Cast expressions assert that a variable has a given type, and
+also assert the relevant permission for that variable.  These casts
+are trusted by the typechecker, but unchecked. A program that executes 
+an invalid cast may fail at any point later in the program's 
+execution.
+
+\begin{quote}
+
+\ntermdef{SimpleExpr}
+
+\defspace \nterm{BlockExpr}
+
+\defspace \keyw{new} \nterm{State}
+
+\defspace \nterm{SimpleExpr2}
+
+\end{quote}
+
+The \keyw{new} statement creates an object initialized according to the
+\nterm{State} specification given (defined below).
+
+\begin{quote}
+
+\ntermdef{BlockExpr}
+
+\defspace \{ \opt{\nterm{StmtListSemi}} \}
+
+\ntermdef{StmtListSemi}
+
+\defspace \nterm{Stmt} \seq{ ; \nterm{Stmt}} \opt{;}
+
+\end{quote}
+
+Block expressions have a semicolon-separated list of statements, with
+an optional semicolon at the end.  The statement list evaluates to the
+value given by the last statement in the list.
+
+\begin{quote}
+
+\ntermdef{SimpleExpr2}
+
+\defspace \nterm{SimpleExpr1}
+
+\defspace \nterm{SimpleExpr2} \nterm{BlockExpr}
+
+\end{quote}
+
+To enable control structures with a natural, Java-like syntax, we allow
+a function to be invoked by passing a block expression as an argument. The block expression in this 
+case is treated as a zero-argument, anonymous lambda.For example, the \keyw{if} construct is defined in 
+Plaid Standard Library so one can write \code{\keyw{if}(\emph{boolean value})\{...\};} in Plaid. One 
+difference from Java syntax is that all expressions must be followed by a semi-colon, so \keyw{if} 
+and \keyw{while} in Plaid must have trailing semi-colons unlike in Java.
+
+
+\begin{quote}
+
+\ntermdef{SimpleExpr1}
+
+\defspace \nterm{Literal}
+
+\defspace \nterm{Identifier}
+
+\defspace \keyw{this}
+
+\defspace ( \nterm{Expr} ) 
+
+\defspace \nterm{SimpleExpr1} . \nterm{Identifier}
+
+\defspace \nterm{SimpleExpr1} . \keyw{new}
+
+\defspace \nterm{SimpleExpr1}  \opt{\nterm{MetaArgs}} \nterm{ArgumentExpr}
+
+\ntermdef{ExprList}
+
+\defspace \nterm{Expr} \seq{ , \nterm{Expr}}
+
+
+\ntermdef{ArgumentExpr}
+
+
+\defspace (  \opt{\nterm{ExprList}} ) 
+
+\end{quote}
+
+\keyw{this} represents the receiver of a method call as in Java and is 
+bound in method bodies declared as members of states.  Unlike Java,
+\keyw{this} is not bound in field initializers.
+
+Expressions can appear within parentheses as a comma
+separated list representing a tuple.
+
+Java constructors can be invoked by calling \keyw{new}
+on the Java class name.
+
+Function and method invocation are handled uniformly by
+supplying the arguments as a tuple.  Applications can be
+chained, supporting currying.  Polymorphic arguments
+are specified at each call site as well.
+
+\section{Polymorphism}
+\label{sec:polymorphic}
+
+\begin{quote}
+
+\ntermdef{MetaArgsSpec}
+
+\defspace < \nterm{MetaArgSpec} \opt{, \nterm{MetaArgSpec}} >
+
+\ntermdef{MetaArgSpec}
+
+\defspace \keyw{group} \opt{\nterm{GroupPermission}} \nterm{Identifier}
+
+\ntermdef{GroupPermission}
+
+\defspace \keyw{exclusive}
+
+\defspace \keyw{shared}
+
+\defspace \keyw{protected}
+
+\ntermdef{MetaArgs}
+
+\defspace < \nterm{SimpleExpr1} \opt{, \nterm{SimpleExpr1}} >
+
+\end{quote}
+
+Plaid supports polymorphism for data groups\footnote{Extending
+  polymorphism to types should be straightforward.} and uses angle
+brackets to enclose polymorphic parameters and arguments (similar to
+Java's generics). A \emph{MetaArgSpec} describes a single
+ polymorphic formal parameter. At the moment Paid only supports only
+group parameters. A group parameter consists of the 
+keyword \keyw{group} to identify this parameter as group parameter, and optional
+\emph{GroupPermission} (only for state declarations) and the
+name of the parameter. For more information about data groups and
+group parameters refer to \cite{stork09:concurrency_by_default,
+  stork10:uaeminium_spec}.
+
+\section{Declarations}
+
+\begin{quote}
+\ntermdef{Decl}
+
+\defspace \seq{\nterm{ModifierOrDefaultPermission}} \keyw{state} \nterm{Identifier}  \opt{\nterm{MetaArgs}} \\
+          \indent~~~~~~~~~~~~~~~~~~~\opt{\keyw{case} \keyw{of} \nterm{QualifiedIdentifier}  \opt{\nterm{MetaArgs}}}
+          	\opt{\nterm{StateBinding}} \opt{;}
+
+\defspace  \seq{\nterm{ModifierOrDefaultPermission}} \keyw{stateval} \nterm{Identifier}  \opt{\nterm{MetaArgs}} \\
+           \indent~~~~~~~~~~~~~~~~~~~\opt{\nterm{StateBinding}} \opt{;}
+
+\defspace \seq{\nterm{Modifier}} \nterm{MSpec} ;
+
+\defspace \seq{\nterm{Modifier}} \nterm{MSpec} \nterm{BlockExpr}
+
+\defspace \seq{\nterm{Modifier}} \nterm{FieldDecl} ;
+
+\defspace \seq{\nterm{Modifier}} \nterm{GroupDecl} ;
+
+
+
+
+\end{quote}
+
+\keyw{state} and \keyw{stateval} declarations specify the implementation of a state,
+as specified in the state definition. The \keyw{state} keyword means that this state is given its
+own \textit{tag} that can be used to test whether objects are in that state.  Only states declared with \keyw{state} can be given in a pattern for a case in a \keyw{match} statement.
+
+The \keyw{case} \keyw{of} keyword sequence assigns a superstate. States have 
+all of the members of a superstate. Different cases of the same superstate 
+are orthogonal; no object may ever be tagged with two cases of the same superstate.
+
+The final two declarations are for method and field declarations.  The
+method declaration has a method header
+and an optional method body.  If the body is missing then
+the method is abstract and must be filled in by sub-states or when the
+state is instantiated.
+
+Fields and state operators are discussed in more detail below.
+
+\pagebreak
+
+\begin{quote}
+
+\ntermdef{StateBinding}
+
+\defspace = \nterm{State}
+
+\defspace \{ \seq{\nterm{Decl}} \}
+
+\end{quote}
+
+\begin{quote}
+
+\ntermdef{State}
+
+\defspace \nterm{StatePrim} \seq{\keyw{with} \nterm{StatePrim}} % left-associative
+
+\ntermdef{StatePrim}
+
+\defspace \{ \seq{\nterm{Decl}} \}
+
+\defspace \nterm{SimpleExpr1} \opt{\{ \seq{\nterm{DecOrStateOp}} \}}
+
+\defspace \keyw{freeze} \nterm{SimpleExpr1}
+
+\ntermdef{DeclOrStateOp}
+
+\defspace \nterm{Decl}
+
+\defspace \nterm{StateOp}
+
+\ntermdef{StateOp}
+
+\defspace \keyw{remove} \nterm{Identifier} ;
+
+\defspace \keyw{rename} \nterm{Identifier} \keyw{as} \nterm{Identifier} ;
+
+\end{quote}
+
+A \nterm{StateBinding} can either be an assignment to a \nterm{State} or
+a list of declarations in curly braces.
+
+A \nterm{State} is a composition of primitive states separated by the
+\keyw{with} keyword.   The \nterm{StatePrim} category includes a list
+of declarations, or an expression, that should evaluate to a state,
+modified by a list of declarations and state operations (\nterm{DeclOrStateOp}).  
+Expressions that evaluation to an object can be transformed into a primitive state
+with the \keyw{freeze} keyword. 
+
+Composition is in general symmetric, as in traits.  It is an error if two states are composed with a member in common. 
+The conflict can be resolved manually using state operators \keyw{remove} and \keyw{rename}, which
+respectively discard or change the name of a member in a state. 
+
+\begin{quote}
+
+
+%%%%%%%%%%%%%%%%%% Fields and Methods %%%%%%%%%%%%%%%%%%%%%
+
+\ntermdef{GroupDecl}
+
+\defspace \keyw{group} \nterm{Identifier} = \keyw{new} \keyw{group} ;
+
+\ntermdef{FieldDecl}
+
+\defspace \nterm{ConcreteFieldDecl}
+
+\defspace \nterm{AbstractFieldDecl}
+
+\ntermdef{ConcreteFieldDecl}
+
+\defspace \opt{\nterm{Specifier}} \opt{Type} \nterm{Identifier} = \nterm{Expr}
+
+\ntermdef{AbstractFieldDecl}
+
+\defspace \nterm{Specifier} \nterm{Identifier} 
+
+\defspace \opt{Specifier} \nterm{Type} \nterm{Identifier}
+
+\ntermdef{Args}
+
+\defspace \opt{\nterm{ArgSpec}} \nterm{Identifier} \seq{ , \opt{\nterm{ArgSpec}} \nterm{Identifier}}
+
+\ntermdef{ArgSpec}
+
+\defspace \nterm{Type} \opt{$>>$ \nterm{Type}}
+
+\ntermdef{MSpec}
+
+\defspace \keyw{method} \opt{\nterm{Type}} \nterm{IdentifierOrOperator} \opt{\nterm{MetaArgsSpec}} ( \opt{\nterm{Args}} )
+          \opt{[ \nterm{Args} ]}
+
+\end{quote}
+
+Declaring a new data group is realized via \nterm{GroupDecl}, where identifier is the name of new 
+data group. Data groups need to be immediately initialized with a new data group.$\!$\footnote{Future 
+version might allow the declaration of data groups without initialization to realize data group 
+parameters within structural types.} 
+
+The \nterm{FieldDecl} form should be familiar from Java-like
+languages.  If no expression is given then the field is abstract.  
+When fields are first defined a specifier (\keyw{var} or \keyw{val})
+must be given; later, when the field is overridden and given a concrete
+value, the specifier may be omitted.
+\keyw{var} fields are assignable, \keyw{val} fields
+are not.
+
+If a type is missing and an expression is given for a
+  \keyw{val} field, then the type of the field is inferred from the
+  expression as in variable declaration statements.  
+  If the type is missing and either no expression is
+  given or it is a \keyw{var} field, then the type is \keyw{dynamic}.
+
+Method headers include specifications for their arguments.
+Each argument specification includes the required type at the time of
+the method call or function application.  If the parameter ends the
+call with a different type this is indicated with a $>>$ and the
+resulting type. If no resulting type is specified then it defaults to
+the required type.  If no argument specification is given for
+a variable, then its starting and ending type defaults to \keyw{dynamic}.
+
+The method header \nterm{MSpec} has a standard format (similar to
+functions).  As in function declarations, programmers may optionally
+include types for any captured environment variables within square brackets. For methods
+declared within states, the distinguished variable \keyw{this},
+representing the receiver of the method, may appear in this list.  If
+it does not, then the default specification for \keyw{this} is to have a required
+and resulting type of the structure representing the state the method is defined in
+with the default permission for that state as described below.
+
+The name of an method can be an operator, which supports a simple form of \emph{operator overloading}. 
+Operator methods are semantically equivalent to other methods. They dispatch only on the receiver, so 
+\code{x + y} calls the \code{+} method defined on \code{x} with \code{y} as an argument.
+
+\begin{quote}
+
+%%%%%%%%%%%%%%%%%% Modifiers %%%%%%%%%%%%%%%%%%%%%
+
+\ntermdef{Modifier}
+
+\defspace \keyw{override}
+
+\defspace \keyw{requires}
+
+\ntermdef{DefaultPermission}
+
+\defspace \keyw{immutable}
+
+\ntermdef{ModifierOrDefaultPermission}
+
+\defspace \nterm{Modifier}
+
+\defspace \nterm{DefaultPermission}
+
+\end{quote}
+
+
+\keyw{override} indicates that a method overrides a function of the
+same name during composition.
+
+\keyw{requires} is similar to \keyw{abstract} in Java.  However,
+things are more interesting in Plaid, because one can pass around an
+object that has abstract/required members.  It is not necessary to
+use the \keyw{requires} modifier in state definitions; one can simply
+leave off the definition of a function.  \keyw{requires} is necessary
+in types, however, to distinguish the presence vs. absence of a
+member in that type.  Unlike in Java, methods may be called on an
+object that has a required member, but only if the type given to the
+method's receiver does not expect that member to be present.
+
+A state with a default permission of \keyw{immutable} means that the permission of any fields,
+local variables, or parameters declared to have the structure represented
+by the state defaults to \keyw{immutable} when a permission
+is not specified.  If the state is not give the default \keyw{immutable}
+then the default permission is \keyw{unique}.
+
+

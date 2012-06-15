@@ -1,0 +1,191 @@
+package plaid.ast.stateTable;
+
+import plaid.ast.ASTTranslator;
+import plaid.ast.types.*;
+import plaid.ast.makeToken;
+
+state PackageRepTranslator {
+	val stateTable;
+	val astTranslator = new ASTTranslator;
+	
+	method makeID(str) {
+		new ID {
+			val token = makeToken();
+			val name = str;
+		};
+	}
+	
+	method translateState(rep, fullpath) {
+		var fullname = fullpath + rep.getName();
+		
+		match (rep) {
+			case plaid.compilerjava.util.FieldRep {
+				ifElse (rep.hasType()) {
+					val type = rep.getType();
+					
+					new FieldType {
+						val /*ID*/ name = this.makeID(rep.getName());
+						val /*TypeBinding*/ binding = astTranslator.translateType(type.getPermType());
+						val /*Boolean*/ isImmutable = type.isImmutable();
+					};
+				} {
+					// java.lang.System.out.println("Field " + rep + " does not have a type!");
+					
+					new FieldType {
+						val /*ID*/ name = this.makeID(rep.getName());
+						val /*TypeBinding*/ binding = new Dyn;
+						val /*Boolean*/ isImmutable = true;
+					};
+				};
+			}
+
+			case plaid.compilerjava.util.MethodRep {
+				ifElse (rep.hasType()) {
+					val type = rep.getType();
+					
+					new MethodType {
+						val /*ID*/ name = this.makeID(rep.getName());
+						val /*TakeBinding*/ returnType = astTranslator.translateType(type.getReturnType());
+						val /*List<ChangeType>*/ argTypes = astTranslator.map(astTranslator.translateType, type.getArgTypes());
+						val /*ChangeType*/ receiverType = astTranslator.translateType(type.getReceiverType());
+						val /*Map<ID,ChangeType>*/ environmentTypes = astTranslator.translateMap(astTranslator.translateAST, astTranslator.translateType, type.getEnvironmentTypes());
+					};
+				} {
+					new MethodType {
+						val /*ID*/ name = this.makeID(rep.getName());
+						val /*PermType*/ returnType = new Dyn;
+						val /*List<ChangeType>*/ argTypes = new List { var head = new Nil; };
+						val /*ChangeType*/ receiverType = new ChangeType {
+							val /*PermType*/ input = new Dyn;
+							val /*PermType*/ output = new Dyn;
+							val /*boolean*/ strongBorrow = false;
+						};
+						val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+					};
+				};
+			}
+
+			case plaid.compilerjava.util.StateRep {
+				val stateType = new StateType {
+					val /*Option StateType*/ superType = new None; // TODO:  How to fill this in?  rep.needs is a list of strings?!
+					val /*ID*/ name = this.makeID(rep.getName());
+				};
+				
+				val it = rep.getMembers().iterator();
+				while { it.hasNext(); } {
+					val memberRep = it.next();
+					val declType = this.translateState(memberRep, fullname);
+					// TODO:  This needs to account for abstract fields.
+					stateType.declaredTypes.put(this.makeID(memberRep.getName()), declType);
+					stateType.providedTypes.put(this.makeID(memberRep.getName()), declType); 
+				};
+				
+				this.stateTable.put(this.makeID(rep.getName()), stateType);			//TODO should be deleted in the future	
+				this.stateTable.put(this.makeID(fullname), stateType);
+				
+				//java.lang.System.out.println(fullpath);
+				stateType;
+			}
+
+			default {
+				java.lang.System.err.println("Error while translating StateRep to state table entry.");
+			}
+		};
+	}
+	
+	method translateNextLevel(rep, fullpath) {
+		match (rep) {
+		case plaid.compilerjava.util.FieldRep {
+			// Global variable, ignore. 
+		}
+
+		case plaid.compilerjava.util.MethodRep {
+			// Global method, ignore.
+		}
+
+		case plaid.compilerjava.util.StateRep {
+			this.translateState(rep, fullpath);
+		}
+
+		case plaid.compilerjava.util.PackageRep {
+			var nextpath = fullpath + rep.toString();
+			nextpath = nextpath + ".";
+			//java.lang.System.out.println(nextpath);
+			
+			var it = rep.getPackageMembers().iterator();			
+			while { it.hasNext(); } {
+				this.translateNextLevel(it.next(), nextpath);
+			};
+
+			it = rep.getNestedPackages().iterator();
+			while { it.hasNext(); } {
+				this.translateNextLevel(it.next(), nextpath);
+			};
+		}
+	};
+	}
+	
+	method translate(rep) {
+		match (rep) {
+			case plaid.compilerjava.util.FieldRep {
+				// Global variable, ignore. 
+			}
+
+			case plaid.compilerjava.util.MethodRep {
+				// Global method, ignore.
+			}
+
+			case plaid.compilerjava.util.StateRep {
+				this.translateState(rep, "");
+			}
+
+			case plaid.compilerjava.util.PackageRep {
+				var it = rep.getPackageMembers().iterator();
+				while { it.hasNext(); } {
+					this.translateNextLevel(it.next(), "");
+				};
+
+				it = rep.getNestedPackages().iterator();
+				while { it.hasNext(); } {
+					this.translateNextLevel(it.next(), "");
+				};
+			}
+		};
+	}
+	
+	method buildPackageRep(javaAST, /*List<String>*/ plaidPath) {
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		plaidPath.map(fn (entry) => cc.addToPlaidPath(entry));
+		val core = plaid.compilerjava.CompilerCore.new(cc);
+		val cus = java.util.ArrayList.new();
+		cus.add(javaAST);
+		val packageRep = core.buildPlaidPath(cus);
+		packageRep;
+	}
+	
+	method test() {
+		var javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/fibonacci/package.plaid")));
+	
+		val stateTable = new StateTable {
+			override val states = java.util.HashMap.new();
+		};
+		val tr = new PackageRepTranslator {
+			val stateTable = stateTable;
+		};
+		
+		val userDir = java.lang.System.getProperty("user.dir");
+	
+		val cc = plaid.compilerjava.CompilerConfiguration.new();
+		cc.addToPlaidPath(userDir + "/bin/");
+		cc.addToPlaidPath(userDir + "/../stdlib/bin/");	
+		val core = plaid.compilerjava.CompilerCore.new(cc);
+		val cus = java.util.ArrayList.new();
+		cus.add(javaAST);
+		val packageRep = core.buildPlaidPath(cus);
+		
+		tr.translate(packageRep);
+		
+		java.lang.System.out.println("Printing state table:");
+		stateTable.printTable();
+	}
+}

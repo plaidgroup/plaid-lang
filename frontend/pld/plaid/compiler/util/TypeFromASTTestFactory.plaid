@@ -1,0 +1,85 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.util;
+
+import plaid.lang.testing.TestFactory;
+import plaid.lang.testing.Test;
+import plaid.collections.makeLinkedList;
+import plaid.ast.parsed.*;
+import plaid.compiler.permissions.*;
+import plaid.compiler.*;
+import plaid.compiler.symbol.SymbolFactory;
+import plaid.compiler.types.*;
+import plaid.compiler.tests.ASTsForTests;
+import plaid.compiler.tests.SymbolsForTests;
+import plaid.compiler.tests.TypesForTests;
+import plaid.compiler.tests.PermissionsForTests;
+
+state TypeFromASTTestFactory case of TestFactory {
+  
+  method unique List<unique Test> createTests() {
+    val tests = makeLinkedList();
+    val test = fn(name,body) => { tests.add(mktest(name, body)) };
+    val unique SymbolFactory symFac = new SymbolFactory;
+   
+    val ast = new ASTsForTests;
+    ast.initASTs();
+    val symbols = new SymbolsForTests;
+    symbols.initSymbols(ast);
+    val types = new TypesForTests;
+    types.initPermissions();
+    types.initTypes(ast,symbols);
+
+    test("ASTtoPermission", fn(ctx) => {
+      val perms = new PermissionsForTests;
+      perms.init();
+      ctx.assertTrue(makePermissionFromAST(new ParsedUniquePermission) == UNIQUE);
+      ctx.assertTrue(makePermissionFromAST(new ParsedImmutablePermission) == IMMUTABLE);
+      ctx.assertTrue(makePermissionFromAST(ast.sharedAST_Empty) == SHARED);
+      ctx.assertTrue(makePermissionFromAST(ast.sharedAST_Foo) == perms.sharedFoo);
+      ctx.assertTrue(makePermissionFromAST(ast.sharedAST_FooBar) == perms.sharedFooBar);
+      ctx.assertFalse(makePermissionFromAST(ast.sharedAST_Foo) == perms.sharedFooBar);
+      ctx.assertFalse(makePermissionFromAST(ast.sharedAST_FooBar) == perms.sharedFoo);
+      ctx.assertTrue(makePermissionFromAST(new ParsedNonePermission) == NONEP);
+      ctx.assertTrue(makePermissionFromAST(new ParsedEmptyPermission) == UNIQUE);
+      ctx.assertTrue(makePermissionFromAST(new ParsedLocalPermission { val symmetricPermission = new ParsedImmutablePermission; } ) == LOCALIMMUTABLE);
+      ctx.assertTrue(makePermissionFromAST(new ParsedLocalPermission { val symmetricPermission = new ParsedSharedPermission; } ) == LOCALSHARED);
+    }); 
+
+    test("ASTtoType", fn(ctx) => {
+      ctx.assertTrue(makeTypeFromAST(ast.EMPTY_TYPE_AST) == DYNAMICTYPE);
+      ctx.assertTrue(makeTypeFromAST(ast.typeASTu1) == types.nominalType_u1);
+      ctx.assertTrue(makeTypeFromAST(ast.typeASTe2) == types.nominalType_i2);
+      ctx.assertTrue(makeTypeFromAST(ast.typeASTuO1) == types.optionType_uO1);
+      ctx.assertTrue(makeTypeFromAST(ast.typeASTeO1) == types.optionType_uO1);
+      printLine("next error ok - need to add support for nested states");
+      ctx.assertTrue(makeTypeFromAST(ast.typeASTe3) == types.nominalType_u3);
+      ctx.assertTrue(makeTypeFromAST(ast.typeASTlambda_u1u1_i1i1_i1) == makeType(IMMUTABLE, types.lambda_u1u1_i1i1_i1));
+    });  
+    
+    test("ASTtoArgSpec", fn(ctx) => {
+      ctx.assertTrue(makeArgSpecFromAST(ast.argSpecASTu1n1) == types.argSpec_u1n1);
+    }); 
+    
+    tests
+  }
+  
+  
+}
