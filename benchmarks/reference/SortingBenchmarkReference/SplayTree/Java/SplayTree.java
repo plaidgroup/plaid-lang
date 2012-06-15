@@ -43,9 +43,10 @@ public class SplayTree {
         }
 
         public boolean find(int elem) {
-            if (this.key == elem)
+            if (this.key == elem) {
+				this.splay();
                 return true;
-            else if (elem > this.key && this.right != null)
+            } else if (elem > this.key && this.right != null)
                 return this.right.find(elem);
             else if (this.left != null)
                 return this.left.find(elem);
@@ -137,6 +138,11 @@ public class SplayTree {
 					break;
 				}
 			}	
+			left.right = current.left;
+			right.left = current.right;
+			current.left = dummy.right;
+			current.right = dummy.left;
+			root = current;
         }
         
         private void rotateRight() {
@@ -219,4 +225,14 @@ public class SplayTree {
         if (root != null)
             root.delete(elem);
     }
+	
+	private void print(SplayNode node) {
+		if (node == null)
+			return;
+		System.out.print("{");
+		print(node.left);
+		System.out.print(node.key);
+		print(node.right);
+		System.out.print("}");
+	}
 }
