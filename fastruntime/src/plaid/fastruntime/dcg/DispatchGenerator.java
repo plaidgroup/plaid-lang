@@ -198,6 +198,6 @@ public final class DispatchGenerator implements Opcodes {
 			dispatchCache.putIfAbsent(ov.getCanonicalRep(), result);
 		}
 		
-		return dispatchCache.get(ov);
+		return dispatchCache.get(ov.getCanonicalRep());
 	}
 }
