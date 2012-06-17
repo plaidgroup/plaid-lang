@@ -23,10 +23,10 @@ import plaid.fastruntime.errors.PlaidInternalException;
 public final class DispatchGenerator implements Opcodes {
 	private AtomicInteger classCounter = new AtomicInteger();
 
-	private ConcurrentHashMap<ObjectValue, PlaidDispatch> dispatchCache = new ConcurrentHashMap<ObjectValue, PlaidDispatch>();
+	private ConcurrentHashMap<String, PlaidDispatch> dispatchCache = new ConcurrentHashMap<String, PlaidDispatch>();
 
 	public PlaidDispatch createStateInstance(ObjectValue ov) {
-		if  ( dispatchCache.contains(ov) == false ) {
+		if  ( dispatchCache.containsKey(ov.getCanonicalRep()) == false ) {
 			final String name = "plaid/generatedDispatches/DispatchClass$plaid$"+ classCounter.incrementAndGet();
 
 			ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
@@ -195,7 +195,7 @@ public final class DispatchGenerator implements Opcodes {
 				throw new PlaidInternalException("Could not construct dispatch object.", e);
 			}
 			//return result;
-			dispatchCache.putIfAbsent(ov, result);
+			dispatchCache.putIfAbsent(ov.getCanonicalRep(), result);
 		}
 		
 		return dispatchCache.get(ov);
