@@ -57,6 +57,8 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	private Set<String> innerTags;
 	private Map<String, Integer> storageIndexMap;
 	
+	private String singleTag = null;
+	
 	/*
 	 * Must be called in last line of construct of every concrete subtype.
 	 */
@@ -68,6 +70,10 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		this.outerTags = this.constructOuterTags();
 		this.innerTags = this.constructInnerTags();
 		this.storageIndexMap = this.constructStorageIndexMap();
+		
+		if ( this.tags.size() == 1 ) {
+			singleTag = tags.iterator().next().intern();
+		}
 	}
 
 
@@ -316,7 +322,11 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	}
 	
 	public final boolean matches(String tag) {
-		return getTags().member(tag);
+		if ( singleTag != null ) {
+			return singleTag == tag;
+		} else {
+			return getTags().member(tag);
+		}
 	}
 	
 	public final String getTopTag() {
