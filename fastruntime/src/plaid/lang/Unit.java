@@ -17,13 +17,19 @@ public class Unit extends AbstractPlaidDispatch implements
 
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	public static final PlaidJavaObject UNIT_VALUE;
+	public static final java.lang.String UNIT_TAG = "plaid/lang/Unit".intern();
 	static {
-		PlaidDispatch unitDispatch = new Unit(new DimensionValue("plaid/lang/Unit", null, null));
+		PlaidDispatch unitDispatch = new Unit(new DimensionValue(UNIT_TAG, null, null));
 		UNIT_VALUE = new SimplePlaidJavaObject(unitDispatch, null, null);
 		theState$plaid = new AbstractPlaidState(unitDispatch) {
 			@Override
 			public PlaidObject instantiate() {
 				return UNIT_VALUE;
+			}
+			
+			@Override
+			public java.lang.String getTopTag() {
+				return UNIT_TAG;
 			}
 		};
 	
@@ -50,4 +56,8 @@ public class Unit extends AbstractPlaidDispatch implements
 		return plaid.fastruntime.Util.string("unit");
 	}
 	
+	@Override
+	public boolean matches(java.lang.String tag) {
+		return  tag == UNIT_TAG;
+	}
 }
