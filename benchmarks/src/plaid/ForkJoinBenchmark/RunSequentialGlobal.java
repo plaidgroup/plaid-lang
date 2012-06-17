@@ -4,7 +4,7 @@ import plaid.fastruntime.PlaidObject;
 
 public class RunSequentialGlobal {
 	
-	public static int START_LEVEL = 28;
+	public static int START_LEVEL = RunSequential.START_LEVEL;
 	
 	public static void main(String[] args) {
 		int startLevel = START_LEVEL;
