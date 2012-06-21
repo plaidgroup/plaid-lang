@@ -74,6 +74,7 @@ public class Webserver {
 		if ( file.exists() && file.isFile() ) {			
 			InputStream fileStream = new BufferedInputStream(new FileInputStream(file));
 			transferData(outStream, fileStream);
+			fileStream.close();
 		}
 	}
 	
@@ -111,7 +112,7 @@ public class Webserver {
 	}
 	
 	public static void LOG(String msg, Object ... args) {
-		System.out.println(String.format("LOG: " + msg, args));
+		//System.out.println(String.format("LOG: " + msg, args));
 	}
 	
 	public static void copyFileToSocket(OutputStream os, InputStream is) {
@@ -127,7 +128,7 @@ public class Webserver {
 				os.write(data, 0, read);
 			}
 		} catch (Exception e) {
-
+			System.err.println("Failed to write data to socket: " + e.toString());
 		}
 	}
 }
