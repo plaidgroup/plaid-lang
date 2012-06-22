@@ -4,7 +4,7 @@ import java.text.DecimalFormat;
 
 public class Integral {
 	
-	public static double EPSILON = 0.000001;
+	public static double EPSILON = 0.000000001;
 
 	/**
 	 * @param args
