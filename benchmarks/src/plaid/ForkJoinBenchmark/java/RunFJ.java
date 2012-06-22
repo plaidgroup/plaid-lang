@@ -1,7 +1,6 @@
 package plaid.ForkJoinBenchmark.java;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
+import plaid.fastruntime.aeminium.Task;
 import plaid.fastruntime.aeminium.runtime.ForkJoinPool;
 import plaid.fastruntime.aeminium.runtime.ForkJoinTask;
 import plaid.fastruntime.aeminium.runtime.RecursiveAction;
@@ -11,7 +10,7 @@ public class RunFJ {
 	public static int START = 32;
 	public static ForkJoinPool pool = plaid.fastruntime.aeminium.Util.POOL;
 	public static int CPU_COUNT = Runtime.getRuntime().availableProcessors();
-	public static AtomicInteger taskCounter = new AtomicInteger();
+	//public static AtomicInteger taskCounter = new AtomicInteger();
 	
 	public static void forkJoin(int level) {
 		final int curLevel = level - 1;
@@ -25,17 +24,17 @@ public class RunFJ {
 		} else {
 			if ( curLevel > 0 ) {
 				plaid.fastruntime.aeminium.Util.parallelize--;
-				RecursiveAction t1 = new RecursiveAction() {				
+				RecursiveAction t1 = new Task(0) {				
 					@Override
 					protected void compute() {
-						taskCounter.incrementAndGet();
+						//taskCounter.incrementAndGet();
 						forkJoin(curLevel);
 					}
 				};
-				RecursiveAction t2 = new RecursiveAction() {				
+				RecursiveAction t2 = new Task(0) {				
 					@Override
 					protected void compute() {
-						taskCounter.incrementAndGet();
+						//taskCounter.incrementAndGet();
 						forkJoin(curLevel);
 					}
 				};
@@ -69,7 +68,7 @@ public class RunFJ {
 
 		long stop = System.nanoTime();
 		System.out.println("execution time : " + (stop-start)/(1000*1000*1000.0));
-		System.out.println("created Tasks " + taskCounter.get());
+		//System.out.println("created Tasks " + taskCounter.get());
 		
 	}
 }
