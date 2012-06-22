@@ -10,11 +10,15 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
+import plaid.generated.IsetLocalShared$plaid$2$plaid;
+import plaid.generated.IsetShared$plaid$2$plaid;
 import plaid.generated.IsetUnique$plaid$2$plaid;
 import plaid.lang.Integer32;
 
 
-public class SharedArray extends AbstractPlaidDispatch implements IsetUnique$plaid$2$plaid {
+public class SharedArray extends AbstractPlaidDispatch implements IsetUnique$plaid$2$plaid,
+                                                                  IsetShared$plaid$2$plaid,
+                                                                  IsetLocalShared$plaid$2$plaid {
 	public static final plaid.fastruntime.PlaidDispatch SHARED_ARRAY_DISPATCH;
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	static {
@@ -53,7 +57,43 @@ public class SharedArray extends AbstractPlaidDispatch implements IsetUnique$pla
 			throw new PlaidIllegalArgumentException("Receiver to SharedArray is not a shard array.");
 		}
 		return null;
+	}
+	
+	@Override
+	public PlaidObject setShared(PlaidObject thisVar, PlaidObject indexVar, PlaidObject objVar) {
+		if ( thisVar instanceof SharedArrayPlaidJavaObject ) {
+			final SharedArrayPlaidJavaObject sa = (SharedArrayPlaidJavaObject)thisVar;
+			final int index = toInt(indexVar);
+			if ( sa.accessOk(index)) {
+				sa.groups[index].enterAtomic();
+				sa.data[index] = objVar;
+				sa.groups[index].leaveAtomic();
+			} else {
+				throw new PlaidIllegalArgumentException("Index out of bound: " + index);
+			}
+		} else {
+			throw new PlaidIllegalArgumentException("Receiver to SharedArray is not a shard array.");
+		}
+		return null;
 	}	
+	
+	@Override
+	public PlaidObject setLocalShared(PlaidObject thisVar, PlaidObject indexVar, PlaidObject objVar) {
+		if ( thisVar instanceof SharedArrayPlaidJavaObject ) {
+			final SharedArrayPlaidJavaObject sa = (SharedArrayPlaidJavaObject)thisVar;
+			final int index = toInt(indexVar);
+			if ( sa.accessOk(index)) {
+				sa.groups[index].enterAtomic();
+				sa.data[index] = objVar;
+				sa.groups[index].leaveAtomic();
+			} else {
+				throw new PlaidIllegalArgumentException("Index out of bound: " + index);
+			}
+		} else {
+			throw new PlaidIllegalArgumentException("Receiver to SharedArray is not a shard array.");
+		}
+		return null;
+	}
 	
 	public static final class SharedArrayPlaidJavaObject implements PlaidObject {
 		public final PlaidObject data[];
