@@ -10,18 +10,20 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
-import plaid.generated.Ido$plaid$1$plaid;
 import plaid.generated.IdoExclusive$2$plaid;
 import plaid.generated.IdoLocalShared$2$plaid;
 import plaid.generated.IdoShared$2$plaid;
 import plaid.generated.IdoUnique$2$plaid;
+import plaid.generated.Iinitialize$1$plaid;
+import plaid.generated.Iinitialize$2$plaid;
 import plaid.generated.IsetLocalShared$2$plaid;
 import plaid.generated.IsetShared$2$plaid;
 import plaid.generated.IsetUnique$2$plaid;
 import plaid.lang.Integer32;
 
 
-public class SharedArray extends AbstractPlaidDispatch implements IsetUnique$2$plaid,
+public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$plaid,
+															      IsetUnique$2$plaid,
                                                                   IsetShared$2$plaid,
                                                                   IsetLocalShared$2$plaid,
                                                                   IdoUnique$2$plaid,
@@ -61,6 +63,23 @@ public class SharedArray extends AbstractPlaidDispatch implements IsetUnique$2$p
 		} else {
 			throw new PlaidIllegalArgumentException("Cannot convert non Integer to int");
 		}
+	}
+	
+	@Override
+	public PlaidObject initialize(PlaidObject thisVar, PlaidObject opsVar) {
+		if ( thisVar instanceof SharedArrayPlaidJavaObject ) {
+			final SharedArrayPlaidJavaObject sa = (SharedArrayPlaidJavaObject)thisVar;
+			PlaidDispatch opsDispatch = opsVar.getDispatch();
+			if ( opsDispatch instanceof Iinitialize$2$plaid ) {
+				for (int i = 0; i < sa.data.length; i++) {
+					Datagroup group = sa.groups[i];
+					sa.data[i] = ((Iinitialize$2$plaid)opsDispatch).initialize(opsVar, plaid.fastruntime.Util.integer(i), group);
+				}
+			}
+		} else {
+			throw new PlaidIllegalArgumentException("Receiver to SharedArray is not a shard array.");
+		}
+		return plaid.fastruntime.Util.unit();
 	}
 	
 	@Override
