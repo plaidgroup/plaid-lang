@@ -4,7 +4,6 @@ import java.lang.Thread.UncaughtExceptionHandler;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.Formatter;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -66,14 +65,15 @@ public final class Util {
 	public static volatile int parallelize = CPU_COUNT;
 
 	public static final void triggerParallelism() {
-		//parallelize = (CPU_COUNT - POOL.getActiveThreadCount()) >> 1;
-		parallelize = 1;
+		parallelize = (CPU_COUNT - POOL.getActiveThreadCount()) >> 1;
+		//parallelize = 1;
 	}
 	
 	public static boolean parallelize() {
 		if ( parallelize <= 0 ) {
 			ForkJoinWorkerThread t = (ForkJoinWorkerThread)Thread.currentThread();
-			return t.workQueue.queueSize() <= 0 ;	
+			return t.workQueue.queueSize() <= 0;	
+			//return false;
 		} else {
 			return true;
 		}
