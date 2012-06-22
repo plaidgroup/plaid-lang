@@ -159,7 +159,7 @@ public final class Float64 extends AbstractPlaidDispatch
 		return plaid.fastruntime.Util.string(((PlaidJavaObject)x).getJavaObject().toString());
 	}
 	
-	private static final class Float64PlaidJavaObject implements PlaidJavaObject, ItoString$0$plaid {
+	public static final class Float64PlaidJavaObject implements PlaidJavaObject, ItoString$0$plaid {
 		
 		public Float64PlaidJavaObject(double float64) {
 			this.doubleValue = float64;

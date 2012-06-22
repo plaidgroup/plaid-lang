@@ -246,7 +246,7 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}		
 	}
 	
-	private final static class Integer32PlaidJavaObject implements PlaidJavaObject, 
+	public final static class Integer32PlaidJavaObject implements PlaidJavaObject, 
 																   ItoString$0$plaid {
 		public final int integerValue;
 		private Integer javaObject;
