@@ -11,6 +11,7 @@ import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.generated.Ido$plaid$1$plaid;
+import plaid.generated.IdoExclusive$plaid$2$plaid;
 import plaid.generated.IdoLocalShared$plaid$2$plaid;
 import plaid.generated.IdoShared$plaid$2$plaid;
 import plaid.generated.IdoUnique$plaid$2$plaid;
@@ -114,8 +115,54 @@ public class SharedArray extends AbstractPlaidDispatch implements IsetUnique$pla
 		return plaid.fastruntime.Util.unit();
 	}
 	
-
-	public PlaidObject doHelper(PlaidObject thisVar, PlaidObject indexVar, PlaidObject opsVar) {
+	@Override
+	public PlaidObject doUnique(PlaidObject thisVar, PlaidObject indexVar, PlaidObject opsVar) {
+		if ( thisVar instanceof SharedArrayPlaidJavaObject ) {
+			final SharedArrayPlaidJavaObject sa = (SharedArrayPlaidJavaObject)thisVar;
+			final int index = toInt(indexVar);
+			if ( sa.accessOk(index)) {
+				PlaidDispatch opsDispatch = opsVar.getDispatch();
+				if ( opsDispatch instanceof IdoExclusive$plaid$2$plaid ) {
+					PlaidObject obj = sa.data[index];
+					Datagroup group = sa.groups[index];
+					((IdoExclusive$plaid$2$plaid)opsDispatch).doExclusive(opsVar, obj, group);
+				} else {
+					throw new PlaidIllegalArgumentException("Illegal operations object");
+				}
+			} else {
+				throw new PlaidIllegalArgumentException("Index out of bound: " + index);
+			}
+		} else {
+			throw new PlaidIllegalArgumentException("Receiver to SharedArray is not a shard array.");
+		}
+		return plaid.fastruntime.Util.unit();
+	}
+	
+	@Override
+	public PlaidObject doShared(PlaidObject thisVar, PlaidObject indexVar, PlaidObject opsVar) {
+		if ( thisVar instanceof SharedArrayPlaidJavaObject ) {
+			final SharedArrayPlaidJavaObject sa = (SharedArrayPlaidJavaObject)thisVar;
+			final int index = toInt(indexVar);
+			if ( sa.accessOk(index)) {
+				PlaidDispatch opsDispatch = opsVar.getDispatch();
+				if ( opsDispatch instanceof IdoShared$plaid$2$plaid ) {
+					PlaidObject obj = sa.data[index];
+					Datagroup group = sa.groups[index];
+					((IdoShared$plaid$2$plaid)opsDispatch).doShared(opsVar, obj, group);
+				} else {
+					throw new PlaidIllegalArgumentException("Illegal operations object");
+				}
+			} else {
+				throw new PlaidIllegalArgumentException("Index out of bound: " + index);
+			}
+		} else {
+			throw new PlaidIllegalArgumentException("Receiver to SharedArray is not a shard array.");
+		}
+		return plaid.fastruntime.Util.unit();
+	}
+	
+	@Override
+	public PlaidObject doLocalShared(PlaidObject thisVar, PlaidObject indexVar, PlaidObject opsVar) {
 		if ( thisVar instanceof SharedArrayPlaidJavaObject ) {
 			final SharedArrayPlaidJavaObject sa = (SharedArrayPlaidJavaObject)thisVar;
 			final int index = toInt(indexVar);
@@ -134,21 +181,6 @@ public class SharedArray extends AbstractPlaidDispatch implements IsetUnique$pla
 			throw new PlaidIllegalArgumentException("Receiver to SharedArray is not a shard array.");
 		}
 		return plaid.fastruntime.Util.unit();
-	}
-	
-	@Override
-	public PlaidObject doUnique(PlaidObject thisVar, PlaidObject indexVar, PlaidObject opsVar) {
-		return doHelper(thisVar, indexVar, opsVar);
-	}
-	
-	@Override
-	public PlaidObject doShared(PlaidObject thisVar, PlaidObject indexVar, PlaidObject opsVar) {
-		return doHelper(thisVar, indexVar, opsVar);
-	}
-	
-	@Override
-	public PlaidObject doLocalShared(PlaidObject thisVar, PlaidObject indexVar, PlaidObject opsVar) {
-		return doHelper(thisVar, indexVar, opsVar);
 	}	
 
 	public static final class SharedArrayPlaidJavaObject implements PlaidObject {
