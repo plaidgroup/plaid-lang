@@ -224,7 +224,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 				if ( opsDispatch instanceof IdoExclusiveData1$3$plaid ) {
 					PlaidObject obj = sa.data[index];
 					Datagroup group = sa.groups[index];
-					return ((IdoExclusiveData1$3$plaid)opsDispatch).doExclusiveData1(opsVar, obj, group, data);
+					return ((IdoExclusiveData1$3$plaid)opsDispatch).doExclusiveData1(opsVar, obj, data, group);
 				} else {
 					throw new PlaidIllegalArgumentException("Illegal operations object");
 				}
@@ -246,7 +246,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 				if ( opsDispatch instanceof IdoSharedData1$3$plaid ) {
 					PlaidObject obj = sa.data[index];
 					Datagroup group = sa.groups[index];
-					return ((IdoSharedData1$3$plaid)opsDispatch).doSharedData1(opsVar, obj, group, data);
+					return ((IdoSharedData1$3$plaid)opsDispatch).doSharedData1(opsVar, obj, data, group);
 				} else {
 					throw new PlaidIllegalArgumentException("Illegal operations object");
 				}
@@ -268,7 +268,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 				if ( opsDispatch instanceof IdoSharedData1$3$plaid ) {
 					PlaidObject obj = sa.data[index];
 					Datagroup group = sa.groups[index];
-					return ((IdoSharedData1$3$plaid)opsDispatch).doSharedData1(opsVar, obj, group, data);
+					return ((IdoSharedData1$3$plaid)opsDispatch).doSharedData1(opsVar, obj, data, group);
 				} else {
 					throw new PlaidIllegalArgumentException("Illegal operations object");
 				}
@@ -290,7 +290,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 				if ( opsDispatch instanceof IdoExclusiveData2$4$plaid ) {
 					PlaidObject obj = sa.data[index];
 					Datagroup group = sa.groups[index];
-					return ((IdoExclusiveData2$4$plaid)opsDispatch).doExclusiveData2(opsVar, obj, group, d1, d2);
+					return ((IdoExclusiveData2$4$plaid)opsDispatch).doExclusiveData2(opsVar, obj, d1, d2, group);
 				} else {
 					throw new PlaidIllegalArgumentException("Illegal operations object");
 				}
@@ -312,7 +312,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 				if ( opsDispatch instanceof IdoSharedData2$4$plaid ) {
 					PlaidObject obj = sa.data[index];
 					Datagroup group = sa.groups[index];
-					return ((IdoSharedData2$4$plaid)opsDispatch).doSharedData2(opsVar, obj, group, d1, d2);
+					return ((IdoSharedData2$4$plaid)opsDispatch).doSharedData2(opsVar, obj, d1, d2, group);
 				} else {
 					throw new PlaidIllegalArgumentException("Illegal operations object");
 				}
@@ -334,7 +334,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 				if ( opsDispatch instanceof IdoSharedData2$4$plaid ) {
 					PlaidObject obj = sa.data[index];
 					Datagroup group = sa.groups[index];
-					return ((IdoSharedData2$4$plaid)opsDispatch).doSharedData2(opsVar, obj, group, d1, d2);
+					return ((IdoSharedData2$4$plaid)opsDispatch).doSharedData2(opsVar, obj, d1, d2, group);
 				} else {
 					throw new PlaidIllegalArgumentException("Illegal operations object");
 				}
