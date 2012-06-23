@@ -19,6 +19,7 @@ import plaid.generated.Igteq$plaid$1$plaid;
 import plaid.generated.Igtgtgt$plaid$1$plaid;
 import plaid.generated.Ilt$plaid$1$plaid;
 import plaid.generated.Ilteq$plaid$1$plaid;
+import plaid.generated.Iltlt$plaid$1$plaid;
 import plaid.generated.Imod$plaid$1$plaid;
 import plaid.generated.Imult$plaid$1$plaid;
 import plaid.generated.Iplus$plaid$1$plaid;
@@ -39,7 +40,8 @@ public final class Integer32 extends AbstractPlaidDispatch
 						   			  ItoString$0$plaid,
 						   			  IasInt32$0$plaid,
 						   			  Ibangeq$plaid$1$plaid,
-						   			  Ilt$plaid$1$plaid {
+						   			  Ilt$plaid$1$plaid,
+						   			  Iltlt$plaid$1$plaid {
 	private final static PlaidDispatch INTEGER32_DISPATCH;
 	private final static int CACHE_LOWER_BOUND = -127;
 	private final static int CACHE_UPPER_BOUND =  128;
@@ -219,7 +221,18 @@ public final class Integer32 extends AbstractPlaidDispatch
 		}
 	}
 
-
+	@Override
+	public PlaidObject ltlt$plaid(PlaidObject receiver, PlaidObject arg) {
+		try {
+			int first = ((Integer32PlaidJavaObject) receiver).integerValue;
+			int second = ((Integer32PlaidJavaObject) arg).integerValue;
+			int b = first << second;
+			return Util.integer(b);
+			
+		} catch (ClassCastException e) {
+			throw new PlaidIllegalArgumentException(">>> failed", e.getCause());
+		}
+	}
 	@Override
 	public PlaidObject bangeq$plaid(PlaidObject receiver, PlaidObject arg) {
 		try {
