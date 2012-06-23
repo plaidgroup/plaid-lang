@@ -142,7 +142,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 			if ( sa.accessOk(index)) {
 				PlaidDispatch opsDispatch = opsVar.getDispatch();
 				if ( opsDispatch instanceof IdoExclusive$3$plaid ) {
-					PlaidObject obj = (sa.data[index] != null)?sa.data[index]:plaid.lang.Unit.UNIT_VALUE;
+					PlaidObject obj = sa.data[index];
 					Datagroup group = sa.groups[index];
 					((IdoExclusive$3$plaid)opsDispatch).doExclusive(opsVar, obj, group, data);
 				} else {
@@ -165,7 +165,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 			if ( sa.accessOk(index)) {
 				PlaidDispatch opsDispatch = opsVar.getDispatch();
 				if ( opsDispatch instanceof IdoShared$3$plaid ) {
-					PlaidObject obj = (sa.data[index] != null)?sa.data[index]:plaid.lang.Unit.UNIT_VALUE;
+					PlaidObject obj = sa.data[index];
 					Datagroup group = sa.groups[index];
 					((IdoShared$3$plaid)opsDispatch).doShared(opsVar, obj, group, data);
 				} else {
@@ -188,7 +188,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 			if ( sa.accessOk(index)) {
 				PlaidDispatch opsDispatch = opsVar.getDispatch();
 				if ( opsDispatch instanceof IdoShared$3$plaid ) {
-					PlaidObject obj = (sa.data[index] != null)?sa.data[index]:plaid.lang.Unit.UNIT_VALUE;
+					PlaidObject obj = sa.data[index];
 					Datagroup group = sa.groups[index];
 					((IdoShared$3$plaid)opsDispatch).doShared(opsVar, obj, group, data);
 				} else {
@@ -212,6 +212,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 			groups = new plaid.fastruntime.aeminium.Datagroup[bucketCount];
 			// initialize data groups
 			for (int i = 0; i < groups.length; i++) {
+				data[i] = plaid.lang.Unit.UNIT_VALUE;
 				groups[i] = new Datagroup();
 			}
 		}
