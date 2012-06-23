@@ -2,8 +2,8 @@ package plaid.fastruntime.dcg;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -31,12 +31,14 @@ public final class DispatchGenerator implements Opcodes {
 
 			ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
 
-
 			// generate class
-			Collection<String> ifaces = new ArrayList<String>();
+			Set<String> ifaces = new HashSet<String>();
 			for (MethodInfo m : ov.getMethods()) {
-				ifaces.add(NamingConventions.getGeneratedInterfaceInternalName(m.getName(), m.numArgs()));
-				Util.INTERFACE_GEN.createInterfaceAsClass(m.getName(), m.numArgs());
+				final String ifaceName = NamingConventions.getGeneratedInterfaceInternalName(m.getName(), m.numArgs());
+				if ( ifaces.contains(ifaceName) == false ) {
+					ifaces.add(ifaceName);
+					Util.INTERFACE_GEN.createInterfaceAsClass(m.getName(), m.numArgs());
+				}
 			}
 			for(FieldInfo f: ov.getFields()) {
 				String getterName = NamingConventions.getGetterName(f.getName());
@@ -56,67 +58,72 @@ public final class DispatchGenerator implements Opcodes {
 					ifaces.toArray(new String[0]));
 
 			// add methods 
+			Set<String> generatedMethods = new HashSet<String>();
 			for ( MethodInfo m : ov.getMethods() ) {
-				//System.out.println("add method: " + m.getName());
-				MethodVisitor mv;
-				if(m.isStaticallyDefined()) {
-					mv = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
-							m.getName(), 
-							m.getMethodDescriptor(),
-							null,
-							null); // TODO: add exception
-					mv.visitCode();
-					// add receiver
+				final String ifaceName = NamingConventions.getGeneratedInterfaceInternalName(m.getName(), m.numArgs());
+				if ( generatedMethods.contains(ifaceName) == false ) {
+					generatedMethods.add(ifaceName);
+					//System.out.println("add method: " + m.getName());
+					MethodVisitor mv;
+					if(m.isStaticallyDefined()) {
+						mv = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
+								m.getName(), 
+								m.getMethodDescriptor(),
+								null,
+								null); // TODO: add exception
+						mv.visitCode();
+						// add receiver
 
-					mv.visitVarInsn(ALOAD, 1);
-					// add parameters
-					for (int x = 2; x <= m.numArgs()+1; x++ ) {
-						mv.visitVarInsn(ALOAD, x);
+						mv.visitVarInsn(ALOAD, 1);
+						// add parameters
+						for (int x = 2; x <= m.numArgs()+1; x++ ) {
+							mv.visitVarInsn(ALOAD, x);
+						}
+						mv.visitMethodInsn(INVOKESTATIC, m.getStaticClassInternalName(), m.getName(), m.getMethodDescriptor());
+						mv.visitInsn(ARETURN);
+						mv.visitMaxs(2,3);
+						mv.visitEnd();
+					} else { //dynamically defined
+
+						String helperName = NamingConventions.getGetterName(m.getName());
+						String helperDescriptor = NamingConventions.getMethodDescriptor(1);
+
+
+						//first define getter
+						MethodVisitor mvHelper;
+						mvHelper = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
+								helperName,
+								helperDescriptor,
+								null,
+								null); // TODO: add exception
+
+						mvHelper.visitCode();
+						mvHelper.visitVarInsn(ALOAD, 1);
+						mvHelper.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getStorage", "()[Lplaid/fastruntime/PlaidObject;");
+						int index = ov.getStorageIndex(m.getName());
+						mvHelper.visitIntInsn(BIPUSH, index);
+						mvHelper.visitInsn(AALOAD);
+						mvHelper.visitInsn(ARETURN);
+						mvHelper.visitMaxs(2,2);
+						mvHelper.visitEnd();
+
+						mv = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
+								m.getName(),
+								m.getMethodDescriptor(), null, null);
+						mv.visitVarInsn(ALOAD, 0);
+						mv.visitVarInsn(ALOAD, 1);
+						mv.visitMethodInsn(INVOKEVIRTUAL, name, helperName, helperDescriptor);
+						final String lambdaType = "plaid/fastruntime/PlaidLambda$" + m.numArgs();
+						mv.visitTypeInsn(CHECKCAST, lambdaType);
+						// add parameters
+						for (int x = 2; x <= m.numArgs()+1; x++ ) {
+							mv.visitVarInsn(ALOAD, x);
+						}
+						mv.visitMethodInsn(INVOKEVIRTUAL, lambdaType, "invoke$plaid", m.getMethodDescriptor());
+						mv.visitInsn(ARETURN);
+						mv.visitMaxs(3, 4);
+						mv.visitEnd();
 					}
-					mv.visitMethodInsn(INVOKESTATIC, m.getStaticClassInternalName(), m.getName(), m.getMethodDescriptor());
-					mv.visitInsn(ARETURN);
-					mv.visitMaxs(2,3);
-					mv.visitEnd();
-				} else { //dynamically defined
-
-					String helperName = NamingConventions.getGetterName(m.getName());
-					String helperDescriptor = NamingConventions.getMethodDescriptor(1);
-
-
-					//first define getter
-					MethodVisitor mvHelper;
-					mvHelper = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
-							helperName,
-							helperDescriptor,
-							null,
-							null); // TODO: add exception
-
-					mvHelper.visitCode();
-					mvHelper.visitVarInsn(ALOAD, 1);
-					mvHelper.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidObject", "getStorage", "()[Lplaid/fastruntime/PlaidObject;");
-					int index = ov.getStorageIndex(m.getName());
-					mvHelper.visitIntInsn(BIPUSH, index);
-					mvHelper.visitInsn(AALOAD);
-					mvHelper.visitInsn(ARETURN);
-					mvHelper.visitMaxs(2,2);
-					mvHelper.visitEnd();
-
-					mv = cw.visitMethod(ACC_PUBLIC+ACC_FINAL, 
-							m.getName(),
-							m.getMethodDescriptor(), null, null);
-					mv.visitVarInsn(ALOAD, 0);
-					mv.visitVarInsn(ALOAD, 1);
-					mv.visitMethodInsn(INVOKEVIRTUAL, name, helperName, helperDescriptor);
-					final String lambdaType = "plaid/fastruntime/PlaidLambda$" + m.numArgs();
-					mv.visitTypeInsn(CHECKCAST, lambdaType);
-					// add parameters
-					for (int x = 2; x <= m.numArgs()+1; x++ ) {
-						mv.visitVarInsn(ALOAD, x);
-					}
-					mv.visitMethodInsn(INVOKEVIRTUAL, lambdaType, "invoke$plaid", m.getMethodDescriptor());
-					mv.visitInsn(ARETURN);
-					mv.visitMaxs(3, 4);
-					mv.visitEnd();
 				}
 			}
 
