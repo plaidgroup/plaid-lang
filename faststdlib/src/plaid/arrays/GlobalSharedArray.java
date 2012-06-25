@@ -159,9 +159,9 @@ public class GlobalSharedArray extends AbstractPlaidDispatch implements Iinitial
 			final int index = toInt(indexVar);
 			if ( sa.accessOk(index)) {
 				PlaidDispatch opsDispatch = opsVar.getDispatch();
-				if ( opsDispatch instanceof IdoExclusive$1$plaid ) {
+				if ( opsDispatch instanceof IdoShared$1$plaid ) {
 					PlaidObject obj = sa.data[index];
-					return ((IdoExclusive$1$plaid)opsDispatch).doExclusive(opsVar, obj);
+					return ((IdoShared$1$plaid)opsDispatch).doShared(opsVar, obj);
 				} else {
 					throw new PlaidIllegalArgumentException("Illegal operations object");
 				}
@@ -222,9 +222,9 @@ public class GlobalSharedArray extends AbstractPlaidDispatch implements Iinitial
 			final int index = toInt(indexVar);
 			if ( sa.accessOk(index)) {
 				PlaidDispatch opsDispatch = opsVar.getDispatch();
-				if ( opsDispatch instanceof IdoExclusiveData1$2$plaid ) {
+				if ( opsDispatch instanceof IdoSharedData1$2$plaid ) {
 					PlaidObject obj = sa.data[index];
-					return ((IdoExclusiveData1$2$plaid)opsDispatch).doExclusiveData1(opsVar, obj, data);
+					return ((IdoSharedData1$2$plaid)opsDispatch).doSharedData1(opsVar, obj, data);
 				} else {
 					throw new PlaidIllegalArgumentException("Illegal operations object");
 				}
@@ -285,9 +285,9 @@ public class GlobalSharedArray extends AbstractPlaidDispatch implements Iinitial
 			final int index = toInt(indexVar);
 			if ( sa.accessOk(index)) {
 				PlaidDispatch opsDispatch = opsVar.getDispatch();
-				if ( opsDispatch instanceof IdoExclusiveData2$3$plaid ) {
+				if ( opsDispatch instanceof IdoSharedData2$3$plaid ) {
 					PlaidObject obj = sa.data[index];
-					return ((IdoExclusiveData2$3$plaid)opsDispatch).doExclusiveData2(opsVar, obj, d1, d2);
+					return ((IdoSharedData2$3$plaid)opsDispatch).doSharedData2(opsVar, obj, d1, d2);
 				} else {
 					throw new PlaidIllegalArgumentException("Illegal operations object");
 				}
