@@ -1,0 +1,83 @@
+package plaid.examples.globalSharedArrayTest;
+
+import plaid.arrays.GlobalSharedArray;
+import plaid.arrays.AbstractGlobalSharedArrayOperations;
+import plaid.arrays.makeGlobalSharedArray;
+
+/***************** data object *******************/
+
+state Data case of Object {
+    val immutable Integer value;
+}
+
+method unique Data makeData(immutable Integer value) {
+    new Data { val immutable Integer value = value; }
+}
+
+
+/***************** ops object *******************/
+
+state MySharedArrayOperations case of AbstractGlobalSharedArrayOperations {
+    method shared Object initialize(immutable Integer index) [ immutable MySharedArrayOperations this ] {
+        printLine("initialize " + index.toString());
+        makeData(index);
+    } 
+
+    override method immutable Boolean doExclusiveData1(shared ?Object obj, immutable Object data) [ immutable MySharedArrayOperations this ] {
+        printLine("doExclusive");
+        match (obj) {
+            case Data {
+                printLine("Element " );
+            }
+            default { 
+                printLine("Empty Slot");
+            }
+        };
+        true
+    }
+    
+    override method immutable Boolean doSharedData1(shared ?Object obj, immutable Object data) [ immutable MySharedArrayOperations this ] {
+        printLine("doShared");
+        match (obj) {
+            case Data {
+                printLine("Element " );
+            }
+            default { 
+                printLine("Empty Slot");
+            }
+        };
+        true
+    }
+}
+
+/***************** main *******************/
+
+method void main() {
+    val unique GlobalSharedArray sa = makeGlobalSharedArray(6);
+    val immutable MySharedArrayOperations ops = new MySharedArrayOperations;
+    val immutable Data data = makeData(0);
+    val unique Data data1 = makeData(1);
+    val unique Data data2 = makeData(2);
+    val unique Data data3 = makeData(3);
+    
+    //****** unique receiver
+    sa.doUniqueData1(1, ops, data);
+    sa.setUnique(1, data1);
+    sa.doUniqueData1(1, ops, data);
+    
+    //****** shared receiver
+    val shared GlobalSharedArray sa2 = sa;
+    sa2.doSharedData1(2, ops, data);
+    sa2.setShared(2, data2);
+    sa2.doSharedData1(2, ops, data);
+    
+    //****** local shared receiver
+    val local shared GlobalSharedArray sa3 = sa2;
+    sa3.doLocalSharedData1(3, ops, data);
+    sa3.setLocalShared(3, data3);
+    sa3.doLocalSharedData1(3, ops, data);
+    
+    //******* initialize
+    val unique GlobalSharedArray saInit = makeGlobalSharedArray(6);
+    saInit.initialize(ops);
+}
