@@ -1,4 +1,5 @@
-package plaid.HashtableBenchmark;
+package plaid.HashmapBenchmark;
+
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -22,7 +23,7 @@ public abstract class runBenchmark {
 		List<PlaidObject> allNumbers = new ArrayList<PlaidObject>(totalNumbers);
 		for (int i = 0; i < totalNumbers; i++ ) {
 			PlaidObject integer = plaid.fastruntime.Util.integer(i);
-			PlaidObject num = plaid.examples.lib.hashtable.makeNumber.invoke$plaid(integer);
+			PlaidObject num = plaid.examples.lib.hashmap.makeNumber.invoke$plaid(integer);
 			allNumbers.add(num);
 		}
 		
@@ -44,25 +45,25 @@ public abstract class runBenchmark {
 		return results;
 	}
 	
-	public static PlaidObject makeFineHashtabe(int order) {
+	public static PlaidObject makeFineHashmap(int order) {
 		PlaidObject porder= plaid.fastruntime.Util.integer(order);
-		return plaid.examples.lib.hashtable.fine.makeFineHashtable.invoke$plaid(porder);
+		return plaid.examples.lib.hashmap.fine.makeFineHashmap.invoke$plaid(porder);
 	}
 	
-	public static PlaidObject makeGlobalHashtabe(int order) {
+	public static PlaidObject makeGlobalHashmap(int order) {
 		PlaidObject porder= plaid.fastruntime.Util.integer(order);
-		return plaid.examples.lib.hashtable.global.makeGlobalHashtable.invoke$plaid(porder);
+		return plaid.examples.lib.hashmap.global.makeGlobalHashmap.invoke$plaid(porder);
 	}
 	
 	public static void addNumberUnique(final PlaidObject ht, List<PlaidObject> nums) {
 		for ( PlaidObject num : nums ) {
-			((plaid.generated.IaddUnique$1$plaid)ht.getDispatch()).addUnique(ht, num);
+			((plaid.generated.IaddUnique$2$plaid)ht.getDispatch()).addUnique(ht, num, num);
 		}
 	}
 	
 	public static void addNumberShared(final PlaidObject ht, List<PlaidObject> nums) {
 		for ( PlaidObject num : nums ) {
-			((plaid.generated.IaddShared$1$plaid)ht.getDispatch()).addShared(ht, num);
+			((plaid.generated.IaddShared$2$plaid)ht.getDispatch()).addShared(ht, num, num);
 		}
 	}
 	
@@ -191,8 +192,8 @@ public abstract class runBenchmark {
 			if ( Integer.valueOf(args[4]) > 0 ) { threadCount = Integer.valueOf(args[4]); }
 			if ( Integer.valueOf(args[3]) > 0 ) { order = Integer.valueOf(args[3]); }
 			if ( Integer.valueOf(args[2]) > 0 ) { totalNumbers = Integer.valueOf(args[2]); }
-			if ( args[0].toLowerCase().equals("fine") ) { ht = makeFineHashtabe(order); }
-			else if ( args[0].toLowerCase().equals("global") ) { ht = makeGlobalHashtabe(order); }
+			if ( args[0].toLowerCase().equals("fine") ) { ht = makeFineHashmap(order); }
+			else if ( args[0].toLowerCase().equals("global") ) { ht = makeGlobalHashmap(order); }
 			
 			if  ( args[1].toLowerCase().equals("shared") ) {
 				runSharedBenchmark(ht, totalNumbers, threadCount);
