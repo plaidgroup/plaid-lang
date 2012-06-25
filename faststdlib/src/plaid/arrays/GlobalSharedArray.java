@@ -87,10 +87,12 @@ public class GlobalSharedArray extends AbstractPlaidDispatch implements Iinitial
 		if ( thisVar instanceof GlobalSharedArrayPlaidJavaObject ) {
 			final GlobalSharedArrayPlaidJavaObject sa = (GlobalSharedArrayPlaidJavaObject)thisVar;
 			PlaidDispatch opsDispatch = opsVar.getDispatch();
-			if ( opsDispatch instanceof Iinitialize$2$plaid ) {
+			if ( opsDispatch instanceof Iinitialize$1$plaid ) {
 				for (int i = 0; i < sa.data.length; i++) {
 					sa.data[i] = ((Iinitialize$1$plaid)opsDispatch).initialize(opsVar, plaid.fastruntime.Util.integer(i));
 				}
+			} else {
+				throw new PlaidIllegalArgumentException("Operations does not support initialization.");
 			}
 		} else {
 			throw new PlaidIllegalArgumentException("Receiver to SharedArray is not a shard array.");
