@@ -361,7 +361,7 @@ public class SharedArray extends AbstractPlaidDispatch implements Iinitialize$1$
 		}
 		
 		public final boolean accessOk(int index) {
-			return index > 0 && index < data.length ;
+			return index >= 0 && index < data.length ;
 		}
 		
 		@Override
