@@ -87,35 +87,38 @@ public abstract class runBenchmark {
 		}
 	}
 	
-	public static void runUniqueBenchmark(final PlaidObject ht, int totalNumber, int threadCount) {
+	public static void runUniqueBenchmark(final PlaidObject ht, int totalNumber, int threadCount) throws InterruptedException {
 		final List<List<PlaidObject>> numberSets = createInputDataSets( totalNumber, threadCount);
 		
 		// create initialization tasks
-		Task initTask = new Task(0) {
+		Thread initTask = new Thread() {
+			
 			@Override
-			protected void compute() {
+			public void run() {
 				for ( List<PlaidObject> set : numberSets) {
 					addNumberUnique(ht, set);
 				}
 			}
 		};
 		long begin = System.nanoTime();
-		plaid.fastruntime.aeminium.Util.POOL.invoke(initTask);
+		initTask.start();
+		initTask.join();
 		long end = System.nanoTime();
 		double initTime = (end - begin) / (1000*1000*1000.0);
 		//System.out.println("initialization : " + formatter.format(initTime));
 		
 		// create check task
-		Task checkTask = new Task(0) {
+		Thread checkTask = new Thread() {
 			@Override
-			protected void compute() {
+			public void run() {
 				for ( List<PlaidObject> set : numberSets) {
 					checkNumberUnique(ht, set);
 				}
 			}
 		};
 		begin = System.nanoTime();
-		plaid.fastruntime.aeminium.Util.POOL.invoke(checkTask);
+		checkTask.start();
+		checkTask.join();
 		end = System.nanoTime();
 		double checkTime = (end - begin) / (1000*1000*1000.0);
 		//System.out.println("check          : " + formatter.format(checkTime));
@@ -124,51 +127,47 @@ public abstract class runBenchmark {
 		System.out.println(String.format("%.3f	%.3f", initTime, checkTime));
 	}
 	
-	public static void runSharedBenchmark(final PlaidObject ht, int totalNumber, int threadCount) {
+	public static void runSharedBenchmark(final PlaidObject ht, int totalNumber, int threadCount) throws InterruptedException {
 		final List<List<PlaidObject>> numberSets = createInputDataSets( totalNumber, threadCount);
 		
 		// create initialization tasks
-		final Collection<Task> initTasks = new ArrayList<Task>();
+		final Collection<Thread> initTasks = new ArrayList<Thread>();
 		for ( final List<PlaidObject> set : numberSets  ) {
-			initTasks.add(new Task(0) {
+			initTasks.add(new Thread() {
 				@Override
-				protected void compute() {
+				public void run() {
 					addNumberShared(ht, set);
 				}
 			});
 		}
-		Task initTasksStarter = new Task(0) {
-			@Override
-			protected void compute() {
-				invokeAll(initTasks);
-			}
-			
-		};
 		long begin = System.nanoTime();
-		plaid.fastruntime.aeminium.Util.POOL.invoke(initTasksStarter);
+		for (Thread t : initTasks) {
+			t.start();
+		}
+		for (Thread t : initTasks ) {
+			t.join();
+		}
 		long end = System.nanoTime();
 		double initTime = (end - begin) / (1000*1000*1000.0);
 		//System.out.println("initialization : " + formatter.format(initTime));
 		
 		// create checking tasks
-		final Collection<Task> checkTasks = new ArrayList<Task>();
+		final Collection<Thread> checkTasks = new ArrayList<Thread>();
 		for ( final List<PlaidObject> set : numberSets  ) {
-			checkTasks.add(new Task(0) {
+			checkTasks.add(new Thread() {
 				@Override
-				protected void compute() {
+				public void run() {
 					checkNumberShared(ht, set);
 				}
 			});
 		}
-		Task checkTasksStarter = new Task(0) {
-			@Override
-			protected void compute() {
-				invokeAll(checkTasks);
-			}
-			
-		};
 		begin = System.nanoTime();
-		plaid.fastruntime.aeminium.Util.POOL.invoke(checkTasksStarter);
+		for (Thread t : checkTasks) {
+			t.start();
+		}
+		for (Thread t : checkTasks ) {
+			t.join();
+		}
 		end = System.nanoTime();
 		double checkTime = (end - begin) / (1000*1000*1000.0);
 		//System.out.println("check          : " + formatter.format(checkTime));
@@ -181,7 +180,7 @@ public abstract class runBenchmark {
 		System.out.println("usage: runBenchmark  [fine|global] [shared|unique] [totalNumbers] [bucketOrder] [threads]");
 	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws InterruptedException {
 		if ( args.length != 5 ) {
 			usage("Need 4 arguments but only " + args.length + " have been provided.");
 		} else {
