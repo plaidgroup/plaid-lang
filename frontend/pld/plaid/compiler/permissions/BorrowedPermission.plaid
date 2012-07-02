@@ -1,0 +1,120 @@
+/**
+ * Copyright (c) 2011 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.compiler.permissions;
+
+import plaid.compiler.Permission;
+
+/**
+ *	BorrwedPermissions are similar to local permissions, but they record
+ *	an original permissions from which a local permission was pulled
+ *  from (unique or local), and how many splits have occurred.
+ *  This allows the original permission to be restored when the
+ *  splits have been returned.	
+ */
+state BorrowedPermission case of SystemPermission {
+	val immutable SymmetricPermission thePerm;
+	val immutable SourcePermission originalPerm;
+	val immutable Integer splitCount;
+	
+	/**
+	 * if the underlying permission allows writing, so does the borrowed
+	 */
+	method immutable Boolean isWritable()[immutable BorrowedPermission this]	
+	    { this.thePerm.isWritable() }
+	    
+
+	 /**
+   * if the underlying permission guarantees the state, so does the borrowed
+   */
+	method immutable Boolean guaranteesState()[immutable BorrowedPermission this]	
+	    { this.thePerm.guaranteesState() }
+	
+	method immutable Boolean ==(immutable Permission other)[immutable BorrowedPermission this] {
+		match (other) {
+			case BorrowedPermission { 
+				this.thePerm == other.thePerm &&
+				this.originalPerm == other.originalPerm &&
+				this.splitCount == other.splitCount
+			}
+			default { false }
+		}
+	}
+	
+	method immutable String toString()[immutable BorrowedPermission this] {
+		"borrow(" + this.originalPerm.toString() + ", " + this.thePerm.toString() + ", " 
+		 + this.splitCount + ")"
+	}
+	
+	/**
+	 *  We can only split local permissions from a borrowed permission
+	 *  and only if the underlying permissions match
+	 *  If they do, then we increment the split counter in the returned
+	 *  borrowed permission
+	 */
+	method immutable ?Permission splitPerm(immutable Permission p2)[immutable BorrowedPermission this] {
+		match (p2) {
+			case LocalPermission {
+				match ( p2.thePerm == this.thePerm )  {
+    				case True { makeBorrowedPerm(this.thePerm, 
+									   this.originalPerm, 
+									   this.splitCount + 1) }
+					case False { unit }
+				}
+			}
+			case NonePermission { this }
+			default { unit }
+		}														
+	}
+	
+	/**
+	 * if we return a local permission matching the underlying permission
+	 * of this borrow, then we decrement the split counter.  If the split
+	 * counter reaches 0, then we return the original permission.
+	 */
+	method immutable ?Permission returnPerm(immutable SourcePermission p2)
+	                                [immutable BorrowedPermission this]	 {
+		match (p2) {
+			case LocalPermission {
+				match ( this.thePerm == p2.thePerm ) {
+				    case True {
+					    match ( this.splitCount == 1 ) { 
+	    					case True { this.originalPerm }
+					        case False { 
+						        makeBorrowedPerm(this.thePerm,
+										 this.originalPerm,
+										 this.splitCount - 1)
+							}
+						}
+					}
+				    case False {
+						this.incompatibleReturnError(p2);
+						unit;	
+					}
+				}
+			}
+			case NonePermission { this }
+			default { 
+				this.incompatibleReturnError(p2);
+				unit
+			}
+		}
+	}
+}
+

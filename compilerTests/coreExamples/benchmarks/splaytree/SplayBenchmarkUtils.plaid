@@ -1,0 +1,107 @@
+package coreExamples.benchmarks.splaytree;
+
+state SplayBenchmarkUtils {
+	// had to modify some of the constants used in the original V8 
+	// benchmarks because Plaid would run the JVM out of memory
+	// and/or overflow the stack with the original numbers
+	val /* immutable Integer */ kSplayTreeSize = 1000 /* 8000 */;
+	val /* immutable Integer */ kSplayTreeModifications = 80;
+	val /* immutable Integer */ kSplayTreePayloadDepth = 3 /* 5 */;
+	
+	var /* unique SplayTree */ tree;
+
+	method /* */ generatePayloadTree(immutable Integer depth, immutable String tag) {
+		ifElse (depth == 0) {
+			new PayloadLeaf { val str = "String for key " + tag + " in leaf node"; };
+		}{
+			val l = generatePayloadTree(depth - 1, tag);
+			val r = generatePayloadTree(depth - 1, tag);
+			new PayloadNode { val left = l; val right = r; };
+		};
+	}
+
+	method unit insertNewNode() {
+		var rand = java.util.Random.new();
+		var key = rand.nextDouble();
+		while { this.tree.containsKey(key) } {
+			key = rand.nextDouble();
+		};
+		var payload = generatePayloadTree(this.kSplayTreePayloadDepth, key.toString());
+		this.tree.insert(key, payload);
+		key;
+	}
+	
+	method unit splayTreeSetup() {
+		this.tree = new SplayTree;
+		var i = 0;
+		while { i < this.kSplayTreeSize } {
+			this.insertNewNode();
+			i = i + 1;
+		};
+	}
+	
+	method unit splayTreeTeardown() {
+		var keys = java.util.ArrayList.new();
+		this.tree.exportKeys(keys);
+		ifElse (keys.size() != kSplayTreeSize) {
+			printLine("ERROR: Splay tree has wrong size!");
+			printLine("Expected size: " + kSplayTreeSize);
+			printLine("Actual size: " + keys.length());
+		}{
+			printLine("Splay tree has correct size.");
+		};
+		this.splayTreeTeardownHelper(keys);
+	}
+	
+	method unit splayTreeTeardownHelper(list) {
+		/* look at the head of the list */
+		var i = 1;
+		while { i < list.size() } {
+			val lastKey = list.get(i - 1);
+			val key = list.get(i);
+			if (lastKey > key) {
+				printLine("ERROR: keys not in order!");
+				printLine("" + i + ": prev key = " + lastKey + ", curr key = " + key);
+				this.printKeys(list);
+				// set i so we break out of the loop
+				i = list.size() + 1;
+			};
+			i = i + 1;
+		};
+		
+		// if we iterated all the way through without upsetting
+		// anything, then i will be equal to the size of the list
+		ifElse (i == list.size()) {
+			printLine("Test passed.");
+		}{
+			printLine("Test failed!.");
+		};
+	}
+	
+	method unit printKeys(/* ArrayList */ list) {
+		printLine("[");
+		var i = 0;
+		while { i < list.size() } {
+			printLine("\t" + list.get(i) + ",");
+			i = i + 1;
+		};
+		printLine("]");
+	}
+	
+	method unit splayRun() {
+		var i = 0;
+		while { i < this.kSplayTreeModifications } {
+			var key = this.insertNewNode();
+			var greatestOpt = tree.findGreatestLessThan(key);
+			match(greatestOpt) {
+				case Some {
+					tree.remove(greatestOpt.value.key);
+				}
+				case None {
+					tree.remove(key);
+				}
+			};
+			i = i + 1;
+		};
+	}
+}

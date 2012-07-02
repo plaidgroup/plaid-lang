@@ -1,0 +1,795 @@
+
+package plaid.compiler;
+
+import plaid.compiler.Reporter;
+import plaid.compiler.reporter.*;
+
+import plaid.compiler.resolver.ClasspathResolver;
+
+import plaid.compiler.context.*;
+import plaid.compiler.passes.*;
+import plaid.compiler.javatobytecode.*;
+
+import plaid.compiler.util.classpathToList;
+
+import java.lang.System;
+
+import plaid.fastruntime.dcg.DispatchGenerator;
+import plaid.fastruntime.dcg.InterfaceGenerator;
+import plaid.fastruntime.ErrorCodes;
+
+
+import plaid.collections.makeLinkedList;
+
+
+/*****************************************************************************
+ ** global configs
+ ****************************************************************************/
+
+var ENABLE_TYPECHECKING = true;
+var ENABLE_AEMINIUM     = false;
+var ENABLE_JAVASCRIPT   = true;
+var CONFIGURATION       = "Empty";
+
+method immutable Boolean AEMINIUM_MODE() { ENABLE_AEMINIUM }
+method immutable Boolean TYPECHECKING_MODE() { ENABLE_TYPECHECKING }
+method immutable Boolean JAVASCRIPT_MODE() { ENABLE_JAVASCRIPT }
+method immutable CompilerConfiguration COMPILER_CONFIGURATION() { CONFIGURATION }
+
+/*****************************************************************************
+ ** debugging
+ ****************************************************************************/
+
+var immutable Integer DEBUG_LEVEL = 0;
+
+method void INFO(immutable String msg) {
+    if ( 0 < DEBUG_LEVEL ) {
+        printLine("[INFO   ] " + msg);
+    }
+}
+
+method void WARNING(immutable String msg) {
+    if ( 0 < DEBUG_LEVEL ) {
+        printLine("[WARNING] " + msg);
+    }
+}
+
+method void ERROR(immutable String msg) {
+    printLine("[ERROR  ] " + msg);
+}
+
+val DEBUG_PRIO_HIGH   = 1;
+val DEBUG_PRIO_MEDIUM = 2;
+val DEBUG_PRIO_LOW    = 3;
+
+method void DEBUG(immutable Integer level, immutable String msg) {
+    if ( level <= DEBUG_LEVEL) {
+       printLine("[DEBUG  ] " + msg);
+    }
+}
+
+method void DEBUG_DO(immutable Integer level, lambda) {
+    if ( level <= DEBUG_LEVEL ) {
+        lambda()
+    }
+}
+
+/*****************************************************************************
+ ** ERROR REPORTING
+ ****************************************************************************/
+val unique Reporter globalReporter = new ConsoleReporter;
+
+method void report_ERROR(immutable Token t, immutable String errorCode, immutable String data, immutable String pass) {
+    if ( 0 < DEBUG_LEVEL ) {
+        val message = ErrorCodes.getMessage(errorCode) + data;
+        printLine("[ERROR  ] <" + pass + "> " + message);
+    };
+    plaid.compiler.globalReporter.errorToken(t, errorCode, data);
+    unit;
+}
+
+method void report_WARNING(immutable Token t, immutable String errorCode, immutable String data, immutable String pass) {
+    if ( 0 < DEBUG_LEVEL ) {
+    	val message = ErrorCodes.getMessage(errorCode) + data;
+        printLine("[WARNING] <" + pass + "> " + message);
+    };
+    plaid.compiler.globalReporter.warningToken(t, errorCode, data);
+    unit;
+}
+
+method void report_INFO(immutable Token t, immutable String errorCode, immutable String data, immutable String pass) {
+    if ( 0 < DEBUG_LEVEL ) {
+    	val message = ErrorCodes.getMessage(errorCode) + data;
+        printLine("[INFO   ] <" + pass + "> " + message);
+    };
+    plaid.compiler.globalReporter.infoToken(t, errorCode, data);
+    unit;
+}
+
+
+/*****************************************************************************
+ ** ASSERT
+ ****************************************************************************/
+
+method void ASSERT(immutable Boolean assertion, immutable String msg) {
+    if ( assertion == false ) {
+        ABORT("*** ASSERTION FAILED : " + msg);
+    }
+}
+
+
+/*****************************************************************************
+ ** command line handling
+ ****************************************************************************/
+method showUsage() {
+    printLine("usage: plaidc [OPTIONS] [FILES]");
+    printLine("");
+    printLine("Options:");
+    printLine(" -a | --aeminium             Enable AEminium mode.");
+    printLine(" -j | --javascript           Output JavaScript.");
+    printLine(" -n | --no-typecheck         Disable typechecking.");
+    printLine(" -d | --debug  <LEVEL>       Set the default level for debug output (0,1,2,3).");
+    printLine(" -f | --force-recompile      Generate output files even if source files are older.");
+    printLine(" -h | --help                 This message.");
+    printLine(" -i | --input  <DIR>         The directory of Plaid files to compile.");
+    printLine(" -k | --keep                 Keep temporary files.");
+    printLine(" -o | --output <DIR>         The directory to put generated files.");
+    printLine(" -p | --plaidpath <DIR>      A path where plaid sources are stored.");
+    printLine(" -t | --temp <DIR>           The directory to put temporary generated files.");
+    printLine(" -v | --version              The version of the current compiler.");
+    printLine(" -V | --viewAST              View the AST of the compiled files.");  
+    printLine(" -s | --symbolMap            Dump symbol map after compilation");
+    printLine(" -c | --no-codegen			Do not generate code.");
+    printLine(" -b | --no-bytecode          Do not compile generated Java file to byte code.");
+    printLine(" -bc| --bytecode-classpath   Classpath for java compilation.");
+    printLine(" -D | --define key=value     Defines internal values of the implementation.");   
+    printLine(" -e | --compactErrors        Reports Errors in a compact format for compilation tests.");
+    printLine("      --bootclasspath        Override the internal classpath for bootstrap classes.");
+}
+
+
+method showVersion() {
+    printLine("Plaid Compiler version 2.0");
+}
+
+
+method immutable String makePathCanonical(immutable String path) {
+    val file = java.io.File.new(path);
+    file.getCanonicalPath();
+}
+
+
+method parseCommandLineArgs(args) {
+    var abort = false;
+    
+    var keep       = false;
+    var force      = false;
+    var outputDir  = "";
+    var tempDir    = "";
+    var inputDir   = "";
+    var plaidpath  = makeLinkedList();
+    var bytecodeClasspath  = makeLinkedList();
+    var inputFiles = makeLinkedList();
+    var propertyMap = java.util.HashMap.new();
+    var enableTypechecking = true;
+    var enableAeminium = false;
+    var viewAST = false;
+    var dumpSymbolMap = false;
+    var enableCodegen = true;
+    var enableBytecode = true;
+    var compactErrors = false;
+    var bootClasspath = makePathCanonical("../faststdlib/pld");
+    var targetJavascript = false;
+    
+    while { !abort && !args.isEmpty() }{
+        var handled = false;
+        if ( args.car().equals("-h") || args.car().equals("--help") ) {
+            handled = true;
+            showUsage();
+            abort = true
+        };
+        if ( args.car().equals("-v") || args.car().equals("--version") ) {
+            handled = true;
+            showVersion();
+            abort = true
+        };
+        if ( args.car().equals("-a") || args.car().equals("--aeminium") ) {
+            handled = true;
+            enableAeminium = true;
+            ENABLE_AEMINIUM = true;
+            DEBUG(DEBUG_PRIO_HIGH, "Found enable AEMINIUM option " + enableAeminium);
+        };
+        if ( args.car().equals("-n") || args.car().equals("--no-typechecking") ) {
+            handled = true;
+            enableTypechecking = false;
+        };
+        if ( args.car().equals("-b") || args.car().equals("--no-bytecode") ) {
+            handled = true;
+            enableBytecode = false;
+        };
+        if ( args.car().equals("-d") || args.car().equals("--debug") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-d' option requires a parameter.");
+                abort = true
+            }{
+                val debugValueString = args.car().trim();
+                // cannot use valueOf because we cannot handle exceptions
+                if ( debugValueString.equals("1") ) {
+                    DEBUG_LEVEL = 1;
+                };
+                if ( debugValueString.equals("2") ) {
+                    DEBUG_LEVEL = 2;
+                };
+                if ( debugValueString.equals("3") ) {
+                    DEBUG_LEVEL = 3;
+                };
+                DEBUG(DEBUG_PRIO_MEDIUM, "Found debug option '" + args.car() + "'.");
+            }
+        };       
+        if ( args.car().equals("--bootclasspath") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-o' option requires a parameter.");
+                abort = true
+            }{
+                bootClasspath = makePathCanonical(args.car());
+                DEBUG(DEBUG_PRIO_MEDIUM, "Found bootclasspath directory option '" + args.car() + "'.");
+            }
+        }; 
+        if ( args.car().equals("-o") || args.car().equals("--output") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-o' option requires a parameter.");
+                abort = true
+            }{
+                outputDir = makePathCanonical(args.car());
+                DEBUG(DEBUG_PRIO_MEDIUM, "Found output directory option '" + args.car() + "'.");
+            }
+        };        
+        if ( args.car().equals("-t") || args.car().equals("--temp") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-t' option requires a parameter.");
+                abort = true
+            }{
+                tempDir = makePathCanonical(args.car());
+                DEBUG(DEBUG_PRIO_MEDIUM, "Found temporary directory option '" + args.car() + "'.");
+            }
+        };
+        if ( args.car().equals("-i") || args.car().equals("--input") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-i' option requires a parameter.");
+                abort = true
+            }{
+                inputDir = makePathCanonical(args.car());
+                DEBUG(DEBUG_PRIO_MEDIUM, "Found input directory option '" + args.car() + "'.");
+            }
+        };
+        if ( args.car().equals("-p") || args.car().equals("--plaidpath") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-p' option requires a parameter.");
+            }{
+                val elems = classpathToList( args.car() );
+                elems.map(fn (elem) => plaidpath.add(makePathCanonical(elem)) );
+                DEBUG(DEBUG_PRIO_MEDIUM, "Found plaidpath option '" + args.car()  + "'.");
+            }
+        };  
+        if ( args.car().equals("-bc") || args.car().equals("--bytecodeClasspath") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-bc' option requires a parameter.");
+            }{
+                val elems = classpathToList( args.car() );
+                elems.map(fn (elem) => bytecodeClasspath.add(makePathCanonical(elem)) );
+                DEBUG(DEBUG_PRIO_MEDIUM, "Found plaidpath option '" + args.car()  + "'.");
+            }
+        };  
+        if ( args.car().equals("-f") || args.car().equals("--force") ) {
+            handled = true;
+            force = true
+        };        
+        if ( args.car().equals("-k") || args.car().equals("--keep") ) {
+            handled = true;
+            force = true
+        };    
+        if ( args.car().equals("-V") || args.car().equals("--viewAST") ) {
+            handled = true;
+            viewAST = true;
+        };
+        if ( args.car().equals("-s") || args.car().equals("--symbolMap") ) {
+            handled = true;
+            dumpSymbolMap = true;
+        };
+        if ( args.car().equals("-c") || args.car().equals("--no-codegen") ) {
+            handled = true;
+            enableCodegen = false;
+        };
+        if ( args.car().equals("-D") || args.car().equals("--define") ) {
+            handled = true;
+            args = args.cdr();
+            ifElse ( args.car().isEmpty() || args.car().startsWith("-") ) {
+                printLine("The '-D'/'--define' option requires a parameter.");
+                abort = true
+            }{
+                val argument = args.car();
+                DEBUG(DEBUG_PRIO_MEDIUM, "Found defintion of value '" + argument + "'.");
+
+                ifElse ( argument.contains("=") == true ) {
+                    val key = argument.substring(0, argument.indexOf("=") ).trim();
+                    val value = argument.substring(argument.indexOf("=") +1, argument.length()).trim();
+                    DEBUG(DEBUG_PRIO_LOW, "   found key '" + key +"'");
+                    DEBUG(DEBUG_PRIO_LOW, "   found value '" + value +"'");
+                    propertyMap.put(key, value);
+                }{
+                    printLine("The -D option requires a key=value argument. No '=' found.");
+                    abort = true
+                };                
+            };
+        };  
+        if ( args.car().equals("-e") || args.car().equals("--compactErrors") ) {
+            handled = true;
+            compactErrors = true;
+        };
+        if ( args.car().equals("-j") || args.car().equals("--javascript") ) {
+            handled = true;
+            targetJavascript = true;
+            ENABLE_JAVASCRIPT = true;
+            enableBytecode = false;
+            DEBUG(DEBUG_PRIO_HIGH, "Setting target to JavaScript");
+        };
+        ifElse ( !handled ) {
+            ifElse ( args.car().startsWith("-") ) {
+                printLine("Unsupported option: " + args.car());
+                abort = true
+            }{
+                // add remaining arguments as input files 
+                ifElse ( inputDir.length() > 0 ) {
+                    printLine("Cannot specify input directory '-i' and explicit files. Make your choice.");
+                    abort = true
+                }{
+                    args.map( fn (x) => {
+                        val file = java.io.File.new(x);
+                        val absPath = file.getCanonicalPath();
+                        DEBUG(DEBUG_PRIO_MEDIUM, "Found input file  '" + absPath  + "'.");
+                        inputFiles.add(absPath)
+                    });
+                    args = makeEmptyList()
+                }
+            };
+        }{        
+            args = args.cdr();
+        };
+    };
+
+    if ( inputDir == "" && inputFiles.isEmpty() ) {
+        printLine("You must specify either an input directory('-i') or explicit file names.");
+        abort = true
+    };
+   
+    match (abort) {
+        case True  { new None; }
+        default    { 
+            makeSome((new CompilerConfiguration {
+                val plaidpath   = plaidpath;
+                val bytecodeClasspath = bytecodeClasspath;
+                val force       = force;
+                val keep        = keep;
+                val outputDir   = outputDir;
+                val inputDir    = inputDir;
+                val tempDir     = tempDir;
+                val inputFiles  = inputFiles;
+                val enableTypechecking = enableTypechecking;
+                val enableAeminium = enableAeminium;
+                val viewAST = viewAST;
+                val dumpSymbolMap = dumpSymbolMap;
+                val enableCodegen = enableCodegen;
+                val enableBytecode = enableBytecode;
+                val compactErrors = compactErrors;
+                val propertyMap = propertyMap;
+                val bootClasspath = bootClasspath;
+                val targetJavascript = targetJavascript;
+            }).expand()); 
+        }        
+    }
+}
+
+
+/*****************************************************************************
+ ** Job Management 
+ ****************************************************************************/
+var shared List jobs = makeLinkedList();
+
+method void addJob(unique Job job) {
+    DEBUG(DEBUG_PRIO_LOW, "<Jobs> add job '" + job.source.path + "'");
+    jobs.add(job)
+}
+
+method runJobToParsingBarrierPass(job) {
+    DEBUG(DEBUG_PRIO_LOW, "<Jobs> start to run job to ParsingBarrier '" + job.source.path + "'");
+    match (job.noErrors) {
+        case False {
+            DEBUG(DEBUG_PRIO_LOW, "<Jobs> Errors in previous passes - no passes run for '" + job.source.path + "'");
+        }
+        case True { /* no op */ }
+    };
+    
+    var done = false;
+    while { job.isReady() && !done  } {
+        val nextPass = job.getNextPass();
+        match (nextPass) {
+            case ParsingBarrierPass {
+                done = true;
+            }
+            default {
+                job.noErrors = nextPass.run(job);
+            }
+        };
+    };
+    DEBUG(DEBUG_PRIO_LOW, "<Jobs> finished to run job to ParsingBarrier '" + job.source.path + "'");
+    job
+}
+
+method void runJobsToParsingBarrierPass() {
+    jobs.map( fn (job) => {
+        runJobToParsingBarrierPass(job);
+    });
+}
+
+method void runJobsToNameResolutionBarrierPass() {
+    jobs.map( fn (job) => {
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> start to run job to NameResolutionBarrierPass '" + job.source.path + "'");
+        match (job.noErrors) {
+            case False {
+                DEBUG(DEBUG_PRIO_LOW, "<Jobs> Errors in previous passes - no passes run for '" + job.source.path + "'");
+            }
+            case True { /* no op */ }
+        };
+        
+        var done = false;
+        while { job.isReady() && !done  } {
+            val nextPass = job.getNextPass();
+            match (nextPass) {
+                case NameResolutionBarrierPass {
+                    done = true;
+                }
+                default {
+                    job.noErrors = nextPass.run(job);
+                }
+            };
+        };
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> finished to run job to NameResolutionBarrierPass '" + job.source.path + "'");
+        job
+    });
+}
+
+
+method void runJobsToTypeResolutionBarrierPass() {
+    jobs.map( fn (job) => {
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> start to run job to TypeResolutionBarrierPass '" + job.source.path + "'");
+        match (job.noErrors) {
+            case False {
+                DEBUG(DEBUG_PRIO_LOW, "<Jobs> Errors in previous passes - no passes run for '" + job.source.path + "'");
+            }
+            case True { /* no op */ }
+        };
+        
+        var done = false;
+        while { job.isReady() && !done  } {
+            val nextPass = job.getNextPass();
+            match (nextPass) {
+                case TypeResolutionBarrierPass {
+                    done = true;
+                }
+                default {
+                    job.noErrors = nextPass.run(job);
+                }
+            };
+        };
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> finished to run job to TypeResolutionBarrierPass '" + job.source.path + "'");
+        job
+    });
+}
+
+method void runJobsToTypecheckBarrierPass() {
+    jobs.map( fn (job) => {
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> start to run job to TypecheckBarrierPass '" + job.source.path + "'");
+        match (job.noErrors) {
+            case False {
+                DEBUG(DEBUG_PRIO_LOW, "<Jobs> Errors in previous passes - no passes run for '" + job.source.path + "'");
+            }
+            case True { /* no op */ }
+        };
+        
+        var done = false;
+        while { job.isReady() && !done  } {
+            val nextPass = job.getNextPass();
+            match (nextPass) {
+                case TypecheckBarrierPass {
+                    done = true;
+                }
+                default {
+                    job.noErrors = nextPass.run(job);
+                }
+            };
+        };
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> finished to run job to TypecheckBarrierPass '" + job.source.path + "'");
+        job
+    });
+}
+
+
+method void runJobsToCompletion() {
+    jobs.map( fn (job) => {
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> start to run job to completion '" + job.source.path + "'");
+        match (job.noErrors) {
+            case False {
+                DEBUG(DEBUG_PRIO_LOW, "<Jobs> Errors in previous passes - no passes run for '" + job.source.path + "'");
+            }
+            case True { /* no op */ }
+        };
+        
+        while { job.isReady() } {
+            job.noErrors = job.getNextPass().run(job);
+        };
+        DEBUG(DEBUG_PRIO_LOW, "<Jobs> finished to run job to completion '" + job.source.path + "'");
+        job
+    });
+}
+
+method unique List getInternalJobPasses(immutable CompilerConfiguration cc) {
+    getJobPassesHelper(cc, false)
+}
+
+method unique List getJobPasses(immutable CompilerConfiguration cc) {
+    getJobPassesHelper(cc, true)
+}
+
+method unique List getJobPassesHelper(immutable CompilerConfiguration cc, immutable Boolean userJob) {
+    val passes = makeLinkedList();
+
+    // parsing and basic checks pass 
+    passes.add(new ParsePass);
+    passes.add(new FileSystemCheckPass);
+    passes.add(new ImportCheckPass);
+    passes.add(new ParsingBarrierPass);
+    if (cc.viewAST && userJob) { passes.add(new ASTViewerPass) }; 
+
+    // name expanding passes
+    passes.add(new NameResolutionPass);
+    passes.add(new NameResolutionBarrierPass);
+
+    // type resolution pass 
+    if (cc.enableTypechecking) { passes.add(new TypeResolutionPass) };
+    passes.add(new TypeResolutionBarrierPass);
+
+    // type check pass
+    if (cc.enableTypechecking) { passes.add(new TypecheckPass) };
+    passes.add(new TypecheckBarrierPass);
+
+    // AEminium passes
+    if (cc.enableAeminium && cc.enableTypechecking) {
+      passes.add(new AEminiumPass);
+      passes.add(new TaskBuilderPass);
+    };
+    
+    // code generator pass
+    if(cc.enableCodegen && userJob) {
+        passes.add(new TailCallFinderPass);
+    	passes.add(new CodeGenPass);
+    };
+
+    passes
+}
+
+/*****************************************************************************
+ ** global symbol map
+ ****************************************************************************/
+ 
+val shared InterfaceGenerator INTERFACE_GEN = InterfaceGenerator.new();
+val shared DispatchGenerator DISPATCH_GEN = DispatchGenerator.new();
+val shared StorageGenerator STORAGE_GEN = StorageGenerator.new();
+
+/*****************************************************************************
+ ** global symbol map
+ ****************************************************************************/
+var shared Map globalSymbolMap = java.util.IdentityHashMap.new();
+
+method void addSymbolForAST(immutable ASTNode node, shared Symbol symbol) {
+     globalSymbolMap.put(node, symbol);
+}
+
+method void delSymbolForAST(immutable ASTNode node) {
+    // we cannot remove the elements from the map because the 'remove'
+    // method collides with Plaid's 'remove' keyword.
+    globalSymbolMap.put(node, NONE);
+}
+
+method immutable Option symbolForAST(immutable ASTNode node) {
+    ifElse (globalSymbolMap.containsKey(node) ) {
+        makeSome(globalSymbolMap.get(node));
+    }{
+        NONE
+    }
+}
+
+method immutable Boolean haveSymbolForAST(immutable ASTNode node) {
+    ifElse (globalSymbolMap.containsKey(node) ) {
+        true
+    }{
+        false
+    }
+}
+
+method immutable String printSymbolMap() {
+	var ret = "";
+	val it = globalSymbolMap.keySet().iterator();
+
+	while { it.hasNext() } {
+		val key = it.next();
+		val symbol = globalSymbolMap.get(key);
+		ret = ret + key.shortString() + " -> " + symbol.symbolType() + "\n"; 
+	};
+	ret
+}
+
+
+/*****************************************************************************
+ ** global type map ASTNode -> Structure
+ ****************************************************************************/
+var shared Map globalStructureMap = java.util.IdentityHashMap.new();
+
+method void addStructureForAST(immutable ASTNode node, immutable Structure struct) {
+     globalStructureMap.put(node, struct);
+}
+
+method immutable Option structureForAST(immutable ASTNode node) {
+    ifElse (globalStructureMap.containsKey(node) ) {
+        makeSome(globalStructureMap.get(node));
+    }{
+        NONE
+    }
+}
+
+method immutable Option haveStructureForAST(immutable ASTNode node) {
+    ifElse (globalStructureMap.containsKey(node) ) {
+        true
+    }{
+        false
+    }
+}
+
+
+/*****************************************************************************
+ ** ABORT
+ ****************************************************************************/
+method ABORT(immutable String message) {
+    printLine("*** INTERNAL COMPILER ERROR: " + message);
+    plaid.compiler._native.throwAbortException();
+}
+
+
+/*****************************************************************************
+ ** initialize global data structures 
+ ****************************************************************************/
+method void init() {
+    DEBUG_LEVEL = 0;
+    ENABLE_AEMINIUM = false;
+    ENABLE_TYPECHECKING = true;
+    ENABLE_JAVASCRIPT = true;
+    
+    // cleanup until refactoring is in place
+    plaid.compiler.globalStructureMap.clear();
+    plaid.compiler.globalSymbolMap.clear();
+    plaid.compiler.aeminium.aeminiumSymbolToDepsMap.clear();
+    plaid.compiler.aeminium.aeminiumASTToDepsMap.clear();
+    plaid.compiler.aeminium.aeminiumSLocToDepInfo.clear();
+    plaid.compiler.aeminium.cheapMethodCache.clear();
+    jobs = makeLinkedList();
+    plaid.compiler.globalReporter.clearErrors();
+}
+
+/*****************************************************************************
+ ** entry point 
+ ****************************************************************************/
+method main(args) {
+
+    init();
+
+    val unique Option result = parseCommandLineArgs(args);
+   
+    match (result) {
+        case Some {
+            val unique CompilerConfiguration cc = result.value;
+            CONFIGURATION = cc;
+            val sourceJobs = makeEmptyList();
+            val shared Resolver resolver = new ClasspathResolver { config = cc; };
+
+            val compilerPasses = getJobPasses(cc);
+
+            cc.inputFiles.map(fn (path) => {
+                val stream =java.io.FileInputStream.new(java.io.File.new(path));
+                val source = new Source { val path = path; val stream = stream; };
+                val job = new UserJob { 
+                    val source = source; 
+                    val resolver = resolver;
+                    var passes = compilerPasses.map(fn(p) => p);
+                };
+                
+                // add to source jobs
+                addJob(job);
+            });                                        
+
+            // parse jobs
+            runJobsToParsingBarrierPass();
+
+            // expand names
+            runJobsToNameResolutionBarrierPass();
+
+            // resolve types/symbols
+            runJobsToTypeResolutionBarrierPass();            
+
+            // typecheck
+            runJobsToTypecheckBarrierPass();    
+
+            // run remaining passes 
+            runJobsToCompletion();
+
+            // compile the             
+            if ( cc.enableBytecode && cc.enableCodegen) {
+                DEBUG(DEBUG_PRIO_HIGH, "<main> Compile generated files");
+                val unique LinkedList fileList = java.util.LinkedList.new();
+                jobs.map( fn (job) => {
+                    job.generatedFiles.do( fn (path) => {
+                        val file = java.io.File.new(path);
+                        //if ( cc.keep == false ) {
+                        //    file.deleteOnExit();
+                        //};
+                        fileList.add(file);
+                        DEBUG(DEBUG_PRIO_MEDIUM, "       - " + path);
+                    });
+                    job
+                }); 
+                
+                if ( fileList.size() > 0 ) {
+                    val javaCompiler = getJavaCompiler(cc);
+                    javaCompiler.compile(fileList);
+                }
+            };
+
+            //dump symbol map
+            if (cc.dumpSymbolMap) {
+            	printLine(printSymbolMap())
+            };
+            
+            //report errors
+            match (cc.compactErrors) {
+                case True {
+                    globalReporter.compactReport();
+                }
+                case False {
+                    globalReporter.report();
+                    printLine("");
+                }
+            };
+            match (globalReporter.wereErrors()) {
+                case True { printLine("Compilation FAILED!"); }
+                case False { printLine("Compilation Succeeded!"); }
+            };
+            
+
+        }
+        default {
+            printLine("Could not find any source files.");
+        }
+    }
+}

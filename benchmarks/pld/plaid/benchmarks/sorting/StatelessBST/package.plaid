@@ -1,0 +1,273 @@
+package plaid.benchmarks.sorting.StatelessBST;
+
+import plaid.collections.makeArray;
+import java.util.Random;
+
+state Node {
+	var value;
+	var parent;
+	var tree;
+	var left = new Empty;
+	var right = new Empty;
+	
+	method add(elem) {
+		match (elem > this.value) {
+			case True {
+				match (this.right) {
+					case Node {
+						this.right.add(elem);
+					}
+					case Empty {
+						this.right = new Node { var value = elem; var parent = this; var tree = this.tree; }
+					}
+				};
+			}
+			case False {
+				match (this.left) {
+					case Node {
+						this.left.add(elem);
+					}
+					case Empty {
+						this.left = new Node { var value = elem; var parent = this; var tree = this.tree; }
+					}
+				};
+			}
+		};
+	}
+	
+	method contains(elem) {
+		match (elem > this.value) {
+			case True {
+				match (this.right) {
+					case Node {
+						this.right.contains(elem);
+					}
+					case Empty {
+						False;
+					}
+				};
+			}
+			case False {
+				match (elem == this.value) {
+					case True {
+						True;
+					}
+					case False {
+						match (this.left) {
+							case Node {
+								this.left.contains(elem);
+							}
+							case Empty {
+								False;
+							}
+						};
+					}
+				};
+			}
+		};
+	}
+	
+	method deleteMin() {
+		match (this.left) {
+			case Node {
+				this.left.deleteMin();
+			}
+			case Empty {
+				match (this.parent.right == this) {
+					case True {
+						this.parent.right = new Empty;
+						this;
+					}
+					case False {
+						this.parent.left = new Empty;
+						this;
+					}
+				};
+			}
+		};
+	}
+	
+	method swapInPlace(swap) {
+		match (this.parent.right == this) {
+			case True {
+				this.parent.right = swap;
+			}
+			case False {
+				this.parent.left = swap;
+			}
+		};
+		match (swap) {
+			case Node {
+				swap.parent = this.parent;
+			}
+		};
+	}
+	
+	method replaceParentChild(node) {
+		match (this.parent) {
+			case Node {
+				match (this.value > this.parent.value) {
+					case True {
+						this.parent.right = node;
+					}
+					case False {
+						this.parent.left = node;
+					}
+				};
+				match (node) {
+					case Node {
+						node.parent = this.parent;
+					}
+				};
+			}
+			case Empty {
+				match (node) {
+					case Node {
+						node.parent = new Empty;
+					}
+				};
+				this.tree.root = node;
+			}
+		};
+	}
+	
+	method deleteIfNode(element) {
+		match (element) {
+			case Node {
+				this.right.delete(element);
+			}
+		};
+	}
+	method findDeleteMinNode() {
+		match (this.left) {
+			case Node {
+				this.left.findDeleteMinNode();
+			}
+			case Empty {
+				this.replaceParentChild(this.right);
+				this;
+			}
+		};
+	}
+	method delete(elem) {
+		match (elem) {
+			case Node {
+				match (this.value == elem) {
+					case True {
+						match (this.left) {
+							case Node {
+								match (this.right) {
+									case Node {
+										this.value = this.right.findDeleteMinNode().value;
+									}
+									case Empty {
+										this.replaceParentChild(this.left);
+									}
+								};
+							}
+							case Empty {
+								match (this.right) {
+									case Node {
+										this.replaceParentChild(this.right);
+									}
+									case Empty {
+										this.replaceParentChild(new Empty);
+									}
+								};
+							}
+						};
+					}
+					case False {
+						match (elem > this.value) {
+							case True {
+								this.deleteIfNode(this.right);
+							}
+							case False {
+								this.deleteIfNode(this.left);
+							}
+						};
+					}
+				};
+			}
+			default {
+			}
+		};
+	}
+}
+
+state Empty {
+}
+
+state BST {
+	var root = new Empty;
+
+	method add(elem) {
+		match(this.root) {
+			case Empty {
+				this.root = new Node { var value = elem; var tree = this; }
+			}
+			case Node {
+				this.root.add(elem);
+			}
+		};
+	}
+	method find(elem) {
+		match(this.root) {
+			case Empty {
+				False;
+			}
+			case Node {
+				this.root.contains(elem);
+			}
+		};
+	}
+	method delete(elem) {
+		match (this.root) {
+			case Empty {
+			}
+			case Node {
+				this.root.delete(elem);
+			}
+		}
+	}
+	
+	method print() {
+		this.print(this.root, 0);
+	}
+	method print(elem, n) {
+		match (elem) {
+			case Empty {
+			}
+			case Node {
+				java.lang.System.out.println(elem.value.toString());
+				this.print(elem.left, n+1);
+				this.print(elem.right, n+1);
+			}
+		}
+	}
+}
+
+method benchmark(runner) {
+	val size = 10000;
+	val elems = makeArray(size);
+	val tree = new BST;
+	val rand = Random.new();
+	var i = 0;
+	nativeWhile{i < size} {
+		val elem = rand.nextInt();
+		elems.set(i, elem);
+		i = i + 1;
+	};
+	i = 0;
+	runner.startTimer();
+	nativeWhile{i < size} {
+		tree.add(elems.get(i));
+		i = i + 1;
+	};
+	i = 0;
+	nativeWhile{i < size} {
+		tree.delete(elems.get(i));
+		i = i + 1;
+	};
+	runner.stopTimer();
+}

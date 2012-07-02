@@ -1,0 +1,39 @@
+package plaid.aeminium.codegen;
+
+import plaid.ast.visitor.ASTViewer;
+import plaid.ast.*;
+import plaid.typechecker.*;
+import plaid.typechecker.typecheckerMethods.*;
+
+method main() {
+	val javaAST = plaid.compilerjava.ParserCore.parse(java.io.FileInputStream.new(java.io.File.new("testInputs/fibonacci/package.plaid")));
+	val translator = new ASTTranslator;
+	val plaidAST = translator.translateAST(javaAST);
+	val stTranslator = new StateTableBuilderVisitor;
+	plaidAST.accept(stTranslator);
+	stTranslator.stateTable.printTable();
+	stTranslator.initialContext.printContext();
+	
+	// Bring AST to let normal form.
+	plaidAST.accept(new LetNormalFormVisitor);
+	
+	//plaidAST.accept(new ASTViewer);
+	
+	// Run the type checking visitor.
+	plaidAST.accept(typecheckerFactory(stTranslator.initialContext, stTranslator.stateTable));
+	
+	java.lang.System.out.println("----------------");
+	java.lang.System.out.println();
+	plaidAST.accept(new TypecheckOutputVisitor);
+	
+	val linearizer = new LinearizingVisitor;
+	plaidAST.accept(linearizer);
+	
+	plaidAST.accept(new SplitJoinRemoveVisitor);
+	
+	val linearDepAnalysis = new LinearDependencyAnalysisVisitor;
+	plaidAST.accept(linearDepAnalysis);
+	
+	val linearCodeGen = new LinearAeminiumCodeGenVisitor;
+	plaidAST.accept(linearCodeGen);
+}

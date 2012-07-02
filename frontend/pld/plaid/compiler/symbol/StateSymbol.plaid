@@ -1,0 +1,280 @@
+package plaid.compiler.symbol;
+
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+import plaid.compiler.permissions.NONEP;
+import plaid.compiler.permissions.IMMUTABLE;
+import plaid.compiler.permissions.UNIQUE;
+import plaid.ast.parsed.ASTNode;
+import plaid.ast.parsed.ParsedEmptyQualifiedIdentifier;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+import plaid.collections.makeLinkedList;
+
+
+state StateSymbol case of OwningSymbol {
+    var immutable ParsedStateDecl declaration;
+    val immutable OwningSymbol owner;
+    val unique Map<immutable String,immutable Symbol> declaredMembers = java.util.HashMap.new();
+    val unique LinkedList<immutable DeclSymbol> declaredAbstractMembers = makeLinkedList();
+    var /*unique Option<unique LinkedList<immutable DeclSymbol>>*/ 
+      computedAbstractMembersOption = new None;
+    var unique Option<immutable Structure> stateStructureOption = new None;
+    var unique Option<immutable Symbol> superStateSymbolOption = new None;
+    var /*unique Option<immutable LinkedList<immutable Symbol>>*/ 
+      dimensionOption = new None;
+    var unique Option<immutable Permission> defaultPermOption = new None;
+    var immutable Option fqnOpt = new None;
+    var unique LinkedList staticParams = makeLinkedList();
+    
+    method void addStaticParameter(shared StaticParameterSymbol paramSym) {
+        this.staticParams.addLast(paramSym);
+    }
+    
+    method unique LinkedList getStaticParameters() {
+        this.staticParams.map(fn (p) => p);
+    }
+    
+    method immutable Integer getStaticParameterCount() {
+        this.declaration.StaticArgsSpec.size();
+    }
+    
+    method void updateDeclaration(immutable PlaidStateDecl declaration) {
+        //delSymbolForAST(this.declaration);
+        //delSymbolForAST(this.declaration.name);
+        this.declaration = declaration;
+        addSymbolForAST(this.declaration, this);
+        addSymbolForAST(this.declaration.name, this);
+    }
+    
+    override method immutable Boolean ==(immutable Symbol other)[immutable StateSymbol this] {
+        match (other) {
+          case StateSymbol { this.name.equals(other.name) && this.owner == other.owner }
+          default { false }
+        }
+    } 
+    
+    method unique ParsedQualifiedIdentifier getQualifiedIdentifier() {
+        match ( owner ) {
+            case PackageSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<StateSymbol> Found 'PackageSymbol' owner.");
+                val qi = owner.getQualifiedIdentifier();
+                val unique LinkedList ids = makeLinkedList();
+                
+                qi.identifiers.map(fn (id) => {
+                    ids.addLast(id);
+                });
+                ids.addLast(new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;});
+                
+                new ParsedQualifiedIdentifier{ identifiers = ids; token = EMPTY_TOKEN;}
+            }
+            case TopSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<StateSymbol> Found 'TopSymbol' owner.");
+                val unique LinkedList ids = makeLinkedList();
+                ids.addLast(new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;});
+                new ParsedQualifiedIdentifier{ identifiers = ids;  token = EMPTY_TOKEN;}
+            }
+            default {
+                ERROR("<StateSymbol> Package has invalid owner.");
+                new ParsedQualifiedIdentifier{ identifiers = makeLinkedList(); token = EMPTY_TOKEN;}
+            }
+        }
+    }
+
+    method immutable String getFQN() {
+        match (fqnOpt) {
+            case Some { fqnOpt.value } 
+            case None {
+                val fqn = makeStringFromQualifiedIdentifier(getQualifiedIdentifier());
+                this.fqnOpt = makeSome(fqn);
+                fqn
+            }
+        }
+    }    
+    
+    method immutable Permission defaultStatePermission() {
+      match (this.defaultPermOption) {
+        case Some { this.defaultPermOption.value }
+        case None {
+          val immutable Boolean immState = this.declaration.modifiers.exists(
+            fn (elem) => {
+              match (elem) {
+                case ParsedImmutableModifier { true }
+                default { false }
+              }
+            });
+          val defaultPerm = match (immState) {
+            case True { IMMUTABLE }
+            case False { UNIQUE }
+          };
+          this.defaultPermOption = makeSome(defaultPerm);
+          defaultPerm
+        }
+      }
+    }
+    
+    method immutable Type defaultStateType() {
+      makeType(this.defaultStatePermission(),this.getStructure());
+    }
+
+    method void addMember(immutable Symbol member)[unique StateSymbol this] {
+        this.declaredMembers.put(member.name, member);
+    }
+    
+    method void addAbstractMember(immutable Symbol member)[unique StateSymbol this] {
+        this.declaredMembers.put(member.name, member);
+        this.declaredAbstractMembers.add(member);
+    }
+
+    method unique Option<immutable Symbol> getMember(immutable String name) {
+        match (this.declaredMembers.containsKey(name)) {
+          case True { makeSome(this.declaredMembers.get(name)) }
+          case False { //look in super state 
+            val supStateSym = this.getSuperStateSymbol();
+            match (supStateSym) {
+              case TopSymbol { new None }
+              default {
+                supStateSym.getMember(name);
+              }
+            }
+
+          }
+        }
+    }
+    
+    method unique Iterator<immutable DeclSymbol> declaredMembersIterator() {
+      this.declaredMembers.values().iterator()
+    }
+    
+    /**
+     *  returns a list of the abstract members declared in this state
+     *  or a super state (and not yet given a definition)
+     */
+    method immutable LinkedList<immutable Symbol> getAbstractMembers() {
+      
+      val camList = match (this.computedAbstractMembersOption  ) {
+        case Some { this.computedAbstractMembersOption.value }
+        case None { /* compute them */
+          // get abstract members declared in this state
+          val abstractMembers = this.declaredAbstractMembers.map(fn (sym) => sym);
+         
+          //get the abstract members from the super state
+          val superStateSymbol = this.getSuperStateSymbol();
+          val superStateAbstractMembers = match (superStateSymbol) {
+            case TopSymbol { makeLinkedList() }
+            case StateSymbol { superStateSymbol.getAbstractMembers() }
+          };
+          
+          //if a member with the same name as the abstract member
+          //is NOT declared in this state, then add the abstract
+          //member to the computed list.  Otherwise, it is abstract
+          //or concrete in this state and compatibility will be
+          //checked elsewhere
+          superStateAbstractMembers.do(fn (memberDecl) => {            
+            if (!(this.declaredMembers.containsKey(memberDecl.name))) {
+              abstractMembers.add(memberDecl)
+            }
+          });
+          this.computedAbstractMembersOption = makeSome(abstractMembers);
+          abstractMembers
+        }
+      
+      };
+      //return a copy of the list
+      camList.map(fn (decl) => decl);
+    }
+
+    method immutable Structure getStructure() {        
+        match (this.stateStructureOption) {
+            case Some { this.stateStructureOption.value }
+            case None {
+                val immutable NominalStructure theStructure =  new NominalStructure {
+                    val symbol = this;
+                    val owner  = this.owner.getStructure();
+                    val name   = this.name;
+                };
+                this.stateStructureOption = makeSome(theStructure);
+                theStructure
+            }
+        }
+    }
+    
+    /**
+     * Gets the symbol representing the state that this state was declared a case of
+     * If it is not a case of anything, the Top Symbol is returned.
+     */
+    method immutable Symbol getSuperStateSymbol()[immutable StateSymbol this] {
+      match (this.superStateSymbolOption) {
+        case Some { this.superStateSymbolOption.value }// already cached
+        case None {
+          match (this.dimensionOption) { // already cached as part of dimension
+            case Some {
+              val superStateSymbol = this.dimensionOption.value.findLast().value; //guaranteed to have a value because TOP always there
+              this.superStateSymbolOption = makeSome(superStateSymbol);
+              superStateSymbol
+            }
+            case None {
+          
+              val immutable ParsedQualifiedIdentifier caseOfNode = this.declaration.caseOf;
+              match (caseOfNode) {
+                case ParsedEmptyQualifiedIdentifier { 
+                  this.superStateSymbolOption = makeSome(new TopSymbol);
+                  new TopSymbol;
+                }
+                default {
+                  val unique Option<immutable Symbol> ASTsymbolOption = symbolForAST(caseOfNode);
+                  match (ASTsymbolOption) {
+                    case Some {
+                      match (ASTsymbolOption.value) {
+                        case StateSymbol {
+                          this.superStateSymbolOption = makeSome(ASTsymbolOption.value);
+                          ASTsymbolOption.value;
+                        }
+                        default {
+                          ABORT(this.toString() + " case of a non-state declaration: " + ASTsymbolOption.toString());
+                        }
+                      }
+                    }
+                    case None {
+                      ABORT(this.toString() + " case of declaration invalid");
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    /**
+     * returns a linked list with this symbol at the head, and the dimension of
+     * its super state as the tail
+     * TODO: specify whether top to bottom or vice-versa
+     */
+    method unique List<immutable Symbol> getDimension()[immutable StateSymbol this] {
+      match (this.dimensionOption) {
+        case Some { this.dimensionOption.value } // already cached
+        case None {
+          val superStateSymbol = this.getSuperStateSymbol();
+          val unique LinkedList<immutable Symbol> dimension = match (superStateSymbol) {
+            case TopSymbol {
+              val unique LinkedList<immutable Symbol> newDimension = makeLinkedList();  //create a new linked list with TOP in it
+              newDimension.add(TOPSYM);
+              newDimension
+            }
+            case StateSymbol {
+              superStateSymbol.getDimension().reduceRight(fn (sym,dim) => { dim.addFirst(sym); dim }, makeLinkedList()); //copies the dimension of the superStateSymbol
+            }
+            default { ABORT("super state symbol not valid") }
+          };
+          
+          dimension.addFirst(this);
+          this.dimensionOption = makeSome(dimension);
+          dimension;
+        }
+      }
+    }
+    
+    override method immutable String symbolType() { "State Symbol" }
+
+}

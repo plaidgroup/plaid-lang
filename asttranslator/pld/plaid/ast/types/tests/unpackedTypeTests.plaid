@@ -1,0 +1,432 @@
+package plaid.ast.types.tests;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import java.lang.System;
+
+val () -> void unpackedTypeTests = fn () => {
+	
+	System.out.println("---------------------------");
+	System.out.println("|    UNPACKEDTYPE TESTS   |");
+	System.out.println("---------------------------");
+
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = makeID(makeToken(),"unit");
+	temp.put(u, new StateType { val name = u; val superType = new None; });
+	
+	//Top
+	val top = makeID(makeToken(),"Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = makeID(makeToken(),"A");
+	val aType = new StateType { val name = a; val superType = makeSome(topType);};
+	val uFieldName = makeID(makeToken(),"u");
+	
+	val getuFieldBinding = fn () => 
+		new TakeType { 
+			var currentType = new PermType {
+				val perm = UNIQUE;
+				val type = topNomType;
+			};
+		};		
+	val uField = makeFieldType(uFieldName, getuFieldBinding(), true);
+	aType.declaredTypes.put(uFieldName,uField);
+	temp.put(a,aType);
+	
+	//B - two fields u and i
+	val b = makeID(makeToken(),"B");
+	val bType = new StateType { val name = b; val superType = makeSome(topType); };
+	val iFieldName = makeID(makeToken(),"i");
+	val getiFieldBinding = fn () => new TakeType { 
+		var currentType = 
+			new PermType {
+				val perm = IMMUTABLE;
+				val type = topNomType;
+			};
+		};
+	val iField = makeFieldType(iFieldName, getiFieldBinding(), true);
+	bType.declaredTypes.put(iFieldName, iField);
+	bType.declaredTypes.put(uFieldName, uField);
+	temp.put(b,bType);
+		
+	val getuFieldBindingNONE = fn () =>  
+		new TakeType { 
+			var currentType = new PermType {
+				val perm = NONEP;
+				val type = topNomType;
+			};
+		};	
+	val uFieldNONE = makeFieldType( uFieldName, getuFieldBindingNONE (), true);	
+
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	System.out.println("Testing state configuration:");
+	st.printTable();
+	System.out.println("");
+	
+	//Testing contains
+	System.out.println("Testing contains and declaredType");
+	var res = unit;
+	var test = unit;
+	
+	
+	//create an unpacked B
+	test = createNominalType(b);
+	test.memberUpdate(uFieldName, getuFieldBindingNONE(), st);
+	
+	System.out.print("\t" + test.toString() + ".contains(f)  = ");
+	res = test.contains(makeID(makeToken(),"f"),st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.print("\t" + test.toString() + ".contains(u)  = ");
+	res = test.contains(uFieldName,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case Some { 
+			match (res.value == uFieldNONE) {
+				case True { ok() }
+				case False { failMsg("not the same as ufieldNONE") }
+			}
+		}
+		case None { fail }
+	};
+	System.out.print("\t(" + test.toString() + ".contains(u) == " + test.toString() + ".declaredType(u))");
+	res = test.declaredType(uFieldName,st).value == res.value;
+	System.out.print(" = " + res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok() }
+	};
+	System.out.print("\t" + test.toString() + ".contains(i)  = ");
+	res = test.contains(iFieldName,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case Some { 
+			match (res.value == iField) {
+				case True { ok() }
+				case False { failMsg("not the same as ifield") }
+			}
+		}
+		case None { fail }
+	};
+	System.out.print("\t(" + test.toString() + ".contains(i) == " + test.toString() + ".declaredType(i))");
+	res = test.declaredType(iFieldName,st).value == res.value;
+	System.out.print(" = " + res.toString() + " - ");
+	match (res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.print("\t" + test.toString() + ".declaredType(f)  = ");
+	res = test.declaredType(makeID(makeToken(),"f"),st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.println("");
+	
+	//Testing memberUpdate
+	//reference for unpacked B
+	var reference = createNominalType(b);
+	reference.memberUpdate(uFieldName, getuFieldBindingNONE(), st);
+	
+	System.out.println("Testing memberUpdate");
+	val getuFieldBindingNONEborrowed = fn () => 
+		new BorrowType { 
+			var currentType = new PermType {
+				val perm = NONEP;
+				val type = topNomType;
+			};
+			val immutable Boolean stronglyBorrowed = true;
+			val immutable Permission lowerBound = UNIQUE;
+		};	
+	
+	System.out.print("\t" + test.toString() + ".memberUpdate(f, " + getuFieldBindingNONEborrowed().toString() +") = ");
+	test.memberUpdate(makeID(makeToken(),"f"),getuFieldBindingNONEborrowed(), st);
+	System.out.print(test.toString() + " - ");
+	match (test == reference) { //no update should have occurred
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.print("\t" + test.toString() + ".memberUpdate(u, " + getuFieldBindingNONEborrowed().toString() +") = ");
+	test.memberUpdate(makeID(makeToken(),"u"),getuFieldBindingNONEborrowed(), st);
+	System.out.print(test.toString() + " - ");
+		match (test == reference) { //no update should have occurred
+		case True { fail() }
+		case False { 
+			match (test.members.get(uFieldName) == reference.members.get(uFieldName)) {
+				case True { fail() }
+				case False { ok() }
+			}
+		}
+	};
+	System.out.println("");
+	
+	//testing notBorrowed
+	System.out.println("Testing notBorrowed");
+	System.out.print("\t" + test.toString() + ".notBorrowed() = ");
+	res = test.notBorrowed();
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case True { fail() }
+		case False { ok() }
+	};
+	System.out.print("\t" + reference.toString() + ".notBorrowed() = ");
+	res = reference.notBorrowed();
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.println("");
+	
+	//testing pack
+	System.out.println("Testing Pack");
+	System.out.print("\t" + test.toString() + ".pack() = ");
+	test.pack(st);
+	System.out.print(test.toString() + " - ");
+	match (test) {
+		case UnpackedType { ok() }
+		default { fail() }
+	};
+	System.out.print("\t" + reference.toString() + ".pack() = ");
+	reference.pack(st);
+	System.out.print(reference.toString() + " - ");
+	match (test) {
+		case UnpackedType { ok() }
+		default { fail() }
+	};
+	test.memberUpdate(uFieldName,getuFieldBinding(),st);
+	System.out.print("\t" + test.toString() + ".pack() = ");
+	test.pack(st);
+	System.out.print(test.toString() + " - ");
+	match (test) {
+		case NominalType { ok() }
+		default { fail() }
+	};
+	System.out.println("");
+	
+	//testing isSubObjectTypeOf
+	System.out.println("testing isSubObjectTypeOf");
+	System.out.print("\t" + reference.toString() + ".isSubObjectTypeOf(" + test.toString() + ") = ");
+	res = reference.isSubObjectTypeOf(test,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok()}
+	};
+	test.memberUpdate(uFieldName, getuFieldBindingNONEborrowed(), st);
+	System.out.print("\t" + test.toString() + ".isSubObjectTypeOf(" + reference.toString() + ") = ");
+	res = test.isSubObjectTypeOf(reference,st);
+	System.out.print(res.toString() + " - ");
+	match (res) {
+		case True { fail() }
+		case False { ok()}
+	};
+	System.out.println("");
+
+	//testing downgrade
+	System.out.println("Testing downgrade");
+	System.out.print("\t" + test.toString() + ".downgrade() = ");
+	test.downgrade();
+	System.out.print(test.toString() + " - ");
+	match (test.members.get(uFieldName).binding.currentType.type.typeName == makeID(makeToken(),"unit")) {
+		case True { ok() }
+		case False { fail() }
+	};
+	test.memberUpdate(uFieldName, getuFieldBinding(), st);
+	System.out.print("\t" + test.toString() + ".downgrade() = ");
+	test.downgrade();
+	System.out.print(test.toString() + " - ");
+	test.pack(st);
+	match (test) {
+		case NominalType { ok() }
+		default { fail() }
+	};
+	test.memberUpdate(uFieldName, getuFieldBindingNONE(), st);
+	test.memberUpdate(iFieldName, getuFieldBindingNONEborrowed(), st);
+	System.out.print("\t" + test.toString() + ".downgrade() = ");
+	test.downgrade();
+	System.out.print(test.toString() + " - ");
+	match (test.members.get(uFieldName).binding.currentType.type.typeName == makeID(makeToken(),"unit")) {
+		case True {
+			match (test.members.get(iFieldName).binding.currentType.type.typeName == makeID(makeToken(),"unit")) {
+				case True { ok() }
+				case False { failMsg("i not downgraded") }
+			}
+		}
+		case False { failMsg("u not downgraded") }
+	};
+	System.out.println("");
+	
+	//Testing least upper bound
+	System.out.println("Testing leastUpperBound");
+	var testA = createNominalType(a);
+	reference = createNominalType(b);
+	test.memberUpdate(iFieldName,getiFieldBinding(),st);
+	test.memberUpdate(uFieldName,getuFieldBindingNONEborrowed(),st);
+	System.out.print("\t" + test.toString() + ".leastUpperBound(" + reference.toString() + ") = ");
+	res = test.leastUpperBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	testA.memberUpdate(uFieldName,getuFieldBindingNONEborrowed(),st);
+	System.out.print("\t" + test.toString() + ".leastUpperBound(" + testA.toString() + ") = ");
+	res = test.leastUpperBound(testA,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};	
+	reference.memberUpdate(uFieldName,getuFieldBindingNONE(), st);
+	System.out.print("\t" + test.toString() + ".leastUpperBound(" + reference.toString() + ") = ");
+	res = test.leastUpperBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	test.memberUpdate(uFieldName,getuFieldBindingNONE(),st);
+	test.downgrade();
+	System.out.print("\t" + test.toString() + ".leastUpperBound(" + reference.toString() + ") = ");
+	res = test.leastUpperBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some {
+			match (res.value == reference) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { failMsg("this fails because of the way downgrading works - it should probably be changed such that this works") }
+	};
+	test.memberUpdate(uFieldName,getuFieldBindingNONE(),st);
+	System.out.print("\t" + test.toString() + ".leastUpperBound(" + reference.toString() + ") = ");
+	res = test.leastUpperBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some {
+			match (res.value == test) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	test.memberUpdate(iFieldName,getuFieldBindingNONE(), st);
+	test.memberUpdate(uFieldName,getuFieldBinding(), st);
+	System.out.print("\t" + test.toString() + ".leastUpperBound(" + reference.toString() + ") = ");
+	res = test.leastUpperBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some {
+			val compareUnpacked = createNominalType(b);
+			compareUnpacked.memberUpdate(uFieldName,getuFieldBindingNONE(),st);
+			compareUnpacked.memberUpdate(iFieldName,getuFieldBindingNONE(),st);
+			match (res.value == compareUnpacked) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.println("");
+	
+	//Testing greatest lower bound
+	System.out.println("Testing greatestLowerBound");
+	testA = createNominalType(a);
+	reference = createNominalType(b);
+	test.memberUpdate(iFieldName,getiFieldBinding(),st);
+	test.memberUpdate(uFieldName,getuFieldBindingNONEborrowed(),st);
+	System.out.print("\t" + test.toString() + ".greatestLowerBound(" + reference.toString() + ") = ");
+	res = test.greatestLowerBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	testA.memberUpdate(uFieldName,getuFieldBindingNONEborrowed(),st);
+	System.out.print("\t" + test.toString() + ".greatestLowerBound(" + testA.toString() + ") = ");
+	res = test.greatestLowerBound(testA,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};	
+	reference.memberUpdate(uFieldName,getuFieldBindingNONE(), st);
+	System.out.print("\t" + test.toString() + ".greatestLowerBound(" + reference.toString() + ") = ");
+	res = test.greatestLowerBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	test.memberUpdate(uFieldName,getuFieldBindingNONE(),st);
+	test.downgrade();
+	System.out.print("\t" + test.toString() + ".greatestLowerBound(" + reference.toString() + ") = ");
+	res = test.greatestLowerBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some {
+			match (res.value == reference) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { failMsg("this fails because of the way downgrading works - it should probably be changed such that this works") }
+	};
+	test.memberUpdate(uFieldName,getuFieldBindingNONE(),st);
+	System.out.print("\t" + test.toString() + ".greatestLowerBound(" + reference.toString() + ") = ");
+	res = test.greatestLowerBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some {
+			match (res.value == test) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	test.memberUpdate(iFieldName,getuFieldBindingNONE(), st);
+	test.memberUpdate(uFieldName,getuFieldBinding(), st);
+	System.out.print("\t" + test.toString() + ".greatestLowerBound(" + reference.toString() + ") = ");
+	res = test.greatestLowerBound(reference,st);
+	System.out.print(res.toString() + " - ");
+	match(res) {
+		case Some {
+			res.value.pack(st);
+			match (res.value) {
+				case NominalType { ok() }
+				default { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+
+
+};

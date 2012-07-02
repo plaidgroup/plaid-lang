@@ -1,0 +1,184 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
+package plaid.collections;
+
+/**
+ * An implementation of Arne Andersson's simple balanced binary tree, with efficiency
+ * theoretically equivalent to that of a red-black tree. Add and remove are O(log n)
+ * worst case complexity. See the paper "Balanced search trees made simple" for more
+ * information: http://user.it.uu.se/~arnea/abs/simp.html
+ */
+state AATree {
+	/* type T; */
+	val /* Option<OrderProvider> */ explicitCompare;
+	val /* T -> T -> Boolean */ eqHandler = fn(newElem, oldElem) => { false };
+
+	var /* Option<AANode<T>> */ root = NONE;
+	var /* Int */ elemCount = 0;
+
+	/**
+	 * Abstraction for comparison, which will either use the explicit comparator
+	 * (if provided) or the order method provided on the Orderable elements
+	 * directly.
+	 */
+	method immutable Ordering compare(/*T*/ a, /*T*/ b) {
+		match(explicitCompare) {
+			case Some {
+				explicitCompare.getValue().order(a, b)
+			}
+			case None {
+				// rely on the built in ordering for type T
+				a.order(b)
+			}
+		}
+	}
+
+	/**
+	 * Inserts an element into the tree, while maintaining balance. If the element already
+	 * exists, the eqHandler function will decide what to do with the two equal values. By
+	 * default, attempts to insert duplicate values will be ignored.
+	 */
+	method immutable Boolean add(elem) {
+		var added = true;
+		val addHelper = fn(nodeOpt) => {
+			nodeOpt.map(fn(node) => {
+				match(compare(elem, node.data)) {
+					case OrdLessThan { node.left = addHelper(node.left) }
+					case OrdGreaterThan { node.right = addHelper(node.right) }
+					case OrdEqual { added = eqHandler(elem, node.data) }
+				};
+				
+				makeSome(node.skewOp().splitOp())
+			}).getOrElse(makeSome(new AANode { var level = 1; var data = elem; }))
+		};
+		root = addHelper(root);
+
+		if(added) {
+			elemCount = elemCount + 1;
+		};
+
+		added
+	}
+
+	/**
+	 * Removes an element from the tree, while maintaining balance.
+	 */
+	method immutable boolean remove(/*T*/ elem) {
+
+		val findLeftmost = fn(node) => { node.left.map(fn(l) => { findLeftmost(l) }).getOrElse(node) };
+		val findRightmost = fn(node) => { node.right.map(fn(r) => { findRightmost(r) }).getOrElse(node) };
+
+		var removed = false;
+
+		val removeHelper = fn(currentRootOpt, elemToDelete) => {
+			currentRootOpt.flatMap(fn(currentRoot) => {
+				match(compare(elemToDelete, currentRoot.data)) {
+					case OrdLessThan {
+						// element to remove may be to the left
+						currentRoot.left = removeHelper(currentRoot.left, elemToDelete);
+						makeSome(currentRoot)
+					}
+					case OrdGreaterThan {
+						// element to remove may be to the right
+						currentRoot.right = removeHelper(currentRoot.right, elemToDelete);
+						makeSome(currentRoot)
+					}
+					case OrdEqual {
+						// found the element to remove
+						removed = true;
+
+						ifElse(currentRoot.isLeaf()) {
+							new None
+						} {
+							ifElse(currentRoot.left.hasValue()) {
+								val predecessor = findRightmost(currentRoot.left.getValue());
+								currentRoot.left = removeHelper(currentRoot.left, predecessor.data);
+								currentRoot.data = predecessor.data;
+								makeSome(currentRoot)
+							} {
+								val successor = findLeftmost(currentRoot.right.getValue());
+								currentRoot.right = removeHelper(currentRoot.right, successor.data);
+								currentRoot.data = successor.data;
+								makeSome(currentRoot)
+							};
+						}
+					}
+				}
+			}).map(fn(r) => { r.fixAfterRemove() })
+		};
+
+		root = removeHelper(root, elem);
+		if(removed) {
+			elemCount = elemCount - 1;
+		};
+		removed
+	}
+
+	/**
+	 * Traverses the tree from least to greatest element in order, until
+	 * the provided function returns false.
+	 */
+	method void inOrderTraverse(/*T -> boolean*/ f) {
+		val traverseHelper = fn(nodeOpt) => {
+			nodeOpt.map(fn(node) => {
+				traverseHelper(node.left);
+				if(f(node.data)) {
+					traverseHelper(node.right);
+				}
+			})
+		};
+
+		traverseHelper(root);
+	}
+
+	/**
+	 * Will navigate from the root of the tree by following the instructions provided by the function
+	 * f. If f returns OrdLessThan, the traversal will go left. If f returns OrdGreaterThan, the traversal
+	 * will go right. If f returns OrdEqual, the traversal will stop and return the element at that
+	 * position in the tree.
+	 */
+	method immutable Option/*<T>*/ guidedTraverse(/*T -> immutable Ordering*/ f) {
+		val helper = fn(nodeOpt) => {
+			nodeOpt.flatMap(fn(node) => {
+				match(f(node.data)) {
+					case OrdLessThan { helper(node.left) }
+					case OrdEqual { makeSome(node.data) }
+					case OrdGreaterThan { helper(node.right) }
+				}
+			})
+		};
+
+		val result = helper(root);
+		result
+	}
+
+	method /*Option<T>*/ find(e) {
+		guidedTraverse(fn(treeElem) => { compare(e, treeElem) })
+	}
+
+	method void size() {
+		elemCount
+	}
+	
+	method void clear() {
+	    this.root = NONE;
+	    this.elemCount = 0;
+	}
+}
