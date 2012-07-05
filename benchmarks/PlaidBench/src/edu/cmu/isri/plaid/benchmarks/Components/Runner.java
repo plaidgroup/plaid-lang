@@ -33,18 +33,4 @@ public abstract class Runner implements BenchmarkComponent {
     protected long getTime() {
         return end-start;
     }
-
-    public void abort() {
-        throw new AssertionError("Abort Called");
-    }
-    
-    public void assertTrue(boolean value) {
-        if (!value)
-            throw new AssertionError("Assert true failed!");
-    }
-    
-    public void assertEqual(Object a, Object b) {
-        if (!a.equals(b))
-            throw new AssertionError(a+" not equal to "+b);
-    }
 }
