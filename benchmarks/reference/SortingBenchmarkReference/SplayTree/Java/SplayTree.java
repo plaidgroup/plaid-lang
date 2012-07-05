@@ -4,13 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Created by IntelliJ IDEA.
- * User: Ben Chung
- * Date: 6/11/12
- * Time: 9:33 AM
- * To change this template use File | Settings | File Templates.
- */
 public class SplayTree {
 
     class SplayNode {
@@ -27,14 +20,14 @@ public class SplayTree {
             if (key > this.key) {
                 if (this.right == null) {
                     this.right = new SplayNode(key, elem, this);
-                    this.right.splay();
+                    splay(this.right.key);
                 }
                 else
                     this.right.add(key, elem);
             } else {
                 if (this.left == null) {
                     this.left = new SplayNode(key, elem, this);
-                    this.left.splay();
+                    splay(this.left.key);
                 }
                 else
                     this.left.add(key, elem);
@@ -43,9 +36,11 @@ public class SplayTree {
         }
 
         public boolean find(int elem) {
-            if (this.key == elem)
+        	splay(elem);
+            if (this.key == elem) {
+            	splay(this.key);
                 return true;
-            else if (elem > this.key && this.right != null)
+            } else if (elem > this.key && this.right != null)
                 return this.right.find(elem);
             else if (this.left != null)
                 return this.left.find(elem);
@@ -89,54 +84,7 @@ public class SplayTree {
                 }
 
             if (parent != null)
-                parent.splay();
-        }
-
-        private void splay() {
-			SplayNode dummy, left, right;
-			dummy = left = right = new SplayNode(0, null, null);
-			SplayNode current = root;
-			while (true) {
-				if (key < current.key) {
-					if (current.left == null) {
-						break;
-					}
-					if (key < current.left.key) {
-						// Rotate right.
-						SplayNode tmp = current.left;
-						current.left = tmp.right;
-						tmp.right = current;
-						current = tmp;
-						if (current.left == null) {
-							break;
-						}
-					}
-					// Link right.
-					right.left = current;
-					right = current;
-					current = current.left;
-				} else if (key > current.key) {
-					if (current.right == null) {
-						break;
-					}
-					if (key > current.right.key) {
-						// Rotate left.
-						SplayNode tmp = current.right;
-						current.right = tmp.left;
-						tmp.left = current;
-						current = tmp;
-						if (current.right == null) {
-							break;
-						}
-					}
-					// Link left.
-					left.right = current;
-					left = current;
-					current = current.right;
-				} else {
-					break;
-				}
-			}	
+            	splay(parent.key);
         }
         
         private void rotateRight() {
@@ -192,14 +140,95 @@ public class SplayTree {
         
         private int findDeleteMin() {
             if (this.left == null) {
+            	if (parent == null)
+            		System.out.println("Help");
                 parent.deleteChild(this);
-                this.parent.splay();
+                splay(this.parent.key);
                 return this.key;
             }
             return this.left.findDeleteMin();
         }
     
         
+    }
+    
+
+    private void splay(int key) {
+		SplayNode dummy, left, right;
+		dummy = left = right = new SplayNode(0, null, null);
+		SplayNode current = root;
+		while (true) {
+			if (key < current.key) {
+				if (current.left == null) {
+					break;
+				}
+				if (key < current.left.key) {
+					// Rotate right.
+					SplayNode tmp = current.left;
+					current.left = tmp.right;
+					if (current.left != null)
+						current.left.parent = current;
+					tmp.right = current;
+					current.parent = tmp;
+					current = tmp;
+					if (current.left == null) {
+						break;
+					}
+				}
+				// Link right.
+				right.left = current;
+				if (right.left.parent != null)
+					right.left.parent = right;
+				right = current;
+				current = current.left;
+			} else if (key > current.key) {
+				if (current.right == null) {
+					break;
+				}
+				if (key > current.right.key) {
+					// Rotate left.
+					SplayNode tmp = current.right;
+					current.right = tmp.left;
+					
+					if (current.right != null)
+						current.right.parent = current;
+					
+					tmp.left = current;
+					if (tmp.left != null)
+						tmp.left.parent = tmp;
+					
+					current = tmp;
+					if (current.right == null) {
+						break;
+					}
+				}
+				// Link left.
+				left.right = current;
+				if (left.right != null)
+					left.right.parent = left;
+				left = current;
+				current = current.right;
+			} else {
+				break;
+			}
+		}	
+		left.right = current.left;
+		if (left.right != null)
+			left.right.parent = left;
+		
+		right.left = current.right;
+		if (right.left != null)
+			right.left.parent = right;
+		
+		current.left = dummy.right;
+		if (current.left != null)
+			current.left.parent = current;
+		
+		current.right = dummy.left;
+		if (current.right != null)
+			current.right.parent = current;
+		root = current;
+		root.parent = null;
     }
 
     SplayNode root;
@@ -210,13 +239,38 @@ public class SplayTree {
             root.add(key, elem);
     }
     public boolean find(int key) {
-        if (root == null)
-            return false;
-        else
-            return root.find(key);
+        splay(key);
+        return root.key == key;
     }
     public void delete(int elem) {
-        if (root != null)
-            root.delete(elem);
+    	splay(elem);
+    	if (root.key != elem)
+    		return;
+    	
+    	SplayNode removed = root;
+    	
+    	if (root.left == null) {
+    		root = root.right;
+    		if (root != null)
+    			root.parent = null;
+    	} else {
+    		SplayNode right = root.right;
+    		root = root.left;
+    		root.parent = null;
+    		splay(elem);
+    		root.right = right;
+    		if (root.right != null)
+    			root.right.parent = root;
+    	}
     }
+	
+	private void print(SplayNode node) {
+		if (node == null)
+			return;
+		System.out.print("{");
+		print(node.left);
+		System.out.print(node.key);
+		print(node.right);
+		System.out.print("}");
+	}
 }

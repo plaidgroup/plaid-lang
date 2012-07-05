@@ -1,1 +1,2 @@
-java -XX:PermSize=128m -classpath ..\faststdlib\bin;..\fastruntime\bin;..\fastruntime\lib\asm-debug-all-3.3.1.jar;..\fastruntime\lib\functionaljava.jar;PlaidJavaBench.jar;..\generated\bin;.\bin -Xmx1g -Xss16m edu.cmu.isri.plaid.benchmarks.BenchmarkRunner Benchmark.xsd.xml
+cd C:\Users\Ben Chung\Downloads\plaid3\benchmarks
+java -XX:PermSize=128m -classpath .\lib\jav8-jsr223-win-x86-0.3.jar;..\faststdlib\bin;..\fastruntime\bin;..\fastruntime\lib\asm-debug-all-3.3.1.jar;..\fastruntime\lib\functionaljava.jar;PlaidJavaBench.jar;..\generated\bin;.\bin -Xmx1g -Xss16m edu.cmu.isri.plaid.benchmarks.BenchmarkRunner Benchmark.xsd.xml

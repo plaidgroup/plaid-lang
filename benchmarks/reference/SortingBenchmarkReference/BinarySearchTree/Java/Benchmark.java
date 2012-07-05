@@ -6,8 +6,8 @@ import edu.cmu.isri.plaid.benchmarks.Components.Runner;
 
 public class Benchmark {
 	public static void benchmark(Runner benchmarkRunner) {
-		int n = 10000;
-		Random randGen = new Random();
+		int n = (Integer)benchmarkRunner.getProperty("nElems");
+		Random randGen = (Random)benchmarkRunner.getProperty("Random");
 		BST tree = new BST();
 		int[] elems = new int[n];
 		for (int i = 0; i < n; i++) {

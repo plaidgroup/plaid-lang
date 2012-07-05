@@ -7,6 +7,9 @@ import edu.cmu.isri.plaid.benchmarks.BenchmarkDesc.Component;
  * @author Benjamin Chung
  */
 public class BenchmarkResult {
+    
+    public BenchmarkResult() {}
+
     public BenchmarkResult(Component component, long nsElapsed) {
         this.nsElapsed = nsElapsed;
         this.benchmarkComponent = component;

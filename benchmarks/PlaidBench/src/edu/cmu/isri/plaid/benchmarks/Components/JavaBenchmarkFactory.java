@@ -2,11 +2,8 @@ package edu.cmu.isri.plaid.benchmarks.Components;
 
 import edu.cmu.isri.plaid.benchmarks.BenchmarkDesc.Component;
 
-import java.io.File;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.Arrays;
+import java.util.HashMap;
 
 /**
  * This class creates BenchmarkComponents for Java benchmarks.
@@ -20,11 +17,11 @@ public class JavaBenchmarkFactory implements BenchmarkComponentFactory {
     }
 
     @Override
-    public BenchmarkComponent getBenchmarkComponent(Component component) {
+    public BenchmarkComponent getBenchmarkComponent(Component component, HashMap<String, Object> properties) {
         try {
             Class bench = Class.forName(component.getMainClass());
             String toEval = component.getMethod();
-            return new JavaBenchmarkRunner(bench.getDeclaredMethod(toEval, Runner.class), component);
+            return new JavaBenchmarkRunner(bench.getDeclaredMethod(toEval, Runner.class), properties, component);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
