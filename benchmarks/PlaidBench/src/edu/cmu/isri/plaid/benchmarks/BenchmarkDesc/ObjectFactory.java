@@ -30,11 +30,11 @@ public class ObjectFactory {
     }
 
     /**
-     * Create an instance of {@link Component }
+     * Create an instance of {@link Benchmark }
      * 
      */
-    public Component createComponent() {
-        return new Component();
+    public Benchmark createBenchmark() {
+        return new Benchmark();
     }
 
     /**
@@ -46,11 +46,19 @@ public class ObjectFactory {
     }
 
     /**
-     * Create an instance of {@link Benchmark }
+     * Create an instance of {@link Property }
      * 
      */
-    public Benchmark createBenchmark() {
-        return new Benchmark();
+    public Property createProperty() {
+        return new Property();
+    }
+
+    /**
+     * Create an instance of {@link Component }
+     * 
+     */
+    public Component createComponent() {
+        return new Component();
     }
 
 }

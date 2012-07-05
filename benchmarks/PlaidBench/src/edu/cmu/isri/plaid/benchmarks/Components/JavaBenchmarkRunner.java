@@ -4,6 +4,7 @@ import edu.cmu.isri.plaid.benchmarks.BenchmarkDesc.Component;
 import edu.cmu.isri.plaid.benchmarks.BenchmarkResult;
 
 import java.lang.reflect.Method;
+import java.util.HashMap;
 
 /**
 * Created by IntelliJ IDEA.
@@ -16,8 +17,8 @@ class JavaBenchmarkRunner extends Runner implements BenchmarkComponent {
     private Method invoke;
     private Component benchmarkComponent;
 
-    public JavaBenchmarkRunner(Method invoke, Component benchmarkComponent) {
-
+    public JavaBenchmarkRunner(Method invoke, HashMap<String, Object> properties, Component benchmarkComponent) {
+        super(properties);
         this.invoke = invoke;
         this.benchmarkComponent = benchmarkComponent;
     }

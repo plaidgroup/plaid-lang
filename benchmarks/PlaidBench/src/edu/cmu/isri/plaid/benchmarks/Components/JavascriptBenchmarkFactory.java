@@ -9,6 +9,7 @@ import javax.script.ScriptEngineManager;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.Reader;
+import java.util.HashMap;
 
 /**
  * This class creates Javascript BenchmarkComponents
@@ -16,9 +17,9 @@ import java.io.Reader;
  */
 public class JavascriptBenchmarkFactory implements BenchmarkComponentFactory {
     @Override
-    public BenchmarkComponent getBenchmarkComponent(Component componentDesc) {
+    public BenchmarkComponent getBenchmarkComponent(Component componentDesc, HashMap<String, Object> properties) {
         try {
-            return new JavascriptBenchmarkRunner(new FileReader(componentDesc.getPath()), componentDesc);
+            return new JavascriptBenchmarkRunner(new FileReader(componentDesc.getPath()), properties, componentDesc);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -32,7 +33,8 @@ public class JavascriptBenchmarkFactory implements BenchmarkComponentFactory {
         private Reader input;
         private Component benchmarkComponent;
 
-        public JavascriptBenchmarkRunner(Reader input, Component benchmarkComponent) {
+        public JavascriptBenchmarkRunner(Reader input, HashMap<String, Object> properties, Component benchmarkComponent) {
+            super(properties);
             this.input = input;
             this.benchmarkComponent = benchmarkComponent;
         }
