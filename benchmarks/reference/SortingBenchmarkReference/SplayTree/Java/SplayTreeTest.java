@@ -17,7 +17,7 @@ import static junit.framework.Assert.assertTrue;
 public class SplayTreeTest {
     static SplayTree tree = new SplayTree();
     static Random rand = new Random();
-    static final int n = 100000;
+    static final int n = 1000000;
     static Integer[] inserted = new Integer[n];
     @Test
     public void testAdd() throws Exception {
@@ -35,7 +35,9 @@ public class SplayTreeTest {
                 assertTrue(tree.find(inserted[i]));
             }
         }
-
+        for (int i = 0; i < 1000; i++) {
+        	assertFalse(tree.find(rand.nextInt(inserted.length) + inserted.length + 1));
+        }
     }
 
     @Test

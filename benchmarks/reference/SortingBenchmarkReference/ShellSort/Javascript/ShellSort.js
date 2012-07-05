@@ -13,10 +13,11 @@ function ShellSort(elements, gaps) {
 }
 
 function benchmark(handle) {
-	var n = 100000;
+	var n = handle.getProperty("nElems");
+	var random = handle.getProperty("Random");
 	var elems = new Array();
 	for (var i = 0; i < n; i++) {
-		elems.push(Math.floor(Math.random() * (10000000 + 1)));
+		elems.push(random.nextInt());
 	}
 	var gaps = new Array(701,301, 132,57,23,10,4,1);
 	handle.startTimer();

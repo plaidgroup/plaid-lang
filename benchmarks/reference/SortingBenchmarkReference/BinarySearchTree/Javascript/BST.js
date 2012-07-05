@@ -99,10 +99,11 @@ function BST() {
 
 function benchmark(runner) {
 	var bst = new BST();
-	var n = 5000;
+	var n = runner.getProperty("nElems");
 	var elems = new Array();
+	var random = runner.getProperty("Random");
 	for (var i = 0; i < n; i++) {
-		var elem = Math.floor(Math.random() * (10000000 + 1));
+		var elem = random.nextInt();
 		elems.push(elem);
 	}
 	runner.startTimer();

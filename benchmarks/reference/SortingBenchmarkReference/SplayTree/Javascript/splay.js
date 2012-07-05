@@ -36,11 +36,12 @@
 
 function benchmark(handle) {
   var splayTree = new SplayTree();
-  var n = 5000;
+  var n = handle.getProperty("nElems");
   var keys = new Array();
+  var random = handle.getProperty("Random");
   handle.startTimer();
   for (var i = 0; i < n; i++) {
-	var key = Math.random();
+	var key = random.nextInt();
 	splayTree.insert(key,i);
 	keys[i] = key;
   }
