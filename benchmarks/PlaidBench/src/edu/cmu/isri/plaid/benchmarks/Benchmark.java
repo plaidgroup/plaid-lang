@@ -1,6 +1,7 @@
 package edu.cmu.isri.plaid.benchmarks;
 
 import edu.cmu.isri.plaid.benchmarks.BenchmarkDesc.Component;
+import edu.cmu.isri.plaid.benchmarks.BenchmarkDesc.Property;
 import edu.cmu.isri.plaid.benchmarks.Components.BenchmarkComponent;
 import edu.cmu.isri.plaid.benchmarks.Components.BenchmarkComponentFactory;
 
@@ -14,15 +15,31 @@ import java.util.List;
  */
 public class Benchmark {
     List<BenchmarkComponent> components = new ArrayList<BenchmarkComponent>();
+    HashMap<String, Object> properties = new HashMap<String, Object>();
     private edu.cmu.isri.plaid.benchmarks.BenchmarkDesc.Benchmark benchmarkDesc;
 
-    public Benchmark(edu.cmu.isri.plaid.benchmarks.BenchmarkDesc.Benchmark benchmarkDesc, HashMap<String, BenchmarkComponentFactory> loaders) {
+    public Benchmark(edu.cmu.isri.plaid.benchmarks.BenchmarkDesc.Benchmark benchmarkDesc,
+                     HashMap<String, Object> globalProperties,
+                     HashMap<String, BenchmarkComponentFactory> loaders) {
+
+        for (String key : globalProperties.keySet()) {
+            properties.put(key, globalProperties.get(key));
+        }
+
+        for (Property p : benchmarkDesc.getProperty()) {
+            try {
+                properties.put(p.getName(), Integer.parseInt(p.getValue()));
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid property value: "+p.getValue());
+            }
+        }
+
         this.benchmarkDesc = benchmarkDesc;
         for (Component component : benchmarkDesc.getComponent()) {
             if (!loaders.containsKey(component.getType()))
                 throw new RuntimeException("Invalid benchmarkComponent type");
             
-            components.add(loaders.get(component.getType()).getBenchmarkComponent(component));
+            components.add(loaders.get(component.getType()).getBenchmarkComponent(component, properties));
         }
     }
     
