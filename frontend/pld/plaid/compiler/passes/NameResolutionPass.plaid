@@ -46,8 +46,6 @@ import plaid.compiler.symbol.StateValSymbol;
 import plaid.compiler.symbol.StateRefSymbol;
 import plaid.compiler.symbol.DynamicSymbol;
 import plaid.compiler.symbol.JavaClassSymbol;
-import plaid.compiler.symbol.xml.XMLAttributeNode;
-import plaid.compiler.symbol.xml.XMLChildNode;
 
 import java.util.Arrays;
 import java.lang.reflect.Modifier;
@@ -72,7 +70,6 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
     var shared Symbol packageSymbol = new TopSymbol;
     var hasErrors = false;
     var immutable String packageName = "";
-    var unique Stack xmlPath = new Stack; 
         
 
     method immutable Boolean run(unique Job job) {
@@ -303,15 +300,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         val curStateOpt = this.currentState.peek();
         match (curStateOpt ) {
             case Some {
-                val fieldSymbol = match(xmlPath.peek()) {
-                  case None {
-                    //Not in XML block
-                    this.sf.makeFieldSymbol(node.name.name, node, curStateOpt.value);
-                  } case Some {
-                    //In XML block
-                    this.sf.makeXMLFieldSymbol(node.name.name, node, curStateOpt.value, stackToLinkedList(xmlPath, makeLinkedList()));
-                  }
-                };
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, curStateOpt.value);
                 addSymbolForAST(node, fieldSymbol);
                 match (curStateOpt.value) {
                     case StateSymbol { 
@@ -536,15 +525,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         match (this.currentState.peek() ) {
             case Some {
                 // member
-                val fieldSymbol = match(xmlPath.peek()) {
-                  case None {
-                    //Not in XML block
-                    this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
-                  } case Some {
-                    //In XML block
-                    this.sf.makeXMLFieldSymbol(node.name.name, node, this.currentState.peek().value, stackToLinkedList(xmlPath, makeLinkedList()));
-                  }
-                };
+                val fieldSymbol = this.sf.makeFieldSymbol(node.name.name, node, this.currentState.peek().value);
                 addSymbolForAST(node, fieldSymbol);
                 this.currentState.peek().value.addMember(fieldSymbol);
                 // populate static paramaters
@@ -751,7 +732,7 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         node.modifiers.map(fn (item) => { item.accept(this); item });
         node.stateBinding.accept(this);
 
-        this.stack.pop();
+        this.stack.pop();        
     }  
 
 	override method void visitParsedDoubleLiteral(immutable ParsedDoubleLiteral node) {
@@ -1067,60 +1048,4 @@ state NameResolutionPass case of Pass = ParsedLeafVisitor with  {
         DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedUnitLiteral");
         addSymbolForAST(node, this.sf.makeTopSymbol());
     }
-
-
-    method unique LinkedList stackToLinkedList(shared Stack s, shared LinkedList l) {
-      match(s.peek()) {
-        case None {
-          l;
-        } case Some {
-          val v = s.peek().value;
-          l.addFirst(v);
-          s.pop();
-          stackToLinkedList(s, l);
-          printLine("foo");
-          printLine(v);
-          s.push(v);
-          l;
-        }
-      };
-    }
-
-    override method void visitParsedXMLBlock(immutable ParsedXMLBlock node) {
-        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedXMLBlock");
-        var idx = 0;
-        node.xmlElts.map(fn (elt) => {
-            xmlPath.push(new XMLChildNode{idx=idx;});
-            elt.accept(this);
-            xmlPath.pop();
-            idx = idx + 1;
-          });
-    }
-
-    override method void visitParsedXMLTag(immutable ParsedXMLTag node) {
-        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedXMLTag");
-        node.attrs.map(fn (attr) => { attr.accept(this); });
-
-        var idx = 0;
-        node.body.map(fn (elt) => {
-            xmlPath.push(new XMLChildNode{idx=idx;});
-            elt.accept(this);
-            xmlPath.pop();
-            idx = idx + 1;
-          });
-    }
-    
-    override method void visitParsedXMLAttr(immutable ParsedXMLAttr node) {
-        DEBUG(DEBUG_PRIO_LOW, "<NameResolutionPass> visit ParsedXMLAttr");
-
-        xmlPath.push(new XMLAttributeNode{name=node.name;});
-        node.value.accept(this);
-        xmlPath.pop();
-    }
-
-	override method void visitParsedXMLEmbeddedPlaid(immutable ParsedXMLEmbeddedPlaid node) {
-		LOG("visit ParsedXMLEmbeddedPlaid");
-        node.content.accept(this);
-	}
-
 }

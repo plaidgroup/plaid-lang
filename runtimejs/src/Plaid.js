@@ -1078,75 +1078,12 @@ var Plaid = (function() {
 		}
 	});
 
-        Plaid.ERROR = window.alert;
-
-        Plaid.states = {};
-
-        Plaid.states.stateTable = {};
-        Plaid.states.stateInitializer = {};
-        
-        Plaid.states.getState = function(name) {
-            if(!Plaid.states.stateTable[name]) {
-                if(Plaid.states.stateInitializer[name]) {
-                    Plaid.states.stateTable[name] = (Plaid.states.stateInitializer[name])();
-                } else {
-                    Plaid.ERROR("Requesting nonexistent state " + name);                    
-                }
-            }
-            return Plaid.states.stateTable[name];
-        };
-
-        Plaid.std = {};
-
-        Plaid.std.unit = new Object();
-        Plaid.std.unit["=="] = function(x) { return this === x;};
-        Plaid.std.unit["!="] = function(x) { return this !== x;};
-
 	return Plaid;
 })();
 
-for(var prots = [Number.prototype, String.prototype, Boolean.prototype]; prots.length > 0; prots.shift()) {
-    var p = prots[0];
-
-    p["+"] = function(x) { return this.valueOf()+x;};
-    p["-"] = function(x) { return this.valueOf()-x;};
-    p["*"] = function(x) { return this.valueOf()*x;};
-    p["/"] = function(x) { return this.valueOf()/x;};
-    p["%"] = function(x) { return this.valueOf()%x;};
-    
-    p["=="] = function(x) { return this.valueOf()==x;};
-    p["==="] = function(x) { return this.valueOf()===x;};
-    p["!="] = function(x) { return this.valueOf()!=x;};
-    p["!=="] = function(x) { return this.valueOf()!==x;};
-    p[">"] = function(x) { return this.valueOf()>x;};
-    p[">="] = function(x) { return this.valueOf()>=x;};
-    p["<"] = function(x) { return this.valueOf()<x;};
-    p["<="] = function(x) { return this.valueOf()<=x;};
-    
-    p["&&"] = function(x) { return this.valueOf()&&x;};
-    
-    p["|"] = function(x) { return this.valueOf()|x;};
-    p["&"] = function(x) { return this.valueOf()&x;};
-    p["^"] = function(x) { return this.valueOf()^x;};
-    p["<<"] = function(x) { return this.valueOf()<<x;};
-    p[">>"] = function(x) { return this.valueOf()>>x;};
-    p[">>>"] = function(x) { return this.valueOf()>>>x;};
-
-    p["!"] = function() { return !this.valueOf();};
-    p["~"] = function() { return ~this.valueOf();};
-}
-    
 if (!window) { var window = {}; }
 if (!window.console) { window.console = {}; }
 if (!window.console.log) { window.console.log = function() {};}
 
 if (typeof exports !== 'undefined') { exports.Plaid = Plaid; }
 
-function printLine(s) {
-    function escape(text) {
-        return text.replace(/./g,function (chr) {
-                                return '&#' + chr.charCodeAt(0) + ';';
-                            });
-    };
-    document.write(escape(s)+"<br/>");
-}

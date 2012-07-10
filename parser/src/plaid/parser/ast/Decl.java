@@ -23,87 +23,87 @@ import java.util.List;
 
 import plaid.parser.Token;
 
-public abstract class Decl extends ASTNode
-implements DeclOrStateOp, XMLEmbeddable {
+public abstract class Decl extends ASTNode implements DeclOrStateOp{
 	
-        protected final Identifier name;
-        protected final List<Modifier> modifiers;
-        protected final List<Annotation> annotations;
-        
-        public Decl(Token t, List<Annotation> annotations, List<Modifier> modifiers, Identifier name) {
-                super(t);
-                this.annotations = annotations;
-                this.modifiers = modifiers;
-                this.name = name;
-        }
-        
-        public Identifier getName() {
-                return this.name;
-        }
+	protected final Identifier name;
+	protected final List<Modifier> modifiers;
+	protected final List<Annotation> annotations;
+	
+	public Decl(Token t, List<Annotation> annotations, List<Modifier> modifiers, Identifier name) {
+		super(t);
+		this.annotations = annotations;
+		this.modifiers = modifiers;
+		this.name = name;
+	}
+	
+	public Identifier getName() {
+		return this.name;
+	}
 
-        public List<Modifier> getModifiers() {
-                return modifiers;
-        }
-        
-        public List<Annotation> getAnnotations() {
-                return annotations;
-        }
-        
-        public static String annotationsToString(List<Annotation> annotations) {
-                StringBuilder sb = new StringBuilder();
-                
-                if ( annotations.size() > 0 ) {
-                        sb.append("@"+annotations.get(0).getName());
-                        for ( int i = 1; i < annotations.size(); i++ ) {
-                                sb.append(" ");
-                                sb.append("@"+annotations.get(i).getName());
-                        }
-                }
-                
-                return sb.toString();
-        }
-        
-        public static String modifiersToString(List<Modifier> modifiers) {
-                StringBuilder sb = new StringBuilder();
-                
-                if ( modifiers.size() > 0 ) {
-                        sb.append(modifiers.get(0));
-                        for ( int i = 1; i < modifiers.size(); i++ ) {
-                                sb.append(" ");
-                                sb.append(modifiers.get(i));
-                        }
-                }
-                
-                return sb.toString();
-        }
-        
-        public static String argsToString(List<Arg> args) {
-                StringBuilder sb = new StringBuilder();
-                
-                if ( args.size() > 0 ) {
-                        sb.append(args.get(0));
-                        for ( int i = 1; i < args.size(); i++ ) {
-                                sb.append(",");
-                                sb.append(args.get(i));
-                        }
-                }
-                
-                return sb.toString();
-        }
-        
-        public static String StaticArgSpecsToString(List<StaticArg> StaticArgsSpec) {
-                StringBuilder sb = new StringBuilder();
-                
-                if ( StaticArgsSpec.size() > 0 ) {
-                        sb.append("<");
-                        sb.append(StaticArgsSpec.get(0));
-                        for ( int i = 1; i < StaticArgsSpec.size(); i++ ) {
-                                sb.append(",");
-                                sb.append(StaticArgsSpec.get(i));
-                        }
-                        sb.append(">");                 
-                }
-                
-                return sb.toString();
-        }
+	public List<Modifier> getModifiers() {
+		return modifiers;
+	}
+	
+	public List<Annotation> getAnnotations() {
+		return annotations;
+	}
+	
+	public static String annotationsToString(List<Annotation> annotations) {
+		StringBuilder sb = new StringBuilder();
+		
+		if ( annotations.size() > 0 ) {
+			sb.append("@"+annotations.get(0).getName());
+			for ( int i = 1; i < annotations.size(); i++ ) {
+				sb.append(" ");
+				sb.append("@"+annotations.get(i).getName());
+			}
+		}
+		
+		return sb.toString();
+	}
+	
+	public static String modifiersToString(List<Modifier> modifiers) {
+		StringBuilder sb = new StringBuilder();
+		
+		if ( modifiers.size() > 0 ) {
+			sb.append(modifiers.get(0));
+			for ( int i = 1; i < modifiers.size(); i++ ) {
+				sb.append(" ");
+				sb.append(modifiers.get(i));
+			}
+		}
+		
+		return sb.toString();
+	}
+	
+	public static String argsToString(List<Arg> args) {
+		StringBuilder sb = new StringBuilder();
+		
+		if ( args.size() > 0 ) {
+			sb.append(args.get(0));
+			for ( int i = 1; i < args.size(); i++ ) {
+				sb.append(",");
+				sb.append(args.get(i));
+			}
+		}
+		
+		return sb.toString();
+	}
+	
+	public static String StaticArgSpecsToString(List<StaticArg> StaticArgsSpec) {
+		StringBuilder sb = new StringBuilder();
+		
+		if ( StaticArgsSpec.size() > 0 ) {
+			sb.append("<");
+			sb.append(StaticArgsSpec.get(0));
+			for ( int i = 1; i < StaticArgsSpec.size(); i++ ) {
+				sb.append(",");
+				sb.append(StaticArgsSpec.get(i));
+			}
+			sb.append(">");			
+		}
+		
+		return sb.toString();
+	}
 }
+

@@ -26,20 +26,14 @@ import plaid.parser.Token;
 public class DeclList extends StatePrim {
 
 	private List<Decl> decls;
-	private XMLBlock xmlBlock;
 
-	public DeclList(Token t, List<Decl> decls, XMLBlock xmlBlock) {
+	public DeclList(Token t, List<Decl> decls) {
 		super(t);
 		this.decls = decls;
-		this.xmlBlock = xmlBlock;
 	}
 
 	public List<Decl> getDecls() {
 		return decls;
-	}
-	
-	public XMLBlock getXmlBlock() {
-		return xmlBlock;
 	}
 
 	public void setDecls(List<Decl> decls) {
