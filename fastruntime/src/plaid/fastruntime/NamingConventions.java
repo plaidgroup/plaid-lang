@@ -231,7 +231,7 @@ public class NamingConventions {
 		javaReservedMap.put("while", "while" + GENERATED_SUFFIX);
 		javaReservedMap.put("true", "true" + GENERATED_SUFFIX);
 		javaReservedMap.put("false", "false" + GENERATED_SUFFIX);
-		javaReservedMap.put("null", "false" + GENERATED_SUFFIX);
+		javaReservedMap.put("null", "null" + GENERATED_SUFFIX);
 	}
 	
 	
