@@ -1,0 +1,1131 @@
+package plaid.printNodeNames;
+
+import plaid.ast.*;
+import plaid.ast.visitor.ASTVisitor;
+import plaid.collections.LinkedList;
+import plaid.metadataCreation.Node;
+import plaid.metadataCreation.Tree;
+import plaid.printNodeNames.FileObj;
+import plaid.printNodeNames.NewVisitor;
+import plaid.printNodeNames.StateTableEntry;
+
+state PrintVisitor = ASTVisitor {
+	var debug = true;
+	var newVariableNameNumber = 0;
+	var states = new LinkedList;
+	var firstCase = false;
+	var currState = "";
+	var browser = false;
+	var mainFile = true;
+	var targetDirectory = "../../compiledJavaScript";
+	var directoryAbovePackage = "";
+	var output = new plaid.printNodeNames.FileObj;
+	var statesToInstantiate;
+	var outputLines = java.lang.StringBuilder.new();
+	var stateOutputLines = java.lang.StringBuilder.new();
+	var currentOutput = 0;
+	var outputsArray = new LinkedList;
+	var newLine = "\n";
+	var plaidPrefix = "Plaid.";
+
+
+	method setStates(statesList){
+		statesToInstantiate = statesList;
+	}
+	
+	method getState(name){
+		var returnVal = "";
+		this.states.map(fn (a) => {
+			if(a.name == name){
+				returnVal = a;
+			}
+		});
+		//if return is never given a value, this is an error (trying to be case of a state that has not been declared)
+		
+		//copies the tree to which name belongs
+		var returnTree = returnVal.tree.copyTree(returnVal.node);
+		//creates a new state table entry with the name passed in, with a copy of that name's node, with a copy of that name's tree
+		var newEntry = new StateTableEntry with { name = returnVal.name; node = returnTree.targetNode; tree = returnTree; };
+		newEntry;
+	}
+	
+	method generateNewVariableName() {
+		this.newVariableNameNumber = this.newVariableNameNumber + 1;
+		"plaidNewVar" + this.newVariableNameNumber;
+	}
+	
+	method generateNewStateName(str) {
+		"plaidNewState_" + str;
+	}
+	
+	method generateInstantiatedStateName(str) {
+		"plaidNewInstantiatedState_" + str;
+	}
+
+/*	
+	method checkUniqueMembers(root1,root2){
+		var originalMembers = root1.members();
+		var withMembers = root2.members();
+		checkUniqueMembersHelper(originalMembers,withMembers);
+	}
+	method checkUniqueMembersHelper(originalMembers,withMembers){
+		
+		
+		outputsArray.get(currentOutput).getValue().append("-----------------------------------");
+		originalMembers.map(fn (c) => {
+			outputsArray.get(currentOutput).getValue().append(c);
+		});	
+		withMembers.map(fn (c) => {
+			outputsArray.get(currentOutput).getValue().append(c);
+		});	
+		outputsArray.get(currentOutput).getValue().append("-----------------------------------");
+		
+		
+		originalMembers.map(fn (c) => {
+			withMembers.map(fn (d) => {
+				if (c == d){
+					outputsArray.get(currentOutput).getValue().append("Error: Attempt to compose state from two states containing member with same name" + c + newLine);
+				};
+			});
+		});		
+	}
+*/
+	
+	method checkUniqueTags(root1,root2){
+		var originalTags = root1.tags();
+		var withTags = root2.tags();
+		checkUniqueTagsHelper(originalTags,withTags);
+	}
+	method checkUniqueTagsHelper(originalTags,withTags){
+		
+		/*
+		outputsArray.get(currentOutput).getValue().append("-----------------------------------");
+		originalTags.map(fn (c) => {
+			outputsArray.get(currentOutput).getValue().append(c);
+		});	
+		withTags.map(fn (c) => {
+			outputsArray.get(currentOutput).getValue().append(c);
+		});	
+		outputsArray.get(currentOutput).getValue().append("-----------------------------------");
+		*/
+		
+		originalTags.map(fn (c) => {
+			withTags.map(fn (d) => {
+				if (c == d && !(c == "")){
+					outputsArray.get(currentOutput).getValue().append("Error: Attempt to compose state from two states containing tag with same name" + c + newLine);
+				};
+			});
+		});	
+	}
+		
+	method specializeState(allMembers,withMembers,memberToAdd,memberValue,withEntry,targetStateName){
+		var foundMatch = false;
+		withMembers.map(fn (c) => {
+			if (c == memberToAdd){
+				foundMatch = true;
+				outputsArray.get(currentOutput).getValue().append(targetStateName + "['" + memberToAdd + "'] = '" + memberValue + "';" + newLine);
+			};
+		});	
+		if (foundMatch == false) {
+			allMembers.map(fn (c) => {
+				if (c == memberToAdd){
+				outputsArray.get(currentOutput).getValue().append("Error: Attempt to compose state from two states containing member with same name" + newLine);
+				};
+			});	
+			outputsArray.get(currentOutput).getValue().append(generateNewStateName(targetStateName) + "['" + memberToAdd + "'] = " + memberValue + ";" + newLine);
+			//must add the member to the tree now
+			withEntry.node.memberList.add("'" + memberToAdd + "'");
+		};
+	}
+	
+	method handleAddWithState(qiToAdd,parentNode,parentTree){
+		match (qiToAdd) {	
+			case QI {			
+				//the string name of the state that is a with state for the current state
+				var withState = qiToAdd.qid.toString();	
+				//the object that bundles the node and tree corresponding to the state name above
+				var withEntry = this.getState(withState);
+				var withRoot = withEntry.tree.root;
+				var tagStateName = generateNewStateName(parentNode.tag);
+				var withTagStateName = generateNewStateName(withEntry.name);
+				
+				//ensure the members being added by the with state are not already present in the state to which they are added
+				//checkUniqueMembers(parentTree.root,withRoot);
+		
+				//ensure the tags being added by the with state are not already present in the state to which they are added
+				checkUniqueTags(parentTree.root,withRoot);
+		
+				withRoot.children.map(fn (c) => {
+					parentNode.children.add(c);
+				});
+				
+				var withMembersList = withRoot.members();
+				withMembersList.map(fn (d) => {
+					outputsArray.get(currentOutput).getValue().append(tagStateName + "[" + d + "] = " + withTagStateName + "[" + d + "];" + newLine);
+				});
+				
+				match (qiToAdd.initState) {
+					case Some{
+						match (qiToAdd.initState.value) {
+							case DeclList{
+								var withMembers = withEntry.node.members();
+								var allMembers = withRoot.members();
+								qiToAdd.initState.value.decls.map(fn (d) => {
+									var funcName = "";
+									match (d){
+										case FieldDecl{
+											funcName = d.f.name;
+										}
+										case MethodDecl{
+											funcName = d.name;
+										}
+										default{
+											outputsArray.get(currentOutput).getValue().append("problem in specialize" + newLine);
+										}
+									};
+									var funcValue = d.accept(this);
+									//check unique members
+									specializeState(allMembers, withMembers, funcName, funcValue, withEntry, parentNode.tag);
+								});
+							}
+							default{
+								outputsArray.get(currentOutput).getValue().append("//problem in QI in StateDecl in handleAddWith" + newLine);
+							}
+						};
+					}
+					case None{
+					}
+				};
+				
+			}
+			
+			default{
+				outputsArray.get(currentOutput).getValue().append("problem" + newLine);
+			}
+		};
+		
+	}
+
+	method visitApplication(node) {
+		if (debug) {
+			printLine("//I am an Application");
+			printLine("   //f: " + node.f.toString());
+			printLine("   //arguments: " + node.arguments.toString());
+			printLine("   //isTailCall: " + node.isTailCall.toString());
+		};
+		
+		//make a string (with argument values) from list of argument objects	
+		var argumentsString = "";
+		if (node.arguments.length() > 0) {
+			var nMinusOneArguments = node.arguments.subList(0,node.arguments.length() - 2);
+			nMinusOneArguments.map(fn (a) => argumentsString = argumentsString + a.accept(this) + ",");
+			argumentsString = argumentsString + (node.arguments.get(node.arguments.length() - 1).accept(this));
+		};
+		
+		var mn = node.f.accept(this);
+		
+		var endOfLine = "";
+		ifElse (browser == true) {
+			if (mn == "printLine"){
+				endOfLine = "+\"<BR>\"";
+			};
+			if (mn == "printLine" || mn == "print"){
+				mn = "document.write";
+			};	
+		}
+		{
+			if (mn == "printLine"){
+				//endOfLine = "+\"\n\"";
+			};
+			if (mn == "printLine" || mn == "print"){
+				//mn = "print";
+				mn = "console.log";
+			};	
+		};
+		
+		//immediately emit code that assigns method call's value to the newVarName generated below
+		
+		var newVarName = generateNewVariableName();
+		var funcCallString = "var " + newVarName + " = " + mn + "(" + argumentsString + endOfLine + ");";
+		//print the function call
+		outputsArray.get(currentOutput).getValue().append(funcCallString + newLine);
+		//return the newVarName so that method call's value can be used by the method that called this one (this can be used just like an ID name)
+		newVarName;
+	}
+	method visitAssignment(node) {
+		if (debug) {
+			printLine("//I am an Assignment");
+			printLine("   //target: " + node.target.toString());
+			printLine("   //field: " + node.field.toString());
+			printLine("   //value: " + node.value.toString());
+		};
+		var fieldName = node.field.accept(this);
+		var fullName = "";
+		match(node.target) {
+			case None{
+				fullName = fieldName;
+			}
+			case Some{
+				fullName = node.target.value.accept(this) + "." + fieldName;
+			}
+		};
+		outputsArray.get(currentOutput).getValue().append(fullName + " = " + node.value.accept(this) + ";" + newLine);
+		//node.target.value.accept(this); 
+		fullName;
+	}
+	method visitAtomicBlock(node) {
+		if (debug) {
+			printLine("//I am an AtomicBlock");
+		};
+	}
+	method visitBorrowBinding(node) {
+		if (debug) {
+			printLine("//I am a BorrowBinding");
+		};
+		node.exp.accept(this); 
+		node.body.accept(this); 
+	}
+	method visitCase(node) {
+		if (debug) {
+			printLine("//I am a Case");
+			printLine("   //qi: " + node.qi.toString());
+			printLine("   //x: " + node.x.toString());
+			printLine("   //e: " + node.e.toString());
+			printLine("   //defaultCase: " + node.defaultCase.toString());
+			printLine("   //boundVar: " + node.boundVar.toString());
+		};
+		//the one called below should only be called if this case is not the default case
+		
+		ifElse(this.firstCase){
+			outputsArray.get(currentOutput).getValue().append("if (matchVar.match(\"" + node.qi.value.qid.toString() + "\")) {" + newLine); 
+			this.firstCase = false;	
+		}
+		{
+			ifElse(node.defaultCase){
+				outputsArray.get(currentOutput).getValue().append("else {" + newLine);
+			}
+			{
+				outputsArray.get(currentOutput).getValue().append("else if (matchVar.match(\"" + node.qi.value.qid.toString() + "\")) {" + newLine); 
+			};
+		};
+		var returnVal = node.e.accept(this); 
+		outputsArray.get(currentOutput).getValue().append("var returnVal = " + returnVal + ";" + newLine);
+		outputsArray.get(currentOutput).getValue().append("}" + newLine);
+		"returnVal";
+	}
+	method visitCast(node) {
+		if (debug) {
+			printLine("//I am a Cast");
+		};
+		node.body.accept(this);
+	}
+	method visitChangeState(node) {
+		if (debug) {
+			printLine("//I am a ChangeState");
+			printLine("   //e: " + node.e.toString());
+			printLine("   //s: " + node.s.toString());
+		};
+		var toChange = node.e.accept(this);
+		
+		match(node.s){
+			case QI{
+				outputsArray.get(currentOutput).getValue().append(toChange + ".stateChange(" + node.s.accept(this) + ");" + newLine);
+			}
+			case With{
+				outputsArray.get(currentOutput).getValue().append(toChange + ".stateChange(" + node.s.accept(this) + ");" + newLine);
+			}
+			case DeclList{
+				node.s.decls.map(fn (d) => {
+					match(d) {
+						case MethodDecl{
+							//d.accept(this);
+							outputsArray.get(currentOutput).getValue().append(toChange + ".stateChange(" + toChange + ".withMember('" + d.name + "', '" + d.accept(this) + "'));" + newLine);
+							}
+						case FieldDecl{			
+							match(d.e){
+								case UnitLiteral{
+									//outputsArray.get(currentOutput).getValue().append(toChange + ".stateChange(" + toChange + ".withMemberNoValue('" + d.f.name + "'));" + newLine);
+									outputsArray.get(currentOutput).getValue().append(toChange + ".stateChangeMemberNoValue('" + d.f.name + "');" + newLine);
+								}
+								default {
+									//outputsArray.get(currentOutput).getValue().append(toChange + ".stateChange(" + toChange + ".withMember('" + d.f.name + "', '" + d.e.accept(this) + "'));" + newLine);
+									outputsArray.get(currentOutput).getValue().append(toChange + ".stateChangeMember('" + d.f.name + "', '" + d.e.accept(this) + "');" + newLine);
+								}
+							};
+						
+						}
+						default{
+							d.accept(this);
+						}
+					};
+				});
+			}
+			default{
+				outputsArray.get(currentOutput).getValue().append("problem at changeState's s" + newLine);
+				node.s.accept(this);
+			}
+		};
+		toChange;
+	}
+	method visitCompilationUnit(node) {
+		if (debug) {
+			printLine("//I am a CompilationUnit");	
+		};
+		
+		outputsArray.add(outputLines);
+		outputsArray.add(stateOutputLines);
+		
+		var directoryFile = new plaid.printNodeNames.FileObj;
+		directoryFile.setName(targetDirectory);
+		var modifiedPackage = "";
+		
+		ifElse(directoryFile.canWrite()){
+			var topDirectory = "";
+			node.packageName.map(fn (d) => {
+				modifiedPackage = modifiedPackage + "/" + d;
+				topDirectory = topDirectory + "/..";
+			});
+			directoryFile.setName(targetDirectory + modifiedPackage);
+			directoryFile.mkdirs();
+			topDirectory = topDirectory.replaceFirst("/..","..");
+			directoryAbovePackage = topDirectory;
+		}
+		{
+			printLine("Error: cannot write to the directory " + targetDirectory + modifiedPackage);
+		};
+		
+		//create the array of strings that will be written to the file
+		node.imports.accept(this);
+		node.decls.map(fn (d) => {
+			d.accept(this);
+		});			
+		
+		var fileName = node.sourceFile;	
+		var fileExtension = ".js";
+		if(browser == true && mainFile == true){
+			fileExtension = ".html";
+		};
+		fileName = fileName.replace(".plaid",fileExtension);
+		output.setName(targetDirectory + modifiedPackage + "/" + fileName);
+		output.beginWrite();
+		
+		ifElse (browser == true) {
+		    if(mainFile == true){
+				output.writeLine("<html>");
+				output.writeLine("<head>");
+				output.writeLine("<script src=\"" + directoryAbovePackage + "/Plaid.js\" type=\"text/javascript\"></script>");
+				output.writeLine("</head>");
+				output.writeLine("<body>");
+				output.writeLine("<script type=\"text/javascript\">");
+				output.writeLine("<!--");
+			
+				output.writeLine("function include(filename){");
+				output.writeLine("	fileType=\"text/javascript\";");
+  				output.writeLine("	document.write(\"<script src=\"+filename+\" type=\"+fileType+\"></script>\");");
+ 				output.writeLine("}");
+			};
+		}
+		{
+			output.writeLine("if(typeof require !== 'undefined') {");
+			output.writeLine("  var Plaid = require('Plaid.js').Plaid");
+			output.writeLine("}");
+		};
+		
+
+		output.write( outputsArray.get(1).getValue().toString() );
+		output.write( outputsArray.get(0).getValue().toString() );
+		
+		if (browser == true && mainFile == true){
+			output.writeLine("//-->");
+			output.writeLine("</script>");
+			output.writeLine("</body>");
+			output.writeLine("</html>");
+		};
+		output.endWrite();
+		printLine("Done");
+	}
+	method visitDeclList(node) {
+		if (debug) {
+			printLine("//I am a DeclList");
+		};
+		//node.decls.map(fn (d) => {d.accept(this);});
+		
+		var nMinusOneDecls = node.decls.subList(0,node.decls.length() - 2);
+		nMinusOneDecls.map(fn (d) => {d.accept(this);});
+		node.decls.get(node.decls.length() - 1).accept(this);
+	}
+	method visitDereference(node) {
+		if (debug) {
+			printLine("//I am a Dereference");
+			printLine("   //left: " + node.left.toString());
+			printLine("   //right: " + node.right.toString());
+		};
+		node.left.accept(this) + "." + node.right.accept(this); 
+	}
+	method visitDestructiveDereference(node) {
+		if (debug) {
+			printLine("//I am a DestructiveDereference");
+		};
+	}
+	method visitDoubleLiteral(node) {
+		if (debug) {
+			printLine("//I am a DoubleLiteral");
+			printLine("   //double: " + node.double);
+		};
+		node.double;
+	}
+	method visitFieldDecl(node) {
+		if (debug) {
+			printLine("//I am a FieldDecl");
+			printLine("   //f: " + node.f.toString());
+			printLine("   //e: " + node.e.toString());
+			printLine("   //abstractField: " + node.abstractField.toString());
+			printLine("   //overrides: " + node.overrides.toString());
+			printLine("   //fieldType: " + node.fieldType.toString());
+		};
+		match(node.e){
+			case UnitLiteral{
+				outputsArray.get(currentOutput).getValue().append("var " + node.f.name + ";" + newLine);
+			}
+			default {
+				outputsArray.get(currentOutput).getValue().append("var " + node.f.name + " = " + node.e.accept(this) + ";" + newLine);
+			}
+		};
+		node.f.name;
+	}
+	method visitGroupDecl(node) {
+		if (debug) {
+			printLine("//I am a GroupDecl");
+		};
+	}
+	method visitGroupParameter(node) {
+		if (debug) {
+			printLine("//I am a GroupParameter");
+		};
+	}
+	method visitID(node) {
+		if (debug) {
+			printLine("//I am an ID");
+			printLine("   //name: " + node.name);
+		};		
+		var returnName = node.name;
+		if (returnName == "if$plaid") {
+		  returnName = plaidPrefix + "if$plaid";
+		};
+		if (returnName == "ifElse") {
+		  returnName = plaidPrefix + "ifElse";
+		};
+		if (returnName == "while$plaid") {
+		  returnName = plaidPrefix + "while$plaid";
+		};
+		if (returnName == "this$plaid"){
+			returnName = "this$plaid";
+		};
+		returnName;
+	}
+	method visitImportList(node) {
+		if (debug) {
+			printLine("//I am an ImportList");
+			printLine("   //token: " + node.token.toString());
+		};
+		ifElse(browser == true) {
+			node.imports.map(fn (d) => {
+				var name = "";
+				d.qid.map(fn(x) =>{
+					name = name + "/" + x;
+				});
+				outputsArray.get(currentOutput).getValue().append("include(\"" + directoryAbovePackage + name + ".js\");" + newLine);
+			});
+		}
+		{
+			node.imports.map(fn (d) => {
+				outputsArray.get(currentOutput).getValue().append("load(\"" + d.qid.toString() + ".js\");" + newLine);
+			});
+		};
+	}
+	method visitIntLiteral(node) {
+		if (debug) {
+			printLine("//I am an IntLiteral");
+			printLine("   //integer: " + node.integer);
+		};
+		node.integer;
+	}
+	method visitJoin(node) {
+		if (debug) {
+			printLine("//I am a Join");
+		};
+		node.body.accept(this);
+	}
+	method visitLambda(node) {
+	
+		if (debug) {
+			printLine("//I am a Lambda");
+			printLine("   //arguments: " + node.arguments.toString());
+			printLine("   //body: " + node.body.toString());
+			printLine("   //lambdaType: " + node.lambdaType.toString());
+			printLine("   //recursiveName: " + node.recursiveName.toString());
+		};
+		//make a strings (with argument values) from list of argument objects	
+		var newVarName = generateNewVariableName();
+		var argumentsString = "";
+		if (node.arguments.length() > 0) {
+			var nMinusOneArguments = node.arguments.subList(0,node.arguments.length() - 2);
+			nMinusOneArguments.map(fn (a) => argumentsString = argumentsString + a.accept(this) + ",");
+			argumentsString = argumentsString + (node.arguments.get(node.arguments.length() - 1).accept(this));
+		};
+		outputsArray.get(currentOutput).getValue().append("var " + newVarName + " = function(" + argumentsString + ") {" + newLine);
+		outputsArray.get(currentOutput).getValue().append("return " + node.body.accept(this) + ";" + newLine); 
+		outputsArray.get(currentOutput).getValue().append("};" + newLine);
+		newVarName;
+	}
+	method visitLetBinding(node) {
+		if (debug) {
+			printLine("//I am a LetBinding");
+			printLine("   //x: " + node.x.toString());
+			printLine("   //exp: " + node.exp.toString());
+			printLine("   //body: " + node.body.toString());
+			printLine("   //mutable: " + node.mutable.toString());
+		};
+		outputsArray.get(currentOutput).getValue().append("var " + node.x.accept(this) + " = " + node.exp.accept(this) + ";" + newLine); 
+		node.body.accept(this); 
+	}
+	method visitMatch(node) {
+		if (debug) {
+			printLine("//I am a Match");
+			printLine("   //e: " + node.e.toString());
+			printLine("   //caseList: " + node.caseList.toString());
+		};
+		outputsArray.get(currentOutput).getValue().append("var matchVar = " + node.e.accept(this) + ";" + newLine);
+		this.firstCase = true;
+		node.caseList.map(fn (c) => {
+			c.accept(this);
+		});
+		"returnVal";
+	}
+	method visitMetaDereference(node) {
+		if (debug) {
+			printLine("//I am a MetaDereference");
+		};
+	}
+	method visitMetaTypeArgument(node) {
+		if (debug) {
+			printLine("//I am a MetaTypeArgument");
+		};
+	}
+	method visitMetaVariable(node) {
+		if (debug) {
+			printLine("//I am a MetaVariable");
+		};
+	}
+	method visitMethodCall(node) {
+		if (debug) {
+			printLine("//I am a MethodCall");
+			printLine("   //receiver: " + node.receiver.toString());
+			printLine("   //methodName: " + node.methodName.toString());
+			printLine("   //arguments: " + node.arguments.toString());
+			printLine("   //isTailCall: " + node.isTailCall.toString());
+		};
+		//make a string (with argument values) from list of argument objects	
+		var argumentsString = "";
+		if (node.arguments.length() > 0) {
+			var nMinusOneArguments = node.arguments.subList(0,node.arguments.length() - 2);
+			nMinusOneArguments.map(fn (a) => argumentsString = argumentsString + a.accept(this) + ",");
+			argumentsString = argumentsString + (node.arguments.get(node.arguments.length() - 1).accept(this));
+		};
+		//immediately emit code that assigns method call's value to the newVarName generated below
+		var newVarName = generateNewVariableName();
+		var mn = node.methodName.name;
+		var funcCallString = "";
+		
+		ifElse ( mn == "+" || mn == "-" || mn == "*" ||mn == "/" || mn == "<" || mn == ">" || mn == "<=" || mn == ">=" || mn == "==" || mn == "!=" || mn == "||" || mn == "&&" || mn == "|" || mn == "<<" || mn == ">>" || mn == "&" || mn == "^" || mn == ">>>"){
+		
+			funcCallString = "var " + newVarName + " = " + node.receiver.accept(this) + " " + mn + " " + argumentsString + ";";
+		}
+		{
+			ifElse( mn == "!" || mn == "~"){
+				funcCallString = "var " + newVarName + " = " + mn + " " + node.receiver.accept(this) + ";";
+			}
+			{
+				funcCallString = "var " + newVarName + " = " + node.receiver.accept(this) + "." + mn + "(" + argumentsString + ");";
+			};
+		};
+		//print the function call
+		outputsArray.get(currentOutput).getValue().append(funcCallString + newLine);
+		//return the newVarName so that method call's value can be used by the method that called this one (this can be used just like an ID name)
+		newVarName;
+		
+	}
+	method visitMethodDecl(node) {
+		if (debug) {
+			printLine("//I am a MethodDecl");
+			printLine("   //name: " + node.name);
+			printLine("   //body: " + node.body.toString());
+			printLine("   //arguments: " + node.arguments.toString());
+			printLine("   //abstractMethod: " + node.abstractMethod.toString());
+			printLine("   //overrrides: " + node.overrides.toString());
+			printLine("   //methodType: " + node.methodType.toString());
+		};
+		
+		//make a strings (with argument values) from list of argument objects	
+		var argumentsString = "";
+		if (node.arguments.length() > 0) {
+			var nMinusOneArguments = node.arguments.subList(0,node.arguments.length() - 2);
+			nMinusOneArguments.map(fn (a) => argumentsString = argumentsString + a.accept(this) + ",");
+			argumentsString = argumentsString + (node.arguments.get(node.arguments.length() - 1).accept(this));
+		};
+		outputsArray.get(currentOutput).getValue().append("function " + node.name + " (" + argumentsString + ") {" + newLine);
+		outputsArray.get(currentOutput).getValue().append("var this$plaid = this;" + newLine);
+		outputsArray.get(currentOutput).getValue().append("return " + node.body.accept(this) + ";" + newLine); 
+		outputsArray.get(currentOutput).getValue().append("}" + newLine);
+		if(node.name == "main"){
+			outputsArray.get(currentOutput).getValue().append(
+			  "if(typeof window !== 'undefined'){" + newLine +
+			  "  var oldEvt$plaid=window.onload;window.onload=function(){" + newLine +
+				"    if(oldEvt$plaid) oldEvt$plaid(); main(); }" + newLine +
+				"} else {" + newLine +
+				"  main();"+ newLine +
+				"}");
+		};
+		node.name;
+	}	
+	method visitNewInstance(node) {
+		if (debug) {
+			printLine("//I am a NewInstance");
+			printLine("   //s: " + node.s.toString());
+		};
+		var newVarName = generateNewVariableName();
+		match(node.s){
+			case QI{
+				var stateName = node.s.accept(this);
+				var found = false;
+				statesToInstantiate.map(fn (d) => {
+					if(d == stateName){
+						found = true;
+					}
+				});
+				ifElse(found) {
+					ifElse(stateName == generateNewStateName("Array") ||
+					       stateName == generateNewStateName("None")  ||
+					       stateName == generateNewStateName("True")  ||
+					       stateName == generateNewStateName("False") ||
+					       stateName == generateNewStateName("Date")) {
+						outputsArray.get(currentOutput).getValue().append("var " + newVarName + " = " + plaidPrefix + (stateName) + ".instantiate();" + newLine);
+					}{
+						outputsArray.get(currentOutput).getValue().append("var " + newVarName + " = " + generateInstantiatedStateName(stateName) + ".begetObj();" + newLine);
+					}
+				}{
+					outputsArray.get(currentOutput).getValue().append("var " + newVarName + " = " + (stateName) + ".instantiate();" + newLine);
+				};
+			}
+			case With{
+				outputsArray.get(currentOutput).getValue().append("var " + newVarName + " = (" + node.s.accept(this) + ").instantiate();" + newLine);
+			}			
+			case DeclList{
+				var tagName = generateNewVariableName();
+				var returnString = "(new Plaid.PlaidState())";
+				node.s.decls.map(fn (d) => {
+					var newMember = d.accept(this);
+					returnString = returnString + ".withMember('" + newMember + "', " + newMember + ")";
+				});
+				outputsArray.get(currentOutput).getValue().append("var " + newVarName + " = (" + returnString + ").instantiate();" + newLine);
+			}
+		};
+		newVarName;
+	}
+	method visitQI(node) {
+		if (debug) {
+			printLine("//I am a QI");
+			printLine("   //qid: " + node.qid.toString());
+			printLine("   //initState: " + node.initState.toString());
+		};
+		var returnString = node.qid.toString();
+		match (node.initState) {
+			case Some{
+				//node.initState.value.accept(this);
+				match (node.initState.value) {
+					case DeclList{
+						var tagName = returnString;
+						returnString = generateNewStateName(tagName);
+						node.initState.value.decls.map(fn (d) => {
+							var newMember = d.accept(this);
+							returnString = returnString + ".specialize('" + tagName + "', '" + newMember + "', " + newMember + ")";
+						});
+					}
+					default{
+						outputsArray.get(currentOutput).getValue().append("//problem in visitQI - initState exists but is not DeclList" + newLine);
+					}
+				};
+			}
+			case None{
+				returnString = generateNewStateName(returnString);
+			}
+			default{
+			}
+		};
+		//if node.initState is Some
+		//node.initState.value.accept(this);
+		//if node.initState is DeclList
+		//node.initState.accept(this); 
+		returnString;
+	}
+	method visitSplitBlock(node) {
+		if (debug) {
+			printLine("//I am a SplitBlock");
+		};
+	}
+	method visitStateDecl(node) {
+			if (debug) {
+			printLine("//I am a StateDecl");	
+			printLine("   //name: " + node.name.toString());
+			printLine("   //metaParams: " + node.metaParams.toString());
+			printLine("   //caseOf: " + node.caseOf.toString());
+			printLine("   //isCaseOf: " + node.isCaseOf.toString());
+			printLine("   //stateType: " + node.stateType.toString());
+			printLine("   //metaCaseOfArgs: " + node.metaCaseOfArgs.toString());
+			printLine("   //stateDef can be DeclList Freeze QI With");
+			printLine("   //stateDef can be all kinds of things");
+		};
+		currentOutput = 1;
+		var currStateName = generateNewStateName(node.name.name);
+		currState = currStateName;
+		//emit code for creating a new Plaid state
+		outputsArray.get(currentOutput).getValue().append("var " + currStateName + " = new Plaid.PlaidState();" + newLine);
+		
+		var tree = "";
+		var treeNode = "";
+		match(node.caseOf) { 
+			case Some { 
+				//the state is a case of some other state, stored in caseOf.value.toString()
+				//create metadata string for creating Plaid state object in Javascript runtime
+				
+				//the string name of the state of which the current state is a case
+				var caseOfState = node.caseOf.value.qid.toString();
+				//the object that bundles the node and tree corresponding to the state name above
+				var caseOfEntry = this.getState(caseOfState);
+				//the tree to which the current state will be added
+				var caseOfEntryTree = caseOfEntry.tree;
+				//the node in the above tree that corresponds to the state of which the current state is a case
+				var caseOfEntryNode = caseOfEntry.node;
+				//the node that will reflect the current state
+				treeNode = new Node;
+				var memberList = new LinkedList;
+				
+				//add members to the previously empty list
+				match(node.stateDef){
+					case DeclList{
+						node.stateDef.decls.map(fn (d) => {
+							match(d) {
+								case MethodDecl {
+									memberList.add("'" + d.name + "'");
+								}
+								case FieldDecl {		
+									match(d.e){
+										case UnitLiteral{
+										}
+										default {
+											memberList.add("'" + d.f.name + "'");
+										}
+									};
+								}
+								default {
+									outputsArray.get(currentOutput).getValue().append("problem at StateDecl's DeclList, one of the decls" + newLine);
+								}
+							};
+						});
+					}
+					default{
+						//no methods or fields
+					}
+				};
+				
+				//create a list with the tag of the new state, to check unique tags
+				var nameList = new LinkedList;
+				nameList.add(node.name.name);
+				
+				//ensure the members being added by the current state are not already present in the state to which they are added
+				//checkUniqueMembersHelper(caseOfEntryTree.root.members(),memberList);
+				//ensure the tag being added by the current state is not already present in the state to which it is added
+				checkUniqueTagsHelper(caseOfEntryTree.root.tags(),nameList);
+				
+				//add the appropriate members to the new state
+				var tagSN = generateNewStateName(node.name.name);
+				var caseOfTagStateName = generateNewStateName(caseOfEntryNode.tag);
+				var caseOfMembersList = caseOfEntry.tree.root.members();
+				caseOfMembersList.map(fn (d) => {
+					outputsArray.get(currentOutput).getValue().append(tagSN + "[" + d + "] = " + caseOfTagStateName + "[" + d + "];" + newLine);
+				});
+				
+				treeNode.setData(node.name.name, memberList, false, caseOfEntryNode);
+				tree = caseOfEntryTree;
+			} 
+			case None { 
+				//the state is not a case of any other state
+				//create metadata string for creating Plaid state object in Javascript runtime
+				tree = new Tree;
+				treeNode = new Node;
+				var memberList = new LinkedList;
+				
+				//add members to the previously empty list
+				match(node.stateDef){
+					case DeclList{
+						node.stateDef.decls.map(fn (d) => {
+							match(d) {
+								case MethodDecl {
+									memberList.add("'" + d.name + "'");
+								}
+								case FieldDecl {		
+									match(d.e){
+										case UnitLiteral{
+										}
+										default {
+											memberList.add("'" + d.f.name + "'");
+										}
+									};
+								}
+								case StateDecl{
+								}
+								default {
+									outputsArray.get(currentOutput).getValue().append("problem at StateDecl's DeclList, one of the decls" + newLine);
+								}
+							};
+						});
+					}
+					default{
+						//no methods or fields
+					}
+				};
+				treeNode.setData(node.name.name, memberList, true, tree.root);
+			} 
+		};
+		
+		match(node.stateDef){
+			case DeclList{
+				node.stateDef.decls.map(fn (d) => {
+					match(d) {
+						case MethodDecl{
+							//this should be write, not writeLine
+							outputsArray.get(currentOutput).getValue().append(currStateName + "['" + d.name + "'] = "); 
+							d.accept(this);
+						}
+						case FieldDecl{			
+							match(d.e){
+								case UnitLiteral{
+								}
+								default {
+									outputsArray.get(currentOutput).getValue().append(currStateName + "['" + d.f.name + "'] = " + d.e.accept(this) + ";" + newLine);
+								}
+							};
+						}
+						default{
+							outputsArray.get(currentOutput).getValue().append("//StateDecl's DeclList has something that's not MethodDecl or FieldDecl" + newLine);
+							d.accept(this);
+						}
+					};
+				});
+			}
+			case QI{
+				//the state in this QI should be a component of the state being added (a with state for it)
+				handleAddWithState(node.stateDef,treeNode,tree);
+			}
+			case With{
+				handleWithStateDecl(node.stateDef.s1,treeNode,tree,currStateName);
+				handleWithStateDecl(node.stateDef.s2,treeNode,tree,currStateName);
+			}
+			default{
+				outputsArray.get(currentOutput).getValue().append("//problem in StateDecl's stateDef, not QI, With, or DeclList" + newLine);
+				node.stateDef.accept(this);
+			}
+		};
+		var entry = new StateTableEntry with { name = node.name.name; node = treeNode; tree = tree; };
+		this.states.add(entry);
+		var md = tree.toMetadata(tree.root);
+		//emit code for setting the tree of the new Plaid state
+		outputsArray.get(currentOutput).getValue().append(currStateName + ".setMetadata(" + md + ");" + newLine);
+		
+		var found = false;
+		statesToInstantiate.map(fn (d) => {
+			if (d == currStateName){
+				found = true;
+			}
+		});
+		
+		if(found){
+			outputsArray.get(currentOutput).getValue().append("var " + generateInstantiatedStateName(currStateName) + " = " + currStateName + ".instantiate();" + newLine);
+		};
+		
+		//node.caseOf.value.accept(this);
+		currentOutput = 0;
+        currStateName;
+	}
+	
+	method handleWithStateDecl(stateDesc,treeNode,tree,currStateName){
+		match (stateDesc) {
+			case QI {
+				//the QI s1 in this With should be a component of the state being added (a with state for it)
+				handleAddWithState(stateDesc,treeNode,tree);
+			}
+			case DeclList{
+				var memberList2 = new LinkedList;
+				stateDesc.decls.map(fn (d) => {
+					match(d) {
+						case MethodDecl{
+							memberList2.add("'" + d.name + "'");
+							//this should be write, not writeLine
+							outputsArray.get(currentOutput).getValue().append(currStateName + "['" + d.name + "'] = "); 
+							d.accept(this);
+						}
+						case FieldDecl{			
+							match(d.e){
+								case UnitLiteral{
+								}
+								default {
+									memberList2.add("'" + d.f.name + "'");
+									outputsArray.get(currentOutput).getValue().append(currStateName + "['" + d.f.name + "'] = " + d.e.accept(this) + ";" + newLine);
+								}
+							};
+						}
+						default{
+							outputsArray.get(currentOutput).getValue().append("//StateDecl's DeclList has something that's not MethodDecl or FieldDecl" + newLine);
+							d.accept(this);
+						}
+					};
+				});	
+				//ensure the members being added by the current state are not already present in the state to which they are added
+				//checkUniqueMembersHelper(tree.root.members(),memberList2);
+				var treeNode2 = new Node;
+				treeNode2.setData("", memberList2, true, treeNode);
+			}
+			case With {
+				handleWithStateDecl(stateDesc.s1,treeNode,tree,currStateName);
+				handleWithStateDecl(stateDesc.s2,treeNode,tree,currStateName);
+			}
+			default{
+			    outputsArray.get(currentOutput).getValue().append("//possible problem at With in stateDecl" + newLine);
+				outputsArray.get(currentOutput).getValue().append(node.stateDef.s2.accept(this) + newLine);
+			}
+		};
+	}
+	
+	method visitStringLiteral(node) {
+		if (debug) {
+			printLine("//I am a StringLiteral");
+			printLine("   //string: " + node.string);
+		};
+		("\"") + node.string + ("\"");
+	}
+	method visitsplitPerm(node) {
+		if (debug) {
+			printLine("//I am a Split");
+		};
+		node.body.accept(this);
+	}
+	method visitTakeBinding(node) {
+		if (debug) {
+			printLine("//I am a TakeBinding");
+		};
+		node.exp.accept(this); 
+		node.body.accept(this); 
+	}
+	method visitTypeParameter(node) {
+		if (debug) {
+			printLine("//I am a TypeParameter");
+		};
+	}
+	method visitUnitLiteral(node) {
+		if (debug) {
+			printLine("//I am a UnitLiteral");
+		};
+		"undefined";
+	}
+	method visitUnpackerInnerGroups(node) {
+		if (debug) {
+			printLine("//I am an UnpackerInnerGroups");
+		};
+	}
+	method visitWith(node) {
+		if (debug) {
+			printLine("//I am a With");
+			printLine("   //s1: " + node.s1.toString());			
+			printLine("   //s2: " + node.s2.toString());
+		};
+		var returnString = "";
+		var tagName = "";
+		match (node.s1) {
+			case QI{
+				tagName = node.s1.qid.toString();
+				returnString = node.s1.accept(this);
+			}
+			case DeclList{
+				tagName = generateNewVariableName();
+				//outputsArray.get(currentOutput).getValue().append("var plaidNewState_" + tagName + " = new Plaid.PlaidState();" + newLine);
+				//returnString = generateNewStateName(tagName);
+				returnString = "(new Plaid.PlaidState())";
+				node.s1.decls.map(fn (d) => {
+					var newMember = d.accept(this);
+					returnString = returnString + ".withMember('" + newMember + "', " + newMember + ")";
+				});
+			}
+			default{
+				outputsArray.get(currentOutput).getValue().append("problem at With" + newLine);
+			}
+		};
+		match (node.s2) {
+			case QI{
+				returnString = returnString + ".with$plaid(" + node.s2.accept(this) + ")"; 
+			}
+			case DeclList{
+				node.s2.decls.map(fn (d) => {
+					var newMember = d.accept(this);
+					//returnString = returnString + ".specialize('" + tagName + "', '" + newMember + "', " + newMember + ")";
+					returnString = returnString + ".withMember('" + newMember + "', " + newMember + ")";
+				});
+			}
+			case With{
+				returnString = returnString + withHelper(node.s2);
+			}
+			default{
+				outputsArray.get(currentOutput).getValue().append("problem at With" + newLine);
+				node.s2.accept(this);
+			}
+		};
+		returnString;
+	}
+	method withHelper(node){
+		var returnString = "";
+		match (node.s1) {
+			case QI{
+				returnString = ".with$plaid(" + node.s1.accept(this) + ")"; 
+			}
+			case DeclList{
+				node.s1.decls.map(fn (d) => {
+					var newMember = d.accept(this);
+					returnString = returnString + ".withMember('" + newMember + "', " + newMember + ")";
+				});
+			}
+			default{
+				outputsArray.get(currentOutput).getValue().append("problem at With" + newLine);
+				node.s1.accept(this);
+			}
+		};
+		match (node.s2) {
+			case QI{
+				returnString = returnString + ".with$plaid(" + node.s2.accept(this) + ")"; 
+			}
+			case DeclList{
+				node.s2.decls.map(fn (d) => {
+					var newMember = d.accept(this);
+					returnString = returnString + ".withMember('" + newMember + "', " + newMember + ")";
+				});
+			}
+			case With{
+				returnString = returnString + this.withHelper(node.s2);
+			}
+			default{
+				outputsArray.get(currentOutput).getValue().append("problem at With" + newLine);
+				node.s2.accept(this);
+			}
+		};
+		returnString;
+	}
+
+}

@@ -1,0 +1,65 @@
+package plaid.compiler.passes;
+
+import java.lang.StringBuilder;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.Pass;
+import plaid.compiler.DEBUG;
+
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+
+import plaid.collections.makeLinkedList;
+
+state PlaidPrettyPrinterPass case of Pass = ParsedLeafVisitor with  {
+    val unique StringBuilder sb = StringBuilder.new();
+    var immutable Integer indentValue = 0;
+    var immutable List indents = makeLinkedList();
+    val immutable String outputFile;
+    var shared Map symbolMap;
+
+    method immutable Boolean run(unique Job job) {
+         match (job.ast) {
+            case Some {
+                DEBUG(DEBUG_PRIO_HIGH, "<PlaidPrettyPrinterPass> started for file " + job.source.path);
+
+                // compute indent lookup table
+                var curIndent = "";
+                var i = 0;
+                while { i  < 32 }{
+                    indents.add(curIndent);
+                    curIndent = curIndent + "    ";
+                    i = i + 1;
+                };
+
+                job.ast.value.accept(this);
+
+                printLine(sb.toString());
+
+                DEBUG(DEBUG_PRIO_HIGH, "<PlaidPrettyPrinterPass> finished for file " + job.source.path);
+                true
+            }
+            default {}
+        }       
+     }
+
+    method void inc() { this.indentValue = this.indentValue + 1; }    
+    method void dec() { this.indentValue = this.indentValue - 1; }    
+
+	override method void visitCompilationUnit(immutable CompilationUnit node) {
+        sb.append("package " + makeStringFromQualifiedIdentifier(node.packageName) + ";\n\n");
+		//node.packageName.accept(this);
+		//node.imports.map(fn (item) => { item.accept(this); item });
+		node.decls.map(fn (item) => { item.accept(this); item });
+	}
+
+
+	override method void visitConcreteStateDecl(immutable ConcreteStateDecl node) {
+        sb.append("state " + node.name.name);
+		node.name.accept(this);
+		node.stateBinding.accept(this);
+		node.caseOf.accept(this);
+		node.StaticArgsSpec.map(fn (item) => { item.accept(this); item });
+		node.metaCaseOfArgs.map(fn (item) => { item.accept(this); item });
+		node.modifiers.map(fn (item) => { item.accept(this); item });
+    }
+}

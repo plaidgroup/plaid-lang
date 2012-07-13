@@ -1,0 +1,558 @@
+package plaid.benchmarks.simulation.Richards;
+
+import plaid.collections.makeArray;
+
+method benchmark(handle) {
+	val count = handle.getProperty("count");
+	val qpktcountval = handle.getProperty("qpktcountval");
+	val holdcountval = handle.getProperty("holdcountval");
+	
+	
+	val s = new Scheduler;
+	s.addIdleTask(s.ID_IDLE, 0, new EmptyPacket, count);
+	var wkq = new Work { var link = new EmptyPacket; var taskId = s.ID_WORKER; };
+	wkq = new Work { var link = wkq; var taskId = s.ID_WORKER; };
+	s.addWorkerTask(s.ID_WORKER, 1000, wkq);
+	
+	wkq = new Device {var link = new EmptyPacket; var taskId = s.ID_DEVICE_A;};
+	wkq = new Device {var link = wkq; var taskId = s.ID_DEVICE_A;};
+	wkq = new Device {var link = wkq; var taskId = s.ID_DEVICE_A;};
+	s.addHandlerTask(s.ID_HANDLER_A, 2000, wkq);
+	
+	wkq = new Device {var link = new EmptyPacket; var taskId = s.ID_DEVICE_B;};
+	wkq = new Device {var link = wkq; var taskId = s.ID_DEVICE_B;};
+	wkq = new Device {var link = wkq; var taskId = s.ID_DEVICE_B;};
+	s.addHandlerTask(s.ID_HANDLER_B, 3000, wkq);
+	
+	s.addDeviceTask(s.ID_DEVICE_A, 4000, new EmptyPacket);
+	
+	s.addDeviceTask(s.ID_DEVICE_B, 5000, new EmptyPacket);
+	
+	handle.startTimer();
+	s.schedule();
+	handle.stopTimer();
+}
+
+method main() {
+	val count = 1000000;
+	val qpktcountval = 2326410;
+	val holdcountval = 930563;
+	
+	
+	val s = new Scheduler;
+	s.addIdleTask(s.ID_IDLE, 0, new EmptyPacket, count);
+	var wkq = new Work { var link = new EmptyPacket; var taskId = s.ID_WORKER; };
+	wkq = new Work { var link = wkq; var taskId = s.ID_WORKER; };
+	s.addWorkerTask(s.ID_WORKER, 1000, wkq);
+	
+	wkq = new Device {var link = new EmptyPacket; var taskId = s.ID_DEVICE_A;};
+	wkq = new Device {var link = wkq; var taskId = s.ID_DEVICE_A;};
+	wkq = new Device {var link = wkq; var taskId = s.ID_DEVICE_A;};
+	s.addHandlerTask(s.ID_HANDLER_A, 2000, wkq);
+	
+	wkq = new Device {var link = new EmptyPacket; var taskId = s.ID_DEVICE_B;};
+	wkq = new Device {var link = wkq; var taskId = s.ID_DEVICE_B;};
+	wkq = new Device {var link = wkq; var taskId = s.ID_DEVICE_B;};
+	s.addHandlerTask(s.ID_HANDLER_B, 3000, wkq);
+	
+	s.addDeviceTask(s.ID_DEVICE_A, 4000, new EmptyPacket);
+	
+	s.addDeviceTask(s.ID_DEVICE_B, 5000, new EmptyPacket);
+	
+	s.schedule();
+	
+	match (s.queueCount == qpktcountval && s.holdCount == holdcountval) {
+		case True {
+			java.lang.System.out.println("Good");
+		}
+		case False {
+			java.lang.System.out.println("Bad");
+		}
+	}
+}
+
+state Scheduler {
+	var table = makeArray(10);
+	var list = new EmptyTcb;
+	var current = new EmptyTcb;
+	var currentId = -1;
+	
+	val ID_IDLE       = 0;
+	val ID_WORKER     = 1;
+	val ID_HANDLER_A  = 2;
+	val ID_HANDLER_B  = 3;
+	val ID_DEVICE_A   = 4;
+	val ID_DEVICE_B   = 5;
+	val NUMBER_OF_IDS = 6;
+
+	val KIND_DEVICE   = 0;
+	val KIND_WORK     = 1;
+	
+	var queueCount = 0;
+	var holdCount = 0;
+	
+	
+	method addIdleTask(taskId, priority, wq, count) {
+		this.addRunningTask(taskId, priority, wq, new IdleTask {var scheduler = this; var v1 = 1; var v2 = count; });
+	}
+	
+	method addWorkerTask(taskId, priority, wq) {
+		this.addTask(taskId, priority, wq, new WorkerTask { 
+			var scheduler = this;  var v1 = this.ID_HANDLER_A; var v2 = 0; });
+	}
+	
+	method addHandlerTask(taskId, priority, wq) {
+		this.addTask(taskId, priority, wq, new HandlerTask {
+		var scheduler = this; var v1 = new EmptyPacket; var v2 = new EmptyPacket; });
+	}
+	
+	method addRunningTask(taskId, priority, wq, task) {
+		this.addTask(taskId, priority, wq, task);
+		this.current.setRunning();
+	}
+	
+	method addDeviceTask(taskId, priority, wq) {
+		this.addTask(taskId, priority, wq, new DeviceTask { var scheduler = this; });
+	}
+	
+	
+	
+	method addTask(taskId, priority, wq, task) {
+		this.current = new Tcb { var link = this.list; 
+								 var id = taskId; 
+								 var pri = priority; 
+								 var wkq = wq; 
+								 var task = task; };
+		this.list = this.current;
+		this.table.set(taskId, this.current);
+		
+		match (wq) {
+			case EmptyPacket {
+				this.current.tcbState = this.current.suspended;
+			}
+			default {
+				this.current.tcbState = this.current.suspendedRunnable;
+			}
+		}
+	}
+	
+	
+	method schedule() {
+		this.current = this.list;
+		var flag = true;
+		flag = match (this.current) {
+			case EmptyTcb {
+				false;
+			}
+			default {true;}
+		};
+		this.currentId = match(flag) {
+			case True {
+				this.current.id;
+			}
+			default { 0 }
+		};
+		nativeWhile{flag} {
+			match (this.current) {
+				case EmptyTcb {
+				}
+				default {
+					match (this.current.isHeldOrSuspended()) {
+						case True {
+							
+							this.current = this.current.link;
+						}
+						case False {
+							this.currentId = this.current.id;
+							val gotten = this.current.run();
+							this.current = gotten;
+						}
+					}
+				}
+			};
+			flag = match (this.current) {
+				case EmptyTcb {
+					false;
+				}
+				default {true;}
+			};
+		};
+	}
+	
+	method find(taskId) {
+		this.table.get(taskId);
+	}
+	
+	method queue(packet) {
+		var t = this.find(packet.taskId);
+		match (t) {
+			case EmptyTcb {
+				t;
+			}
+			default {
+				this.queueCount = this.queueCount + 1;
+				packet.link = new EmptyPacket;
+				packet.taskId = this.currentId;
+				var output = t.checkPriorityAdd(this.current, packet);
+				output
+			}
+		};
+	}
+	
+	method release(taskId) {
+		var t = this.find(taskId);
+		match (t) {
+			case EmptyTask { t; }
+			default {
+				t.setHeld(false);
+				match (t.pri > this.current.pri) {
+					case True {
+						t;
+					}
+					case False {
+						this.current;
+					}
+				};
+			}
+		};
+	}
+	
+	method holdCurrent() {
+		this.holdCount = this.holdCount + 1;
+		this.current.setHeld(true);
+		this.current.link;
+	}
+	
+	method suspendCurrent() {
+		this.current.setSuspended(true);
+		this.current;
+	}
+}
+
+state EmptyTask {}
+
+state SchedulerTask {
+	var scheduler;
+	var v1;
+	var v2;
+	method run(packet);
+}
+
+state DeviceTask case of SchedulerTask {
+	var v1 = new EmptyPacket;
+	method run(packet) {
+		
+		match(packet) {
+			case EmptyPacket {
+				match (this.v1) {
+					case EmptyPacket {
+						this.scheduler.suspendCurrent();
+					}
+					default {
+						var v = this.v1;
+						this.v1 = new EmptyPacket;
+						this.scheduler.queue(v);
+					}
+				}
+			}
+			default {
+				this.v1 = packet;
+				this.scheduler.holdCurrent();
+			}
+		}
+	}
+}
+
+state IdleTask case of SchedulerTask {
+	method run(packet) {
+		
+		this.v2 = this.v2 - 1;
+		match (this.v2 == 0) {
+			case True {
+				this.scheduler.holdCurrent();
+			}
+			case False {
+				match ( (this.v1 & 1) == 0 ) {
+					case True {
+						this.v1 = this.v1 >> 1;
+						this.scheduler.release(this.scheduler.ID_DEVICE_A);
+					}
+					case False {
+						this.v1 = (this.v1 >> 1)^53256;
+						this.scheduler.release(this.scheduler.ID_DEVICE_B);
+					}
+				};
+			}
+		};
+	}
+}
+
+state WorkerTask case of SchedulerTask {
+	method run(packet) {
+		
+		match(packet) {
+			case EmptyPacket {
+				this.scheduler.suspendCurrent();
+			}
+			default {
+				match (this.v1 == this.scheduler.ID_HANDLER_A) {
+					case True {
+						this.v1 = this.scheduler.ID_HANDLER_B;
+					}
+					case False {
+						this.v1 = this.scheduler.ID_HANDLER_A;
+					}
+				};
+				packet.taskId = this.v1;
+				packet.a1 = 0;
+				var i = 0;
+				nativeWhile {i < packet.dataSize}{
+					this.v2 = this.v2 + 1;
+					match (this.v2 > 26) {
+						case True {
+							this.v2 = 1;
+						}
+						case False {}
+					};
+					packet.a2.set(i, this.v2);
+					i = i + 1;
+				};
+				var queued = this.scheduler.queue(packet);
+				queued;
+			}
+		};
+	}
+}
+
+state HandlerTask case of SchedulerTask {
+	method run(packet) {
+		
+		match (packet) {
+			case EmptyPacket {
+			}
+			default {
+				match(packet) {
+					case Work {
+						this.v1 = packet.addTo(this.v1);
+					}
+					case Device {
+						this.v2 = packet.addTo(this.v2);
+					}
+				};
+			}
+		};
+		match (this.v1) {
+			case EmptyPacket {
+				
+				this.scheduler.suspendCurrent();
+			}
+			default {
+				var count = this.v1.a1;
+				var v = new EmptyPacket;
+				match (count < 4) {
+					case True {
+						match (this.v2) {
+							case EmptyPacket {  this.scheduler.suspendCurrent() }
+							default {
+								v = this.v2;
+								this.v2 = this.v2.link;
+								v.a1 = this.v1.a2.get(count);
+								this.v1.a1 = count+1;
+								
+								this.scheduler.queue(v);
+							}
+						}
+					}
+					case False {
+						v = this.v1;
+						this.v1 = this.v1.link;
+						
+						this.scheduler.queue(v);
+					}
+				};
+			}
+		};
+		
+	}
+}
+state Tcb = {
+	var link = new EmptyTcb;
+	var id;
+	var pri;
+	var wkq = new EmptyPacket;
+	var task;
+	
+	val runnable = 1;
+	val notRunnable = -2;
+	
+	val suspended = 2;
+	val notSuspended = -3;
+	
+	val held = 4;
+	val notHeld = -5;
+	
+	val suspendedRunnable = 3;
+	
+	var tcbState = 0;
+	
+	method setRunning() {
+		this.tcbState = 0;
+	}
+	
+	method setRunnableFull() {
+		this.tcbState = this.runnable;
+	}
+	
+	method isHeldOrSuspended() {
+		(this.tcbState & this.held) != 0 || (this.tcbState == this.suspended);
+	}
+	
+	method isSuspendedRunnable() {
+		this.tcbState == this.suspendedRunnable;
+	}
+	
+	method getRunnable() {
+		(this.tcbState & this.runnable) != 0;
+	}
+	
+	method setRunnable(value) {
+		match(value) {
+			case True {
+				this.tcbState = (this.tcbState | this.runnable);
+			}
+			case False {
+				this.tcbState = (this.tcbState & (this.runnable));
+			}
+		}
+	}
+	
+	method getHeld() {
+		(this.tcbState & this.held) != 0;
+	}
+	
+	method setHeld(value) {
+		match(value) {
+			case True {
+				this.tcbState = (this.tcbState | this.held);
+			}
+			case False {
+				this.tcbState = (this.tcbState & (this.notHeld));
+			}
+		}
+	}
+	
+	method getSuspended() {
+		(this.tcbState & this.suspended) != 0;
+	}
+	
+	method setSuspended(value) {
+		match(value) {
+			case True {
+				this.tcbState = (this.tcbState | this.suspended);
+			}
+			case False {
+				this.tcbState = (this.tcbState & (this.notSuspended));
+			}
+		}
+	}
+	
+	method checkPriorityAdd(task, packet) {
+		match (this.wkq) { 
+			case EmptyPacket {
+				this.wkq = packet;
+				this.setRunnable(true);
+				match (this.pri > task.pri) {
+					case True {
+						this
+					}
+					default{
+						task
+					}
+				}
+			}
+			default {
+				this.wkq = packet.addTo(this.wkq);
+				task
+			}
+		}
+	}
+	method run() {
+		var packet = new EmptyPacket;
+		match(this.isSuspendedRunnable()) {
+			case True {
+				packet = this.wkq;
+				this.wkq = packet.link;
+				match (this.wkq) {
+					case EmptyPacket {
+						
+						this.setRunning();
+					}
+					default {
+						
+						this.setRunnableFull();
+					}
+				}
+			}
+			default { packet = new EmptyPacket; }
+		};
+		var gotten = this.task.run(packet);
+		gotten;
+	}
+}
+
+state EmptyTcb {}
+
+state EmptyPacket {}
+state Packet {
+	var dataSize = 4;
+	var link = new EmptyPacket;
+	var taskId = -1;
+	var a1 = 0;
+	var a2 = makeArray(4);
+	
+	method addTo(queue) {
+		this.link = new EmptyPacket;
+		match (queue) {
+			case EmptyPacket {this;}
+			default {
+				var next = queue;
+				var peek = next.link;
+				var flag = match (peek) {
+					case Packet {
+						true;
+					}
+					case EmptyPacket {
+						false;
+					}
+				};
+				nativeWhile{flag}{
+					next = peek;
+					peek = next.link;
+					flag = match (False) {
+						case True {
+							false;
+						}
+						case False {
+							match (peek) {
+								case Packet {
+									true;
+								}
+								default {
+									false;
+								}
+							};
+						}
+					};
+				};
+				next.link = this;
+				queue;
+			}
+		}
+	}
+}
+
+state Device case of Packet {
+}
+
+state Work case of Packet {
+}

@@ -1,0 +1,143 @@
+package plaid.typechecker.rewriting.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.rewriting.*;
+import plaid.ast.types.permissions.*;
+
+val lambdaTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	var oldFnType = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	
+	System.out.println("Testing Function Transformation");
+	testName("lnf-function");	// fn() -> {a.b}
+	oldFnType = createLambdaType(getVoidType(),makeEmptyList(),java.util.HashMap.new());
+	oldAst = makeLambda(makeToken(), 
+					    makeEmptyList(), 
+					    makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
+					    oldFnType,
+					    new None);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	val newFnType = createLambdaType(getVoidType(),makeEmptyList(),java.util.HashMap.new());
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeLambda(makeToken(), 
+					   			  makeEmptyList(), 
+					   			  makeBorrow(makeToken(),
+					   			  			 makeTempID(makeToken(),"t2"),
+					   			  			 makeDereference(makeToken(),makeID(makeToken(),"a"), makeID(makeToken(),"b")),
+					   			  			 makeTempID(makeToken(),"t2"),
+					   			  			 false),
+					   			  newFnType,
+					   			  new None),
+					   makeTempID(makeToken(),"t1"),
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+
+	System.out.println("");
+	
+	System.out.println("Testing Lambda ObjectType inference");
+	var typefetcher = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
+	var goalType = unit;
+	var argList = unit;
+	var argTypes = unit;
+	
+	testName("obj-lambda succeed");
+	argTypes = makeEmptyList();
+	argTypes.add(createChangeType(createPermType(IMM,getIntegerType()),createPermType(NONEP,getIntegerType()), false));
+	oldFnType = createLambdaType(getDynPermType(), argTypes, java.util.HashMap.new());
+	argList = makeEmptyList();
+	argList.add(makeID(makeToken(),"x"));
+	oldAst = makeLambda(makeToken(),argList,makeID(makeToken(),"x"),oldFnType,new None);
+	goalType = oldFnType.copy();
+	goalType.returnType = getIntegerType();
+	val newArgList = makeEmptyList();
+	newArgList.add(makeID(makeToken(),"x"));
+	newAst = makeLambda(makeToken(),newArgList,makeID(makeToken(),"x"),goalType,new None);
+	cIn = new Context;
+	cOut = new Context;
+	st = new StateTable;
+	typefetcher = new TypeFetchVisitor { val st = st; val context = cIn; };
+	
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false, "object type infernce of lambda failed: " + result.errorMsg);
+		}
+		default {
+			match (result == goalType) {
+				case True {
+					match (newAst == oldAst) {
+						case True {
+							match (cIn == cOut) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "context should not be updated");
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "type not updated in AST");
+						}
+					}	
+				}
+				case False {
+					tester.testPassedMsg(false, "wrong type returned");
+				}
+			}
+		}
+	};
+	
+	testName("obj-lambda bad args");
+	argTypes = makeEmptyList();
+	argTypes.add(createChangeType(createPermType(IMM,getIntegerType()),createPermType(NONEP,getIntegerType()), false));
+	oldFnType = createLambdaType(getUnitType(), argTypes, java.util.HashMap.new());
+	argList = makeEmptyList();
+	oldAst = makeLambda(makeToken(),argList,makeID(makeToken(),"x"),oldFnType,new None);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+	
+	testName("obj-lambda body fails to check");
+	argTypes = makeEmptyList();
+	argTypes.add(createChangeType(createPermType(IMM,getIntegerType()),createPermType(NONEP,getIntegerType()), false));
+	oldFnType = createLambdaType(getUnitType(), argTypes, java.util.HashMap.new());
+	argList = makeEmptyList();
+	argList.add(makeID(makeToken(),"x"));
+	oldAst = makeLambda(makeToken(),argList,makeID(makeToken(),"z"),oldFnType,new None);
+	result = oldAst.accept(typefetcher);
+	match (result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.errorMsg)
+		}
+		default {
+			tester.testPassed(false)
+		}
+	};
+
+};

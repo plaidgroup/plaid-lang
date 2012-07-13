@@ -1,0 +1,245 @@
+package plaid.ast.types.tests;
+
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import java.lang.System;
+
+val () -> void bindingTests3 = fn () => {
+
+	//System.out.println("---------------------------");
+	//System.out.println("|      BINDING TESTS      |");
+	//System.out.println("---------------------------");
+
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = makeID(makeToken(),"unit");
+	temp.put(u, new StateType { val name = u; val superType = new None; });
+	
+	//Top
+	val top = makeID(makeToken(),"Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = makeID(makeToken(),"A");
+	val aType = new StateType { val name = a; val superType = makeSome(topType);};
+	temp.put(a,aType);
+	
+	//B
+	val b = makeID(makeToken(),"B");
+	val bType = new StateType { val name = b; val superType = makeSome(topType);};
+	temp.put(b,bType);
+	
+	//B
+	val c = makeID(makeToken(),"C");
+	val cType = new StateType { val name = c; val superType = makeSome(aType);};
+	temp.put(c,cType);
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	//System.out.println("Testing state configuration:");
+	//st.printTable();
+	//System.out.println("");
+	var res = unit;
+
+	var bind1 = unit;
+	var bind2 = unit;
+	var orig = unit;
+	System.out.println("Testing joinBinding");
+	bind1 = createTakeType(UNIQUE,createNominalType(a));
+	bind2 = createBorrowType(NONEP,createNominalType(a),UNIQUE,true);
+	orig = createTakeType(UNIQUE,createNominalType(a));
+	testName("join take and Borrow - fail");
+	testCall("(" + bind1.toString() + ").joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("join borrow and take - fail");
+	testCall("(" + bind2.toString() + ").joinBinding(" + bind1.toString() + ", " + orig.toString() + ")");
+	res = bind2.joinBinding(bind1,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+	bind1 = createBorrowType(IMM,createNominalType(a),IMM,false);
+	bind2 = createBorrowType(IMM,createNominalType(a),IMM,true);
+	orig = createTakeType(UNIQUE,createNominalType(a));
+	testName("join borrow and strongly Borrow - fail");
+	testCall("(" + bind1.toString() + ").joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	testName("join strongly borrow and borrow - fail");
+	testCall("(" + bind2.toString() + ").joinBinding(" + bind1.toString() + ", " + orig.toString() + ")");
+	res = bind2.joinBinding(bind1,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+	bind1 = createBorrowType(IMM,createNominalType(a),IMM,true);
+	bind2 = createBorrowType(IMM,createNominalType(a),IMM,true);
+	orig = createTakeType(UNIQUE,createNominalType(a));
+	testName("join strongly borrow and strongly Borrow to take - succeed");
+	testCall("(" + bind1.toString() + ").joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createTakeType(UNIQUE, createNominalType(a))) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"wrong binding returned") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	orig = createBorrowType(UNIQUE,createNominalType(a),IMM,false);
+	testName("join strongly borrow and strongly borrow to borrow - succeed");
+	testCall("(" + bind1.toString() + ").joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createBorrowType(UNIQUE, createNominalType(a),IMM,false)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"wrong binding returned") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	orig = createBorrowType(UNIQUE,createNominalType(a),UNIQUE,true);
+	testName("join strongly borrow and strongly borrow to stongly borrow - succeed");
+	testCall(bind1.toString() + ".joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createBorrowType(UNIQUE, createNominalType(a),UNIQUE, true)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"wrong binding returned") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	bind1 = createBorrowType(IMM,createNominalType(a),IMM,false);
+	bind2 = createBorrowType(IMM,createNominalType(a),IMM,false);
+	orig = createBorrowType(IMM,createNominalType(a),IMM,true);
+	testName("join borrow and borrow to strongly borrow - fail");
+	testCall(bind1.toString() + ".joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	orig = createBorrowType(IMM,createNominalType(a),IMM,false);
+	testName("join borrow and borrow to borrow - succeed");
+	testCall(bind1.toString() + ".joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createBorrowType(IMM, createNominalType(a),IMM, false)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"wrong binding returned") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	orig = createTakeType(IMM,createNominalType(a));
+	testName("join borrow and borrow to take - succeed");
+	testCall(bind1.toString() + ".joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createTakeType(IMM, createNominalType(a))) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"wrong binding returned") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	bind1 = createTakeType(IMM,createNominalType(a));
+	bind2 = createTakeType(IMM,createNominalType(a));
+	orig = createBorrowType(IMM,createNominalType(a),IMM,true);
+	testName("join take and take to strongly borrow - fail");
+	testCall(bind1.toString() + ".joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	orig = createBorrowType(IMM,createNominalType(a),IMM,false);
+	testName("join take and take to borrow - fail");
+	testCall(bind1.toString() + ".joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	res = bind1.joinBinding(bind2,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	orig = createTakeType(IMM,createNominalType(a));
+	res = bind1.joinBinding(bind2,orig);
+	testName("join take and take to take - succeed");
+	testCall(bind1.toString() + ".joinBinding(" + bind2.toString() + ", " + orig.toString() + ")");
+	testResult(res.toString());
+	match (res) {
+		case Some { 
+			match (res.value == createTakeType(IMM, createNominalType(a))) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false,"wrong binding returned") }
+			}
+		}
+		case None { testPassedMsg(false,"join failed") }
+	};
+	
+	bind1 = createBorrowType(UNIQUE,createNominalType(a),IMM,false);
+	bind2 = createBorrowType(UNIQUE,createNominalType(a),NONE,false);
+	orig = createTakeType(UNIQUE,createNominalType(a));
+	testName("join borrowed unique and borrowed unique - fail (permission join)");
+	testCall(bind2.toString() + ".joinBinding(" + bind1.toString() + ", " + orig.toString() + ")");
+	res = bind2.joinBinding(bind1,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	bind1 = createTakeType(UNIQUE,createNominalType(a));
+	bind2 = createTakeType(UNIQUE,createNominalType(a));
+	orig = createTakeType(UNIQUE,createNominalType(a));
+	testName("join take unique and take unique - fail (permission join)");
+	testCall(bind2.toString() + ".joinBinding(" + bind1.toString() + ", " + orig.toString() + ")");
+	res = bind2.joinBinding(bind1,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	bind1 = createBorrowType(NONEP,createNominalType(a),NONEP,false); //not realistic but useful for testing
+	bind2 = createBorrowType(NONEP,createNominalType(a),NONEP,false);
+	orig = createBorrowType(IMM,createNominalType(a),IMM,false);
+	testName("join borrow and borrow - fail (too little outgoing permission)");
+	testCall(bind2.toString() + ".joinBinding(" + bind1.toString() + ", " + orig.toString() + ")");
+	res = bind2.joinBinding(bind1,orig);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+};

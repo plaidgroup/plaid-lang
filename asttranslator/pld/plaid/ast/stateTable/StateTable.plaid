@@ -1,0 +1,198 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.ast.stateTable;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+
+state StateTable {
+	//My favorite plaid hack so far - killer initializer - put unit state into initial table
+	val /*Map<ID,StateType>*/ states = (fn () => { 
+		val temp = java.util.HashMap.new();
+		//unit
+		val u = new ID { val name = "unit"; };
+		temp.put(u, new StateType { val name = u; val superType = new None; });
+		
+		//integer
+		val intID = new ID { val name  = "Integer"; };
+		val pt = new PermType {
+			val /*Permission*/ perm = IMM;
+			val /*Type*/ type = new NominalType { val typeName = intID; };
+		};
+		val ct = new ChangeType {
+			val immutable PermType input = pt;
+			val immutable PermType output = pt;	//VOID; don't see why it should be VOID
+			val immutable Boolean strongBorrow = false;
+		};
+		
+		val intType = new StateType { val name = intID; val superType = new None; };
+		
+		//plus method
+		val plusID = new ID { val name = "+"; };
+		val plusMethod = new MethodType {
+			val /*ID*/ name = plusID;
+			val /*TakeBinding*/ returnType = createTakeTypeFromPT(pt);
+			val /*List<ChangeType>*/ argTypes = new List {
+				var head = new Cons { 
+					var value = ct;
+					var next = new Nil;
+				};		
+			};
+			val /*ChangeType*/ receiverType =  ct;
+			val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+			val metaTypes = makeEmptyList();
+		};
+		intType.providedTypes.put(plusID, plusMethod);
+		intType.declaredTypes.put(plusID, plusMethod);
+		
+		//minus method
+		val minusID = new ID { val name = "-"; };
+		val minusMethod = new MethodType {
+			val /*ID*/ name = minusID;
+			val /*TakeBinding*/ returnType = createTakeTypeFromPT(pt);
+			val /*List<ChangeType>*/ argTypes = new List {
+				var head = new Cons { 
+					var value = ct;
+					var next = new Nil;
+				};		
+			};
+			val /*ChangeType*/ receiverType =  ct;
+			val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+			val metaTypes = makeEmptyList();
+		};
+		intType.providedTypes.put(minusID, minusMethod);
+		intType.declaredTypes.put(minusID, minusMethod);
+		
+		//leq method
+		val leqID = new ID { val name = "<="; };
+		val leqMethod = new MethodType {
+			val /*ID*/ name = leqID;
+			val /*TakenBinding*/ returnType = 
+				createTakeType(IMM, createNominalType(makeID(makeToken(), "Boolean")));
+			val /*List<ChangeType>*/ argTypes = new List {
+				var head = new Cons { 
+					var value = ct;
+					var next = new Nil;
+				};
+			};
+			val /*ChangeType*/ receiverType = ct;
+			val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+			val metaTypes = makeEmptyList();
+		};
+		intType.providedTypes.put(leqID, leqMethod);
+		intType.declaredTypes.put(leqID, leqMethod);
+		
+		//toString method
+		val toStringID = new ID { val name = "toString"; };
+		val toStringMethod = new MethodType {
+			val /*ID*/ name = toStringID;
+			val /*TakenBinding*/ returnType = 
+				createTakeType(IMM, createNominalType(makeID(makeToken(), "String")));
+			val /*List<ChangeType>*/ argTypes = makeEmptyList();
+			val /*ChangeType*/ receiverType = ct;
+			val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+			val metaTypes = makeEmptyList();
+		};
+		intType.providedTypes.put(toStringID, toStringMethod);
+		intType.declaredTypes.put(toStringID, toStringMethod);
+		
+		//add Integer to State Table
+		temp.put(intID,intType);
+		
+		//Boolean
+		val boolID = new ID { val name = "Boolean"; };
+		val boolType = new StateType { val name = boolID; val superType = new None; };
+		//don't need methods for now
+		temp.put(boolID, boolType);
+		
+		val trueID = new ID { val name = "True"; };
+		val trueType = new StateType { val name = trueID; val superType = makeSome(boolType); };
+		temp.put(trueID, trueType);
+		
+		val falseID = new ID { val name = "False"; };
+		val falseType = new StateType { val name = falseID; val superType = makeSome(boolType); };
+		temp.put(falseID, falseType);
+		
+		//String
+		val stringID = makeID(makeToken(), "String");
+		val stringType = new StateType { val name = stringID.copy(); val superType = new None; };
+		
+		val ptS = new PermType {
+			val /*Permission*/ perm = IMM;
+			val /*Type*/ type = getStringType();
+		};
+		val ctS = new ChangeType {
+			val immutable PermType input = ptS;
+			val immutable PermType output = ptS;	//VOID; don't see why it should be VOID
+			val immutable Boolean strongBorrow = false;
+		};
+		
+		//concat method
+		val concatID = new ID { val name = "+"; };
+		val concatMethod = new MethodType {
+			val /*ID*/ name = concatID;
+			val /*TakeBinding*/ returnType = createTakeTypeFromPT(ptS);
+			val /*List<ChangeType>*/ argTypes = new List {
+				var head = new Cons { 
+					var value = ctS;
+					var next = new Nil;
+				};		
+			};
+			val /*ChangeType*/ receiverType =  ctS;
+			val /*Map<ID,ChangeType>*/ environmentTypes = java.util.HashMap.new();
+			val metaTypes = makeEmptyList();
+		};
+		stringType.providedTypes.put(concatID, concatMethod);
+		stringType.declaredTypes.put(concatID, concatMethod);
+		temp.put(stringID.copy(), stringType);
+		
+		
+		temp;
+	}) ();
+	
+	method put(/*ID*/ name, /*StateType*/ type) {
+		states.put(name,type);
+	}
+	
+	method /*Option StateType*/ get(/*ID*/ name) {
+		ifElse (states.containsKey(name) )
+			{ new Some { val value = states.get(name); } }
+			{ new None }
+	}
+	
+	method printTable() {
+        val iter = states.values().iterator();
+        while { iter.hasNext(); }{
+            java.lang.System.out.print(iter.next().toString());
+        };
+	}
+	
+	method toString() {
+		 var ret = "";
+		 val iter = states.values().iterator();
+     while { iter.hasNext(); }{
+       ret = ret + iter.next().toString();
+     };
+     ret
+	}
+	
+	
+}
