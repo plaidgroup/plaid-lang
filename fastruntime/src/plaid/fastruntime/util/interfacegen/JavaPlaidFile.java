@@ -23,8 +23,8 @@ public class JavaPlaidFile implements CodeGenerator {
         sb.append("import plaid.fastruntime.PlaidObject;\n");
         
         sb.append("public interface "+
-                NamingConventions.getGeneratedInterfaceFullyQualifiedName(NamingConventions.getIdentifierName(method.getName()), method.getNArgs())+"{\n\n");
-        sb.append("\tPlaidObject "+NamingConventions.getIdentifierName(NamingConventions.getGeneratedIdentifier(method.getName())));
+                NamingConventions.getGeneratedInterfaceSimpleName(method.getName(), method.getNArgs())+"{\n\n");
+        sb.append("\tPlaidObject "+method.getName());
         sb.append("(");
         sb.append("PlaidObject receiver");
         for (int i = 0; i < method.getNArgs(); i++) {
@@ -35,7 +35,7 @@ public class JavaPlaidFile implements CodeGenerator {
 		
 		String generatedInterface = sb.toString();
 		File outputFile = new File(new File(outputDir), 
-				NamingConventions.getGeneratedInterfaceFullyQualifiedName(NamingConventions.getIdentifierName(method.getName()), 
+				NamingConventions.getGeneratedInterfaceSimpleName(method.getName(), 
 						method.getNArgs())+".java");
 		if (!(outputFile.exists())) {
 			try {
@@ -47,7 +47,7 @@ public class JavaPlaidFile implements CodeGenerator {
 			}
 		}
 		
-		return NamingConventions.getGeneratedInterfaceFullyQualifiedName(NamingConventions.getIdentifierName(method.getName()), 
+		return NamingConventions.getGeneratedInterfaceName(method.getName(), 
 				method.getNArgs());
     }
 	

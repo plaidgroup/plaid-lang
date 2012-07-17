@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
 
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.util.interfacegen.JavaPlaidFile;
@@ -31,6 +34,36 @@ public class PlaidClassObject extends ClassObject implements PlaidCodeGenerator 
 		indent = generator.getIndentString() + "\t";
 		StringBuilder output = new StringBuilder();
 
+		HashMap<Integer, PlaidMethodInfo> seenMethods = new HashMap<Integer, PlaidMethodInfo>();
+		ArrayList<OverloadedPlaidMethod> overloaded = new ArrayList<OverloadedPlaidMethod>();
+		
+		
+		Iterator elementIterator = elements.iterator();
+		while (elementIterator.hasNext()) {
+			CodeObject co = (CodeObject) elementIterator.next();
+			if (co instanceof PlaidMethodInfo) {
+				PlaidMethodInfo castMethod = (PlaidMethodInfo) co;
+				if (seenMethods.containsKey(castMethod.hashCode())) {
+					PlaidMethodInfo pmi = seenMethods.get(castMethod.hashCode());
+					if (pmi instanceof OverloadedPlaidMethod) {
+						((OverloadedPlaidMethod) pmi).addMethod(castMethod);
+					} else {
+						seenMethods.remove(castMethod.hashCode());
+						OverloadedPlaidMethod opm = new OverloadedPlaidMethod(pmi);
+						opm.addMethod(castMethod);
+						seenMethods.put(opm.hashCode(), opm);
+						overloaded.add(opm);
+					}
+					
+				} else {
+					seenMethods.put(castMethod.hashCode(), castMethod);
+				}
+				elementIterator.remove();
+			}
+		}
+		
+		elements.addAll((Collection<? extends CodeObject>) seenMethods.values());
+
 		for (CodeObject co : elements) {
 			output.append(co.getGeneratedCode(this));
 		}
@@ -42,7 +75,8 @@ public class PlaidClassObject extends ClassObject implements PlaidCodeGenerator 
 			for (PlaidMethodInfo mpi : toGenerate) {
 				String interf = ((JavaPlaidFile)generator).addPlaidMethodInterface(mpi);
 				
-				interfaces.add(interf);
+				if (!interfaces.contains(interf))
+					interfaces.add(interf);
 				this.addDependency(interf);
 			}
 		
