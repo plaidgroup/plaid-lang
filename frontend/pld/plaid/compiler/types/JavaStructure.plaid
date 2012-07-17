@@ -1,0 +1,99 @@
+package plaid.compiler.types;
+
+import plaid.compiler.ABORT;
+import plaid.collections.makeLinkedList;
+import plaid.compiler.permissions.SHARED;
+
+state JavaStructure case of ObjectStructure {
+
+	val shared JavaClassSymbol symbol;
+	val immutable Structure owner;
+	val immutable String name;
+
+	method immutable String getName() { this.name }
+
+ 	method immutable Boolean ==(immutable Structure other)[immutable JavaStructure this] {
+ 		match (other) {
+ 			case JavaStructure { this.clazz.equals(other.clazz) }
+ 			default { false }
+ 		}
+ 	}
+    
+    method immutable String toString()[immutable JavaStructure this] {
+    	"JAVA(" + this.symbol.clazz.toString() + ")";
+    }
+    
+    /**
+     * LUB of two java types does not always exist, so choose the super type if it exists, and
+     * otherwise return none
+     */
+    method unique Option<immutable Structure> leastUpperBound(immutable Structure other)[immutable JavaStructure this] {
+    	match (other) {
+    		case JavaStructure {
+    			match (this.isSubStructureOf(other)) {
+    				case True { makeSome(other) }
+    				case False {
+    					match (other.isSubStructureOf(this)) {
+    						case True { makeSome(this) }
+    						case False { new None }
+    					}
+    				}
+    			}
+    		}
+    		case OptionStructure { 
+    			val lubOpt = this.leastUpperBound(other.optStructure);
+    			match (lubOpt) {
+    				case Some { makeSome(makeOptionStructure(lubOpt.value)) }
+    				case None { new None }
+    			}
+    		}
+    		default { new None }
+    	}
+    
+    }
+    
+    /**
+     * Use java reflection 
+     */
+    method immutable Boolean isSubStructureOf(immutable Structure other)[immutable JavaStructure this] {
+    	match (other) {
+    		case JavaStructure { other.symbol.clazz.isAssignableFrom(this.symbol.clazz) }
+    		case OptionStructure { this.isSubStructureOf(other.optStructure) }
+    		default { false }
+    	}
+    }
+    
+    method unique Option<immutable Signature> getMember(immutable String memberName) {
+		match (memberName == "new") {
+			case True {
+				makeSome(makeMethodSignature(makeType(SHARED,this) , "new", 
+                                    makeLinkedList(), 
+                                    makeArgSpec(VOID,VOID),
+                                    java.util.HashMap.new(),
+                                    makeLinkedList()));
+			}
+			case False {
+				ABORT("java members not yet implemented");
+			}
+		}
+		
+		
+    }
+  
+    method immutable ?ObjectStructure restoreToField(immutable String fieldName, immutable Type retType, immutable Integer objectID) {
+  		ABORT("java members not yet implemented");  
+    }
+
+    method immutable ?UnpackedStructure unpackField(immutable UnpackedFieldSignature newFieldSig,
+                                                   immutable Token errorToken) {
+    
+    	ABORT("java members not yet implemented");
+	}
+
+    method immutable ?ObjectStructure assignToField(immutable String fieldName,
+    												 immutable Token errorToken) {
+    	ABORT("java members not yet implemented");												 
+	}
+
+
+}

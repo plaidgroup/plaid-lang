@@ -1,0 +1,124 @@
+package plaid.ast.types.permissions;
+
+/**
+ *	Pure Permission
+ */
+state PurePermission case of Permission {
+	
+	//pure permissions do not give write access
+	method immutable Boolean isWritable()[pure PurePermission] { false }
+
+	//pure permissions do not guarantee the state of the object
+	method immutable Boolean guaranteesState()[pure Permission] { false }
+
+	method immutable Boolean ==(immutable Permission p2)[immutable PurePermission] {
+		match(p2) {
+			case PurePermission { true }
+			default { false }
+		};
+	}
+	
+	method immutable String toString()[immutable PurePermission] {
+		"pure"
+	}
+
+	//pure can be split only to more pure and none permissions or dyn
+	method /*unique Option<immutable Permission>*/ 
+		   splitPerm(immutable Permission p2)[immutable PurePermission >> void] 
+	{
+		match(p2) {
+			// pure => pure/pure
+			case PurePermission { makeSome(this)}
+			// pure => none/pure
+			case NonePermission { makeSome(this) }
+			// pure => Dyn/pure KBN - correct?
+			case DynPermission { makeSome(DYNP) }
+			default { new None }
+		};
+	}
+	
+
+	//pure can coexist with all permissions except unique.  In cases other than none, it
+	// joins to the other permission
+	method /*unique Option<immutable Permission>*/ 
+			join(immutable Permission >> void p2)[immutable PurePermission >> void] 
+	{
+		match (p2) {
+			case NonePermission { makeSome(this) } //pure/none => pure
+			case UniquePermission { new None } // pure/unique XXX
+			default { makeSome(p2) } // pure/p => p
+		}
+	}
+	
+	//the only special join is pure/full => unique.  Other than that, the only permission
+	//you would not join to is none
+	method /*unique Option<immutable Permission>*/ 
+		joinTo(immutable Permission >> void p2, immutable Permission >> void target)
+			  [immutable PurePermission >> void]
+	{
+		match(target) {
+			case UniquePermission {  //pure + full = unique
+				match (p2) {
+					case FullPermission { makeSome(target) }
+					default { new None }
+				}
+			}
+			case NonePermission { new None }  //joining to none not correct
+			default { this.join(p2) } //otherwise, let join succeed
+		}
+	}
+	
+	//upper bound will always be the other permission, unless it is none
+	method immutable Permission leastUpperBound(immutable Permission p2)[immutable PurePermission] {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { UNIQUE }
+			case FullPermission { FULL }
+			case ImmutablePermission { IMMUTABLE }
+			case SharedPermission { SHARED }
+			case PurePermission { PURE }
+			case NonePermission { PURE }
+			default { 
+				java.lang.System.out.println("not a permission"); 
+				NONEP; 
+			}
+		}
+	}
+	
+	//lower bound will always be PURE unless it is NONEP or DYN
+	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable PurePermission] {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { PURE }
+			case FullPermission { PURE }
+			case ImmutablePermission { PURE }
+			case SharedPermission { PURE }
+			case PurePermission { PURE	 }
+			case NonePermission { NONEP }
+			default { 
+				java.lang.System.out.println("not a permission"); 
+				DYNP; 
+			}
+		}	
+	}
+	
+	//***DEPRECATED***
+	method asStrongAs(p2) {
+		match (p2) {
+			case NonePermission { true }
+			case PurePermission { true }
+			default { false }
+		}
+	}
+
+	//weaker
+	//***DEPRECATED***
+	method /*Permission*/ merge(p2) {
+		match (p2) {
+			case DynPermission { DYNP }
+			case NonePermission { NONEP }
+			default { PURE } //pure weaker than most
+			
+		}
+	}
+}

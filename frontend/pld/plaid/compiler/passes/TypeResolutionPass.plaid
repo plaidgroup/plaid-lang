@@ -1,0 +1,1517 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.ParsedRewriteLeafVisitor;
+import plaid.ast.util.*;
+
+import plaid.compiler.report_ERROR;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.Pass;
+
+import plaid.compiler.symbolForAST;
+import plaid.compiler.haveSymbolForAST;
+import plaid.compiler.addSymbolForAST;
+
+import plaid.compiler.symbol.*;
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+import plaid.compiler.util.makeArgSpecFromAST;
+import plaid.compiler.util.makeTypeFromAST;
+
+import plaid.compiler.typechecker.*;
+
+import plaid.ast.parsed.*;
+
+import plaid.compiler.util.*;
+
+import plaid.collections.makeLinkedList;
+
+import plaid.compiler.util.makeAbstractExpressionFromAST;
+
+state TypeResolutionPass case of Pass = ParsedRewriteLeafVisitor with  {
+    val unique Map symbolToStructureMap = java.util.IdentityHashMap.new();
+    var unique SymbolFactory sf = new SymbolFactory;
+    var immutable Source sourceFile;
+    var shared Resolver resolver;
+    var hasErrors = false;
+    var job;
+
+    method immutable Boolean run(unique Job job) {
+        match (job) {
+            case UserJob {
+                match (job.ast) {
+                    case Some {
+                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> started for file " + job.source.path);
+                        this.sourceFile = job.source.path;
+                        this.resolver   = job.resolver;
+
+                        this.job = job;
+                        job.ast = makeSome(job.ast.value.rewrite(this));
+            
+                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> finished");
+                        !this.hasErrors;
+                    }
+                    default { 
+                        report_ERROR(makeTokenForFile(job.source.path), "AST invalid", "", "TypeResolutionPass");
+                        false 
+                    }
+                }
+            }
+            case CompilerJob {
+                DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> skip CompilerJob");
+                true
+            }
+        }
+    }
+
+    override method void LOG(immutable String msg) {
+        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> " + msg);
+    }
+    
+    method void ERROR(immutable Token t, immutable String errCode, immutable String msg) {
+        report_ERROR(t, errCode, msg, "TypeResolutionPass");
+        this.hasErrors=true;
+    }
+    
+    method void missingStructure(immutable ASTNode node) {
+        match (this.hasErrors) {
+            case True { /*no op - previous error*/ }
+            case False { ABORT("expected structure for node not found: " + node.toString()) }
+        }
+    }
+
+
+    method void setStructureForSymbol(shared Symbol sym, shared Structure struct) {
+        this.symbolToStructureMap.put(sym, struct);
+    }
+
+    method unique Option getStructureForSymbol(shared Symbol sym) {
+        ifElse (this.symbolToStructureMap.containsKey(sym) ) {
+            makeSome(this.symbolToStructureMap.get(sym))
+        }{
+            //ABORT("Cannot find structure for symbol. " + sym.toString());
+            new None
+        }
+    }
+
+    
+    method void computeStateChangeForMethodCall(immutable ParsedMethodCall mcall,
+                                                immutable MethodSignature msig) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> computeStateChangeForMethodCall");
+        // check receiver 
+        if (msig.receiverSpec.changesState() ) {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>   receiver changes state from '" + msig.receiverSpec.inputType.structure.toString() + "' to '" + msig.receiverSpec.outputType.structure.toString() + "'" );
+            match (mcall.receiver) {
+                case ParsedIdentifier {
+                    val symbolOpt = symbolForAST(mcall.receiver);
+                    match (symbolOpt) {
+                        case Some {
+                            setStructureForSymbol(symbolOpt.value, msig.receiverSpec.outputType.structure);       
+                        }
+                        case None {
+                            ABORT("Cannot find symbol for receiver.");
+                        }
+                    }
+                }
+                default {
+                    this.ERROR(mcall.token, "NON_VAR_STATE_CHANGE","");
+                }
+            };
+        };
+
+        // check parameters
+        match (mcall.argument) {
+            case ParsedArgumentExpr {
+                ifElse ( mcall.argument.args.size() == msig.arguments.size() ) {
+                    var i = 0;
+                    while { i < msig.arguments.size() }{
+                        val argSpec = msig.arguments.get(i).value.second();                        
+                        
+                        if ( argSpec.changesState() ) {
+                            DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>     "+i+". parameter changes structure from '" + argSpec.inputType.structure.toString()+"' to '" + argSpec.outputType.structure.toString()+"'");
+                            match (mcall.argument.args.get(i).value) {
+                                case ParsedIdentifier {
+                                    val symbol = symbolForAST(mcall.argument.args.get(i).value);
+                                    match (symbol) {
+                                        case Some {
+                                            setStructureForSymbol(symbol.value, argSpec.outputType.structure);
+                                        }
+                                        case None {
+                                            ABORT("Cannot find symbol for '" + mcall.arguments.args.get(i).value.name +"'");
+                                        }
+                                    }
+                                }
+                                default {
+                                    this.ERROR(mcall.token, "NON_VAR_STATE_CHANGE","");
+                                }
+                            }
+                        }; 
+
+                        i = i + 1;
+                    }
+                }{
+                    this.ERROR(mcall.token, "T_CALL_ARG_NUM","got " + mcall.argument.args.size() +
+                                                " expected " + msig.arguments.size());
+                }
+            }
+            default {
+                ABORT("Only support argument expression for method calls at the moment.");
+            }
+        }
+    }
+
+	override method immutable ParsedAbstractFieldDecl rewriteParsedAbstractFieldDecl(immutable ParsedAbstractFieldDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite AbstractFieldDecl");
+
+		val new_specifier = node.specifier.rewrite(this);
+		val new_fieldType = node.fieldType.rewrite(this);
+		val new_name = node.name.rewrite(this);
+		val new_modifiers = node.modifiers.map(fn (item) => { item.rewrite(this) });
+		val new_annotations = node.annotations.map(fn (item) => { item.rewrite(this) });
+
+		val new_node = new ParsedAbstractFieldDecl{
+			val specifier = new_specifier;
+			val fieldType = new_fieldType;
+			val name = new_name;
+			val modifiers = new_modifiers;
+			val annotations = new_annotations;
+			val token = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {
+                match (symbol.value) {
+                    case FieldSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for state declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for state declaration.");
+            }
+        };
+
+        new_node
+	}
+
+	override method immutable ParsedAbstractMethodDecl rewriteParsedAbstractMethodDecl(immutable ParsedAbstractMethodDecl node) {
+		LOG("rewrite ParsedAbstractMethodDecl '" + node.name.name +"'");
+		// create new object
+		/*
+		new ParsedAbstractMethodDecl{
+			val returnType      = node.returnType.rewrite(this);
+			val StaticArgsSpec  = node.StaticArgsSpec.map(fn (item) => { item.rewrite(this) });
+			val arguments       = node.arguments.map(fn (item) => { item.rewrite(this) });
+			val environment     = node.environment.map(fn (item) => { item.rewrite(this) });
+			val name            = node.name.rewrite(this);
+			val modifiers       = node.modifiers.map(fn (item) => { item.rewrite(this) });
+			val annotations     = node.annotations.map(fn (item) => { item.rewrite(this) });
+			val token           = node.token;
+		}
+		*/
+		node
+	}
+
+
+	override method immutable ParsedAbstractStateDecl rewriteParsedAbstractStateDecl(immutable ParsedAbstractStateDecl node) {
+		LOG("rewrite ParsedAbstractStateDecl [" + node.name.name +"]");
+		// create new object
+		new ParsedAbstractStateDecl{
+			val caseOf         = node.caseOf.rewrite(this);
+			val StaticArgsSpec = node.StaticArgsSpec.map(fn (item) => { item.rewrite(this) });
+			val metaCaseOfArgs = node.metaCaseOfArgs.map(fn (item) => { item.rewrite(this) });
+			val name           = node.name.rewrite(this);
+			val modifiers      = node.modifiers.map(fn (item) => { item.rewrite(this) });
+			val annotations    = node.annotations.map(fn (item) => { item.rewrite(this) });
+			val token          = node.token;
+		}
+	}
+
+	override method immutable ParsedAnnotation rewriteParsedAnnotation(immutable ParsedAnnotation node) {
+        new ParsedAnnotation {
+            val name = node.name.rewrite(this);
+            val token = node.token;
+        }
+	}
+
+	override method immutable ParsedArgumentExpr rewriteParsedArgumentExpr(immutable ParsedArgumentExpr node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ArgumentExpression");
+
+     	// create new object
+		val new_node = new ParsedArgumentExpr{
+			val args = node.args.map(fn (item) => item.rewrite(this) );
+			val token = node.token;
+		};
+
+        ifElse ( new_node.args.size() == 0 ) {
+            addStructureForAST(new_node, TOPSTRUCT);
+        }{
+            new_node.args.do(fn (arg) => {
+                val elemStruc = structureForAST(arg);
+                match (elemStruc) {
+                    case Some {
+                        addStructureForAST(arg, elemStruc.value);
+                    }
+                    case None {
+                        this.missingStructure(arg)
+                    }
+                }
+            });
+        };
+
+        new_node	
+	}
+
+    override method immutable ParsedAtomicBlock rewriteParsedAtomicBlock(immutable ParsedAtomicBlock node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite AtomicBlock");
+        val new_body       = node.body.rewrite(this);
+        val new_datagroups = node.datagroups.map( fn (item) => item.rewrite(this) );
+        
+        val newAtomicBlock = new ParsedAtomicBlock {
+            val token      = node.token;
+            val body       = new_body;
+            val datagroups = new_datagroups;
+        };
+        
+        match(structureForAST(new_body)) {
+             case Some { addStructureForAST(newAtomicBlock, structureForAST(new_body).value) }
+             case None { this.missingStructure(new_body) }
+        };
+        
+        newAtomicBlock
+    }
+
+	override method immutable ParsedApplication rewriteParsedApplication(immutable ParsedApplication node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite Application");
+        match (node.function) {
+            case ParsedIdentifier {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    function is identifier check for lambda or method");
+                // check for global method or variable with lambda
+                val symbol = symbolForAST(node.function);
+                match (symbol) {
+                    case Some {
+                        match (symbol.value) {
+                            case VariableSymbol {
+                                // check for lambda
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    found variable check for lambda type");
+                                val structOpt = getStructureForSymbol(symbol.value);
+                                match (structOpt) {
+                                    case Some {
+                                        match ( structOpt.value ) {
+                                            case LambdaStructure {
+                                                val new_node = new ParsedApplication {
+                                                    val function   = node.function.rewrite(this);
+                                                    val argument   = node.argument.rewrite(this);
+                                                    val staticArgs = node.staticArgs.map( fn (arg) => arg.rewrite(this) );
+                                                    val token      = node.token;
+                                                };
+
+                                                // set structure for new node
+                                                val returnType = structOpt.value.returnType;
+                                                addStructureForAST(new_node, returnType.structure);
+
+                                                new_node
+                                            }
+                                            default {
+                                                this.ERROR(node.function.token, "T_APP_NOT_FUNCTION", structOpt.value.toString() );
+                                                node
+                                            }
+                                        }
+                                    }
+                                    case None {                                    
+                                       val varStruct = symbol.value.getStructure();
+                                       match (varStruct) {
+                                           case LambdaStructure {
+                                               val new_node = new ParsedApplication {
+                                                    val function   = node.function.rewrite(this);
+                                                    val argument   = node.argument.rewrite(this);
+                                                    val staticArgs = node.staticArgs.map( fn (arg) => arg.rewrite(this) );
+                                                    val token      = node.token;
+                                                };
+
+                                                // set structure for new node
+                                                val returnType = varStruct.returnType;
+                                                addStructureForAST(new_node, returnType.structure);
+
+                                                new_node
+                                           }
+                                           default {
+                                                this.ERROR(node.function.token, "T_APP_NOT_FUNCTION", varStruct.toString() );
+                                                node
+                                           }
+                                       }
+                                    }
+                                }
+                            }
+                            case MethodSymbol {
+                                // top-level method
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    found global method");
+                                val signature = symbol.value.getSignature();
+                                val returnType = signature.returnType;
+                                        
+                                val new_argument = node.argument.rewrite(this);
+                                val new_staticArgs = makeLinkedList();
+                                //val new_methodId = node.function.rewrite(this);  //no need to rewrite the ID
+                                node.staticArgs.map( fn (item) => new_staticArgs.add( item.rewrite(this)) );
+
+                                val methodCall = new ParsedMethodCall {
+                                    val argument   = new_argument;
+                                    val staticArgs = new_staticArgs;
+                                    val receiver   = new ParsedEmptyExpr;
+                                    val methodId   = node.function;
+                                    val token      = node.function.token;
+                                };
+                                addStructureForAST(methodCall, returnType.structure);
+                                        
+                                // compute statechanges 
+                                computeStateChangeForMethodCall(methodCall, signature);
+                                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Method returns '" + returnType.toString()  +"'");
+                                methodCall           
+                            }
+                            default {
+                                this.ERROR(node.function.token, "T_APP_NOT_FUNCTION_OR_METHOD", "" );
+                                node
+                            }
+                        }
+                    } 
+                    case None {
+                        ABORT("Cannot find symbol for Application function");                  
+                    }
+                }
+            }
+            case ParsedDereference {
+                // check that if dereference is a method
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>    check dereference for possible method.");
+                
+                val new_function = node.function.left.rewrite(this);
+                val receiverStruct = structureForAST(new_function);
+                match (receiverStruct) {
+                    case Some {
+                        match (receiverStruct.value) {
+                        	case NominalStructure {
+								val signature = receiverStruct.value.getMember(node.function.right.name);
+								match (signature) {
+									case Some {
+										match (signature.value) {
+											case FieldSignature {
+												 DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>     Found field");
+												 val new_application = new ParsedApplication {
+													 val function   = new_function;
+													 val argument   = node.argument.rewrite(this);
+													 val staticArgs = node.staticArgs.map( fn (arg) => arg.rewrite(this) );
+													 val token      = node.token;
+												 };
+												 val fieldType = signature.value.getCurrentType();
+												 match (fieldType.structure) {
+													 case LambdaStructure {
+														 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>     Field contains Lambda ");
+														 addStructureForAST(new_application, fieldType.structure.returnType.structure);
+														 DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Lambda returns '" + fieldType.structure.returnType.toString() +"'");
+													 }
+													 default { 
+														 this.ERROR(node.function.right.token, "T_APP_NOT_FUNCTION", fieldType.structure.toString() );
+                                                         node                                                
+													 } 
+												 };
+												 
+												 new_application
+											}
+											case MethodSignature {
+												DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>     Found method call");
+												val returnType = signature.value.returnType;
+												
+												val new_argument = node.argument.rewrite(this);
+												val new_staticArgs = makeLinkedList();
+												//val new_methodId = node.function.right.rewrite(this); //no need to rewrite an ID
+												node.staticArgs.map( fn (item) => new_staticArgs.add( item.rewrite(this)) );
+												val methodCall = new ParsedMethodCall {
+													val argument = new_argument;
+													val staticArgs = new_staticArgs;
+													val receiver = new_function;
+													val methodId = node.function.right;
+													val token = node.function.token;
+												};
+												addStructureForAST(methodCall, returnType.structure);
+												
+												// compute statechanges 
+												computeStateChangeForMethodCall(methodCall, signature.value);
+		
+												DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>       Method signature '" + signature.value.toString()  +"'");
+												methodCall
+											}
+											default {
+												ABORT("Unexpected Signature " + signature.value.toString());
+											}
+										}
+									}
+									case None { 
+										this.ERROR(node.function.token,"T_CALL_MISSING", node.function.right.name);
+										node; //no rewrite
+									}
+								}
+							}
+							case JavaStructure {
+								match (node.function.right.name == "new") {
+									case True { //constructor - only nullary constructors for now
+										match (node.argument) {
+											case ParsedArgumentExpr {
+												match (node.argument.args.size() == 0) {
+													case True { //we can create the right signature, so make a method call out of this
+														val methodCall = new ParsedMethodCall {
+															val argument = node.argument;
+															val staticArgs = makeLinkedList();
+															val receiver = new_function;
+															val methodId = node.function.right;
+															val token = node.function.token;
+														};
+														
+														addStructureForAST(methodCall, receiverStruct.value);
+														
+														methodCall;
+													}
+													
+												}
+											}
+											default {
+												ABORT("non-arg expression as arg to java constructor");
+											}
+										}
+									}
+									case False { //cannot handle general Java methods yet
+										ABORT("Java members not yet supported");
+									}
+								}
+							}
+							default {
+								this.ERROR(node.function.left.token, "T_CALL_NON_OBJECT_STRUCTURE", receiverStruct.value.toString() );
+                                node 
+							}
+						}
+                    }
+                    case None {
+                        this.missingStructure(new_function);
+                        node //no rewriting
+                    }
+                }
+            }
+            default {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass>  Resolve standard function for application");
+                val new_function   = node.function.rewrite(this);
+		        val new_argument   = node.argument.rewrite(this);
+		        val new_staticArgs = node.staticArgs.map( fn (item) => item.rewrite(this) );
+
+		        // create new object
+		        val new_node = new ParsedApplication {
+			        val function   = new_function;
+			        val argument   = new_argument;
+			        val staticArgs = new_staticArgs;
+			        val token      = node.token;
+		        };
+
+                val functionStruct = structureForAST(new_function);
+                match ( functionStruct ) {
+                    case Some {
+                        match ( functionStruct.value ) {
+                            case LambdaStructure { 
+                                 val returnType = functionStruct.value.returnType;
+                                 addStructureForAST(new_node, returnType.structure);
+                            }
+                            default {
+                                this.ERROR(node.function.token, "T_APP_NOT_FUNCTION", functionStruct.value.toString() );
+                                node                                 
+                            }
+                        }
+                    }
+                    case None {
+                        this.missingStructure(new_function)
+                    }
+                };
+
+                new_node
+            }
+        }
+	}
+
+  override method immutable ParsedAssignment rewriteParsedAssignment(immutable ParsedAssignment node) {
+    LOG("rewrite ParsedAssignment");
+    
+    val new_node = new ParsedAssignment {
+      val token = node.token;
+      val target = node.target.rewrite(this);
+      val field = node.field.rewrite(this);
+      val value = node.value.rewrite(this);
+    };
+    
+    addStructureForAST(new_node, TOPSTRUCT);
+    
+    new_node;
+    
+  }
+
+  override method immutable ParsedBlockExpr rewriteParsedBlockExpr(immutable ParsedBlockExpr node) {
+		LOG("rewrite ParsedBlockExpr");
+		// create new object
+		val new_node = new ParsedBlockExpr{
+			val statements= node.statements.map(fn (item) => { item.rewrite(this) });
+			val token = node.token;
+		};
+
+        ifElse ( new_node.statements.size() == 0 ) {
+            // empty expression => void 
+            DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> empty BlockExpr -> void");
+            addStructureForAST(new_node, VOID.structure);
+        }{
+            val lastStmt = new_node.statements.get(new_node.statements.size() - 1).value;
+            val lastStmtStruct = structureForAST(lastStmt);
+            match (lastStmtStruct) {
+               case Some {
+                   addStructureForAST(new_node, lastStmtStruct.value);
+               }
+               case None {
+                   this.missingStructure(lastStmt)
+               }
+            }
+        };
+        
+        new_node
+	}
+
+	override method immutable ParsedConcreteFieldDecl rewriteParsedConcreteFieldDecl(immutable ParsedConcreteFieldDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ConcreteFieldDecl");
+
+	
+		val new_expression = ifElse ( typecheckingEnabled(node) ) {
+				node.expression.rewrite(this);
+			}{
+				DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>  SKIP resolution of field initializer [typechecking DISABLED");
+				node.expression;
+			};
+		val new_specifier  = node.specifier.rewrite(this);
+		val new_fieldType  = node.fieldType.rewrite(this);
+		//val new_name       = node.name.rewrite(this);//no need to rewrite the name - no structure to give it
+		val new_modifiers  = node.modifiers.map(fn (item) => { item.rewrite(this) });
+ 		val new_annotations = node.annotations.map(fn (item) => { item.rewrite(this) });
+ 
+		val new_node = new ParsedConcreteFieldDecl{
+			val expression = new_expression;
+			val specifier  = new_specifier;
+			val fieldType  = new_fieldType;
+			val name       = node.name;
+			val modifiers  = new_modifiers;
+			val annotations = new_annotations;
+			val token      = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {
+                match (symbol.value) {
+                    case FieldSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for field declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for field declaration.");
+            }
+        };
+
+        new_node
+	}
+
+
+	override method immutable ParsedConcreteMethodDecl rewriteParsedConcreteMethodDecl(immutable ParsedConcreteMethodDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ConcreteMethodDecl [" + node.name.name +"]");
+
+        // populate context with variable mappings 
+        this.symbolToStructureMap.clear();
+
+		val new_returnType = node.returnType.rewrite(this);
+		val new_StaticArgsSpec = node.StaticArgsSpec.map(fn (item) => { item.rewrite(this) } );
+		val new_arguments = node.arguments; 
+		val new_environment = node.environment; 
+		//val new_name = node.name.rewrite(this); //no need to rewrite the name - no structure to give it
+		val new_modifiers = node.modifiers.map(fn (item) => { item.rewrite(this) });
+        val new_annotations = node.annotations.map(fn (item) => { item.rewrite(this) });
+
+		val new_body = ifElse ( typecheckingEnabled(node) ) {
+				node.body.rewrite(this);
+			}{
+				DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass>  SKIP resolution of method body [typechecking DISABLED]");
+				node.body;
+			};
+
+
+		val new_node = new ParsedConcreteMethodDecl{
+			val body = new_body;
+			val returnType = new_returnType;
+			val StaticArgsSpec = new_StaticArgsSpec;
+			val arguments = new_arguments;
+			val environment = new_environment;
+			val name = node.name;
+			val modifiers = new_modifiers;
+			val annotations = new_annotations;
+			val token = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {                
+                match (symbol.value) {
+                    case MethodSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for state declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for method declaration.");
+            }
+        };
+
+        // clean up symbols for method
+        this.symbolToStructureMap.clear();
+
+
+        new_node
+	}
+
+
+    override method immutable ParsedConcreteStateDecl rewriteParsedConcreteStateDecl(immutable ParsedConcreteStateDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite ParsedConcreteStateDecl [" + node.name.name +"]");
+        
+		val new_stateBinding = node.stateBinding.rewrite(this);
+		val new_caseOf = node.caseOf.rewrite(this);
+		val new_StaticArgsSpec = makeLinkedList();
+		node.StaticArgsSpec.map(fn (item) => { new_StaticArgsSpec.add(item.rewrite(this)) });
+		val new_metaCaseOfArgs = makeLinkedList();
+		node.metaCaseOfArgs.map(fn (item) => { new_metaCaseOfArgs.add(item.rewrite(this)) });
+		//val new_name = node.name.rewrite(this); //no need to rewrite the name - no structure to give it
+		val new_modifiers = makeLinkedList();
+		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+	    val new_annotations = node.annotations.map(fn (item) => { item.rewrite(this) });
+
+		val new_node = new ParsedConcreteStateDecl{
+			val stateBinding = new_stateBinding;
+			val caseOf = new_caseOf;
+			val StaticArgsSpec = new_StaticArgsSpec;
+			val metaCaseOfArgs = new_metaCaseOfArgs;
+			val name = node.name;
+			val modifiers = new_modifiers;
+			val annotations = new_annotations;
+			val token = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {                
+                match (symbol.value) {
+                    case StateSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for state declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for state declaration.");
+            }
+        };
+
+        new_node
+	}
+
+
+	override method immutable ParsedConcreteStateValDecl rewriteParsedConcreteStateValDecl(immutable ParsedConcreteStateValDecl node) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> rewrite statevaldecl");
+
+		val new_stateBinding = node.stateBinding.rewrite(this);
+		val new_StaticArgsSpec = makeLinkedList();
+		node.StaticArgsSpec.map(fn (item) => { new_StaticArgsSpec.add(item.rewrite(this)) });
+		val new_name = node.name.rewrite(this);
+		val new_modifiers = makeLinkedList();
+		node.modifiers.map(fn (item) => { new_modifiers.add(item.rewrite(this)) });
+
+		val new_node = new ParsedConcreteStateValDecl{
+			val stateBinding = new_stateBinding;
+			val StaticArgsSpec = new_StaticArgsSpec;
+			val name = new_name;
+			val modifiers = new_modifiers;
+			val token = node.token;
+		};
+
+        // update symbol
+        val symbol = symbolForAST(node);
+        match (symbol) {
+            case Some {                
+                match (symbol.value) {
+                    case StateValSymbol {
+                        symbol.value.updateDeclaration(new_node);
+                    }
+                    default {
+                        ABORT("Found invalid symbol for state declaration.");
+                    }
+                }
+            }
+            case None {
+                ABORT("Cannot find symbol for state declaration.");
+            }
+        };
+
+        new_node
+	}
+ 
+	override method immutable ParsedDefaultCase rewriteParsedDefaultCase(immutable ParsedDefaultCase node) {
+		LOG("rewrite ParsedDefaultCase");
+		// create new object
+		val new_node = new ParsedDefaultCase{
+			val body = node.body.rewrite(this);
+			val token = node.token;
+		};
+
+        val newNodeStruct = structureForAST(new_node.body);
+        match ( newNodeStruct ) {
+            case Some {
+                addStructureForAST(new_node, newNodeStruct.value);
+            }
+            case None {
+                this.missingStructure(new_node.body)
+            }
+        };
+
+        new_node
+	}
+   
+	override method immutable ParsedDereference rewriteParsedDereference(immutable ParsedDereference node) {
+        LOG("visit ParsedDereference");
+
+		val new_node = new ParsedDereference{
+			val left = node.left.rewrite(this);
+			val right = node.right.rewrite(this);
+			val token = node.token;
+		};
+
+        // remap symbol if necessary 
+        match ( symbolForAST(node) ) {
+            case Some {
+                val oldSymbol = symbolForAST(node).value;
+                addSymbolForAST(new_node, oldSymbol);
+            }
+            case None { /* noop */ }
+        };
+
+		
+		val rightStruct = structureForAST(new_node.right);
+        match (rightStruct) {
+        	case Some { //use right struct for whole deref
+        		addStructureForAST(new_node, rightStruct.value);
+        	}
+        	case None { //otherwise look for right in the structure for left
+        
+				val leftStruct = structureForAST(new_node.left);
+				match (leftStruct) {
+					case Some {
+						match (leftStruct.value) {
+							case NominalStructure {
+								val signature = leftStruct.value.getMember(node.right.name);
+								match ( signature ) {
+									case Some {
+										match (signature.value) {
+											case MethodSignature {
+												DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a method signature for '" + node.right.name +"'");
+												this.ERROR(node.token, "T_METHOD_FIRST_CLASS", "");
+											}
+											case FieldSignature {
+												DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a field signature for '" + node.right.name +"'");
+												val substMap = getSubstitutionMap(leftStruct.value);
+												val substSig = substituteSignature(signature.value, substMap);
+												DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> substituted signature : " + substSig.toString() );
+												addStructureForAST(new_node, substSig.getCurrentType().structure);
+											}
+											case DatagroupSignature {
+												DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> Found a datagroup signature for '" + node.right.name +"'");
+												addStructureForAST(new_node, signature.value.getType().structure);                                    
+											}
+											default {
+												this.ERROR(node.token, "UNEXPECTED_SIG", "");
+											}
+										}
+									}
+									case None { 
+										this.ERROR(node.token, "T_DEREF_MISSING", node.right.name);
+									}
+								}
+							}
+							case PackageStructure { /* nothing to do - continue */ }
+							case JavaStructure { /*TODO: not ready to resolve java members*/ 
+								ABORT("Java members not implemented " + leftStruct.value.toString());
+							}
+							default {
+								val x = leftStruct.value; //x = 1;
+								ABORT("Found invalid type! " + leftStruct.value.toString());
+							}
+						}
+					}
+					case None {
+						this.missingStructure(new_node.left)
+					}
+				}
+			}
+        
+        };
+
+        new_node
+	}
+	
+	override method immutable ParsedDoubleLiteral rewriteParsedDoubleLiteral(immutable ParsedDoubleLiteral node) {
+	  LOG("rewrite ParsedDoubleLiteral");
+	  // don't need to create a new object because no rewriting necessary
+	  
+	  //lookup Integer symbol
+	  val immutable Option<immutable Symbol> doubleSymOption = symbolForAST(node);
+	  
+	  match (doubleSymOption) {
+	    case Some {
+	      addStructureForAST(node, makeNominalStructure(doubleSymOption.value));
+	      
+	    }
+	    case None {
+	       ABORT("(implementation error) could not find Double Literal Symbol");
+	    }
+	  };
+	  
+	  node
+	}
+
+   	override method immutable ParsedIdentifier rewriteParsedIdentifier(immutable ParsedIdentifier node) {
+        LOG("rewrite ParsedIdentifier '" + node.name +"'");
+		val new_node = new ParsedIdentifier{
+			val name = node.name;
+			val token = node.token;
+		};
+
+        // try to get symbol
+        val symbol = symbolForAST(node);
+        match ( symbol ) {
+            case Some {
+                // update symbol 
+                LOG("  remap symbol for '" + node.name +"'");
+                //delSymbolForAST(node);
+                addSymbolForAST(new_node, symbol.value);
+
+                // resolve type information if possible
+                match (symbol.value) {
+                    case OwningSymbol {
+                        val idStruct = symbol.value.getStructure();
+                        addStructureForAST(new_node, idStruct);
+                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    set '"+ new_node.name+"' to '"+ idStruct.toString()+"'");
+                    }
+                    case JavaClassSymbol {
+                    	val idStruct = symbol.value.getStructure();
+                        addStructureForAST(new_node, idStruct);
+                        DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    set '"+ new_node.name+"' to '"+ idStruct.toString()+"'");
+                    }
+                    case VariableSymbol {
+                        val structOpt = getStructureForSymbol(symbol.value);
+                        match ( structOpt ) {
+                            case Some {
+                                addStructureForAST(new_node, structOpt.value);
+                                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    set '"+ new_node.name+"' to '"+ structOpt.value.toString()+"'");
+                            }
+                            case None {
+                                val idStruct = symbol.value.getStructure();
+                                addStructureForAST(new_node, idStruct);
+                                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>    set '"+ new_node.name+"' to '"+ idStruct.toString()+"'");
+                            }
+                        }
+                    }
+                    case MethodSymbol {
+                        // we don't have method types. therefore do nothing - error?
+                        this.ERROR(node.token, "T_METHOD_FIRST_CLASS", "");
+                        node
+                    }
+                    case FieldSymbol {
+                    	addStructureForAST(new_node, symbol.value.getSignature().getDeclaredType().structure);	
+                    }
+                    default { 
+                        DEBUG(DEBUG_PRIO_HIGH, "<TypeResolutionPass> Cannot resolve type for '" + node.name +"' "); 
+                    }
+                }
+            }
+            case None { LOG("   no symbol to remap for '" + node.name +"'"); }
+        };
+
+        new_node
+	}
+
+	override method immutable ParsedGroupDecl rewriteParsedGroupDecl(immutable ParsedGroupDecl node) {
+        node
+    }
+
+	override method immutable ParsedInfixOperatorExpr rewriteParsedInfixOperatorExpr(immutable ParsedInfixOperatorExpr node) {
+		LOG("rewrite ParsedInfixOperatorExpr");
+		// create new object
+        val new_left = node.left.rewrite(this);
+        val new_right = node.right.rewrite(this);
+
+        val leftStructOpt = structureForAST(new_left);
+        match (leftStructOpt) {
+            case Some {
+                match (leftStructOpt.value) {
+                    case NominalStructure {
+                        val memberSignatureOpt = leftStructOpt.value.getMember(node.operator.name);
+                        match (memberSignatureOpt) {
+                            case Some {
+                                match (memberSignatureOpt.value) {
+                                    case MethodSignature {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> replace Unary operator with method call");
+                                        val returnType = memberSignatureOpt.value.returnType;
+
+                                        val args = makeLinkedList();
+                                        args.addLast(new_right);
+                                        val new_node = new ParsedMethodCall {
+                                            val argument = new ParsedArgumentExpr { val args = args; val token = EMPTY_TOKEN; };
+                                            val staticArgs = makeLinkedList();
+                                            val receiver = new_left;
+                                            val methodId = node.operator;
+                                            val token = node.token;
+                                        };
+
+                                        // compute state changes 
+                                        computeStateChangeForMethodCall(new_node, memberSignatureOpt.value);
+
+                                        addStructureForAST(new_node, returnType.structure);
+                                        new_node
+                                    }
+                                    default {
+                                        this.ERROR(node.token, "T_OP_NOT_METHOD", node.operator.name);
+                                        node
+                                    }
+                                }
+                            }
+                            case None {
+                                this.ERROR(node.token, "T_CALL_MISSING", node.operator.name);
+                                node
+                            }
+                        }
+                    }
+                    default {
+                        this.ERROR(node.token, "T_CALL_NON_OBJECT_STRUCTURE", leftStructOpt.value.toString());
+                        node
+                    }
+                }
+            }
+            case None {
+                this.missingStructure(new_left);
+                node
+            }
+        };        
+	}
+	
+	override method immutable ParsedGroupDecl rewriteGroupDecl(immutable ParsedGroupDecl node) {
+	    LOG("rewrite ParsedGroupDecl");
+	    node
+	}
+	
+	override method immutable ParsedGroupArg rewriteGroupArg(immutable ParsedGroupArg node) {
+	    LOG("rewrite ParsedGroupArg");
+	    node
+	}
+	
+	override method immutable ParsedIntLiteral rewriteParsedIntLiteral(immutable ParsedIntLiteral node) {
+	  LOG("rewrite ParsedIntLiteral");
+	  // don't need to create a new object because no rewriting necessary
+	  
+	  //lookup Integer symbol
+	  val immutable Option<immutable Symbol> intSymOption = symbolForAST(node);
+	  
+	  match (intSymOption) {
+	    case Some {
+	      addStructureForAST(node, makeNominalStructure(intSymOption.value));
+	      
+	    }
+	    case None {
+	       ABORT("(implementation error) could not find Integer Literal Symbol");
+	    }
+	  };
+	  
+	  node
+	}
+
+	override method immutable ParsedMatch rewriteParsedMatch(immutable ParsedMatch node) {
+		LOG("rewrite ParsedMatch");
+		// create new object
+		
+		// todo test for expression = ParsedIdentifier 
+		match (node.expression) {
+		    case ParsedIdentifier {
+                val expression = node.expression.rewrite(this);
+                val expressionSymbol = match (symbolForAST(expression)) {
+                    case Some { symbolForAST(expression).value }
+                    case None { ABORT("Cannot find symbol for expression " + expression.toString()) }
+                };
+                val new_node = match (expressionSymbol) {
+                    case VariableSymbol {
+                        new ParsedMatch {
+                            val expression = expression;
+                            val caseList= node.caseList.map(fn (item) => { 			                                
+                                    match (item) {
+                                        case ParsedPatternCase {
+                                            val patternSymbol = match (symbolForAST(item.pattern)) {
+                                                case Some { symbolForAST(item.pattern).value }
+                                                case None { ABORT("Cannot find symbol for pattern " + makeStringFromQualifiedIdentifier(item.pattern)) }
+                                            };
+                                            
+                                            val immutable ?Structure patternStructure = match ( patternSymbol ) {
+                                                 case StateSymbol {
+                                                     patternSymbol.getStructure();
+                                                 }
+                                                 case JavaClassSymbol {
+                                                     patternSymbol.getStructure();
+                                                 }
+                                                 default { 
+                                                    this.ERROR(item.pattern.token, "T_PATTERN_INVALID", patternSymbol.symbolType());
+                                                    unit;
+                                                }
+                                            };
+                                            
+                                            match (patternStructure) {
+                                                case Structure {
+                                                    val oldStructureOpt = getStructureForSymbol(expressionSymbol);
+                                                    setStructureForSymbol(expressionSymbol, patternStructure);
+                                                    
+                                                    val new_item = item.rewrite(this);
+                                                    
+                                                    match ( oldStructureOpt) {
+                                                        case Some { setStructureForSymbol(expressionSymbol, oldStructureOpt.value) }
+                                                        case None {}
+                                                    };
+                                                    
+                                                    new_item
+                                                }
+                                                default { item /* previous error*/ }
+                                            }
+                                        }
+                                        default {
+                                            item.rewrite(this)  
+                                        }
+                                    }
+                            });
+                            val token = node.token;
+                        }
+                    }
+                    default {  
+                        this.ERROR(node.expression.token, "MATCH_NON_ID", "");
+                        node
+                    }  
+                };
+        
+                // compute the least upper bound of all cases
+                val lubResultOpt = match (new_node.caseList.size() > 0) {
+                    case True {
+                        val seed = structureForAST(new_node.caseList.get(0).value);
+                        
+                        new_node.caseList.reduceLeft(seed, fn (prev, caseNode) => {
+                            match (prev) {
+                                case Some {
+                                    val caseStruct = structureForAST(caseNode);
+                                    match (caseStruct) {
+                                        case Some  {
+                                            val lubOpt = prev.value.leastUpperBound(caseStruct.value);
+                                            match (lubOpt) {
+                                                case Some {
+                                                    makeSome(lubOpt.value)
+                                                }
+                                                case None {
+                                                    this.ERROR(node.token, "T_NO_RESULT_LUB","");
+                                                    lubOpt
+                                                }
+                                            }
+                                        }
+                                        case None { 
+                                            this.missingStructure(caseNode);
+                                            caseStruct 
+                                        }
+                                    }
+                                }
+                                case None { prev }
+                            }
+                        })
+                    }
+                    case False { makeSome(TOPSTRUCT) }
+                };
+        
+                match (lubResultOpt) {
+                    case Some { addStructureForAST(new_node, lubResultOpt.value); }
+                    case None { /* previous error - no op */ }
+                };
+        
+                new_node;
+            }
+            default {
+                this.ERROR(node.expression.token, "MATCH_NON_ID", "");
+                node
+            }
+        }
+	}
+
+	override method immutable ParsedNewInstance rewriteParsedNewInstance(immutable ParsedNewInstance node) {
+		LOG("rewrite ParsedNewInstance");
+		// create new object
+		val new_node = new ParsedNewInstance{
+			val stateExpr = node.stateExpr.rewrite(this);
+			val token = node.token;
+		};
+
+        val stateExprStruct = structureForAST(new_node.stateExpr);
+        match (stateExprStruct) {
+            case Some {
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> Set 'new' to " + stateExprStruct.value);
+                addStructureForAST(new_node, stateExprStruct.value);
+            }
+            case None {
+                this.missingStructure(new_node.stateExpr)
+            }
+        };
+
+        new_node 
+	}
+
+	override method immutable ParsedPatternCase rewriteParsedPatternCase(immutable ParsedPatternCase node) {
+		LOG("rewrite ParsedPatternCase");
+		
+		// create new object
+		val new_node = new ParsedPatternCase{
+			val pattern = node.pattern.rewrite(this);
+			val body = node.body.rewrite(this);
+			val token = node.token;
+		};
+
+
+        val newNodeStruct = structureForAST(new_node.body);
+        match ( newNodeStruct ) {
+            case Some {
+                addStructureForAST(new_node, newNodeStruct.value);
+            }
+            case None {
+                this.missingStructure(new_node.body)
+            }
+        };
+
+        new_node
+	}
+
+
+	override method immutable ParsedQualifiedIdentifier rewriteParsedQualifiedIdentifier(immutable ParsedQualifiedIdentifier node) {
+		LOG("visit ParsedQualifiedIdentifier");
+		val new_node = new ParsedQualifiedIdentifier{
+			val identifiers= node.identifiers.map(fn (item) => { item.rewrite(this) });
+			val token = node.token;
+		};
+        
+        val symbol = symbolForAST(node);
+        match ( symbol ) {
+            case None  {
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   no symbol to remap QualifiedIdentifier");
+            }
+            case Some {
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass>   remap symbol for QualifiedIdentifier");
+                //delSymbolForAST(node);
+                addSymbolForAST(new_node, symbol.value);
+            }
+        };
+
+        new_node
+	}
+
+
+	override method immutable ParsedReplace rewriteParsedReplace(immutable ParsedReplace node) {
+		LOG("rewrite ParsedReplace");
+		// create new object
+		val new_node = new ParsedReplace{
+			val expression = node.expression.rewrite(this);
+			val stateExpr = node.stateExpr.rewrite(this);
+			val token = node.token;
+		};
+
+        // state change has always type void
+        addStructureForAST(new_node, VOID.structure);        
+
+        // statechange variable 
+        match ( new_node.expression ) {
+            case ParsedIdentifier {
+                ifElse ( node.expression.name == "this" ) {
+                    val symbolOpt = symbolForAST(new_node.expression);
+                    match (symbolOpt) {
+                        case Some {
+                            val structOpt = structureForAST(new_node.stateExpr);
+                            match (structOpt) {
+                                case Some {
+                                     DEBUG(DEBUG_PRIO_MEDIUM,"<TypeResolutionPass>     set structure for '"+ new_node.expression.name +"' to '" + structOpt.value.toString() +"'" );
+                                     setStructureForSymbol(symbolOpt.value, structOpt.value);
+                                }
+                                case None {
+                                     this.missingStructure(new_node.stateExpr)
+                                }
+                            }
+                        }
+                        case None {
+                            ABORT("Cannot find symbol for 'this'.");
+                        }
+                    }
+                }{
+                    this.ERROR(node.expression.token, "T_CHANGE_NOT_THIS", "");
+                }
+            }
+            default {
+                this.ERROR(node.expression.token, "T_CHANGE_NOT_THIS", "");
+            }
+        };    
+        
+
+        new_node
+	}
+
+	override method immutable ParsedStateChange rewriteParsedStateChange(immutable ParsedStateChange node) {
+		LOG("rewrite ParsedStateChange");
+		// create new object
+		val new_node = new ParsedStateChange{
+			val expression = node.expression.rewrite(this);
+			val stateExpr = node.stateExpr.rewrite(this);
+			val token = node.token;
+		};
+
+        // state change has always type void
+        addStructureForAST(new_node, VOID.structure);        
+
+        // statechange variable 
+        match ( new_node.expression ) {
+            case ParsedIdentifier {
+                ifElse ( node.expression.name == "this" ) {
+                    val symbolOpt = symbolForAST(new_node.expression);
+                    match (symbolOpt) {
+                        case Some {
+                            val structOpt = structureForAST(new_node.stateExpr);
+                            match (structOpt) {
+                                case Some {
+                                     DEBUG(DEBUG_PRIO_MEDIUM,"<TypeResolutionPass>     set structure for '"+ new_node.expression.name +"' to '" + structOpt.value.toString() +"'" );
+                                     setStructureForSymbol(symbolOpt.value, structOpt.value);
+                                }
+                                case None {
+                                     this.missingStructure(new_node.stateExpr)
+                                }
+                            }
+                        }
+                        case None {
+                            ABORT("Cannot find symbol for 'this'.");
+                        }
+                    }
+                }{
+                    this.ERROR(node.expression.token, "T_CHANGE_NOT_THIS", "");
+                }
+            }
+            default {
+                this.ERROR(node.expression.token, "T_CHANGE_NOT_THIS", "");
+            }
+        };    
+
+        new_node
+	}
+
+
+	override method immutable ParsedStateRef rewriteParsedStateRef(immutable ParsedStateRef node) {
+		LOG("rewrite ParsedStateRef");
+		// create new object
+		val new_node = new ParsedStateRef{
+			val stateExpr = node.stateExpr.rewrite(this);
+			val staticArgs = node.staticArgs;
+			val specializations= node.specializations.map(fn (item) => { item.rewrite(this) });
+			val token = node.token;
+		};
+
+        val staticArgs = node.staticArgs.map( fn (arg) => {
+            val expr = makeAbstractExpressionFromAST(arg);
+            match ( expr ) {
+                case AbstractExpression { expr }
+                default { ABORT("<TypeResolution> Cannot convert static argument to abstract expression.") }
+            };
+        });
+
+        val stateExprStruct = structureForAST(new_node.stateExpr);
+        match(stateExprStruct) {
+            case Some {
+                val struct = ifElse ( staticArgs.size() == 0 ) {
+                    stateExprStruct.value
+                }{
+                    match ( stateExprStruct.value ) {
+                        case NominalStructure { substituteStaticArgs(stateExprStruct.value, staticArgs); }
+                        default { ABORT("<TypeResolutionPass> Cannot use static args with non-NominalStructure.") }
+                    }
+                };
+                DEBUG(DEBUG_PRIO_LOW, "<TypeResolutionPass> Set type of stateref to " + struct.toString());
+                addStructureForAST(new_node, struct);
+            }
+            case None {
+                this.missingStructure(new_node.stateExpr)
+            }
+        };
+        
+        val oldSymbolOpt = symbolForAST(node);
+        match (oldSymbolOpt){
+            case Some{ addSymbolForAST(new_node,oldSymbolOpt.value) }
+            case None { ABORT("no symbol for state ref") }
+        };
+
+
+        new_node
+	}
+
+  override method immutable ParsedStringLiteral rewriteParsedStringLiteral(immutable ParsedStringLiteral node) {
+    LOG("rewrite ParsedStringLiteral");
+    // don't need to create a new object because no rewriting necessary
+    
+    //lookup String symbol
+    val immutable Option<immutable Symbol> stringSymOption = symbolForAST(node);
+    
+    match (stringSymOption) {
+      case Some {
+        addStructureForAST(node, makeNominalStructure(stringSymOption.value));
+        
+      }
+      case None {
+        ABORT("(implementation error) could not find String Literal Symbol");
+      }
+    };
+    
+    node;
+  }
+
+
+	override method immutable ParsedUnaryOperatorExpr rewriteParsedUnaryOperatorExpr(immutable ParsedUnaryOperatorExpr node) {
+		LOG("rewrite ParsedUnaryOperatorExpr");
+        val new_expression = node.expression.rewrite(this);
+        val exprStructOpt = structureForAST(new_expression);
+        match (exprStructOpt) {
+            case Some {
+                match (exprStructOpt.value) {
+                    case NominalStructure {
+                        val memberSignatureOpt = exprStructOpt.value.getMember(node.operator.name);
+                        match (memberSignatureOpt) {
+                            case Some {
+                                match (memberSignatureOpt.value) {
+                                    case MethodSignature {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<TypeResolutionPass> replace Unary operator with method call");
+                                        val returnType = memberSignatureOpt.value.returnType;
+
+                                        val new_node = new ParsedMethodCall {
+                                            val argument = new ParsedArgumentExpr { val args = makeLinkedList(); val token = EMPTY_TOKEN; };
+                                            val staticArgs = makeLinkedList();
+                                            val receiver = new_expression;
+                                            val methodId = node.operator;
+                                            val token = node.token;
+                                        };
+
+                                        computeStateChangeForMethodCall(new_node, memberSignatureOpt.value);
+
+                                        addStructureForAST(new_node, returnType.structure);
+                                        new_node
+                                    }
+                                    default {
+                                        this.ERROR(node.token, "T_OP_NOT_METHOD", node.operator.name);
+                                        node
+                                    }
+                                }
+                            }
+                            case None {
+                                this.ERROR(node.token, "T_CALL_MISSING", node.operator.name);
+                                node
+                            }
+                        }
+                    }
+                    default {
+                        this.ERROR(node.token, "T_CALL_NON_OBJECT_STRUCTURE", exprStructOpt.value.toString());
+                        node
+                    }
+                }
+            }
+            case None {
+                this.missingStructure(new_expression);
+                node
+            }
+        };        
+	}
+
+  	override method immutable ParsedVarDecl rewriteParsedVarDecl(immutable ParsedVarDecl node) {
+		val new_specifier = node.specifier.rewrite(this);
+		val new_varType = node.varType.rewrite(this);
+		val new_id = node.id.rewrite(this);
+		val new_expr = node.expr.rewrite(this);
+
+		val new_node = new ParsedVarDecl{
+			val specifier = new_specifier;
+			val varType = new_varType;
+			val id = new_id;
+			val expr = new_expr;
+			val token = node.token;
+		};        
+
+        // try to get symbol
+        val symbol = symbolForAST(node);
+        match ( symbol ) {
+            case Some {
+                // update symbol 
+                //delSymbolForAST(node);
+                addSymbolForAST(new_node, symbol.value);
+                //delSymbolForAST(node.id);
+                addSymbolForAST(new_node.id, symbol.value);
+                addStructureForAST(new_node, VOID.structure);
+            }
+            case None {
+                ABORT("Cannot find symbol for variable declaration.");
+            }
+        };
+
+        new_node
+	}
+	
+	override method immutable ParsedUnitLiteral rewriteParsedUnitLiteral(immutable ParsedUnitLiteral node) {
+		LOG("rewrite ParsedUnitLiteral");
+        addStructureForAST(node, TOPSTRUCT);
+        node
+	}
+	
+	override method immutable ParsedLambda rewriteParsedLambda(immutable ParsedLambda node) {
+		LOG("rewrite ParsedLambda");
+        val new_node = new ParsedLambda {
+			val arguments= node.arguments.map(fn (item) => { item.rewrite(this) });
+			val StaticArgsSpec= node.StaticArgsSpec.map(fn (item) => { item.rewrite(this) });
+			val environment= node.environment.map(fn (item) => { item.rewrite(this) });
+			val returnType = node.returnType.rewrite(this);
+			val body = node.body.rewrite(this);
+			val token = node.token;
+		};
+		
+		val argTypes = new_node.arguments.map(fn (parsedArg) => makeArgSpecFromAST(parsedArg.argSpec));
+		val metaArgs =  makeLinkedList(); //TODO
+		
+		val lambdaStruct = makeLambdaStructure(argTypes, metaArgs, makeTypeFromAST(new_node.returnType));
+		
+		addStructureForAST(new_node, lambdaStruct);
+		
+        new_node
+	}
+}

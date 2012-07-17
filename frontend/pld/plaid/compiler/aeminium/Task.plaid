@@ -1,0 +1,196 @@
+package plaid.compiler.aeminium;
+
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+import plaid.compiler.aeminium.*;
+import plaid.ast.parsed.*;
+
+import plaid.collections.makeLinkedList;
+
+state Task {
+    val immutable Integer id; 
+    val unique Set/*<Task>*/ deps = java.util.HashSet.new();
+    val unique Set/*<Task>*/ rdeps  = java.util.HashSet.new();
+    val unique Set infos/*<DependencyInformation>*/ = java.util.HashSet.new();
+    var unique Option weightOpt = new None;
+    val shared Resolver resolver;
+    val immutable Boolean cheapCalls = COMPILER_CONFIGURATION().getBooleanProperty("plaid.compiler.aeminium.Task.cheapCalls", true);
+    val shared StringBuilder bodyStringBuilder = java.lang.StringBuilder.new();
+
+
+    method immutable Boolean ==(shared Task other) {
+        this.id == other.id
+    }
+
+    method immutable Boolean !=(shared Task other) {
+        !(this == other)
+    }
+
+    method immutable String getID() {
+        "" + id;
+    }
+    
+    method shared StringBuilder getBodyStringBuilder() {
+        this.bodyStringBuilder
+    }
+    
+    method void addInfos(shared Set infos) {
+        this.infos.addAll(infos);
+        this.weightOpt = new None;
+    }
+    
+    method void reset() {
+        this.deps.clear();
+        this.rdeps.clear();
+        this.infos.clear();
+    }
+    
+    method unique Set getOpenMatchLeaves() {
+        val leaves = java.util.HashSet.new();
+        
+        val it = this.infos.iterator();
+        while { it.hasNext() }{
+            val curInfo = it.next();
+            match (curInfo) {
+                case MatchLeaveInformation {
+                    if ( this.infos.contains(curInfo.enterInfo) == false ) {
+                        leaves.add(curInfo);
+                    };
+                }
+                default { /*nop*/ }
+            };
+        };
+        
+        leaves
+    }
+    
+    method immutable Boolean cheapMethod(immutable Structure struct, immutable String name) {
+        val fqn = struct.symbol.getFQN() + "."+name;
+        DEBUG(DEBUG_PRIO_MEDIUM, "<Task> checking for cheap method call of '" + fqn + "'" );
+        
+        // check cache
+        match ( cheapMethodCacheContains(fqn) ) {
+            case True  { true }
+            case False {
+                var result = false;
+                
+                // check for annotations 
+                val immutable Option methodSymbolOpt = struct.symbol.getMember(name);
+                match (methodSymbolOpt) {
+                    case Some {
+                        val immutable LinkedList annotations = methodSymbolOpt.value.getAnnotations();
+                        annotations.do( fn (id) => {
+                            if ( id.name.name == "cheap" ) {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<Task>     found cheap method  '" + fqn + "'" );
+                                cheapMethodCacheAdd(fqn);
+                                result = true
+                            }
+                        });
+                    }
+                    case None {}
+                };
+
+                result
+            }
+        }
+    }
+    
+    method immutable Integer getWeight() {
+
+        match ( this.weightOpt) {
+            case Some { this.weightOpt.value }
+            case None {
+                var weight = 0;
+                val it = this.infos.iterator();
+                while {it.hasNext()}{
+                    val nextInfo = it.next();
+                    
+                    val nodeWeight =  match (nextInfo) {
+                         case ASTInformation {
+                             match (nextInfo.node) {
+                                case ParsedMethodCall  {
+                                    ifElse ( this.cheapCalls ) {
+                                        val receiverStructure = match ( structureForAST(nextInfo.node.receiver) ) {
+                                            case Some { structureForAST(nextInfo.node.receiver).value } 
+                                            case None { ABORT("<Task> Cannot find structure for receiver") }
+                                        };
+                                        match (receiverStructure) {
+                                            case NominalStructure {
+                                                ifElse ( cheapMethod(receiverStructure, nextInfo.node.methodId.name) ) {
+                                                    0
+                                                }{
+                                                    10
+                                                } 
+                                            }
+                                            default { 10 }
+                                        };
+                                    }{
+                                        10
+                                    }
+                                }                                
+                                case ParsedVarDecl     {  0 }
+                                case ParsedIdentifier  {  0 }
+                                case ParsedArg         {  0 }
+                                case ParsedBlockExpr   {  0 }
+                                case ParsedLiteral     {  0 }
+                                case ParsedDereference {  0 }
+                                case ParsedAssignment  {  0 }
+                                case ParsedNewInstance { 10 }
+                                case ParsedPatternCase {  0 }
+                                case ParsedDefaultCase {  0 }
+                                default { ABORT("<Task>(getWeight) Unsupported AST node " + nextInfo.node.nodeName() ) }
+                             }
+                         }
+                         case AtomicEnterInformation { 0 }
+                         case AtomicLeaveInformation { 0 } 
+                         case MatchEnterInformation  { 0 }
+                         case MatchLeaveInformation  { 0 }
+                         default { ABORT("<Task>(getWeight) Unsupported Dependency Node.") } 
+                    };
+                    
+                    weight = weight + nodeWeight;
+                };
+                
+                this.weightOpt = makeSome(weight);
+                
+                weight
+            }
+        }
+    }
+    
+    method immutable String toString() {
+        var sb = java.lang.StringBuilder.new();
+        sb.append("" + this.getID() + "@[");
+        
+        val it = this.infos.iterator();
+        while { it.hasNext() }{
+            sb.append(it.next().getID() + ",");
+        };
+        
+        if ( this.infos.size() >= 1 ) {
+            sb.deleteCharAt(sb.length() - 1);
+        };
+        
+        sb.append("]<" +this.getWeight() + ">");
+        
+        sb.toString();
+    }
+    
+    method immutable String toTexString() {
+        var sb = java.lang.StringBuilder.new();
+        sb.append("" + this.getID() + "@[");
+        
+        val it = this.infos.iterator();
+        while { it.hasNext() }{
+            sb.append(it.next().getID() + ",");
+        };
+        
+        if ( sb.length() > 1 ) {
+            sb.deleteCharAt(sb.length() - 1);
+        };
+        
+        sb.append("]$\\langle$" +this.getWeight() + "$\\rangle$");
+        
+        sb.toString();
+    }
+}

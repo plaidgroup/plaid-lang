@@ -1,0 +1,162 @@
+package plaid.compiler.symbol;
+
+import plaid.compiler.Symbol;
+
+import java.lang.Class;
+import java.util.Arrays;
+import java.lang.reflect.Modifier;
+
+import plaid.lang.globals.makeLinkedListFromJava;
+import plaid.collections.makeLinkedList;
+import plaid.collections.LinkedList;
+
+import plaid.compiler.types.JavaStructure;
+
+state JavaClassSymbol case of Symbol {
+     val shared Class clazz;
+     val immutable Symbol owner;
+     var unique Option<immutable Structure> javaStructureOption = new None;
+     var immutable ?LinkedList javaMethods = new None;
+     var immutable ?LinkedList javaFields = new None;
+     var immutable LinkedList staticParams = makeLinkedList();
+     
+     override method immutable Boolean ==(immutable Symbol other)[immutable JavaClassSymbol this] {
+        match (other) {
+          case JavaClassSymbol { this.clazz.equals(other.clazz) }
+          default { false }
+        }
+     }
+     
+     method immutable List getStaticParameters() {
+        this.staticParams
+     }
+     
+     method immutable LinkedList getFields() {
+     	match (this.javaFields) {
+         	case LinkedList { this.javaFields }
+         	default {
+				val fieldList = makeLinkedListFromJava(Arrays.asList(this.clazz.getFields()));
+         		this.javaFields = fieldList;
+         		fieldList;
+         	}
+         };
+     }
+     
+     method immutable LinkedList getMethods() {
+     	 match (this.javaMethods) {
+         	case LinkedList { this.javaMethods }
+         	default {
+				val methodList = makeLinkedListFromJava(Arrays.asList(this.clazz.getMethods()));
+         		this.javaMethods = methodList;
+         		methodList;
+         	}
+         };
+     }
+     
+     method immutable Boolean checkStaticField(immutable String fieldName) {
+         val immutable LinkedList fields = this.getFields();
+         
+         fields.reduceLeft(false,fn (p,f) => {
+            match (f.getName().equals(fieldName)) {
+	            case True { 
+    	          	Modifier.isStatic(f.getModifiers()) || p
+    	        }
+        	    case False { false || p }
+        	}
+         })
+     }
+     
+     method immutable Boolean checkStaticMethod(immutable String methodName) {
+         
+         val immutable LinkedList methods = this.getMethods();
+         
+         methods.reduceLeft(false,fn (p,m) => {
+            match (m.getName().equals(methodName)) {
+	            case True { 
+    	          	Modifier.isStatic(m.getModifiers()) || p
+    	        }
+        	    case False { false || p }
+        	}
+         })
+     }
+     
+     //Plaid does not deal with static overloading, so if there are
+     //multiple definitions for a single name, none is returned
+     //TODO - defer until know how to make signatures for java methods
+     /*method immutable ?Signature javaMember(immutable String memberName) {
+     	val immutable LinkedList methods = this.getMethods();
+        methods.reduceLeft(unit,fn (p,m) => {
+            match (m.getName().equals(methodName)) {
+	            case True { 
+    	          	match (Modifier.isPublic(m.getModifiers())) {
+    	          		case True { 
+    	          			match (p) {
+    	          				case Signature { unit } //second public method found
+    	          				default {
+    	          					//make signature from method
+    	          				}
+    	          			}
+    	          		
+    	          		}
+						case False { p }
+    	          	}
+    	        }
+        	    case False { p }
+        	}
+         })
+     
+     }*/
+     
+     override method immutable String symbolType() { "Java Class Symbol" }
+     
+     method unique ParsedQualifiedIdentifier getQualifiedIdentifier() {
+        match ( owner ) {
+            case PackageSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<JavaClassSymbol> Found 'PackageSymbol' owner.");
+                val qi = owner.getQualifiedIdentifier();
+                val unique LinkedList ids = makeLinkedList();
+                
+                qi.identifiers.map(fn (id) => {
+                    ids.addLast(id);
+                });
+                ids.addLast(new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;});
+                
+                new ParsedQualifiedIdentifier{ identifiers = ids; token = EMPTY_TOKEN;}
+            }
+            case TopSymbol {
+                DEBUG(DEBUG_PRIO_LOW, "<JavaClassSymbol> Found 'TopSymbol' owner.");
+                val unique LinkedList ids = makeLinkedList();
+                ids.addLast(new ParsedIdentifier{name = this.name; token = EMPTY_TOKEN;});
+                new ParsedQualifiedIdentifier{ identifiers = ids;  token = EMPTY_TOKEN;}
+            }
+            default {
+                ERROR("<JavaClassSymbol> Package has invalid owner.");
+                new ParsedQualifiedIdentifier{ identifiers = makeLinkedList(); token = EMPTY_TOKEN;}
+            }
+        }
+    }
+
+    method immutable String getFQN() {
+        makeStringFromQualifiedIdentifier(getQualifiedIdentifier());
+    }
+    
+    method immutable Integer numStaticParams() {
+        makeLinkedListFromJava(Arrays.asList(this.clazz.getTypeParameters())).size()
+    }
+    
+    method immutable Structure getStructure() {        
+        match (this.javaStructureOption) {
+            case Some { this.javaStructureOption.value }
+            case None {
+                val immutable JavaStructure theStructure =  new JavaStructure {
+                    val symbol = this;
+                    val owner  = this.owner.getStructure();
+                    val name   = this.name;
+                };
+                this.javaStructureOption = makeSome(theStructure);
+                theStructure
+            }
+        }
+    }
+
+}

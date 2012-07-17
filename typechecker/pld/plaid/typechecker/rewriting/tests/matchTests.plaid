@@ -1,0 +1,267 @@
+package plaid.typechecker.rewriting.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.IMM;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.rewriting.*;
+import plaid.ast.types.permissions.*;
+
+val matchTests = fn(unique Tester tester) => {
+	
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+	var oldCases = unit;
+	var goalCases = unit;
+	val qiList = makeEmptyList(); qiList.add("Integer");
+	
+	System.out.println("Testing Match Transformation");
+	testName("lnf-match-bare");
+	/*
+	 * match(x) {
+	 * 	case N {y}
+	 *  default {z}
+	 */
+	oldCases = makeEmptyList();
+	oldCases.add(makeCase(makeToken(), 
+					   makeSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeID(makeToken(),"y")));
+	oldCases.add(makeDefaultCase(makeToken(), makeID(makeToken(),"z")));
+	oldAst = makeMatch(makeToken(), makeID(makeToken(), "x"), oldCases);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalCases = makeEmptyList();
+	goalCases.add(makeCase(makeToken(), 
+					   makeSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeTake(makeToken(),
+					   			makeTempID(makeToken(),"t2"),
+					   			makeID(makeToken(),"y"),
+					   			makeTempID(makeToken(), "t2"),
+					   			false
+					   )
+				 ));
+	goalCases.add(makeDefaultCase(makeToken(), 
+								  makeTake(makeToken(),
+					   			  		   makeTempID(makeToken(),"t3"),
+					   			  		   makeID(makeToken(),"z"),
+					   			  		   makeTempID(makeToken(), "t3"),
+					   			  		   false)
+					   ));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeMatch(makeToken(), makeID(makeToken(), "x"), goalCases),
+					   makeTempID(makeToken(),"t1"),
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-match-complex");
+	/*
+	 * match(x.f) {
+	 * 	case N {y}
+	 *  default {z}
+	 */
+	oldCases = makeEmptyList();
+	oldCases.add(makeCase(makeToken(), 
+					   makeSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeID(makeToken(),"y")));
+	oldCases.add(makeDefaultCase(makeToken(), makeID(makeToken(),"z")));
+	oldAst = makeMatch(makeToken(),
+					   makeDereference(makeToken(), makeID(makeToken(), "x"), makeID(makeToken(),"f")), 
+					   oldCases);
+	newAst = oldAst.accept(lnfVisitor).first();
+	goalCases = makeEmptyList();
+	goalCases.add(makeCase(makeToken(), 
+					   makeSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeTake(makeToken(),
+					   			makeTempID(makeToken(),"t2"),
+					   			makeID(makeToken(),"y"),
+					   			makeTempID(makeToken(), "t2"),
+					   			false
+					   )
+				 ));
+	goalCases.add(makeDefaultCase(makeToken(), 
+								  makeTake(makeToken(),
+					   			  		   makeTempID(makeToken(),"t3"),
+					   			  		   makeID(makeToken(),"z"),
+					   			  		   makeTempID(makeToken(), "t3"),
+					   			  		   false)
+					   ));
+	goalAst = makeTake(makeToken(),
+					   makeTempID(makeToken(),"t1"),
+					   makeBorrow(makeToken(),
+						 		  makeTempID(makeToken(),"t4"),
+						 		  makeDereference(makeToken(), makeID(makeToken(),"x"), makeID(makeToken(), "f")),
+						 		  makeMatch(makeToken(), makeTempID(makeToken(), "t4"), goalCases),
+						 		  false),
+					   makeTempID(makeToken(),"t1"), 
+					   false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	System.out.println("");
+	
+	System.out.println("Testing Match ObjectType inference");
+	var typefetcher = unit;
+	var st = unit;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
+	
+	testName("obj-Match succeed");
+	st = new StateTable;
+	cIn = new Context;
+	cIn.put(makeID(makeToken(),"x"),getIntegerType());
+	cIn.put(makeID(makeToken(),"y"),getIntegerType());
+	cIn.put(makeID(makeToken(),"z"),getIntegerType());
+	cOut = cIn.copy();
+	
+	oldCases = makeEmptyList();
+	oldCases.add(makeCase(makeToken(), 
+					   makeSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeID(makeToken(),"y")));
+	oldCases.add(makeDefaultCase(makeToken(), makeID(makeToken(),"z")));
+	oldAst = makeMatch(makeToken(),
+					   makeID(makeToken(), "x"), 
+					   oldCases);
+	newAst = oldAst.copy();
+	typefetcher = new TypeFetchVisitor { val context = cIn; val st = st; };
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,"object type could not be assigned: " + result.errorMsg);
+		}
+		default {
+			match (typefetcher.context == cOut) {
+				case True {
+					match (result == getIntegerType()) {
+						case True {
+							match (oldAst == newAst) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "Ast should not change")
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "returned type not correct")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "context should not be updated")
+				}
+			}
+		}
+	};
+	
+	testName("obj-Match match target not in context");	
+	oldAst = makeMatch(makeToken(),
+					   makeID(makeToken(), "a"), 
+					   oldCases);
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.errorMsg);
+		}
+		default {
+			tester.testPassed(false);
+		}	
+	};
+	
+	testName("obj-Match match target not in LNF");	
+	oldAst = makeMatch(makeToken(),
+					   makeDereference(makeToken(),makeID(makeToken(), "a"),makeID(makeToken(),"f")), 
+					   oldCases);
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.errorMsg);
+		}
+		default {
+			tester.testPassed(false);
+		}	
+	};
+	
+	testName("obj-Match cases have incompatible types");
+	cIn.update(makeID(makeToken(),"y"),getBooleanType());	
+	oldAst = makeMatch(makeToken(),
+					   makeID(makeToken(), "x"), 
+					   oldCases);
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.errorMsg);
+		}
+		default {
+			tester.testPassed(false);
+		}	
+	};
+	
+	testName("obj-Match match cases bad");	 
+	oldCases = makeEmptyList();
+	oldCases.add(makeCase(makeToken(), 
+					   makeSome(makeQI(makeToken(),qiList,new None)), 
+					   new None, 
+					   makeID(makeToken(),"a")));
+	oldCases.add(makeDefaultCase(makeToken(), makeID(makeToken(),"b")));
+	oldAst = makeMatch(makeToken(),
+					   makeID(makeToken(), "x"), 
+					   oldCases);
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.errorMsg);
+		}
+		default {
+			tester.testPassed(false);
+		}	
+	};
+	
+	testName("obj-Match cannot merge contexts");	
+	cIn.update(makeID(makeToken(),"y"),getIntegerType()); 
+	val newQiList = makeEmptyList(); newQiList.add("Boolean");
+	oldCases = makeEmptyList();
+	oldCases.add(makeCase(makeToken(), 
+					   makeSome(makeQI(makeToken(),newQiList,new None)), 
+					   new None, 
+					   makeID(makeToken(),"y")));
+	oldCases.add(makeDefaultCase(makeToken(), makeID(makeToken(),"z")));
+	oldAst = makeMatch(makeToken(),
+					   makeID(makeToken(), "x"), 
+					   oldCases);
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.errorMsg);
+		}
+		default {
+			tester.testPassed(false);
+		}	
+	};
+	
+	
+};	

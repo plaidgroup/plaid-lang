@@ -1,0 +1,499 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+package plaid.compiler.resolver;
+
+import plaid.compiler.Resolver;
+import plaid.compiler.Symbol;
+import plaid.compiler.symbol.SymbolFactory;
+import plaid.compiler.report_ERROR;
+import plaid.ast.util.makeTokenForFile;
+import plaid.compiler.DEBUG;
+import plaid.compiler.WARNING;
+import plaid.compiler.DEBUG_PRIO_HIGH;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.INFO;
+import plaid.compiler.Source;
+import plaid.compiler.getInternalJobPasses;
+import plaid.compiler.addJob;
+import plaid.compiler.runJobToParsingBarrierPass;
+import plaid.compiler.CompilerJob;
+import plaid.compiler.util.classpathToList;
+
+import plaid.compiler.passes.*;
+import plaid.compiler.symbol.JavaClassSymbol;
+
+import plaid.ast.parsed.*;
+import plaid.ast.translator.ASTTranslator;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+import plaid.ast.util.makeQualifiedIdentifierFromString;
+
+import java.util.jar.JarFile;
+import java.io.File;
+
+import plaid.collections.makeLinkedList;
+import plaid.collections.LinkedList;
+
+state ClasspathResolver case of Resolver {
+    val /* Map<String, Symbol> */ cache = java.util.HashMap.new();
+    val immutable String  fileSeparator = java.lang.System.getProperty("file.separator");
+    val immutable CompilerConfiguration config;
+    val sf = new SymbolFactory;
+    val /* Set<String> */ visitedFiles = java.util.HashSet.new();
+    val unique LinkedList javaClasspath = classpathToList(java.lang.System.getProperty("java.class.path"));
+    val immutable String javaHome = java.lang.System.getProperty("java.home");
+     
+
+    method /*Option<Symbol>*/ lookup(immutable String fqn) {
+        DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver> looking for '" + fqn + "'");
+        ifElse ( this.cache.containsKey(fqn) ) {
+            DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver> found '" + fqn + "' in cache");
+            makeSome(this.cache.get(fqn));
+        }{
+            DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver> could not find '" + fqn + "' in cache");
+            val /* List<...> */ lookupFunctions = makeLinkedList();
+            lookupFunctions.add(fn (immutable String fqn) => this.lookupFromPlaidSource(fqn));
+            lookupFunctions.add(fn (immutable String fqn) => this.lookupPackages(fqn));
+            lookupFunctions.add(fn (immutable String fqn) => this.lookupJavaStaticMember(fqn));
+            lookupFunctions.add(fn (immutable String fqn) => this.lookupJavaClass(fqn));
+
+            // search through              
+            var /* Option<DeclType> */ result = NONE;
+            lookupFunctions.map(fn (lookupFunction) => {
+                match ( result ) {
+                    case None { result = lookupFunction(fqn); }
+                    default { /*no op*/ }
+                };
+                lookupFunction
+            });
+             
+            // add to cache if found
+            match (result) {
+                case Some { this.cache.put(fqn, result.value); } 
+                default{ /* no op */ }
+            };
+             
+            result
+        }
+    }
+     
+
+    method immutable Boolean define(immutable String fqn, shared Symbol symbol) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    DEFINE '" + fqn + "'");
+        if ( this.cache.containsKey(fqn) ) {
+            WARNING("<ClasspathResolver> Overriding existing definition of '" + fqn + "'");
+        };
+        this.cache.put(fqn, symbol);
+    }
+
+
+    method void addCompilationUnit(unique CompilationUnit cu, immutable String path) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    resolver add compilation unit for '" + path + "'");
+
+        // add file to visited files
+        this.visitedFiles.add(path);
+
+        // add package declarations
+        var packageSymbol = this.sf.makeTopSymbol();
+        val packages = cu.packageName.identifiers;
+        var curName = packages.get(0).value.name;
+        var i = 1;
+        ifElse(!this.cache.containsKey(curName)) {
+            packageSymbol = this.sf.makePackageSymbol(curName, this.sf.makeTopSymbol());
+            this.cache.put(curName, packageSymbol);
+            DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "' (" + packageSymbol.symbolType() +") " + packageSymbol.getFQN() );
+        }{
+            packageSymbol = this.cache.get(curName);
+            DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    FOUND '" +  curName + "' (" + packageSymbol.symbolType() +") " + packageSymbol.getFQN() );
+        };
+        
+        while {i < packages.size();} {
+            curName = curName + "." + packages.get(i).value.name;
+            ifElse(!this.cache.containsKey(curName)) {
+                packageSymbol = this.sf.makePackageSymbol(packages.get(i).value.name, packageSymbol); //KBN - should this be owned by the enclosing package instead of top?
+                this.cache.put(curName, packageSymbol);
+                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "' (" + packageSymbol.symbolType() +") " + packageSymbol.getFQN() );
+            }{
+                packageSymbol = this.cache.get(curName);
+            };
+            i = i + 1;
+        };
+         
+        packageSymbol = this.cache.get(curName);
+               
+        // add top-level symbols    
+        cu.decls.map(fn(d) => {
+            val declName = curName + "." + d.name.name;
+            ifElse(this.cache.containsKey(declName)) {
+                report_ERROR(d.token, "N_ALREADY_DECLARED", declName,
+                    "ClasspathResolver");
+            }{
+                var declSymbol = this.sf.makeTopSymbol();
+                match(d) {
+                    case ParsedFieldDecl {
+                        declSymbol = this.sf.makeFieldSymbol(d.name.name, d, packageSymbol);
+                    }
+                    case ParsedMethodDecl {
+                        declSymbol = this.sf.makeMethodSymbol(d.name.name, d, packageSymbol);
+                    }
+                    case ParsedConcreteStateDecl {
+                        declSymbol = this.sf.makeStateSymbol(d.name.name, d, packageSymbol);
+                    }
+                    case ParsedAbstractStateDecl {
+                        declSymbol = this.sf.makeStateSymbol(d.name.name, d, packageSymbol);
+                    }
+                    case ParsedStateValDecl {
+                        declSymbol = this.sf.makeStateValSymbol(d.name.name, d, packageSymbol);
+                    }
+                };
+                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  declName + "' (" + declSymbol.symbolType() + ")");
+                this.cache.put(declName, declSymbol);
+            };
+            
+            d
+        });
+    }
+
+    method /* Option<Symbol> */ lookupJavaClass(immutable String fqn) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver> Try loading Java class '" + fqn + "'");
+        val classes = plaid.compiler._native.loadClass(fqn);
+        ifElse ( classes.size() == 1 ) {
+            DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Found Java class '" + fqn + "'");
+
+            val klazz = classes.get(0);
+            val fqnQI = makeQualifiedIdentifierFromString(fqn);
+    
+            var parent = this.sf.makeTopSymbol();
+            if ( fqnQI.identifiers.size() > 1 ) {
+                // top level 
+                var curName = fqnQI.identifiers.get(0).value.name;
+                var i = 1;
+                match (this.cache.containsKey(curName)) {
+                	case True {
+                		parent = this.cache.get(curName);
+                	}
+                	case False {
+                    	parent = this.sf.makePackageSymbol(curName, parent);
+                    	this.cache.put(curName, parent);
+                    	DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
+                    }
+                };
+                while {i < ( fqnQI.identifiers.size() - 1 ) } {
+                    val packageName = fqnQI.identifiers.get(i).value.name;
+                    curName = curName + "." + packageName;
+                    match (this.cache.containsKey(curName)) {
+                    	case True {
+                    		parent = this.cache.get(curName);
+                    	}
+                    	case False {
+	                        parent = this.sf.makePackageSymbol(packageName, parent);
+    	                    this.cache.put(curName, parent);
+        	                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  curName + "'");
+        	            }
+                    };
+                    i = i + 1;
+                };
+            };
+             
+            val javaClassSymbol = this.sf.makeJavaClassSymbol(klazz.getSimpleName(), klazz, parent);
+            this.cache.put( fqn, javaClassSymbol );
+            DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  fqn + "'");
+            makeSome(javaClassSymbol);
+        }{
+            DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java class '" + fqn + "'");
+            NONE
+        }         
+    }
+
+    method /* Option<Symbol> */ lookupJavaStaticMember(immutable String fqn) {
+        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver> Try loading Java static member '" + fqn + "'");
+        val lastDot = fqn.lastIndexOf(".");
+        match (lastDot != -1) {
+            case True {
+                val classFqn = fqn.substring(0,lastDot);
+                val memberName = fqn.substring(lastDot+1);
+                val classSymbolOpt = this.lookupJavaClass(classFqn);
+                
+                match (classSymbolOpt) {
+                    case Some {
+                        val classSymbol = classSymbolOpt.value;
+                        match (classSymbol) {
+                            case JavaClassSymbol {
+                                match (classSymbol.checkStaticField(memberName)) {
+									case True {
+										DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  fqn + "'");
+										makeSome(this.sf.makeJavaStaticFieldSymbol(memberName, classSymbol));
+									}
+									case False {  
+                                        match (classSymbol.checkStaticMethod(memberName)) {
+                                            case True {
+                                                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  fqn + "'");
+                                                makeSome(this.sf.makeJavaStaticMethodSymbol(memberName, classSymbol));
+                                            }
+                                            case False {  
+                                                match (memberName == "new") {
+                                                    case True { 
+                                                        DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  fqn + "'");
+                                                        makeSome(this.sf.makeJavaConstructorSymbol(plaid.fastruntime.NamingConventions.GENERATED_CONSTRUCTOR, classSymbol));
+                                                    }
+                                                    case False { 
+                                                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java static member '" +
+                                                                                fqn + "': member does not exist");
+                                                        NONE
+                                                    }
+                                                }
+                                            }
+                                        
+                                        };
+									
+									}
+								
+								};
+								
+								
+                            }
+                            default {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java static member '" +
+                                                  fqn + "': '" + classFqn + "' not a Java Class");
+                                NONE
+                            }
+                        }
+                    }
+                    case None {
+                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java static member '" +
+                                                  fqn + "': '" + classFqn + "' not a Java Class");
+                        NONE
+                    }
+                }
+            }
+            case False {
+                DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>   Cannot load Java static member '" + fqn + "'");
+                NONE
+            }
+        }
+    }
+
+
+    method /* Option<Symbol> */ lookupPackages(immutable String fqn) {
+        DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver> searching for '" + fqn + "' package in classpath");
+        var /* Option<Symbol> */ result = NONE;
+         
+        this.config.plaidpath.map(fn (item) => {
+            match (result) {
+                case None {
+                    val unique File path = (java.io.File.new(item)).getCanonicalFile();
+                    DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>   searching classpath: " + path);
+                     
+                    var immutable Boolean found = false;                     
+                    ifElse  ( path.isFile() && path.toString().endsWith(".jar") ) {
+                        DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     dive into JAR file ... " );
+                        val unique JarFile jarFile = java.util.jar.JarFile.new(path);
+                        val entries = jarFile.entries();
+                        while { entries.hasMoreElements() }{
+                            val entry = entries.nextElement();
+                            val entryName = entry.toString(); 
+                            val fqnDirName = fqn.replace(".", this.fileSeparator);
+                            ifElse ( entryName.equals(fqnDirName)  ) {                             
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    found: " + fqnDirName );
+                                found = true;
+                            }{
+                                DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     directory: '" + fqnDirName +"' does not exists.");
+                            };
+
+                        };
+                    }{
+                        val fqnDir = java.io.File.new(path.toString() + this.fileSeparator + fqn.replace(".", this.fileSeparator)).getCanonicalFile();
+                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking for directory: '" + fqnDir.toString() +"'");
+                        ifElse ( fqnDir.exists() ) {
+                            DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     directory: '" + fqnDir.toString() +"' exists.");
+                            found = true;
+                        }{
+                            DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     directory: '" + fqnDir.toString() +"' does not exists.");
+                        };
+                    };
+                     
+                    if ( found ) {
+                        var currentSymbol = this.sf.makeTopSymbol();
+                        // add to cache
+                        val qi = makeQualifiedIdentifierFromString(fqn);
+                        qi.identifiers.map(fn (id) => {
+                            currentSymbol = this.sf.makePackageSymbol(id.name, currentSymbol);
+
+                            // check if we already have a symbol for this
+                            val fqnSymbol = makeStringFromQualifiedIdentifier(currentSymbol.getQualifiedIdentifier());
+                            ifElse ( this.cache.containsKey(fqnSymbol) ) {
+                                currentSymbol = this.cache.get(fqnSymbol);
+                            }{
+                                this.cache.put(fqnSymbol, currentSymbol);
+                                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>    ADD '" +  fqnSymbol + "'");
+                            };                                 
+                     
+                            // create result 
+                            result = makeSome(currentSymbol);
+                        });
+                    };
+                }
+                case Some  {/*no op*/}
+             }
+        });
+         
+        result
+    }
+     
+    method /* Option<Symbol> */ lookupFromPlaidSource(immutable String fqn) {
+        var /* Option<Symbol> */ result = NONE;
+         
+        DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver> searching for '" + fqn + "' plaid source code in classpath");
+        if ( fqn.indexOf(".") > -1 ) {
+            this.config.plaidpath.map(fn (item) => {
+                match (result) {
+                    case None {
+                        val unique File path = (java.io.File.new(item)).getCanonicalFile();
+                        DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>   searching classpath: " + path);
+                         
+                        ifElse  ( path.isFile() && path.toString().endsWith(".jar") ) {
+                            DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>     dive into JAR file ... " );
+                            val unique JarFile jarFile = java.util.jar.JarFile.new(path);
+                            val entries = jarFile.entries();
+                            while { entries.hasMoreElements() }{
+                                 
+                                val entry = entries.nextElement();
+                                val entryName = entry.toString(); 
+                                val fqnFileName = fqn.replace(".", this.fileSeparator)+ ".plaid";
+                                val absFileName = path.getCanonicalPath()+ this.fileSeparator + fqnFileName;
+                                if ( entryName.equals(fqnFileName) && (!this.visitedFiles.contains(absFileName)) ) {                             
+                                    DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>    found: " + fqn.replace(".", this.fileSeparator)+ ".plaid");
+                                    this.visitedFiles.add(absFileName);
+                                    result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry), path + this.fileSeparator + entry.getName() );
+                                };
+                                match (result) {
+                                    case None {
+                                        val packageName = fqn.substring(0, fqn.length() - (fqn.length()- fqn.lastIndexOf("."))).replace(".", this.fileSeparator)+ this.fileSeparator +"package.plaid";
+                                        val absPackageFileName = packageName + this.fileSeparator + packageName;                                     
+                                        if ( entryName.equals(packageName) && (!this.visitedFiles.contains(absPackageFileName))) {
+                                            DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     found: " + packageName);
+                                            this.visitedFiles.add(absPackageFileName);
+                                            result = this.loadTypeFromPlaidSourceStream(fqn, jarFile.getInputStream(entry), path + this.fileSeparator + entry.getName());
+                                        };
+                                    }
+                                    case Some { result }
+                                }
+                            };
+                        }{
+                            // check for file specification
+                            val fqnFile = java.io.File.new(path.toString() + this.fileSeparator + fqn.replace(".", this.fileSeparator)+ ".plaid").getCanonicalFile();
+                            DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking for file: " + fqnFile.toString() );
+                            ifElse ( fqnFile.exists() && (!this.visitedFiles.contains(fqnFile.getCanonicalPath())) && 
+                            		(fqn + ".plaid").endsWith(fqnFile.getName())  ) {
+                                DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>       try loading definition from file: " + fqnFile.toString());
+                                this.visitedFiles.add(fqnFile.getCanonicalPath());
+                                result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(fqnFile), fqnFile.getCanonicalPath());
+                            }{
+                                DEBUG(DEBUG_PRIO_LOW, "<ClasspathResolver>       specification file does not exists");
+                            };
+                            
+        
+                            // check for definition in package
+                            match (result) {
+                                case None {                           
+                                    val packageFile = java.io.File.new(fqnFile.getParent().toString() + this.fileSeparator + "package.plaid");
+                                    DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking for package file: " + packageFile.toString() );
+                                    ifElse ( packageFile.exists() && (!this.visitedFiles.contains(packageFile.getCanonicalPath())) ) {
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>     checking package definition: " + packageFile.toString());
+                                        this.visitedFiles.add(packageFile.getCanonicalPath());
+                                        result = this.loadTypeFromPlaidSourceStream(fqn, java.io.FileInputStream.new(packageFile), packageFile.getCanonicalPath());
+                                    }{
+                                        DEBUG(DEBUG_PRIO_MEDIUM, "<ClasspathResolver>       package file does not exist");
+                                    }
+                                }
+                                default { /*no op*/ }
+                            }
+                        }
+                    }
+                    default { /* we are done */ }
+                };
+                 
+                item
+            });
+        };
+        result;
+    }
+
+
+    method /* Option<Symbol> */ loadTypeFromPlaidSourceStream(immutable String fqn, 
+                                                              unique InputStream fqnStream,
+                                                              immutable String path) {
+
+        val source = new Source { val path = path; val stream = fqnStream; };
+        val job = new CompilerJob { 
+            val source = source; 
+            val resolver = this;
+            var passes = getInternalJobPasses(this.config);
+        };
+
+        // add job to global jobs
+        addJob(job);
+        // run 1st phase of job to get symbols
+        runJobToParsingBarrierPass(job);
+
+        ifElse ( job.noErrors ) {
+            ifElse ( this.cache.containsKey(fqn) ) {
+                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>      found '" + fqn + "'");
+                makeSome(this.cache.get(fqn))
+            }{
+                NONE
+            }
+        }{
+            //previous error
+            NONE
+        }
+    }
+
+
+    method /* Option<Symbol> */ loadBuiltInTypeFromPlaidSourceStream(immutable String fqn, 
+                                                                      unique InputStream fqnStream,
+                                                                      immutable String path) {
+
+        val source = new Source { val path = path; val stream = fqnStream; };
+        val job = new CompilerJob { 
+            val source   = source; 
+            val resolver = this;
+            var passes   = getInternalJobPasses(this.config); // this.getBuiltInJobPasses();
+        };
+
+        // add job to global jobs
+        addJob(job);
+        // run 1st phase of job to get symbols
+        runJobToParsingBarrierPass(job);
+
+        ifElse ( job.noErrors ) {
+            ifElse ( this.cache.containsKey(fqn) ) {
+                DEBUG(DEBUG_PRIO_HIGH, "<ClasspathResolver>      found '" + fqn + "'");
+                makeSome(this.cache.get(fqn))
+            }{
+                NONE
+            }
+        }{
+            //previous error
+            NONE
+        }
+    }
+
+
+}

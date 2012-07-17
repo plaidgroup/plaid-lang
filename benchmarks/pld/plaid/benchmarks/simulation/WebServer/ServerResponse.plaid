@@ -1,0 +1,141 @@
+package plaid.benchmarks.simulation.WebServer;
+
+import plaid.collections.LinkedList;
+import java.util.HashMap;
+import java.util.Date;
+import java.text.SimpleDateFormat;
+import java.nio.ByteBuffer;
+
+state KeyValue {
+	val key;
+	val value;
+}
+
+state HTTPServerResponse = {
+}
+
+state HTTPResponseOpen case of HTTPServerResponse = {
+	var response = new LinkedList;
+	method write(chunk) {
+		match (this.implicit) {
+			case True {
+				this.writeHead(200, this.generateImplicitHeaders());
+			}
+			case False {
+			}
+		};
+		this.response.addLast(match (chunk) {
+			case ByteBuffer {
+				chunk;
+			}
+			case String {
+				ByteBuffer.wrap(chunk.getBytes("UTF-8"));
+			}
+			default {}
+		});
+	}
+	
+	method end() {
+		this.response.addFirst(
+			ByteBuffer.wrap(
+				this.getHeaders().reduceLeft(fn (elem, acc) => {
+					acc + elem.key.toString() + ":" + elem.value.toString() + "\0x0D\0x0A";
+				}).getBytes("UTF-8")
+			)
+		);
+	
+		this.response.addFirst(ByteBuffer.wrap("HTTP/1.1".getBytes("UTF-8")));
+		
+		val length = this.response.reduceLeft(fn (elem, acc) => {
+			acc + elem.length;
+		});
+		val response = ByteBuffer.allocate(length);
+		this.response.do(fn (elem) => {
+			response.put(elem);
+		});
+		this <- HTTPResponseClosed;
+		response;
+	}
+} with Header
+
+state HTTPResponseClosed case of HTTPServerResponse {
+}
+
+state Header {
+	var statusCode = 500;
+	var implicit = true;
+	method getHeaders();
+	
+	method getDate() {
+		SimpleDateFormat.new("EEE, dd MMM yyyyy HH:mm:ss z").format(Date.new());
+	}
+	
+	method generateImplicitHeaders() {
+		val output = new LinkedList;
+		output.addFirst(new KeyValue {val key="Content-Type"; val value="text/html"; });
+		output.addFirst(new KeyValue {val key="Date"; val value=this.getDate(); });
+		output;
+	}
+	
+	method generateHeaderString() {
+		this.getHeaders();
+	}
+}
+
+state ExplicitHeader case of Header {
+	val headers = HashMap.new();
+	
+	method writeHead(statusCode, headers) {
+		this.implicit = false;
+		this.statusCode = statusCode;
+		headers.do(fn (elem) => { this.headers.put(elem.key, elem.value); });
+	}
+	
+	method setHeader(name, value) {
+		this.headers.put(name, value);
+	}
+	
+	method getHeader(name) {
+		this.headers.get(name);
+	}
+	
+	method removeHeader(name) {
+		//this.headers.remove(name);
+	}
+	
+	method getHeaders() {
+		val iterator = this.headers.entrySet.iterator();
+		val output = new LinkedList;
+		nativeWhile { iterator.hasNext(); } {
+			val elem = iterator.next();
+			output.addFirst(new KeyValue {val key = elem.key; val value = elem.value;});
+		};
+		output;
+	}
+}
+
+state ImplicitHeader case of Header {
+	method writeHead(statusCode, headers) {
+		this <- ExplicitHeader;
+		this.writeHead(statusCode, headers);
+	}
+	
+	method setHeader(name, value) {
+		this <- ExplicitHeader;
+		this.setHeader(name, value);
+	}
+	
+	method getHeader(name) {
+		this <- ExplicitHeader;
+		this.getHeader(name);
+	}
+	
+	method removeHeader(name) {
+		this <- ExplicitHeader;
+		this.removeHeader(name);
+	}
+	
+	method getHeaders() {
+		this.generateImplicitHeaders();
+	}
+}
