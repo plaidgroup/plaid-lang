@@ -47,6 +47,8 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	protected static final List<SingleValue> NIL_SINGLE_VALUE = List.nil();
 	protected static final Set<String> EMPTY_TAGS = Set.empty(STRING_ORD);
 	
+	//This cache is mutable after object value initialization.
+	private Map<ObjectValue, AbstractObjectValue> stateChangeCache = new HashMap<ObjectValue, AbstractObjectValue>();
 	
 	// all of these are caches and should be assigned to exactly once. Unfortunately,
 	// they cannot be called from the constructor because of ordering constraints.
@@ -144,10 +146,18 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		return toReturn;
 	}
 
-	
-
-	@Override
 	public final AbstractObjectValue changeState(ObjectValue other) {
+		if (stateChangeCache.containsKey(other)) {
+			return stateChangeCache.get(other);
+		} else {
+			AbstractObjectValue output = changeStateInternal(other);
+			stateChangeCache.put(other, output);
+			return output;
+		}
+	}
+
+	private final AbstractObjectValue changeStateInternal(ObjectValue other) {
+
 		if(other instanceof ListValue) { 
 			// SU-List
 			ListValue list = (ListValue)other;
@@ -177,15 +187,15 @@ public abstract class AbstractObjectValue implements ObjectValue {
 					}
 				} 
 				return thisLV.getRest().changeState(otherDV).addValue(firstOV);
-				
+
 			} else if (this instanceof DimensionValue) {
 				DimensionValue thisDV = (DimensionValue) this;	
 				// SU-MatchInner
 				if(thisDV.getInnerValue()!= null &&
 						!thisDV.getInnerValue().getTags().intersect(otherDV.getOuterTags()).isEmpty() &&
-					!otherDV.getTags().member(thisDV.getTag()) &&
-					(thisDV.getParent() == null ||
-							thisDV.getParent().getTags().intersect(otherDV.getTags()).isEmpty())) {
+						!otherDV.getTags().member(thisDV.getTag()) &&
+						(thisDV.getParent() == null ||
+								thisDV.getParent().getTags().intersect(otherDV.getTags()).isEmpty())) {
 					AbstractObjectValue newInnerValue = thisDV.getInnerValue().changeState(otherDV);
 					return new DimensionValue(thisDV.getTag(), newInnerValue, thisDV.getParent());
 				}
@@ -224,7 +234,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 				}
 			}
 		}
-		throw new RuntimeException("Ooops ... State change failed because because of an unknown case.");
+		throw new PlaidInternalException("Ooops ... State change failed because because of an unknown case.");
 	}
 
 	/*
@@ -404,7 +414,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	@Override
 	public final boolean equals(Object other) {
 		if (other instanceof AbstractObjectValue) {
-			return this.getCanonicalRep() == ((AbstractObjectValue)other).getCanonicalRep(); // == okay because canonical
+			return this.getCanonicalRep().equals(((AbstractObjectValue)other).getCanonicalRep());
 		} else {
 			return false;
 		}

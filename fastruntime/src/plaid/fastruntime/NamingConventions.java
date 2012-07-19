@@ -1,6 +1,7 @@
 package plaid.fastruntime;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import fj.P2;
 import fj.data.List;
@@ -87,8 +88,10 @@ public class NamingConventions {
 	public static final String getGeneratedInternal(MemberInfo mi) {
 		return  getInternalFQN(mi.getStaticClassInternalName());
 	}
-	
+	private static final Map<String, String> FQN_CACHE = new HashMap<String, String>();
 	public static final String getGeneratedFQN(String fqn) {
+		if (FQN_CACHE.containsKey(fqn))
+			return FQN_CACHE.get(fqn);
 		String[] ids = fqn.split("\\.");
 		StringBuilder newFqn = new StringBuilder();
 		for(int i=0; i<ids.length; i++) {
@@ -98,7 +101,9 @@ public class NamingConventions {
 				newFqn.append(ids[i] + ".");
 			}
 		}
-		return newFqn.toString();
+		String genFqn = newFqn.toString();
+		FQN_CACHE.put(fqn, genFqn);
+		return genFqn;
 	}
 	
 	public static final String getInternalFQN(String fqn) {
