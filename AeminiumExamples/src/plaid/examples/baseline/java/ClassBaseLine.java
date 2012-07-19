@@ -8,7 +8,7 @@ public class ClassBaseLine {
 			int nextLevel = level - 1;
 			this.forkJoin(nextLevel);
 			this.forkJoin(nextLevel);
-		}
+		} else {}
 	}
 	
 	public static void main(String[] args) {
