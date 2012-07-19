@@ -8,7 +8,7 @@ public class StaticBaseLine {
 			int nextLevel = level - 1;
 			forkJoin(nextLevel);
 			forkJoin(nextLevel);
-		}
+		} else {}
 	}
 
 	public static void main(String[] args) {
