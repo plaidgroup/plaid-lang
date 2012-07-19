@@ -2,6 +2,7 @@ package plaid.fastruntime.util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 public class PlaidObjectBuilder {
 	
@@ -9,40 +10,86 @@ public class PlaidObjectBuilder {
 	private final StringBuilder endBuilder;
 	private final StringBuilder initBuilder;
 	
-	private StringBuilder caseBuilder;
-	private List<String> cases = new ArrayList<String>();
-	private boolean inCase = false;
+	private final Stack<List<String>> matchStack;
+	private final Stack<StringBuilder> caseBuilderStack;
+	
+	private String lastMatch = null;
 	
 	private String className;
 	private String packageName;
 	
+	private boolean isInit;
+	
+	private boolean builtIn;
+	
 	public PlaidObjectBuilder() {
-		sb = new StringBuilder();
-		endBuilder = new StringBuilder();
-		initBuilder = new StringBuilder();
+		this.sb = new StringBuilder();
+		this.endBuilder = new StringBuilder();
+		this.initBuilder = new StringBuilder();
+		this.matchStack = new Stack<List<String>>();
+		this.caseBuilderStack = new Stack<StringBuilder>();
+		this.isInit = false;
+		this.builtIn = false;
 	}
 	
-	public void startCase() {
-		caseBuilder = new StringBuilder();
-		if (inCase) {
-			throw new IllegalStateException("Cannot start case that is already started");
+	public boolean isBuiltIn() {
+		return builtIn;
+	}
+
+
+
+	public void setBuiltIn(boolean isBuiltIn) {
+		this.builtIn = isBuiltIn;
+	}
+
+
+
+	public void startInit() {
+		if (this.isInit)  {
+			throw new IllegalStateException("Initialization already started. Cannot restart.");
 		} else {
-			inCase = true;
+			this.isInit = true;
 		}
 	}
 	
-	public void endCase() {
-		cases.add(caseBuilder.toString());
-		if (inCase) {
-			inCase = false;
+	public void endInit() {
+		if (this.isInit)  {
+			this.isInit = false;
 		} else {
-			throw new IllegalStateException("Cannot start case that is already started");
+			throw new IllegalStateException("Initialization already ended. Cannot re-end.");
+		}
+	}
+	
+	public void startMatch() {
+		this.matchStack.push(new ArrayList<String>());
+	}
+	
+	public void startCase() {
+		this.caseBuilderStack.push(new StringBuilder());
+	}
+	
+	public void endCase() {
+		String caseString = this.caseBuilderStack.pop().toString();
+		this.matchStack.peek().add(caseString);
+	}
+	
+	public void endMatch(boolean plaidCodeEndsWithDefault) {
+		List<String> cases = this.matchStack.pop();
+		this.lastMatch = makeSeperatedString(cases,"else ");
+		if (!plaidCodeEndsWithDefault) {
+			this.lastMatch += "else {\n" +
+				"throw new plaid.fastruntime.errors.PlaidIllegalOperationException(\"Pattern match exausted.\");\n" +
+				"}\n";
 		}
 	}
 	
 	public void appendCaseList() {
-		sb.append(makeSeperatedString(cases,"else "));
-		cases = new ArrayList<String>();
+		if (lastMatch != null) {
+			this.append(this.lastMatch);
+		} else {
+			throw new IllegalStateException("Must start and end match before calling appendCaseList.");
+		}
+		this.lastMatch = null;
 	}
 	
 	public void setClassName(String className) {
@@ -53,26 +100,23 @@ public class PlaidObjectBuilder {
 	}
 	
 	public void append(String s) {
-		if(inCase) {
-			caseBuilder.append(s);
-		} else {
+		if(!matchStack.isEmpty() && !caseBuilderStack.isEmpty()) {
+			caseBuilderStack.peek().append(s);
+		} else if (!matchStack.isEmpty() && caseBuilderStack.isEmpty()) {
+			throw new IllegalStateException("Match started but case not started");
+		} else if (isInit) {
+			initBuilder.append(s);
+		}
+		else {
 			sb.append(s);
 		}
 	}
 	
 	public void appendEnd(String s) {
-		endBuilder.append(s);
-	}
-	
-	public void appendInit(String s) {
-		endBuilder.append(s);
-	}
-	
-	public void appendIsStatic(String s, boolean isStatic) {
-		if (isStatic) {
-			appendInit(s);
+		if (this.isInit) {
+			initBuilder.append(s);
 		} else {
-			append(s);
+			endBuilder.append(s);
 		}
 	}
 	
@@ -96,11 +140,15 @@ public class PlaidObjectBuilder {
         
 		finalCode.append(sb.toString());
 		finalCode.append("\n");
+		
 		finalCode.append("static {\n");
 		finalCode.append(initBuilder.toString());
 		finalCode.append("}\n");
+		
 		finalCode.append("\n");
 		finalCode.append(endBuilder.toString());
+		
+		
 
 		finalCode.append("}\n");
 		return finalCode.toString();

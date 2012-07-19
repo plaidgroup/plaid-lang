@@ -63,6 +63,6 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 				: "";
 		String result =  "field:" + settableString + this.getName() + this.isStaticallyDefined() +
 				fieldInitializer;
-		return result.intern();
+		return result;//.intern();
 	}
 }

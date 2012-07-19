@@ -147,6 +147,6 @@ public final class ListValue extends AbstractObjectValue {
 	protected String constructCanonicalRep() {
 		List<SingleValue> sortedSingleValues = this.singleValues.sort(SINGLE_VALUE_ORD);
 		String result = sortedSingleValues.foldLeft(COMBINE_CANONICAL_STRINGS, "");
-		return result.intern();
+		return result;//.intern();
 	}
 }
