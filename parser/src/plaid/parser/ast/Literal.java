@@ -2,7 +2,7 @@ package plaid.parser.ast;
 
 import plaid.parser.Token;
 
-public class Literal extends Expr {
+public class Literal extends Expr implements XMLEmbeddable {
 
 	public Literal(Token token) {
 		super(token);

@@ -1,0 +1,791 @@
+/*
+ * This is the JavaScript codegenerator for Plaid, supporting the DynXML extension.
+ *
+ * Because it is a dynamic language, code generation is more straightforward that the Java version, and much
+ * of the interesting work is shifted to the runtime. However, one disadvantage of JavaScript as a compilation
+ * target compared to Java is the lack of a linker, and much of the non-straightforward portions is spent 
+ * combatting this.
+ *
+ * Following are notes on a few "interesting" portions of the codegenerator:
+ *
+ *  Operators:
+ *     JavaScript allows arbitrary member names, and thus we treat operators the same as methods.
+ *     However, we do use JavaScript string, boolean, and number primitives to represent the corresponding
+ *     Plaid types. In order to use operator on these types, we define a method for each operator in the 
+ *     prototypes of the wrapper classes (JavaScript autoboxes a primitive whenever a method is called on it).
+ *
+ *  State Table:
+ *     State objects are stored in the global Plaid object. The first time one is read,
+ *     a corresponding stateInitializer method is called. This scheme ensures states are
+ *     initialized in a correct order.
+ *
+ *  XML synchronization:
+ *     Each XML state stores XML DOM elements for its tags. After every change, it copies the DOM objects to the page.
+ *
+ * Unimplemented features:
+ *      Non-primitive states, other than case of
+ *      XML synchronization after state change
+ *      Proper file output (all generated code is output to package.js)
+ *      Nesting of XML states
+ *
+ * Known issues:
+ *      In the generated code, global fields may be used be they are declared
+ *      Dereferences and method calls on the current object without an explicit this will not work
+ *      Code will not be generated for any standard libraries used
+ *      Using functions as XML attributes
+ *
+ * Spec issues:
+ *      No way of integrating JS libraries
+ *        External libraries make it difficult to check XML typestate
+ *      XML render controlling is imprecise
+ *      Some HTML attributes like "type" are Plaid keywords
+ *
+ * To run:
+ *
+ *   You will need to manually create an HTML file which includes both the Plaid JS runtime,
+ *   and the generated JavaScript source. This needs to be improved.
+ */
+
+package plaid.compiler.codegen;
+
+import java.lang.StringBuilder;
+import java.lang.System;
+
+import java.io.File;
+
+import plaid.ast.parsed.*;
+
+import plaid.compiler.COMPILER_CONFIGURATION;
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_HIGH;
+import plaid.compiler.symbolForAST;
+
+import plaid.compiler.codegen.makeSeperatedString;
+
+import plaid.compiler.symbol.*;
+import plaid.compiler.symbol.xml.*;
+
+import plaid.collections.LinkedList;
+import plaid.collections.makeLinkedList;
+
+state JavascriptCodeGenOps {
+
+    val immutable String EMPTY_IDENTIFIER = "";
+    
+    method fileSeparator() {
+      System.getProperty("file.separator")
+    }
+    
+    method decoratedName(immutable String name) {
+        ifElse("this" == name) {
+          "this$plaid"
+        }{
+          ifElse(EMPTY_IDENTIFIER == name) {
+            EMPTY_IDENTIFIER
+          }{
+              name
+          }
+        }
+    }
+
+    method tagFor(immutable String qi) {
+      "'tag$"+qi+"'"
+    }
+
+
+    method unique File getOutputFile(dir, name) {
+        java.io.File.new(dir + System.getProperty("file.separator") + name + ".js")
+    }
+
+    method void dumpCode(immutable File f, immutable String s) {
+           val pw = java.io.PrintWriter.new(java.io.BufferedWriter.new(java.io.FileWriter.new(f)));
+           pw.println(s);
+           pw.close();
+    }
+    
+    method decorateStateName(str) {
+      "plaidNewState_"+str;
+    }
+
+    method void createLocalVariable(immutable String name, unique StringBuilder sb, immutable Boolean isFinal ) {
+      if(!(name == EMPTY_IDENTIFIER)) {
+          sb.append("var "+name+"=undefined;\n");
+      }
+    }
+    
+    method void setLocalVariable(immutable String varName, immutable String value, unique StringBuilder sb) {
+      ifElse(!(varName == EMPTY_IDENTIFIER)) {
+          sb.append(varName + " = " + value + ";\n")
+      }{
+        sb.append(value+";\n");
+      }
+    }
+    
+    method immutable String getLocalVariable(immutable String varName) {
+        decoratedName(varName)
+    }
+
+    method codegenCU(immutable CodeGenOps ops, unique Job job, immutable ParsedCompilationUnit node) {
+        val idGen = new IdGen;
+        LOG("generating code for ParsedCompilationUnit");
+        val qiPackage = node.packageName.identifiers.map( fn(id) => { id.name } );
+
+        val packageDir = makeSeperatedString(qiPackage, fileSeparator());
+        val packageString = makeSeperatedString(qiPackage, ".");
+        val stringbuilderlist = node.decls.map( fn(item) => {val result = StringBuilder.new(); result} );
+        val declsSbList = node.decls.zip(stringbuilderlist);
+        
+        declsSbList.map( fn(item) => {
+             ops.codegenImports(ops, node.imports, item.second());
+             ops.codegenTopLevelDecl(ops, item.first(), packageString, item.second(), idGen); 
+            });
+        
+        stringbuilderlist.map( fn(item) => { DEBUG(DEBUG_PRIO_HIGH, item.toString()); } );
+
+        /*
+         *Quick hack
+         */
+        val fil = java.io.File.new(packageDir+"/package.js");
+        val pw = java.io.PrintWriter.new(java.io.BufferedWriter.new(java.io.FileWriter.new(fil)));
+        
+        declsSbList.map( fn(item) => {
+            val declName = decoratedName(item.first().name.name);
+            val codeString = item.second().toString();
+
+            //val immutable File fil = getOutputFile(packageDir, declName);
+            //dumpCode(fil, codeString);
+            pw.println(codeString);
+
+            //job.addGeneratedFile(fil.getAbsolutePath());
+        } );
+        pw.close();
+    }
+
+    method codegenImports(immutable CodeGenOps ops, immutable List imports, shared StringBuilder sb) {
+        imports.map( fn(imp) => {
+            //Ignoring stars
+            val filName = makeSeperatedString(imp.qualifiedIdentifier.identifiers.map( fn(id) => {id.name}),
+                                              fileSeparator())+".js";
+            sb.append("include('"+filName+"');\n");
+        });
+        
+    }
+    
+    method void codegenMetadataHelper(shared StateSymbol sym, shared StringBuilder sb, shared IdGen idgen, immutable String root,
+                                      immutable String y) {
+
+      val superSym = sym.getSuperStateSymbol();
+      val parent = match(superSym) {
+        case StateSymbol {
+          val p = idgen.getId();
+          codegenMetadataHelper(superSym, sb, idgen, root, p);
+          p
+        }
+        default {
+          root
+        }
+      };
+      
+      createLocalVariable(y, sb, false);
+      val tag = tagFor(sym.getFQN());
+      
+      val memberIterator = sym.declaredMembersIterator();
+      val memberList = makeLinkedList();
+
+      while { memberIterator.hasNext() } {
+        memberList.add(memberIterator.next());
+      };
+
+      val memberListStr = "new Plaid.Array("+makeSeperatedString(memberList.map(fn (s) => {"'"+decoratedName(s.name)+"'"}), ",")+")";
+      
+      setLocalVariable(y, "new Plaid.tree.CaseOfNode("+tag+","+memberListStr+","+parent+")", sb);
+    }
+    
+    method void codegenMetadata(shared StateSymbol sym, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
+      createLocalVariable(y, sb, false);
+      setLocalVariable(y, "new Plaid.tree.Tree()", sb);
+      codegenMetadataHelper(sym, sb, idgen, y+".root", idgen.getId());
+    }
+
+    method void codegenXMLSync(shared StateSymbol sym, shared StringBuilder sb, shared IdGen idgen) {
+      val memberIterator = sym.declaredMembersIterator();
+      while { memberIterator.hasNext() } {
+        val mem = memberIterator.next();
+        match(mem) {
+          case XMLFieldSymbol {
+            var isAttr = false;
+            var attrName = "";
+            var idx = 0;
+            var accessor = "";
+            mem.path.map(fn(node) => {
+                idx = idx + 1;
+                match(node) {
+                  case XMLAttributeNode {
+                    isAttr = true;
+                    attrName = node.name.name;
+                  } case XMLChildNode {
+                    accessor = accessor + ifElse(idx==mem.path.size()){""}{"childNodes["+node.idx+"]"};
+                  }
+                }
+              });
+            val setter = ifElse(isAttr) {
+              ".setAttribute('"+attrName+"',"
+            } {
+              ".textContent = ("
+            };
+            sb.append("this['xml$dom']."+accessor+setter+"this['"+decoratedName(mem.name)+"']);\n");
+          } default {
+          //do nothing
+          }
+        };
+      };
+
+      val superSym = sym.getSuperStateSymbol();
+      match(superSym) {
+        case StateSymbol {
+          codegenXMLSync(superSym, sb, idgen);
+        } default {
+          //do nothing
+        }
+      };
+    }
+
+    method void codegenXML(immutable CodeGenOps ops, immutable ParsedXMLElt node, immutable StringBuilder sb, shared IdGen idgen, shared String parent) {
+        LOG("generating code for XMLElt");
+        match(node) {
+          case ParsedXMLEmbeddedPlaid {
+            match(node.content) {
+              case ParsedDecl {
+                sb.append("this['"+node.content.name.name+"'] = "); 
+                ops.codegenInnerDecl(ops, node.content, sb, idgen, false);
+              } default {
+                val z = idgen.getId();
+                ops.createLocalVariable(z, sb, false);
+                ops.codegenStmt(ops, node.content, sb, idgen, z);
+                sb.append(parent + ".textContent =" + z + ";\n");
+              }
+            };
+          } case ParsedXMLTag {
+            val t = idgen.getId();
+            ops.createLocalVariable(t, sb, false);
+            ops.setLocalVariable(t, "document.createElement('" + node.tag.name + "')", sb);
+
+            sb.append(parent+".appendChild("+t+");\n");
+            
+            node.attrs.map(fn (a) => {
+                match(a.value.content) {
+                  case ParsedDecl {
+                    sb.append("this['"+a.value.content.name.name+"'] = "); 
+                    ops.codegenInnerDecl(ops, a.value.content, sb, idgen, false);
+                  } default {
+                    val z = idgen.getId();
+                    ops.createLocalVariable(z, sb, false);
+                    ops.codegenStmt(ops, a.value.content, sb, idgen, z);
+                    sb.append(t+".setAttribute('"+a.name.name+"', " + z + ");\n");
+                  }
+                };
+              });
+
+            node.body.map(fn(elt) => {
+                ops.codegenXML(ops, elt, sb, idgen, t);
+              });
+          }
+        };
+    }
+    
+    method codegenTopLevelDecl(immutable CodeGenOps ops, immutable ParsedDecl node, immutable String packageName, shared StringBuilder sb, shared IdGen idgen) {
+        LOG("generating code for Top Level Decl");
+        match(node) {
+            case ParsedConcreteMethodDecl {
+                LOG("generating code for top-level concrete method decl");
+                val args = makeSeperatedString(node.arguments.map(fn(arg) => { arg.name.name }), ",");
+
+                sb.append("function "+decoratedName(node.name.name)+" ("+args+") {\n");
+                ops.codegenMethodBody(ops, node.body, sb, idgen);
+		sb.append("}\n");
+                
+                if(node.name.name == "main") {
+                    ops.codegenMain("main", sb);
+                };
+            }
+            case ParsedConcreteFieldDecl {
+                LOG("generating code for top-level concrete field decl");
+                /*
+                 * To do: namespace, ordering issues
+                 */
+                codegenStmt(ops, node.expression, sb, idgen, node.name.name);
+            }
+            case ParsedConcreteStateDecl {
+              LOG("generating code for top-level concrete state decl");
+
+              //emit code for setting the metadata of the new Plaid state
+              val symOpt = symbolForAST(node.name);
+              match(symOpt) {
+                case Some {
+                  val sym = symOpt.getValue();
+                  match(sym) {
+                    case StateSymbol {
+                      sb.append("Plaid.states.stateInitializer['" + sym.getFQN() +"'] = function() {\n");
+
+                      val stateVar = idgen.getId();
+                      
+                      ops.createLocalVariable(stateVar, sb, false);
+                      ops.setLocalVariable(stateVar, "new Plaid.PlaidState()", sb);
+
+                      
+                      match(node.caseOf) {
+                        case ParsedEmptyQualifiedIdentifier {
+                          //do nothing
+                        }
+                        case ParsedQualifiedIdentifier {
+                          val caseofSymbolOption = symbolForAST(node.caseOf);
+                          match(caseofSymbolOption) {
+                            case Some {
+                              val caseofSymbol = caseofSymbolOption.getValue();
+                              match(caseofSymbol) {
+                                case StateSymbol {
+                                  val caseOfFQN = caseofSymbol.getFQN();
+                                  sb.append(stateVar+".copyMembers(Plaid.states.getState('"+caseOfFQN+"'));\n");
+                                }
+                                default{
+                                  ERROR(node.caseOf.token, "Case of identifier symbol is unexpected value, " + caseOfSymbol.symbolType() + ".");
+                                }
+                              }
+                            } case None {
+                              ERROR(node.caseOf.token, "no symbol for case of identifier");
+                            }
+                          }
+                        }
+                      };
+                      
+                      match(node.stateBinding){
+                        case ParsedDeclList{
+                          node.stateBinding.decls.map(fn (d) => {
+                              sb.append(stateVar+"['"+d.name.name+"'] = "); 
+                              codegenInnerDecl(ops, d, sb, idgen, false);
+                            });
+
+                          val a = idgen.getId();
+
+                          sb.append(stateVar+"['xml$init'] = function() {\n");
+                          ops.createLocalVariable(a, sb, false);
+                          ops.setLocalVariable(a, "document.createElement('a')", sb);
+                          
+                          node.stateBinding.xmlBlock.xmlElts.map(fn (elt) => {
+                              ops.codegenXML(ops, elt, sb, idgen, a);
+                            });
+                          sb.append("this['xml$dom'] = " + a + ";\n");
+                          sb.append("}\n");
+                        }
+                        default {
+                          /*
+                           *
+                           * stateref, with, etc
+                           *
+                           */
+                          ERROR(node.token, "Non-primitive states not handled");
+                        }
+                      };
+                                            
+                      sb.append(stateVar+"['xml$sync'] = function() {\n");
+                      codegenXMLSync(sym, sb, idgen);
+                      sb.append("}\n");
+
+                      val md = idgen.getId();
+                      codegenMetadata(sym, sb, idgen, md);
+                      sb.append(stateVar+".setMetadata("+md+".toMetadata());\n");
+                      sb.append("return " + stateVar +";\n}\n"); // end initializer function
+                    }
+                    default {
+                      ERROR(node.name.token, "Case of identifier symbol is unexpected value, " + sym.symbolType() + ".");
+                    }
+                  };
+                }
+                case None {
+                  ERROR(node.name.token, "no symbol for state");
+                }
+              };
+            }  // end case ParsedConcreteStateDecl
+            default {
+                ERROR(node.token, "Found unexpected node as top-level decl");
+            }
+        }
+    }
+
+    
+    method codegenInnerDecl(immutable CodeGenOps ops, immutable ParsedDecl node,  shared StringBuilder sb, shared IdGen idgen, isAnonymous) {
+        match (node) {
+            case ParsedConcreteMethodDecl {
+                LOG("generating code for concrete method declaration");
+                val args = makeSeperatedString(node.arguments.map(fn(arg) => {arg.name.name}), ",");
+		sb.append("function("+args+") {\n");
+		sb.append("var this$plaid=this;\n");
+                ops.codegenMethodBody(ops, node.body, sb, idgen);
+		sb.append("};\n");
+                
+            }
+            case ParsedConcreteFieldDecl {
+                LOG("generating code for concrete field declaration");
+                /* A roundabout way of getting an expression that evaluates to the initialized value
+                 * (as opposed to an assignment)
+                 */
+                val y = idgen.getId();
+                sb.append("function() {\n");
+                ops.createLocalVariable(y, sb, false);
+                codegenStmt(ops, node.expression, sb, idgen, y);
+                sb.append("return "+y+";\n}();\n");
+            }
+            case ParsedAbstractFieldDecl {
+                //no-op
+            }
+            case ParsedAbstractMethodDecl {
+                //no-op
+            }
+            default {
+                ERROR(node.token, "Found unexpected node as inner decl");
+            }
+        }
+    }
+    
+    method codegenMethodBody(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen) {
+        LOG("generating code for method body block expression");
+        val y = idgen.getId();
+        ops.createLocalVariable(y, sb, false);
+        ops.codegenStmtBlock(ops, node, sb, idgen, y);
+        sb.append("return " + y + ";\n");
+    }
+
+    method codegenStmtBlock(immutable CodeGenOps ops, immutable ParsedBlockExpr node, shared StringBuilder sb, shared IdGen idgen, immutable String y) {
+        LOG("generating code for block expression");
+        ifElse(node.statements.size() > 0) {
+            var stmtCount = 0;
+            while { stmtCount < node.statements.size() - 1 }{
+                // create 
+                val yy = idgen.getId();
+                ops.createLocalVariable(yy, sb, false);
+                val stmt = node.statements.get(stmtCount).value;
+                ops.codegenStmt(ops, stmt, sb, idgen, yy);
+                stmtCount = stmtCount + 1;
+            };
+            
+            // create last statement with provided variable
+            val stmt = node.statements.get(stmtCount).value;
+            stmtCount = stmtCount + 1;
+            ops.codegenStmt(ops, stmt, sb, idgen, y);
+        } {
+            ops.setLocalVariable(y, "undefined", sb);
+       }
+    }
+
+   method codegenStmt(immutable CodeGenOps ops, immutable Stmt node, shared StringBuilder sb, shared IdGen idgen, 
+            immutable String y) {
+        LOG("generating code for statement '" + node.nodeName() + "'");
+        match(node) {
+            case ParsedAtomicBlock {
+                ERROR(node.token, "Enable AEminium to use atomic blocks");
+            }
+            case ParsedMethodCall {
+                val receiverExpr = node.receiver;
+                val argumentExpr = node.argument;
+                val methodId = node.methodId;
+                
+                var receiverString = idgen.getId();
+                ops.createLocalVariable(receiverString, sb, false);
+                ops.codegenStmt(ops, receiverExpr, sb, idgen, receiverString);
+
+                val yList = argumentExpr.args.map( fn(item) => { idgen.getId(); } );
+                yList.map( fn(z) => { ops.createLocalVariable(z, sb, false); });
+                val argsYs = argumentExpr.args.zip(yList);
+                argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second()); } );
+
+                ops.createLocalVariable(y, sb, false);
+                ops.setLocalVariable(y, receiverString+"['"+methodId.name+"']("+makeSeperatedString(yList, ",")+")", sb);
+            }
+            case ParsedDereference {
+              val z = idgen.getId();
+              ops.createLocalVariable(z, sb, false);
+              ops.codegenStmt(ops, node.left, sb, idgen, z);
+              ops.setLocalVariable(y, z+"['"+decoratedName(node.right.name)+"']", sb);
+            }
+            case ParsedAssignment {
+                val targVar = idgen.getId();
+                val fullName = match(node.target) {
+                    case ParsedEmptyExpr {
+                      /*
+                       * Watch for globals
+                       */
+                      node.field.name
+                    }
+                    default {
+                      ops.createLocalVariable(targVar, sb, false);
+                      ops.codegenStmt(ops, node.target, sb, idgen, targVar);
+                      targVar+"."+node.field.name
+                    }
+                };
+                
+                val z = idgen.getId();
+                ops.createLocalVariable(z, sb, false);
+                ops.codegenStmt(ops, node.value, sb, idgen, z);
+                ops.setLocalVariable(y, "("+fullName+"="+z+")", sb);
+                
+                match(node.target) {
+                  case ParsedEmptyExpr { }
+                  default {
+                    sb.append(targVar + "['xml$sync']();\n");
+                  }
+                };
+            }
+            case ParsedApplication {
+                LOG("generating code for application");
+                val argumentExpr = node.argument;
+                match(argumentExpr) {
+                    case ParsedArgumentExpr {
+                        ops.codegenApplication(ops, node.function, argumentExpr.args, sb, idgen, y);
+                    }
+                    default { 
+                        val argList = makeLinkedList();
+                        argList.add(argumentExpr);
+                        ops.codegenApplication(ops, node.function, argList, sb, idgen, y);
+                    }
+                };
+            }
+            case ParsedStringLiteral {
+                ops.setLocalVariable(y, "\""+node.value+"\"", sb);
+            }
+            case ParsedIntLiteral {
+                ops.setLocalVariable(y, node.value, sb);
+            }
+            case ParsedDoubleLiteral {
+                ops.setLocalVariable(y, node.value, sb);
+            }
+            case ParsedInfixOperatorExpr {
+              val receiverId = idgen.getId();
+              val argId = idgen.getId();
+              ops.createLocalVariable(receiverId, sb, false);
+              ops.createLocalVariable(argId, sb, false);
+              
+              ops.codegenStmt(ops, node.left, sb, idgen, receiverId);
+              ops.codegenStmt(ops, node.right, sb, idgen, argId);
+              
+              ops.setLocalVariable(y, receiverId+"['"+node.operator.name+"']("+argId+")", sb);
+            }
+            case ParsedUnaryOperatorExpr {
+              val receiverId = idgen.getId();
+              ops.createLocalVariable(receiverId, sb, false);
+              ops.codegenStmt(ops, node.left, sb, idgen, receiverId);
+              ops.setLocalVariable(y, receiverId+"['"+node.operator.name+"']()", sb);
+            }
+            case ParsedStateChange {
+               val l = idgen.getId();
+               ops.createLocalVariable(l, sb, false);
+               ops.codegenStmt(ops, node.expression, sb, idgen, l);
+               val r = idgen.getId();
+               ops.createLocalVariable(r, sb, false);
+               ops.codegenStateExpr(ops, node.stateExpr, sb, idgen, r);
+               sb.append(l+".stateChange("+r+");\n");
+
+            }
+            case ParsedVarDecl {
+                codegenStmt(ops, node.expr, sb, idgen, decoratedName(node.id.name));
+            }
+            case ParsedIdentifier {
+              val symOpt = symbolForAST(node);
+              match(symOpt) {
+                case Some {
+                  val sym = symOpt.getValue();
+                  match(sym) {
+                    case StateSymbol {
+                      ops.setLocalVariable(y, "Plaid.states.getState('"+sym.getFQN()+"')", sb);
+                    }
+                    default {
+                      ops.setLocalVariable(y, decoratedName(node.name), sb);
+                    }
+                  };
+                }
+                case None {
+                  ERROR(node.token, "No symbol found for identifier");
+                }
+              };
+            }
+            case ParsedNewInstance {
+              val stateId = idgen.getId();
+              ops.createLocalVariable(stateId, sb, false);
+              ops.codegenStateExpr(ops, node.stateExpr, sb, idgen, stateId);
+
+              ops.setLocalVariable(y, stateId + ".instantiate()", sb);
+              sb.append(y+"['xml$init']();\n");
+            }
+            case ParsedMatch {
+                LOG("generating code for match");
+                
+                val exprVarName = idgen.getId();
+                ops.createLocalVariable(exprVarName, sb, false);
+                ops.codegenStmt(ops, node.expression, sb, idgen, exprVarName);
+                
+                val caseStringList = new LinkedList;
+                node.caseList.map(fn(c) => {
+                    match(c) {
+                        case ParsedPatternCase {
+                            val patternSymbolOption = symbolForAST(c.pattern);
+                            match(patternSymbolOption) {
+                                case Some {
+                                    val patternSymbol = patternSymbolOption.getValue();
+                                    match (patternSymbol) {
+                                        case StateSymbol {
+                                            val caseSB = StringBuilder.new();
+
+                                            /* Special case */
+                                            val fqn = patternSymbol.getFQN();
+                                            match(fqn == "plaid.lang.True" || fqn == "plaid.lang.False") {
+                                              case True {
+                                                match(fqn == "plaid.lang.True") {
+                                                  case True {
+                                                    caseSB.append("if("+exprVarName+"===true) {\n");
+                                                  }
+                                                  case False {
+                                                    caseSB.append("if("+exprVarName+"===false) {\n");
+                                                  }
+                                                };
+                                              }
+                                              case False {
+                                                caseSB.append("if(" + exprVarName + ".match(");
+                                                val tag = tagFor(fqn);
+                                                caseSB.append(tag + ")) {\n");
+                                              }
+                                            };
+                                            val bodyVarName = idgen.getId();
+                                            ops.createLocalVariable(bodyVarName, sb, false);
+                                            ops.codegenStmtBlock(ops, c.body, caseSB, idgen, bodyVarName);
+                                            ops.setLocalVariable(y, ops.getLocalVariable(bodyVarName), caseSB);
+                                            caseSB.append("}\n");
+                                            caseStringList.addLast(caseSB.toString());
+                                        }
+                                        default {
+                                            ERROR(c.token, "Case pattern has unexpected symbol '" + patternSymbol.symbolType() + "'.");
+                                        }
+                                    }
+                                }
+                                case None {
+                                    ERROR(c.token, "No symbol found for pattern in case.")
+                                }			
+                            };
+                        }
+                        case ParsedDefaultCase {
+                            val caseSB = StringBuilder.new();
+                            val bodyVarName = idgen.getId();
+                            caseSB.append("{\n");
+                            ops.createLocalVariable(bodyVarName, sb, false);
+                            ops.codegenStmtBlock(ops, c.body, caseSB, idgen, bodyVarName);
+                            ops.setLocalVariable(y, bodyVarName, caseSB);
+                            caseSB.append("}\n");
+                            caseStringList.addLast(caseSB.toString());
+                        }
+                    };
+                });
+                val caseString = makeSeperatedString(caseStringList, "else ");
+                sb.append(caseString);
+                val lastCase = node.caseList.get(node.caseList.size() - 1).getValue();
+                match (lastCase) {
+                    case ParsedPatternCase {
+                        sb.append("else {\n");
+                        sb.append("throw \"Pattern match exhausted\";\n");
+                        sb.append("}\n");
+                    }
+                    case ParsedDefaultCase {
+                        //no-op
+                    }
+                }
+            }
+            case ParsedBlockExpr {
+                // this should not be called if parent node is ConcreteMethodDecl, Case, Split, o r
+                //delegate to lambda expression code generator
+                ops.codegenLambda(ops, new LinkedList, node, sb, idgen, y);
+            }
+            case ParsedLambda {
+                ops.codegenLambda(ops, node.arguments, node.body, sb, idgen, y);
+            }
+            case ParsedUnitLiteral {
+                ops.setLocalVariable(y, "Plaid.std.unit", sb);
+            }
+            default {
+                ERROR(node.token, "Unexpected stmt node type,"+ node.nodeName() +" encountered.");
+            }
+        }
+    }
+
+    method codegenLambda(immutable CodeGenOps ops, args, body, sb, idgen, y) {
+      LOG("generating code for lambda expression");
+      val argStr = makeSeperatedString(args.map(fn(arg) => {arg.name.name}), ",");
+
+      val sb2 = StringBuilder.new();
+      sb2.append("function("+argStr+") {\n");
+      ops.codegenMethodBody(ops, body, sb2, idgen);
+      sb2.append("}");
+
+      ops.setLocalVariable(y, sb2.toString(), sb);
+    }
+    
+    method codegenStateExpr(immutable CodeGenOps ops, immutable ParsedStateExpr node, shared StringBuilder sb, shared IdGen idgen, 
+                            immutable String st) {
+      val staticState = match(node) {
+        case ParsedStateRef {
+          match(node.specializations.size() > 0) {
+            case True {
+              false;
+            }
+            case False {
+              ops.codegenStmt(ops, node.stateExpr, sb, idgen, st);
+              true;
+            }
+          } // match(specializations.size() > 0)
+        } // end case ParsedStateRef
+        default {
+          false;
+        }
+      };
+
+      if(!staticState) {
+        ERROR("Non-static states not handled");
+      };
+    }
+    
+    method codegenObjectValue(immutable CodeGenOps ops, immutable ParsedStateExpr node, shared StringBuilder sb, shared IdGen idgen, 
+                            immutable String fullyQualifiedClassName, immutable String ov, immutable String hashMapId) {}
+    
+    method codegenApplication(immutable CodeGenOps ops, immutable ParsedExpr functionExpr, immutable List args, 
+                              shared StringBuilder sb, shared IdGen idgen, 
+                              immutable String y) {
+      val yList = args.map( fn(item) => { idgen.getId(); } );
+      yList.map( fn(yItem) => { ops.createLocalVariable(yItem, sb, true) });
+      val argsYs = args.zip(yList);
+      argsYs.map( fn(item) => { ops.codegenStmt(ops, item.first(), sb, idgen, item.second()); } );
+
+      /*
+       * Method calls often get parsed as applications.
+       * The distinction is important, due to the way "this" works in JS
+       */
+      match(functionExpr) {
+        case ParsedDereference {
+          val z = idgen.getId();
+          ops.createLocalVariable(z, sb, false);
+          ops.codegenStmt(ops, functionExpr.left, sb, idgen, z);
+          ops.setLocalVariable(y, z+"['"+decoratedName(functionExpr.right.name)+"']("+makeSeperatedString(yList, ",")+")", sb);
+        } default {
+          val funId = idgen.getId();
+          ops.createLocalVariable(funId, sb, false);
+          ops.codegenStmt(ops, functionExpr, sb, idgen, funId);
+          ops.setLocalVariable(y, funId+"("+makeSeperatedString(yList, ",")+")", sb);
+        }
+      };
+    }
+    
+    method void codegenMain(immutable String methodName, unique StringBuilder sb) {
+      sb.append(methodName+"();\n");
+    }
+    
+    method void codegenMemberBodies(immutable CodeGenOps ops, immutable ParsedStateExpr node, shared StringBuilder sb, shared IdGen idgen) {
+      ERROR("Call to codegenMemberBodies in JavaScript codegenerator");
+    }
+}

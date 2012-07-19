@@ -83,6 +83,11 @@ import plaid.parser.ast.ValSpecifier;
 import plaid.parser.ast.VarDecl;
 import plaid.parser.ast.VarSpecifier;
 import plaid.parser.ast.With;
+import plaid.parser.ast.XMLAttr;
+import plaid.parser.ast.XMLBlock;
+import plaid.parser.ast.XMLElt;
+import plaid.parser.ast.XMLEmbeddedPlaid;
+import plaid.parser.ast.XMLTag;
 
 public class ASTFactory {
 	public static FieldDecl AbstractFieldDecl(Specifier specifier, Type type, Identifier name) {
@@ -179,7 +184,7 @@ public class ASTFactory {
 	}
 	
 	public static DeclList DeclList(Decl ...decls) {
-		return new DeclList(ASTNode.DEFAULT_TOKEN, Arrays.asList(decls));
+            return new DeclList(ASTNode.DEFAULT_TOKEN, Arrays.asList(decls), XMLBlock.EMPTY);
 	}
 	
 	public static Case DefaultCase(BlockExpr e) {
