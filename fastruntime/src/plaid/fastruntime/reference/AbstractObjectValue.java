@@ -17,43 +17,26 @@ import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
 
 
-import fj.F;
-import fj.Ord;
-import fj.Ordering;
-import fj.data.List;
-
 public abstract class AbstractObjectValue implements ObjectValue {
 	
-	protected static final Ord<String> STRING_ORD = Ord.stringOrd;
-	protected static final Ord<FieldInfo> FIELD_ORD = Ord.comparableOrd();
-	protected static final Ord<SingleValue> SINGLE_VALUE_ORD;
-	static {
-		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
-			@Override
-			public F<SingleValue, Ordering> f(SingleValue a) {
-				final String thisRep = a.getCanonicalRep();
-				return new F<SingleValue, Ordering>() {
-					public Ordering f(SingleValue other) {
-						return Ord.stringOrd.compare(thisRep, other.getCanonicalRep());
-					}
-				};
-			}
-		};
-		
-		SINGLE_VALUE_ORD = Ord.ord(orderSingleValues);
-	}
-	
-	protected static final List<MethodInfo> NIL_METHOD_INFO = List.nil();
-	protected static final List<FieldInfo> NIL_FIELD_INFO = List.nil();
-	protected static final List<SingleValue> NIL_SINGLE_VALUE = List.nil();
+	protected static final UnmodifiableList<MethodInfo> NIL_METHOD_INFO = UnmodifiableList.makeEmpty();
+	protected static final UnmodifiableList<FieldInfo> NIL_FIELD_INFO = UnmodifiableList.makeEmpty();
+	protected static final UnmodifiableList<SingleValue> NIL_SINGLE_VALUE = UnmodifiableList.makeEmpty();
 	protected static final TagSet EMPTY_TAGS = TagSet.makeEmpty();
 	
+	/*
+	 * This will not work if we use a custom class loader
+	 */
+	private static final ClassLoader CL = AbstractObjectValue.class.getClassLoader();
+	
+	private static final HashMap<String, PlaidFieldInitializer> fieldInitializerCache = 
+		new HashMap<String, PlaidFieldInitializer>();
 	
 	// all of these are caches and should be assigned to exactly once. Unfortunately,
 	// they cannot be called from the constructor because of ordering constraints.
 	private String canonicalRep; 
-	private List<MethodInfo> methods;
-	private List<FieldInfo> fields;
+	private UnmodifiableList<MethodInfo> methods;
+	private UnmodifiableList<FieldInfo> fields;
 	private TagSet tags;
 	private TagSet outerTags;
 	private TagSet innerTags;
@@ -82,12 +65,12 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	}
 	
 	@Override
-	public final List<MethodInfo> getMethods() {
+	public final UnmodifiableList<MethodInfo> getMethods() {
 		return this.methods;
 	}
 
 	@Override
-	public final List<FieldInfo> getFields() {
+	public final UnmodifiableList<FieldInfo> getFields() {
 		return this.fields;
 	}
 	
@@ -115,9 +98,9 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	 */
 	protected abstract String constructCanonicalRep();
 	
-	protected abstract List<FieldInfo> constructFields();
+	protected abstract UnmodifiableList<FieldInfo> constructFields();
 	
-	protected abstract List<MethodInfo> constructMethods();
+	protected abstract UnmodifiableList<MethodInfo> constructMethods();
 	
 	protected abstract TagSet constructTags();
 	
@@ -263,7 +246,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	@Override
 	public PlaidObject[] getPostChangeStorage(ObjectValue oldObjectValue, PlaidObject[] oldStorage) {
 		PlaidObject[] storage = new PlaidObject[this.getStorageLength()];
-		ClassLoader cl = this.getClass().getClassLoader();
 		for(FieldInfo field : fields) {
 			boolean isOld = false;
 			for(FieldInfo oldField : oldObjectValue.getFields()) {
@@ -275,33 +257,9 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			}
 			if (!isOld) {
 				if(field.isStaticallyDefined()) {
-					String className = NamingConventions.getGeneratedFQN(
-							field.getStaticClassInternalName().replace('/', '.')
-							);
-					try {
-						Class<?> fieldClass = cl.loadClass(className);
-						Field myField = fieldClass.getField(field.getName());
-						Object value = myField.get(null); // static field so object can be null, see JavaDoc
-						PlaidFieldInitializer init = (PlaidFieldInitializer) value;
-						storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
-					} catch (ClassNotFoundException e) {
-						throw new PlaidInternalException("Could not load field class " + className, e);
-					} catch (SecurityException e) {
-						throw new PlaidInternalException("Could not load field", e);
-					} catch (NoSuchFieldException e) {
-						throw new PlaidInternalException("Could not load field", e);
-					} catch (IllegalArgumentException e) {
-						throw new PlaidInternalException("Could not load field", e);
-					} catch (IllegalAccessException e) {
-						throw new PlaidInternalException("Could not load field", e);
-					}
-				} else { //dynamically defined
-	//				try {
-	//					PlaidLambda$0 init = (PlaidLambda$0)dynamicDefinitions.get(field.getName());
-	//					storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
-	//				} catch (ClassCastException e) {
-	//					throw new plaid.fastruntime.errors.PlaidInternalException("Field initializer must be a 0 argument Lambda.", e);
-	//				}
+					initStaticField(storage,field);
+
+				} else {
 					throw new PlaidInternalException("Post state change storage cannot have any dynamic definitions");
 	 			}
 			}
@@ -323,6 +281,38 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		}
 		return storage;
 	}
+
+
+	private void initStaticField(PlaidObject[] storage,
+			FieldInfo field) {
+		String className = NamingConventions.getGeneratedFQN(
+				field.getStaticClassInternalName().replace('/', '.')
+				);
+		String key = className + "$" + field.getName();
+		if(fieldInitializerCache.containsKey(key)) {
+			PlaidFieldInitializer init = fieldInitializerCache.get(key);
+			storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
+		} else {
+			try {
+				Class<?> fieldClass = CL.loadClass(className);
+				Field myField = fieldClass.getField(field.getName());
+				Object value = myField.get(null); // static field so object can be null, see JavaDoc
+				PlaidFieldInitializer init = (PlaidFieldInitializer) value;
+				fieldInitializerCache.put(key, init);
+				storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
+			} catch (ClassNotFoundException e) {
+				throw new PlaidInternalException("Could not load field class " + className, e);
+			} catch (SecurityException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			} catch (NoSuchFieldException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			} catch (IllegalArgumentException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			} catch (IllegalAccessException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			}
+		}
+	}
 	
 	@Override
 	/*
@@ -334,29 +324,8 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	public PlaidObject[] getDefaultStorage(Map<String,PlaidLambda> dynamicDefinitions){
 		PlaidObject[] storage = new PlaidObject[this.getStorageLength()];
 		for(FieldInfo field : fields) {
-			ClassLoader cl = this.getClass().getClassLoader();
 			if(field.isStaticallyDefined()) {
-				String className = NamingConventions.getGeneratedFQN(
-						field.getStaticClassInternalName().replace('/', '.')
-						);
-				
-				try {
-					Class<?> fieldClass = cl.loadClass(className);
-					Field myField = fieldClass.getField(field.getName());
-					Object value = myField.get(null); // static field so object can be null, see JavaDoc
-					PlaidFieldInitializer init = (PlaidFieldInitializer) value;
-					storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
-				} catch (ClassNotFoundException e) {
-					throw new PlaidInternalException("Could not load field class " + className, e);
-				} catch (SecurityException e) {
-					throw new PlaidInternalException("Could not load field", e);
-				} catch (NoSuchFieldException e) {
-					throw new PlaidInternalException("Could not load field", e);
-				} catch (IllegalArgumentException e) {
-					throw new PlaidInternalException("Could not load field", e);
-				} catch (IllegalAccessException e) {
-					throw new PlaidInternalException("Could not load field", e);
-				}
+				initStaticField(storage,field);
 			} else { //dynamically defined
 				try {
 					PlaidLambda$0 init = (PlaidLambda$0)dynamicDefinitions.get(field.getName());

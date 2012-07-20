@@ -9,7 +9,7 @@ package plaid.fastruntime;
  * to use this member.  Otherwise, the member will be entirely defined
  * in the static class given by the method getStaticClassInternalName().
  */
-public interface MemberInfo {
+public interface MemberInfo extends NameInfo{
 	String getName();
 	boolean isStaticallyDefined();
 	String getStaticClassInternalName();

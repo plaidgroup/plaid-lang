@@ -3,7 +3,6 @@ package plaid.fastruntime.reference;
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.data.List;
 
 public final class EmptySingleValue extends AtomicValue {
 	
@@ -12,12 +11,12 @@ public final class EmptySingleValue extends AtomicValue {
 	}
 	
 	@Override
-	protected List<MethodInfo> constructMethods() {
+	protected UnmodifiableList<MethodInfo> constructMethods() {
 		return NIL_METHOD_INFO;
 	}
 
 	@Override
-	protected List<FieldInfo> constructFields() {
+	protected UnmodifiableList<FieldInfo> constructFields() {
 		return NIL_FIELD_INFO;
 	}
 	

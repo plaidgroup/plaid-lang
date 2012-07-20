@@ -3,10 +3,6 @@ package plaid.fastruntime;
 import java.util.HashMap;
 import java.util.Map;
 
-import fj.P2;
-import fj.data.List;
-
-
 public class NamingConventions {
 	
 	public static final String GENERATED_PKG = "plaid/generated";
@@ -66,21 +62,6 @@ public class NamingConventions {
 		GENERATED_SUFFIX;
 	}
 	
-	
-	public static final String getGeneratedStorageSimpleName(List<P2<Boolean, String>> fields) {
-		StringBuilder storageName = new StringBuilder(GENERATED_STORAGE_PREFIX);
-		for(P2<Boolean,String> field : fields) {
-			if(field._1()) {
-				storageName.append("t");
-			} else {
-				storageName.append("f");
-			}
-			storageName.append(field._2());
-		}
-		storageName.append(GENERATED_SUFFIX);
-		return storageName.toString();
-	}
-	
 	public static final String getGeneratedMemberName(MemberInfo mi) {
 		return  getGeneratedIdentifier(mi.getName());
 	}
@@ -129,17 +110,8 @@ public class NamingConventions {
 		return getGeneratedInterfaceInternalName(method, numArgs).replace('/', '.');
 	}
 	
-	public static final String getGeneratedStorageInternalName(List<P2<Boolean, String>> fields) {
-		return GENERATED_PKG + "/" + 
-		getGeneratedStorageSimpleName(fields);
-	}
-	
 	public static final String getGeneratedInterfaceName(String method, int numArgs) {
 		return getGeneratedInterfaceInternalName(method, numArgs).replace('/', '.');
-	}
-	
-	public static final String getGeneratedStorageName(List<P2<Boolean, String>> fields) {
-		return getGeneratedStorageInternalName(fields) .replace('/', '.');
 	}
 	
 	public static final String getGeneratedInterfaceFilePath(String method, int numArgs) {

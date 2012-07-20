@@ -2,7 +2,7 @@ package plaid.fastruntime;
 
 import java.util.Map;
 
-import fj.data.List;
+import plaid.fastruntime.reference.UnmodifiableList;
 
 public interface ObjectValue {
 	
@@ -23,9 +23,9 @@ public interface ObjectValue {
 	
 	public ObjectValue changeState(ObjectValue other);
 	
-	public List<MethodInfo> getMethods();
+	public UnmodifiableList<MethodInfo> getMethods();
 	
-	public List<FieldInfo> getFields();
+	public UnmodifiableList<FieldInfo> getFields();
 
 	/*
 	 * Returns a new instance every time it is called.
