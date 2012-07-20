@@ -64,7 +64,7 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 				this.getStaticClassInternalName() 
 				: "";
 		String result =  "method:" + this.getName() + this.numArgs + this.isStaticallyDefined() + methodDefinition;	
-		return result.intern();
+		return result;//.intern();
 	}
 
 }

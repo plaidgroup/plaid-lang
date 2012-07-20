@@ -27,8 +27,8 @@ implements Iampamp$plaid$1$plaid,
 		   IXOR$1$plaid,
 		   Isubsubgt$plaid$1$plaid {
 	
-	private static final java.lang.String FALSE_TAG = "plaid/lang/False".intern();
-	private static final java.lang.String BOOLEAN_TAG = "plaid/lang/Boolean".intern();
+	private static final java.lang.String FALSE_TAG = "plaid/lang/False";
+	private static final java.lang.String BOOLEAN_TAG = "plaid/lang/Boolean";
 	
 	public static final plaid.fastruntime.PlaidState theState$plaid;
 	public static final PlaidJavaObject FALSE_VALUE;
