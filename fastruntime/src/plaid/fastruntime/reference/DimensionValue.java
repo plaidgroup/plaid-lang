@@ -153,7 +153,7 @@ public final class DimensionValue extends SingleValue {
 			parentRep = "";
 		}
 		String result = "TAG[" + this.tag + "]{" + innerValueRep + "}"+parentRep;
-		return result.intern();
+		return result;//.intern();
 	}
 	
 	/*
