@@ -1,0 +1,37 @@
+package plaid.compiler.util;
+
+import plaid.compiler.types.*;
+import plaid.ast.parsed.*;
+import plaid.compiler.*;
+
+method unique ?AbstractExpression makeAbstractExpressionFromAST(immutable ASTNode node) {
+    match (node)  {
+        case ParsedIdentifier {
+            match (symbolForAST(node) ) {
+                case Some {
+                    new AbstractDereferenceExpression {
+                        val symbol = symbolForAST(node).value;
+                    }
+                }
+                default { 
+                    DEBUG(DEBUG_PRIO_HIGH, "<makeAbstractExpressionFromAST> Cannot find the symbol for " + node.name);
+                    unit 
+                }
+            }
+        }
+        case ParsedDereference {
+            val unique ?AbstractExpression left = makeAbstractExpressionFromAST(node.left);
+            match (left) {
+                case AbstractDereferenceExpression {
+                    left.drefs.addLast(node.right.name);
+                    left
+                }
+                default { 
+                    DEBUG(DEBUG_PRIO_HIGH, "<makeAbstractExpressionFromAST> Left does not represent a dereference");
+                    unit
+                }
+            } 
+        }
+        default { unit }
+    }
+}

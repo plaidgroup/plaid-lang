@@ -1,0 +1,156 @@
+/**
+ * Copyright (c) 2011 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.typechecker;
+
+import plaid.compiler.aeminium.*;
+import plaid.compiler.Type;
+import plaid.compiler.Structure;
+import plaid.compiler.types.ObjectStructure;
+
+immutable state FieldSourceLocation case of SourceLocation { 
+  val immutable VariableSymbol objectVarSymbol;
+  val immutable String fieldName;
+  val immutable Integer objectID;
+
+  method immutable ?Type locationType(unique LinearContext ctx) {
+    val unique Option<immutable Type> curObjectTypeOption = ctx.getOption(this.objectVarSymbol);
+    match (curObjectTypeOption) {
+        case Some {
+            val immutable Structure curStruct = curObjectTypeOption.value.structure;
+            match (curStruct) {
+                case ObjectStructure {
+                    val curFieldSigOption = curStruct.getMember(this.fieldName);
+                    match (curFieldSigOption) {
+                        case Some {
+                            match (curFieldSigOption.value) {
+                                case UnpackedFieldSignature {
+                                    match (this.objectID == curFieldSigOption.value.objectID) {
+                                        case True {
+                                            curFieldSigOption.value.getCurrentType();
+                                        }
+                                        case False { unit }
+                                    }
+                                }
+                                default { unit }
+                            }
+                        }
+                        case None { unit }
+                    }
+                }
+                default { unit }
+            }
+        }
+        case None { unit }
+    }
+  }
+
+  /**
+   *  restores retType to objectVarSymbol.fieldName
+   *  If the objectVarSymbol is still in scope (exists in the context),
+   *  and has an object structure, then 
+   *    - the incoming type is restored to the field of the structure, producing a (possibly) 
+   *      new structure
+   *    - objectVarSymbol is updated in the context with the type formed from its existing
+   *      permission and the new structure
+   */  
+  method immutable Boolean restoreToLoc(immutable Type retType, unique LinearContext ctx) {
+    val unique Option<immutable Type> curObjectTypeOption = ctx.getOption(this.objectVarSymbol);
+    match (curObjectTypeOption) {
+      case Some {
+        val immutable Structure curStruct = curObjectTypeOption.value.structure;
+        match (curStruct) {
+          case ObjectStructure {
+            val immutable ?Structure newStruct = curStruct.restoreToField(this.fieldName, retType, this.objectID);
+            match (newStruct) {
+              case Structure {
+            
+                if ( AEMINIUM_MODE() ) {
+                    /*
+                    val shared DependencyInformation slocOrigin = match (depInfoForSLoc(this)) {
+                        case Some { 
+                            depInfoForSLoc(this).value 
+                        } 
+                        case None { ABORT("<FieldSourceLocation> cannot find dependency information for source location") }
+                    };
+                    
+                    val shared DependencyInformation restoreInfo = makeFieldRestoreInformation(this.objectVarSymbol,
+                                                                                               this.fieldName,
+                                                                                               retType.permission,
+                                                                                               newStruct.getMember(this.fieldName).value.getCurrentType().permission);
+                    val unique Set lastASTDependents = findLastDependentsForSymbol(slocOrigin, this.objectVarSymbol, false);
+                    val itAST = lastASTDependents.iterator();
+                    while { itAST.hasNext() }{
+                        val shared DependencyInformation dep = itAST.next();
+                        addDependency(restoreInfo, dep);
+                    }; 
+                    addDependency(restoreInfo, slocOrigin);
+                    setDepInfoForSymbol(this.objectVarSymbol, restoreInfo);  
+                    */
+                    
+                    match (depInfoForSLoc(this)) {
+                        case Some { 
+                            val shared DependencyInformation slocOrigin  = depInfoForSLoc(this).value;
+                            val shared DependencyInformation restoreInfo = makeFieldRestoreInformation(this.objectVarSymbol,
+                                                                                                       this.fieldName,
+                                                                                                       retType.permission,
+                                                                                                       newStruct.getMember(this.fieldName).value.getCurrentType().permission);
+                            val unique Set lastASTDependents = findLastDependentsForSymbol(slocOrigin, this.objectVarSymbol, false);
+                            val itAST = lastASTDependents.iterator();
+                            while { itAST.hasNext() }{
+                                val shared DependencyInformation dep = itAST.next();
+                                addDependency(restoreInfo, dep);
+                            };
+                            addDependency(restoreInfo, slocOrigin);
+                            setDepInfoForSymbol(this.objectVarSymbol, restoreInfo); 
+                        } 
+                        case None { /* no noting*/ }
+                    };
+                };
+                
+                ctx.update(this.objectVarSymbol, makeType(curObjectTypeOption.value.permission, newStruct));
+                true
+              }
+              default { false } //error in restoreToField
+            }
+          }
+          default { true /* no op - variable must have been assigned to a lambda in between */ }
+        }
+      }
+      case None { true /* no op - object not in scope to return to*/ }
+    }
+  }
+  
+  method immutable Boolean ==(immutable SourceLocation other) {
+    match (other) {
+      case FieldSourceLocation {
+        this.objectVarSymbol == other.objectVarSymbol &&
+        this.fieldName.equals(other.fieldName) &&
+        this.objectID == other.objectID
+      }
+      default { false }
+    }
+  }
+  
+  method immutable String toString() {
+    "SourceLoc(" + this.objectVarSymbol.name + "." + this.fieldName + ", " + this.objectID + ")"
+  }
+
+
+}

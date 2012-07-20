@@ -1,0 +1,133 @@
+package plaid.ast.types.permissions;
+
+/**
+ *	Full permission
+ */
+state FullPermission case of Permission {
+	
+	//Full permissions have write access
+	method immutable Boolean isWritable()[pure FullPermission] {
+		true;
+	}
+	
+	//Full permissions guarantee that the state won't change except through it
+	method immutable Boolean guaranteesState()[pure FullPermission] {
+		true;
+	}
+	
+	method immutable Boolean ==(immutable Permission p2)[immutable FullPermission] {
+		match(p2) {
+			case FullPermission { true }
+			default { false }
+		}
+	}
+	
+	method immutable String toString()[pure FullPermision] {
+		"full"
+	}
+
+	//Full can be split into anything except unique (what happens with Dyn?)
+	method /* unique Option<immutable Permission*/ splitPerm(immutable Permission p2)
+															[immutable FullPermission >> void] {
+		match(p2) {
+			// full => full/pure
+			case FullPermission { makeSome(PURE) }
+			// full => shared/shared
+			case SharedPermission { makeSome(SHARED) }
+			// full => immutable/immutable
+			case ImmutablePermission { makeSome(IMMUTABLE) }
+			// full => pure/full
+			case PurePermission { makeSome(this) }
+			// full => none/full
+			case NonePermission { makeSome(this) }
+			// full => dyn/full - KBN correct?
+			case DynPermission { makeSome(this) }
+			default { new None }
+		};
+	}
+	
+	//only none and pure permissions can coexist with full
+	method /*unique Option<immutable Permission>*/ join(immutable Permission >> void p2)
+													   [immutable FullPermission >> void] {
+		match (p2) {
+			case NonePermission { makeSome(this) }  //full/None => full
+			case PurePermission { makeSome(this) }  //full/pure => full
+			case DynPermission { makeSome(DYNP) }   //full/Dyn => dyn
+			default { new None }
+		}
+	}
+	
+	//we can join a full with a pure to a unique, otherwise, should be joining to full (no subtyping here)
+	method /*unique Option<immutable Permission>*/
+			joinTo(immutable Permission >> void p2,immutable Permission >> void target)
+				  [immutable FullPermission >> void] {
+		match (target) {
+			case UniquePermission {  //pure + full = unique
+				match (p2) {
+					case PurePermission { makeSome(target) }
+					default { new None; }
+				}
+			}
+			case FullPermission {
+				this.join(p2)
+			}
+			default { //joining fails - shouldn't be joining to this target...
+				new None;
+			}
+		}
+	}
+	
+	//FULL is above most permissions in the lattice
+	method immutable Permission leastUpperBound(immutable Permission p2)[immutable FullPermission] {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { UNIQUE }
+			case FullPermission { FULL }
+			case ImmutablePermission { FULL }
+			case SharedPermission { FULL }
+			case PurePermission { FULL }
+			case NonePermission { FULL }
+			default { 
+				java.lang.System.out.println("not a permission"); 
+				DYNP; 
+			}
+		}
+	}
+	
+	//Most permissions are below FULL in the permission lattice
+	method immutable Permission greatestLowerBound(immutable Permission p2)[immutable FullPermission] {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { FULL }
+			case FullPermission { FULL }
+			case ImmutablePermission { IMMUTABLE }
+			case SharedPermission { SHARED }
+			case PurePermission { PURE }
+			case NonePermission { NONEP }
+			default { 
+				java.lang.System.out.println("not a permission"); 
+				NONEP; 
+			}
+		}
+	}
+	
+	//only unique and Dyn are stronger
+	//***DEPRECATED***
+	method /*boolean*/ asStrongAs(p2) {
+		match (p2) {
+			case UniquePermission { false }
+			case DynPermission { false }
+			default { true } 
+		}
+	}
+	
+	//weaker
+	//***DEPRECATED***
+	method /*Permission*/ merge(p2) {
+		match (p2) {
+			case DynPermission { DYNP }
+			case UniquePermission { FULL }
+			default { p2 } //most things weaker
+		}
+	}
+}

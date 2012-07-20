@@ -1,0 +1,420 @@
+package plaid.aeminium.codegen;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.ast.visitor.*;
+
+state LinearDependencyAnalysisVisitor = ASTVisitor with GraphOutput with TransitiveReduction with MergeOptimization with {
+	var /*Map<String, ASTNode>*/ writer = java.util.HashMap.new();
+	var /*Map<String, ASTNode>*/ readers = java.util.HashMap.new();
+	var nodeList = new List { var head = new Nil; };
+	
+	var topLevel = true;
+	
+	var counter = 0;
+	var lambdaCounter = 0;
+	
+	var separateTask = true;
+	
+	
+	method initialize() {
+		this.writer = java.util.HashMap.new();
+		this.readers = java.util.HashMap.new();
+		this.nodeList = new List { var head = new Nil; };
+		this.topLevel = true;
+		this.separateTask = true;
+	}
+	
+	
+	method getNodeNumber() {
+		ifElse (this.separateTask) {
+			val c = this.counter;
+			this.counter = this.counter + 1;
+			c;
+		} {
+			-1;
+		};
+	}
+
+	method makeDependency(t, v) {
+		new Dependency {
+			var to = t;
+			var variable = v;
+		};
+	}
+	
+	method updateDependencies(astNode, reads, writes) {
+		val myDeps = java.util.HashSet.new();
+		
+		var it = reads.iterator();
+		while { it.hasNext(); } {
+			val read = it.next();
+			
+			if (writer.containsKey(read.name)) {
+				val prevWriter = writer.get(read.name);
+				
+				if (astNode.num != prevWriter.num) {
+					myDeps.add(makeDependency(prevWriter, read));
+				};
+			};
+			
+			if (!readers.containsKey(read.name)) {
+				readers.put(read.name, java.util.HashSet.new());
+			};
+			
+			readers.get(read.name).add(astNode);
+		};
+		
+		it = writes.iterator();
+		while { it.hasNext(); } {
+			val write = it.next();
+			
+			ifElse (readers.containsKey(write.name)) {
+				val prevReaders = readers.get(write.name);
+				val readIt = prevReaders.iterator();
+				
+				while { readIt.hasNext(); } {
+					val prevReader = readIt.next();
+					
+					if (astNode.num != prevReader.num) {
+						myDeps.add(makeDependency(prevReader, write));
+					};
+				};
+			} {
+				if (writer.containsKey(write.name)) {
+					val prevWriter = writer.get(write.name);
+					
+					if (astNode.num != prevWriter.num) { 
+						myDeps.add(makeDependency(prevWriter, write));
+					};
+				};
+			};
+			
+			writer.put(write.name, astNode);
+			readers.remove(write.name);
+		};
+		
+		if (this.separateTask) {
+			this.nodeList.add(astNode);
+			astNode.dependencies = new Some { val value = myDeps; };
+		};
+	}
+	
+	method reduceAllDependencies() {
+		this.nodeList.map(fn (node) => {
+			this.removeTransitiveDependencies(node);
+		});
+	}
+	
+	
+	
+	// VISIT METHODS
+	
+	method visitCompilationUnit(node) {
+		node.decls.map(fn (decl) => {
+			decl.accept(this);
+		});
+	}
+	
+	// TODO: Fix this.
+	method visitMethodDecl(astNode) {
+		this.counter = 0;
+		astNode.num = getNodeNumber();
+		
+		this.initialize();
+
+		val reads = java.util.HashSet.new();
+		val writes = java.util.HashSet.new();
+		
+		astNode.arguments.map(fn (arg) => {
+			writes.add(astNode.arg);
+		});
+			
+		updateDependencies(astNode, reads, writes);
+		astNode.body.accept(this);
+		
+		
+		printDependencies(nodeList);
+		createDependencyGraph("");
+		
+		reduceAllDependencies();
+		createDependencyGraph("_Reduced");
+	}
+	
+	method visitFieldDecl(astNode) {
+		java.lang.System.out.println("Visiting " + astNode.f.name + ".");
+		java.lang.System.out.println(astNode.fieldType.permType);
+		
+		match (astNode.fieldType.permType.type) {
+			case LambdaType {
+				this.topLevel = true;
+				astNode.e.accept(this);
+			}
+			
+			default {
+			}
+		};
+	}
+	
+	method handleTopLevelLambda(astNode) {
+		this.counter = 0;
+		astNode.num = getNodeNumber();
+		
+		this.initialize();
+
+		val reads = java.util.HashSet.new();
+		val writes = java.util.HashSet.new();
+		
+		astNode.arguments.map(fn (arg) => {
+			writes.add(arg);
+		});
+		
+		updateDependencies(astNode, reads, writes);
+		astNode.body.accept(this);
+		
+		
+		printDependencies(nodeList);
+		createDependencyGraph("");
+		
+		reduceAllDependencies();
+		createDependencyGraph("_Reduced");
+		
+		mergeNodes(nodeList);
+		createDependencyGraph("_Merged");
+	}
+	
+	// Repair this.
+	method handleInlineLambda(astNode) {
+		ifElse (counter == 0) {
+			java.lang.System.out.println("Visiting Lambda (new analysis).");
+			astNode.num = getNodeNumber();
+			
+			val reads = java.util.HashSet.new();
+			val writes = java.util.HashSet.new();
+	
+			// TODO: Adapt to Option type.		
+			writes.add(astNode.x);			
+			updateDependencies(astNode, reads, writes);
+			
+			astNode.body.accept(this);
+			
+			printDependencies(nodeList);
+			createDependencyGraph(this.lambdaCounter);
+			
+			reduceAllDependencies(nodeList);
+			createDependencyGraph("" + this.lambdaCounter + "_Reduced");
+			
+			java.lang.System.out.println("Leaving Lambda (new analysis).");
+		} {
+			// As soon as we encounter a lambda, we have to start a new dependency analysis.
+			java.lang.System.out.println("Lambda: Starting new analysis.");
+		
+			val newAnalysisVisitor = new LinearDependencyAnalysisVisitor;
+			newAnalysisVisitor.initialize();
+			newAnalysisVisitor.topLevel = false;
+			newAnalysisVisitor.lambdaCounter = this.lambdaCounter;
+			this.lambdaCounter = this.lambdaCounter + 1;
+			
+			newAnalysisVisitor.visitLambda(astNode);
+			
+			java.lang.System.out.println("Lambda: Analysis finished.");
+		};
+	}
+	
+	method visitLambda(astNode) {
+		ifElse (this.topLevel) {
+			this.topLevel = false;
+			this.handleTopLevelLambda(astNode);
+			this.topLevel = true;
+		} {
+			this.handleInlineLambda(astNode);
+		};
+	}
+	
+	method visitLetBinding(astNode) {
+		astNode.num = getNodeNumber();
+		val reads = java.util.HashSet.new();
+		val writes = java.util.HashSet.new();
+		
+		val oldWriter = this.writer;
+		val oldReaders = this.readers;
+		this.writer = java.util.HashMap.new();
+		this.readers = java.util.HashMap.new();
+		
+		this.separateTask = false;
+		astNode.exp.accept(this);
+		this.separateTask = true;
+
+		writes.add(astNode.x);
+				
+		var it = this.writer.keySet().iterator();
+		while { it.hasNext(); } {
+			writes.add(new ID { val token = new None; val name = it.next(); });
+		};
+		
+		it = this.readers.keySet().iterator();
+		while { it.hasNext(); } {
+			reads.add(new ID { val token = new None; val name = it.next(); });
+		};
+		
+		this.writer = oldWriter;
+		this.readers = oldReaders;
+		
+		updateDependencies(astNode, reads, writes);
+		
+		astNode.body.accept(this);
+	}
+	
+	method visitAnnotatedLetBinding(node) {
+		this.visitLetBinding(node);
+	}
+
+	method visitApplication(astNode) {
+		astNode.num = getNodeNumber();
+		val reads = java.util.HashSet.new();
+		val writes = java.util.HashSet.new();
+		
+		reads.add(astNode.f);
+		
+		astNode.arguments.map(fn (argument) => {
+			match (argument.type.perm) {
+				case UniquePermission {
+					writes.add(argument);
+				}
+				
+				case ImmutablePermission {
+					reads.add(argument);
+				}
+			};
+		});
+		
+		val lambdaType = astNode.f.type;
+		java.lang.System.out.println(lambdaType);
+		
+		val it = lambdaType.environmentTypes.entrySet().iterator();
+		while { it.hasNext(); } {
+			val p = it.next();
+			
+			val id = p.getKey();
+			val change = p.getValue();
+			
+			match (change.input.perm) {
+				case UniquePermission {
+					writes.add(id);
+				}
+				
+				case ImmutablePermission {
+					reads.add(id);
+				}
+			};
+		};
+		
+		updateDependencies(astNode, reads, writes);
+	}
+	
+	method visitID(astNode) {
+		astNode.num = getNodeNumber();
+		val reads = java.util.HashSet.new();
+		
+		reads.add(astNode);
+
+		updateDependencies(astNode, reads, java.util.HashSet.new());
+	}
+	
+	method visitUnitLiteral(astNode) {
+		astNode.num = getNodeNumber();
+		
+		updateDependencies(astNode, java.util.HashSet.new(), java.util.HashSet.new());
+	}
+	
+	method visitIntLiteral(astNode) {
+		astNode.num = getNodeNumber();
+		
+		updateDependencies(astNode, java.util.HashSet.new(), java.util.HashSet.new());
+	}
+	
+	method visitMethodCall(astNode) {
+		astNode.num = getNodeNumber();
+		val reads = java.util.HashSet.new();
+		val writes = java.util.HashSet.new();
+		
+		match (astNode.receiver.type) {
+			case PermType {
+				match (astNode.receiver.type.perm) {
+					case UniquePermission {
+						writes.add(astNode.receiver);
+					}
+					
+					case ImmutablePermission {
+						reads.add(astNode.receiver);
+					}
+				};
+			}
+			default {
+			}
+		};
+		
+		astNode.arguments.map(fn (argument) => {
+			match (argument.type) {
+				case PermType {
+					match (argument.type.perm) {
+						case UniquePermission {
+							writes.add(argument);
+						}
+						
+						case ImmutablePermission {
+							reads.add(argument);
+						}
+					};
+				}
+				default {
+				}
+			};
+		});
+
+		// TODO:  Handle environment.
+
+		updateDependencies(astNode, reads, writes);
+	}
+	
+	// TODO: This can cause problems with visibility of local variables:
+	// let t0 = ...
+	// ...
+	// match (...) {
+	//   case A {
+	//     let t0 = ...
+	//
+	// For now, we just assume that a distinct set of identifiers
+	// is used inside the case block.
+	method visitMatch(astNode) {
+		astNode.num = getNodeNumber();
+		val reads = java.util.HashSet.new();
+		val writes = java.util.HashSet.new();
+		
+		reads.add(astNode.e);
+		
+		astNode.caseList.map(fn (c) => {
+			val oldWriter = this.writer;
+			val oldReaders = this.readers;
+			this.writer = java.util.HashMap.new();
+			this.readers = java.util.HashMap.new();
+			
+			c.e.accept(this);
+
+			var it = this.writer.keySet().iterator();
+			while { it.hasNext(); } {
+				writes.add(new ID { val token = new None; val name = it.next(); });
+			};
+			
+			it = this.readers.keySet().iterator();
+			while { it.hasNext(); } {
+				reads.add(new ID { val token = new None; val name = it.next(); });
+			};
+			
+			this.writer = oldWriter;
+			this.readers = oldReaders;
+		});
+		
+		updateDependencies(astNode, reads, writes);		
+	}
+}

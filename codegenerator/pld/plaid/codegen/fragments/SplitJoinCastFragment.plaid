@@ -1,0 +1,68 @@
+package plaid.codegen.fragments;
+
+import plaid.ast.types.*;
+
+state SplitJoinCastFragment {
+	method constructPermString(perm) {
+		// Note: only supports unique, immutable, and none for now
+		match(perm) {
+			case UniquePermission {
+				"plaid.runtime.types.PlaidUniquePermission.unique()";
+			}
+			case ImmutablePermission {
+				"plaid.runtime.types.PlaidImmutablePermission.immutable()";
+			}
+			case NonePermission {
+				"plaid.runtime.types.PlaidNonePermission.none()";
+			}
+			default {
+				java.lang.System.out.println("WARNING: Codegen encountered unsupported permission type!");
+				""
+			}
+		};
+	}
+	
+	method constructTypeString(type) {
+		match(type) {
+			case NominalType {
+				"plaid.runtime.types.PlaidNominalType.nominalType(\"" + type.typeName.name + "\")";
+			}
+			default {
+				java.lang.System.out.println("WARNING: Codegen encountered unsupported Plaid type!");
+				"";
+			}
+		}
+	}
+	
+	method constructPermTypeString(permType) {
+		"plaid.runtime.types.PlaidPermType.permType(" + constructPermString(permType.perm) + ", " + constructTypeString(permType.type) + ")"
+	}
+
+	method visitsplitPerm(node) {
+		val initialTypeStr = constructPermTypeString(node.initialType);
+		val neededTypeStr = constructPermTypeString(node.neededType);
+		val residueTypeStr = constructPermTypeString(node.residue);
+		
+		val splitString = node.theVar.name + ".splitPerm(" + initialTypeStr + ", " + neededTypeStr + ", " + residueTypeStr + ");";
+		
+		this.out.append(splitString);
+		
+		node.body.accept(this);
+	}
+	
+	method visitJoin(node) {
+		val toJoinType1 = constructPermTypeString(node.toJoin1);
+		val toJoinType2 = constructPermTypeString(node.toJoin2);
+		val resultType = constructPermTypeString(node.result);
+		
+		val splitString = node.theVar.name + ".join(" + toJoinType1 + ", " + toJoinType2 + ", " + resultType + ");";
+		
+		this.out.append(splitString);
+		
+		node.body.accept(this);
+	}
+	
+	method visitCast(node) {
+		node.body.accept(this);
+	}
+}

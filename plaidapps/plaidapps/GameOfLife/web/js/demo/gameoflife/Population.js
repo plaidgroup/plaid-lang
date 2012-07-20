@@ -1,0 +1,12 @@
+var plaidNewState_Population = new PlaidState();
+plaidNewState_Population.tree = [['', [], 'with'], [['Population', [], 'with']]];
+var plaidNewState_Populated = new PlaidState();
+plaidNewState_Populated.tree = [['', [], 'with'], [['Population', [], 'with'], [['Populated', [], '']]]];
+var plaidNewState_Survive = new PlaidState();
+plaidNewState_Survive.tree = [['', [], 'with'], [['Population', [], 'with'], [['Survive', [], '']]]];
+var plaidNewState_Lonely = new PlaidState();
+plaidNewState_Lonely.tree = [['', [], 'with'], [['Population', [], 'with'], [['Lonely', [], '']]]];
+var plaidNewState_OverPopulated = new PlaidState();
+plaidNewState_OverPopulated.tree = [['', [], 'with'], [['Population', [], 'with'], [['OverPopulated', [], '']]]];
+var plaidNewState_Unpopulated = new PlaidState();
+plaidNewState_Unpopulated.tree = [['', [], 'with'], [['Population', [], 'with'], [['Unpopulated', [], '']]]];

@@ -1,0 +1,437 @@
+package plaid.ast.types.tests;
+
+import plaid.ast.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import java.lang.System;
+
+
+val () -> void nominalTypeTests = fn () => {
+	
+	System.out.println("---------------------------");
+	System.out.println("|    NOMINALTYPE TESTS    |");
+	System.out.println("---------------------------");	
+	
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = makeID(makeToken(),"unit");
+	val unitType = new StateType { val name = u; val superType = new None; };
+	temp.put(u, unitType);
+	val unitNomType = createNominalType(u);
+	
+	//Top
+	val top = makeID(makeToken(),"Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = makeID(makeToken(),"A");
+	val aType = new StateType { val name = a; val superType = makeSome(topType);};
+	temp.put(a,aType);
+	
+	//B
+	val b = makeID(makeToken(),"B");
+	val bType = new StateType { val name = b; val superType = makeSome(topType);};
+	temp.put(b,bType);
+	
+	//C
+	val c = makeID(makeToken(),"C");
+	val cType = new StateType { val name = c; val superType = makeSome(topType);};
+	temp.put(c,cType);
+	
+	//BSub1
+	val bSub1 = makeID(makeToken(),"Bsub1");
+	val bSub1Type = new StateType { val name = bSub1; val superType = makeSome(bType);};
+	temp.put(bSub1,bSub1Type);
+	
+	//BSub2
+	val bSub2 = makeID(makeToken(),"Bsub2");
+	val bSub2Type = new StateType { val name = bSub2; val superType = makeSome(bType);};
+	temp.put(bSub2,bSub2Type);
+	
+	//Other - two fields u and i
+	val other = makeID(makeToken(),"Other");
+	val otherType = new StateType { val name = other; val superType = new None; };
+	val iFieldName = makeID(makeToken(),"i");
+	val iFieldBinding = new TakeType { var currentType = new PermType {
+																val perm = IMMUTABLE;
+																val type = topNomType;
+															};
+										};
+	val iField = makeFieldType(iFieldName, iFieldBinding, true);
+	otherType.declaredTypes.put(iFieldName, iField);
+	val uFieldName = makeID(makeToken(),"u");
+	val uFieldBinding = new TakeType { var currentType = new PermType {
+																val perm = UNIQUE;
+																val type = topNomType;
+															};
+										};
+	val uField = makeFieldType(uFieldName, uFieldBinding, true);
+	otherType.declaredTypes.put(uFieldName, uField);
+	temp.put(other,otherType);
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	System.out.println("Testing state configuration:");
+	st.printTable();
+	System.out.println("");
+	
+	var test = unit;
+	
+	//Testing contains
+	System.out.println("Testing Contains");
+	val otherNomType = createNominalType(other);
+	test = otherNomType.contains(makeID(makeToken(),"f"),st);
+	System.out.print("\tOther.contains(f,st) = None - ");
+	match (test) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	test = otherNomType.contains(iFieldName,st);
+	System.out.print("\tOther.contains(i,st) = Some(iField) - ");
+	match (test) {
+		case Some { 
+			match (test.value == iField) { 
+				case True { ok() }
+				case False { failMsg("exists, but not the same as iField") }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.println("");
+	
+	//Test declaredType
+	System.out.println("Testing declaredType");
+	test = otherNomType.declaredType(makeID(makeToken(),"f"),st);
+	System.out.print("\tOther.declaredType(f,st) = None - ");
+	match (test) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	test = otherNomType.declaredType(iFieldName,st);
+	System.out.print("\tOther.declaredType(i,st) = Some(iField) - ");
+	match (test) {
+		case Some { 
+			match (test.value == iField) { 
+				case True { ok() }
+				case False { failMsg("exists, but not the same as iField") }
+			}
+		}
+		case None { fail() }
+	};
+	var testCompare = otherNomType.contains(iFieldName,st);
+	System.out.print("\tOther.declaredType(i,st) = Other.declaredType(i,st) - ");
+	match (test) {
+		case Some { 
+			match(testCompare) {
+				case Some {
+					match (test.value == testCompare.value) { 
+						case True { ok() }
+						case False { failMsg("exists, but not the same declaration type") }
+					}
+				}
+				case None { failMsg("declaredType() gives a member, but contains() does not") }
+			}	
+		}
+		case None { 
+			match(testCompare) {
+				case Some { failMsg("contains() gives a member, but declaredType() does not") }
+				case None { ok() }
+			}
+		}
+	};
+	System.out.println("");
+	
+	//Testing memberUpdate
+	System.out.println("Testing memberUpdate");
+	val updateFieldBinding = new TakeType { var currentType = new PermType {
+																val perm = IMMUTABLE;
+																val type = topNomType;
+															};
+										};
+	
+	var unique NominalType otherUpdateType = createNominalType(other);
+	otherUpdateType.memberUpdate(makeID(makeToken(),"f"),updateFieldBinding,st);
+	System.out.print("\tOther.memberUpdate(f,IMMUTABLE Top,st) = Other (no update) - ");
+	match (otherUpdateType == otherNomType) {
+		case True { ok() }
+		case False { fail() }
+	};
+	otherUpdateType = createNominalType(other);
+	otherUpdateType.memberUpdate(iFieldName,updateFieldBinding,st);
+	System.out.print("\tOther.memberUpdate(i,IMMUTABLE Top,st) = Other (no update) - ");
+	//System.out.println(otherUpdateType.toString());
+	match (otherUpdateType == otherNomType) {
+		case True { ok() }
+		case False { fail() }
+	};
+	otherUpdateType = createNominalType(other);
+	otherUpdateType.memberUpdate(uFieldName,updateFieldBinding,st);
+	val uFieldBindingU = new TakeType { var currentType = new PermType {
+																val perm = IMMUTABLE;
+																val type = topNomType;
+															};
+										};
+	val uFieldU = makeFieldType( uFieldName, uFieldBindingU, true);
+	
+	val /*unique Map<unique ID,immutable DeclType>*/ unpackedMembers = java.util.HashMap.new();
+	unpackedMembers.put(iFieldName,iField);
+	unpackedMembers.put(uFieldName,uFieldU);
+	
+	val otherUnpackedType = new UnpackedType {
+		val immutable ID typeName = other;
+		val /*unique Map<unique ID,immutable DeclType>*/ members = unpackedMembers;
+	};
+	
+	System.out.println("\tOther.memberUpdate(u,IMMUTABLE Top,st) = ");
+	System.out.print("\t\t" + otherUnpackedType.toString() + " - ");
+	//System.out.println(otherUpdateType.toString());
+	match (otherUpdateType == otherUnpackedType) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.println("");
+	
+	//Testing notborrowed
+	System.out.println("Testing notBorrowed");
+	System.out.print("\tOther.notBorrowed() = true - ");
+	match(otherNomType.notBorrowed()) {
+		case True { ok() }
+		case False { fail() }	
+	};
+	System.out.println("");
+	
+	//Pack
+	System.out.println("Testing Pack");
+	System.out.print("\tOtherPack() = N(Other) - ");
+	otherUpdateType = createNominalType(other);
+	otherUpdateType.pack(st);
+	match(otherUpdateType == otherNomType) {
+		case True { ok() }
+		case False { fail() }	
+	};
+	System.out.println("");
+	
+	//Least Upper Bound
+	System.out.println("Testing leastUpperBound");
+	System.out.print("\tOther.leastUpperBound(upk(other,{...})) = None - ");
+	match(otherNomType.leastUpperBound(otherUnpackedType,st)) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.print("\tOther.leastUpperBound(Other) = Some(Other) - ");
+	test = otherNomType.leastUpperBound(otherNomType,st);
+	match(test) {
+		case Some {
+			match (test.value == otherNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	val unique NominalType aNomType = createNominalType(a);
+	val unique NominalType bNomType = createNominalType(b);
+	val unique NominalType cNomType = createNominalType(c);
+	val unique NominalType bSub1NomType = createNominalType(bSub1);
+	val unique NominalType bSub2NomType = createNominalType(bSub2);
+	System.out.print("\tTop.leastUpperBound(B) = Top - ");
+	test = topNomType.leastUpperBound(bNomType,st);
+	match(test) {
+		case Some {
+			match (test.value == topNomType) {
+				case True { ok() }
+				case False { failMsg("not Top") }
+			}
+		}
+		case None { failMsg("no lub") }
+	};
+	System.out.print("\tB.leastUpperBound(Top) = Top - ");
+	test = bNomType.leastUpperBound(topNomType,st);
+	match(test) {
+		case Some {
+			match (test.value == topNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tB.leastUpperBound(C) = Top - ");
+	test = bNomType.leastUpperBound(cNomType,st);
+	match(test) {
+		case Some {
+			match (test.value == topNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tbSub1.leastUpperBound(Top) = Top - ");
+	test = bSub1NomType.leastUpperBound(topNomType,st);
+	match(test) {
+		case Some {
+			match (test.value == topNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tTop.leastUpperBound(bSub1) = Top - ");
+	test = topNomType.leastUpperBound(bSub1NomType,st);
+	match(test) {
+		case Some {
+			match (test.value == topNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tbSub1.leastUpperBound(C) = Top - ");
+	test = bSub1NomType.leastUpperBound(cNomType,st);
+	match(test) {
+		case Some {
+			match (test.value == topNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tC.leastUpperBound(bSub1) = Top - ");
+	test = cNomType.leastUpperBound(bSub1NomType,st);
+	match(test) {
+		case Some {
+			match (test.value == topNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tbSub2.leastUpperBound(bSub1) = B - ");
+	test = bSub2NomType.leastUpperBound(bSub1NomType,st);
+	match(test) {
+		case Some {
+			match (test.value == bNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tbSub1.leastUpperBound(bSub2) = B - ");
+	test = bSub1NomType.leastUpperBound(bSub2NomType,st);
+	match(test) {
+		case Some {
+			match (test.value == bNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.println("");
+	
+	//greatest lower bound
+	System.out.println("Testing greatestLowerBound");
+	System.out.print("\tTop.greatestLowerBound(Top) = Top - ");
+	test = topNomType.greatestLowerBound(topNomType,st);
+	match(test) {
+		case Some {
+			match (test.value == topNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tA.greatestLowerBound(Top) = A - ");
+	test = aNomType.greatestLowerBound(topNomType,st);
+	match(test) {
+		case Some {
+			match (test.value == aNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tTop.greatestLowerBound(A) = A - ");
+	test = topNomType.greatestLowerBound(aNomType,st);
+	match(test) {
+		case Some {
+			match (test.value == aNomType) {
+				case True { ok() }
+				case False { fail() }
+			}
+		}
+		case None { fail() }
+	};
+	System.out.print("\tB.greatestLowerBound(A) = None - ");
+	test = bNomType.greatestLowerBound(aNomType,st);
+	match(test) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.print("\tA.greatestLowerBound(B) = None - ");
+	test = aNomType.greatestLowerBound(bNomType,st);
+	match(test) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.print("\tTop.greatestLowerBound(unit) = None - ");
+	test = topNomType.greatestLowerBound(unitNomType,st);
+	match(test) {
+		case Some { fail() }
+		case None { ok() }
+	};
+	System.out.println("");
+	
+	//isSubObjectTypeOf
+	System.out.println("Testing isSubObjectTypeOf");
+	System.out.print("\tTop.isSubObjectTypeOf(Top) = true - ");
+	match (topNomType.isSubObjectTypeOf(topNomType,st)) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.print("\tTop.isSubObjectTypeOf(A) = false - ");
+	match (topNomType.isSubObjectTypeOf(aNomType,st)) {
+		case True { fail() }
+		case False { ok() }
+	};
+	System.out.print("\tA.isSubObjectTypeOf(Top) = true - ");
+	match (aNomType.isSubObjectTypeOf(topNomType,st)) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.print("\tA.isSubObjectTypeOf(B) = false - ");
+	match (aNomType.isSubObjectTypeOf(bNomType,st)) {
+		case True { fail() }
+		case False { ok() }
+	};	
+	System.out.print("\tbSub1.isSubObjectTypeOf(Top) = true - ");
+	match (bSub1NomType.isSubObjectTypeOf(topNomType,st)) {
+		case True { ok() }
+		case False { fail() }
+	};
+	System.out.println("");
+	
+	//Downgrade
+	System.out.println("Testing Downgrade");
+	System.out.print("\tOther.downgrade() = N(Other) - ");
+	otherUpdateType = createNominalType(other);
+	otherUpdateType.pack();
+	match(otherUpdateType == otherNomType) {
+		case True { ok() }
+		case False { fail() }	
+	};
+	
+};
