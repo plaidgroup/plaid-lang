@@ -7,4 +7,7 @@ function forkJoin(level) {
     }
 }
 
+var begin = new Date();
 forkJoin(28)
+var end = new Date();
+console.log("Runtime " + ((end.getTime()-begin.getTime())/1000.0) + "s");
