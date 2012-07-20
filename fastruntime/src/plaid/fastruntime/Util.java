@@ -19,6 +19,7 @@ import plaid.fastruntime.reference.DimensionValue;
 import plaid.fastruntime.reference.SimplePlaidState;
 import plaid.lang.F_alse;
 import plaid.lang.F_loat64;
+import plaid.lang.I_nt64;
 import plaid.lang.I_nteger32;
 import plaid.lang.S_tring;
 import plaid.lang.T_rue;
@@ -68,6 +69,10 @@ public final class Util {
 		return F_loat64.plaidFloat64(javaDouble);
 	}
 	
+	public static final PlaidObject int64(long jLong) {
+		return I_nt64.plaidInt64(jLong);
+	}
+	
 	public static PlaidObject javaToPlaid(Object javaObject) {
 		if (javaObject == null) 
 			return unit();
@@ -79,6 +84,8 @@ public final class Util {
 			return integer((java.lang.Integer) javaObject);
 		else if (javaObject instanceof java.lang.String)
 			return string((java.lang.String) javaObject);
+		else if (javaObject instanceof java.lang.Long) 
+			return int64((Long) javaObject);
 		else
 			return JAVA_GEN.createPlaidJavaObject(javaObject);
 	}

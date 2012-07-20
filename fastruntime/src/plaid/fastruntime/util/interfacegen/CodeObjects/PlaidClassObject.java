@@ -62,7 +62,7 @@ public class PlaidClassObject extends ClassObject implements PlaidCodeGenerator 
 			}
 		}
 		
-		elements.addAll((Collection<? extends CodeObject>) seenMethods.values());
+		elements.addAll(seenMethods.values());
 
 		for (CodeObject co : elements) {
 			output.append(co.getGeneratedCode(this));
@@ -82,7 +82,7 @@ public class PlaidClassObject extends ClassObject implements PlaidCodeGenerator 
 		
 		
 		output = new StringBuilder();
-		output.append("class "+name);
+		output.append("public class "+name);
 		if (superClass != null)
 			output.append(" extends "+superClass);
 		if (interfaces != null && interfaces.size() > 0) {
