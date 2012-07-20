@@ -13,7 +13,13 @@ public class ClassBaseLine {
 	
 	public static void main(String[] args) {
 		ClassBaseLine cbl = new ClassBaseLine();
+		long begin = System.nanoTime();
 		cbl.forkJoin(28);
+		long end = System.nanoTime();
+		long delta = end - begin;
+		double divider = 1000*1000*1000.0;
+		double result = delta / divider;
+		System.out.printf("Runtime : %.3fs \n", result);
 	}
 
 }

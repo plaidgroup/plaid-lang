@@ -1,7 +1,15 @@
-class BaseLine {
+var BaseLine = {};
 
+BaseLine.forkJoin = function (level) {
+    var isZero = level - 1;
+    if  ( isZero == false ) {
+        var nextLevel = level - 1;
+        this.forkJoin(nextLevel);
+        this.forkJoin(nextLevel);
+    } 
 };
+    
 
-var bl = new BaseLine();
+BaseLine.forkJoin(28);
 
 
