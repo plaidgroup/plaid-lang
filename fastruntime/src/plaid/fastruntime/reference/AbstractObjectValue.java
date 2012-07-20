@@ -19,9 +19,9 @@ import plaid.fastruntime.errors.PlaidInternalException;
 
 public abstract class AbstractObjectValue implements ObjectValue {
 	
-	protected static final UnmodifiableList<MethodInfo> NIL_METHOD_INFO = UnmodifiableList.makeEmpty();
-	protected static final UnmodifiableList<FieldInfo> NIL_FIELD_INFO = UnmodifiableList.makeEmpty();
-	protected static final UnmodifiableList<SingleValue> NIL_SINGLE_VALUE = UnmodifiableList.makeEmpty();
+	protected static final UnmodifiableList<MethodInfo> NIL_METHOD_INFO = UnmodifiableList.<MethodInfo>makeEmpty();
+	protected static final UnmodifiableList<FieldInfo> NIL_FIELD_INFO = UnmodifiableList.<FieldInfo>makeEmpty();
+	protected static final UnmodifiableList<SingleValue> NIL_SINGLE_VALUE = UnmodifiableList.<SingleValue>makeEmpty();
 	protected static final TagSet EMPTY_TAGS = TagSet.makeEmpty();
 	
 	/*
