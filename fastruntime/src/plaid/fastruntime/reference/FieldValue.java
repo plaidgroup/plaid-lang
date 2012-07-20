@@ -3,7 +3,6 @@ package plaid.fastruntime.reference;
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.data.List;
 
 public final class FieldValue extends MemberValue implements FieldInfo {
 
@@ -26,19 +25,13 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 	
 
 	@Override
-	protected List<MethodInfo> constructMethods() {
+	protected UnmodifiableList<MethodInfo> constructMethods() {
 		return NIL_METHOD_INFO;
 	}
 
 	@Override
-	public List<FieldInfo> constructFields() {
-		return List.single((FieldInfo) this);
-	}
-	
-
-	@Override
-	public int compareTo(FieldInfo o) {
-		return  this.getName().compareTo(o.getName());
+	public UnmodifiableList<FieldInfo> constructFields() {
+		return UnmodifiableList.makeSingle((FieldInfo) this);
 	}
 
 	public boolean isSettable() {
@@ -63,6 +56,6 @@ public final class FieldValue extends MemberValue implements FieldInfo {
 				: "";
 		String result =  "field:" + settableString + this.getName() + this.isStaticallyDefined() +
 				fieldInitializer;
-		return result.intern();
+		return result;//.intern();
 	}
 }

@@ -1,5 +1,6 @@
 package plaid.fastruntime;
 
-public interface FieldInfo extends MemberInfo, Comparable<FieldInfo> {
+
+public interface FieldInfo extends MemberInfo{
 	boolean isSettable();
 }

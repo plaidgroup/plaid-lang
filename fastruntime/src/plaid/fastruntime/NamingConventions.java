@@ -1,10 +1,7 @@
 package plaid.fastruntime;
 
 import java.util.HashMap;
-
-import fj.P2;
-import fj.data.List;
-
+import java.util.Map;
 
 public class NamingConventions {
 	
@@ -65,21 +62,6 @@ public class NamingConventions {
 		GENERATED_SUFFIX;
 	}
 	
-	
-	public static final String getGeneratedStorageSimpleName(List<P2<Boolean, String>> fields) {
-		StringBuilder storageName = new StringBuilder(GENERATED_STORAGE_PREFIX);
-		for(P2<Boolean,String> field : fields) {
-			if(field._1()) {
-				storageName.append("t");
-			} else {
-				storageName.append("f");
-			}
-			storageName.append(field._2());
-		}
-		storageName.append(GENERATED_SUFFIX);
-		return storageName.toString();
-	}
-	
 	public static final String getGeneratedMemberName(MemberInfo mi) {
 		return  getGeneratedIdentifier(mi.getName());
 	}
@@ -87,8 +69,10 @@ public class NamingConventions {
 	public static final String getGeneratedInternal(MemberInfo mi) {
 		return  getInternalFQN(mi.getStaticClassInternalName());
 	}
-	
+	private static final Map<String, String> FQN_CACHE = new HashMap<String, String>();
 	public static final String getGeneratedFQN(String fqn) {
+		if (FQN_CACHE.containsKey(fqn))
+			return FQN_CACHE.get(fqn);
 		String[] ids = fqn.split("\\.");
 		StringBuilder newFqn = new StringBuilder();
 		for(int i=0; i<ids.length; i++) {
@@ -98,7 +82,9 @@ public class NamingConventions {
 				newFqn.append(ids[i] + ".");
 			}
 		}
-		return newFqn.toString();
+		String genFqn = newFqn.toString();
+		FQN_CACHE.put(fqn, genFqn);
+		return genFqn;
 	}
 	
 	public static final String getInternalFQN(String fqn) {
@@ -124,17 +110,8 @@ public class NamingConventions {
 		return getGeneratedInterfaceInternalName(method, numArgs).replace('/', '.');
 	}
 	
-	public static final String getGeneratedStorageInternalName(List<P2<Boolean, String>> fields) {
-		return GENERATED_PKG + "/" + 
-		getGeneratedStorageSimpleName(fields);
-	}
-	
 	public static final String getGeneratedInterfaceName(String method, int numArgs) {
 		return getGeneratedInterfaceInternalName(method, numArgs).replace('/', '.');
-	}
-	
-	public static final String getGeneratedStorageName(List<P2<Boolean, String>> fields) {
-		return getGeneratedStorageInternalName(fields) .replace('/', '.');
 	}
 	
 	public static final String getGeneratedInterfaceFilePath(String method, int numArgs) {

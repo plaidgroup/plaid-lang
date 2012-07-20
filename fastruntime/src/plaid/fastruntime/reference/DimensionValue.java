@@ -3,8 +3,6 @@ package plaid.fastruntime.reference;
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.data.List;
-import fj.data.Set;
 
 /**
  * Parent and innerValue can both be null.
@@ -38,8 +36,8 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	protected Set<String> constructTags() {
-		Set<String> currentTags = Set.single(STRING_ORD, tag);
+	protected TagSet constructTags() {
+		TagSet currentTags = TagSet.makeSingle(tag);
 		if(innerValue != null) {
 			currentTags = currentTags.union(innerValue.getTags());
 		}
@@ -54,8 +52,8 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	public Set<String> constructOuterTags() {
-		Set<String> tagSet = Set.single(STRING_ORD, tag);
+	public TagSet constructOuterTags() {
+		TagSet tagSet = TagSet.makeSingle(tag);
 		if(parent != null) {
 			return parent.getOuterTags().union(tagSet);
 		} else {
@@ -64,20 +62,20 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	public Set<String> constructInnerTags() {
-		Set<String> tagSet = EMPTY_TAGS;
+	public TagSet constructInnerTags() {
+		TagSet tagSet = TagSet.makeEmpty();
 		if(parent != null) {
 			tagSet = parent.getInnerTags().union(tagSet);
 		} 
 		if (innerValue != null) {
-			tagSet = innerValue.getTags();
+			tagSet = innerValue.getTags().union(tagSet);
 		}
 		return tagSet;
 	}
 
 	@Override
-	public List<MethodInfo> constructMethods() {
-		List<MethodInfo> mi = NIL_METHOD_INFO;
+	public UnmodifiableList<MethodInfo> constructMethods() {
+		UnmodifiableList<MethodInfo> mi = NIL_METHOD_INFO;
 		if(innerValue!=null) {
 			mi = mi.append(innerValue.getMethods());
 		}
@@ -89,8 +87,8 @@ public final class DimensionValue extends SingleValue {
 	
 
 	@Override
-	public List<FieldInfo> constructFields() {
-		List<FieldInfo> fi = NIL_FIELD_INFO;
+	public UnmodifiableList<FieldInfo> constructFields() {
+		UnmodifiableList<FieldInfo> fi = NIL_FIELD_INFO;
 		if(innerValue!=null) {
 			fi = fi.append(innerValue.getFields());
 		}
@@ -154,7 +152,7 @@ public final class DimensionValue extends SingleValue {
 			parentRep = "";
 		}
 		String result = "TAG[" + this.tag + "]{" + innerValueRep + "}"+parentRep;
-		return result.intern();
+		return result;//.intern();
 	}
 	
 	/*

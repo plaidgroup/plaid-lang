@@ -3,10 +3,6 @@ package plaid.fastruntime.reference;
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.F;
-import fj.F2;
-import fj.data.List;
-import fj.data.Set;
 
 /**
  * A ListValue contains a minimum of two SingleValues.
@@ -15,18 +11,18 @@ import fj.data.Set;
  */
 public final class ListValue extends AbstractObjectValue {
 
-	private List<SingleValue> singleValues;
+	private UnmodifiableList<SingleValue> singleValues;
 	
 	public ListValue(SingleValue... singleValues) {
-		this(List.list(singleValues));
+		this(UnmodifiableList.makeList(singleValues));
 	}
 	
-	private ListValue(List<SingleValue> singleValues) {
+	private ListValue(UnmodifiableList<SingleValue> singleValues) {
 		this.singleValues = singleValues;
 		this.init();
 	}
 	
-	public List<SingleValue> getAll() {
+	public UnmodifiableList<SingleValue> getAll() {
 		return singleValues;
 	}
 	
@@ -43,7 +39,7 @@ public final class ListValue extends AbstractObjectValue {
 	 */
 	public AbstractObjectValue getRest() {
 		if (singleValues.length() == 2) {
-			return singleValues.tail().head();
+			return singleValues.get(1);
 		} else {
 			return new ListValue(singleValues.tail());
 		}
@@ -64,35 +60,23 @@ public final class ListValue extends AbstractObjectValue {
 	}
 
 	@Override
-	public Set<String> constructTags() {
-		Set<String> tags = EMPTY_TAGS;
-		for(SingleValue sv : singleValues) {
-			tags = tags.union(sv.getTags());
-		}
-		return tags;
+	public TagSet constructTags() {
+		return TagSet.makeAllFromSingleValues(singleValues);
 	}
 
 	@Override
-	protected Set<String> constructOuterTags() {
-		Set<String> currentSet = EMPTY_TAGS;
-		for(SingleValue sv : singleValues) {
-			currentSet = currentSet.union(sv.getOuterTags());
-		}
-		return currentSet;
+	protected TagSet constructOuterTags() {
+		return TagSet.makeOuterFromSingleValues(singleValues);
 	}
 	
 	@Override
-	protected Set<String> constructInnerTags() {
-		Set<String> currentSet = EMPTY_TAGS;
-		for(SingleValue sv : singleValues) {
-			currentSet = currentSet.union(sv.getInnerTags());
-		}
-		return currentSet;
+	protected TagSet constructInnerTags() {
+		return TagSet.makeInnerFromSingleValues(singleValues);
 	}
 
 	@Override
-	protected List<MethodInfo> constructMethods() {
-		List<MethodInfo> currentList = NIL_METHOD_INFO;
+	protected UnmodifiableList<MethodInfo> constructMethods() {
+		UnmodifiableList<MethodInfo> currentList = NIL_METHOD_INFO;
 		for(SingleValue sv : singleValues) {
 			currentList = currentList.append((sv.getMethods()));
 		}
@@ -101,8 +85,8 @@ public final class ListValue extends AbstractObjectValue {
 	
 
 	@Override
-	protected List<FieldInfo> constructFields() {
-		List<FieldInfo> currentList = NIL_FIELD_INFO;
+	protected UnmodifiableList<FieldInfo> constructFields() {
+		UnmodifiableList<FieldInfo> currentList = NIL_FIELD_INFO;
 		for(SingleValue sv : singleValues) {
 			currentList = currentList.append((sv.getFields()));
 		}
@@ -111,7 +95,7 @@ public final class ListValue extends AbstractObjectValue {
 	
 	@Override
 	public ObjectValue remove(String member) {
-		List<SingleValue> toReturn = NIL_SINGLE_VALUE;
+		UnmodifiableList<SingleValue> toReturn = NIL_SINGLE_VALUE;
 		for(SingleValue sv : singleValues) {
 			if(sv instanceof MemberValue && !((MemberValue) sv).getName().equals(member)) {
 				toReturn = toReturn.cons(sv);
@@ -120,7 +104,7 @@ public final class ListValue extends AbstractObjectValue {
 		if (toReturn.length() > 1) {
 			return new ListValue(toReturn);
 		} else if (toReturn.length() == 1) {
-			return toReturn.index(0);
+			return toReturn.head();
 		} else {
 			return new EmptySingleValue();//throw new plaid.fastruntime.errors.PlaidInternalException("Trying to revove an object from ListValue with only one object.");
 		}
@@ -128,25 +112,20 @@ public final class ListValue extends AbstractObjectValue {
 
 	@Override
 	public ObjectValue rename(final String currentName, final String newName) {
-		F<SingleValue,SingleValue> callRename = new F<SingleValue,SingleValue>() {
-			public SingleValue f(SingleValue a) {
-				return (SingleValue)a.rename(currentName, newName);
-			}
-		};
-		List<SingleValue> newSingleValues = singleValues.map(callRename);
-		return new ListValue(newSingleValues);
-	}
-	
-	private final static F2<String, SingleValue, String> COMBINE_CANONICAL_STRINGS = new F2<String, SingleValue, String>() {
-		public String f(String a, SingleValue b) {
-			return a + ";" + b.getCanonicalRep();
+		UnmodifiableList<SingleValue> toReturn = NIL_SINGLE_VALUE;
+		for(SingleValue sv : singleValues) {
+			toReturn = toReturn.cons((SingleValue)sv.rename(currentName, newName));
 		}
-	};
-	
+		return new ListValue(toReturn);
+	}
 	@Override
 	protected String constructCanonicalRep() {
-		List<SingleValue> sortedSingleValues = this.singleValues.sort(SINGLE_VALUE_ORD);
-		String result = sortedSingleValues.foldLeft(COMBINE_CANONICAL_STRINGS, "");
-		return result.intern();
+		UnmodifiableList<SingleValue> sortedSingleValues = this.singleValues.sort();
+		StringBuilder sb = new StringBuilder();
+		for (SingleValue sv : sortedSingleValues) {
+			sb.append(";");
+			sb.append(sv.getCanonicalRep()); 
+		}
+		return sb.toString();
 	}
 }
