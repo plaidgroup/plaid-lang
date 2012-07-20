@@ -59,6 +59,9 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	private TagSet innerTags;
 	private Map<String, Integer> storageIndexMap;
 	
+	//This cache is mutable after object value initialization.
+	private Map<ObjectValue, AbstractObjectValue> stateChangeCache = new HashMap<ObjectValue, AbstractObjectValue>();
+	
 	/*
 	 * Must be called in last line of construct of every concrete subtype.
 	 */
@@ -145,10 +148,19 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		return toReturn;
 	}
 
-	
-
 	@Override
 	public final AbstractObjectValue changeState(ObjectValue other) {
+		if (stateChangeCache.containsKey(other)) {
+			return stateChangeCache.get(other);
+		} else {
+			AbstractObjectValue output = changeStateInternal(other);
+			stateChangeCache.put(other, output);
+			return output;
+		}
+	}
+		 
+	public final AbstractObjectValue changeStateInternal(ObjectValue other) {
+
 		if(other instanceof ListValue) { 
 			// SU-List
 			ListValue list = (ListValue)other;
@@ -225,7 +237,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 				}
 			}
 		}
-		throw new RuntimeException("Ooops ... State change failed because because of an unknown case.");
+		throw new PlaidInternalException("Ooops ... State change failed because because of an unknown case.");
 	}
 
 	/*
@@ -405,7 +417,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	@Override
 	public final boolean equals(Object other) {
 		if (other instanceof AbstractObjectValue) {
-			return this.getCanonicalRep() == ((AbstractObjectValue)other).getCanonicalRep(); // == okay because canonical
+			return this.getCanonicalRep().equals(((AbstractObjectValue)other).getCanonicalRep());
 		} else {
 			return false;
 		}
