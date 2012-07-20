@@ -1,0 +1,67 @@
+package plaid.benchmarks.simulation.WebServer;
+
+state ClientSocket {
+	val port;
+	val serverSocket;
+	val clientBoundSocket;
+}
+
+state DisconnectedClientSocket case of ClientSocket {
+	method connect() {
+		match (this.clientBoundSocket.isClosed()) {
+			case False {
+				val outStream = this.clientBoundSocket.getOutputStream();
+				val inStream = this.clientBoundSocket.getInputStream();
+				this <- ConnectedClientSocket with {
+					val outStream = outStream; 
+					val outStreamWriter = java.io.BufferedWriter.new(java.io.OutputStreamWriter.new(outStream));
+					val inStream = inStream; 
+					val inStreamReader = java.io.BufferedReader.new(java.io.InputStreamReader.new(inStream)); 
+				};
+				this;
+			}
+			case True {
+				this;
+			}
+		}
+	}
+}
+
+state ConnectedClientSocket case of ClientSocket {
+	val outStream;
+	val outStreamWriter;
+	
+	val inStream;
+	val inStreamReader;
+	
+	method readLine() {
+		match (this.clientBoundSocket.isInputClosed()) {
+			case False {			
+				this.inStream.readLine();
+			}
+			case True {
+				"";
+			}
+		}
+	}
+	
+	method writeLine(line) {
+		match (this.clientBoundSocket.isOutputClosed()) {
+			case False {
+				this.outStream.writeLine(line);
+			}
+			case True {
+				
+			}
+		}
+	}
+	
+	method flush() {
+		this.outStream.flush();
+	}
+	
+	method close() {
+		this.clientBoundSocket.close();
+		this <- DisconnectedClientSocket;
+	}
+}

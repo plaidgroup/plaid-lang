@@ -1,0 +1,63 @@
+package plaid.compiler.permissions;
+
+import plaid.compiler.Permission;
+
+/**
+ *	Unique Permission
+ */
+state UniquePermission case of SingularPermission{
+	
+	/**
+	 *  Unique permissions give write access to fields
+	 */
+	method immutable Boolean isWritable() { true }
+	
+	/**
+   *  Unique permissions give write access to fields
+   */
+	method immutable Boolean guaranteesState() { true }
+	
+	method immutable Boolean ==(immutable Permission p2) {
+		match(p2) {
+			case UniquePermission { true }
+			default { false }
+		};
+	}
+	
+	method immutable String toString() { "unique" }
+
+	/**
+	 * Any non-borrowed, non-dynamic permission can be split from
+	 * a unique
+	 */
+	method immutable ?Permission splitPerm(immutable Permission p2)
+	                                    [immutable UniquePermission this]	 {
+		match(p2) {
+			case UniquePermission { NONEP }  // unique => unique/none
+			case SharedPermission { p2 } // unique => shared<?>/shared<?>
+			case ImmutablePermission { IMMUTABLE } // unique => immutable/immutable
+			case NonePermission { this } // unique => none/unique
+			case LocalPermission {
+				//unique => local(sym)/borrow(sym,unique,1)
+				makeBorrowedPerm(p2.thePerm,UNIQUE,1) 
+			}
+			default { unit }
+		};
+	}
+	
+	/**
+	 * none is the only permission that should ever be returned to
+	 * a unique permission, otherwise, something went wrong
+	 */
+	method immutable ?Permission returnPerm(immutable Permission p2)
+	                                    [immutable UniquePermission this]
+	{
+		match (p2) {
+		  case NonePermission { this }
+		  default { 
+		  	this.incompatibleReturnError(p2);
+		  	unit
+		  }
+		}
+	}
+}

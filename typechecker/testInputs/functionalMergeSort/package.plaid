@@ -1,0 +1,222 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package testInputs.functionalMergeSort;
+
+
+
+state List {
+	method immutable List add(immutable Integer >> void i)[immutable List >> immutable List];
+	method immutable List copy()[immutable List>> immutable List];
+	method immutable List copyEven()[immutable List >> immutable List];
+	method immutable List copyOdd()[immutable List >> immutable List];
+	method immutable List merge(immutable List >> void other)[immutable List >> void];
+}
+
+state Cons case of List {
+	
+	//method immutable List merge(immutable List >> immutable List other)[immutable Cons >> immutable Cons] {
+	//	match (other) {
+	//		case Nil { this.copy(); }
+	//		case Cons {
+	//			match (this.data <= other.data) {
+	//				case True {
+	//					val immutable List otherCopy = other;  //Have to do this to make sure that other does not become a generic List - could make a better rule for joining that includes immutable
+	//					new Cons {
+	//						val immutable List next = this.next.merge(otherCopy);
+	//						val immutable Integer data = this.data;
+	//					}
+	//				}
+	//				case False {
+	//					val immutable List thisCopy = this;
+	//					new Cons {
+	//						val immutable List next = other.next.merge(thisCopy);
+	//						val immutable Integer data = other.data;
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+	
+	method immutable List merge(immutable Cons >> void other)[immutable Cons >> void] {
+		match (this!data <= other!data) {
+			case True {
+				val immutable List toMatch = this!next; //need to do this, otherwise this.next in the body is just a generic List
+				match (toMatch) {
+					case Cons {
+						new Cons {
+							val immutable List next = toMatch.merge(other);
+							val immutable Integer data = this!data;
+						}
+					}
+					case Nil {
+						new Cons {
+							val immutable List next = other;
+							val immutable Integer data = this!data;
+						}
+					}
+				}
+			}
+			case False {
+				val immutable List toMatch = other!next;
+				match (toMatch) {
+					case Nil {
+						new Cons {
+							val immutable List next = this;
+							val immutable Integer data = other!data;
+						}
+					}
+					case Cons {
+						new Cons {
+							val immutable List next = toMatch.merge(this);
+							val immutable Integer data = other!data;
+						}
+					}
+				}
+			}	
+		}
+	}
+	
+	val immutable List next;
+	val immutable Integer data;
+
+	method immutable List add(immutable Integer >> void i)[immutable Cons >> immutable Cons] {
+		match (this!data <= i) {
+			case True { //insert here
+				new Cons {
+					val immutable List next = this.copy();
+					val immutable Integer data = i;
+				}
+			}
+			case False {
+				new Cons {
+					val immutable List next = this!next.add(i);
+					val immutable Integer data = this!data;
+				}
+			}
+		}
+	}
+
+	method immutable List copy()[immutable Cons >> immutable Cons] {
+		new Cons {
+			val immutable List next = this!next.copy();
+			val immutable Integer data = this!data;
+		}
+	}
+
+	method immutable List copyEven()[immutable Cons >> immutable Cons] {
+		new Cons {
+			val immutable List next = this!next.copyOdd();
+			val immutable Integer data = this!data;
+		}
+	}
+
+	method immutable List copyOdd()[immutable Cons >> immutable Cons] {
+		this!next.copyEven();
+	}	
+
+	
+}
+
+state Nil case of List {
+	method immutable List add(immutable Integer >> void i)[immutable Nil >> immutable Nil] {
+		new Cons {
+			val immutable List next = new Nil;
+			val immutable Integer data = i;
+		}
+	}
+
+	method immutable List copy()[immutable Nil >> immutable Nil] {
+		new Nil;
+	}
+
+	method immutable List copyEven()[immutable Nil >> immutable Nil] {
+		new Nil;
+	}
+
+	method immutable List copyOdd()[immutable Nil >> immutable Nil] {
+		new Nil;
+	}
+
+	method immutable List merge(immutable List >> void other)[immutable List >> void] {
+		match (other) {
+			case Nil { new Nil }
+			case Cons { other.copy(); }
+		}
+	}
+}
+
+val (immutable List >> void) -> immutable List mergeSort = fn (immutable List >> void list) => {
+	match (list) {
+		case Nil { new Nil }
+		case Cons {
+			match (list!next) {
+				case Nil { //base case
+					list.copy();
+				}
+				case Cons {
+					val immutable List left = list.copyEven();
+					val immutable List right = list.copyOdd();
+					val immutable List sortedLeft = mergeSort(left);
+					val immutable List sortedRight = mergeSort(right);
+					sortedLeft.merge(sortedRight);
+				}
+			}
+		}
+	}
+};
+
+val (immutable List >> immutable List) -> void printList = fn (immutable List >> immutable List list) => { 
+	match(list) {
+		case Nil { }
+		case Cons { 
+			//java.lang.System.out.print("" + list!data + " ");
+			printList(list!next);
+		}
+	}
+};
+
+method void main()[void >> void] {
+	val immutable List testList = 
+		new Cons {
+			val immutable Integer data = 4;
+			val immutable List next = new Cons {
+				val immutable Integer data = 8;
+				val immutable List next = new Cons {
+					val immutable Integer data = 1;
+					val immutable List next = new Cons {
+						val immutable Integer data = 2;
+						val immutable List next = new Cons {
+							val immutable Integer data = 5;
+							val immutable List next = new Cons {
+								val immutable Integer data = 0;
+								val immutable List next = new Nil;
+							};
+						};	
+					};
+				};
+			};
+		};
+	//printList(testList);
+	val immutable List sortedList = mergeSort(testList);
+	//java.lang.System.out.println("");
+	printList(sortedList);
+}
+

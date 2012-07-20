@@ -1,0 +1,436 @@
+package plaid.typechecker.rewriting.tests;
+
+import plaid.ast.*;
+import plaid.testing.*;
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.IMM;
+import plaid.typechecker.context.*;
+import plaid.ast.stateTable.*;
+import plaid.typechecker.rewriting.*;
+import plaid.ast.types.permissions.*;
+
+val letBindingTests = fn(unique Tester tester) => {
+	var newAst = unit;
+	var oldAst = unit;
+	var goalAst = unit;
+	val unique LetNormalFormVisitor lnfVisitor = new LetNormalFormVisitor;
+		
+/*	System.out.println("Testing Let Transformation");
+	testName("lnf-let-bare");	//let x = y in x.b
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeID(makeToken(),"y"),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalAst = makeBorrow(makeToken(),
+					     makeID(makeToken(),"x"),
+					     makeID(makeToken(),"y"),
+					     makeBorrow(makeToken(),
+					     			makeTempID(makeToken(),"t1"),
+					     			makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					     			makeTempID(makeToken(),"t1"),
+					     			false),
+					     false);
+	//borrow x = y in borrow t1 = x.b in t1
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-let-read1");	//let x = y.f in x.b
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"f")),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalAst = makeBorrow(makeToken(),
+					     makeID(makeToken(),"x"),
+					     makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"f")),
+					     makeBorrow(makeToken(),
+					     			makeTempID(makeToken(),"t1"),
+					     			makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					     			makeTempID(makeToken(),"t1"),
+					     			false),
+					     false);
+	//borrow x = y.f in borrow t1 = x.b in t1
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};
+	
+	testName("lnf-let-read2");	//let x = y.g.f in x. b
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeDereference(makeToken(),
+					 				 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"g")),
+					 				 makeID(makeToken(),"f")),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalAst = makeBorrow(makeToken(),
+						 makeTempID(makeToken(),"t2"),
+						 makeDereference(makeToken(),makeID(makeToken(),"y"),makeID(makeToken(),"g")),
+						 makeBorrow(makeToken(),
+							        makeID(makeToken(),"x"),
+							        makeDereference(makeToken(),makeTempID(makeToken(),"t2"),makeID(makeToken(),"f")),
+							        makeBorrow(makeToken(),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   false),
+							        false),
+						  false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	
+	testName("lnf-let-complex");	//let x = f(a) in x.b
+	var oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"a"));
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeApplication(makeToken(),makeID(makeToken(),"f"),oldArgs),
+					 makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	var goalArgs = makeEmptyList(); goalArgs.add(makeID(makeToken(),"a"));
+	goalAst = makeTake(makeToken(),
+						 makeTempID(makeToken(),"t2"),
+						 makeApplication(makeToken(),makeID(makeToken(),"f"),goalArgs),
+						 makeTake(makeToken(),
+							        makeID(makeToken(),"x"),
+							        makeTempID(makeToken(),"t2"),
+							        makeBorrow(makeToken(),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   makeDereference(makeToken(),makeID(makeToken(),"x"),makeID(makeToken(),"b")),
+							     			   makeTempID(makeToken(),"t1"),
+							     			   false),
+							        false),
+						  false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	
+	testName("lnf-let-complex (literals)");	//let x = f(a) in unit
+	oldArgs = makeEmptyList(); oldArgs.add(makeID(makeToken(),"a"));
+	oldAst = makeLet(makeToken(), 
+					 makeID(makeToken(),"x"),
+					 makeApplication(makeToken(),makeID(makeToken(),"f"),oldArgs),
+					 new UnitLiteral { val token = makeToken(); },
+					 false);
+	newAst = oldAst.accept(lnfVisitor).first();				    
+	goalArgs = makeEmptyList(); goalArgs.add(makeID(makeToken(),"a"));
+	goalAst = makeTake(makeToken(),
+						 makeTempID(makeToken(),"t2"),
+						 makeApplication(makeToken(),makeID(makeToken(),"f"),goalArgs),
+						 makeTake(makeToken(),
+							        makeID(makeToken(),"x"),
+							        makeTempID(makeToken(),"t2"),
+							       	makeTake(makeToken(),
+							       			 makeTempID(makeToken(),"t3"),
+							       			 new UnitLiteral { val token = makeToken(); },
+							       			 makeTempID(makeToken(),"t3"),
+							       			 false),
+							        false),
+						  false);
+	match (newAst == goalAst) {
+		case True {
+			tester.testPassed(true);
+		}
+		case False {
+			tester.testPassed(false);
+			printErrorASTs(oldAst,newAst,goalAst);
+		}
+	};	
+	System.out.println("");
+*/	
+	
+	System.out.println("Testing Let Binding ObjectType inference");
+	var typefetcher = unit;
+	var st = new StateTable;
+	var cIn = unit;
+	var cOut = unit;
+	var result = unit;
+	var goalType = unit;
+	var oldFnType = unit;
+/*	
+	testName("obj-take succeed");
+	st = new StateTable;
+	cIn = new Context;
+	cIn.put(makeID(makeToken(),"y"),getIntegerType());
+	typefetcher = new TypeFetchVisitor { val st = st; val context = cIn; };
+	cOut = cIn.copy();
+	oldAst = makeTake(makeToken(),
+					  makeID(makeToken(),"x"),
+					  makeID(makeToken(),"y"),
+					  makeID(makeToken(),"y"),
+					  false);
+	newAst = oldAst.copy();
+	newAst.addObjectType(getIntegerType());
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,"error in typing: " + result.errorMsg);
+		}
+		default {
+			match (cIn == cOut) {
+				case True {
+					match (result == getIntegerType()) {
+						case True {
+							match (oldAst == newAst) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "Ast transformed incorrectly")
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "returned type not correct")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "context should not be updated")
+				}
+			}
+		}
+	};
+	
+	testName("obj-borrow succeed");
+	oldAst = makeBorrow(makeToken(),
+					  makeID(makeToken(),"x"),
+					  makeID(makeToken(),"y"),
+					  makeID(makeToken(),"y"),
+					  false);
+	newAst = oldAst.copy();
+	newAst.addObjectType(getIntegerType());
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,"error in typing: " + result.errorMsg);
+		}
+		default {
+			match (cIn == cOut) {
+				case True {
+					match (result == getIntegerType()) {
+						case True {
+							match (oldAst == newAst) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "Ast transformed incorrectly")
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "returned type not correct")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "context should not be updated")
+				}
+			}
+		}
+	};
+	
+	testName("obj-let fail to type expression");
+	oldAst = makeBorrow(makeToken(),
+					  makeID(makeToken(),"x"),
+					  makeID(makeToken(),"z"),
+					  makeID(makeToken(),"y"),
+					  false);
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.errorMsg);
+		}
+		default {
+			tester.testPassed(true)
+		}
+	};
+	
+	testName("obj-let fail to type body");
+	cIn = new Context;
+	cIn.put(makeID(makeToken(),"y"),getIntegerType());
+	typefetcher = new TypeFetchVisitor { val st = st; val context = cIn; };
+	oldAst = makeBorrow(makeToken(),
+					  makeID(makeToken(),"x"),
+					  makeID(makeToken(),"y"),
+					  makeID(makeToken(),"z"),
+					  false);
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(true,result.errorMsg);
+		}
+		default {
+			tester.testPassed(true)
+		}
+	};
+	
+	testName("obj-take(typed) succeed");
+	cIn = new Context;
+	cIn.put(makeID(makeToken(),"y"),getIntegerType());
+	typefetcher = new TypeFetchVisitor { val st = st; val context = cIn; };
+	oldAst = makeTake(makeToken(),
+					  makeID(makeToken(),"x"),
+					  makeID(makeToken(),"y"),
+					  makeID(makeToken(),"y"),
+					  false);
+	oldAst.addPermType(createPermType(IMM,getIntegerType()));
+	newAst = oldAst.copy();
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,"error in typing: " + result.errorMsg);
+		}
+		default {
+			match (cIn == cOut) {
+				case True {
+					match (result == getIntegerType()) {
+						case True {
+							match (oldAst == newAst) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "Ast transformed incorrectly")
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "returned type not correct")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "context should not be updated")
+				}
+			}
+		}
+	};
+	
+	testName("obj-take(typed) tricky succeed");
+	cIn = new Context;
+	cIn.put(makeID(makeToken(),"y"),getIntegerType());
+	typefetcher = new TypeFetchVisitor { val st = st; val context = cIn; };
+	oldAst = makeTake(makeToken(),
+					  makeID(makeToken(),"x"),
+					  makeID(makeToken(),"y"),
+					  makeID(makeToken(),"x"),
+					  false);
+	oldAst.addPermType(createPermType(IMM,getBooleanType()));
+	newAst = oldAst.copy();
+	result = oldAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,"error in typing: " + result.errorMsg);
+		}
+		default {
+			match (cIn == cOut) {
+				case True {
+					match (result == getBooleanType()) {
+						case True {
+							match (oldAst == newAst) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "Ast transformed incorrectly")
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "returned type not correct")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "context should not be updated")
+				}
+			}
+		}
+	};
+*/	
+	testName("obj-take function");
+	cIn = new Context;
+	cOut = new Context;
+	typefetcher = new TypeFetchVisitor { val st = st; val context = cIn; };
+	oldFnType = createLambdaType(getDynPermType(),makeEmptyList(),java.util.HashMap.new());
+	oldAst = makeTake(
+		makeToken(), 
+		makeTempID(makeToken(),"x"),
+		makeLambda(makeToken(), makeEmptyList(),new UnitLiteral, oldFnType, new None),
+		makeTempID(makeToken(),"x"),
+		false); 
+	val newFnType = createLambdaType(getUnitType(),makeEmptyList(),java.util.HashMap.new());
+	goalAst = makeTake(
+		makeToken(), 
+		makeTempID(makeToken(),"x"),
+		makeLambda(makeToken(), makeEmptyList(),new UnitLiteral, newFnType, new None),
+		makeTempID(makeToken(),"x"),
+		false); 
+	goalAst.addObjectType(newFnType);
+	newAst = oldAst.copy();
+	result = newAst.accept(typefetcher);
+	match(result) {
+		case ErrObjectType {
+			tester.testPassedMsg(false,"error in typing: " + result.errorMsg);
+		}
+		default {
+			match (cIn == cOut) {
+				case True {
+					match (result == newFnType) {
+						case True {
+							match (goalAst == newAst) {
+								case True {
+									tester.testPassed(true);
+								}
+								case False {
+									tester.testPassedMsg(false, "Ast transformed incorrectly")
+									
+								}
+							}
+						}
+						case False {
+							tester.testPassedMsg(false, "returned type not correct")
+						}
+					}
+				}
+				case False {
+					tester.testPassedMsg(false, "context should not be updated")
+				}
+			}
+		}
+	};
+	
+	
+	
+};

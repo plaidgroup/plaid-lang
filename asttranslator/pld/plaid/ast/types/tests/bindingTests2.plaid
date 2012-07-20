@@ -1,0 +1,372 @@
+package plaid.ast.types.tests;
+
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+import plaid.ast.stateTable.StateTable;
+import java.lang.System;
+
+val () -> void bindingTests2 = fn () => {
+
+	//System.out.println("---------------------------");
+	//System.out.println("|      BINDING TESTS      |");
+	//System.out.println("---------------------------");
+
+	//create the state table for testing
+	val /*unique Map<immtuable ID,immutable StateType>*/ temp = java.util.HashMap.new();
+	
+	//unit - just in case
+	val u = makeID(makeToken(),"unit");
+	temp.put(u, new StateType { val name = u; val superType = new None; });
+	
+	//Top
+	val top = makeID(makeToken(),"Top");
+	val topType = new StateType { val name = top; val superType = new None; };
+	temp.put(top, topType);
+	val topNomType = createNominalType(top);
+	
+	//A
+	val a = makeID(makeToken(),"A");
+	val aType = new StateType { val name = a; val superType = makeSome(topType);};
+	temp.put(a,aType);
+	
+	//B
+	val b = makeID(makeToken(),"B");
+	val bType = new StateType { val name = b; val superType = makeSome(topType);};
+	temp.put(b,bType);
+	
+	//B
+	val c = makeID(makeToken(),"C");
+	val cType = new StateType { val name = c; val superType = makeSome(aType);};
+	temp.put(c,cType);
+	
+	//construct StateTable
+	val unique StateTable st = new StateTable { override val states = temp; };
+	//System.out.println("Testing state configuration:");
+	//st.printTable();
+	//System.out.println("");
+	var res = unit;
+	var start = unit;
+	var taking = unit;
+
+	System.out.println("testing split");
+	start = createTakeType(UNIQUE,createNominalType(a));
+	taking = createBorrowType(UNIQUE, createNominalType(a),
+														 UNIQUE, true);
+	testName("split take to strongly borrowed succeed");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {
+			match (res.value == createBorrowType(NONEP, createNominalType(a), NONEP, true)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false, "split returned wrong Binding") }
+			}
+		}
+		case None {
+			testPassedMsg(false,"split failed");	
+		}
+	};
+	start = createTakeType(UNIQUE,createNominalType(a));
+	taking = createBorrowType(UNIQUE, createNominalType(b),
+														 UNIQUE, true);
+	testName("split take to strongly borrowed fail (object subtyping)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {
+			testPassed(false)
+		}
+		case None {
+			testPassed(true);	
+		}
+	};
+	start = createTakeType(IMMUTABLE,createNominalType(a));
+	taking = createBorrowType(UNIQUE, createNominalType(a),
+							    UNIQUE, true);
+	testName("split take to strongly borrowed fail (permission splitting)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {
+			testPassed(false)
+		}
+		case None {
+			testPassed(true);	
+		}
+	};
+	start = createTakeType(UNIQUE,createNominalType(a));
+	taking = createBorrowType(IMMUTABLE, createNominalType(a),
+														 NONE, false);
+	testName("split take to borrowed succeed");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {
+			match (res.value == createBorrowType(IMMUTABLE, createNominalType(a), NONEP, false)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false, "split returned wrong Binding") }
+			}
+		}
+		case None {
+			testPassedMsg(false,"split failed");	
+		}
+	};
+	start = createTakeType(UNIQUE,createNominalType(a));
+	taking = createBorrowType(IMMUTABLE, createNominalType(b),
+								NONE, false);
+	testName("split take to borrowed fail (object subtyping)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	start = createTakeType(NONEP,createNominalType(a));
+	taking = createBorrowType(IMMUTABLE, createNominalType(b),
+								NONE, false);
+	testName("split take to borrowed fail (permission splitting)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+	start = createTakeType(UNIQUE,createNominalType(a));
+	taking = createTakeType(IMMUTABLE, createNominalType(a));
+	testName("split take to take succeed");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {
+			match (res.value == createTakeType(IMMUTABLE, createNominalType(a))) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false, "split returned wrong Binding") }
+			}
+		}
+		case None {
+			testPassedMsg(false,"split failed");	
+		}
+	};
+	start = createTakeType(UNIQUE,createNominalType(a));
+	taking = createTakeType(IMMUTABLE, createNominalType(b));
+	testName("split take to take fail (object subtyping)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	start = createTakeType(NONEP,createNominalType(a));
+	taking = createTakeType(IMMUTABLE, createNominalType(b));
+	testName("split take to take fail (permission splitting)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+	start = createBorrowType(IMMUTABLE,createNominalType(a),UNIQUE,true);
+	taking = createBorrowType(IMMUTABLE, createNominalType(a),IMMUTABLE, true);
+	testName("split strongly borrowed to strongly borrowed succeed");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {
+			match (res.value == createBorrowType(IMMUTABLE, createNominalType(a), IMMUTABLE, true)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false, "split returned wrong Binding") }
+			}
+		}
+		case None {
+			testPassedMsg(false,"split failed");	
+		}
+	};
+	start = createBorrowType(IMMUTABLE,createNominalType(a),UNIQUE,true);
+	taking = createBorrowType(IMMUTABLE, createNominalType(b),IMMUTABLE, true);
+	testName("split strongly borrowed to strongly borrowed fail (object subtyping)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	start = createBorrowType(IMMUTABLE,createNominalType(a),UNIQUE,true);
+	taking = createBorrowType(UNIQUE, createNominalType(a),UNIQUE, true);
+	testName("split strongly borrowed to strongly borrowed fail (permission splitting)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+	start = createBorrowType(UNIQUE,createNominalType(a),IMMUTABLE,false);
+	taking = createBorrowType(IMMUTABLE, createNominalType(a),IMMUTABLE, true);
+	testName("split borrowed to strongly borrowed succeed");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {
+			match (res.value == createBorrowType(IMMUTABLE, createNominalType(a), IMMUTABLE, true)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false, "split returned wrong Binding") }
+			}
+		}
+		case None {
+			testPassedMsg(false,"split failed");	
+		}
+	};
+	start = createBorrowType(UNIQUE,createNominalType(a),IMMUTABLE,false);
+	taking = createBorrowType(IMMUTABLE, createNominalType(b),IMMUTABLE, true);
+	testName("split borrowed to strongly borrowed fail (object subtyping)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	start = createBorrowType(IMMUTABLE,createNominalType(a),NONEP,false);
+	taking = createBorrowType(UNIQUE, createNominalType(a),UNIQUE, true);
+	testName("split borrowed to strongly borrowed fail (permission splitting)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+	start = createBorrowType(UNIQUE,createNominalType(a),UNIQUE,true);
+	taking = createBorrowType(UNIQUE, createNominalType(a),IMMUTABLE, false);
+	testName("split strongly borrowed to borrowed fail");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	start = createBorrowType(UNIQUE,createNominalType(a),UNIQUE,true);
+	taking = createTakeType(UNIQUE, createNominalType(a));
+	testName("split strongly borrowed to take fail");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+	start = createBorrowType(UNIQUE,createNominalType(a),IMMUTABLE,false);
+	taking = createBorrowType(UNIQUE, createNominalType(a),IMMUTABLE, false);
+	testName("split borrowed to borrowed succeed");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {
+			match (res.value == createBorrowType(NONEP, createNominalType(a), NONEP, false)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false, "split returned wrong Binding") }
+			}
+		}
+		case None {
+			testPassedMsg(false,"split failed");	
+		}
+	};
+	start = createBorrowType(UNIQUE,createNominalType(a),IMMUTABLE,false);
+	taking = createBorrowType(UNIQUE, createNominalType(b),IMMUTABLE, false);
+	testName("split borrowed to borrowed fail (object subtyping)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	start = createBorrowType(IMMUTABLE,createNominalType(a),IMMUTABLE,false);
+	taking = createBorrowType(UNIQUE, createNominalType(a),IMMUTABLE, false);
+	testName("split borrowed to borrowed fail (permission splitting)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	start = createBorrowType(UNIQUE,createNominalType(a),IMMUTABLE,false);
+	taking = createBorrowType(UNIQUE, createNominalType(a),NONEP, false);
+	testName("split borrowed to borrowed fail (lower bound)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	
+	start = createBorrowType(UNIQUE,createNominalType(a),IMMUTABLE,false);
+	taking = createTakeType(IMMUTABLE, createNominalType(a));
+	testName("split borrowed to take succeed");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some {
+			match (res.value == createBorrowType(IMMUTABLE, createNominalType(a), IMMUTABLE, false)) {
+				case True { testPassed(true) }
+				case False { testPassedMsg(false, "split returned wrong Binding") }
+			}
+		}
+		case None {
+			testPassedMsg(false,"split failed");	
+		}
+	};
+	start = createBorrowType(UNIQUE,createNominalType(a),IMMUTABLE,false);
+	taking = createTakeType(IMMUTABLE, createNominalType(b));
+	testName("split borrowed to borrowed fail (object subtyping)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	start = createBorrowType(IMMUTABLE,createNominalType(a),IMMUTABLE,false);
+	taking = createTakeType(UNIQUE, createNominalType(a));
+	testName("split borrowed to borrowed fail (permission splitting)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	start = createBorrowType(UNIQUE,createNominalType(a),IMMUTABLE,false);
+	taking = createBorrowType(UNIQUE, createNominalType(a),NONEP, false);
+	testName("split borrowed to borrowed fail (lower bound)");
+	testCall("(" + start.toString() + ").splitBinding(" + taking.toString() + ")");
+	res = start.splitBinding(taking,st);
+	testResult(res.toString());
+	match (res) {
+		case Some { testPassed(false) }
+		case None { testPassed(true) }
+	};
+	System.out.println("");
+};

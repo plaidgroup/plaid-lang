@@ -1,0 +1,562 @@
+package plaid.ast;
+
+import plaid.ast.types.*;
+import plaid.ast.types.permissions.*;
+
+state ASTTranslator {
+	// TODO: Refactor this into a Plaid List library
+	method map(f, list) {
+		val iter = list.iterator();
+		val newList = new plaid.lang.List { var head = new plaid.lang.Nil; };
+		while {iter.hasNext();} {
+			newList.add(f(iter.next()));
+		};
+		newList
+	}
+	
+	method translateSet(fVal, set) {
+        val newSet = HashSet.new();
+        val iter = set.iterator();
+        while { iter.hasNext(); }{
+            newSet.add(fVal(iter.next()));
+        };
+        newSet;
+    }
+    
+    method translateMap(fKey, fVal, map) {
+    	val newMap = HashMap.new();
+    	val iter = map.keySet().iterator();
+    	var key = unit;
+    	while { iter.hasNext(); }{
+    		key = iter.next();
+    		newMap.put(fKey (key), fVal (map.get(key)));
+    	};
+    	newMap;
+    }
+	
+	method getToken(root) {
+		ifElse (root.hasToken()) {
+			new Some { val value = this.translateAST(root.getToken()); };
+		} {
+			new None;
+		};
+	}
+	
+	method translatePermission(root) {
+		// TODO: I'm not sure this is the correct way to translate this.
+		ifElse (root.equals(plaid.compilerjava.types.Permission.FULL)) {
+			new FullPermission {
+				val /*Option Token*/ token = this.getToken(root);
+				val /*String*/ image = root.getImage();
+			};
+		} {
+			ifElse (root.equals(plaid.compilerjava.types.Permission.IMMUTABLE)) {
+				new ImmutablePermission {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*String*/ image = root.getImage();
+				};
+			} {
+				ifElse (root.equals(plaid.compilerjava.types.Permission.PURE)) {
+					new PurePermission {
+						val /*Option Token*/ token = this.getToken(root);
+						val /*String*/ image = root.getImage();
+					};
+				} {
+					ifElse (root.equals(plaid.compilerjava.types.Permission.UNIQUE)) {
+						new UniquePermission {
+							val /*Option Token*/ token = this.getToken(root);
+							val /*String*/ image = root.getImage();
+						};
+					} {
+					    ifElse (root.equals(plaid.compilerjava.types.Permission.SHARED)) {
+					        new SharedPermission {
+                                val /*Option Token*/ token = this.getToken(root);
+                                val /*String*/ image = root.getImage();
+                                var /*Option<ID>*/ groupID = new None;
+                            };
+                        } {
+                        	ifElse (root.equals(plaid.compilerjava.types.Permission.DYN)) {
+                        		new DynPermission {
+                        			val /*Option Token*/ token = this.getToken(root);
+                                	val /*String*/ image = root.getImage();
+                        		}
+                        	
+                        	} {
+                        		ifElse (root.equals(plaid.compilerjava.types.Permission.NONE)) {
+                        			new NonePermission {
+                        				val /*Option Token*/ token = this.getToken(root);
+                                		val /*String*/ image = root.getImage();
+                        			}
+                        		} {
+                            		java.lang.System.out.println("Unknown Permission: ");
+									java.lang.System.out.println((root.getClass()).getName());
+									NONE;
+								};
+							};
+                        };              
+				    };
+				};
+			};
+		};
+	}
+	
+	method translateAST(root) {
+		match(root) {
+			case plaid.compilerjava.AST.Application {
+				new Application {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*Expression*/ f = this.translateAST(root.getFunction());
+					val /*Expression*/ arguments = this.map(fn (a) => this.translateAST(a), root.getArguments());
+				};
+			}
+			case plaid.compilerjava.AST.Assignment {
+				new Assignment {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*Option Expression*/ target = ifElse (root.hasTarget()) {
+							new Some { val value = this.translateAST(root.getTarget()); };
+						} {
+							new None;
+						};
+					val /*ID*/ field = this.translateAST(root.getField());
+					val /*Expression*/ value = this.translateAST(root.getValue());
+				};
+			}
+			case plaid.compilerjava.AST.AtomicBlock {
+				new AtomicBlock {
+					val immutable Token token  = this.getToken(root);
+					val unique ID id           = this.translateAST(root.getId());
+					val unique Expression body = this.translateAST(root.getBody());
+				};
+			}
+			case plaid.compilerjava.AST.Case {
+				new Case {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*Option QI*/ qi = ifElse (root.hasQi()) {
+							new Some { val value = this.translateAST(root.getQi()); };
+						} {
+							new None;
+						};
+					val /*ID*/ x = ifElse (root.hasX()) {
+							new Some { val value = this.translateAST(root.getX());};
+						} {
+							new None;
+						};
+					val /*Expression*/ e = this.translateAST(root.getE());
+					val /*boolean*/ defaultCase = root.isDefaultCase();
+					val /*boolean*/ boundVar = root.isBoundVar();
+				};
+			}
+			case plaid.compilerjava.AST.Cast {
+				new Cast {
+					val /*Option ID*/ theVar = NONE;
+					val /*Option PermType*/ startType = NONE;
+					val /*PermType*/ resultType = this.translatePermType(root.getPermType());
+					val /*Expression*/ body = this.translateAST(root.getExp());
+				}
+			}
+			case plaid.compilerjava.AST.ChangeState {
+				new ChangeState {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*Expression*/ e = this.translateAST(root.getE());
+					val /*State*/ s = this.translateAST(root.getSt());
+				};
+			}
+			case plaid.compilerjava.AST.CompilationUnit {
+				new CompilationUnit {
+					val /*List<Decl>*/ decls = this.map(this.translateAST, root.getDecls());
+					val /*List<String>*/ packageName = this.map(fn (s) => {s}, root.getPackageName());
+					val /*ImportList*/ imports = this.translateAST(root.getImports());
+					val /*String*/ sourceFile = root.getSourceFile().getName();
+				};
+			}
+			case plaid.compilerjava.AST.DeclList {
+				new DeclList {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*List<Decl>*/ decls = this.map(this.translateAST, root.getDecls());
+				};
+			}
+			case plaid.compilerjava.AST.Dereference {
+				new Dereference {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*Expression*/ left = this.translateAST(root.getLeft());
+					val /*ID*/ right = this.translateAST(root.getRight());
+				};
+			}
+			case plaid.compilerjava.AST.DestructiveDereference {
+				new DestructiveDereference {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*Expression*/ left = this.translateAST(root.getLeft());
+					val /*ID*/ right = this.translateAST(root.getRight());
+				}
+			}
+            case plaid.compilerjava.AST.DoubleLiteral {
+                new DoubleLiteral {
+                    val /*Option Token*/ token = this.getToken(root);
+                    val /*double*/ double = root.getValue();
+                };
+            }
+			case plaid.compilerjava.AST.FieldDecl {
+				new FieldDecl {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*ID*/ f = this.translateAST(root.getF());
+					val /*Expression*/ e = this.translateAST(root.getE());
+					val /*boolean*/ abstractField = root.isAbstractField();
+					val /*boolean*/ immutableField = root.getImmutable();
+					val /*boolean*/ overrides = root.isOverrides();
+					val /*FieldType*/ fieldType = this.translateDeclType(root.getFieldType());
+				};
+			}
+			case plaid.compilerjava.AST.GroupDecl {
+				new GroupDecl {
+					val immutable Token token = this.getToken(root);
+					val unique ID id = this.translateAST(root.getId());
+					val immutable Boolean isAbstract = root.isAbstract();
+				};
+			}
+			case plaid.compilerjava.AST.GroupParameter {
+			    new GroupParameter {
+			        val unique ID id = this.translateAST(root.getId());
+			        val unique GroupPermission permission = this.translateGroupPermission(root.getPermission());
+			    }
+			}
+			case plaid.compilerjava.AST.ID {
+				new ID {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*String*/ name = root.getName();
+				};
+			}
+			case plaid.compilerjava.AST.ImportList {
+				new ImportList {
+					val /*List<QualifiedID>*/ imports = this.map(this.translateAST, root.getImports());
+					val /*Option Token*/ token = this.getToken(root);
+				};
+			}
+			case plaid.compilerjava.AST.IntLiteral {
+				new IntLiteral {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*int*/ integer = root.getValue();
+				};
+			}
+			case plaid.compilerjava.AST.Lambda {
+				new Lambda {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*List<ID>*/ arguments = this.map(fn (a) => this.translateAST(a), root.getArguments());
+					val /*Expression*/ body = this.translateAST(root.getBody());
+					val /*LambdaType*/ lambdaType = this.translateObjectType(root.getType());
+					var /*Option ID*/ recursiveName = 
+						match (root.isNamed()) {
+							case True {
+								makeSome(this.translateAST(root.getRecursiveName()));
+							}
+							case False {
+								new None;
+							}
+						};
+				};
+			}
+			case plaid.compilerjava.AST.LetBinding {
+				ifElse (root.isAnnotated()) {
+					ifElse (root.isTaken()) {
+						makeAnnotatedTake(this.getToken(root),
+										  this.translateAST(root.getX()),
+										  this.translateAST(root.getExp()),
+										  this.translateAST(root.getBody()),
+										  root.isMutable(),
+										  this.translatePermType(root.getPermType()))
+					} {
+						makeAnnotatedLet(this.getToken(root),
+										 this.translateAST(root.getX()),
+										 this.translateAST(root.getExp()),
+										 this.translateAST(root.getBody()),
+										 root.isMutable(),
+										 this.translatePermType(root.getPermType()))
+					}
+				} {
+					ifElse (root.isTaken()) {
+						makeTake(this.getToken(root),
+								 this.translateAST(root.getX()),
+								 this.translateAST(root.getExp()),
+								 this.translateAST(root.getBody()),
+								 root.isMutable())
+					} {
+						makeLet(this.getToken(root),
+								this.translateAST(root.getX()),
+								this.translateAST(root.getExp()),
+								this.translateAST(root.getBody()),
+								root.isMutable())
+					}
+				}
+			}
+			case plaid.compilerjava.AST.Match {
+				new Match {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*Expression*/ e = this.translateAST(root.getE());
+					val /*List<Case>*/ caseList = this.map(this.translateAST, root.getCaseList());
+				};
+			}
+			case plaid.compilerjava.AST.MetaDereference {
+                new MetaDereference {
+                    val /* ID */ variable = this.translateAST(root.getVariable());
+                    val /* ID */ selector = this.translateAST(root.getSelector());
+                }
+            }
+			case plaid.compilerjava.AST.MetaVariable {
+			    new MetaVariable {
+			        val /* ID */ id = this.translateAST(root.getID());
+			    }
+			}
+			case plaid.compilerjava.AST.MetaTypeArgument {
+			    new MetaTypeArgument {
+			        val /* unique PermType */ permType = translatePermType(root.getPermType());
+			    }
+			}
+			case plaid.compilerjava.AST.MethodCall {
+				new MethodCall {
+					val /*Expression*/ receiver = this.translateAST(root.getReceiver());
+					val /*ID*/ methodName = this.translateAST(root.getMethod());
+					val /*Expression*/ arguments = this.map(fn (a) => this.translateAST(a), root.getArguments());
+					val /*Option Token*/ token = this.getToken(root);
+				}
+			}
+			case plaid.compilerjava.AST.MethodDecl {
+				new MethodDecl {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*String*/ name = root.getName();
+					val /*Expression*/ body = this.translateAST(root.getBody());
+					val /*List<ID>*/ arguments = this.map(fn (a) => this.translateAST(a), root.getArguments());
+					val /*boolean*/ abstractMethod = root.isAbstractMethod();
+					val /*boolean*/ overrides = root.isOverrides();
+					val /*MethodTypeDecl*/ methodType = this.translateDeclType(root.getMethodType());
+				};
+			}
+			case plaid.compilerjava.AST.NewInstance {
+				new NewInstance {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*State*/ s = this.translateAST(root.getSt());
+				};
+			}
+			case plaid.compilerjava.AST.QI {
+				new QI {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*List<String>*/ qid = this.map(fn (s) => {s}, root.getQid());
+					val /*Option DeclList*/ initState = ifElse (root.hasInit()) {
+							new Some { val value = this.translateAST(root.getInitState()); };
+						} {
+							new None;
+						};
+				};
+			}
+			case plaid.compilerjava.AST.SplitBlock {
+				new SplitBlock {
+					val immutable Token token           = this.getToken(root);
+					val /*List<MetaArgument>*/ metaArgs = this.map(fn (ma) => this.translateAST(ma), root.getMetaArgs());
+					val /*List<Expression>*/ body       = this.map(fn (e) => this.translateAST(e), root.getBody());
+				};
+			}
+			case plaid.compilerjava.AST.StateDecl {
+				new StateDecl {
+					val /*Option<Token>*/ token = this.getToken(root);
+					val /*ID*/ name = this.translateAST(root.getID());
+					val /*State*/ stateDef = this.translateAST(root.getStateDef());
+					val /*boolean*/ isCaseOf = root.getIsCaseOf();
+					val /*QI*/ caseOf = ifElse (root.getIsCaseOf()) {
+							new Some { val value = this.translateAST(root.getCaseOf()); };
+						} {
+							new None;
+						};
+                    val /* List<MetaParameter> */ metaParams = map(fn (p) => this.translateAST(p), root.getMetaParameters());
+                    val /* List<MetaArgument> */ metaCaseOfArgs = map(fn (p) => this.translateAST(p), root.getMetaCaseOfArguments());
+				};
+			}
+			case plaid.compilerjava.AST.StringLiteral {
+				new StringLiteral {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*String*/ string = root.toString();
+				};
+			}
+			case plaid.compilerjava.AST.TypeParameter {
+			    new TypeParameter {
+			        val unique ID id = this.translateAST(root.getId());
+			        val unique Type caseOf = match (root.getCaseOf() ) {
+			                                     case  plaid.compilerjava.types.ObjectType  {
+			                                         ifElse ( root.getCaseOf().getNominalType().getName().equals("unit") ) { 
+			                                             new UnitLiteral { val token = new None; }
+			                                         }{
+			                                             this.translatePermType(root.getCaseOf());
+			                                         };
+			                                     }
+			                                     default { 
+			                                         this.translatePermType(root.getCaseOf()); 
+			                                     }			                                     
+			                                 };
+			    }
+			}
+			case plaid.compilerjava.AST.UnitLiteral {
+				new UnitLiteral {
+					val /*Option Token*/ token = this.getToken(root);
+				};
+			}
+			case plaid.compilerjava.AST.UnpackInnerGroups {
+				new UnpackInnerGroups {
+					val immutable Token token = this.getToken(root);
+					val unique Expression body = this.translateAST(root.getBody());
+				};
+			}
+			case plaid.compilerjava.AST.With {
+				new With {
+					val /*Option Token*/ token = this.getToken(root);
+					val /*State*/ s1 = this.translateAST(root.getR1());
+					val /*State*/ s2 = this.translateAST(root.getR2());
+				};
+			}
+			case plaid.compilerjava.util.QualifiedID {
+				new QI {
+					val /*Option Token*/ token = unit;
+					val /*List<String>*/ qid = this.map(fn (s) => {s},  root.getQidList());
+				};
+			}
+			case plaid.compilerjava.coreparser.Token { 
+			    new Token {
+			        val beginLine   = root.beginLine;
+			        val beginColumn = root.beginColumn;
+			        val endLine     = root.endLine;
+			        val endColumn   = root.endColumn;
+			        val image       = root.image;
+			    };
+			}
+			default {
+				java.lang.System.out.print("Unknown AST node type: ");
+				java.lang.System.out.println((root.getClass()).getName());
+			}
+		}
+	}
+	
+	method unique GroupPermission translateGroupPermission(/* unqiue plaid.compilerjava.AST.GroupPermission */ permission) {
+	    var unique GroupPermission result = new types.groupPermissions.UndefinedGroupPermission;
+	    
+        if( plaid.compilerjava.AST.GroupPermission.EXCLUSIVE.equals(permission) ) {
+            result = new types.groupPermissions.ExclusiveGroupPermission;
+        };
+        if( plaid.compilerjava.AST.GroupPermission.SHARED.equals(permission) ) {
+            result = new types.groupPermissions.SharedGroupPermission;
+        };
+        if( plaid.compilerjava.AST.GroupPermission.PROTECTED.equals(permission) ) {
+            result = new types.groupPermissions.ProtectedGroupPermission;
+        };
+        if( plaid.compilerjava.AST.GroupPermission.MUTABLE.equals(permission) ) {
+            result = new types.groupPermissions.MutableGroupPermission;
+        };
+        if( plaid.compilerjava.AST.GroupPermission.READONLY.equals(permission) ) {
+            result = new types.groupPermissions.ReadonlyGroupPermission;
+        };
+     
+        result
+	}
+	
+	method unique ChangeType translateChangeType(/*unique plaid.compilerjava.types.ChangeType*/ type) {
+		val unique PermType i = this.translatePermType(type.getInput());
+		val unique PermType o = this.translatePermType(type.getOutput());
+		
+		ifElse (o.perm == NONEP) { //No borrowing involved - take bindings
+			new ChangeType {
+				val immutable PermType input = i;
+				val immutable PermType output = VOID;
+				val immutable Boolean strongBorrow = false;
+			};
+		} {
+			new ChangeType {
+				val immutable PermType input = i;
+				val immutable PermType output = o; 
+				val immutable Boolean strongBorrow = type.stronglyBorrows(); // strong or weak borrowing depending on change Type
+			};
+		}
+	}
+	
+	method unique PermType translatePermType(/*unique plaid.compilerjava.types.PermType*/ type) {
+		new PermType {
+			val immutable Permission perm = ifElse (type.hasGroup()) {
+			    val perm = this.translatePermission(type.getPermission());
+                perm.groupID = new Some { val value = this.translateAST(type.getGroup()); };
+                perm
+			}{
+			    this.translatePermission(type.getPermission());
+			};
+			val /*?? ObjectType*/ type = this.translateObjectType(type.getType());
+		}
+	
+	}
+	
+	method unique ObjectType translateObjectType(/*unique plaid.compilerjava.types.Type*/ type) {
+		match (type) {
+			case plaid.compilerjava.types.LambdaType {
+				new LambdaType {
+					var /*PermType*/ returnType = this.translatePermType(type.getReturnType());
+					val /*List<ChangeType>*/ argTypes = this.map(this.translateChangeType, type.getArgTypes());
+					val /*Map<ID,ChangeType>*/ environmentTypes = this.translateMap(this.translateAST, this.translateChangeType, type.getEnvironmentTypes());
+				}
+			}
+			case plaid.compilerjava.types.ObjectType {
+				ifElse (type.isNominal()) {
+					val typeName = this.translateAST(type.getNominalType());
+					match (typeName == makeID(makeToken(),"dyn")) {
+						case True { new Dyn }
+						case False { 
+							new NominalType {
+								val /*ID*/ typeName = this.translateAST(type.getNominalType());
+							}
+						}
+					}
+				}/* else */ {
+					new StructuralType {
+						val /*Set<ID>*/ typeAbbrevs = this.translateSet(this.translateAST, type.getTypeAbbrevs());
+						val /*Set<TypeDecl>*/ typeDecls = this.translateSet(this.translateAST, type.getTypeDecls());
+					};
+				}
+			}
+		}
+	}
+	
+	
+	method unique DeclType translateDeclType(type) {
+		match (type) {
+			case plaid.compilerjava.types.FieldType {
+				new FieldType {
+					val /*ID*/ name = this.translateAST(type.getName());
+					val /*TypeBinding*/ binding = createTakeTypeFromPT(this.translatePermType(type.getPermType()));
+					val /*boolean*/ isImmutable = type.isImmutable();
+				}
+			}
+			case plaid.compilerjava.types.MethodType {
+				new MethodType {
+					val /*ID*/ name = this.translateAST(type.getName());
+					val /*TakeBinding*/ returnType = createTakeTypeFromPT(this.translatePermType(type.getReturnType()));
+					val /*List<ChangeType>*/ argTypes = this.map(this.translateChangeType, type.getArgTypes());
+					val /*ChangeType*/ receiverType = this.translateChangeType(type.getReceiverType());
+					val /*Map<ID,ChangeType>*/ environmentTypes = this.translateMap(this.translateAST, this.translateChangeType, type.getEnvironmentTypes());
+					val /*List<MetaType> */ metaTypes = this.map(fn (t) => {
+					    match (t) {
+					        case plaid.compilerjava.types.GroupType {
+					            new GroupType {
+					                val unique ID id = this.translateAST(t.getID());
+					                val immutable Boolean isAbstract = ifElse ( t.isAbstract() ) { true }{ false };
+					                val unique GroupPermission groupPermission = this.translateGroupPermission(t.getGroupPermission());
+					            }
+					        }
+					        case plaid.compilerjava.types.TypeParameterType {
+					            new TypeParameterType {
+					                val unique ID id = this.translateAST(t.getID());
+					                val unique ObjectType caseOf = this.translateObjectType(t.getCaseOf());
+					            }
+					        }
+					        default {} 
+					    };
+					}, type.getMetaTypes());
+				}
+			}
+			default {
+				java.lang.System.out.print("Unknown DeclType node type: ");
+				java.lang.System.out.println((root.getClass()).getName());
+			}
+		}
+	}
+}

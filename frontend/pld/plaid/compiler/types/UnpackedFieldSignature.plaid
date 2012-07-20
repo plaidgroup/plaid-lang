@@ -1,0 +1,78 @@
+package plaid.compiler.types;
+
+import plaid.compiler.Type;
+import plaid.compiler.types.*;
+
+state UnpackedFieldSignature case of FieldSignature {
+  val immutable PackedFieldSignature packedSignature;
+  val immutable Integer objectID;
+  val immutable Type currentType;
+  
+  method immutable String getFieldName() { this.packedSignature.name }
+  
+  method immutable Boolean ==(immutable Signature other)[immutable UnpackedFieldSignature this] {
+      match (other) {
+        case UnpackedFieldSignature { 
+          this.packedSignature == other.packedSignature &&
+          this.objectID == other.objectID &&
+          this.currentType == other.currentType
+        }
+        default { false } 
+      }
+  }
+  
+  /**
+   *  unpacked signatures are not subsignatures of anything
+   *  (might want to weaken this later, but this is mostly used for
+   *  determining if states are valid case of's other states, which
+   *  means that unpacked fields should not be present
+   */
+  method immutable Boolean isSubSignatureOf(immutable Signature other) {
+    false;
+  }
+  
+  method immutable Type getDeclaredType() {
+    this.packedSignature.getDeclaredType()
+  }
+  
+  method immutable Type getCurrentType() {
+    this.currentType
+  }
+    
+  method immutable String toString()[immutable FieldSignature this] {
+    "UNPACKED(" + this.packedSignature.toString() + ", " + this.objectID + ") : " + this.currentType.toString()
+  }
+  
+  /**
+   * restores the given type to the unpacked field, returning the new state (packed or unpacked) of the field
+   * the resulting permission is the incoming permission restored to the current permission
+   * the resulting structure is the more specific of the two structures.  Both cannot have been changed because
+   *    a change to one must necessarily downgrade the other type.
+   * if the restored type is a subtype of the declared field type, then we return a packed field
+   *    otherwise the field remains unpacked at the restored type
+   */
+  method immutable ?FieldSignature restoreType(immutable Type retType, immutable Integer restoreObjectID) {
+    match (this.objectID == restoreObjectID) {
+      case True {
+        val immutable ?Permission restoredPerm = this.currentType.permission.returnPerm(retType.permission);
+        match (restoredPerm) {
+        	case Permission { 
+        	    val immutable ?Structure restoredStructure = mergeStructures(retType.structure, this.currentType.structure);
+                match (restoredStructure) {
+                    case Structure {
+                        val immutable Type restoredType = makeType(restoredPerm, restoredStructure);
+                        match (restoredType.isSubTypeOf(this.packedSignature.fieldType)) {
+                          case True { this.packedSignature }
+                          case False { makeUnpackedFieldSignature(this.packedSignature, this.objectID, restoredType) }
+                        }
+                    }
+                    default { unit } //error in merging structures
+                }
+        	}
+        	default { unit } // error in joining permissions
+        };
+      }
+      case False { this } //mismatched objects - no update needed - succceeds
+    }
+  }
+}

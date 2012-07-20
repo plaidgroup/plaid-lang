@@ -1,0 +1,308 @@
+/**
+ * Copyright (c) 2010 The Plaid Group (see AUTHORS file)
+ * 
+ * This file is part of Plaid Programming Language.
+ *
+ * Plaid Programming Language is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ *  Plaid Programming Language is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with Plaid Programming Language.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package plaid.compiler.types;
+
+import plaid.compiler.permissions.DYNAMICP;
+import plaid.compiler.permissions.NONEP;
+import plaid.compiler.Type;
+import plaid.ast.util.EMPTY_TOKEN;
+import plaid.compiler.report_ERROR;
+
+import plaid.compiler.types.*;
+
+/***********************************************
+ ***          Merge two Structures           ***
+ ***********************************************/
+
+/**
+  * merges two structures when returning types
+  * the resulting structure is the more specific of the two structures.  Both cannot have been changed because
+  *    a change to one must necessarily downgrade the other type.
+  *    Thus, we throw an internal exception if this occurs
+  * Precondition:
+  *   struct1 is a substructure of struct2 or vice-versa
+  * Errors:
+  *   if precondition not met, then ABORT will be called
+  */
+method immutable ?Structure mergeStructures(immutable Structure struct1, immutable Structure struct2) {
+  ifElse (struct1.isSubStructureOf(struct2)) { 
+    struct1
+  } /*else*/ { 
+    ifElse (struct2.isSubStructureOf(struct1))
+      { struct2 }
+      { 
+        report_ERROR(EMPTY_TOKEN, "S_MERGE_FAILED", struct1.toString() + " and " + struct2.toString(),
+        "mergeStructures");
+        unit;
+      } 
+  };
+}
+
+/***********************************************
+ ***               Type Constants            ***
+ ***********************************************/
+
+val immutable Type DYNAMICTYPE = new Type { val permission = DYNAMICP; val structure = DYNAMICSTRUCT; };
+val immutable Type VOID = new Type { val permission = NONEP; val structure = TOPSTRUCT; };
+val immutable Type DATAGROUPTYPE = new Type { val permission = NONEP; val structure = DATAGROUPSTRUCT; };
+
+/***********************************************
+ ***   Factory method for creating a type    ***
+ ***********************************************/
+
+method immutable Type makeType(immutable Permission p, immutable Structure s) {
+  new Type {
+    val permission = p;
+    val structure = s;
+  } 
+}
+
+/***********************************************
+ *** Factory methods for creating Structures ***
+ ***********************************************/
+ 
+val immutable DynamicStructure DYNAMICSTRUCT = new DynamicStructure;
+val immutable DynamicStructure DYNSTRUCT = DYNAMICSTRUCT;
+val immutable TopStructure TOPSTRUCT = new TopStructure;
+val immutable UnitStructure UNITSTRUCT = new UnitStructure;
+val immutable DatagroupStrucuture DATAGROUPSTRUCT = new DatagroupStructure;
+
+method immutable LambdaStructure makeLambdaStructure(argTypes, metaArgs, returnType) {
+  new LambdaStructure {
+    val argTypes = argTypes;
+    val metaArgs = metaArgs;
+    val returnType = returnType;
+  }
+}
+
+method immutable NominalStructure makeNominalStructure(shared StateSymbol symbol) {
+  new NominalStructure {
+    val symbol = symbol;
+    val owner = symbol.owner.getStructure();
+    val name = symbol.declaration.name.name;
+  }
+}
+
+method immutable UnpackedStructure makeUnpackedStructure(immutable NominalStructure unpackedStructure) {
+  new UnpackedStructure {
+    val unpackedStructure = unpackedStructure;
+  }
+}
+
+method immutable UnpackedStructure makeUnpackedStructureWithFieldMap(immutable NominalStructure unpackedStructure, 
+                                                                    /*immutable Map<immutable String,immutable FieldSignature>*/ unpackedFields) {
+  new UnpackedStructure {
+    val unpackedStructure = unpackedStructure;
+    override val unpackedFields = unpackedFields;
+  };
+}
+
+method immutable PackageStructure makePackageStructure(immutable Structure owner, immutable String name) {
+  new PackageStructure {
+    val owner = owner;
+    val name = name;
+  }
+}
+
+method immutable OptionStructure makeOptionStructure(immutable ObjectStructure optStructure) {
+    new OptionStructure {
+        val optStructure = optStructure;
+    }
+}
+
+/***********************************************
+ *** Factory methods for creating Signatures ***
+ ***********************************************/
+ 
+method immutable FieldSignature makePackedFieldSignature(immutable Boolean isVar, immutable Type fieldType, immutable String name) {
+  new PackedFieldSignature {
+    val isVar = isVar;
+    val fieldType = fieldType;
+    val name = name;
+  }
+} 
+
+ 
+method immutable DatagroupSignature makeDatagroupSignature(immutable String name) {
+  new DatagroupSignature {
+    val name = name;
+  }
+} 
+
+method immutable UnpackedFieldSignature makeUnpackedFieldSignature(immutable FieldSignature packedSignature, immutable Integer objectID, immutable Type currentType) {
+  new UnpackedFieldSignature {
+    val packedSignature = packedSignature;
+    val objectID = objectID;
+    val currentType = currentType;
+  }
+} 
+
+method immutable MethodSignature makeMethodSignature(immutable Type returnType, immutable String name, 
+                                                     immutable LinkedList<immutable ArgSpec> arguments, 
+                                                     immutable ArgSpec receiverSpec, 
+                                                     immutable Map<immutable VariableSymbol, immutable ArgSpec> environment,
+                                                     immutable LinkedList staticArgSpec) {
+  new MethodSignature {
+    val returnType = returnType;
+    val name = name;
+    val arguments = arguments;
+    val receiverSpec = receiverSpec;
+    val environment = environment;
+    val staticArgsSpec = staticArgSpec;
+  }
+} 
+
+/***********************************************
+ *** Factory methods for creating ArgSpecs ***
+ ***********************************************/
+ 
+method immutable ArgSpec makeArgSpec(immutable Type input, immutable Type output) {
+  new ArgSpec {
+    val inputType = input;
+    val outputType = output;
+  }   
+}
+
+
+/**
+ * Integer counter to keep track of reassignments to fields and
+ * prevent stale restores.  Integers in Plaid are ideal, so
+ * no overflow concern
+ */
+var immutable Integer locationIDcount = 0;
+
+/**
+ *  Return the next location ID, incrementing the counter
+ */
+method immutable Integer getUniqueLocationID()[immutable Integer locationIDcount] { 
+  locationIDcount = locationIDcount + 1;
+  locationIDcount
+}
+
+
+/***********************************************
+ *** Substitution methods ***
+ ***********************************************/
+
+method immutable AbstractExpression getMapping(immutable String name, unique Map substMap) {
+    match ( substMap.containsKey(name) ) {
+        case True { substMap.get(name) }
+        default { ABORT("Cannot find mapping for " + name) } 
+    }
+}
+
+method immutable Permission substitutePermission(immutable Permission perm, unique Map substMap) {
+  DEBUG(DEBUG_PRIO_LOW, "<substitutePermission> for '" + perm.toString() + "'");
+  match ( perm ) {
+      case SharedPermission {
+          match ( perm.groupExpr ) {
+              case AbstractEmptyExpression { perm } 
+              default {
+                  makeShared(getMapping(perm.groupExpr.toString(), substMap));
+              }
+          };
+      }
+      default { perm }
+  }
+}
+
+method immutable Structure substituteStructure(immutable Structure struct, unique Map substMap) {
+  DEBUG(DEBUG_PRIO_LOW, "<substituteStructure> for " + struct.toString());
+  match (struct) {
+      case NominalStructure {
+          val staticArgs = getStaticArgs(struct).map( fn (arg) => {
+              val newVal = getMapping(arg.toString(), substMap); 
+              DEBUG(DEBUG_PRIO_LOW, "<NominalStructure> subst '" + arg.toString() + "' --> '" + newVal.toString() + "'");
+              newVal
+          });
+          substituteStaticArgs(struct, staticArgs);
+      }
+      case JavaStructure {
+          struct
+      }
+      case OptionStructure { 
+          makeOptionStructure(subsutituteStructure(struct.optStructure))
+      }
+      case TopStructure { struct }
+      case LambdaStructure { struct }
+      default { ABORT("Unsupported structure " + struct.toString() ) }
+  }
+}
+
+method immutable Type substituteType(immutable Type type, unique Map substMap) {
+    DEBUG(DEBUG_PRIO_LOW, "<substituteType> for " + type.toString());
+    val substPerm = substitutePermission(type.permission, substMap);
+    val substStruct = substituteStructure(type.structure, substMap);
+    makeType(substPerm, substStruct);    
+}
+
+method immutable Type substituteArgSpec(immutable ArgSpec argSpec, unique Map substMap) {
+    DEBUG(DEBUG_PRIO_LOW, "<substituteArgSpec> for " + argSpec.toString());
+    val inputType  = substituteType(argSpec.inputType, substMap);
+    val outputType = substituteType(argSpec.outputType, substMap);
+    makeArgSpec(inputType, outputType);    
+}
+
+
+method immutable Signature substituteSignature(immutable Signature signature, unique Map substMap ) {
+  DEBUG(DEBUG_PRIO_MEDIUM, "<substituteSignature> substituteSignature : " + signature.toString());
+  DEBUG(DEBUG_PRIO_MEDIUM, "<substituteSignature>     mapping         : " + substMap.keySet().toString());
+  match ( signature ) {
+      case PackedFieldSignature {
+          makePackedFieldSignature(signature.isVar,
+                                   substituteType(signature.fieldType, substMap),
+                                   signature.name);
+      }
+      /*
+      case UnpackedFieldSignature {
+          makeUnpackedFieldSignature(signature.packedSignature,
+                                     signature.objectID,
+                                     substituteType(signature.currentType, substMap));          
+      }
+      */
+      case MethodSignature {
+          val returnType = substituteType(signature.returnType, substMap);
+          val receiverSpec = substituteArgSpec(signature.receiverSpec, substMap);
+          val arguments = signature.arguments.map( fn (arg) => {
+              val sym = arg.fst;
+              val argSpec = substituteArgSpec(arg.snd, substMap);
+              makePair(sym, argSpec);
+          });
+          
+          val environment = java.util.HashMap.new();
+          val envIt = signature.environment.keySet().iterator();
+          while { envIt.hasNext() }{
+              val curKey = envIt.next();
+              val argSpec = substituteArgSpec(signatutre.environment.get(curKey), substMap);
+              environment.put(curKey, argSpec);
+          };
+          
+          makeMethodSignature(returnType,
+                              signature.name,
+                              arguments,
+                              receiverSpec,
+                              environment,
+                              signature.staticArgsSpec);
+      }
+      default {
+          ABORT("Unsupported signature;");
+      }
+  }
+}

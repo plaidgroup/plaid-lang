@@ -1,0 +1,84 @@
+package plaid.compiler.types;
+
+import plaid.compiler.Structure;
+
+state LambdaStructure case of Structure {
+    val immutable LinkedList<immutable ArgSpec> argTypes;
+    val immutable LinkedList<immutable MetaArg> metaArgs;
+    val immutable Type returnType;
+
+    method immutable Boolean ==(immutable Structure other)[immutable LambdaStructure this] {
+        match (other) {
+            case LambdaStructure {
+                match (this.argTypes.size() == other.argTypes.size()) {
+                    case True {
+                        (this.argTypes.zip(other.argTypes).reduce(true, fn (prev, p) => {
+                             prev && (p.fst == p.snd)
+                        })) &&
+                        this.returnType == other.returnType
+                    }
+                    case False { false }
+                }
+            }
+            default { false }
+        }
+    }
+    
+    //TODO: implement better lub for lambdas.  Didn't do it now b/c requires
+    // implementing greatestLowerBound for types I think (contravariance)
+    // for now one has to be a substructure of the other
+    method unique Option<immutable Structure> leastUpperBound(immutable Structure other)[immutable LambdaStructure this] {
+        match (other) {
+            case LambdaStructure {
+                match (this.isSubStructureOf(other)) {
+                    case True { makeSome(other) }
+                    case False {
+                        match (other.isSubStructureOf(this)) {
+                            case True { makeSome(this) }
+                            case False { new None }
+                        }
+                    }
+                }
+            }
+            default { new None }
+        }
+    }
+    
+    //contravariant in inputs, covariant in outputs 
+    //top and lambdas are unrelated
+    method immutable Boolean isSubStructureOf(immutable Structure other)[immutable LambdaStructure this] {
+        match (other) {
+            case LambdaStructure {
+                match (this.argTypes.size() == other.argTypes.size()) {
+                    case True {                
+                        (this.argTypes.zip(other.argTypes).reduce(true, fn (prev, p) => {
+                             prev && 
+                             (p.snd.inputType.isSubTypeOf(p.fst.inputType)) &&
+                             (p.fst.outputType.isSubTypeOf(p.snd.outputType))
+                        })) &&
+                        this.returnType.isSubTypeOf(other.returnType)
+                    }
+                    case False { false }
+                }
+            }
+            default { false }
+        }
+    
+    }
+
+    method immutable String toString() {
+        val argSpecString = match ( argTypes.size() == 0 ) {
+            case True { 
+                "()" 
+            }
+            case False {
+                "(" + this.argTypes.reduce("", fn (prev,argSpec) => prev + ", " + argSpec.toString() ).substring(2) + ")"
+            }
+        };
+        val returnSting = this.returnType.toString();
+ 
+        // TODO: add metaArgs + returnType
+        
+        argSpecString + " -> " + returnSting       
+    }
+}

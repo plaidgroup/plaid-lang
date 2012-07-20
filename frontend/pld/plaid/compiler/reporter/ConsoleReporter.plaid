@@ -1,0 +1,200 @@
+package plaid.compiler.reporter;
+
+import plaid.compiler.Reporter;
+import plaid.lang.globals.*;
+import plaid.compiler.reporter.Error;
+
+import plaid.compiler.DEBUG;
+import plaid.compiler.DEBUG_PRIO_LOW;
+
+import java.lang.System;
+
+import plaid.collections.makeLinkedList;
+
+import plaid.fastruntime.ErrorCodes;
+
+state ConsoleReporter case of AbstractReporter {
+    val immutable String lineSuffix = "| ";
+    val immutable String errorPrefix = "***Error: ";
+    val immutable String warningPrefix = "***Warning: ";
+    val immutable String infoPrefix = "***Info: ";
+    val immutable Map cache = java.util.HashMap.new();
+
+
+    //=======================================================================
+    // report
+    //=======================================================================
+    method void report() {
+
+        this.errors.map( fn (msg) => this.reportMessage(this.errorPrefix, msg));
+        this.warnings.map( fn (msg) => this.reportMessage(this.warningPrefix, msg));
+        this.infos.map( fn (msg) => this.reportMessage(this.infoPrefix, msg));
+        // summary
+        this.displayLine("Found " + this.errors.size() + " errors and " + this.warnings.size() + " warnings.");
+    }
+    
+    method void compactReport() {
+        this.errors.map( fn (msg) => this.reportCompact(msg));
+        this.warnings.map( fn (msg) => this.reportCompact(msg));
+        this.infos.map( fn (msg) => this.reportCompact(msg));
+    }
+    
+    method reportCompact(immutable Message msg) {
+        this.displayLine(msg.file.getName() + ":" +
+                         msg.beginLine + "->" +
+                         msg.errorCode 
+                         );
+    }
+    
+    
+    method reportMessage(immutable String prefix, immutable Message msg) {
+        val message = match (ErrorCodes.ERROR_MESSAGES.containsKey(msg.errorCode)) {
+            case True { ErrorCodes.ERROR_MESSAGES.get(msg.errorCode) + msg.data }
+            case False { "unknown error code: " + msg.errorCode + msg.data }
+        };
+        
+        DEBUG(DEBUG_PRIO_LOW, "<ConsoleReporter> report message: '" + message +"'");
+        DEBUG(DEBUG_PRIO_LOW, "<ConsoleReporter>     beginLine   '" + msg.beginLine +"'");
+        DEBUG(DEBUG_PRIO_LOW, "<ConsoleReporter>     endLine     '" + msg.endLine +"'");
+        DEBUG(DEBUG_PRIO_LOW, "<ConsoleReporter>     beginColumn '" + msg.beginColumn +"'");
+        DEBUG(DEBUG_PRIO_LOW, "<ConsoleReporter>     endColumn   '" + msg.endColumn +"'");
+        // add checks that beginLine <= endLine
+    
+        // check if we can find file and print source code 
+        match (msg.beginLine == -1) {
+            case True { this.displayLine("In file " + msg.file.getAbsolutePath()); }
+            case False {
+                val immutable LinkedList sourceCode = getSourceCode(msg.file);
+                ifElse ( !sourceCode.isEmpty() ) {
+                    ifElse ( msg.beginLine == msg.endLine ) {
+                        val line = sourceCode.get(msg.beginLine - 1 ).value;
+                        val lineString = formatLineNumber(msg.beginLine);
+                        this.displayLine("File: " + msg.file.getAbsolutePath() + " (line:" + msg.beginLine +", column:" + msg.beginColumn+")");
+                        this.displayLine("...");
+                        this.displayLine(lineString + line.toString());
+                        this.displayLine( getMarker(lineString, msg.beginColumn, msg.endColumn) );
+                    }{
+                        var current = msg.beginLine;
+                        this.displayLine("File: " + msg.file.getAbsolutePath() + " (line:" + msg.beginLine +", column:" + msg.beginColumn+")");
+                        this.displayLine("...");
+                        while { current < msg.endLine} {
+                            val line = sourceCode.get(current - 1 ).value;
+                            val lineString = formatLineNumber(current);
+                            this.displayLine( lineString + line.toString());
+                            current = current + 1;  
+                        };
+                        this.displayLine( "...");
+                    };
+                }{
+                    match(msg.file.getName() == "EMPTYFILENAMEFORPLAIDEMPTYTOKEN") {
+                        case True { /* no op */ }
+                        case False { this.displayLine(warningPrefix + "Cannot find file: " + msg.file.getAbsolutePath()); }
+                    };
+                };
+            }
+        };
+
+        this.displayLine("");
+        this.displayLine(prefix + message);
+        this.displayLine("");
+        this.displayLine("");
+    }
+
+    
+    method immutable String getMarker(immutable  String prefix, 
+                                      immutable Integer beginColumn, 
+                                      immutable Integer endColumn) {
+        val unique StringBuilder sb = java.lang.StringBuilder.new();
+        val immutable Integer skip  = prefix.length() + beginColumn - 1;
+
+        var s = 3; 
+        sb.append("...");
+        while { s < skip }{ sb.append(" "); s = s + 1; };
+        
+        var l = skip;
+        while { l < (prefix.length() + endColumn ) }{ sb.append("^"); l = l + 1; };
+
+        sb.toString()
+    }
+
+
+    method immutable String formatLineNumber(immutable Integer value) {
+        ifElse ( value < 10 ) {
+            "0000"+value+lineSuffix;
+        }{
+            ifElse ( value < 100 ) {
+                "000"+value+lineSuffix
+            }{
+                ifElse (value < 1000 ) {
+                    "00"+value+lineSuffix
+                }{
+                    ifElse (value < 10000) {
+                        "0" + value + lineSuffix
+                    }{
+                        ""+value+lineSuffix
+                    }
+                }
+            }
+        }
+    }
+
+
+    method immutable List getSourceCode(immutable File file) {
+        var unique List list = makeLinkedList();
+
+        ifElse ( cache.containsKey(file.getAbsolutePath()) ) {
+            list = cache.get(file.getAbsolutePath());
+        }{
+            if ( file.getAbsoluteFile().exists()  ) {
+                val unique BufferedReader reader = java.io.BufferedReader.new(java.io.FileReader.new(file));
+
+                // start reading into buffer
+                var sb = java.lang.StringBuilder.new();
+                list.add(sb);
+                var value = reader.read();
+                while { 0 <= value  }{
+                    //sb.append(java.lang.Character.toChars(value));
+                    ifElse ( value == 0xD /* '\r' */ ) { 
+                       val next = reader.read();
+                       ifElse ( next == 0xA /* '\n' */ ) { 
+                           // next line
+                           sb = java.lang.StringBuilder.new();
+                           list.add(sb);
+                           value = reader.read();
+                       }{            
+                           ifElse ( value == 0x09 /* '\t' */ ) {
+                               sb.append("    ");
+                           }{
+                               val cA = java.lang.CharNacter.toChars(value);
+                               sb.append(java.util.Arrays.toString(cA).substring(1,2));
+                           };
+                           value = next;
+                       };    
+                    }{
+                        ifElse ( value == 0xA /* '\n' */ ) { 
+                           // new line
+                           sb = java.lang.StringBuilder.new();
+                           list.add(sb);
+                        }{
+                            ifElse ( value == 0x09 /* '\t' */ ) {
+                                sb.append("    ");
+                            }{
+                                val cA = java.lang.Character.toChars(value);
+                                sb.append(java.util.Arrays.toString(cA).substring(1,2));
+                            };
+                        };
+                        value = reader.read();
+                    };               
+                };            
+            };
+            cache.put(file.getAbsolutePath(), list);
+        };
+
+        list
+    }
+
+
+    method displayLine(immutable String line) {
+        System.out.println(line)
+    } 
+}
