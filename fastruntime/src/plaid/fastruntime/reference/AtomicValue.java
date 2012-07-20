@@ -1,22 +1,21 @@
 package plaid.fastruntime.reference;
 
-import fj.data.Set;
 
 public abstract class AtomicValue extends SingleValue {
 	
 	@Override
-	protected final Set<String> constructTags() {
-		return EMPTY_TAGS;
+	protected final TagSet constructTags() {
+		return TagSet.makeEmpty();
 	}
 	
 	@Override
-	protected final Set<String> constructOuterTags() {
-		return EMPTY_TAGS;
+	protected final TagSet constructOuterTags() {
+		return TagSet.makeEmpty();
 	}
 	
 	@Override
-	protected final Set<String> constructInnerTags() {
-		return EMPTY_TAGS;
+	protected final TagSet constructInnerTags() {
+		return TagSet.makeEmpty();
 	}
 
 }

@@ -15,48 +15,35 @@ import plaid.fastruntime.PlaidLambda$0;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
-import fj.F;
-import fj.Ord;
-import fj.Ordering;
-import fj.data.List;
-import fj.data.Set;
+
 
 public abstract class AbstractObjectValue implements ObjectValue {
 	
-	protected static final Ord<String> STRING_ORD = Ord.stringOrd;
-	protected static final Ord<FieldInfo> FIELD_ORD = Ord.comparableOrd();
-	protected static final Ord<SingleValue> SINGLE_VALUE_ORD;
-	static {
-		F<SingleValue, F<SingleValue, Ordering>> orderSingleValues = new F<SingleValue, F<SingleValue, Ordering>>() {
-			@Override
-			public F<SingleValue, Ordering> f(SingleValue a) {
-				final String thisRep = a.getCanonicalRep();
-				return new F<SingleValue, Ordering>() {
-					public Ordering f(SingleValue other) {
-						return Ord.stringOrd.compare(thisRep, other.getCanonicalRep());
-					}
-				};
-			}
-		};
-		
-		SINGLE_VALUE_ORD = Ord.ord(orderSingleValues);
-	}
+	protected static final UnmodifiableList<MethodInfo> NIL_METHOD_INFO = UnmodifiableList.makeEmpty();
+	protected static final UnmodifiableList<FieldInfo> NIL_FIELD_INFO = UnmodifiableList.makeEmpty();
+	protected static final UnmodifiableList<SingleValue> NIL_SINGLE_VALUE = UnmodifiableList.makeEmpty();
+	protected static final TagSet EMPTY_TAGS = TagSet.makeEmpty();
 	
-	protected static final List<MethodInfo> NIL_METHOD_INFO = List.nil();
-	protected static final List<FieldInfo> NIL_FIELD_INFO = List.nil();
-	protected static final List<SingleValue> NIL_SINGLE_VALUE = List.nil();
-	protected static final Set<String> EMPTY_TAGS = Set.empty(STRING_ORD);
+	/*
+	 * This will not work if we use a custom class loader
+	 */
+	private static final ClassLoader CL = AbstractObjectValue.class.getClassLoader();
 	
+	private static final HashMap<String, PlaidFieldInitializer> fieldInitializerCache = 
+		new HashMap<String, PlaidFieldInitializer>();
 	
 	// all of these are caches and should be assigned to exactly once. Unfortunately,
 	// they cannot be called from the constructor because of ordering constraints.
 	private String canonicalRep; 
-	private List<MethodInfo> methods;
-	private List<FieldInfo> fields;
-	private Set<String> tags;
-	private Set<String> outerTags;
-	private Set<String> innerTags;
+	private UnmodifiableList<MethodInfo> methods;
+	private UnmodifiableList<FieldInfo> fields;
+	private TagSet tags;
+	private TagSet outerTags;
+	private TagSet innerTags;
 	private Map<String, Integer> storageIndexMap;
+	
+	//This cache is mutable after object value initialization.
+	private Map<ObjectValue, AbstractObjectValue> stateChangeCache = new HashMap<ObjectValue, AbstractObjectValue>();
 	
 	/*
 	 * Must be called in last line of construct of every concrete subtype.
@@ -78,25 +65,25 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	}
 	
 	@Override
-	public final List<MethodInfo> getMethods() {
+	public final UnmodifiableList<MethodInfo> getMethods() {
 		return this.methods;
 	}
 
 	@Override
-	public final List<FieldInfo> getFields() {
+	public final UnmodifiableList<FieldInfo> getFields() {
 		return this.fields;
 	}
 	
-	protected final Set<String> getTags() {
+	protected final TagSet getTags() {
 		return this.tags;
 	}
 	
-	protected final Set<String> getOuterTags() {
+	protected final TagSet getOuterTags() {
 		return this.outerTags;
 		
 	}
 	
-	protected final Set<String> getInnerTags() {
+	protected final TagSet getInnerTags() {
 		return this.innerTags;
 	}
 	
@@ -111,15 +98,15 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	 */
 	protected abstract String constructCanonicalRep();
 	
-	protected abstract List<FieldInfo> constructFields();
+	protected abstract UnmodifiableList<FieldInfo> constructFields();
 	
-	protected abstract List<MethodInfo> constructMethods();
+	protected abstract UnmodifiableList<MethodInfo> constructMethods();
 	
-	protected abstract Set<String> constructTags();
+	protected abstract TagSet constructTags();
 	
-	protected abstract Set<String> constructOuterTags();
+	protected abstract TagSet constructOuterTags();
 	
-	protected abstract Set<String> constructInnerTags();
+	protected abstract TagSet constructInnerTags();
 	
 	private final Map<String, Integer> constructStorageIndexMap() {
 		TreeSet<String> storageNameSet = new TreeSet<String>(); 
@@ -144,10 +131,19 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		return toReturn;
 	}
 
-	
-
 	@Override
 	public final AbstractObjectValue changeState(ObjectValue other) {
+		if (stateChangeCache.containsKey(other)) {
+			return stateChangeCache.get(other);
+		} else {
+			AbstractObjectValue output = changeStateInternal(other);
+			stateChangeCache.put(other, output);
+			return output;
+		}
+	}
+		 
+	public final AbstractObjectValue changeStateInternal(ObjectValue other) {
+
 		if(other instanceof ListValue) { 
 			// SU-List
 			ListValue list = (ListValue)other;
@@ -160,7 +156,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			DimensionValue otherDV = (DimensionValue) other;
 			// SU-AddH
 			if(otherDV.uniqueTags() && 
-					this.getTags().intersect(otherDV.getTags()).size() == 0) {
+					this.getTags().emptyIntersection(otherDV.getTags())) {
 				return this.addValue(otherDV);
 			}
 			//SU-MatchDim
@@ -169,8 +165,8 @@ public abstract class AbstractObjectValue implements ObjectValue {
 				SingleValue firstOV = thisLV.getFirst();
 				if (firstOV instanceof DimensionValue) {
 					DimensionValue thisDV = (DimensionValue)firstOV;
-					if (!thisDV.getTags().intersect(otherDV.getOuterTags()).isEmpty() &&
-							otherDV.getTags().intersect(thisLV.getRest().getTags()).isEmpty()) {
+					if (!thisDV.getTags().emptyIntersection(otherDV.getOuterTags()) &&
+							otherDV.getTags().emptyIntersection(thisLV.getRest().getTags())) {
 						// JSS: This clause is different than the last premise in the SU-MatchDim
 						// This operates only on inputs, while the premise operates on the results, which seems unnecessary 
 						return thisLV.getRest().addValue((SingleValue)firstOV.changeState(otherDV));
@@ -182,31 +178,31 @@ public abstract class AbstractObjectValue implements ObjectValue {
 				DimensionValue thisDV = (DimensionValue) this;	
 				// SU-MatchInner
 				if(thisDV.getInnerValue()!= null &&
-						!thisDV.getInnerValue().getTags().intersect(otherDV.getOuterTags()).isEmpty() &&
+						!thisDV.getInnerValue().getTags().emptyIntersection(otherDV.getOuterTags()) &&
 					!otherDV.getTags().member(thisDV.getTag()) &&
 					(thisDV.getParent() == null ||
-							thisDV.getParent().getTags().intersect(otherDV.getTags()).isEmpty())) {
+							thisDV.getParent().getTags().emptyIntersection(otherDV.getTags()))) {
 					AbstractObjectValue newInnerValue = thisDV.getInnerValue().changeState(otherDV);
 					return new DimensionValue(thisDV.getTag(), newInnerValue, thisDV.getParent());
 				}
 				//SU-MatchSuperInner
 				else if(thisDV.getParent() != null &&
-						!otherDV.getOuterTags().intersect(thisDV.getParent().getInnerTags()).isEmpty() &&
-						thisDV.withoutParent().getTags().intersect(otherDV.getTags()).isEmpty()) {
+						!otherDV.getOuterTags().emptyIntersection(thisDV.getParent().getInnerTags()) &&
+						thisDV.withoutParent().getTags().emptyIntersection(otherDV.getTags())) {
 					DimensionValue newParent = (DimensionValue)thisDV.getParent().changeState(otherDV);
 					return new DimensionValue(thisDV.getTag(), thisDV.getInnerValue(), newParent);
 				}
 				//SU-MatchSuperInner
 				else if(thisDV.getParent() != null &&
-						!otherDV.getOuterTags().intersect(thisDV.getParent().getInnerTags()).isEmpty() &&
-						thisDV.withoutParent().getTags().intersect(otherDV.getTags()).isEmpty()) {
+						!otherDV.getOuterTags().emptyIntersection(thisDV.getParent().getInnerTags()) &&
+						thisDV.withoutParent().getTags().emptyIntersection(otherDV.getTags())) {
 					DimensionValue newParent = (DimensionValue)thisDV.getParent().changeState(otherDV);
 					return new DimensionValue(thisDV.getTag(), thisDV.getInnerValue(), newParent);
 				}
 				//SU-MatchSuper
 				else if(thisDV.getParent() != null &&
 						!otherDV.getOuterTags().member(thisDV.getTag()) &&
-						!otherDV.getOuterTags().intersect(thisDV.getParent().getOuterTags()).isEmpty()) 
+						!otherDV.getOuterTags().emptyIntersection(thisDV.getParent().getOuterTags())) 
 				{
 					return thisDV.getParent().changeState(otherDV);
 				}
@@ -216,7 +212,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 					if (dvsub == null) {
 						return thisDV;
 					} else {
-						if(dvsub.getTags().intersect(thisDV.getTags()).isEmpty() &&
+						if(dvsub.getTags().emptyIntersection(thisDV.getTags()) &&
 								dvsub.uniqueTags()) {
 							return childrenOfTag(thisDV.getTag(), otherDV, thisDV);
 						}
@@ -224,7 +220,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 				}
 			}
 		}
-		throw new RuntimeException("Ooops ... State change failed because because of an unknown case.");
+		throw new PlaidInternalException("Ooops ... State change failed because because of an unknown case.");
 	}
 
 	/*
@@ -250,7 +246,6 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	@Override
 	public PlaidObject[] getPostChangeStorage(ObjectValue oldObjectValue, PlaidObject[] oldStorage) {
 		PlaidObject[] storage = new PlaidObject[this.getStorageLength()];
-		ClassLoader cl = this.getClass().getClassLoader();
 		for(FieldInfo field : fields) {
 			boolean isOld = false;
 			for(FieldInfo oldField : oldObjectValue.getFields()) {
@@ -262,33 +257,9 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			}
 			if (!isOld) {
 				if(field.isStaticallyDefined()) {
-					String className = NamingConventions.getGeneratedFQN(
-							field.getStaticClassInternalName().replace('/', '.')
-							);
-					try {
-						Class<?> fieldClass = cl.loadClass(className);
-						Field myField = fieldClass.getField(field.getName());
-						Object value = myField.get(null); // static field so object can be null, see JavaDoc
-						PlaidFieldInitializer init = (PlaidFieldInitializer) value;
-						storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
-					} catch (ClassNotFoundException e) {
-						throw new PlaidInternalException("Could not load field class " + className, e);
-					} catch (SecurityException e) {
-						throw new PlaidInternalException("Could not load field", e);
-					} catch (NoSuchFieldException e) {
-						throw new PlaidInternalException("Could not load field", e);
-					} catch (IllegalArgumentException e) {
-						throw new PlaidInternalException("Could not load field", e);
-					} catch (IllegalAccessException e) {
-						throw new PlaidInternalException("Could not load field", e);
-					}
-				} else { //dynamically defined
-	//				try {
-	//					PlaidLambda$0 init = (PlaidLambda$0)dynamicDefinitions.get(field.getName());
-	//					storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
-	//				} catch (ClassCastException e) {
-	//					throw new plaid.fastruntime.errors.PlaidInternalException("Field initializer must be a 0 argument Lambda.", e);
-	//				}
+					initStaticField(storage,field);
+
+				} else {
 					throw new PlaidInternalException("Post state change storage cannot have any dynamic definitions");
 	 			}
 			}
@@ -310,6 +281,38 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		}
 		return storage;
 	}
+
+
+	private void initStaticField(PlaidObject[] storage,
+			FieldInfo field) {
+		String className = NamingConventions.getGeneratedFQN(
+				field.getStaticClassInternalName().replace('/', '.')
+				);
+		String key = className + "$" + field.getName();
+		if(fieldInitializerCache.containsKey(key)) {
+			PlaidFieldInitializer init = fieldInitializerCache.get(key);
+			storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
+		} else {
+			try {
+				Class<?> fieldClass = CL.loadClass(className);
+				Field myField = fieldClass.getField(field.getName());
+				Object value = myField.get(null); // static field so object can be null, see JavaDoc
+				PlaidFieldInitializer init = (PlaidFieldInitializer) value;
+				fieldInitializerCache.put(key, init);
+				storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
+			} catch (ClassNotFoundException e) {
+				throw new PlaidInternalException("Could not load field class " + className, e);
+			} catch (SecurityException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			} catch (NoSuchFieldException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			} catch (IllegalArgumentException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			} catch (IllegalAccessException e) {
+				throw new PlaidInternalException("Could not load field", e);
+			}
+		}
+	}
 	
 	@Override
 	/*
@@ -321,29 +324,8 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	public PlaidObject[] getDefaultStorage(Map<String,PlaidLambda> dynamicDefinitions){
 		PlaidObject[] storage = new PlaidObject[this.getStorageLength()];
 		for(FieldInfo field : fields) {
-			ClassLoader cl = this.getClass().getClassLoader();
 			if(field.isStaticallyDefined()) {
-				String className = NamingConventions.getGeneratedFQN(
-						field.getStaticClassInternalName().replace('/', '.')
-						);
-				
-				try {
-					Class<?> fieldClass = cl.loadClass(className);
-					Field myField = fieldClass.getField(field.getName());
-					Object value = myField.get(null); // static field so object can be null, see JavaDoc
-					PlaidFieldInitializer init = (PlaidFieldInitializer) value;
-					storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
-				} catch (ClassNotFoundException e) {
-					throw new PlaidInternalException("Could not load field class " + className, e);
-				} catch (SecurityException e) {
-					throw new PlaidInternalException("Could not load field", e);
-				} catch (NoSuchFieldException e) {
-					throw new PlaidInternalException("Could not load field", e);
-				} catch (IllegalArgumentException e) {
-					throw new PlaidInternalException("Could not load field", e);
-				} catch (IllegalAccessException e) {
-					throw new PlaidInternalException("Could not load field", e);
-				}
+				initStaticField(storage,field);
 			} else { //dynamically defined
 				try {
 					PlaidLambda$0 init = (PlaidLambda$0)dynamicDefinitions.get(field.getName());
@@ -404,7 +386,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	@Override
 	public final boolean equals(Object other) {
 		if (other instanceof AbstractObjectValue) {
-			return this.getCanonicalRep() == ((AbstractObjectValue)other).getCanonicalRep(); // == okay because canonical
+			return this.getCanonicalRep().equals(((AbstractObjectValue)other).getCanonicalRep());
 		} else {
 			return false;
 		}

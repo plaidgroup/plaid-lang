@@ -1,12 +1,9 @@
 package plaid.fastruntime.reference;
 
-import java.util.HashMap;
-
 import plaid.fastruntime.ObjectValue;
-import plaid.fastruntime.PlaidJavaObject;
-import plaid.fastruntime.PlaidLambda;
-import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidDispatch;
+import plaid.fastruntime.PlaidJavaObject;
+import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.PlaidState;
 import plaid.generated.ItoS_tring$0$plaid;
 

@@ -4,7 +4,6 @@ import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.NamingConventions;
 import plaid.fastruntime.ObjectValue;
-import fj.data.List;
 
 public final class MethodValue extends MemberValue implements MethodInfo {
 
@@ -28,13 +27,13 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 	}
 
 	@Override
-	public List<MethodInfo> constructMethods() {
+	public UnmodifiableList<MethodInfo> constructMethods() {
 		//the fact that Java requires the MethodInfo cast is annoying
-		return List.single((MethodInfo)this);
+		return UnmodifiableList.makeSingle((MethodInfo)this);
 	}
 	
 	@Override
-	public List<FieldInfo> constructFields() {
+	public UnmodifiableList<FieldInfo> constructFields() {
 		return NIL_FIELD_INFO;
 	}
 
@@ -64,7 +63,7 @@ public final class MethodValue extends MemberValue implements MethodInfo {
 				this.getStaticClassInternalName() 
 				: "";
 		String result =  "method:" + this.getName() + this.numArgs + this.isStaticallyDefined() + methodDefinition;	
-		return result.intern();
+		return result;//.intern();
 	}
 
 }
