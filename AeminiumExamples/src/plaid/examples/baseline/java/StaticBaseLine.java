@@ -18,7 +18,7 @@ public class StaticBaseLine {
 		long delta = end - begin;
 		double divider = 1000*1000*1000.0;
 		double result = delta / divider;
-		System.out.printf("Runtime : %.3fs \n", result);
+		System.out.printf("%.3f\n", result);
 	}
 
 }

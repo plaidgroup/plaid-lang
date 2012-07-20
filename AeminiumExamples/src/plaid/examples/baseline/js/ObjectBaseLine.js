@@ -15,6 +15,6 @@ var begin = new Date();
 var bl = new BaseLine();
 bl.forkJoin(28);
 var end = new Date();
-console.log("Runtime " + ((end.getTime()-begin.getTime())/1000.0) + "s");
+console.log("" + ((end.getTime()-begin.getTime())/1000.0));
 
 
