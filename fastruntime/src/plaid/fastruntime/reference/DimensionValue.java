@@ -3,7 +3,6 @@ package plaid.fastruntime.reference;
 import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
-import fj.data.List;
 
 /**
  * Parent and innerValue can both be null.
@@ -75,8 +74,8 @@ public final class DimensionValue extends SingleValue {
 	}
 
 	@Override
-	public List<MethodInfo> constructMethods() {
-		List<MethodInfo> mi = NIL_METHOD_INFO;
+	public UnmodifiableList<MethodInfo> constructMethods() {
+		UnmodifiableList<MethodInfo> mi = NIL_METHOD_INFO;
 		if(innerValue!=null) {
 			mi = mi.append(innerValue.getMethods());
 		}
@@ -88,8 +87,8 @@ public final class DimensionValue extends SingleValue {
 	
 
 	@Override
-	public List<FieldInfo> constructFields() {
-		List<FieldInfo> fi = NIL_FIELD_INFO;
+	public UnmodifiableList<FieldInfo> constructFields() {
+		UnmodifiableList<FieldInfo> fi = NIL_FIELD_INFO;
 		if(innerValue!=null) {
 			fi = fi.append(innerValue.getFields());
 		}
