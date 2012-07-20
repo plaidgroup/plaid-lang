@@ -44,6 +44,11 @@ public class PlaidOp extends SimplePlaidMethod {
 		if (operator.equals("%")) operator = "%%";
 		
 		operation = (operator.equals("!") || operator.equals("~"))?operator+"%s":"%s"+operator+"%s";
+		
+		if (operator.equals("==")) {
+			operation = "%s.equals(%s)";
+		}
+		
 		methodBody = "";
 		
 		for (int i = 0; i < this.castTypes.length; i++)
