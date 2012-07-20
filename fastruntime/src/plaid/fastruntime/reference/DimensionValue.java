@@ -4,7 +4,6 @@ import plaid.fastruntime.FieldInfo;
 import plaid.fastruntime.MethodInfo;
 import plaid.fastruntime.ObjectValue;
 import fj.data.List;
-import fj.data.Set;
 
 /**
  * Parent and innerValue can both be null.
@@ -38,8 +37,8 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	protected Set<String> constructTags() {
-		Set<String> currentTags = Set.single(STRING_ORD, tag);
+	protected TagSet constructTags() {
+		TagSet currentTags = TagSet.makeSingle(tag);
 		if(innerValue != null) {
 			currentTags = currentTags.union(innerValue.getTags());
 		}
@@ -54,8 +53,8 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	public Set<String> constructOuterTags() {
-		Set<String> tagSet = Set.single(STRING_ORD, tag);
+	public TagSet constructOuterTags() {
+		TagSet tagSet = TagSet.makeSingle(tag);
 		if(parent != null) {
 			return parent.getOuterTags().union(tagSet);
 		} else {
@@ -64,13 +63,13 @@ public final class DimensionValue extends SingleValue {
 	}
 	
 	@Override
-	public Set<String> constructInnerTags() {
-		Set<String> tagSet = EMPTY_TAGS;
+	public TagSet constructInnerTags() {
+		TagSet tagSet = TagSet.makeEmpty();
 		if(parent != null) {
 			tagSet = parent.getInnerTags().union(tagSet);
 		} 
 		if (innerValue != null) {
-			tagSet = innerValue.getTags();
+			tagSet = innerValue.getTags().union(tagSet);
 		}
 		return tagSet;
 	}

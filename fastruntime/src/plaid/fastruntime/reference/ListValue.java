@@ -6,7 +6,6 @@ import plaid.fastruntime.ObjectValue;
 import fj.F;
 import fj.F2;
 import fj.data.List;
-import fj.data.Set;
 
 /**
  * A ListValue contains a minimum of two SingleValues.
@@ -64,30 +63,18 @@ public final class ListValue extends AbstractObjectValue {
 	}
 
 	@Override
-	public Set<String> constructTags() {
-		Set<String> tags = EMPTY_TAGS;
-		for(SingleValue sv : singleValues) {
-			tags = tags.union(sv.getTags());
-		}
-		return tags;
+	public TagSet constructTags() {
+		return TagSet.makeAllFromSingleValues(singleValues);
 	}
 
 	@Override
-	protected Set<String> constructOuterTags() {
-		Set<String> currentSet = EMPTY_TAGS;
-		for(SingleValue sv : singleValues) {
-			currentSet = currentSet.union(sv.getOuterTags());
-		}
-		return currentSet;
+	protected TagSet constructOuterTags() {
+		return TagSet.makeOuterFromSingleValues(singleValues);
 	}
 	
 	@Override
-	protected Set<String> constructInnerTags() {
-		Set<String> currentSet = EMPTY_TAGS;
-		for(SingleValue sv : singleValues) {
-			currentSet = currentSet.union(sv.getInnerTags());
-		}
-		return currentSet;
+	protected TagSet constructInnerTags() {
+		return TagSet.makeInnerFromSingleValues(singleValues);
 	}
 
 	@Override

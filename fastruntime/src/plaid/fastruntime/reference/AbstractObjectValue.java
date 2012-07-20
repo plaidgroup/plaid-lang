@@ -15,11 +15,12 @@ import plaid.fastruntime.PlaidLambda$0;
 import plaid.fastruntime.PlaidObject;
 import plaid.fastruntime.errors.PlaidIllegalOperationException;
 import plaid.fastruntime.errors.PlaidInternalException;
+
+
 import fj.F;
 import fj.Ord;
 import fj.Ordering;
 import fj.data.List;
-import fj.data.Set;
 
 public abstract class AbstractObjectValue implements ObjectValue {
 	
@@ -45,7 +46,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	protected static final List<MethodInfo> NIL_METHOD_INFO = List.nil();
 	protected static final List<FieldInfo> NIL_FIELD_INFO = List.nil();
 	protected static final List<SingleValue> NIL_SINGLE_VALUE = List.nil();
-	protected static final Set<String> EMPTY_TAGS = Set.empty(STRING_ORD);
+	protected static final TagSet EMPTY_TAGS = TagSet.makeEmpty();
 	
 	
 	// all of these are caches and should be assigned to exactly once. Unfortunately,
@@ -53,9 +54,9 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	private String canonicalRep; 
 	private List<MethodInfo> methods;
 	private List<FieldInfo> fields;
-	private Set<String> tags;
-	private Set<String> outerTags;
-	private Set<String> innerTags;
+	private TagSet tags;
+	private TagSet outerTags;
+	private TagSet innerTags;
 	private Map<String, Integer> storageIndexMap;
 	
 	/*
@@ -87,16 +88,16 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		return this.fields;
 	}
 	
-	protected final Set<String> getTags() {
+	protected final TagSet getTags() {
 		return this.tags;
 	}
 	
-	protected final Set<String> getOuterTags() {
+	protected final TagSet getOuterTags() {
 		return this.outerTags;
 		
 	}
 	
-	protected final Set<String> getInnerTags() {
+	protected final TagSet getInnerTags() {
 		return this.innerTags;
 	}
 	
@@ -115,11 +116,11 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	
 	protected abstract List<MethodInfo> constructMethods();
 	
-	protected abstract Set<String> constructTags();
+	protected abstract TagSet constructTags();
 	
-	protected abstract Set<String> constructOuterTags();
+	protected abstract TagSet constructOuterTags();
 	
-	protected abstract Set<String> constructInnerTags();
+	protected abstract TagSet constructInnerTags();
 	
 	private final Map<String, Integer> constructStorageIndexMap() {
 		TreeSet<String> storageNameSet = new TreeSet<String>(); 
@@ -160,7 +161,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			DimensionValue otherDV = (DimensionValue) other;
 			// SU-AddH
 			if(otherDV.uniqueTags() && 
-					this.getTags().intersect(otherDV.getTags()).size() == 0) {
+					this.getTags().emptyIntersection(otherDV.getTags())) {
 				return this.addValue(otherDV);
 			}
 			//SU-MatchDim
@@ -169,8 +170,8 @@ public abstract class AbstractObjectValue implements ObjectValue {
 				SingleValue firstOV = thisLV.getFirst();
 				if (firstOV instanceof DimensionValue) {
 					DimensionValue thisDV = (DimensionValue)firstOV;
-					if (!thisDV.getTags().intersect(otherDV.getOuterTags()).isEmpty() &&
-							otherDV.getTags().intersect(thisLV.getRest().getTags()).isEmpty()) {
+					if (!thisDV.getTags().emptyIntersection(otherDV.getOuterTags()) &&
+							otherDV.getTags().emptyIntersection(thisLV.getRest().getTags())) {
 						// JSS: This clause is different than the last premise in the SU-MatchDim
 						// This operates only on inputs, while the premise operates on the results, which seems unnecessary 
 						return thisLV.getRest().addValue((SingleValue)firstOV.changeState(otherDV));
@@ -182,31 +183,31 @@ public abstract class AbstractObjectValue implements ObjectValue {
 				DimensionValue thisDV = (DimensionValue) this;	
 				// SU-MatchInner
 				if(thisDV.getInnerValue()!= null &&
-						!thisDV.getInnerValue().getTags().intersect(otherDV.getOuterTags()).isEmpty() &&
+						!thisDV.getInnerValue().getTags().emptyIntersection(otherDV.getOuterTags()) &&
 					!otherDV.getTags().member(thisDV.getTag()) &&
 					(thisDV.getParent() == null ||
-							thisDV.getParent().getTags().intersect(otherDV.getTags()).isEmpty())) {
+							thisDV.getParent().getTags().emptyIntersection(otherDV.getTags()))) {
 					AbstractObjectValue newInnerValue = thisDV.getInnerValue().changeState(otherDV);
 					return new DimensionValue(thisDV.getTag(), newInnerValue, thisDV.getParent());
 				}
 				//SU-MatchSuperInner
 				else if(thisDV.getParent() != null &&
-						!otherDV.getOuterTags().intersect(thisDV.getParent().getInnerTags()).isEmpty() &&
-						thisDV.withoutParent().getTags().intersect(otherDV.getTags()).isEmpty()) {
+						!otherDV.getOuterTags().emptyIntersection(thisDV.getParent().getInnerTags()) &&
+						thisDV.withoutParent().getTags().emptyIntersection(otherDV.getTags())) {
 					DimensionValue newParent = (DimensionValue)thisDV.getParent().changeState(otherDV);
 					return new DimensionValue(thisDV.getTag(), thisDV.getInnerValue(), newParent);
 				}
 				//SU-MatchSuperInner
 				else if(thisDV.getParent() != null &&
-						!otherDV.getOuterTags().intersect(thisDV.getParent().getInnerTags()).isEmpty() &&
-						thisDV.withoutParent().getTags().intersect(otherDV.getTags()).isEmpty()) {
+						!otherDV.getOuterTags().emptyIntersection(thisDV.getParent().getInnerTags()) &&
+						thisDV.withoutParent().getTags().emptyIntersection(otherDV.getTags())) {
 					DimensionValue newParent = (DimensionValue)thisDV.getParent().changeState(otherDV);
 					return new DimensionValue(thisDV.getTag(), thisDV.getInnerValue(), newParent);
 				}
 				//SU-MatchSuper
 				else if(thisDV.getParent() != null &&
 						!otherDV.getOuterTags().member(thisDV.getTag()) &&
-						!otherDV.getOuterTags().intersect(thisDV.getParent().getOuterTags()).isEmpty()) 
+						!otherDV.getOuterTags().emptyIntersection(thisDV.getParent().getOuterTags())) 
 				{
 					return thisDV.getParent().changeState(otherDV);
 				}
@@ -216,7 +217,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 					if (dvsub == null) {
 						return thisDV;
 					} else {
-						if(dvsub.getTags().intersect(thisDV.getTags()).isEmpty() &&
+						if(dvsub.getTags().emptyIntersection(thisDV.getTags()) &&
 								dvsub.uniqueTags()) {
 							return childrenOfTag(thisDV.getTag(), otherDV, thisDV);
 						}
