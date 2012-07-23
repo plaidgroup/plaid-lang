@@ -39,7 +39,7 @@ public class PlaidOp extends SimplePlaidMethod {
 			return; 
 		}
 			
-		this.name = NamingConventions.convertOpStringToMethodName(operator);
+		this.name = NamingConventions.getGeneratedIdentifier(operator);
 		parseFromReturn(opReturns.get(operator), plaidObjectType);
 		if (operator.equals("%")) operator = "%%";
 		

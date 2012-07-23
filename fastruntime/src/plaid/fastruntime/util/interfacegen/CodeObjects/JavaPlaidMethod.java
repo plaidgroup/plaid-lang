@@ -9,7 +9,7 @@ public class JavaPlaidMethod extends SimplePlaidMethod {
 	public JavaPlaidMethod(Method mInfo, Class javaType, String returnPlaidObjectType) {
 		this.mInfo = mInfo;
 		String methodName = mInfo.getName();
-		this.name = NamingConventions.getIdentifierName(NamingConventions.getGeneratedIdentifier(methodName));
+		this.name = NamingConventions.getGeneratedIdentifier(methodName);
 		this.nArgs = mInfo.getParameterTypes().length;
 		Class returnType = mInfo.getReturnType();
 		if (returnType == int.class)
@@ -20,6 +20,8 @@ public class JavaPlaidMethod extends SimplePlaidMethod {
 			this.returnType = "Util.float64(%s)";
 		else if (returnType == String.class)
 			this.returnType = "Util.string(%s)";
+		else if (returnType == char.class)
+			this.returnType = "Util.string(\"\" + %s)";
 		else if (returnType == void.class) {
 			methodBody = operation;
 			operation = "";

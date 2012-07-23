@@ -78,6 +78,8 @@ public class OverloadedPlaidMethod implements PlaidMethodInfo, CodeObject {
 		generator.addDependency("plaid.fastruntime.PlaidJavaObject");
 		boolean first = true;
 		Iterator i = methods.descendingIterator();
+		sb.append(indent+"\ttry {\n");
+		innerIndent += "\t";
 		while (i.hasNext()) {
 			String[] castArgs = new String[parsedArgs.length];
 			SimplePlaidMethod current = (SimplePlaidMethod)i.next();
@@ -90,6 +92,8 @@ public class OverloadedPlaidMethod implements PlaidMethodInfo, CodeObject {
 			}
 			sb.append(innerIndent+((first)?"if (":"else if("));
 			for (int n = 1; n < parsedArgs.length; n++) {
+				if (!current.castTypes[n].isArray() && !current.castTypes[n].isPrimitive())
+					generator.addDependency(current.castTypes[n].getCanonicalName());
 				castArgs[n] = "("+current.castTypes[n].getSimpleName()+")"+parsedArgs[n];
 				sb.append(((n>1)?" && ":"")+parsedArgs[n]+" instanceof "+current.castTypes[n].getSimpleName());
 			}
@@ -101,7 +105,9 @@ public class OverloadedPlaidMethod implements PlaidMethodInfo, CodeObject {
 			sb.append(innerIndent+"}\n");
 			first = false;
 		}
-
+		
+		sb.append(innerIndent+"else {\n"+innerIndent+"\t\tthrow new PlaidIllegalOperationException(\"Invalid arguments to function\"); \n"+innerIndent+"}\n");
+		sb.append(indent+"\t} catch (Exception e) { throw new PlaidIllegalOperationException(\"A java exception was thrown\", e); }\n");
 		sb.append(indent + "}\n");
 		return sb.toString();
 	}
