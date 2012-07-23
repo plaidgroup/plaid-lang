@@ -11,37 +11,8 @@ import plaid.fastruntime.Util;
 import plaid.fastruntime.reference.AbstractPlaidDispatch;
 import java.lang.Long;
 import java.lang.Object;
-import plaid.generated.IcompareT_o$plaid$1$plaid;
-import plaid.generated.IgetC_lass$plaid$0$plaid;
-import plaid.generated.Ilt$plaid$1$plaid;
-import plaid.generated.Inotify$plaid$0$plaid;
-import plaid.generated.IhashC_ode$plaid$0$plaid;
-import plaid.generated.IlongV_alue$plaid$0$plaid;
-import plaid.generated.Iamp$plaid$1$plaid;
-import plaid.generated.Iplus$plaid$1$plaid;
-import plaid.generated.Imult$plaid$1$plaid;
-import plaid.generated.IintV_alue$plaid$0$plaid;
-import plaid.generated.Imod$plaid$1$plaid;
-import plaid.generated.IdoubleV_alue$plaid$0$plaid;
-import plaid.generated.ItoS_tring$plaid$0$plaid;
-import plaid.generated.Ipipe$plaid$1$plaid;
-import plaid.generated.Igteq$plaid$1$plaid;
-import plaid.generated.Igt$plaid$1$plaid;
-import plaid.generated.Itilde$plaid$0$plaid;
-import plaid.generated.Ibangeq$plaid$1$plaid;
-import plaid.generated.Idiv$plaid$1$plaid;
-import plaid.generated.IbyteV_alue$plaid$0$plaid;
-import plaid.generated.Isub$plaid$1$plaid;
-import plaid.generated.IfloatV_alue$plaid$0$plaid;
-import plaid.generated.Ieqeq$plaid$1$plaid;
-import plaid.generated.Iwait$plaid$0$plaid;
-import plaid.generated.Iwait$plaid$1$plaid;
-import plaid.generated.InotifyA_ll$plaid$0$plaid;
-import plaid.generated.Iwait$plaid$2$plaid;
-import plaid.generated.IshortV_alue$plaid$0$plaid;
-import plaid.generated.Iequals$plaid$1$plaid;
-import plaid.generated.Ilteq$plaid$1$plaid;
-public class I_nt64 extends AbstractPlaidDispatch implements plaid.generated.IcompareT_o$plaid$1$plaid, plaid.generated.IgetC_lass$plaid$0$plaid, plaid.generated.Ilt$plaid$1$plaid, plaid.generated.Inotify$plaid$0$plaid, plaid.generated.IhashC_ode$plaid$0$plaid, plaid.generated.IlongV_alue$plaid$0$plaid, plaid.generated.Iamp$plaid$1$plaid, plaid.generated.Iplus$plaid$1$plaid, plaid.generated.Imult$plaid$1$plaid, plaid.generated.IintV_alue$plaid$0$plaid, plaid.generated.Imod$plaid$1$plaid, plaid.generated.IdoubleV_alue$plaid$0$plaid, plaid.generated.ItoS_tring$plaid$0$plaid, plaid.generated.Ipipe$plaid$1$plaid, plaid.generated.Igteq$plaid$1$plaid, plaid.generated.Igt$plaid$1$plaid, plaid.generated.Itilde$plaid$0$plaid, plaid.generated.Ibangeq$plaid$1$plaid, plaid.generated.Idiv$plaid$1$plaid, plaid.generated.IbyteV_alue$plaid$0$plaid, plaid.generated.Isub$plaid$1$plaid, plaid.generated.IfloatV_alue$plaid$0$plaid, plaid.generated.Ieqeq$plaid$1$plaid, plaid.generated.Iwait$plaid$0$plaid, plaid.generated.Iwait$plaid$1$plaid, plaid.generated.InotifyA_ll$plaid$0$plaid, plaid.generated.Iwait$plaid$2$plaid, plaid.generated.IshortV_alue$plaid$0$plaid, plaid.generated.Iequals$plaid$1$plaid, plaid.generated.Ilteq$plaid$1$plaid { 
+import java.lang.Integer;
+public class I_nt64 extends AbstractPlaidDispatch implements plaid.generated.IintV_alue$0$plaid, plaid.generated.IshortV_alue$0$plaid, plaid.generated.IcompareT_o$1$plaid, plaid.generated.IgetC_lass$0$plaid, plaid.generated.Ilt$plaid$1$plaid, plaid.generated.ItoS_tring$0$plaid, plaid.generated.Iamp$plaid$1$plaid, plaid.generated.Iplus$plaid$1$plaid, plaid.generated.Imult$plaid$1$plaid, plaid.generated.Imod$plaid$1$plaid, plaid.generated.Ipipe$plaid$1$plaid, plaid.generated.InotifyA_ll$0$plaid, plaid.generated.Igteq$plaid$1$plaid, plaid.generated.IbyteV_alue$0$plaid, plaid.generated.Igt$plaid$1$plaid, plaid.generated.Itilde$plaid$0$plaid, plaid.generated.Ibangeq$plaid$1$plaid, plaid.generated.Idiv$plaid$1$plaid, plaid.generated.IdoubleV_alue$0$plaid, plaid.generated.Inotify$0$plaid, plaid.generated.Isub$plaid$1$plaid, plaid.generated.IlongV_alue$0$plaid, plaid.generated.Ieqeq$plaid$1$plaid, plaid.generated.IfloatV_alue$0$plaid, plaid.generated.IhashC_ode$0$plaid, plaid.generated.Iequals$1$plaid, plaid.generated.Iwait$0$plaid, plaid.generated.Iwait$2$plaid, plaid.generated.Iwait$1$plaid, plaid.generated.Ilteq$plaid$1$plaid { 
 	public I_nt64(ObjectValue metadata) {
 		super(metadata);
 	}
@@ -98,79 +69,75 @@ public class I_nt64 extends AbstractPlaidDispatch implements plaid.generated.Ico
 			}
 		}
 	}
-	public PlaidObject compareT_o$plaid(PlaidObject receiver, PlaidObject arg0) {
+	public PlaidObject intV_alue(PlaidObject receiver) {
+		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
+		return Util.integer(((Long)parsedReciever).intValue());
+	}
+	public PlaidObject shortV_alue(PlaidObject receiver) {
+		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
+		return Util.javaToPlaid(((Long)parsedReciever).shortValue());
+	}
+	public PlaidObject compareT_o(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
 		return Util.integer(((Long)parsedReciever).compareTo(((Long)parsedArg1)));
 	}
-	public PlaidObject getC_lass$plaid(PlaidObject receiver) {
+	public PlaidObject getC_lass(PlaidObject receiver) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		return Util.javaToPlaid(((Object)parsedReciever).getClass());
 	}
 	public PlaidObject lt$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return Util.bool(((Long)parsedReciever)<((Number)parsedArg1).longValue());
+		return Util.bool(((Long)parsedReciever)<((Long)parsedArg1));
 	}
-	public PlaidObject notify$plaid(PlaidObject receiver) {
+	public PlaidObject toS_tring(PlaidObject receiver) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		((Object)parsedReciever).notify();
-		return Util.unit();
-	}
-	public PlaidObject hashC_ode$plaid(PlaidObject receiver) {
-		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		return Util.integer(((Long)parsedReciever).hashCode());
-	}
-	public PlaidObject longV_alue$plaid(PlaidObject receiver) {
-		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		return Util.javaToPlaid(((Long)parsedReciever).longValue());
+		return Util.string(((Long)parsedReciever).toString());
 	}
 	public PlaidObject amp$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return new LongPlaidJavaObject(((Long)parsedReciever)&(((Number)parsedArg1).longValue()));
+		return new LongPlaidJavaObject(((Long)parsedReciever)&((Number)parsedArg1).longValue());
 	}
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return new LongPlaidJavaObject(((Long)parsedReciever)+(((Number)parsedArg1).longValue()));
+		return new LongPlaidJavaObject(((Long)parsedReciever)+((Number)parsedArg1).longValue());
 	}
 	public PlaidObject mult$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return new LongPlaidJavaObject(((Long)parsedReciever)*(((Number)parsedArg1).longValue()));
-	}
-	public PlaidObject intV_alue$plaid(PlaidObject receiver) {
-		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		return Util.integer(((Long)parsedReciever).intValue());
+		return new LongPlaidJavaObject(((Long)parsedReciever)*((Number)parsedArg1).longValue());
 	}
 	public PlaidObject mod$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return new LongPlaidJavaObject(((Long)parsedReciever)%(((Number)parsedArg1).longValue()));
-	}
-	public PlaidObject doubleV_alue$plaid(PlaidObject receiver) {
-		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		return Util.float64(((Long)parsedReciever).doubleValue());
-	}
-	public PlaidObject toS_tring$plaid(PlaidObject receiver) {
-		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		return Util.string(((Long)parsedReciever).toString());
+		return new LongPlaidJavaObject(((Long)parsedReciever)%((Number)parsedArg1).longValue());
 	}
 	public PlaidObject pipe$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
 		return new LongPlaidJavaObject(((Long)parsedReciever)|((Number)parsedArg1).longValue());
 	}
+	public PlaidObject notifyA_ll(PlaidObject receiver) {
+		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
+		((Object)parsedReciever).notifyAll();
+		return Util.unit();
+	}
 	public PlaidObject gteq$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return Util.bool(((Long)parsedReciever)>=(((Number)parsedArg1).longValue()));
+		return Util.bool(((Long)parsedReciever)>=((Number)parsedArg1).longValue());
+	}
+	public PlaidObject byteV_alue(PlaidObject receiver) {
+		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
+		return Util.javaToPlaid(((Long)parsedReciever).byteValue());
 	}
 	public PlaidObject gt$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return Util.bool(((Long)parsedReciever)>(((Number)parsedArg1).longValue()));
+		return Util.bool(((Long)parsedReciever)>((Number)parsedArg1).longValue());
 	}
 	public PlaidObject tilde$plaid(PlaidObject receiver) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
@@ -179,32 +146,50 @@ public class I_nt64 extends AbstractPlaidDispatch implements plaid.generated.Ico
 	public PlaidObject bangeq$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return Util.bool(!((Long)parsedReciever).equals((((Number)parsedArg1).longValue())));
+		return Util.bool(!((Long)parsedReciever).equals(((Number)parsedArg1).longValue()));
 	}
 	public PlaidObject div$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return new LongPlaidJavaObject(((Long)parsedReciever)/(((Number)parsedArg1).longValue()));
+		return new LongPlaidJavaObject(((Long)parsedReciever)/((Number)parsedArg1).longValue());
 	}
-	public PlaidObject byteV_alue$plaid(PlaidObject receiver) {
+	public PlaidObject doubleV_alue(PlaidObject receiver) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		return Util.javaToPlaid(((Long)parsedReciever).byteValue());
+		return Util.float64(((Long)parsedReciever).doubleValue());
+	}
+	public PlaidObject notify(PlaidObject receiver) {
+		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
+		((Object)parsedReciever).notify();
+		return Util.unit();
 	}
 	public PlaidObject sub$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return new LongPlaidJavaObject(((Long)parsedReciever)-(((Number)parsedArg1).longValue()));
+		return new LongPlaidJavaObject(((Long)parsedReciever)-((Number)parsedArg1).longValue());
 	}
-	public PlaidObject floatV_alue$plaid(PlaidObject receiver) {
+	public PlaidObject longV_alue(PlaidObject receiver) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		return Util.javaToPlaid(((Long)parsedReciever).floatValue());
+		return Util.javaToPlaid(((Long)parsedReciever).longValue());
 	}
 	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
 		return Util.bool(((Long)parsedReciever).equals(((Number)parsedArg1).longValue()));
 	}
-	public PlaidObject wait$plaid(PlaidObject receiver) {
+	public PlaidObject floatV_alue(PlaidObject receiver) {
+		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
+		return Util.javaToPlaid(((Long)parsedReciever).floatValue());
+	}
+	public PlaidObject hashC_ode(PlaidObject receiver) {
+		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
+		return Util.integer(((Long)parsedReciever).hashCode());
+	}
+	public PlaidObject equals(PlaidObject receiver, PlaidObject arg0) {
+		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
+		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
+		return Util.bool(((Long)parsedReciever).equals(((Object)parsedArg1)));
+	}
+	public PlaidObject wait(PlaidObject receiver) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		try {
 			((Object)parsedReciever).wait();
@@ -214,23 +199,7 @@ public class I_nt64 extends AbstractPlaidDispatch implements plaid.generated.Ico
 			throw new PlaidIllegalOperationException("A java error has occured.",e); 
 		}
 	}
-	public PlaidObject wait$plaid(PlaidObject receiver, PlaidObject arg0) {
-		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		try {
-			((Object)parsedReciever).wait(((Long)parsedArg1));
-			return Util.unit();
-	
-		} catch (Exception e) { 
-			throw new PlaidIllegalOperationException("A java error has occured.",e); 
-		}
-	}
-	public PlaidObject notifyA_ll$plaid(PlaidObject receiver) {
-		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		((Object)parsedReciever).notifyAll();
-		return Util.unit();
-	}
-	public PlaidObject wait$plaid(PlaidObject receiver, PlaidObject arg0, PlaidObject arg1) {
+	public PlaidObject wait(PlaidObject receiver, PlaidObject arg0, PlaidObject arg1) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
 		Object parsedArg2 = ((PlaidJavaObject) arg1).getJavaObject();
@@ -242,18 +211,20 @@ public class I_nt64 extends AbstractPlaidDispatch implements plaid.generated.Ico
 			throw new PlaidIllegalOperationException("A java error has occured.",e); 
 		}
 	}
-	public PlaidObject shortV_alue$plaid(PlaidObject receiver) {
-		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
-		return Util.javaToPlaid(((Long)parsedReciever).shortValue());
-	}
-	public PlaidObject equals$plaid(PlaidObject receiver, PlaidObject arg0) {
+	public PlaidObject wait(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return Util.bool(((Long)parsedReciever).equals(((Object)parsedArg1)));
+		try {
+			((Object)parsedReciever).wait(((Long)parsedArg1));
+			return Util.unit();
+	
+		} catch (Exception e) { 
+			throw new PlaidIllegalOperationException("A java error has occured.",e); 
+		}
 	}
 	public PlaidObject lteq$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return Util.bool(((Long)parsedReciever)<=(((Number)parsedArg1).longValue()));
+		return Util.bool(((Long)parsedReciever)<=((Long)parsedArg1));
 	}
 }

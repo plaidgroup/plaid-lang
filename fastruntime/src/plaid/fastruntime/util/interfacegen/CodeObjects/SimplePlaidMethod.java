@@ -14,7 +14,7 @@ public abstract class SimplePlaidMethod implements CodeObject, PlaidMethodInfo {
 	       builtInMap.put("long", Long.class );
 	       builtInMap.put("double", Double.class );
 	       builtInMap.put("float", Float.class );
-	       builtInMap.put("bool", Boolean.class );
+	       builtInMap.put("boolean", Boolean.class );
 	       builtInMap.put("char", Character.class );
 	       builtInMap.put("byte", Byte.class );
 	       builtInMap.put("void", Void.class );
@@ -38,7 +38,7 @@ public abstract class SimplePlaidMethod implements CodeObject, PlaidMethodInfo {
 	
 	public SimplePlaidMethod(String name, 
 			int nArgs, Return returnType, Class[] castTypes, String operation) {
-		this.name = NamingConventions.getIdentifierName(NamingConventions.getGeneratedIdentifier(name));
+		this.name = NamingConventions.getGeneratedIdentifier(name);
 		this.nArgs = nArgs;
 		this.castTypes = castTypes;
 		this.operation = operation;
@@ -95,8 +95,9 @@ public abstract class SimplePlaidMethod implements CodeObject, PlaidMethodInfo {
 		String innerIndent = indent+"\t";
 
 		String[] parsedArgs = new String[nArgs+1];
-		
-		generator.addDependency(castTypes[0].getCanonicalName());
+
+		if (!castTypes[0].isArray() && !castTypes[0].isPrimitive())
+			generator.addDependency(castTypes[0].getCanonicalName());
 		
 		sb.append(innerIndent+"Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();\n");
 		parsedArgs[0] = "(("+castTypes[0].getSimpleName() +")parsedReciever)";
@@ -104,6 +105,8 @@ public abstract class SimplePlaidMethod implements CodeObject, PlaidMethodInfo {
 		for (int i = 1; i <= nArgs; i++) {
 			sb.append(innerIndent+"Object parsedArg"+i+" = ((PlaidJavaObject) arg"+(i-1)+").getJavaObject();\n");
 			parsedArgs[i] = "(("+castTypes[i].getSimpleName() +")parsedArg"+i+")";
+			if (!castTypes[i].isArray() && !castTypes[i].isPrimitive())
+				generator.addDependency(castTypes[i].getCanonicalName());
 		}
 		
 		if (generator instanceof PlaidCodeGenerator) {

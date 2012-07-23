@@ -77,7 +77,6 @@ public class PlaidClassObject extends ClassObject implements PlaidCodeGenerator 
 				
 				if (!interfaces.contains(interf))
 					interfaces.add(interf);
-				this.addDependency(interf);
 			}
 		
 		
