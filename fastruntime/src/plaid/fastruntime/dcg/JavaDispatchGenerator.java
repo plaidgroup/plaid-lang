@@ -374,7 +374,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Double", "<init>", "(D)V");
 		} else if (type.equals(Type.INT_TYPE) || type.equals(Type.SHORT_TYPE) || type.equals(Type.BYTE_TYPE)) {
 			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;");
-		} else if (type.equals(Type.LONG_TYPE) ) {//**** WARNING - lossy conversion for longs *****
+		} else if (type.equals(Type.LONG_TYPE) ) {
 			mv.visitTypeInsn(NEW, "java/lang/Long");
 			mv.visitInsn(DUP_X2);
 			mv.visitInsn(DUP_X2);
