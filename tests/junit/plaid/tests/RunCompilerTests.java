@@ -53,7 +53,6 @@ public class RunCompilerTests {
     private final static String CODE_KEY = "code";
     private final static String LINE_KEY = "line";
     
-    private final static String FILE_SEP = System.getProperty("file.seperator");
     
 	private static final List<String> RUNPLAID_CLASSPATH = new ArrayList<String>();
 	static {
@@ -61,7 +60,6 @@ public class RunCompilerTests {
 			RUNPLAID_CLASSPATH.add(new File(OUTPUT_DIR).getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../fastruntime/bin").getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../fastruntime/lib/asm-debug-all-3.3.1.jar").getCanonicalPath());
-			RUNPLAID_CLASSPATH.add(new File("../fastruntime/lib/functionaljava.jar").getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../generated/bin").getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../frontend/bin").getCanonicalPath());
 			RUNPLAID_CLASSPATH.add(new File("../faststdlib/bin").getCanonicalPath());
