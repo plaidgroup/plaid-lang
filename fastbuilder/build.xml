@@ -13,8 +13,7 @@
 	<property name="RUNTIME.BIN" value="../runtime/bin"/>
 	<property name="STDLIB.BIN" value="../stdlib/bin"/>
 	
-	<property name="RUN.BIN" value="${bin}"/>
-	<property name="RUN.CLASS" value="${runclass}"/>
+	
 
     <path id="run.classpath">
     	<pathelement location="${RUN.BIN}"/>
@@ -29,7 +28,7 @@
     <target name="run">
         <java classname="${runclass}">
             <classpath>
-            	<pathelement location="${RUN.BIN}"/>
+            	<pathelement location="${bin}"/>
             	        <pathelement location="${FASTRUNTIME.BIN}" />
             	        <pathelement location="${GENERATED.BIN}" />
             	        <pathelement location="${ASM.JAR}" />
@@ -38,8 +37,50 @@
 	    </java>
 	</target>
 	
-	<target name="compile">
-		<echo message="Compiling Plaid code..." />
+	<target name="dir.check">
+        <condition property="sourcepath.isset">
+        	<isset property="sourcepath"/>
+        </condition>
+		
+		
+		
+	    <condition property="sourcepath.exists">
+	       <available file="${sourcepath}" type="dir"/>
+	    </condition>
+		<condition property="sourcepath.hasplaidfiles">
+    		<length when="greater" length="0">
+    			<fileset dir="${sourcepath}" erroronmissingdir="false" id="sourcefiles" includes="**/*.plaid"/>	
+    	    </length>
+		</condition>
+		
+		<condition property="temppath.isset">
+		    <isset property="temppath"/>
+		</condition>
+		
+		<condition property="temppath.isset">
+		            <isset property="temppath"/>
+		</condition>
+		
+		<condition property="outputpath.isset">
+		    <isset property="outputpath"/>
+		</condition>	
+		<condition property="succeeded">
+			<and>
+	            <isset property="sourcepath.isset"/>
+                <isset property="sourcepath.exists"/>
+				<isset property="sourcepath.hasplaidfiles"/>
+                <isset property="temppath.isset"/>
+                <isset property="outputpath.isset"/>
+			</and>
+		</condition>    
+	</target>
+	
+	<target name="compile" depends="dir.check,success,fail"/>
+	
+	<target name="success" if="succeeded">
+		<echo message="Compiling Plaid code in ${sourcepath}"/>
+		<mkdir dir="${temppath}"/>
+		<mkdir dir="${outputpath}"/>
 		<java classname="plaid.compiler.main" failonerror="true" fork="true">
 	            <classpath>
 	                <pathelement path="${PLAID_COMPILER_CLASSPATH}"/>
@@ -57,6 +98,30 @@
 	            <arg value="${sourcepath}" />
 	    </java>
 		<javac destdir="${outputpath}" classpath="${FASTRUNTIME.BIN};${GENERATED.BIN};${FASTSTDLIB.BIN}" srcdir="${temppath}"/>
+	</target>
+	
+	<target name="fail" unless="succeeded" depends="sourcepath.exists.fail, sourcepath.isset.fail, sourcepath.hasplaidfiles.fail, temppath.isset.fail, outputpath.isset.fail">
+		<fail message="Build failed. See earlier error messages for details."/>
+	</target>
+	
+	<target name="sourcepath.exists.fail" if="sourcepath.isset" unless="sourcepath.exists">
+		<echo level="error" message="ERROR: Input directory ${sourcepath} does not exist."/>
+	</target>
+	
+	<target name="sourcepath.hasplaidfiles.fail" if="sourcepath.isset" unless="sourcepath.hasplaidfiles">
+	        <echo level="error" message="ERROR: Source path, ${sourcepath}, contains no plaid files."/>
+	</target>
+	
+	<target name="sourcepath.isset.fail" unless="sourcepath.isset">
+		<echo level="error" message="ERROR: Source path is required. Please provide directory of plaid source to compile after -sourcepath command line flag."/>
+	</target>
+	
+	<target name="temppath.isset.fail" unless="temppath.isset">
+		<echo level="error" message="ERROR: Temporary path is required. Please provide directory for temporary Java files  after -temppath command line flag."/>
+	</target>
+		
+	<target name="outputpath.isset.fail" unless="outputpath.isset">
+        <echo level="error" message="ERROR: Output path is required. Please provide directory for output class files after -outputpath command line flag." />
 	</target>
 
 </project>
