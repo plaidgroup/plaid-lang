@@ -3,6 +3,7 @@ package plaid.fastruntime.util.interfacegen.CodeObjects;
 import java.util.HashMap;
 
 import plaid.fastruntime.NamingConventions;
+import plaid.fastruntime.util.interfacegen.CodeObjects.SimplePlaidMethod.Return;
 
 public class PlaidOp extends SimplePlaidMethod {
 
@@ -40,7 +41,16 @@ public class PlaidOp extends SimplePlaidMethod {
 		}
 			
 		this.name = NamingConventions.getGeneratedIdentifier(operator);
-		parseFromReturn(opReturns.get(operator), plaidObjectType);
+
+		switch (opReturns.get(operator)) {
+		case Boolean:
+			this.returnType = "Util.bool(%s)";
+			break;
+		case Self:
+			getReturn(javaObjectType, plaidObjectType, javaObjectType);
+		}
+		
+		
 		if (operator.equals("%")) operator = "%%";
 		
 		operation = (operator.equals("!") || operator.equals("~"))?operator+"%s":"%s"+operator+"%s";
@@ -53,6 +63,16 @@ public class PlaidOp extends SimplePlaidMethod {
 		
 		for (int i = 0; i < this.castTypes.length; i++)
 			this.castTypes[i] = javaObjectType;
+		
+	}
+	
+	@Override
+	protected String processMethodBody(String body, String indent) {
+			StringBuilder outputBuilder = new StringBuilder();
+			outputBuilder.append(indent+"try {\n");
+			outputBuilder.append("\t"+body.replace("\n","\n\t")+"\n");
+			outputBuilder.append(indent+"} catch (ClassCastException e) { \n"+indent+"\tthrow new PlaidIllegalOperationException(\"A invalid operation has been attempted.\",e); \n"+indent+"}\n");
+			return outputBuilder.toString();
 	}
 	
 	@Override

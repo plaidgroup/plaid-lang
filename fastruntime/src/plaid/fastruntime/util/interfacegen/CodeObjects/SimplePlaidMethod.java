@@ -74,6 +74,32 @@ public abstract class SimplePlaidMethod implements CodeObject, PlaidMethodInfo {
 		}
 	}
 	
+
+
+	protected void getReturn(Class javaType, String returnPlaidObjectType,
+			Class returnType) {
+		if (returnType == int.class)
+			this.returnType = "Util.integer(%s)";
+		else if (returnType == boolean.class)
+			this.returnType = "Util.bool(%s)";
+		else if (returnType == double.class)
+			this.returnType = "Util.float64(%s)";
+		else if (returnType == String.class)
+			this.returnType = "Util.string(%s)";
+		else if (returnType == char.class)
+			this.returnType = "Util.string(\"\" + %s)";
+		else if (returnType == long.class)
+			this.returnType = "Util.long(%s)";
+		else if (returnType == void.class) {
+			methodBody = operation;
+			operation = "";
+			this.returnType = "Util.unit()";
+		} else if (returnType == javaType)
+			this.returnType = "new "+returnPlaidObjectType+"(%s)";
+		else 
+			this.returnType = "Util.javaToPlaid(%s)";
+	}
+	
 	public SimplePlaidMethod(String name, 
 			int nArgs, Return returnType, Class[] castTypes, String operation, String plaidObjectType) {
 		this(name, nArgs, returnType, castTypes, operation);

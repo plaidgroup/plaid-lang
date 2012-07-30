@@ -6,30 +6,14 @@ import java.util.ArrayList;
 import plaid.fastruntime.NamingConventions;
 
 public class JavaPlaidMethod extends SimplePlaidMethod {
+	private boolean isDeprecated;
 	public JavaPlaidMethod(Method mInfo, Class javaType, String returnPlaidObjectType) {
 		this.mInfo = mInfo;
 		String methodName = mInfo.getName();
 		this.name = NamingConventions.getGeneratedIdentifier(methodName);
 		this.nArgs = mInfo.getParameterTypes().length;
 		Class returnType = mInfo.getReturnType();
-		if (returnType == int.class)
-			this.returnType = "Util.integer(%s)";
-		else if (returnType == boolean.class)
-			this.returnType = "Util.bool(%s)";
-		else if (returnType == double.class)
-			this.returnType = "Util.float64(%s)";
-		else if (returnType == String.class)
-			this.returnType = "Util.string(%s)";
-		else if (returnType == char.class)
-			this.returnType = "Util.string(\"\" + %s)";
-		else if (returnType == void.class) {
-			methodBody = operation;
-			operation = "";
-			this.returnType = "Util.unit()";
-		} else if (returnType == javaType)
-			this.returnType = "new "+returnPlaidObjectType+"(%s)";
-		else 
-			this.returnType = "Util.javaToPlaid(%s)";
+		getReturn(javaType, returnPlaidObjectType, returnType);
 		
 		this.castTypes = new Class[nArgs+1];
 		castTypes[0] = mInfo.getDeclaringClass();
@@ -62,6 +46,8 @@ public class JavaPlaidMethod extends SimplePlaidMethod {
 				throwsEx.add(exce);
 			}
 		}
+		
+		isDeprecated = mInfo.isAnnotationPresent(Deprecated.class);
 	}
 	
 	private Method mInfo;
@@ -87,6 +73,12 @@ public class JavaPlaidMethod extends SimplePlaidMethod {
 			return outputBuilder.toString();
 		} else
 			return body;
+	}
+	
+	@Override
+	public String getGeneratedCode(CodeGenerator g) {
+		
+		return ((isDeprecated)?g.getIndentString()+"@Deprecated\n":"")+super.getGeneratedCode(g);
 	}
 	
 

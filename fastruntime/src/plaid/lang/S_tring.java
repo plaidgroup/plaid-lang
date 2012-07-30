@@ -110,6 +110,7 @@ public class S_tring extends AbstractPlaidDispatch implements plaid.generated.Ii
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
 		return Util.string(((String)parsedReciever).substring(((Integer)parsedArg1)));
 	}
+	@Deprecated
 	public PlaidObject getB_ytes(PlaidObject receiver, PlaidObject arg0, PlaidObject arg1, PlaidObject arg2, PlaidObject arg3) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
@@ -156,7 +157,12 @@ public class S_tring extends AbstractPlaidDispatch implements plaid.generated.Ii
 	public PlaidObject plus$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return new StringPlaidJavaObject(((String)parsedReciever)+((String)parsedArg1));
+		try {
+			return Util.string(((String)parsedReciever)+((String)parsedArg1));
+	
+		} catch (ClassCastException e) { 
+			throw new PlaidIllegalOperationException("A invalid operation has been attempted.",e); 
+		}
 	}
 	public PlaidObject getB_ytes(PlaidObject receiver) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
@@ -199,7 +205,12 @@ public class S_tring extends AbstractPlaidDispatch implements plaid.generated.Ii
 	public PlaidObject bangeq$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return Util.bool(((String)parsedReciever)!=((String)parsedArg1));
+		try {
+			return Util.bool(((String)parsedReciever)!=((String)parsedArg1));
+	
+		} catch (ClassCastException e) { 
+			throw new PlaidIllegalOperationException("A invalid operation has been attempted.",e); 
+		}
 	}
 	public PlaidObject notify(PlaidObject receiver) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
@@ -424,7 +435,12 @@ public class S_tring extends AbstractPlaidDispatch implements plaid.generated.Ii
 	public PlaidObject eqeq$plaid(PlaidObject receiver, PlaidObject arg0) {
 		Object parsedReciever = ((PlaidJavaObject) receiver).getJavaObject();
 		Object parsedArg1 = ((PlaidJavaObject) arg0).getJavaObject();
-		return Util.bool(((String)parsedReciever).equals(((String)parsedArg1)));
+		try {
+			return Util.bool(((String)parsedReciever).equals(((String)parsedArg1)));
+	
+		} catch (ClassCastException e) { 
+			throw new PlaidIllegalOperationException("A invalid operation has been attempted.",e); 
+		}
 	}
 	public PlaidObject replace(PlaidObject receiver, PlaidObject arg0, PlaidObject arg1) {
 		String parsedReciever = (String)((PlaidJavaObject) receiver).getJavaObject();
