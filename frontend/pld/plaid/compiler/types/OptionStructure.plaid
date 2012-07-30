@@ -1,0 +1,98 @@
+package plaid.compiler.types;
+
+import plaid.compiler.ABORT;
+import plaid.compiler.report_ERROR;
+import plaid.compiler.Signature;
+import plaid.compiler.Type;
+
+state OptionStructure case of ObjectStructure {
+
+    //underlying nominal type
+    val immutable ObjectStructure optStructure;
+    
+    method immutable Boolean ==(immutable Structure other)[immutable OptionStructure this]{
+        match (other) {
+            case OptionStructure {
+                this.optStructure == other.optStructure;
+            }
+            default { false }
+        }
+    }
+    
+    method immutable String toString()[immutable OptionStructure this] {
+        "?" + this.optStructure.toString();
+    }
+    
+    //lub of an option and another option is an option of the lub of the two
+    //lub of an option and top is top
+    //lub of an option and a non-option is an option of the lub of the optioned structure and the other
+    method unique Option<immutable Structure> leastUpperBound(immutable Structure other)[immutable OptionStructure this] {
+        match (other) {
+            case TopStructure { makeSome(TOPSTRUCT) }
+            case OptionStructure { this.lubHelper(other.optStructure) }
+            case NominalStructure { this.lubHelper(other) }
+            case UnitStructure { makeSome(TOPSTRUCT) } 
+            default{ new None }
+        }
+    }
+    
+    method unique Option<immutable Structure> lubHelper(immutable NominalStructure other) {
+        val lubOpt = this.optStructure.leastUpperBound(other);
+        match (lubOpt) {
+            case Some {
+                match (lubOpt.value) {
+                    case NominalStructure { makeSome(makeOptionStructure(lubOpt.value)) }
+                    case TopStructure { makeSome(TOPSTRUCT) }
+                    default { new None } 
+                }
+            }
+            case None {
+                new None;
+            }
+        }
+    }
+    
+    //any option structure is only a substructure of another option structure and then only if
+    //the underlying structures are in a substructure relationship
+    method immutable Boolean isSubStructureOf(immutable Structure other)[immutable OptionStructure this] {
+        match (other) {
+            case OptionStructure {
+                this.optStructure.isSubStructureOf(other.optStructure)
+            }
+            case TopStructure { true }
+            default { false }
+        }
+    }
+    
+    method immutable String getName() {
+        "?" + this.optStructure.getName();
+    }
+
+    //cannot access members of an option type
+    method unique Option<immutable Signature> getMember(immutable String memberName) {
+        new None;
+    }
+    
+    //no op - other error if returning to a field of an option
+    method immutable ObjectStructure restoreToField(immutable String fieldName, immutable Type retType, immutable Integer objectID) {
+        this;
+    }
+    
+    method immutable ?UnpackedStructure unpackField(immutable UnpackedFieldSignature newFieldSig,
+                                                   immutable Token errorToken) {
+        report_ERROR(errorToken, "S_UNPACK_MISSING", "?(" + this.optStructure.symbol.getFQN() + ")." + newFieldSig.packedSignature.name, "OptionStructure");
+        unit;
+        
+    }
+
+    method immutable ?ObjectStructure assignToField(immutable String fieldName,
+  												   immutable Token errorToken)
+    {
+  	    report_ERROR(errorToken,"S_ASSIGN_MISSING", "?(" + this.optStructure.symbol.getFQN() + ")." + fieldName, "OptionStructure");
+  	    unit;
+    }
+    
+    
+  												  
+    
+}

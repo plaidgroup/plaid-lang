@@ -1,0 +1,125 @@
+package plaid.ast.types;
+
+/**
+ *	Represents the declaration of a method's type
+ */
+state MethodType case of DeclType {
+	val unique ID name;
+	val unique TakeBinding returnType;
+	val /*unique List<unique ChangeType>*/ argTypes;
+	val unique ChangeType receiverType;
+	val /*unique Map<unique ID, unique ChangeType>*/ environmentTypes;
+	val /*unique List<MetaType>*/ metaTypes;
+
+	method immutable Boolean ==(other)[immutable MethodDecl] {
+		match (other) {
+			case MethodType {
+				this.name == other.name
+				&& this.returnType == other.returnType
+				&& this.argTypes == other.argTypes
+				&& this.receiver == other.receiver
+				&& mapsEqual(this.environmentTypes, other.environmentTypes);
+			}
+			default {
+				false;
+			}
+		};
+	}
+	
+	method toString() {
+		var envString = "";
+		val itEnv = environmentTypes.keySet().iterator();
+		while { itEnv.hasNext() } {
+			val key = itEnv.next();
+			envString = envString + ", " + this.environmentTypes.get(key).toString() + " " + key.toString();
+		};
+		var value = "method " + this.returnType.toString() + " " + this.name.name + "<";
+		
+		var first = true;
+		this.metaTypes.map(fn (metaType) => {
+		    ifElse ( first ) {
+                 first = false;
+            }{ 
+                 value = value + ", ";
+            };
+            value = value + metaType.toString();
+		});
+		
+		value = value + ">(";
+
+		first = true;
+        this.argTypes.map(fn (argType) => {
+		    ifElse ( first ) {
+		         first = false;
+		    }{ 
+		         value = value + ", ";
+		    };
+		    value = value + argType.toString();
+		});
+		
+		value +	")[" + this.receiverType.toString() + " this" + envString + "]"
+	}
+	
+	method /*boolean*/ hasArg() {
+		match (argTypes.head) {
+			case Nil { false }
+			case Cons { true }
+		}
+	}
+	
+	method /*boolean*/ declSubTypeOf(/*DeclType*/ other, /*StateTable*/ stateTable) {
+		match (other) {
+			case MethodType {
+				//requirements:
+				//0) same names
+				val /*boolean*/ nameOk = this.name == other.name;
+				if (!nameOk) { java.lang.System.out.println("TYPECHECK FAILED: trying to subtype methods with different names - " + 
+																this.name.name + " <: " + other.name.name) };
+				
+				//1) this.returnType <: other.returnType
+				val /*Boolean*/ retTypeOk = this.returnType.currentType.isSubPermTypeOf(other.returnType.currentType, stateTable); //error message elsewhere
+				
+				//2) this.receiverType.input <: other.receiverType.input ***TODO: different for structural types
+				val /*Boolean*/ tInputOk = this.receiverType.input.isSubPermTypeOf(other.receiverType.input, stateTable); //error message elsewhere
+				
+				//3) this.receiverType.output <: other.receiverType.output
+				val /*Boolean*/ tOutputOk = this.receiverType.output.isSubPermTypeOf(other.receiverType.output, stateTable); //error message elsewhere
+				
+				//4) same number and compatible arg types
+				var /*Boolean*/ argsOk = this.argTypes.length() == other.argTypes.length();
+				ifElse (argsOk) {
+					val /*List<Pair<ChangeType,ChangeType>>*/ pairedArgs = this.argTypes.zip(other.argTypes);
+					argsOk = pairedArgs.foldr(fn (p,z) => {
+					
+						var inputOk = false;
+						//4a) this.argTypes[i].input <: other.argTypes[i].input //TODO: multiple args
+						if ( p.fst.input.isSubPermTypeOf(p.snd.input, stateTable)) {
+							inputOk = true; 
+						};
+						
+						var outputOk = false;
+						//4b) this.argTypes[i].output <: other.argTypes[i].output
+						if ( p.fst.output.isSubPermTypeOf(p.snd.output, stateTable)) {
+							outputOk = true;
+						};
+					
+						inputOk && outputOk && z;
+					
+					}, true);
+				} {
+					java.lang.System.out.println("SUBTYPING FAILED : mismatched number of args");
+				};
+				
+				
+				//6) //TODO: environment Types
+				
+				nameOk && retTypeOk && tInputOk && tOutputOk && argsOk;
+				
+			}
+			default { 
+				java.lang.System.out.println("TYPECHECK FAILED: method must subtype another method");
+				false 
+			}
+		}
+	}
+}

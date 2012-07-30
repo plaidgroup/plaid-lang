@@ -1,0 +1,1749 @@
+package plaid.compiler.typechecker;
+
+import plaid.compiler.*;
+import plaid.compiler.types.*;
+import plaid.compiler.permissions.*;
+import plaid.compiler.util.makeTypeFromAST;
+import plaid.compiler.util.makePermissionFromAST;
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+import plaid.ast.parsed.*;
+import plaid.compiler.aeminium.*;
+import plaid.compiler.util.*;
+import plaid.compiler.symbol.*;
+
+import plaid.collections.makeLinkedList;
+import plaid.collections.LinkedList;
+
+/**
+ * To typecheck an expression, we attempt to give the Expression exp the permission needed Perm
+ * given the context ctx.
+ *
+ * If there are no errors, we return an updated linear context along with the type
+ * of the expression and an expression list
+ *
+ * NOTE: the linear context is treated imperatively and so is destructively updated
+ *       during each typechecking case.  However, in the case of match we may
+ *       need to merge multiple contexts together.  In this case, the returned
+ *       context is a new context.  Thus, we cannot assume that the returned
+ *       context is the same object as the incoming context.
+ *
+ */
+method unique ?TypecheckResult typecheckExpression(unique LinearContext ctx, 
+                                                   immutable Permission neededPerm, 
+                                                   immutable ParsedExpression exp) 
+{
+  //DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check '" + exp.nodeName() + "' with ctx =\n" + ctx.toString());
+  match (exp) {
+    case ParsedApplication {
+      val structureOpt = structureForAST(exp.function);
+      match (structureOpt) {
+        case Some {
+          match (structureOpt.value) {
+            case LambdaStructure {
+
+              val inputSpecs = structureOpt.value.argTypes.map(fn (spec) => spec );              
+              val inputExprs = match (exp.argument) {
+                case ParsedArgumentExpr { exp.argument.args.map(fn (arg) => arg) }
+                default { 
+                    val temp = makeLinkedList(); 
+                    temp.addLast(exp.argument);
+                    temp;
+                }
+              };
+              
+              typecheckCall(ctx, neededPerm, inputSpecs, inputExprs, structureOpt.value.returnType, false,
+                        "typecheckApplication", exp); 
+            }
+            default {
+                ABORT("error in Type resolution - function in application should be a lambdaStructure");
+            }
+          }
+        }
+        case None {
+            ABORT("structure not mapped for application function node");
+        }
+      }
+    
+    
+    }
+    case ParsedAssignment {
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedAssignment");
+      match (neededPerm) {
+        case NonePermission {
+          match (exp.target) {
+            case ParsedEmptyExpr { //local-assign
+              val unique Option<immutable VariableSymbol> localVarSymbolOption = symbolForAST(exp.field);
+              match (localVarSymbolOption) {
+                case Some {
+                  match ( localVarSymbolOption.value.isVar() ) {
+                      case True {
+                        match (ctx.containsSymbol(localVarSymbolOption.value)) {
+                          case True {
+                            val immutable Type neededType = localVarSymbolOption.value.getDeclaredType();
+                            val unique ?TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
+                            match (valueResult) {
+                              case TypecheckResult {
+                                match (valueResult.expType.isSubTypeOf(neededType)) {
+                                  case True { 
+                                    val unique LinearContext newCtx = valueResult.ctxResult;
+                                    newCtx.update(localVarSymbolOption.value, neededType);
+                                    makeTypecheckResult(VOID, newCtx, valueResult.sourceLocList) 
+                                  }
+                                  case False { 
+                                      report_ERROR(exp.token, 
+                                          "T_ASSIGN_WRONG_TYPE", "need " + neededType.toString() + ", got " +
+                                          valueResult.expType.toString(), "typecheckAssignment");
+                                      unit;
+                                  }
+                                }
+                              }
+                              default { unit }
+                            }
+                          }
+                          case False {
+                            report_ERROR(exp.token, "T_NOT_IN_SCOPE", localVarSymbolOption.value.name, "typecheckAssignment");
+                            unit;
+                          }
+                        }
+                      }
+                      case False { 
+                      	report_ERROR(exp.token, 
+                      				"T_ASSIGN_LOCAL_VAL", localVarSymbolOption.value.name, 
+                      				"typecheckAssignment");
+                      	unit;
+                      }
+                  };
+                }
+                case None {
+                  report_ERROR(exp.field.token, "SYM_NOT_FOUND", "", "typecheckAssignment");
+                  unit;
+                }
+              }
+            }
+            case ParsedIdentifier { //field-Assign
+              val unique Option<immutable VariableSymbol> targetVarSymbolOption = symbolForAST(exp.target);
+              match (targetVarSymbolOption) {
+                case Some {
+                  match (ctx.containsSymbol(targetVarSymbolOption.value)) {
+                    case True {
+                      val immutable Type targetType = ctx.get(targetVarSymbolOption.value);
+                      match (targetType.permission.isSubPermOf(LOCALSHARED)) { //need at least local shared to assign to a field
+                        case True {
+                          // check for proper synronization of shared 
+                          val immutable Boolean needsAtomic = match (targetType.permission) {
+                              case SharedPermission { true } 
+                              case LocalPermission {
+                                  match (targetType.permission.thePerm) {
+                                      case SharedPermission { true } 
+                                      default { false }
+                                  }
+                              }
+                              default { false }
+                          };
+                          val immutable Boolean assignOk = match ( AEMINIUM_MODE() && needsAtomic ) {
+                              case True {
+                                  match (ctx.inAtomic) {
+                                       case True { true }
+                                       case False {
+                                           report_ERROR(exp.target.token, "A_ASSIGN_SHARED_OBJECT_FIELD", "", "typecheckAssignment");
+                                           false
+                                       }
+                                  }
+                              }
+                              case False { true } 
+                          };
+                          
+                          match (assignOk) {
+                            case True {
+                              match(targetType.structure) {
+                                case ObjectStructure {
+                                  val unique Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.field.name);
+                                  match (fieldSigOption) {
+                                    case Some {
+                                      match (fieldSigOption.value) {
+                                        case FieldSignature {
+                                          val immutable Type neededType = fieldSigOption.value.getDeclaredType();
+                                          val unique ?TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.value);
+                                          match (valueResult) {
+                                            case TypecheckResult {
+                                              match (valueResult.expType.isSubTypeOf(neededType)) {
+                                                case True { 
+                                                  val immutable ?ObjectStructure newStructure = targetType.structure.assignToField(exp.field.name, exp.token); //SUBROUTINE
+                                                  match (newStructure) {
+                                                    case ObjectStructure {
+                                                      val unique LinearContext newCtx = valueResult.ctxResult;
+                                                      newCtx.update(targetVarSymbolOption.value, makeType(targetType.permission, newStructure));
+                                                      
+                                                      var immutable Boolean dependencyOk = true;
+                                                      
+                                                      if ( AEMINIUM_MODE() ) {
+                                                          val shared DependencyInformation assignInfo = makeASTInformation(exp);
+                                                          val shared ?DependencyInformation targetInfo = match (depInfoForSymbol(targetVarSymbolOption.value)) {
+                                                              case Some { depInfoForSymbol(targetVarSymbolOption.value).value }
+                                                              case None { 
+                                                                dependencyOk = false;
+                                                                report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for " + targetVarSymbolOption.value.name, "typecheckAssignment");
+                                                                unit;
+                                                              }
+                                                          };
+                                                          val shared ?DependencyInformation valueInfo = match ( depInfoForAST(exp.value) ) {
+                                                              case Some { depInfoForAST(exp.value).value }
+                                                              case None { 
+                                                                dependencyOk = false;
+                                                                report_ERROR(exp.value.token, "A_DEPENDENCY_MISSING", " for assigned value", "typecheckAssignment");
+                                                                unit;
+                                                              } 
+                                                          };
+                                                          match (valueInfo) { case DependencyInformation { addDependency(assignInfo, valueInfo); } default { /*no op*/ } };
+                                                          match (targetInfo) { case DependencyInformation { addDependency(assignInfo, targetInfo); } default { /*no op*/ } };
+                                                          setDepInfoForSymbol(targetVarSymbolOption.value, assignInfo);
+                                                          addDepInfoForAST(exp, assignInfo);
+                                                      };
+                                                      
+                                                      match (dependencyOk) {
+                                                        case True { makeTypecheckResult(VOID, newCtx, makeLinkedList()) }
+                                                        case False { unit }
+                                                      }
+                                                    }
+                                                    default { unit }
+                                                  }
+                                                }
+                                                case False { 
+                                                    report_ERROR(exp.token, "T_ASSIGN_WRONG_TYPE", "need " + neededType.toString() + ", got " +
+                      				                    valueResult.expType.toString(), "typecheckAssignment");
+                      				                unit;
+                                                }
+                                              }
+                                            }
+                                            default { unit }
+                                          }
+                                        }
+                                        case MethodSignature {
+                                          report_ERROR(exp.field.token, "T_ASSIGN_FIELD_METHOD", targetType.structure.toString() + "." + exp.field.name, "typecheckAssignment");
+                      				      unit;
+                                        }
+                                        default {
+                                          report_ERROR(exp.field.token, "T_ASSIGN_FIELD_OTHER", targetType.structure.toString() + "." + exp.field.name, "typecheckAssignment");
+                      				      unit;
+                                        }
+                                      }
+                                    }
+                                    case None { 
+                                      report_ERROR(exp.field.token, "T_ASSIGN_FIELD_MISSING", targetType.structure.toString() + "." + exp.field.name, "typecheckAssignment");
+                      				  unit;
+                                    }
+                                  } 
+                                }
+                                default { 
+                                    report_ERROR(exp.target.token, "T_ASSIGN_FIELD_NON_OBJECT_STRUCTURE", targetType.structure.toString(), "typecheckAssignment");
+                                    unit;
+                                }
+                              }
+                            }
+                            case False { unit }
+                          }
+                        }
+                        case False { 
+                            report_ERROR(exp.target.token, "T_ASSIGN_FIELD_NOT_ENOUGH_PERMISSION", targetType.permission.toString(), "typecheckAssignment");
+                            unit;
+                        }
+                      }
+                    }
+                    case False { 
+                        report_ERROR(exp.target.token, "T_NOT_IN_SCOPE", targetVarSymbolOption.value.name, "typecheckAssignment" ); 
+                        unit;
+                    }
+                  }
+                }
+                case None { 
+                  report_ERROR(exp.field.token, "SYM_NOT_FOUND", "", "typecheckAssignment");
+                  unit;
+                }
+              }
+            }
+            default { 
+                report_ERROR(exp.target.token, "T_ASSIGN_FIELD_WRONG_TARGET", "", "typecheckAssignment");
+                unit
+            }
+          }  
+        }
+        default {
+            report_ERROR(exp.target.token, "T_ASSIGN_PERM", "none => " + neededPerm.toString() + " x ???", "typecheckAssignment");
+            unit
+        }
+      }
+    }
+    case ParsedAtomicBlock {
+        DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedAtomicBlock");
+        
+        match (ctx.inAtomic) {
+            case True {
+                report_ERROR(exp.target.token, "A_NESTED_ATOMIC", "", "typecheckAtomicBlock");
+                unit;
+            }
+            case False { 
+            
+                ctx.inAtomic = true;
+            
+                val shared DependencyInformation atomicEnter = makeAtomicEnterInformation(exp);
+                val symbols = new SymbolCollector;
+                exp.body.accept(symbols); 
+                     
+                var immutable Boolean dependencyOk = true;    
+                     
+                if ( AEMINIUM_MODE() ) {
+                    val it = symbols.externalSymbols.iterator();
+                    while { it.hasNext() }{
+                        val shared Symbol nextSym = it.next();
+                        val shared ?DependencyInformation nextInfo = match (depInfoForSymbol(nextSym)) {
+                            case Some { depInfoForSymbol(nextSym).value }
+                            case None { 
+                                dependencyOk = false;
+                                report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for " + tnextSym.name, "typecheckAtomicBlock");
+                                unit;
+                            }
+                        };
+                        match (nextInfo) { case DependencyInformation { addDependency(atomicEnter, nextInfo); } default { /* no op */ } };
+                        setDepInfoForSymbol(nextSym, atomicEnter);
+                    };
+                };
+        
+                val unique ?TypecheckResult typecheckResult = typecheckExpression(ctx, neededPerm, exp.body);
+                
+                match (typecheckResult) {
+                    case TypecheckResult {
+                        if ( AEMINIUM_MODE() ) {
+                             val shared DependencyInformation atomicLeave = makeAtomicLeaveInformation(atomicEnter);
+                             val it = symbols.externalSymbols.iterator();
+                             while { it.hasNext() }{
+                                val shared Symbol nextSym = it.next();
+                                val shared ?DependencyInformation nextInfo = match (depInfoForSymbol(nextSym)) {
+                                    case Some { depInfoForSymbol(nextSym).value }
+                                    case None { 
+                                        dependencyOk = false;
+                                        report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for " + nextSym.name, "typecheckAtomicBlock");
+                                    }
+                                };
+                                match (nextInfo) { case DependencyInformation { addDependency(atomicLeave, nextInfo); } default { /* no op */ } };
+                                setDepInfoForSymbol(nextSym, atomicLeave);
+                             };
+                             
+                             val shared ?DependencyInformation bodyInfo = match (depInfoForAST(exp.body) ) {
+                                case Some { depInfoForAST(exp.body).value }
+                                case None { 
+                                    dependencyOk = false;
+                                    report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for atomic block body", "typecheckAtomicBlock");
+                                    unit
+                                }
+                             };
+                             match (bodyInfo) { case DependencyInformation { addDependency(atomicLeave, bodyInfo); } default { /* no op */ } };
+                             addDependency(atomicLeave, atomicEnter);
+                             addDepInfoForAST(exp, atomicLeave);
+                        };
+                        
+                        match (dependencyOk) {
+                            case True {
+                                typecheckResult.ctxResult.inAtomic = false;
+                                typecheckResult
+                            }
+                            case False { unit }
+                        }
+                    }
+                    default {
+                        unit;
+                    }
+                };
+            }
+        };
+        
+    }
+    case ParsedBlockExpr {
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedBlockExpr");
+      val immutable Integer blockSize = exp.statements.size();
+      var immutable Integer count = 1;
+      val /*unique LinkedList<immutable Pair<immutable Symbol, immutable LinkedList<immutable SourceLocation>>>*/ introducedLocalVars = makeLinkedList();
+      val unique TypecheckResult seedResult = makeTypecheckResult(VOID, ctx, makeLinkedList());
+      var immutable Boolean dependencyOk = true;
+      
+      val immutable Boolean methodBlock = ctx.methodBlock;
+      ctx.methodBlock = false;
+      val shared DependencyInformation blockInfo = makeASTInformation(exp);
+      if ( AEMINIUM_MODE() ) {
+          addDepInfoForAST(exp, blockInfo);
+      };
+      
+      val unique ?TypecheckResult blockResult = exp.statements.reduce(seedResult,fn (prevResult,stmt)
+                           [immutable Integer count, immutable Permission neededPerm, unique LinkedList/*<...>*/ introducedLocalVars] => {
+        match (prevResult) {
+          case TypecheckResult {
+			val immutable Permission stmtNeededPerm = match (count == blockSize) {
+			  case True { neededPerm } //last statement in list gets neededPerm
+			  case False { NONEP }  // all others get NONEP
+			};
+			count = count+1;
+			
+			val unique ?TypecheckResult stmtResult = typecheckExpression(prevResult.ctxResult,stmtNeededPerm,stmt);
+			
+			match (stmtResult) {
+			  case TypecheckResult {
+				
+				if ( AEMINIUM_MODE() ) {
+					match (count == (blockSize+1)) {
+						case True {
+							val shared ?DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
+								case Some { depInfoForAST(stmt).value }
+								case None { 
+                                    dependencyOk = false;
+                                    report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for statement " + count + " in block", "typecheckBlockExpr");
+                                    unit
+                                }
+							};
+							match (stmtInfo) { case DependencyInformation { addDependency(blockInfo, stmtInfo); } default { /* no op */ } };
+						}
+						case False {
+							if ( methodBlock == false ) {
+								val shared DependencyInformation stmtInfo = match (depInfoForAST(stmt)) {
+									case Some { depInfoForAST(stmt).value }
+									case None { 
+                                        dependencyOk = false;
+                                        report_ERROR(exp.target.token, "A_DEPENDENCY_MISSING", " for last statement in block", "typecheckBlockExpr");
+                                        unit
+                                    }
+								};
+								match (stmtInfo) { case DependencyInformation { addDependency(blockInfo, stmtInfo); } default { /* no op */ } };                  
+							}
+						}
+					};
+				};
+				
+				match (dependencyOk) {
+				  case True {  
+                    match (stmt) {
+                      case ParsedVarDecl { //this should be removed from scope and permissions returned at the end of the block
+                        match (haveSymbolForAST(stmt)) {
+                          case True {
+                            introducedLocalVars.addFirst(makePair(symbolForAST(stmt).value,stmtResult.sourceLocList));                
+                            makeTypecheckResult(VOID, stmtResult.ctxResult, makeLinkedList());  //take source locations out
+                          }
+                          case False { 
+                            report_ERROR(stmt.token, "SYM_NOT_FOUND", "", "typecheckBlockExpr");
+                            unit;
+                          }
+                        }
+                      }
+                      default { stmtResult }
+                    };
+                  }
+                  case False { unit; }
+                }
+			  }
+			  default { unit } //stop typechecking the block once we found an error
+			}
+		  }
+		  default { unit }  //stop typechecking the block once we found an error
+		}
+      });
+      
+      match (blockResult) {
+      	case TypecheckResult {
+		  //remove introduced variables from scope, returning to their source locations,
+		  //this updates blockResult.ctxResult, which gets returned  (will never create a new context - no merging) 
+		  val unique ?TypecheckResult afterReturns = introducedLocalVars.reduce(blockResult, fn (returningResult, pairToRet) => {
+			val immutable Symbol symLeavingScope = pairToRet.fst;
+			match (returningResult) {
+				case TypecheckResult {
+					val unique ?LinearContext updatedCtx = match (returningResult.ctxResult.containsSymbol(symLeavingScope)) {
+					  case True {
+						val immutable Type restoreType = returningResult.ctxResult.remove(symLeavingScope);
+						
+						val immutable Boolean returnsOk = pairToRet.snd.reduceLeft(true, fn (ok, sourceLoc) => { 
+							val immutable Boolean restored = match (sourceLoc.restoreToLoc(restoreType, returningResult.ctxResult)) {
+								case True { true }
+								case False { //can we do better for this error message, esp on token.
+									val immutable ?Type badReturnTypeOpt = sourceLoc.locationType(returningResult.ctxResult);
+									val immutable String badReturnTypeString = match (badReturnTypeOpt) {
+										case Type { badReturnTypeOpt.toString(); }
+										default { "UNKNOWN" }
+									};
+									
+									report_ERROR(exp.token,""," return of type " + restoreType.toString() +
+										" to variable " + symLeavingScope.name.toString() + "'s location " + 
+										sourceLoc.toString() + " of type " + badReturnTypeString + " failed",
+										"typecheckBlockExpression");
+									false
+								}
+							};
+							restored && ok;
+						});
+						match (returnsOk) {
+							case True { returningResult.ctxResult }
+							case False { unit }
+						}
+					  }
+					  case False {  
+						report_ERROR(exp.token, "SCOPING_ERROR", "", "typecheckBlockExpression"); 
+						unit
+					  }
+					};
+					//also remove variables going out of scope from SLL
+					match (updatedCtx) {
+						case LinearContext {
+							val immutable LinkedList updatedSLL = returningResult.sourceLocList.reject(fn (loc) => {
+									match (loc) {
+										case VarSourceLocation {
+											match (loc.varSymbol == symLeavingScope) {
+												case True { true }
+												case False { false }
+											}
+										}
+										case FieldSourceLocation {
+											match (loc.objectVarSymbol == symLeavingScope) {
+												case True { true }
+												case False { false }
+											}
+										}
+									}
+								
+							});
+							makeTypecheckResult(returningResult.expType, updatedCtx, updatedSLL);
+						}
+						default { unit }
+					}
+				}
+				default { unit }
+			}
+		  });
+		  
+		  if ( AEMINIUM_MODE() ) {
+			  val symbols = new SymbolCollector;
+			  exp.accept(symbols);
+			  
+			  val itSymbols = symbols.externalSymbols.iterator();
+			  while { itSymbols.hasNext() }{
+				  val nextSymbol = itSymbols.next();
+				  val shared ?DependencyInformation symInfo = match (depInfoForSymbol(nextSymbol)) {
+					  case Some { depInfoForSymbol(nextSymbol).value }
+					  case None { 
+					    dependencyOk = false;  //FISHY - here using symbols, others use ASTs
+					    report_ERROR(exp.token, "A_DEPENDENCY_MISSING" , "", "typecheckBlockExpression"); 
+					    unit;
+					  }
+				  };
+				  match (symInfo) { case DependencyInformation { addDependency(blockInfo, symInfo); } default {/*no op*/ } };
+			  };
+		  };
+		  match (dependencyOk) {
+		    case True {
+		    	match (afterReturns) {
+		    		case TypecheckResult {
+		    			afterReturns.ctxResult.methodBlock = methodBlock;  
+		    			afterReturns;
+		    		}
+		    		default { unit }	
+		    	}
+	    	}
+	    	case False {
+	    	  unit
+	    	}
+	      }
+		}
+		default { unit }
+	  }
+      
+    }
+    case ParsedCast { // Cast requires dynamic permission - may want to generalize this later - probably could also grab none?
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>(ParsedCast) check ParsedCast");
+      val unique ?TypecheckResult castExpResult = typecheckExpression(ctx, DYNAMICP, exp.expression);
+      match (castExpResult) {
+      	case TypecheckResult {  
+	      makeTypecheckResult(makeTypeFromAST(exp.targetType), castExpResult.resultCtx, makeLinkedList());
+	    }
+	    default { unit }
+	  }
+    }
+    case ParsedDereference { /* Chained Dereferences not implemented currently */
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>(ParsedDereference) check ParsedDereference");
+      match (exp.left) {
+        case ParsedIdentifier {
+          val unique Option<immutable Symbol> targetSymbolOption = symbolForAST(exp.left);
+          match (targetSymbolOption) {
+            case Some {
+              val immutable Symbol targetSymbol = targetSymbolOption.value;
+              match (ctx.containsSymbol(targetSymbol)) {
+                case True {
+                  val immutable Type targetType = ctx.get(targetSymbol);
+                  val immutable Option<immutable Signature> fieldSigOption = targetType.structure.getMember(exp.right.name);
+                  
+                  // check for proper synronization of shared 
+                  val immutable Boolean needsAtomic = match (targetType.permission) {
+                      case SharedPermission { true } 
+                      case LocalPermission {
+                          match (targetType.permission.thePerm) {
+                              case SharedPermission { true } 
+                              default { false }
+                          }
+                      }
+                      default { false }
+                  };
+                  match ( AEMINIUM_MODE() && needsAtomic && (!ctx.inAtomic) ) {
+                    case True {
+                      report_ERROR(exp.token, "A_ASSIGN_SHARED_OBJECT_FIELD", "",  "TypecheckDereference");
+                      unit
+                    }
+                    case False {
+                      match (fieldSigOption) {
+                        case Some {
+                          val immutable Signature fieldSig = if ( true )  {
+                            val substMap = getSubstitutionMap(targetType.structure);
+                            substituteSignature(fieldSigOption.value, substMap);
+                          };
+                          match (fieldSig) {
+                            case FieldSignature {
+                              val immutable Option<immutable FieldSignature> newFieldSigOption = fieldSig.splitPermFromField(neededPerm, targetType.permission);
+                              match (newFieldSigOption) {
+                                case Some {
+                                  val immutable FieldSignature newFieldSig = newFieldSigOption.value;
+                                  val immutable LinkedList<immutable FieldSourceLocation> sourceLocList = makeLinkedList(); 
+                                  val immutable Boolean updateOk = match (newFieldSig == fieldSig) {
+                                    case True { true; /* no op - no updates made, no returns needed */ }
+                                    case False { 
+                                      val immutable ?Structure updatedTargetStruct = targetType.structure.unpackField(newFieldSig, exp.token);
+                                      match (updatedTargetStruct) {
+                                        case Structure {									  
+                                          ctx.update(targetSymbol, makeType(targetType.permission, updatedTargetStruct));
+                                          //note will not typecheck - need to check that newFieldSig is an unpackedFieldSig
+                                          //must be because if it is different than the old fieldSig, it must be unpacked
+                                          sourceLocList.addFirst(makeFieldSourceLoc(targetSymbol, newFieldSig));                                                                
+                                          true;
+                                        }
+                                        default { false } // errors throw in Structure.unpackField
+                                      }
+                                    }
+                                  };
+                                  
+                                  var immutable Boolean dependencyOk = true;
+                                  if (AEMINIUM_MODE()) {                              
+                                      val shared DependencyInformation drefInfo = makeASTInformation(exp);
+                                      val shared ?DependencyInformation targetInfo = match (depInfoForSymbol(targetSymbol)) {
+                                          case Some { 
+                                            depInfoForSymbol(targetSymbol).value 
+                                          }
+                                            
+                                          case None { 
+                                            dependencyOk = false;
+                                            report_ERROR(exp.left.token, "A_DEPENDENCY_MISSING" , "for " + targetSymbol.name, "TypecheckDereference");
+                                            unit;
+                                          }
+                                      };
+                                      
+                                      val shared DependencyInformation splitInfo = makeSplitInformation(targetSymbol, targetType.permission, targetType.permission);
+                                      val shared DependencyInformation joinInfo = makeJoinInformation(targetSymbol, targetType.permission, targetType.permission);
+                                      
+                                      match (targetInfo) { case DependencyInformation { addDependency(splitInfo, targetInfo); } default { /* no op */ } };
+                                      addDependency(drefInfo, splitInfo);
+                                      addDependency(joinInfo, drefInfo);
+                                      addDependency(joinInfo, splitInfo);
+                                      addDepInfoForAST(exp, drefInfo);
+                                      setDepInfoForSymbol(targetSymbol, joinInfo);
+                                      
+                                      if ( sourceLocList.size() > 0 ) {
+                                          match (targetType.permission) {
+                                              case LocalPermission { }
+                                              default { addDepInfoForSLoc(sourceLocList.get(0).value, drefInfo); }
+                                          }
+                                      };
+                                  };
+                                  
+                                  match (updateOk && dependencyOk) {
+                                    case True { makeTypecheckResult(makeType(neededPerm, fieldSig.getCurrentType().structure), ctx, sourceLocList); }
+                                    case False { unit }
+                                  };
+                                } 
+                                case None {
+                                  report_ERROR(exp.token, "P_SPLIT_FAIL", fieldSig.getCurrentType().permission.toString() + " => " + neededPerm.toString() + " x ???", "typecheckDereference");
+                                  unit
+                                }
+                              }
+                            }
+                            case MethodSignature {
+                              report_ERROR(exp.token, "T_DEREF_METHOD", targetType.structure.toString() + "." + exp.right.name, "typecheckDereference");
+                              unit;
+                            }
+                          }
+                        }
+                        case None { 
+                          report_ERROR(exp.token, "T_DEREF_MISSING", targetType.structure.toString() + "." + exp.right.name, "typecheckDereference");
+                              unit; 
+                        }
+                      }
+                    } /* error above */
+                  }
+                }
+                case False { 
+                    report_ERROR(exp.left.token, "T_NOT_IN_SCOPE", exp.left.name, "typecheckDereference");
+                    unit;
+                }
+              }
+            }
+            case None { 
+                report_ERROR(exp.left.token, "SYM_NOT_FOUND", "", "typecheckDereference");
+                unit;
+            }
+          }     
+        }
+        default { 
+            report_ERROR(exp.token, "CHAIN_DEREF", "", "typecheckBlockExpr");
+            unit;
+        }
+      }
+    }
+    case ParsedDoubleLiteral {  
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedDoubleLiteral");
+      match (IMMUTABLE.splitPerm(neededPerm)) {
+        case Permission {
+          val immutable Option<immutable Structure> doubleStructOption = structureForAST(exp);
+          match (doubleStructOption) {
+            case Some {
+              match  ( AEMINIUM_MODE() ) {
+                  case True {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(ParsedDoubleLiteral) " + exp.value);
+                      val unique DependencyInformation depInfo = makeASTInformation(exp);
+                      addDepInfoForAST(exp, depInfo);
+                  }
+                  case False {}
+              };
+              makeTypecheckResult(makeType(neededPerm, doubleStructOption.value), ctx, makeLinkedList());
+            }
+            case None {
+              report_ERROR(exp.token, "STRUCT_NOT_FOUND", "", "typecheckDoubleLiteral");
+              unit;
+            }
+          }
+        }
+        default { 
+          report_ERROR(exp.token, "T_DOUBLE_PERM", "immutable => " + neededPerm.toString() + " x ???", "typecheckDoubleLiteral");
+          unit;
+        }
+      }
+    }
+    case ParsedEmptyExpr { 
+        report_ERROR(exp.token, "T_WRONG_AST", "Empty Expression", "typecheckEmptyExpr");
+        unit; 
+    }
+    case ParsedIdentifier {
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedIdentifier");
+      pullFromId(exp, ctx, neededPerm, true, "typecheckIdentifier", "when typechecking id " + exp.name);
+    }
+    case ParsedIntLiteral {  
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedIntLiteral");
+      match (IMMUTABLE.splitPerm(neededPerm)) {
+        case Permission {
+          val immutable Option<immutable Structure> intStructOption = structureForAST(exp);
+          match (intStructOption) {
+            case Some {            
+              match  ( AEMINIUM_MODE() ) {
+                  case True {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(ParsedIntLiteral) " + exp.value);
+                      val unique DependencyInformation depInfo = makeASTInformation(exp);
+                      addDepInfoForAST(exp, depInfo);
+                  }
+                  case False {}
+              };
+                  
+              makeTypecheckResult(makeType(neededPerm, intStructOption.value), ctx, makeLinkedList());
+            }
+            case None {
+              report_ERROR(exp.token, "STRUCT_NOT_FOUND", "", "typecheckIntLiteral");
+              unit;
+            }
+          }
+        }
+        default { 
+          report_ERROR(exp.token, "T_INT_PERM", "immutable => " + neededPerm.toString() + " x ???", "typecheckIntLiteral");
+          unit;
+        }
+      }
+    }
+    case ParsedLambda { 
+        DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> checking lambda declaration");
+        var isAffine = false;
+        val unique ?LinearContext envCheckedCtx = exp.environment.reduce(ctx, fn (envCtx, envEntry) => {
+            match (envCtx) {
+                case LinearContext {
+                    //get input type of env variable
+                    val requiredType = makeTypeFromAST(envEntry.argSpec.inputType);
+
+                    //if the type of an environment variable changes, then this must be linear/affine
+                    val endType = makeTypeFromAST(envEntry.argSpec.outputType); 
+                    match (requiredType == endType) {
+                        case False { isAffine = true }
+                        case True { /*no op*/ }
+                    };
+                    //typecheck envVar requesting input permission
+                    val envVarResult = pullFromId(envEntry.name, envCtx, requiredType.permission,
+                                                  true, "typecheckLambda", 
+                                                  "for input environment variable " + envEntry.name.name);
+                    match (envVarResult) {
+                        case TypecheckResult {
+                            //check that returned structure is a substructure or required structure
+                            match (envVarResult.expType.structure.isSubStructureOf(requiredType.structure)) {
+                                case True { 
+                                    envVarResult.ctxResult 
+                                }
+                                case False {
+                                    report_ERROR(envEntry.token, "T_LAMBDA_DECL_ENV_STRUCT",
+                                        "Got " + envVarResult.expType.structure.toString() + 
+                                        ", expected " + requiredType.structure.toString(),"typecheckLambda");
+                                    unit
+                                }
+                            }
+                        }
+                        default { 
+                            DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> error in Environment Input Checks");
+                            unit 
+                        } //error in typechecking
+                    }
+                }
+                default { 
+                    DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> error before checking lambda");
+                    unit 
+                } //previous error          
+            }
+        });
+        
+        match (envCheckedCtx) {
+            
+            case LinearContext {
+                DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> Lambda Env Ok");
+                 
+                //create context for checking body
+                val lambdaCtx = new LinearContext;
+                val addToCtxFunction = fn (inputEntry) => {
+                    val inputSymOpt = symbolForAST(inputEntry.name);
+                    match (inputSymOpt) {
+                        case Some {
+                            lambdaCtx.put(inputSymOpt.value, makeTypeFromAST(inputEntry.argSpec.inputType))
+                        }
+                        case None {
+                            report_ERROR(inputEntry.token, "SYM_NOT_FOUND", 
+                                        "",
+                                        "typecheckLambda");
+                        }    
+                    } 
+                };
+                exp.environment.map(addToCtxFunction);
+                exp.arguments.map(addToCtxFunction);
+                
+                val returnType = makeTypeFromAST(exp.returnType);
+                
+                val unique ?TypecheckResult bodyResult = typecheckExpression(lambdaCtx, returnType.permission, exp.body);
+                
+                match (bodyResult) {
+                    case TypecheckResult {
+                        DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> Lambda Body Ok");
+                        val checkOutputFunction = fn (inputKind) => fn (outputCtx, outputEntry) => {
+                            match (outputCtx) {
+                                case LinearContext {
+                                    DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> check output of " + outputEntry.name.name);
+                                    val outputType = makeTypeFromAST(outputEntry.argSpec.outputType);
+                                    val unique ?TypecheckResult outputResult = 
+                                        pullFromId(outputEntry.name, outputCtx, outputType.permission,
+                                                   false, "typecheckLambda",
+                                                   "for ending type of" + inputKind + outputEntry.name.name);
+                                    match (outputResult) {
+                                        case TypecheckResult {
+                                            match (outputResult.expType.structure.isSubStructureOf(outputType.structure)) {
+                                                case True { outputResult.ctxResult }
+                                                case False { unit }
+                                            }
+                                        }
+                                        default { unit } //error in return typechecking
+                                    }
+                                }
+                                default { unit } //previous error
+                            }
+                        };
+                        
+                        //check both args and environment
+                        val unique ?LinearContext checkedCtx = exp.environment.reduce(
+                            exp.arguments.reduce(bodyResult.ctxResult, checkOutputFunction (" argument ")),
+                            checkOutputFunction (" environment variable "));
+                        
+                        match(checkedCtx) {
+                            case LinearContext {
+                                DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> Lambda Returns Ok");
+                                val fnTypeOpt = structureForAST(exp);
+                                match (fnTypeOpt) {
+                                    case Some {
+                                         match (isAffine) {
+                                            case True {
+                                                ABORT("TODO: affine permission support");
+                                            }
+                                            case False {
+                                                match (UNIQUE.splitPerm(neededPerm)) {
+                                                    case Permission {
+                                                        //TODO: implement lambda SLLs
+                                                        makeTypecheckResult(makeType(neededPerm, fnTypeOpt.value), 
+                                                                            envCheckedCtx, 
+                                                                            makeLinkedList());
+                                                    }
+                                                    default {
+                                                        report_ERROR(exp.token, "T_LAMBDA_INVALID_PERM", 
+                                                            neededPerm.toString(), "typecheckLambda");
+                                                        unit
+                                                    }
+                                                }
+                                            }
+                                        };
+                                    }
+                                    case None { //error in type resolution
+                                        report_ERROR(exp.token,"STRUCT_NOT_FOUND", "for lambda", "typecheckLambda");
+                                        unit
+                                    }
+                                }
+                            }
+                            default { 
+                                DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> error in return type of inputs");
+                                unit 
+                            } //errors in return
+                        } 
+                    }
+                    default { 
+                        DEBUG(DEBUG_PRIO_LOW, "<typecheckLambda> error in typechecking body");
+                        unit 
+                    } //error in typechecking body
+                }
+            }
+            default { unit } //error in environment checks
+        }   
+    }
+    case ParsedMatch { 
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedMatch");
+      match (exp.expression) {
+        case ParsedIdentifier {
+          val unique Option<immutable Symbol> targetSymOption = symbolForAST(exp.expression);
+          match (targetSymOption) {
+            case Some {
+              val immutable Symbol targetSym = targetSymOption.value;
+              match (ctx.containsSymbol(targetSym)) {
+                case True {
+                  val shared DependencyInformation enterInfo = makeMatchEnterInformation(exp);
+                  val shared DependencyInformation leaveInfo = makeMatchLeaveInformation(enterInfo);
+                  val unique SymbolCollector symbols = new SymbolCollector;
+                  val unique Map symbolsToSplit = java.util.IdentityHashMap.new();
+                  
+                  if ( AEMINIUM_MODE() ) {
+                       exp.accept(symbols);
+                       
+                       val it = symbols.externalSymbols.iterator();
+                       while { it.hasNext() }{
+                           val next = it.next();
+                           // attach match_enter info for all used symbols
+                           val shared DependencyInformation symInfo = match (depInfoForSymbol(next)) {
+                                case Some { depInfoForSymbol(next).value }
+                                case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
+                           };
+                           val immutable Type nextType = ctx.get(next);
+                           val shared DependencyInformation splitInfo = makeSplitInformation(next, nextType.permission, nextType.permission);
+                           symbolsToSplit.put(next, splitInfo);
+                           addDependency(splitInfo, symInfo);
+                           addDependency(enterInfo, splitInfo);
+                       }; 
+                       
+                       addDepInfoForAST(exp, leaveInfo);
+                  };
+                
+                  val immutable Type targetType = ctx.get(targetSym);
+                  val unique LinkedList<unique TypecheckResult> caseResults = exp.caseList.map(fn (/*immutable ParsedCase*/ theCase) => 
+                  {  /***** for each case *****/
+                    if ( AEMINIUM_MODE() ) {                                           
+                         val itSymbols = symbols.externalSymbols.iterator();
+                         while { itSymbols.hasNext() }{
+                             val nextSym = itSymbols.next();
+                             // attach match_enter info for all used symbols
+                             val shared DependencyInformation symInfo = match (depInfoForSymbol(nextSym)) {
+                                  case Some { depInfoForSymbol(nextSym).value }
+                                  case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
+                             };
+                             setDepInfoForSymbol(nextSym, enterInfo);
+                         }; 
+                    };
+                    match (theCase) {
+                      case ParsedPatternCase {
+                        /* check that the structure of the case is a substructure of the target type*/
+                        val immutable Option<immutable Symbol> patternSymOption = symbolForAST(theCase.pattern);
+                        match (patternSymOption) {
+                          case Some {
+                            val immutable Symbol patternSym = patternSymOption.value;
+                            match (patternSym) {
+                              case StateSymbol {
+                                val patternStruct = patternSym.getStructure();
+                                match (patternStruct.isSubStructureOf(targetType.structure)) {
+                                  case True {
+                                    /* copy and update linear context with info from case */
+                                    val unique LinearContext caseContext = ctx.copy();
+                                    caseContext.update(targetSym, makeType(targetType.permission, patternStruct));
+                                    
+                                    /* return result from typechecking the body */
+                                    val unique ?TypecheckResult result = typecheckExpression(caseContext, neededPerm, theCase.body);
+                                    
+                                    if (AEMINIUM_MODE() ) {
+                                        val shared DepenendencyInformation caseInfo = makeASTInformation(theCase);
+                                        val shared DepenendencyInformation bodyInfo = match (depInfoForAST(theCase.body)) {
+                                            case Some { depInfoForAST(theCase.body).value }
+                                            case None { ABORT("<typecheckExpression>(Case) cannot find dependency information for case body") }
+                                        };
+                                        
+                                        addDepInfoForAST(theCase, caseInfo);
+                                        addDependency(caseInfo, bodyInfo);
+                                        addDependency(leaveInfo, caseInfo);
+                                        addDependency(bodyInfo, enterInfo);
+                                    };
+                                    
+                                    result 
+                                  }
+                                  case False {
+                                    report_ERROR(theCase.pattern.token, "T_CASE_NOT_SUBSTRUCT", 
+                                        "found " + makeStringFromQualifiedIdentifier(theCase.pattern) + ", needed " + targetType.structure.toString(),
+                                        "typecheckCase");
+                                    unit;
+                                  }
+                                }
+                              }
+                              case JavaClassSymbol {
+                              	val patternStruct = patternSym.getStructure();
+                                match (patternStruct.isSubStructureOf(targetType.structure)) {
+                                  case True {
+                                    /* copy and update linear context with info from case */
+                                    val unique LinearContext caseContext = ctx.copy();
+                                    caseContext.update(targetSym, makeType(targetType.permission, patternStruct));
+                                    
+                                    /* return result from typechecking the body */
+                                    val unique ?TypecheckResult result = typecheckExpression(caseContext, neededPerm, theCase.body);
+                                    
+                                    if (AEMINIUM_MODE() ) {
+                                        val shared DepenendencyInformation caseInfo = makeASTInformation(theCase);
+                                        val shared DepenendencyInformation bodyInfo = match (depInfoForAST(theCase.body)) {
+                                            case Some { depInfoForAST(theCase.body).value }
+                                            case None { ABORT("<typecheckExpression>(Case) cannot find dependency information for case body") }
+                                        };
+                                        
+                                        addDepInfoForAST(theCase, caseInfo);
+                                        addDependency(caseInfo, bodyInfo);
+                                        addDependency(leaveInfo, caseInfo);
+                                        addDependency(bodyInfo, enterInfo);
+                                    };
+                                    
+                                    result 
+                                  }
+                                  case False {
+                                    report_ERROR(theCase.pattern.token, "T_CASE_NOT_SUBSTRUCT", 
+                                        "found " + makeStringFromQualifiedIdentifier(theCase.pattern) + ", needed " + targetType.structure.toString(),
+                                        "typecheckCase");
+                                    unit;
+                                  }
+                                }
+                              }
+                              default { 
+                                report_ERROR(theCase.pattern.token, "T_CASE_NOT_STATE", 
+                                        "found " + patternSym.symbolType(),
+                                        "typecheckCase");
+                                unit;
+                              }
+                            }
+                          }
+                          case None { 
+                            report_ERROR(theCase.pattern.token, "SYM_NOT_FOUND", 
+                                        "",
+                                        "typecheckCase");
+                            unit;
+                          }
+                        } 
+                      }
+                      case ParsedDefaultCase {
+                        /* copy linear context */
+                        val unique LinearContext defaultContext = ctx.copy();
+                        
+                        /* return result from typechecking the body */
+                        val unique ?TypecheckResult result = typecheckExpression(defaultContext, neededPerm, theCase.body);
+                        
+                        if (AEMINIUM_MODE() ) {
+                            val shared DepenendencyInformation caseInfo = makeASTInformation(theCase);
+                            val shared DepenendencyInformation bodyInfo = match (depInfoForAST(theCase.body)) {
+                                case Some { depInfoForAST(theCase.body).value }
+                                case None { ABORT("<typecheckExpression>(Case) cannot find dependency information for case body") }
+                            };
+                            
+                            addDepInfoForAST(theCase, caseInfo);
+                            addDependency(caseInfo, bodyInfo);
+                            addDependency(leaveInfo, caseInfo);
+                            addDependency(bodyInfo, enterInfo);
+                        };
+                        
+                        result
+                      }
+                    }
+                  }); /****** end for each case *****/
+                  
+                  match (caseResults.size() > 0) {
+                    case True {
+                      /* take lub of return types, merge of the contexts, and accumulation of the location lists */
+                      
+                      /* first element is the seed (has at least one) */
+                      val unique ?TypecheckResult seedCaseResult = caseResults.get(0).value;
+                      //DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> seed result " + seedCaseResult.expType.toString());
+                      var immutable Boolean skippedFirst = false;
+                      /* collect all but first element of the list */
+                      val restCaseRes = caseResults.collect(fn (caseRes) => {
+                        ifElse (!skippedFirst) 
+                          { skippedFirst = true; false }
+                          { true } 
+                      });
+
+                      if ( AEMINIUM_MODE() ) {
+                         val itSymbols = symbols.externalSymbols.iterator();
+                         while { itSymbols.hasNext() }{
+                             val nextSym = itSymbols.next();
+                             // attach match_enter info for all used symbols
+                             val shared DependencyInformation symInfo = match (depInfoForSymbol(nextSym)) {
+                                  case Some { depInfoForSymbol(nextSym).value }
+                                  case None { ABORT("<typecheckExpression>(Match) cannot find dependency information for " + next.name ) }
+                             };
+                             
+                             
+                             val shared DependencyInformation splitInfo = symbolsToSplit.get(nextSym);
+                             val shared DependencyInformation joinInfo = makeJoinInformation(nextSym, splitInfo.permIn, splitInfo.permOut);
+                             addDependency(joinInfo, splitInfo);
+                             addDependency(joinInfo, leaveInfo);
+                             setDepInfoForSymbol(nextSym, joinInfo);
+                         };                                     
+                      };
+                      
+                      /* reduce rest of list starting with first element as seed */
+                      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> reduce case results");
+                      restCaseRes.reduce(seedCaseResult, fn (accResult, caseRes) => {
+                      	match (accResult) {
+                      	  case TypecheckResult {
+                            DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> case result " + caseRes.expType.toString());
+							val immutable Option<immutable Type> returnTypeLUBopt = 
+											accResult.expType.leastUpperBound(caseRes.expType);
+							match ( returnTypeLUBopt ) {
+							  case Some {
+							    DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>  returnTypeLUB " + returnTypeLUBopt.value.toString());
+								val unique Option<unique LinearContext> mergedContextOpt = 
+											accResult.ctxResult.merge(caseRes.ctxResult);
+								match ( mergedContextOpt ) {
+								  case Some {
+									val combinedSLL = combineSLL(mergedContextOpt.value, neededPerm,
+									                             accResult.ctxResult, accResult.sourceLocList,
+									                             caseRes.ctxResult, caseRes.sourceLocList);
+									match (combinedSLL) {
+									    case LinkedList { 
+									        makeTypecheckResult(returnTypeLUBopt.value, 
+														mergedContextOpt.value, 
+													    combinedSLL);
+										}
+										default {
+										    report_ERROR(exp.token, "T_CONTEXT_MERGE_FAIL", 
+                                                " from SLL combining",
+                                                "typecheckMatch");
+                                            unit;
+										}
+									};
+									
+								  }
+								  case None {
+									report_ERROR(exp.token, "T_CONTEXT_MERGE_FAIL", 
+                                        " from match cases",
+                                        "typecheckMatch");
+                                    unit;
+								  }
+								}
+							  }
+							  case None { 
+								report_ERROR(exp.token, "T_NO_RESULT_LUB", 
+                                        " from match cases",
+                                        "typecheckMatch");
+                                    unit;
+							  }
+							}
+						  }
+						  default { unit }
+						}
+                      });
+                    }
+                    case False { 
+                        report_ERROR(exp.token, "T_MATCH_NO_CASES", 
+                                        "",
+                                        "typecheckMatch");
+                        unit;
+                    }
+                  }
+                }
+                case False { 
+                    report_ERROR(exp.expression.token, "T_NOT_IN_SCOPE", 
+                                exp.expression.name,       
+                                "typecheckMatch");
+                    unit;
+                }
+              }
+            }
+            case None { 
+                report_ERROR(exp.expression.token, "SYM_NOT_FOUND", 
+                                "",       
+                                "typecheckMatch");
+                unit; 
+            }
+          }
+        }
+        default { 
+            report_ERROR(exp.expression.token, "MATCH_NON_ID", 
+                                "",       
+                                "typecheckMatch");
+            unit; 
+        }
+      }
+    }
+    case ParsedMethodCall { 
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedMethodCall");
+      /* receiver AST should be mapped to a type which gives us the signature of the method */
+      val immutable Option<immutable Structure> receiverStructureOption = structureForAST(exp.receiver);
+      var immutable ?MethodSignature methodSig = match(receiverStructureOption) {
+        case Some {
+          val immutable Structure receiverStructure = receiverStructureOption.value;
+          match (receiverStructure) {
+            case ObjectStructure {
+              val immutable Option<immutable Signature> memberSigOption = 
+                                    receiverStructure.getMember(exp.methodId.name);
+              match (memberSigOption) {
+                case Some {
+                  val memberSig = memberSigOption.value;
+                  match (memberSig) {
+                    case MethodSignature {
+                      memberSig
+                    }
+                    default {
+                      report_ERROR(exp.methodId.token, "T_CALL_NOT_METHOD", receiverStructure.toString() + "." +
+                        exp.methodId.name, "typecheckMethodCall");
+                      unit
+                    }
+                  }
+                }
+                case None { 
+                  report_ERROR(exp.methodId.token, "T_CALL_MISSING", receiverStructure.toString() + "." +
+                        exp.methodId.name, "typecheckMethodCall");
+                  unit
+                }
+              }
+            }
+            default { 
+                report_ERROR(exp.receiver.token, "T_CALL_NON_OBJECT_STRUCTURE", receiverStructure.toString(),
+                            "typecheckMethodCall");
+                unit 
+            }
+          }
+        }
+        case None {
+          match (exp.receiver) {
+          	case ParsedEmptyExpr { //global method, get receiver from method symbol
+          		val shared Symbol mSymOpt = symbolForAST(exp.methodId);
+          		match (mSymOpt) {
+          			case Some {
+          				match (mSymOpt.value) {
+          					case MethodSymbol {
+          						mSymOpt.value.getSignature();
+          					}
+          					default {
+								report_ERROR(exp.receiver.token, "STRUCT_NOT_FOUND", 
+								" for method call receiver",       
+								"typecheckMethodCall");
+								unit
+							}
+          				}
+          			}
+          			case None{
+          				report_ERROR(exp.receiver.token, "STRUCT_NOT_FOUND", 
+						" for method call receiver",       
+						"typecheckMethodCall");
+						unit
+          			}
+          		}
+          	
+          	}
+          	default {
+          		report_ERROR(exp.receiver.token, "STRUCT_NOT_FOUND", 
+                " for method call receiver",       
+                "typecheckMethodCall");
+          		unit
+          	}
+          }
+        }
+      };
+      
+      match (methodSig) {
+        case MethodSignature {
+          val substMap = getMethodCallMapping(methodSig, exp);
+          methodSig = substituteSignature(methodSig, substMap);
+          
+          val immutable Boolean noReceiver = methodSig.receiverSpec == makeArgSpec(VOID,VOID);
+          
+          //build list of (argSpec, expression) with receiver followed by arguments
+          val unique LinkedList<immutable ArgSpec> argSpecs = makeLinkedList();
+          match (noReceiver) { case True { /* no op */ } case False { argSpecs.add(methodSig.receiverSpec); } };
+          argSpecs.append(methodSig.arguments.map(fn (arg) => arg.snd));
+          
+          val unique LinkedList<immutable ParsedASTNode> inputExprs = makeLinkedList();
+          match (noReceiver) { case True { /* no op */ } case False { inputExprs.add(exp.receiver); } };
+          
+          match (exp.argument) {
+            case ParsedArgumentExpr { inputExprs.append(exp.argument.args.map(fn (arg) => arg)) }
+            default { inputExprs.addLast(exp.argument) }
+          };
+          
+          typecheckCall(ctx, neededPerm, argSpecs, inputExprs, methodSig.returnType, !noReceiver,
+                        "typecheckMethodCall", exp); 
+        }
+        default { unit } //error in finding method sig
+      }
+    
+    }
+    case ParsedNewInstance { 
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedNewInstance");
+      match (exp.stateExpr) {
+        case ParsedStateRef {
+          val stateRefSymOpt = symbolForAST(exp.stateExpr);
+          match (stateRefSymOpt) {
+            case Some {
+              match (stateRefSymOpt.value) {
+                case StateRefSymbol {
+                  match (checkStateRef(stateRefSymOpt.value, "typecheckNewInstance")) { //is the state concrete
+                    case True {
+                      //typecheck specializations
+                      val unique ?LinearContext contextResult = exp.stateExpr.specializations.reduceLeft(ctx, fn (declContext, spec) => {
+                            match (declContext) {
+                                case LinearContext { typecheckDecl(spec, declContext) }
+                                default { unit } //error in previous specialization decl
+                            }
+                      });
+                        
+                      match (contextResult) {
+                        case LinearContext {
+                            if ( AEMINIUM_MODE() ) {
+                                val shared DependencyInformation newInfo = makeASTInformation(exp);
+                                addDepInfoForAST(exp, newInfo);
+                                
+                                // attach to symbols needed in initialization
+                                val symbols = new SymbolCollector;
+                                exp.stateExpr.specializations.do( fn (item) => {
+                                    item.accept(symbols);
+                                    
+                                    match ( depInfoForAST(item) ) {
+                                        case Some {
+                                            val depInfo = depInfoForAST(item).value;
+                                            addDependency(newInfo, depInfo);
+                                        }
+                                        case None {
+                                            report_ERROR(item.token, 
+                                                         "UNEXPECTED_SYM", 
+                                                         "cannot find dependency information for AST ",
+                                                         "typecheckNewInstance");
+                                        }
+                                    };
+                                    
+                                });
+                                
+                                val symbolsIt = symbols.externalSymbols.iterator();
+                                while { symbolsIt.hasNext() }{
+                                    val curSymbol = symbolsIt.next();
+                                    match ( depInfoForSymbol(curSymbol) ) {
+                                        case Some {
+                                            val depInfo = depInfoForSymbol(curSymbol).value;
+                                            match ( depInfo ) {
+                                                case SplitInformation { /* nop */ }
+                                                case JoinInformation  { /* nop */ }
+                                                default { 
+                                                    // set to current node
+                                                    addDependency(newInfo, depInfo);
+                                                    setDepInfoForSymbol(curSymbol, newInfo);                                                
+                                                }
+                                            };
+                                            
+                                        }
+                                        case None {
+                                            report_ERROR(exp.stateExpr.token, 
+                                                         "UNEXPECTED_SYM", 
+                                                         "cannot find dependency information for symbol '" + symbol.toString() + "'",
+                                                         "typecheckNewInstance");
+                                        }
+                                    };
+                                    
+                                };
+                            };
+                            
+                            val struct = match ( structureForAST(exp.stateExpr) ) {
+                                case Some { structureForAST(exp.stateExpr).value }
+                                default { ABORT("<typecheckExpression> Cannot find structure for state expression.") }
+                            };
+                            makeTypecheckResult(makeType(neededPerm, struct),
+                                                contextResult,
+                                                makeLinkedList());
+                        }
+                        default { unit } //error checking declarations
+                      }
+                      
+                    }
+                    case False { unit } // error in checkStateRef
+                  }
+                }
+                default {
+                  report_ERROR(exp.stateExpr.token, "UNEXPECTED_SYM", 
+                    "expected StateRefSymbol, got" + stateRefSymOpt.symbolType(), "typecheckNewInstance");
+                  unit
+                  
+                }
+              }
+            }
+            case None {
+              report_ERROR(exp.stateExpr.token, "SYM_NOT_FOUND", "", "typecheckNewInstance");
+              unit
+            }
+            
+          }
+          /*match (exp.stateExpr.stateExpr) {
+            case ParsedIdentifier { 
+              val immutable Symbol stateSymOption = symbolForAST(exp.stateExpr.stateExpr);
+              match (stateSymOption) {
+                case Some {
+                  val immutable Symbol stateSym = stateSymOption.value;
+                  match (stateSym) {
+                    case StateSymbol {
+                      val immutable LinkedList<immutable DeclSymbol> abstractMembers = stateSym.getAbstractMembers();
+                      
+                      match (abstractMembers.size() == exp.stateExpr.specializations.size() ) {
+                        case True {
+                          
+                          val unique ?LinearContext endContext = abstractMembers.reduceLeft(ctx, fn (specCtx, abstractMemberSymbol) => {
+                            match (specCtx) {
+                              case LinearContext {
+                                //look for a concrete decl in the specializations
+                                val immutable Option<immutable Signature> declOption = exp.stateExpr.specializations.find(fn (sp) => {
+                                  match (sp) {
+                                    case ParsedDecl {
+                                      sp.name.name.equals(abstractMemberSymbol.name)
+                                    }
+                                    default { false }
+                                  }
+                                });
+                                
+        
+                                match (declOption) {
+                                  case Some { //if there is one, grab its signature
+                                    val decl = declOption.value;
+                                    match (decl) {
+                                      case ParsedConcreteFieldDecl {
+                                        val immutable Option<immutable Symbol> fieldSymOption = symbolForAST(decl);
+                                        match (fieldSymOption) {
+                                          case Some {
+                                            val immutable Symbol fieldSym = fieldSymOption.value;
+                                            match (fieldSym) {
+                                              case FieldSymbol {
+                                                val immutable FieldSignature fs = fieldSym.getSignature();
+                                                match (fs.isSubSignatureOf(abstractMemberSymbol.getSignature())) {
+                                                  case True {
+                                                    val immutable Type fieldType = fs.getDeclaredType();
+                                                    val unique ?TypecheckResult specResult = 
+                                                        typecheckExpression(specCtx, fieldType.permission, decl.expression);
+                                                    match (specResult) {
+                                                      case TypecheckResult {
+                                                        match (specResult.expType.structure.isSubStructureOf(fieldType.structure)) {
+                                                          case True {
+                                                            //discard return locations - not giving back - went into field
+                                                            specResult.ctxResult;
+                                                          }
+                                                          case False {
+                                                            report_ERROR(decl.token, "T_NEW_SPEC_FIELD_STRUCT",
+                                                                "got " + specResult.expType.structure.toString() + ", expected " +
+                                                                fieldType.structure.toString(), "typecheckNewInstance");
+                                                            unit
+                                                          }
+                                                        }
+                                                      }
+                                                      default { unit } //error in typechecking initializer for field
+                                                    };
+                                                  }
+                                                  case False {
+                                                    report_ERROR(decl.token, "T_NEW_BAD_SPEC", "for member " + stateSym.name + "." + abstractMemberSymbol.name + 
+                                                    " expected " + abstractMemberSymbol.getSignature().toString() + ", got " + fs.toString(),
+                                                    "typecheckNewInstance");
+                                                    unit;
+                                                  }
+                                                }
+                                              }
+                                              default { 
+                                                report_ERROR(decl.token, "T_NEW_SPEC_WRONG_SYM", "expected field, got " + fieldSym.symbolType(), "typecheckNewInstance");
+                                                unit
+                                              }
+                                            } 
+                                          }
+                                          case None { 
+                                            report_ERROR(decl.token, "SYM_NOT_FOUND", "", "typecheckNewInstance");
+                                            unit
+                                          }
+                                        } 
+                                      }
+                                      case ParsedConcreteMethodDecl {
+                                        val immutable Option<immutable Symbol> methodSymOption = symbolForAST(decl);
+                                        match (methodSymOption) {
+                                          case Some {
+                                            val immutable Symbol methodSym = methodSymOption.value;
+                                            match (methodSym) {
+                                              case MethodSymbol {
+                                                val immutable MethodSignature ms = methodSym.getSignature();
+                                                match (ms.isSubSignatureOf(abstractMemberSymbol.getSignature())) {
+                                                  case True {
+                                                    val immutable ?Boolean declConcrete = typecheckDecl(decl);
+                                                    match (declConcrete) {
+                                                        case Boolean { specCtx }
+                                                        default { unit } //errors in typechecking method
+                                                    }
+                                                  }
+                                                  case False {
+                                                    report_ERROR(decl.token, "T_NEW_BAD_SPEC", "for member " + stateSym.name + "." + abstractMemberSymbol.name + 
+                                                    " expected " + abstractMemberSymbol.getSignature().toString() + ", got " + ms.toString(),
+                                                    "typecheckNewInstance");
+                                                    unit;
+                                                  }
+                                                }
+                                              }
+                                              default { 
+                                                report_ERROR(decl.token, "T_NEW_SPEC_WRONG_SYM", "expected method, got " + methodSym.symbolType(), "typecheckNewInstance");
+                                                unit
+                                              }
+                                            } 
+                                          }
+                                          case None { 
+                                            report_ERROR(decl.token, "SYM_NOT_FOUND", "", "typecheckNewInstance");
+                                            unit
+                                          }
+                                        } 
+                                      }
+                                      case ParsedConcreteStateDecl { 
+                                        report_ERROR(decl.token, "NESTED_STATES", "", "typecheckNewInstance");
+                                        unit
+                                      }
+                                      case ParsedAbstractStateDecl {
+                                        report_ERROR(decl.token, "NESTED_STATES", "", "typecheckNewInstance");
+                                        unit
+                                      }
+                                      case ParsedAbstractMethodDecl { 
+                                        report_ERROR(decl.token, "T_SPEC_ABSTRACT", stateSym.name + "." + abstractMemberSymbol.name, "typecheckNewInstance");
+                                        unit;
+                                      }
+                                      case ParsedAbstractFieldDecl {
+                                        report_ERROR(decl.token, "T_SPEC_ABSTRACT", stateSym.name + "." + abstractMemberSymbol.name, "typecheckNewInstance");
+                                        unit;
+                                      }
+                                    }
+                                  }
+                                  case None { //otherwise error - not all members of state concrete
+                                    report_ERROR(exp.stateExpr.token, "T_NEW_ABSTRACT_MEMBER", stateSym.name + "." + abstractMemberSymbol.name, "typecheckNewInstance");
+                                    unit;
+                                  }                       
+                                };
+                              }
+                              default { unit } //previous error
+                            }
+                          });
+                          
+                          match (endContext) {
+                            case LinearContext {
+                              if ( AEMINIUM_MODE() ) {
+                                  val shared DependencyInformation newInfo = makeASTInformation(exp);
+                                  addDepInfoForAST(exp, newInfo);
+                              };
+                            
+                              //if all abstract members were found (no errors), then create a nominal type from the state for the return structure
+                              val immutable Structure stateStruct = makeNominalStructure(stateSym);
+                              makeTypecheckResult(makeType(neededPerm,stateStruct),endContext,makeLinkedList());
+                            }
+                            default { unit } //
+                          }
+                        }
+                        case False {
+                            report_ERROR(exp.stateExpr.token, "SPECIALIZATIONS", " wrong number of specializations", "typecheckNewInstance");
+                            unit;
+                        }
+                      }
+                    }
+                    default {
+                        report_ERROR(exp.stateExpr.stateExpr.token, "T_NEW_NON_STATE", stateSym.name, "typecheckNewInstance");
+                        unit;
+                    } 
+                  }
+                }
+                case None {
+                    report_ERROR(exp.stateExpr.stateExpr.token, "SYM_NOT_FOUND", "", "typecheckNewInstance");
+                    unit;
+                }
+              }
+            }
+            //TODO: qualified IDs for states
+            default {
+                report_ERROR(exp.stateExpr.token, "STATE_REF_WRONG_AST", exp.stateExpr.nodeName(), "typecheckNewInstance");
+                unit;
+            } 
+          } */
+        }
+        case ParsedWith { 
+            report_ERROR(exp.token, "STATE_COMPOSITION", "", "typecheckNewInstance");
+            unit;
+        }
+        default { 
+            report_ERROR(exp.token, "T_WRONG_AST", "Cannot handle state represented by a " + exp.nodeName() + "node", "typecheckNewInstance");
+            unit;
+        }
+      }
+    }
+    case ParsedReplace { 
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedReplace");
+      match ( AEMINIUM_MODE() ) {
+        case True {
+          report_ERROR(exp.token, "State change is not supported in AEminium!", "",  "typecheckExpression"); 
+          unit
+        }
+        case False {
+          match (neededPerm) {
+            case NonePermission {
+              typecheckStateChange(ctx, exp.expression, exp.stateExpr, true)
+            }
+            default { 
+                report_ERROR(exp.token, "T_CHNG_PERM", neededPerm.toString(), "typecheckReplace");
+                unit;
+            }
+          }  
+        }
+      }
+    }
+    case ParsedStateChange { 
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedStateChange");
+      match ( AEMINIUM_MODE() ) {
+        case True {
+          report_ERROR(exp.token, "State change is not supported in AEminium!", "",  "typecheckExpression"); 
+          unit
+        }
+        case False {
+          match (neededPerm) {
+            case NonePermission {
+              typecheckStateChange(ctx, exp.expression, exp.stateExpr, false)
+            }
+            default { 
+                report_ERROR(exp.token, "T_CHNG_PERM", neededPerm.toString(), "typecheckStateChange");
+                unit;
+            }
+          }  
+        }
+      }
+    }
+    case ParsedStringLiteral {  
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedStringLiteral");
+      match (IMMUTABLE.splitPerm(neededPerm)) {
+        case Permission {
+          val immutable Option<immutable Structure> stringStructOption = structureForAST(exp);
+          match (stringStructOption) {
+            case Some {
+              match  ( AEMINIUM_MODE() ) {
+                  case True {
+                      DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(ParsedStringLiteral) " + exp.value);
+                      val unique DependencyInformation depInfo = makeASTInformation(exp);
+                      addDepInfoForAST(exp, depInfo);
+                  }
+                  case False {}
+              };
+              makeTypecheckResult(makeType(neededPerm, stringStructOption.value), ctx, makeLinkedList());
+            }
+            case None {
+              report_ERROR(exp.token, "STRUCT_NOT_FOUND", "", "typecheckStringLiteral");
+              unit;
+            }
+          }
+        }
+        default { 
+          report_ERROR(exp.token, "T_STRING_PERM", "immutable => " + neededPerm.toString() + " x ???", "typecheckStringLiteral");
+          unit;
+        }
+      }
+    }
+    case ParsedUnitLiteral { 
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression> check ParsedUnitLiteral");
+      if ( AEMINIUM_MODE() ) {
+        val depInfo = makeASTInformation(exp);
+        addDepInfoForAST(exp, depInfo);
+      };
+      makeTypecheckResult(makeType(neededPerm, UNITSTRUCT),ctx,makeLinkedList())
+    }
+    case ParsedVarDecl { 
+      DEBUG(DEBUG_PRIO_LOW, "<typecheckExpression>(ParsedVarDecl) check ParsedVarDecl");
+      val immutable Option<immutable Symbol> idSymOption = symbolForAST(exp.id);
+      match (idSymOption) {
+        case Some {
+          val immutable Symbol idSym = idSymOption.value;
+          match (ctx.containsSymbol(idSym)) {
+            case True { //TODO: scoping/shadowing of local variables/global fields, etc
+              report_ERROR(exp.token, "T_VAR_ALREADY_DECLARED", exp.id.name, "typecheckVarDecl");
+              unit;
+            }
+            case False {
+              val immutable Type neededType = makeTypeFromAST(exp.varType);
+              val unique ?TypecheckResult valueResult = typecheckExpression(ctx, neededType.permission, exp.expr);
+              match (valueResult) {
+              	case TypecheckResult {
+				  match (valueResult.expType.isSubTypeOf(neededType)) {
+					case True {
+					  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>     set '" + idSym.name + "' -> " + neededType.toString() );
+					  valueResult.ctxResult.put(idSym,neededType);
+					  
+					  match  ( AEMINIUM_MODE() ) {
+						  case True {
+							  DEBUG(DEBUG_PRIO_MEDIUM, "<typecheckExpression>(ParsedVarDecl) add '" + idSym.name +"' as start marker for new variable");
+							  val unique DependencyInformation depInfo = makeASTInformation(exp);
+							  setDepInfoForSymbol(idSym, depInfo);
+							  addDepInfoForAST(exp, depInfo);
+							  
+							  // add dependency to expr
+							  val shared DependencyInformatio expInfo = match ( depInfoForAST(exp.expr) ) {
+								  case Some { depInfoForAST(exp.expr).value }
+								  case None { ABORT("<typecheckExpression>(VarDecl) cannot find dependency information for expression " + exp.expr.token.toString()) }
+							  };
+							  addDependency(depInfo, expInfo);
+						  }
+						  case False { /* noop */ }
+					  };
+					  
+					  makeTypecheckResult(VOID, valueResult.ctxResult, valueResult.sourceLocList);
+					}
+					case False {
+					  report_ERROR(exp.token, "T_VAR_WRONG_STRUCT", "expected " + neededType.structure.toString()
+					    + ", got " +  valueResult.expType.structure.toString(), "typecheckVarDecl"); 
+                      unit;
+					}
+				  }
+				}
+				default { unit }
+			  }
+            }
+          }
+        }
+        case None { 
+            report_ERROR(exp.id.token, "SYM_NOT_FOUND", 
+                "",       
+                "typecheckVarDecl");
+            unit; 
+        }
+      }
+    }
+    default { 
+        report_ERROR(exp.token, "T_WRONG_AST", "Cannot typechceck a " + exp.nodeName() + "node", "typecheckExpression");
+        unit;    
+    }
+  }
+}

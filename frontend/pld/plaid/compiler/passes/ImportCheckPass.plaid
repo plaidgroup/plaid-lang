@@ -1,0 +1,73 @@
+package plaid.compiler.passes;
+
+import plaid.ast.parsed.*;
+import plaid.compiler.DEBUG;
+import plaid.compiler.report_WARNING;
+import plaid.compiler.DEBUG_PRIO_HIGH;
+import plaid.compiler.DEBUG_PRIO_MEDIUM;
+import plaid.compiler.DEBUG_PRIO_LOW;
+import plaid.compiler.Pass;
+import plaid.compiler.CompilerConfiguration;
+import plaid.compiler.Reporter;
+
+import plaid.ast.util.makeStringFromQualifiedIdentifier;
+import plaid.ast.util.makeTokenForQualifiedIdentifier;
+
+import plaid.lang.math.min;
+import plaid.lang.math.max;
+
+import plaid.collections.makeLinkedList;
+
+state ImportCheckPass case of Pass {
+    var shared Resolver resolver;
+
+    method immutable Boolean run(unique Job job) {
+        this.resolver = job.resolver;
+        match (job.ast) {
+            case Some {
+                match (job.ast.value) {
+                    case ParsedCompilationUnit {                        
+                        DEBUG(DEBUG_PRIO_HIGH, "<ImportCheckPass> started for file " + job.source.path);
+                        checkImports(job.ast.value.imports, job.source.path);
+                        DEBUG(DEBUG_PRIO_HIGH, "<ImportCheckPass> finished for file " + job.source.path);
+                        true
+                    }
+                    default { false }
+                }
+            }
+            default { false }
+        }
+    }
+
+    method immutable Boolean checkImports(immutable List imports, 
+                                          immutable String sourceFile) {
+        val unique LinkedList names = makeLinkedList(); 
+        imports.do(fn (imp) => {
+            if ( !imp.star ) {
+                // check that we do not import the same name twice
+                
+                val impName = imp.qualifiedIdentifier.identifiers.get(imp.qualifiedIdentifier.identifiers.size() - 1).value;
+                
+                names.do( fn (name) => {
+                    
+                    if ( impName.name == name.name ) {
+                        val token = makeTokenForQualifiedIdentifier(imp.qualifiedIdentifier);
+                        report_WARNING(token, "Cannot import the same name '" + impName + "'", "", "ImportCheckPass");
+                    }
+                });
+                names.add(impName);
+                
+                // check that we can actually resolve the import
+                val fqn = makeStringFromQualifiedIdentifier(imp.qualifiedIdentifier);
+                val optSymbol = resolver.lookup(fqn);
+                match (optSymbol) {
+                    case None {
+                        val token = makeTokenForQualifiedIdentifier(imp.qualifiedIdentifier);
+                        report_WARNING(token, "Cannot resolve import '" + fqn  + "'", "", "ImportCheckPass");
+                    }
+                    default {}
+                }
+            };            
+        });
+    }
+}

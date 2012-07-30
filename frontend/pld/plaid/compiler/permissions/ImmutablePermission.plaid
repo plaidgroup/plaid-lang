@@ -1,0 +1,69 @@
+package plaid.compiler.permissions;
+
+import plaid.compiler.Permission;
+
+/**
+ *	Immutable permission
+ */
+state ImmutablePermission case of SymmetricPermission{
+	
+	/**
+	 * immutable permissions do not allow writing to fields
+	 */
+	method immutable Boolean isWritable() { false }
+	
+	/**
+	 * immutable permissions guarantee the state of an object
+	 */
+	method immutable Boolean guaranteesState(){ true }
+
+	method immutable Boolean ==(immutable Permission p2) {
+		match(p2) {
+			case ImmutablePermission { true }
+			default { false }
+		};
+	}
+
+	method immutable String toString() { "immutable" }	
+	
+	/**
+	 * Immutable, local immutable and none permission can be split from immutable
+	 */
+	method immutable ?Permission splitPerm(immutable Permission p2)
+	                                    [immutable ImmutablePermission this] {
+		match(p2) {
+			case ImmutablePermission { this }  // immutable => immutable/immutable	
+			case LocalPermission { //immutable => local immutable/immutable
+				ifElse (p2.thePerm == IMMUTABLE) 
+					{ IMMUTABLE }
+					{ unit }
+			}
+			case NonePermission { this }		 // immutable => none/immutable
+			default { unit }
+		};
+	}
+	
+	/**
+	 * Only permissions that can be split from immutable can be returned
+	 * to immutable (immutable, local immutable, none)
+	 */
+	method immutable ?Permission returnPerm(immutable Permission p2)
+	                                [immutable ImmutablePermission this] {
+		match (p2) {
+			case ImmutablePermission { this } //immutable/immutable => immutable
+      		case LocalPermission { //immutable/local immutable => immutable
+				ifElse (p2.thePerm == IMMUTABLE) 
+					{ this }
+				  	{ 
+				  		this.incompatibleReturnError(p2);
+				  		unit
+				  	}
+			}
+      		case NonePermission { this } // immutable/none => immutable
+      		default { 
+      			this.incompatibleReturnError(p2);
+      			unit
+      		}
+		}
+	}
+}

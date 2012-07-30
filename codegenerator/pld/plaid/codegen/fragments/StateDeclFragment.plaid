@@ -1,0 +1,146 @@
+package plaid.codegen.fragments;
+
+import plaid.ast.types.*;
+
+state StateDeclFragment {
+	method handleTopLevelStateDecl(node) {
+		var freshImports = this.idgen.getId();
+		var theState = this.idgen.getId();
+		val qid = new QI { val qid = this.packageName; };
+		val thePackage = qid.toString();
+		val /*String */ sc = this.stateContext;
+		
+		//java.lang.System.out.println("Handling state " + node.name.name + " with package " + thePackage);
+		var folderRoot = this.packageName.foldr(fn (x, y) => x + "." + y, "");
+		folderRoot = folderRoot.substring(0, folderRoot.length() - 1);
+		this.stateContext = folderRoot + "." + node.name.name;
+		
+		
+		this.out = this.jCodeGen.new(this.cc);
+		
+		// Package and needed imports
+		this.out.declarePackage(thePackage);
+		
+		val obj = java.util.HashMap.new();
+		obj.put("member_type", "state");
+		obj.put("name", node.name.name);
+		val /*Option StateType*/ stateType = this.stateTable.get(node.name);
+		match (stateType) {
+			case Some {
+				val it = stateType.value.declaredTypes.entrySet().iterator();
+				val memberList = java.util.ArrayList.new();
+				
+				while { it.hasNext(); } {
+					val entry = it.next();
+					
+					// TODO: Move this toJsonString conversion to FieldType/MethodType eventually.
+					match (entry.getValue()) {
+						case FieldType {
+							val f = java.util.HashMap.new();
+							f.put("member_type", "field");
+							f.put("name", entry.getKey().name);
+							
+							memberList.add(f);
+						}
+						
+						case MethodType {
+							val m = java.util.HashMap.new();
+							m.put("member_type", "method");
+							m.put("name", entry.getKey().name);
+							
+							memberList.add(m);
+						}
+						
+						default {
+						}
+					};
+				};
+				
+				obj.put("members", memberList);
+			}
+			
+			case None {
+				java.lang.System.out.println("Could not lookup state '" + node.name.name + "'.");
+			}
+		};
+		val /*String*/ json = org.json.simple.JSONValue.toJSONString(obj);
+		val /*String*/ repString = plaid.compilerjava.util.MemberRep.escapeJSONString(json);
+		
+
+		this.out.topStateAnnotation(node.name.name, thePackage, repString);
+		this.out.declarePublicClass(node.name.name);
+		this.out.openBlock();
+		
+		// Generate code to create the package scope with imports.
+		this.out.declarePublicStaticFinalVar("java.util.List<plaid.runtime.utils.Import>", freshImports.name);
+		
+		this.y = freshImports;
+		this.imports.accept(this);
+		
+		this.out.declareGlobalScope(qid.toString(), freshImports.name);
+
+		// Annotation for the prototype object representing the state.
+		this.out.stateAnnotation(node.name.name);
+		this.out.declarePublicStaticFinalVar(this.jCodeGen.plaidObjectType, node.name.name);
+		
+		this.out.openStaticBlock(); //static {
+		this.out.declareLocalScope(this.jCodeGen.globalScope);
+		this.out.declareFinalVar(this.jCodeGen.plaidStateType, theState.name);
+		this.y = theState;
+		// with caseOf State
+		ifElse(!node.isCaseOf) {
+			node.stateDef.accept(this);
+			this.out.assignToPrototype(node.name.name, theState.name);
+		} {
+			var caseOfState = this.idgen.getId();
+			var declaredState = this.idgen.getId();
+			this.out.declareFinalVar(this.jCodeGen.plaidStateType, caseOfState.name);
+			this.y = caseOfState;
+			node.caseOf.value.accept(this);
+			this.out.declareFinalVar(this.jCodeGen.plaidStateType, declaredState.name);
+			this.y = declaredState;
+			node.stateDef.accept(this);
+			//
+			this.out.assignToWith(theState.name,caseOfState.name,declaredState.name);  //y = fresh1.with(fresh2);
+			this.out.assignToPrototype(node.name.name, theState.name);
+			
+			// because of subtagging, we don't want the resulting object to have the caseOf's state's tag
+			this.out.ifCondition(caseOfState.name + ".hasTag()"); //If the caseOf State has a tag
+			this.out.append(node.name.name + ".removeTag(" + caseOfState.name + ".getTag());"); //remove it from the prototype
+		};
+
+		this.out.closeBlock(); // } (for static block to init prototype)
+		
+		if (node.isCaseOf) { //if we have a tag	
+			//Tag
+			//Declare variable to hold the tag
+			var tag = new ID{
+				val name = node.name.name + "$Tag" + "$plaid"; 
+				val token = new None;
+			};
+			var tagPath = qid.toString() + "." + node.name.name;
+			this.out.tagAnnotation(tagPath);
+			this.out.declarePublicStaticFinalVar(this.jCodeGen.plaidTagType, tag.name);
+			this.out.openStaticBlock(); //static {	
+			var caseOfState = this.idgen.getId();
+			this.out.declareFinalVar(this.jCodeGen.plaidStateType, caseOfState.name);
+			this.y = caseOfState;
+			node.caseOf.value.accept(this);
+			this.out.assignToNewTag(tag.name, tagPath,  caseOfState.name);  
+			this.out.append(node.name.name + ".addTag(" + node.name.name + "$Tag" + "$plaid"+");");
+			this.out.updateVarDebugInfo(node.name.name);
+			this.out.closeBlock(); // } (for static block to init tag)
+		};
+		this.out.closeBlock(); // } (for class Def)
+		
+		plaid.compilerjava.util.FileGen.createOutputFile(node.name.name, 
+			this.cc.getOutputDir(), this.out.formatFile(), qid.toDirectoryName());
+	}
+	
+	method visitStateDecl(node) {
+		if (this.top) {
+			this.top = false;
+			this.handleTopLevelStateDecl(node);
+		};
+	}
+}

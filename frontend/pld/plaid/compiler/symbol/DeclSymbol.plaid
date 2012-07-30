@@ -1,0 +1,70 @@
+package plaid.compiler.symbol;
+
+import plaid.compiler.Symbol;
+import plaid.compiler.Signature;
+
+/**
+ * DeclSymbols include field and methods
+ * They have signatures which can be grabbed
+ * StateSymbols are not DeclSymbols - they have a structure, default permission, and members, but no signature
+ */
+state DeclSymbol case of Symbol {
+  var immutable ASTNode declaration;
+  val immutable Symbol owner;
+  var immutable Option<immutable Boolean> isAbstractOption = NONE;
+  var immutable Option<immutable Boolean> isOverrideOption = NONE;
+  
+  method void updateDeclaration(immutable MethodDecl declaration) {
+    //delSymbolForAST(this.declaration);
+    //delSymbolForAST(this.declaration.name);
+    this.declaration = declaration;
+    addSymbolForAST(this.declaration, this);
+    addSymbolForAST(this.declaration.name, this);
+  }
+  
+  method immutable Boolean isAbstract() {
+    match (this.isAbstractOption) {
+      case Some { this.isAbstractOption.value }
+      case None {
+        val immutable boolean isAbstractValue = match (this.declaration) {
+          case ParsedAbstractFieldDecl { true }
+          case ParsedAbstractMethodDecl { true }
+          case ParsedAbstractStateDecl { true }
+          case ParsedConcreteFieldDecl { false }
+          case ParsedConcreteMethodDecl { false }
+          case ParsedConcreteStateDecl { false }
+          default { 
+            ABORT("(implementation error) found unexpected node '" +
+                  this.declaration.nodeName() + "' as DeclSymbol declaration")                  
+          }              
+        };
+        this.isAbstractOption = makeSome(isAbstractValue);
+        isAbstractValue;
+      }
+    }
+  }
+  
+  method immutable Boolean isOverride() {
+    match (this.isOverrideOption) {
+      case Some { this.isOverrideOption.value }
+      case None {
+        val immutable boolean isOverrideValue =  
+          this.declaration.modifiers.exists(fn (mod) =>
+            match (mod) { 
+              case ParsedOverrideModifier { true }   
+              default { false }
+            }
+          );
+        this.isOverrideOption = makeSome(isOverrideValue);
+        isOverrideValue;
+      }
+    }
+  }
+  
+  method immutable Signature getSignature();
+  
+  override method immutable String symbolType();
+  
+  
+  
+}

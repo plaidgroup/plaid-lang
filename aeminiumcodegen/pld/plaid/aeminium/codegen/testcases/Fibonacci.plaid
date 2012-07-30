@@ -1,0 +1,360 @@
+package plaid.aeminium.codegen.testcases;
+
+import plaid.ast.types.*;
+import plaid.ast.*;
+
+state Fibonacci case of TestCase {
+	val methodTypes = java.util.HashMap.new();
+	
+	// method unique Integer fibonacci(immutable Integer n) {
+	//   ifElse (n <= 2) {
+	//     1;
+	//   } {
+	//     fibonacci(n - 1) + fibonacci(n - 2);
+	//   };
+	// }
+	
+	
+	
+	// $ifLambda:
+	//   1;
+	
+	method makeIfLambda() {
+		val argTypes = new List { var head = new Nil; };
+		val argNames = new List { var head = new Nil; };
+		
+		val ifMethodType = new MethodTypeDecl {
+			val token = new None;
+			val name = "$IfLambda$";
+			val retPermType = new Void;
+			val argTypes = argTypes;
+			val argNames = argNames;
+		};
+		
+		val ifLambda = new Lambda {
+			val token = new None;
+			val x = makeID(makeToken(),"unusedIfLambdaArgument");
+			val body = new IntLiteral {
+				val token = new None;
+				val integer = 1;
+			};
+			val methodType = ifMethodType;
+			var recursiveName = NONE;
+		};
+		
+		ifLambda;
+	}
+	
+	
+	// $elseLambda:
+	//   Split (n : immutable Integer => n : immutable Integer / n : immutable Integer) in
+	//   Let u0 = invoke(n, -, 1) in
+	//   Let u1 = apply(fibonacci, u0) in
+	//   Let u2 = invoke(n, -, 2) in
+	//   Let u3 = apply(fibonacci, u2) in
+	//   Join (n : immutable Integer / n : immutable Integer => n : immutable Integer) in
+	//            invoke(u1, +, u3)
+	
+	method makeElseLambda() {
+		val invoke2 = new MethodInvocation {
+			val token = new None;
+			val obj = makeID(makeToken(),"u1");
+			val function = makeID(makeToken(),"+");
+			val arg = makeID(makeToken(),"u3");
+		};
+		
+		val join0 = new Join {
+			val in1 = makeIDWithType("n", getImmutableIntegerPermType());
+			val in2 = makeIDWithType("n", getImmutableIntegerPermType());
+			val out = makeIDWithType("n", getImmutableIntegerPermType());
+			val body = invoke2;
+		};
+		
+		val let3 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"u3");
+			val exp = new Application {
+				val token = new None;
+				val f = makeID(makeToken(),"fibonacci");
+				val arg = makeID(makeToken(),"u2");
+			};
+			val body = join0;
+			val mutable = false;
+		};
+		
+		val let2 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"u2");
+			val exp = new MethodInvocation {
+				val token = new None;
+				val obj = makeID(makeToken(),"n");
+				val function = makeID(makeToken(),"-");
+				val arg = new IntLiteral {
+					val token = new None;
+					val integer = 2;
+				};
+			};
+			val body = let3;
+			val mutable = false;
+		};
+		
+		val let1 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"u1");
+			val exp = new Application {
+				val token = new None;
+				val f = makeID(makeToken(),"fibonacci");
+				val arg = makeID(makeToken(),"u0");
+			};
+			val body = let2;
+			val mutable = false;
+		};
+		
+		val let0 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"u0");
+			val exp = new MethodInvocation {
+				val token = new None;
+				val obj = makeID(makeToken(),"n");
+				val function = makeID(makeToken(),"-");
+				val arg = new IntLiteral {
+					val token = new None;
+					val integer = 1;
+				};
+			};
+			val body = let1;
+			val mutable = false;
+		};
+		
+		val split0 = new Split {
+			val in = makeIDWithType("n", getImmutableIntegerPermType());
+			val out1 = makeIDWithType("n", getImmutableIntegerPermType());
+			val out2 = makeIDWithType("n", getImmutableIntegerPermType());
+			val body = let0;
+		};
+		
+		val argTypes = new List { var head = new Nil; };
+		val argNames = new List { var head = new Nil; };
+		
+		val elseMethodType = new MethodTypeDecl {
+			val token = new None;
+			val name = "$ElseLambda$";
+			val retPermType = new Void;
+			val argTypes = argTypes;
+			val argNames = argNames;
+		};
+		
+		val elseLambda = new Lambda {
+			val token = new None;
+			val x = makeID(makeToken(),"unusedElseLambdaArgument");
+			val body = split0;
+			val methodType = elseMethodType;
+			var recursiveName = NONE;
+		};
+		
+		elseLambda;
+	}
+	
+	// method unique Integer fibonacci(immutable Integer n) {
+	//   Let t0 = ifElse in
+	//   Let t1 = invoke(n, <=, 2) in
+	//   Let t2 = apply(t0, t1) in
+	//   Let t3 = $ifLambda in
+	//   Let t4 = apply(t2, t3) in
+	//   Let t5 = $elseLambda in
+	//       apply(t4, t5)
+	// }
+	
+	method makeLambdaType(argType, retType) {
+		val sideEffects = new List { var head = new Nil; };
+		
+		new LambdaType {
+			val returnType = retType;
+			val argType = argType;
+			val sideEffects = sideEffects;
+		};
+	}
+	
+	method makePermTypeChange(variable, from, to) {
+		new PermTypeChange {
+			val variable = variable;
+			val from = from;
+			val to = to;
+		};
+	}
+	
+	method makeLambdaTypeWithSideEffects(argType, retType, variable, inPermType, outPermType) {
+		val sideEffects = new List { var head = new Nil; };
+		sideEffects.add(makePermTypeChange(makeID(variable), inPermType, outPermType));
+		
+		new LambdaType {
+			val returnType = retType;
+			val argType = argType;
+			val sideEffects = sideEffects;
+		};
+	}
+	
+	method makeFibonacci() {
+		// The return type is actually a highly complex generic lambda type...  but for now we ignore it.
+		val ifElseLambdaType = makeLambdaType(getImmutableBooleanPermType(), new Void);
+		val t2LambdaType = makeLambdaType(makeLambdaType(new Void, getImmutableIntegerPermType()), new Void); 
+		val t4LambdaType = makeLambdaTypeWithSideEffects(makeLambdaType(new Void, getImmutableIntegerPermType()),
+		    getImmutableIntegerPermType(), "n", getImmutableIntegerPermType(), getImmutableIntegerPermType());
+		
+		val let5 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"t5");
+			val exp = makeElseLambda();
+			val body = new Application {
+				val token = new None;
+				val f = makeIDWithType("t4", t4LambdaType);
+				val arg = makeID(makeToken(),"t5");
+			};
+			val mutable = false;
+		};
+		
+		val let4 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"t4");
+			val exp = new Application {
+				val token = new None;
+				val f = makeIDWithType("t2", t2LambdaType);
+				val arg = makeID(makeToken(),"t3");
+			};
+			val body = let5;
+			val mutable = false;
+		};
+		
+		val let3 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"t3");
+			val exp = makeIfLambda();
+			val body = let4;
+			val mutable = false;
+		};
+		
+		val let2 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"t2");
+			val exp = new Application {
+				val token = new None;
+				val f = makeIDWithType("t0", ifElseLambdaType);
+				val arg = makeID(makeToken(),"t1");
+			};
+			val body = let3;
+			val mutable = false;
+		};
+		
+		val let1 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"t1");
+			val exp = new MethodInvocation {
+				val token = new None;
+				val obj = makeID(makeToken(),"n");
+				val function = makeID(makeToken(),"<=");
+				val arg = new IntLiteral {
+					val token = new None;
+					val integer = 2;
+				};
+			};
+			val body = let2;
+			val mutable = false;
+		};
+		
+		val let0 = new UnannotatedLetBinding {
+			val token = new None;
+			val x = makeID(makeToken(),"t0");
+			val exp = makeID(makeToken(),"ifElse");
+			val body = let1;
+			val mutable = false;
+		};
+	
+		val argTypes = new List { var head = new Nil; };
+		argTypes.add(getImmutableIntegerPermType());
+		val argNames = new List { var head = new Nil; };
+		argNames.add(makeID(makeToken(),"n"));
+		
+		val methodType = new MethodTypeDecl {
+			val token = new None;
+			val name = "fibonacci";
+			val retPermType = getUniqueIntegerPermType();
+			val argTypes = argTypes;
+			val argNames = argNames;
+		};
+		
+		new MethodDecl {
+			val token = new None;
+			val name = "fibonacci";
+			val body = let0;
+			val arg = new Some { val value = makeID(makeToken(),"n"); };
+			val abstractMethod = false;
+			val methodType = methodType;
+		};
+	}
+	
+	method makeMain() {
+		val mainBody = new Application {
+			val token = new None;
+			val f = new ID {
+				val token = new None;
+				val name = "fibonacci";
+			};
+			val arg = new IntLiteral {
+				val token = new None;
+				val integer = 7;
+			};
+		};
+		
+		val mainMethodType = new MethodTypeDecl {
+			val token = new None;
+			val name = "main";
+			val retPermType = new Void;
+			val argTypes = new List { var head = new Nil; };
+			val argNames = new List { var head = new Nil; };
+		};
+		
+		new MethodDecl {
+			val token = new None;
+			val name = "main";
+			val body = mainBody;
+			val arg = new None;
+			val abstractMethod = false;
+			val methodType = mainMethodType;
+		};
+	}
+	
+	method buildFibonacciExample() {
+		val thePackageName = new List { var head = new Nil; };
+		thePackageName.add("testInputs");
+		thePackageName.add("Fibonacci");
+		
+		val theDecls = new List { var head = new Nil; };
+		theDecls.add(makeMain());
+		theDecls.add(makeFibonacci());
+		
+		theDecls.map(fn (m) => {
+			this.methodTypes.put(m.name, m.methodType);
+		});
+		
+		val theImports = new ImportList {
+			val imports = new List { var head = new Nil; };
+			val token = new None;
+		};
+	
+		new CompilationUnit {
+			val decls = theDecls;
+			val packageName = thePackageName;
+			val imports = theImports;
+			val sourceFile = "Fibonacci.plaid";
+		};
+	}
+
+
+	method getAST() {
+		buildFibonacciExample();
+	}
+	
+	method getMethodTypes() {
+		this.methodTypes;
+	}
+}
