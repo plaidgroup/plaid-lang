@@ -13,8 +13,9 @@ import plaid.fastruntime.reference.AbstractPlaidState;
 import plaid.fastruntime.reference.DimensionValue;
 import plaid.generated.Iget$1$plaid;
 import plaid.generated.Iset$2$plaid;
+import plaid.generated.Ilength$0$plaid;
 
-public class A_rray extends AbstractPlaidDispatch implements Iset$2$plaid, Iget$1$plaid {
+public class A_rray extends AbstractPlaidDispatch implements Iset$2$plaid, Iget$1$plaid, Ilength$0$plaid {
 	
 	private A_rray(ObjectValue metadata) {
 		super(metadata); 	
@@ -58,6 +59,17 @@ public class A_rray extends AbstractPlaidDispatch implements Iset$2$plaid, Iget$
 			throw new PlaidIllegalArgumentException("set failed", e.getCause());
 		}
 	}
+	
+	@Override
+	public PlaidObject length(PlaidObject receiver) {
+		try {
+			ArrayPlaidJavaObject a = (ArrayPlaidJavaObject)receiver;
+			return Util.javaToPlaid(a.javaArray.length);
+		} catch(ClassCastException e){
+			throw new PlaidIllegalArgumentException("length failed", e.getCause());
+		}
+	}
+
 	
 	private final static class ArrayPlaidJavaObject implements PlaidJavaObject {
 
