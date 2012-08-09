@@ -266,18 +266,26 @@ public class JavaDispatchGenerator implements Opcodes {
 				Type[] args = asmMethod.getArgumentTypes();
 				for (int i = 0; i < args.length; i++) {
 					mv.visitVarInsn(ALOAD, i+firstArgRegister);
-					mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
+					
 					
 					Type argType = args[i];
 					
 					if (isPrimitiveType(argType)) { //covert Plaid objects to primitives (fails if cannot be done)
+						mv.visitTypeInsn(CHECKCAST, "plaid/fastruntime/PlaidJavaObject");
+						
 						mv.visitFieldInsn(GETSTATIC, "plaid/fastruntime/PlaidJavaObject$JavaPrimitive", 
 								asmTypeToPrimitive(argType).field, "Lplaid/fastruntime/PlaidJavaObject$JavaPrimitive;"); 
 						mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "asPrimitive", 
 											"(Lplaid/fastruntime/PlaidJavaObject$JavaPrimitive;)Ljava/lang/Object;");
 						unbox(argType, mv);
 					} else { //get java object and cast to the arg type (fails if cannot be done)
+						mv.visitInsn(DUP);
+						Label skip = new Label();
+						mv.visitTypeInsn(INSTANCEOF, "plaid/fastruntime/PlaidJavaObject");
+						mv.visitJumpInsn(IFEQ, skip);
 						mv.visitMethodInsn(INVOKEINTERFACE, "plaid/fastruntime/PlaidJavaObject", "getJavaObject", "()Ljava/lang/Object;");
+						
+						mv.visitLabel(skip);
 						mv.visitTypeInsn(CHECKCAST, argType.getInternalName());
 					}
 				}
@@ -332,6 +340,10 @@ public class JavaDispatchGenerator implements Opcodes {
 							   "overloadedStaticMethod", NamingConventions.OVERLOAD_STATIC_METHOD_DESC);
 				}
 			}
+
+			mv.visitInsn(DUP);
+			mv.visitTypeInsn(INSTANCEOF, "plaid/fastruntime/PlaidObject");
+			mv.visitJumpInsn(IFNE, l1);
 			//wrap Java object into a PlaidJavaObject
 			mv.visitMethodInsn(INVOKESTATIC, "plaid/fastruntime/Util", 
 							   "javaToPlaid", "(Ljava/lang/Object;)Lplaid/fastruntime/PlaidObject;");
