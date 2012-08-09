@@ -17,7 +17,11 @@ public class AbstractPlaidDispatch implements PlaidDispatch {
 	@Override
 	public PlaidState change(PlaidState s) {
 		ObjectValue changedValue = this.getObjectValue().changeState(s.getObjectValue());
-		return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(changedValue));
+		if (s.isStatic()) {
+			return SimplePlaidState.makeStaticallyDefinedState(Util.DISPATCH_GEN.createStateInstance(changedValue));
+		} else {
+			return SimplePlaidState.makeDynamicallyDefinedState(Util.DISPATCH_GEN.createStateInstance(changedValue), s.getMemberDefinitions());
+		}
 	}
 
 	@Override

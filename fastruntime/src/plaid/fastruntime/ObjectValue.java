@@ -52,8 +52,9 @@ public interface ObjectValue {
 	
 	public ObjectValue with(ObjectValue other);
 
-	public PlaidObject[] getPostChangeStorage(ObjectValue oldObjectValue,
-			PlaidObject[] oldStorage);
+	PlaidObject[] getPostChangeStorage(ObjectValue oldObjectValue,
+			PlaidObject[] oldStorage,
+			Map<String, PlaidLambda> dynamicDefinitions);
 	
 	
 
