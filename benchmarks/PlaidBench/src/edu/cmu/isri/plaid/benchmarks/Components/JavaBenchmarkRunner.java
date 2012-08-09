@@ -25,8 +25,7 @@ class JavaBenchmarkRunner extends Runner implements BenchmarkComponent {
 
     @Override
     public BenchmarkResult run() throws Exception {
-        invoke.invoke(null, this);
-        invoke.invoke(null, this);
+        YourkitRunner.run(this, invoke, properties);
         return new BenchmarkResult(benchmarkComponent, getTime());
     }
 }

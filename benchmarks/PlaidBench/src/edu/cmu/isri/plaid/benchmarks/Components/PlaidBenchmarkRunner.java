@@ -35,12 +35,8 @@ public class PlaidBenchmarkRunner extends Runner implements BenchmarkComponent {
     @Override
     public BenchmarkResult run() throws Exception {
         PlaidObject timerPlaid = Util.javaToPlaid(this);
-        try {
-        declaredMethod.invoke(null, timerPlaid);
-        declaredMethod.invoke(null, timerPlaid);
-        } catch (RuntimeException e) {
-            throw new TestFailedException(e);
-        }
+
+        YourkitRunner.run(timerPlaid, declaredMethod, properties);
         return new BenchmarkResult(componentDesc, getTime());
     }
 }

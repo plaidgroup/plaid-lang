@@ -30,6 +30,8 @@ public class Benchmark {
             try {
                 properties.put(p.getName(), Integer.parseInt(p.getValue()));
             } catch (NumberFormatException e) {
+                properties.put(p.getName(), Boolean.parseBoolean(p.getValue()));
+            } catch (Exception e) {
                 System.out.println("Invalid property value: "+p.getValue());
             }
         }
