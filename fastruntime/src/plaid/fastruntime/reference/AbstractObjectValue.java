@@ -244,7 +244,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 	}
 	
 	@Override
-	public PlaidObject[] getPostChangeStorage(ObjectValue oldObjectValue, PlaidObject[] oldStorage) {
+	public PlaidObject[] getPostChangeStorage(ObjectValue oldObjectValue, PlaidObject[] oldStorage, Map<String, PlaidLambda> dynamicDefinitions) {
 		PlaidObject[] storage = new PlaidObject[this.getStorageLength()];
 		for(FieldInfo field : fields) {
 			boolean isOld = false;
@@ -260,7 +260,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 					initStaticField(storage,field);
 
 				} else {
-					throw new PlaidInternalException("Post state change storage cannot have any dynamic definitions");
+					initDynamicField(dynamicDefinitions, storage, field);
 	 			}
 			}
 		}
@@ -314,6 +314,16 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		}
 	}
 	
+	private void initDynamicField(Map<String, PlaidLambda> dynamicDefinitions,
+			PlaidObject[] storage, FieldInfo field) {
+		try {
+			PlaidLambda$0 init = (PlaidLambda$0)dynamicDefinitions.get(field.getName());
+			storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
+		} catch (ClassCastException e) {
+			throw new plaid.fastruntime.errors.PlaidInternalException("Field initializer must be a 0 argument Lambda.", e);
+		}
+	}
+	
 	@Override
 	/*
 	 * This method uses a reflective mechanism that is pretty slow. We should consider generating code for this
@@ -327,12 +337,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 			if(field.isStaticallyDefined()) {
 				initStaticField(storage,field);
 			} else { //dynamically defined
-				try {
-					PlaidLambda$0 init = (PlaidLambda$0)dynamicDefinitions.get(field.getName());
-					storage[this.getStorageIndex(field.getName())] = init.invoke$plaid();
-				} catch (ClassCastException e) {
-					throw new plaid.fastruntime.errors.PlaidInternalException("Field initializer must be a 0 argument Lambda.", e);
-				}
+				initDynamicField(dynamicDefinitions, storage, field);
  			}
 		}
 		for (MethodInfo method : methods) {
@@ -343,6 +348,7 @@ public abstract class AbstractObjectValue implements ObjectValue {
 		}
 		return storage;
 	}
+
 
 	@Override
 	final public int getStorageIndex(final String name) {

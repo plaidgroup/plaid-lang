@@ -1,5 +1,7 @@
 package plaid.fastruntime;
 
+import java.util.Map;
+
 
 public interface PlaidState extends PlaidObject {
 	
@@ -16,4 +18,11 @@ public interface PlaidState extends PlaidObject {
 	public abstract PlaidDispatch getDispatch();
 	
 	public abstract ObjectValue getObjectValue();
+	
+	public boolean isStatic();
+	
+	/**
+	 * @return Always returns null if isStatic is true.
+	 */
+	public Map<String, PlaidLambda> getMemberDefinitions();
 }

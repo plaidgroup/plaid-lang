@@ -28,4 +28,12 @@ public final class SimplePlaidState extends AbstractPlaidState {
 	public final PlaidObject instantiate() {
 		return new SimplePlaidObject(this.getDispatch(), this.getObjectValue().getDefaultStorage(memberDefinitions)); 
 	}
+	
+	public boolean isStatic() {
+		return memberDefinitions == null;
+	}
+	
+	public Map<String, PlaidLambda> getMemberDefinitions() {
+		return this.memberDefinitions;
+	}
 }

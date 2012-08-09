@@ -1,6 +1,7 @@
 package plaid.fastruntime.reference;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import plaid.fastruntime.ObjectValue;
 import plaid.fastruntime.PlaidDispatch;
@@ -91,6 +92,14 @@ public abstract class AbstractPlaidState implements PlaidState {
 	@Override
 	public String toString() {
 		return "ObjectValue : " + this.getObjectValue().getCanonicalRep();
+	}
+	
+	public boolean isStatic() {
+		return true;
+	}
+	
+	public Map<String, PlaidLambda> getMemberDefinitions() {
+		return null;
 	}
 
 }

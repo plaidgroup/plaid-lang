@@ -33,7 +33,11 @@ public class SimplePlaidObject implements PlaidObject {
 		ObjectValue oldObjectValue = this.dispatch.getObjectValue();
 		PlaidObject[] oldStorage = this.storage;
 		this.dispatch = newState.getDispatch();
-		storage = newState.getObjectValue().getPostChangeStorage(oldObjectValue, oldStorage);
+		if(newState.isStatic()) {
+			storage = newState.getObjectValue().getPostChangeStorage(oldObjectValue, oldStorage, null);
+		} else {
+			storage = newState.getObjectValue().getPostChangeStorage(oldObjectValue, oldStorage, newState.getMemberDefinitions());
+		}
 	}
 
 	@Override
