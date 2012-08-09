@@ -870,8 +870,8 @@ public class ParseExpressionTest {
 
 	@Test
 	public void parseStateChange() throws ParseException, UnsupportedEncodingException {
-		final String code = "x <- Foo;";
-		final StateChange goal = StateChange(Identifier("x"), StateRef(Identifier("Foo")));
+		final String code = "this <- Foo;";
+		final StateChange goal = StateChange(Identifier("this"), StateRef(Identifier("Foo")));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expr e = pp.Expr1();
 		assertTrue(e instanceof StateChange );
@@ -881,8 +881,8 @@ public class ParseExpressionTest {
 	
 	@Test
 	public void parseReplace() throws ParseException, UnsupportedEncodingException {
-		final String code = "x <<- Foo;";
-		final Replace goal = Replace(Identifier("x"), StateRef(Identifier("Foo")));
+		final String code = "this <<- Foo;";
+		final Replace goal = Replace(Identifier("this"), StateRef(Identifier("Foo")));
 		final PlaidCoreParser pp = new PlaidCoreParser(new ByteArrayInputStream(code.getBytes("UTF-8")));
 		final Expr e = pp.Expr1();
 		assertTrue(e instanceof Replace );
