@@ -1,0 +1,815 @@
+package plaid.benchmarks.simulation.database;
+
+import plaid.collections.ArrayList;
+import plaid.collections.makeArray;
+import java.util.Random;
+
+method break(client) {
+	match (client.records.size() >= client.e*2) {
+		case True {
+			val m = client.records.size();
+			val splitpoint = m/2;
+			
+			val el = new ArrayList;
+			
+			el.addAll(client.records.subList(splitpoint, client.records.size()));
+			val splitKey = client.records.get(splitpoint);
+			client.records.shorten(splitpoint);
+			
+			val newKey = splitKey.key;
+			var newNode = unit;
+
+			match (client) {
+				case BranchNode {
+					el.get(0).toHead();
+					newNode = new BranchNode { var records = el; };
+				}
+				case LeafNode {
+					newNode = new LeafNode { var records = el; };
+				}
+			};
+			
+			
+			
+			new BranchElem { var node = newNode; } with NotHead { var key = newKey; };
+		}
+		case False {
+			unit;
+		}
+	};
+}
+
+method getKey(from) {
+	match (from) {
+		case Head {
+			getKey(from.records.get(0));
+		}
+		case NotHead {
+			from.key;
+		}
+	}
+}
+
+state Elem {
+}
+
+state BranchElem case of Elem = {
+	var node;
+
+	method check() {
+		match (this) {
+			case IsHead {
+				true;
+			}
+			case NotHead {
+				this.getKey(this.node.records.get(0)) == this.key;
+			}
+		}
+	}
+
+	method db(elem, lst1, lst2, splitpoint) {
+		match (lst1.size() < splitpoint) { 
+			case True {
+				lst1.add(elem);
+			}
+			case False {
+				lst2.add(elem);
+			}
+		};
+	}
+
+	method getKey(elem) {
+		match (elem) {
+			case LeafElem {
+				elem.key;
+			}
+			case BranchElem {
+				this.getKey(elem.node.records.get(0));
+			}
+		}
+	}
+
+	method getFoundKey() {
+		this.getKey(this.node.records.get(0));
+	}
+
+	method resolveHeads(b) {
+		match (b.node) {
+			case BranchNode {
+				b.node.records.get(0).notHead(this.getKey(b));
+				this.node.records.get(0).notHead(this.getKey(this));
+			}
+			case LeafNode {
+			}
+		};
+	}
+
+	method merge(b, d) {
+		var newLst = new ArrayList;
+		var bPtr = 0;
+		var j = 0;
+		var i = 0;
+
+		this.resolveHeads(b);
+		match (d==1) {
+			case True {
+				this.node.records.map(fn(elem)=>{newLst.add(elem);});
+				b.node.records.map(fn(elem)=>{newLst.add(elem);});
+			}
+			case False {
+				b.node.records.map(fn(elem)=>{newLst.add(elem);});
+				this.node.records.map(fn(elem)=>{newLst.add(elem);});
+			}
+		};
+
+		match (newLst.get(0)) {
+			case LeafElem {
+
+			}
+			case BranchElem {
+				newLst.get(0).toHead();
+			}
+		};
+
+		this.node.records = newLst;
+		b.node = unit;
+
+
+		match (this) {
+			case Head {
+				this.getKey(this.node.records.get(0));
+			}
+			case NotHead {
+				this.key = this.getKey(this.node.records.get(0));
+				unit;
+			}
+		}
+
+		
+	}
+
+	method dist(b, d) {
+		var newLst1 = new ArrayList;
+		var newLst2 = new ArrayList;
+		var j = 0;
+		var i = 0;
+		val splitp = (this.node.records.size() + b.node.records.size())/2;
+
+		this.resolveHeads(b);
+
+		var cI = this.node.records.get(0).key;
+
+		match (d==1) {
+			case True {
+				this.node.records.map(fn(elem)=>{this.db(elem, newLst1, newLst2, splitp)});
+				b.node.records.map(fn(elem)=>{this.db(elem, newLst1, newLst2, splitp)});
+				this.node.records = newLst1;
+				b.node.records = newLst2;
+			}
+			case False {
+				b.node.records.map(fn(elem)=>{this.db(elem, newLst1, newLst2, splitp)});
+				this.node.records.map(fn(elem)=>{this.db(elem, newLst1, newLst2, splitp)});
+				this.node.records = newLst2;
+				b.node.records = newLst1;
+			}
+		};
+
+		match (this.node.ordered()) {
+			case False {
+				unit.foo();
+			}
+			case True {
+
+			}
+		};
+
+
+		match (newLst1.get(0)) {
+			case BranchNode {
+				newLst1.get(0).toHead();
+				newLst2.get(0).toHead();
+			}
+			default {}
+		};
+
+
+		match (b) {
+			case Head {
+			}
+			case NotHead {		
+				b.key = this.getKey(b);
+			}
+		};
+
+		match (this) {
+			case Head {
+			}
+			case NotHead {
+				this.key = this.getKey(this);
+			}
+		};
+	}
+
+	method toHead() {
+		this <- Head;
+	}
+
+	method notHead(key) {
+		this <- NotHead {var key = key;};
+	}
+} with IsHead
+
+state IsHead {
+}
+state Head case of IsHead {
+
+	method contains(key) {
+		True;
+	}
+}
+
+state NotHead case of IsHead {
+	var key;
+
+	method contains(key) {
+		key >= this.key;
+	}
+}
+
+state LeafElem case of Elem {
+	method compareTo(elem) {
+		elem.key - this.key;
+	}
+
+	method check() {
+		true;
+	}
+
+	var key;
+	var value;
+}
+
+state Node {
+	var records;
+	var e = 5;
+	method find(key);
+	method insert(key, value);
+	
+	method ordered() {
+		match (this.records.size() == 0) {
+			case True {
+				True;
+			}
+			case False {
+				var cont = true;
+				var i = 0;
+				var last = -1;
+				nativeWhile{i < this.records.size() && cont;}{
+					val elem = this.records.get(i);
+					match (elem) {
+						case NotHead {
+							cont = last < elem.key;
+							last = elem.key;
+						}
+						default {}
+					};
+					i = i + 1;
+				};
+				cont;
+			}
+		};
+	}
+}
+
+state BranchNode case of Node {
+
+	method mergeKeys(idx, dir) {
+		match (this.records.get(idx).node.records.size() == this.e - 1) {
+			case True {
+				match (this.records.get(idx + dir).node.records.size() > this.e) {
+					case True {
+						val out = this.records.get(idx).dist(this.records.get(idx+dir), dir);
+						match (this.ordered()) {
+							case True {
+								True;
+							}
+							case False {
+								unit.foo();
+							}
+						};
+						out;
+					}
+					case False {
+						match (this.records.get(idx+dir).node.records.size() == this.e) {
+							case True {
+								val out = this.records.get(idx).merge(this.records.get(idx+dir), dir);
+								match (this.records.removeIdx(idx+dir)) {
+									case Unit {
+										unit.foo();
+									}
+									default {}
+								};
+
+								match (this.ordered()) {
+									case True {
+										True;
+									}
+									case False {
+										unit.foo();
+									}
+								};
+
+								out;
+							}
+							case False {
+
+							}
+						}
+					}
+				}
+			}
+			case False {
+
+			}
+		}
+	}
+
+	method check(ht) {
+		var headed = false;
+	
+		var i = 0;
+		var cont = true;
+		nativeWhile{i < this.records.size() && cont;}{
+			val elem = this.records.get(i);
+			match (elem) {
+				case Head {
+					match (headed) {
+						case True {
+							cont = false;
+						}
+						case False {
+							headed = true;
+						}
+					}
+				}
+				default {}
+			};
+			match (cont) {
+				case True {
+					cont = elem.node.check(ht+1);
+				}
+				default {
+				}
+			};
+			match (cont) {
+				case True {
+					cont = elem.check();
+				}
+				default {
+				}
+			};
+			i = i + 1;
+		};
+		match (cont && this.ordered()) {
+			case True {
+				True;
+			}
+			case False {
+				unit.foo();
+			}
+		}
+	}
+
+	method insert(key, value) {
+		val returned = this.findInner(key).node.insert(key, value);
+		match (returned) {
+			case Elem {
+				this.records.add(this.findIdx(key) + 1, returned);
+			}
+			case Unit {
+			}
+		};
+		break(this);
+	}
+	
+	method findIdx(key) {
+		var i = this.records.size();
+		var flag = true;
+		var found = unit;
+		nativeWhile {i > 0 && flag}{
+			i = i - 1;
+			match (this.records.get(i).contains(key)) {
+				case True {
+					found = true;
+					flag = false;
+				}
+				case False {
+				}
+			};
+		};
+		i;
+	}
+
+	method resolveKeys() {
+		this.records.map(fn(elem)=> {
+			match (elem) {
+				case Head {
+
+				}
+				case NotHead {
+					elem.key = elem.getKey(elem.node.records.get(0));
+				}
+			}
+		});
+	}
+	
+	method delete(key) {
+		val idx = this.findIdx(key);
+		val returned = this.records.get(idx).node.delete(key);
+		match (this.ordered()) {
+			case True {
+				True;
+			}
+			case False {
+				unit.foo();
+			}
+		};
+		val got = match (idx == this.records.size() - 1) {
+			case True {
+				this.mergeKeys(idx, -1);
+			}
+			case False {
+				this.mergeKeys(idx, 1);
+			}
+		};
+		match (this.ordered()) {
+			case True {
+				True;
+			}
+			case False {
+				unit.foo();
+			}
+		};
+
+		this.resolveKeys();
+
+
+
+		match (returned) {
+			case Elem {
+				match (got) {
+					case Unit {
+
+					}
+					default {
+						returned.key = got;
+					}
+				};
+
+				match (idx == 0) {
+					case True {
+						returned.node = this;
+						returned;
+					}
+					case False {
+						this.records.set(idx, returned);
+
+						match (this.ordered()) {
+							case True {
+								True;
+							}
+							case False {
+								unit.foo();
+							}
+						};
+
+						unit;
+					}
+				}
+			}
+			case Unit {
+				match (got) {
+					case Unit {
+						unit;
+					}
+					default {
+						match (idx == 0) {
+							case True {
+								new BranchElem { var node = this; } with NotHead { var key = got; };
+							}
+							case False {}
+						}
+					}
+				};
+			}
+		}
+	}
+
+	method find(key) {
+		this.records.get(this.findIdx(key)).node.find(key);
+	}
+
+	method findInner(key) {
+		this.records.get(this.findIdx(key));
+	}
+}
+
+state LeafNode case of Node {
+
+	method insertInOrder(elem, list) {
+		var i = list.size();
+		match (list.size() == 0) {
+			case True {
+				i = -1;
+				list.add(elem);
+			}
+			default {}
+		};
+		
+		nativeWhile{i > 0}{
+			i = i - 1;
+			
+			match (elem.key >= list.get(i).key) {
+				case True {
+					list.add(i+1, elem);
+					i = -1;
+				}
+				default {
+				}
+			};
+		};
+		match (i == -1) {
+			case True {
+
+			}
+			case False {
+				list.add(0, elem);
+			}
+		};
+	}
+	method check(ht) {
+		match (this.records.size() < this.e*2 && (ht == 0 || this.records.size() >= this.e)  && this.ordered()) {
+			case True {
+				True;
+			}
+			case False {
+				unit.foo();
+				False;
+			}
+		}
+	}
+	method insert(key, value) {
+		this.insertInOrder(new LeafElem {var key = key; var value = value; }, this.records);
+		break(this);
+	}
+	method find(key) {
+		var i = 0;
+		var flag = true;
+		var found = unit;
+		nativeWhile {i < this.records.size() && flag}{
+			val next = this.records.get(i);
+			flag = match (next.key == key) {
+				case True {
+					found = next;
+					False;
+				}
+				case False {
+					True;
+				}
+			};
+			i = i + 1;
+		};
+		found;
+	}
+
+	method findIdx(key) {
+		var i = 0;
+		var flag = true;
+		nativeWhile {i < this.records.size() && flag}{
+			val next = this.records.get(i);
+			flag = match (next.key == key) {
+				case True {
+					False;
+				}
+				case False {
+					True;
+				}
+			};
+			match (flag) {
+				case True {
+					i = i + 1;
+				}
+				case False {
+
+				}
+			}
+		};
+		match (flag) {
+			case True {
+				-1;
+			}
+			case False {
+				i;
+			}
+		}
+	}
+	
+	method delete(key) {
+		val idx = this.findIdx(key);
+
+		match (idx == 0) {
+			case True {
+				val elem = this.records.get(idx);
+				this.records.removeIdx(idx);
+				match (this.records.size() > 0) {
+					case True {
+						var nkey = this.records.get(0).key;
+						new BranchElem { var node = this; } with NotHead { var key = nkey; }
+					}
+					case False {
+						new None;
+					}
+				}
+			}
+			case False {
+				this.records.removeIdx(idx);
+				unit;
+			}
+		}
+	}
+}
+
+state BTree {
+
+}
+
+state UninitBTree case of BTree {
+	method insert(key, value) {
+		this <- InitBTree;
+		this.insert(key, value);
+	}
+}
+
+state InitBTree case of BTree {
+	var n = 0;
+	var height = 0;
+	var root = new LeafNode { var records = new ArrayList; };
+	
+	method check() {
+		this.root.check(0);
+	}
+	
+	method insert(key, value) {
+		match (this.check()) {
+			case True {}
+			case False {
+				unit.foo();
+			}
+		};
+
+		val returned = this.root.insert(key, value);
+		this.n = this.n + 1;
+		match (returned) {
+			case Elem {
+				val newRoot = new BranchNode { var records = new ArrayList; };
+				newRoot.records.add(new BranchElem { var node = this.root; } with Head);
+				newRoot.records.add(returned);
+				this.root = newRoot;
+				this.height = this.height + 1;
+			}
+			default {
+			}
+		};
+	}
+	
+	method find(key) {
+		match (this.check()) {
+			case True {}
+			case False {
+				unit.foo();
+			}
+		};
+
+		val found = this.root.find(key);
+		match (found) {
+			case Elem {
+				found.value;
+			}
+			case Unit {
+				found;
+			}
+		}
+	}
+	
+	method delete(key) {
+		match (this.check()) {
+			case True {}
+			case False {
+				unit.foo();
+			}
+		};
+		val out = this.root.delete(key);
+		this.n = this.n - 1;
+		match (out) {
+			case None {
+				this <- UninitBTree;
+			}
+			default {
+				match(this.root.records.size() == 1) {
+					case True {
+						match (this.root) {
+							case BranchNode {
+								this.root = this.root.records.get(0).node;
+								this.height = this.height - 1;
+							}
+							default {
+
+							}
+						}
+					}
+					default {}
+				}
+			}
+		};
+		
+	}
+}
+
+method randomKeys(rnd) {
+	val output = makeArray(1000);
+	var i = 0;
+	nativeWhile{i < output.length()}{
+		output.set(i, i);
+		i = i + 1;
+	};
+	i = output.length() - 1;
+	nativeWhile{i > 0}{
+		val rand = (rnd.nextInt(i));
+		val temp = output.get(i);
+		output.set(i, output.get(rand));
+		output.set(rand, temp);
+		i = i - 1;
+	};
+	output;
+}
+
+method run() {
+	val tree = new UninitBTree;
+	var t = 0;
+	var rand = Random.new(2012);
+	nativeWhile{t < 2} {
+		java.lang.System.out.println("New: "+t.toString());
+		var i = 0;
+		var elems = randomKeys(rand);
+		nativeWhile{i<elems.length()}{
+			java.lang.System.out.println("Add: "+i.toString());
+			tree.insert(elems.get(i), "Hello "+i.toString());
+			match (tree.find(elems.get(i))) {
+				case String {
+
+				}
+				case Unit {
+					unit.foo();
+				}
+			};
+			i = i + 1;
+		};
+		match (tree.check()) {
+			case True {
+			}
+			case False {
+				unit.foo();
+			}
+		};
+		i = 0;
+		java.lang.System.out.println("Delete: "+t.toString());
+		elems = randomKeys(rand);
+		nativeWhile{i < elems.length()}{
+			java.lang.System.out.println("Del: "+i.toString());
+			tree.delete(elems.get(i));
+			match (i < elems.length() - 1) {
+				case True {
+					match (tree.find(elems.get(i))) {
+						case String {
+							unit.foo();
+						}
+						case Unit {
+						}
+					};
+				}
+				case False {
+					match (tree) {
+						case InitBTree {
+							unit.foo();
+						}
+						case UninitBTree {
+						}
+					}
+				}
+			};
+			i = i + 1;
+		};
+		t = t+1;
+	};
+	
+}
