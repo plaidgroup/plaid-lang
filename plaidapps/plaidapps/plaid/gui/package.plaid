@@ -90,6 +90,9 @@ state UnparentedRowPane case of RowPane {
 	method setParent(w) {
 		this <- ParentedRowPane
 	}
+	// TODO: should not have to override these!
+	override method addLast(p) { doAddLast(p); }
+	override method addFirst(p) { doAddLast(p); }
 }
 
 state ParentedRowPane case of RowPane {
@@ -100,17 +103,22 @@ state ParentedRowPane case of RowPane {
 	}
 }
 
-state Canvas {
-	val peer;
-	method getPeer() { this.peer }
-}
-
-state UninitializedCanvas case of Canvas {
+state UninitializedCanvas {
 	method initialize() {
 		val newPeer = plaid.gui.ExtendedJavaCanvas.new();
-		newPeer.setFunction(fn(graphics) => { this.paint(graphics) });
+		newPeer.setFunction(fn(graphics) => {
+			//java.lang.System.out.println("callback: invoking paint");
+			this.paint(graphics);
+			// TODO: weird race condition; should not need this; also it does not show up!
+			java.lang.System.out.println("callback: invoked paint");
+		});
 		this <- UnsizedCanvas { peer = newPeer; }
 	}
+}
+
+state Canvas case of UninitializedCanvas {
+	val peer;
+	method getPeer() { this.peer }
 }
 
 state UnsizedCanvas case of Canvas {
@@ -176,8 +184,10 @@ state ColoredPanel = UninitializedCanvas {
 	method paint(g) {
 		// TODO: if g is unit (as constructed from Java), better error message!
 		// TODO: better error message if color is undefined (vs. this.color)
+		java.lang.System.out.println("about to paint in color " + this.color);
 		g.setColor(this.color);
 		g.fillRect(0, 0, this.width, this.height);
+		java.lang.System.out.println("painted in color " + this.color);
 	}
 	method setColor(newColor) {
 		this.color = newColor;
@@ -193,24 +203,34 @@ method makeColoredPanel(color) {
 }
 
 method main() {
+	java.lang.System.out.println("making a window");
 	val w = makeWindow("hi");
 	val pane = makeRowPane();
+	java.lang.System.out.println("step 3");
 	// TODO: support "new makeCanvas() with { ... }"
 	val canvas = makeColoredPanel(java.awt.Color.BLUE);
 	//new UninitializedCanvas with { method paint() { java.lang.System.out.println("painting"); } };
 	//canvas.initialize();
 	// TODO: if we forget "setSize" say which thing needs a setParent (a UnsizedCanvas in this case)
 	// TODO: longer term - suggest how to get from canvas to the thing that has a setParent
+	java.lang.System.out.println("step 4");
 	canvas.setSize(50,100);
+	java.lang.System.out.println("step 5");
 	val canvas2 = makeColoredPanel(java.awt.Color.RED);
+	java.lang.System.out.println("step 6");
 	canvas2.setSize(50,100);
+	java.lang.System.out.println("step 7");
 	val canvas3 = makeColoredPanel(java.awt.Color.GREEN);
 	canvas3.setSize(50,100);
+	java.lang.System.out.println("step 10");
 	pane.addFirst(canvas);
+	java.lang.System.out.println("step 11");
 	pane.addLast(canvas2);
+	java.lang.System.out.println("step 12");
 	pane.addFirst(canvas3);
 	java.lang.System.out.println("index = " + pane.peer.getComponentZOrder(canvas3.peer));
 	w.setPane(pane);
 	
+	java.lang.System.out.println("showing the window");
 	w.show();
 }
