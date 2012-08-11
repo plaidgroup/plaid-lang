@@ -1,0 +1,213 @@
+package plaid.collections;
+
+
+state ArrayList case of Collection {
+	var /* Array */ elementData = makeArray(10);
+	
+	var /* int */ size = 0;
+	
+	method size() {
+		this.size;
+	}
+
+	method map(f) {
+		val out = new LinkedList;
+		var i = 0;
+		nativeWhile{i < this.size}{
+			out.addLast(f(this.elementData.get(i)));
+			i = i + 1;
+		};
+		out;
+	}
+
+	method doUntil(f) {
+		var last = false;
+		var i = 0;
+		nativeWhile{!last}{
+			last = f(this.elementData.get(i));
+			i = (i + 1)%this.size;
+		};
+	}
+	
+	method ensureCapacity(capacity) {
+		val oldcap = this.elementData.length();
+		match (capacity > oldcap) {
+			case True {
+				val oldData = this.elementData;
+				var newcap = (oldcap * 3)/2+1;
+				match (newcap < capacity) {
+					case True {
+						newcap = capacity;
+					}
+					default {}
+				};
+				this.elementData = makeArray(newcap);
+				
+				var i = 0;
+				nativeWhile{ i < oldData.length() } {
+					this.elementData.set(i, oldData.get(i));
+					i = i + 1;
+				};
+			}
+			default {
+			}
+		}
+	}
+	
+	method indexOf(object) {
+		var i = 0;
+		var found = false;
+		nativeWhile {i < this.size && !found}{
+			match (this.elementData.get(i) == object) {
+				case True {
+					i = i - 1;
+					found = true;
+				}
+				case False {
+				}
+			};
+			i = i + 1;
+		};
+		match (found < this.size) {
+			case True {
+				found;
+			}
+			case False {
+				-1;
+			}
+		}
+	}
+	method contains(object) {
+		this.indexOf(object) >= 0;
+	}
+	
+	method rangeCheck(index) {
+		!(index >= this.size);
+	}
+	
+	method rangeCheckForAdd(index) {
+		!(index > this.size || index < 0);
+	}
+	
+	method get(index) {
+		match (this.rangeCheck(index)) {
+			case True {
+				this.elementData.get(index);
+			}
+			case False {
+			}
+		}
+	}
+	
+	method set(index, element) {
+		match (this.rangeCheck(index)) {
+			case True {
+				this.elementData.set(index, element);
+			}
+			case False {
+			}
+		}
+	}
+	
+	method add(element) {
+		match (element) {
+			case Unit {
+				unit.foo();
+			}
+			default {}
+		};
+		this.ensureCapacity(this.size + 1);
+		this.elementData.set(this.size, element);
+		this.size = this.size + 1;
+		True;
+	}
+
+	method add(index, element) {
+		this.ensureCapacity(this.size+1);
+		match (this.rangeCheckForAdd(index)) {
+			case True {
+				this.transpose(index, index+1, this.size - index);
+				this.elementData.set(index, element);
+				this.size = this.size + 1;
+			}
+			case False {
+			}
+		}
+	}
+
+	method transpose(sourceIdx, tgtIdx, length) {
+		this.ensureCapacity(tgtIdx+length);
+		this.elementData.shift(sourceIdx, tgtIdx, length);
+	}
+
+	method addAll(collection) {
+		collection.map(fn(elem)=>{
+
+			this.add(elem);
+		});
+	}
+
+	method shorten(newLen) {
+		this.size = newLen;
+	}
+
+	method removeIdx(index) {
+		match (this.rangeCheck(index)) {
+			case True {
+				val oldVal = this.elementData.get(index);
+				val nMoved = this.size - index - 1;
+				match (nMoved > 0) {
+					case True {
+						this.transpose(index+1, index, nMoved);
+					}
+					default {}
+				};
+				this.size = this.size - 1;
+				oldVal;
+			}
+			case False {
+
+			}
+		}
+	}
+
+
+	method subList(start, end) {
+		new Collection {
+			val parent = this;
+			val elementData = this.elementData;
+			val start = start;
+			val end = end;
+
+			method size() {
+				end-start;
+			}
+			method map(f) {
+				val out = new LinkedList;
+				var i = start;
+				nativeWhile{i < end}{
+					out.addLast(f(this.elementData.get(i)));
+					i = i + 1;
+				};
+				out;
+			}
+			method doUntil(f) {
+				var last = false;
+				var i = 0;
+				nativeWhile{!last}{
+					last = f(this.elementData.get(i + start));
+					i = (i + 1)%(end-start);
+				};
+			}
+
+			method clear() {
+				var i = start;
+				nativeWhile{i < end}{
+					java.lang.System.out.println("UNIT");
+					this.elementData.set(i, unit);
+					i = i + 1;
+				};
+			}
+		};
+	}
+}
