@@ -124,7 +124,7 @@ public class JavaDispatchGenerator implements Opcodes {
 				     ACC_PUBLIC,
 				     name,
 				     null,
-				     "plaid/fastruntime/reference/AbstractPlaidDispatch",
+				     "plaid/fastruntime/reference/AbstractPlaidJavaDispatch",
 				     ifaces.toArray(new String[0]));
 			
 			// add methods 
@@ -132,7 +132,7 @@ public class JavaDispatchGenerator implements Opcodes {
 				writeJavaMethod(javaClass, false, internalClassName, cw, methodMap, m);
 			}
 			
-			//instantiate method - creates SimplePlaidJavaObject with this as the dispatch object, null as the storage object, and javaObj as the rep
+			//instantiate method - s
 			{
 				MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC,"instantiate", "()Lplaid/fastruntime/PlaidObject;", null, null); 
 				mv.visitCode();
@@ -149,7 +149,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
 			mv.visitCode();
 			mv.visitVarInsn(Opcodes.ALOAD, 0);
-			mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object","<init>", "()V");
+			mv.visitMethodInsn(Opcodes.INVOKESPECIAL, "plaid/fastruntime/reference/AbstractPlaidJavaDispatch","<init>", "()V");
 			mv.visitInsn(Opcodes.RETURN);
 			mv.visitMaxs(0,0);
 			mv.visitEnd();
@@ -386,7 +386,7 @@ public class JavaDispatchGenerator implements Opcodes {
 			mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Double", "<init>", "(D)V");
 		} else if (type.equals(Type.INT_TYPE) || type.equals(Type.SHORT_TYPE) || type.equals(Type.BYTE_TYPE)) {
 			mv.visitMethodInsn(INVOKESTATIC, "java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;");
-		} else if (type.equals(Type.LONG_TYPE) ) {//**** WARNING - lossy conversion for longs *****
+		} else if (type.equals(Type.LONG_TYPE) ) {
 			mv.visitTypeInsn(NEW, "java/lang/Long");
 			mv.visitInsn(DUP_X2);
 			mv.visitInsn(DUP_X2);
