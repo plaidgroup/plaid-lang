@@ -1,0 +1,191 @@
+package plaid.benchmarks.simulation.database;
+
+import plaid.collections.makeArray;
+import java.util.Random;
+
+method genRandom(rnd, n) {
+	val output = makeArray(n);
+	var i = 0;
+	nativeWhile{i < output.length()}{
+		output.set(i, i);
+		i = i + 1;
+	};
+	i = output.length() - 1;
+	nativeWhile{i > 0}{
+		val rand = (rnd.nextInt(i));
+		val temp = output.get(i);
+		output.set(i, output.get(rand));
+		output.set(rand, temp);
+		i = i - 1;
+	};
+	output;
+}
+
+
+
+state Database = {
+	var tree = new UninitBTree;
+
+	method startTransaction() {
+		this <- UnappliedTransaction;
+	}
+
+	method endTransaction() {
+		this.apply();
+		this <- AppliedTransaction;
+	}
+
+	method add(key, value) {
+		match (this) {
+			case UnappliedTransaction {
+				this.addAction(new AddAction {val key = key; val value = value;});
+			}
+			default {
+				unit.foo();
+			}
+		}
+	}
+
+	method delete(key) {
+		match (this) {
+			case UnappliedTransaction {
+				this.addAction(new DeleteAction {val key = key;});
+			}
+			default {
+				unit.foo();
+			}
+		}
+	}
+} with Transaction
+
+state Transaction {
+	var action = unit;
+}
+
+state UnappliedTransaction case of Transaction {
+ 
+	method addAction(action) {
+		match (this.action) {
+			case Unit {
+				this.action = action;
+			}
+			default {
+				this.action.next = action;
+				this.action = this.action.next;
+			}
+		}
+	}
+
+	method apply() {
+		var last = unit;
+		var cont = match (this.action) {
+			case Unit {
+				false;
+			}
+			default { true; }
+		};
+		nativeWhile{cont} {
+			this.action.apply(this.tree);
+			last = this.action;
+			this.action = this.action.next;
+			cont = match (this.action) {
+				case Unit {
+					false;
+				}
+				default { true; }
+			};
+		};
+		this.action = last;
+		this <- AppliedTransaction;
+	}
+}
+
+state AppliedTransaction case of Transaction {
+	method undo() {
+		val tree = this.tree;
+		var last = unit;
+		var cont = match (this.action) {
+			case Unit {
+				false;
+			}
+			default { true; }
+		};
+		nativeWhile{cont;} {
+			this.action.undo(tree);
+			last = this.action;
+			this.action = this.action.last;
+			cont = match (this.action) {
+				case Unit {
+					false;
+				}
+				default { true; }
+			};
+		};
+		this.action = last;
+	}
+}
+
+state Action {
+	var last = unit;
+	var next = unit;
+
+	method apply(tree);
+	method undo(tree);
+}
+
+state AddAction case of Action {
+	val key;
+	val value;
+
+	method apply(tree) {
+		tree.insert(this.key, this.value);
+	}
+
+	method undo(tree) {
+		tree.delete(this.key);
+	}
+}
+
+state DeleteAction case of Action {
+	val key;
+	var value = unit;
+
+	method apply(tree) {
+		this.value = tree.find(this.key);
+		tree.delete(this.key);
+	}
+
+	method undo(tree) {
+		tree.insert(this.key, this.value);
+	}
+}
+
+method benchmark() {
+	var rand = Random.new(2012);
+	var elems = genRandom(rand, 1000);
+	var db = new Database { var tree = new UninitBTree; } with UnappliedTransaction;
+
+	db.startTransaction();
+	var i = 0;
+	nativeWhile{i < elems.length()}{
+		db.add(elems.get(i), "Hello");
+		i = i + 1;
+	};
+	db.endTransaction();
+
+
+	var t = 0;
+	nativeWhile {t < 100}{
+		i = 0;
+		db.startTransaction();
+		var nSet = genRandom(rand, 100);
+		val offset = 0;//rand.nextInt(100000 - 1000);
+		nativeWhile{i < nSet.length()}{
+			db.delete(nSet.get(i) + offset);
+			i = i + 1;
+		};
+		db.endTransaction();
+		db.undo();
+		t = t + 1;
+	};
+}
