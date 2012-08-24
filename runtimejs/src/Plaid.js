@@ -373,6 +373,13 @@ var Plaid = (function() {
 			var obj = new Plaid.PlaidObject(Plaid.clone(this.getMetadata()));
 			obj.copyMembers(this);
 
+      // execute all callbacks on activation in order of tags
+      obj.tags().each(function(tag){
+        var callbackName = Plaid.callbackPrefixOnActivate + tag;
+        var result = true;
+        obj.executeMethodChain(callbackName);
+      });
+
 			return obj;
 		}
 
