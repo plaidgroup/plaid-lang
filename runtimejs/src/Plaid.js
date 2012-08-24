@@ -206,15 +206,15 @@ var Plaid = (function() {
 
 		/* append element(s) to the tail of this array (works like a bang method of concat) */
 		this.append = function() {
-			var a = this;
+			var self = this;
 			for(var i = 0; i < arguments.length; i++){
 				var arg = arguments[i];
 				if(arg instanceof Plaid.Array){
 					arg.each(function(elm){
-						a.push(elm);
+						self.push(elm);
 					});
 				} else {
-					a.push(arg);
+					self.push(arg);
 				}
 			}
 		}
@@ -479,13 +479,13 @@ var Plaid = (function() {
 			//check unique tags
 			state.checkUniqueTags("Error: Replace operation violates unique tags by containing tag $1 twice");
 
-			var s = this;
+			var self = this;
 			this.members().each(function(member){
-				s[member] = undefined;
+				self[member] = undefined;
 			});
 
 			state.members().each(function(member){
-				s.addMember(member, state[member]);
+				self.addMember(member, state[member]);
 			});
 
 			this.setMetadata(Plaid.clone(state.getMetadata()));
@@ -567,28 +567,28 @@ var Plaid = (function() {
 				md1.addWithEntry("", wm2);
 			}
 
-			var s = this;
+			var self = this;
 			//remove the members that need to be removed
 			remove.each(function(member) {
 				if(Plaid.isCallbackOnPassivate(member)){
-					var result = s.executeMethodChain(member);
-					if(result !== false && s[member.name]){
-						s[member]();
+					var result = self.executeMethodChain(member);
+					if(result !== false && self[member.name]){
+						self[member]();
 					}
 				}
-				s[member] = undefined;
+				self[member] = undefined;
 			});
 
 			//add the members that need to be added
 			add.each(function(member) {
-				s.addMember(member.name, state[member.name]);
+				self.addMember(member.name, state[member.name]);
 				if(Plaid.isCallback(member.name) && state[Plaid.keyword].prepend[member.name]){
-					s[Plaid.keyword].prepend[member.name] = state[Plaid.keyword].prepend[member.name].concat(s[Plaid.keyword].prepend[member.name]);
+					self[Plaid.keyword].prepend[member.name] = state[Plaid.keyword].prepend[member.name].concat(s[Plaid.keyword].prepend[member.name]);
 				}
 				if(Plaid.isCallbackOnActivate(member.name)){
-					var result = s.executeMethodChain(member.name);
-					if(result !== false && s[member.name]) {
-						s[member.name]();
+					var result = self.executeMethodChain(member.name);
+					if(result !== false && self[member.name]) {
+						self[member.name]();
 					}
 				}
 			});
@@ -622,8 +622,9 @@ var Plaid = (function() {
 				return true;
 			}
 
+      var self = this;
 			var prevented = chain.until(function(fn) {
-				var result = fn();
+				var result = fn(self);
 				if(result === false) {
 					return true;
 				}
@@ -835,9 +836,9 @@ var Plaid = (function() {
 			}
 
 			if (md.entry().tag === ""){
-				var t = this;
+				var self = this;
 				md.children().each(function(child) {
-					t.stateChangeFindParent(child, returnItem, hierarchy);
+					self.stateChangeFindParent(child, returnItem, hierarchy);
 				});
 
 				//the members for this tag, if there are any, were added using the with operator
@@ -860,7 +861,7 @@ var Plaid = (function() {
 
 		/* Once a matching tag has been found, descends the two trees to find any tags that do not match, make appropriate modifications to state */
 		this.stateChangeDescend = function(md, returnItem, hierarchy) {
-			var t = this;
+			var self = this;
 			//becuase this function has been called, we know that this.entry().tag is equal to md.entry().tag
 			if (this.entry().isWithEntry()){
 				hierarchy = new Plaid.Array(this.entry().tag);
@@ -881,7 +882,7 @@ var Plaid = (function() {
 
 			/* the nested for loops below continue matching and-states, descending down matching ones; if one of md's and-states is not found in this, it is ignored; or-states are also matched if the same or-state is present in both this and md */
 			md.children().each(function(childOfMd, idx) {
-				t.children().until(function(childOfThis) {
+				self.children().until(function(childOfThis) {
 					if(childOfMd.entry().tag === childOfThis.entry().tag){
 						foundMatches.set(idx, true);
 						returnItem = childOfThis.stateChangeDescend(childOfMd, returnItem, hierarchy);
@@ -892,7 +893,7 @@ var Plaid = (function() {
 			});
 
 			/* there could also exist differing or-states in md1 and md2; if an or-state needs to be changed, it is identified below */
-			var children = t.children();			
+			var children = self.children();			
 			var result = md.children().until(function(childOfMd) {
 				return children.until(function(childOfThis, idx) {
 					if(childOfMd.entry().type === childOfThis.entry().type
@@ -900,7 +901,7 @@ var Plaid = (function() {
 						 && childOfMd.entry().tag !== childOfThis.entry().tag){
 						returnItem.membersToAdd.append(childOfMd.membersHierarchy(hierarchy));
 						returnItem.membersToRemove.append(childOfThis.members());
-						t.setChild(idx, Plaid.clone(childOfMd));
+						self.setChild(idx, Plaid.clone(childOfMd));
 						
 						/* if an or-state was found that needs to be changed, it is not possible for an or-state to have to be added, since a state can only be in one or state at any given time */
 						return true;
@@ -916,7 +917,7 @@ var Plaid = (function() {
 			//it is also possible that an or-state must be added (is not present in md1, but is present in md2); this would not be found above
 			var result = md.children().until(function(child, idx){
 				if(foundMatches.get(idx) == false) {
-					t.addChild(Plaid.clone(child));
+					self.addChild(Plaid.clone(child));
 					returnItem.membersToAdd.append(child.membersHierarchy(hierarchy));
 					return true;
 				}
