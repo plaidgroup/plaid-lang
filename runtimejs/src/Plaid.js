@@ -372,7 +372,7 @@ var Plaid = (function() {
 
 			var obj = new Plaid.PlaidObject(Plaid.clone(this.getMetadata()));
 			obj.copyMembers(this);
-			
+
 			return obj;
 		}
 
@@ -570,30 +570,35 @@ var Plaid = (function() {
 			}
 
 			var self = this;
+      var removeMembers = new Plaid.Array();
 			//remove the members that need to be removed
 			remove.each(function(member) {
 				if(Plaid.isCallbackOnPassivate(member)){
-					var result = self.executeMethodChain(member);
-					if(result !== false && self[member.name]){
-						self[member]();
-					}
+          self.executeMethodChain(member);
 				}
-				self[member] = undefined;
+				//self[member] = undefined;
+        removeMembers.push(member);
 			});
+      
+      removeMembers.each(function(member) {
+        self[member] = undefined;
+      });
 
 			//add the members that need to be added
+      var callbacks = new Plaid.Array();
 			add.each(function(member) {
 				self.addMember(member.name, state[member.name]);
 				if(Plaid.isCallback(member.name) && state[Plaid.keyword].prepend[member.name]){
-					self[Plaid.keyword].prepend[member.name] = state[Plaid.keyword].prepend[member.name].concat(s[Plaid.keyword].prepend[member.name]);
+					self[Plaid.keyword].prepend[member.name] = state[Plaid.keyword].prepend[member.name].concat(self[Plaid.keyword].prepend[member.name]);
 				}
 				if(Plaid.isCallbackOnActivate(member.name)){
-					var result = self.executeMethodChain(member.name);
-					if(result !== false && self[member.name]) {
-						self[member.name]();
-					}
+          callbacks.push(member.name);
 				}
 			});
+
+      callbacks.each(function(callback){
+        self.executeMethodChain(callback);
+      });
 		}
 		
 		/* enacts state change according to current Plaid semantics (June 2011), equivalent to this <- state ;  transitions the object on which it is called to the state that is passed in; this method handles state transition when only a member and not a state is passed in */
@@ -619,22 +624,22 @@ var Plaid = (function() {
 		/* call functions in call back chain; stop calling when a function returns other than false */
 		this.executeMethodChain = function(name) {
 			var chain = this[Plaid.keyword].prepend[name];
-			
-			if(chain == undefined){
-				return true;
-			}
+      var prevented = false;
 
-      var self = this;
-			var prevented = chain.until(function(fn) {
-				var result = fn(self);
-				if(result === false) {
-					return true;
-				}
-				return false;
-			});
+			if(chain) {
+        var self = this;
+			  prevented = chain.until(function(fn) {
+				  var result = fn(self);
+				  if(result === false) {
+					  return true;
+				  }
+				  return false;
+			  });
+      }
 
-			/* "return false" means "prevent next method call"  */
-			return !prevented;
+      if(prevented !== false && this[name]) {
+        this[name]();
+      }
 		}
 	});
 
@@ -863,7 +868,6 @@ var Plaid = (function() {
 
 		/* Once a matching tag has been found, descends the two trees to find any tags that do not match, make appropriate modifications to state */
 		this.stateChangeDescend = function(md, returnItem, hierarchy) {
-			var self = this;
 			//becuase this function has been called, we know that this.entry().tag is equal to md.entry().tag
 			if (this.entry().isWithEntry()){
 				hierarchy = new Plaid.Array(this.entry().tag);
@@ -883,6 +887,7 @@ var Plaid = (function() {
 			}
 
 			/* the nested for loops below continue matching and-states, descending down matching ones; if one of md's and-states is not found in this, it is ignored; or-states are also matched if the same or-state is present in both this and md */
+			var self = this;
 			md.children().each(function(childOfMd, idx) {
 				self.children().until(function(childOfThis) {
 					if(childOfMd.entry().tag === childOfThis.entry().tag){
