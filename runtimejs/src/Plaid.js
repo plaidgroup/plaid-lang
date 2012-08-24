@@ -3,6 +3,8 @@ var Plaid = (function() {
 		/* registered keyword for PlaidState and PlaidObject */
 		keyword: "__plaid__",
 		superclass: "__super__",
+    callbackPrefixOnActivate: "on",
+    callbackPrefixOnPassivate: "off", 
 		/* extend class */
 		extend:  function (s, c) {
 			function f(){};
@@ -113,10 +115,10 @@ var Plaid = (function() {
 			return this.isCallbackOnActivate(name) || this.isCallbackOnPassivate(name);
 		},
 		isCallbackOnActivate: function(name) {
-			return name.indexOf("on") == 0;
+			return name.indexOf(Plaid.callbackPrefixOnActivate) == 0;
 		},
 		isCallbackOnPassivate: function(name) {
-			return name.indexOf("off") == 0;
+			return name.indexOf(Plaid.callbackPrefixOnPassivate) == 0;
 		}
 	};
 
