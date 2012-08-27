@@ -8,12 +8,13 @@ import plaid.ast.stateTable.*;
 import plaid.scope.*;
 import plaid.typechecker.*;
 import plaid.optimizer.*;
+import java.lang.System;
 
 method plaidASTFromFile(fl) {
 	val fileObject = java.io.File.new(fl);
-    val input = java.io.FileInputStream.new(fileObject);
-   	val javaAST = plaid.compilerjava.ParserCore.parse(input, fileObject);
-    val translator = new ASTTranslator;
+	val input = java.io.FileInputStream.new(fileObject);
+	val javaAST = plaid.compilerjava.ParserCore.parse(input, fileObject);
+	val translator = new ASTTranslator;
 	val plaidAST = translator.translateAST(javaAST);
 	plaidAST;
 }
@@ -41,13 +42,24 @@ method printASTFromFile(fl) {
 	val plaidAST = plaidASTFromFile(fl);
 	plaidAST.accept(new plaid.ast.visitor.PrintVisitor);
 }
-    
+		
 method visitASTFromFile(visitor, visitorNew, fl) {
-    val plaidASTNew = plaidASTFromFile(fl);
-    var statesToInstantiate = plaidASTNew.accept(visitorNew);
-    visitor.setStates(statesToInstantiate);
-    val plaidAST = plaidASTFromFile(fl);
-    plaidAST.accept(visitor);
+	val plaidASTNew = plaidASTFromFile(fl);
+	var statesToInstantiate = plaidASTNew.accept(visitorNew);
+	visitor.setStates(statesToInstantiate);
+	val plaidAST = plaidASTFromFile(fl);
+	plaidAST.accept(visitor);
+}
+
+method visitASTFromFileList(visitor, newVisitor, filelist) {
+	filelist.do(fn(file) => {
+		val plaidASTNew = plaidASTFromFile(file);
+		visitor.setStates(plaidASTNew.accept(newVisitor));
+		val plaidAST = plaidASTFromFile(file);
+		System.out.println("--- " + file + " ---");
+		plaidAST.accept(visitor);
+		System.out.println("\n");
+	});
 }
 
 state PlaidCompiler{
@@ -120,7 +132,7 @@ method main(args) {
 		javaargs.add(x);
 	});
 	
-	var cc =  plaid.compilerjava.CompilerCore.parseParameters(javaargs);
+	var cc =	plaid.compilerjava.CompilerCore.parseParameters(javaargs);
 	var /*PlaidCompiler*/ plaidCompiler = new PlaidCompiler {var cc = cc; };
 	plaidCompiler.compile();
 }
