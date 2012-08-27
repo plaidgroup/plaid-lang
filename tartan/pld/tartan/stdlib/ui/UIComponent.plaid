@@ -1,0 +1,251 @@
+package tartan.stdlib.ui;
+
+//UIComponent.plaid
+state UIComponent {
+  var id = "";
+  var tag = "";
+  var jqnode; // = fn(id) => { jQuery("#" + id); };
+  var parent;
+  var children = Plaid.returnArray();
+  var root;
+
+  method onUIComponent(ctx) {
+    ctx.jqnode = ctx.createElement();  
+  }
+
+  method setParent(parent) {
+    this.parent = parent;
+    parent.addChild(this);
+  }
+
+  method addChild(child) {
+    this.children.push(child);
+    this.jqnode.append(child.jqnode);
+  }
+
+  method createElement() {
+    this.jqnode = jQuery("<" + this.tag + "/>");
+    if(this.id != "") {
+      this.jqnode.attr("id", this.id);
+    };
+
+    this.customizeElement();
+  }
+
+  method customizeElement() { this.jqnode; }
+
+  method clear() {
+    this.children = Plaid.returnArray();
+    this.jqnode.empty();
+  }
+}
+
+state Body case of UIComponent {
+  var tag = "body";
+
+  method createElement() {
+    this.root = this;
+    this.jqnode = jQuery("#body");
+  }
+}
+
+state BR case of UIComponent {
+  var tag = "br";
+}
+
+state Text case of UIComponent {
+  var tag = "span";
+  var text = "";
+
+  method customizeElement() {
+    this.jqnode.text(this.text);
+    this.jqnode;
+  }
+}
+
+state Box case of UIComponent {
+  var tag = "div";
+}
+
+//TextBox.plaid
+state TextBox case of UIComponent {
+  var tag = "input";
+  var text = "";
+  var min = -1;
+  var max = -1;
+
+  method customizeElement() {
+    this.jqnode.attr("type", "text");
+    if(this.min >= 0) {
+      this.jqnode.attr("min", this.min);
+    };
+    if(this.max >= 0) {
+      this.jqnode.attr("max", this.max);
+    };
+
+    this <- EmptyTextBox;
+
+    var self = this;
+    var f = fn() => { self.update(); };
+
+    this.jqnode.bind("keyup", f);
+    this.jqnode.bind("focusout", f);
+    window.setInterval(f, 100);
+
+    this.jqnode;
+  }
+
+  method update() {
+    var elm = document.getElementById(this.id);
+    if(this.jqnode != undefined){
+      this.text = this.jqnode.get(0).value;
+      ifElse (this.text.length > 0) {
+        ifElse (this.min <= this.text.length && this.text.length <= this.max){
+          this <- ValidTextBox;
+        }{
+          this <- InvalidTextBox;
+        };
+      }{
+        this <- EmptyTextBox;
+      };
+    };
+  }
+}
+
+state EmptyTextBox case of TextBox {
+  method onEmptyTextBox() {}
+  method offEmptyTextBox() {}
+}
+
+state InvalidTextBox case of TextBox {
+  method onInvalidTextBox(){}
+  method offInvalidTextBox(){}
+}
+
+state ValidTextBox case of TextBox {
+  method onValidTextBox(){}
+  method offValidTextBox(){}
+}
+
+
+//Button.plaid
+state Button case of UIComponent {
+  var tag = "button";
+  var text = "";
+  var click = fn() => {};
+
+  method customizeElement() {
+    this.jqnode.text(this.text);
+
+    var self = this;
+    this.jqnode.hover(fn()=>{self.mouseenter();}, fn()=>{self.mouseout();});
+    this.jqnode.mousedown(fn()=>{self.mousedown();});
+    this.jqnode.mouseup(fn()=>{self.mouseup();});
+    this.jqnode.keypress(fn(event)=>{
+      if ((event.which && event.which == 13) || (event.keyCode && event.keyCode == 13)) {
+          self.mousedown();
+          self.mouseup();
+      }
+    });
+
+    this <- NormalButton;
+
+    this.jqnode;
+  }
+
+  method mouseenter() {
+    this <- HoveredButton;
+  }
+
+  method mousedown() {
+    this <- PressedButton;
+  }
+
+  method mouseup() {
+    match(this) {
+      case PressedButton {
+        this.click(this);
+        this <- HoveredButton;
+      }
+    }
+  }
+
+  method mouseout() {
+    this <- NormalButton;
+  }
+}
+
+state HoveredButton case of Button {
+  method onHoveredButton() {}
+  method offHoveredButton() {}
+}
+
+state PressedButton case of Button {
+  method onPressedButton() {}
+  method offPressedButton() {}
+}
+
+state NormalButton case of Button {
+  method onNormalButton() {}
+  method offNormalButton() {}
+}
+
+
+//DropDownList.plaid
+state DropDownList case of UIComponent {
+  var options = Plaid.returnArray();
+  var beforeChange = fn() => {};
+  var afterChange = fn() => {};
+
+  method initialize(parent) {
+    parent.addChild(this);
+    this.jqnode.bind("change", fn(evt)=>{
+      this.beforeChange();
+ 
+      var v = evt.target.value;
+      this.options.each(fn(o) =>{
+        match(o) {
+          case SelectedOption {
+            o <- UnselectedOption;
+          }
+        };
+        if(o.value == v){
+          o <- SelectedOption;
+        };
+      });
+  
+    this.afterChange();     
+    });
+  }
+
+  method addOption(option){
+    this.options.push(option);
+  }
+}
+
+state Option case of UIComponent {
+  var name;
+  var value;
+
+  method initialize(parent) {
+    parent.addOption(this);
+  }
+}
+
+state SelectedOption case of Option {
+  method onSelectedOption(){}
+  method offSelectedOption(){}
+}
+
+state UnselectedOption case of Option {
+  method onUnselectedOption(){}
+  method offUnselectedOption(){}
+}
+
+//DatePicker.plaid
+state DatePicker case of UIComponent{
+  method initialize(parent) {
+    this.jqnode.datepicker();
+  }
+}
+
