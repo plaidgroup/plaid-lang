@@ -1,0 +1,137 @@
+require 'rubygems'
+require 'yaml'
+require 'erb'
+
+def absolute_path(path, relative_to_rakefile=true)
+  relative_to_rakefile ? File.expand_path(path, File.dirname(__FILE__)) : File.expand_path(path)
+end
+
+def is_win
+   if(RUBY_PLATFORM.downcase =~ /mswin(?!ce)|mingw|cygwin|bccwin/)
+     return true
+   else
+     return false
+   end
+end
+
+class FileList
+  def exec_files
+    self.each_with_index do |f, i|
+      puts "#{i+1} : run #{f} at #{Time.now}"
+      yield f
+    end
+  end
+end
+
+TARTAN_BIN = absolute_path("bin/tartan")
+TARTAN_LIB = [absolute_path("pld/tartan/stdlib/**/*.plaid")]
+
+DEFAULT_FIXTURES = absolute_path("fixtures")
+DEFAULT_OUTPUT = absolute_path("output")
+FILESET_YML = absolute_path("fileset.yml")
+FILESET_YML_TEMPLATE = absolute_path("template/fileset.yml")
+FILESETS = YAML.load(open(FILESET_YML)) if File.exist? FILESET_YML
+DEFAULT_FILESET = "todolist"
+
+PLAID_HOME = absolute_path("..")
+PLAID_RUNTIME = absolute_path("#{PLAID_HOME}/runtimejs/src/Plaid.js")
+PLAID_OUTPUT = absolute_path("#{PLAID_HOME}/../compiledJavaScript")
+TARTAN_LIB_OUTPUT = absolute_path("#{PLAID_OUTPUT}/tartan/stdlib/*.js")
+PACKAGES = ["tartan.structure", "tartan.style"]
+PLAID_LIBS = [
+  "#{PLAID_HOME}/ast/bin",
+  "#{PLAID_HOME}/parser/bin",
+  "#{PLAID_HOME}/runtime/bin",
+  "#{PLAID_HOME}/stdlib/bin",
+  "#{PLAID_HOME}/asttranslator/bin",
+  "#{PLAID_HOME}/codegenerator/bin",
+  "#{PLAID_HOME}/compilerjava/bin",
+  "#{PLAID_HOME}/compilerjava/json_simple-1.1.jar"
+]
+JAVA_PATH_SEPARATOR = is_win ? ";" : ":"
+
+HTML_TEMPLATE = absolute_path("template/html.erb")
+HTML_OUTPUT = absolute_path("html")
+
+task :default => :compile
+task :prepare => [:build_plaid, :build_codegenerator, :make_fileset, :make_output_folder]
+task :compile => [:tartan, :plaidc]
+
+desc "compile tartan into Plaid"
+task :tartan do
+  base = ENV["ROOT"] ? absolute_path(ENV["ROOT"], false) : DEFAULT_FIXTURES
+  fixtures = FileList.new(base + "/**/*")
+  raise RuntimeError, "no file found : ROOT=#{ENV['ROOT']}" if fixtures.size == 0
+
+  output = ENV["OUTPUT"] ? absolute_path(ENV["OUTPUT"], false) : DEFAULT_OUTPUT
+  FileUtils.mkdir_p(output) unless File.exist?(output)
+
+  fixtures.exec_files do |file|
+    sh "#{TARTAN_BIN} -o #{output} #{file}"
+  end
+end
+
+desc "compile plaid into JavaScript"
+task :plaidc do
+  name = ENV["FILESET"] || DEFAULT_FILESET
+  fileset = FILESETS[name]
+  raise RuntimeError, "unknown name of file set : FILESET=#{ENV['FILESET']}" unless fileset
+
+  filelist = FileList.new(TARTAN_LIB.concat(fileset.map{|f|absolute_path(f)}))
+
+  sh "cd #{PLAID_HOME}/codegenerator; java -Xmx2048m -classpath .:#{PLAID_LIBS.join(JAVA_PATH_SEPARATOR)} plaid.codegenJavascript.tests.main #{filelist.join(' ')}"
+
+  dirs = PACKAGES.map{|pkg| PLAID_OUTPUT + "/" + pkg.gsub(/\./, "/")}
+  tartan_js_list = fileset.map{|file|File.basename(file).sub(/plaid$/, "js")}.map do |file|
+    dirs.find{|dir|Dir::entries(dir).include?(file)} + "/" + file
+  end
+
+  js_files = FileList.new(TARTAN_LIB_OUTPUT).concat(tartan_js_list)
+  js_files.unshift(PLAID_RUNTIME)
+
+  html_file = "#{HTML_OUTPUT}/#{name}.html"
+  exit if File.exist? html_file
+  mkdir_p(HTML_OUTPUT)
+  open(html_file, "w") do |dest|
+    dest.write ERB.new(open(HTML_TEMPLATE).read, nil, '-').result(binding)
+  end
+end
+
+desc "run RSpec"
+task :spec do
+  sh "rspec"
+end
+
+desc "build plaid"
+task :build_plaid do
+  sh "ant -f #{PLAID_HOME}/tests/build.xml build"
+end
+
+desc "build codegenerator of Plaid"
+task :build_codegenerator do
+  sh "ant -f #{PLAID_HOME}/codegenerator/build.xml"
+end
+
+desc "create #{File.basename(FILESET_YML)} from template if not exist"
+task :make_fileset do
+  sh "cp #{FILESET_YML_TEMPLATE} #{FILESET_YML}" unless File.exist? FILESET_YML
+end
+
+desc "create #{File.basename(PLAID_OUTPUT)} to put generated files"
+task :make_output_folder do
+  sh "mkdir #{PLAID_OUTPUT}" unless File.exist? PLAID_OUTPUT
+end
+
+desc "test"
+task :test do
+  tartan_files = FILESETS[DEFAULT_FILESET]
+  dirs = PACKAGES.map{|pkg| PLAID_OUTPUT + "/" + pkg.gsub(/\./, "/")}
+  tartan_files.map!{|file|File.basename(file).sub(/plaid$/, "js")}.map! do |file|
+    dirs.find{|dir|Dir::entries(dir).include?(file)} + "/" + file
+  end
+  fileset = FileList.new(TARTAN_LIB_OUTPUT).concat(tartan_files)
+  fileset.unshift(PLAID_RUNTIME)
+
+  mkdir_p(HTML_OUTPUT)
+  puts ERB.new(open(HTML_TEMPLATE).read, nil, '-').result(binding)
+end

@@ -1,0 +1,10 @@
+TAB_SIZE = 4
+
+ASSIGNMENT = ":"
+STATE_SEPARATOR = ","
+CASE_DECL = "case"
+PRIMARY_STATE_DECL = "union"
+
+L_PLAID_LITERAL = "{"
+R_PLAID_LITERAL = "}"
+
